@@ -1745,7 +1745,7 @@ SELECT * FROM json_data;
 pk	id	jd	td	gcol	gcol2	gcol3	gcol4
 1	10	{"a": "a"}	characters	15	0	[10, {"a": "a"}, "characters", 15, 0]	{"10": {"a": "a"}, "15": "characters"}
 2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
-3	30	[{"a": "a"}, {"b": "abcd"}]	words	42	0	[30, [{"a": "a"}, {"b": "abcd"}], "words", 42, 0]	{"30": [{"a": "a"}, {"b": "abcd"}], "42": "words"}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
 4	40	{"key": "hello"}	letters	45	24	[40, {"key": "hello"}, "letters", 45, 24]	{"40": {"key": "hello"}, "45": "letters"}
 5	50	{"key": "hello"}	strings	66	45	[50, {"key": "hello"}, "strings", 66, 45]	{"50": {"key": "hello"}, "66": "strings"}
 SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
@@ -1777,7 +1777,7 @@ SELECT * FROM json_data;
 pk	id	jd	td	gcol	gcol2	gcol3	gcol4
 1	10	{"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	characters	47	0	[10, {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "characters", 47, 0]	{"10": {"a": "a", "key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "47": "characters"}
 2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
-3	30	[{"a": "a"}, {"b": "abcd"}]	words	42	0	[30, [{"a": "a"}, {"b": "abcd"}], "words", 42, 0]	{"30": [{"a": "a"}, {"b": "abcd"}], "42": "words"}
+3	30	[{"a": "a"}, {"b": "abcd"}]	words	44	2	[30, [{"a": "a"}, {"b": "abcd"}], "words", 44, 2]	{"30": [{"a": "a"}, {"b": "abcd"}], "44": "words"}
 4	40	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	letters	45	8	[40, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "letters", 45, 8]	{"40": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "45": "letters"}
 5	50	{"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}	strings	66	29	[50, {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "strings", 66, 29]	{"50": {"key": "[\"h\",\"e\",\"l\",\"l\",\"o\"]"}, "66": "strings"}
 SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;

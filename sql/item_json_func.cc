@@ -27,6 +27,7 @@
 #include "current_thd.h"           // current_thd
 #include "item_cmpfunc.h"          // Item_func_like
 #include "item_subselect.h"
+#include "json_diff.h"
 #include "json_dom.h"
 #include "json_path.h"
 #include "m_string.h"
@@ -37,7 +38,6 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"      // Prealloced_array
 #include "psi_memory_key.h"        // key_memory_JSON
-#include "scope_guard.h"           // Scope_guard
 #include "sql_class.h"             // THD
 #include "sql_const.h"
 #include "sql_exception_handler.h" // handle_std_exception
@@ -2537,37 +2537,50 @@ static bool clone_without_autowrapping(Json_path *source_path,
 }
 
 
-bool Item_func_json_set_replace::mark_for_partial_update(Field *field)
+void Item_json_func::mark_for_partial_update(const Field_json *field)
 {
-  /*
-    This JSON_SET or JSON_REPLACE expression might be used for partial
-    update if the first argument is a JSON column which is the same as
-    the target column of the update operation, or if the first
-    argument is another JSON_SET or JSON_REPLACE expression which has
-    the target column as its first argument.
-  */
-  Item *item= args[0];
-  if ((item->type() == FIELD_ITEM &&
-       field->type() == MYSQL_TYPE_JSON &&
-       down_cast<Item_field*>(item)->field == field) ||
-      !item->mark_for_partial_update(field))
-  {
-    m_partial_update_column= down_cast<Field_json*>(field);
-    return false;
-  }
+  DBUG_ASSERT(can_use_in_partial_update());
+  m_partial_update_column= field;
 
-  return true;
+  if (args[0]->type() == FIELD_ITEM)
+  {
+    DBUG_ASSERT(down_cast<Item_field*>(args[0])->field == field);
+  }
+  else
+  {
+    down_cast<Item_json_func*>(args[0])->mark_for_partial_update(field);
+  }
 }
 
 
-Field_json *Item_func_json_set_replace::get_partial_update_column() const
+bool Item_json_func::supports_partial_update(const Field_json *field) const
 {
-  if (m_partial_update_column != nullptr &&
-      m_partial_update_column->table->
-      is_partial_update_column(m_partial_update_column))
-    return m_partial_update_column;
+  if (!can_use_in_partial_update())
+    return false;
 
-  return nullptr;
+  /*
+    This JSON_SET, JSON_REPLACE or JSON_REMOVE expression might be used for
+    partial update if the first argument is a JSON column which is the same as
+    the target column of the update operation, or if the first argument is
+    another JSON_SET, JSON_REPLACE or JSON_REMOVE expression which has the
+    target column as its first argument.
+  */
+  if (args[0]->type() == FIELD_ITEM)
+    return down_cast<Item_field*>(args[0])->field == field;
+
+  return args[0]->supports_partial_update(field);
+}
+
+
+static void disable_logical_diffs(const Field_json *field)
+{
+  field->table->disable_logical_diffs_for_current_row(field);
+}
+
+
+static void disable_binary_diffs(const Field_json *field)
+{
+  field->table->disable_binary_diffs_for_current_row(field);
 }
 
 
@@ -2578,28 +2591,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 {
   const THD *thd= current_thd;
 
-  /*
-    Check if this function is called from an UPDATE statement in a way that
-    could make partial update possible. For example:
-    UPDATE t SET json_col = JSON_REPLACE(json_col, '$.pet', 'rabbit')
-  */
-  Field_json *json_field= get_partial_update_column();
-  bool partial_update= json_field != nullptr;
-
-  /*
-    Disable partial update of this column if we return without having been able
-    to perform a partial update.
-
-    If we have successfully performed partial update, we should call
-    partial_update_guard.commit() to make sure partial update stays enabled. In
-    all other cases, where we return without performing partial update, the
-    guard will disable partial update of this column for the current row.
-  */
-  auto partial_update_guard=
-    create_scope_guard([&json_field]() {
-        if (json_field != nullptr)
-          json_field->table->disable_partial_update_for_current_row(json_field);
-      });
+  // Should we collect binary or logical diffs? We'll see later...
+  bool binary_diffs= false;
+  bool logical_diffs= false;
 
   try
   {
@@ -2608,24 +2602,31 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &docw))
       return error_json();
 
-    if (args[0]->null_value)
+    /*
+      Check if this function is called from an UPDATE statement in a way
+      that could make partial update possible. For example:
+      UPDATE t SET json_col = JSON_REPLACE(json_col, '$.pet', 'rabbit')
+
+      If partial update was disabled for this column while evaluating the
+      first argument, don't attempt to perform partial update here.
+    */
+    TABLE *table= nullptr;
+    if (m_partial_update_column != nullptr)
     {
-      null_value= true;
-      return false;
+      table= m_partial_update_column->table;
+      binary_diffs= table->is_binary_diff_enabled(m_partial_update_column);
+      logical_diffs= table->is_logical_diff_enabled(m_partial_update_column);
     }
 
-    /*
-      If partial update was disabled for this column while evaluating the first
-      argument, don't attempt to perform partial update here.
-    */
-    partial_update=
-      partial_update && json_field->table->is_partial_update_column(json_field);
+    if (args[0]->null_value)
+      goto return_null;
 
     String *partial_update_buffer= nullptr;
-    if (partial_update)
+    if (binary_diffs)
     {
-      partial_update_buffer= json_field->table->get_partial_update_buffer();
+      partial_update_buffer= table->get_partial_update_buffer();
 
+      // Reset the buffer in the innermost call.
       if (args[0]->type() == FIELD_ITEM)
         partial_update_buffer->length(0);
     }
@@ -2636,10 +2637,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         return error_json();
       Json_path *current_path= m_path_cache.get_path(i);
       if (current_path == nullptr)
-      {
-        null_value= true;
-        return false;
-      }
+        goto return_null;
 
       // Clone the path, stripping off redundant auto-wrapping.
       if (clone_without_autowrapping(current_path, &m_path, &docw))
@@ -2653,20 +2651,29 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                                 &valuew))
         return error_json();
 
-      if (partial_update)
+      if (binary_diffs)
       {
-        if (!docw.attempt_partial_update(thd, json_field, m_path, &valuew,
-                                         !m_json_set, partial_update_buffer))
+        bool partially_updated= false;
+        bool replaced_path= false;
+        if (docw.attempt_binary_update(m_partial_update_column, m_path, &valuew,
+                                       !m_json_set, partial_update_buffer,
+                                       &partially_updated, &replaced_path))
+          return error_json();                  /* purecov: inspected */
+
+        if (partially_updated)
         {
+          if (logical_diffs && replaced_path)
+            table->add_logical_diff(m_partial_update_column, m_path,
+                                    enum_json_diff_operation::REPLACE, &valuew);
           /*
             Partial update of the binary value was successful, and docw has
             been updated accordingly. Go on to updating the next path.
           */
           continue;
         }
-        if (thd->is_error())
-          return error_json();                  /* purecov: inspected */
-        partial_update= false;
+
+        binary_diffs= false;
+        disable_binary_diffs(m_partial_update_column);
       }
 
       // Need a DOM to be able to manipulate arrays and objects
@@ -2710,10 +2717,23 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         {
           if (hit->json_type() == enum_json_type::J_ARRAY)
           {
+            /*
+              The array element was not found, so either prepend or
+              append the new value.
+            */
             Json_array *arr= down_cast<Json_array *>(hit);
             size_t pos= leg->first_array_index(arr->size()).position();
             if (arr->insert_alias(pos, valuew.clone_dom(thd)))
               return error_json();            /* purecov: inspected */
+
+            if (logical_diffs)
+            {
+              m_path.append(leg);
+              table->add_logical_diff(m_partial_update_column, m_path,
+                                      enum_json_diff_operation::INSERT,
+                                      &valuew);
+              m_path.pop();
+            }
           }
           else
           {
@@ -2744,12 +2764,28 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             if (m_path.leg_count() == 0) // root
             {
               docw= Json_wrapper(newarr);
+
+              // No point in partial update when we replace the entire document.
+              if (logical_diffs)
+              {
+                disable_logical_diffs(m_partial_update_column);
+                logical_diffs= false;
+              }
             }
             else
             {
               Json_dom *parent= hit->parent();
               DBUG_ASSERT(parent);
               parent->replace_dom_in_container(hit, newarr);
+
+              if (logical_diffs)
+              {
+                Json_wrapper array_wrapper(newarr);
+                array_wrapper.set_alias();
+                table->add_logical_diff(m_partial_update_column, m_path,
+                                        enum_json_diff_operation::REPLACE,
+                                        &array_wrapper);
+              }
             }
           }
         }
@@ -2759,6 +2795,14 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           Json_object *o= down_cast<Json_object *>(hit);
           if (o->add_clone(leg->get_member_name(), valuew.to_dom(thd)))
             return error_json();              /* purecov: inspected */
+
+          if (logical_diffs)
+          {
+            m_path.append(leg);
+            table->add_logical_diff(m_partial_update_column, m_path,
+                                    enum_json_diff_operation::INSERT, &valuew);
+            m_path.pop();
+          }
         }
       }
       else
@@ -2773,6 +2817,13 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           if (!dom)
             return error_json();              /* purecov: inspected */
           docw= Json_wrapper(dom);
+
+          // No point in partial update when we replace the entire document.
+          if (logical_diffs)
+          {
+            disable_logical_diffs(m_partial_update_column);
+            logical_diffs= false;
+          }
         }
         else
         {
@@ -2780,6 +2831,10 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           if (!dom)
             return error_json();              /* purecov: inspected */
           parent->replace_dom_in_container(child, dom);
+
+          if (logical_diffs)
+            table->add_logical_diff(m_partial_update_column, m_path,
+                                    enum_json_diff_operation::REPLACE, &valuew);
         }
       } // if: found 1 else more values
     } // do: functions argument list run-though
@@ -2795,10 +2850,19 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     /* purecov: end */
   }
 
-  if (partial_update)
-    partial_update_guard.commit();
-
   null_value= false;
+  return false;
+
+return_null:
+  /*
+    When we return NULL, there is no point in doing partial update, as the
+    entire document changes anyway. Disable binary and logical diffs.
+  */
+  if (binary_diffs)
+    disable_binary_diffs(m_partial_update_column);
+  if (logical_diffs)
+    disable_logical_diffs(m_partial_update_column);
+  null_value= true;
   return false;
 }
 
@@ -3280,12 +3344,6 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
 }
 
 
-Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos,
-                                             PT_item_list *a)
-  : Item_json_func(thd, pos, a)
-{}
-
-
 bool Item_func_json_remove::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3294,12 +3352,37 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
   uint32  path_count= arg_count - 1;
   null_value= false;
 
+  // Should we collect binary or logical diffs? We'll see later...
+  bool binary_diffs= false;
+  bool logical_diffs= false;
+  TABLE *table= nullptr;
+
   try
   {
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper))
       return error_json();
+
+    /*
+      Check if this function is called from an UPDATE statement in a way that
+      could make partial update possible. For example:
+      UPDATE t SET json_col = JSON_REMOVE(json_col, '$.name')
+
+      If partial update was disabled for this column while evaluating the
+      first argument, don't attempt to perform partial update here.
+    */
+    if (m_partial_update_column != nullptr)
+    {
+      table= m_partial_update_column->table;
+      binary_diffs= table->is_binary_diff_enabled(m_partial_update_column);
+      logical_diffs= table->is_logical_diff_enabled(m_partial_update_column);
+    }
+
     if (args[0]->null_value)
     {
+      if (binary_diffs)
+        disable_binary_diffs(m_partial_update_column);
+      if (logical_diffs)
+        disable_logical_diffs(m_partial_update_column);
       null_value= true;
       return false;
     }
@@ -3310,6 +3393,10 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
         return error_json();
       if (m_path_cache.get_path(path_idx + 1) == nullptr)
       {
+        if (binary_diffs)
+          disable_binary_diffs(m_partial_update_column);
+        if (logical_diffs)
+          disable_logical_diffs(m_partial_update_column);
         null_value= true;
         return false;
       }
@@ -3336,47 +3423,85 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 
   // good document, good paths. do some work
 
-  // no binary support for removal. must convert to a dom.
-  Json_dom *dom= wrapper.to_dom(current_thd);
+  Json_dom *dom= nullptr;
+  String *partial_update_buffer= nullptr;
+  if (binary_diffs)
+  {
+    DBUG_ASSERT(!wrapper.is_dom());
+    partial_update_buffer= table->get_partial_update_buffer();
+    // Reset the buffer in the innermost call.
+    if (args[0]->type() == FIELD_ITEM)
+      partial_update_buffer->length(0);
+  }
+  else
+  {
+    // If we cannot do binary update, let's work on the DOM instead.
+    dom= wrapper.to_dom(current_thd);
+    if (dom == nullptr)
+      return error_json();                    /* purecov: inspected */
+  }
 
   // remove elements identified by the paths, one after the other
   Json_dom_vector hits(key_memory_JSON);
+  Json_path_clone path;
   for (uint path_idx= 0; path_idx < path_count; ++path_idx)
   {
-    Json_path *path= m_path_cache.get_path(path_idx + 1);
-    hits.clear();
-
-    // now find the matches
-    if (dom->seek(*path, &hits, true, false))
+    if (clone_without_autowrapping(m_path_cache.get_path(path_idx + 1),
+                                   &path, &wrapper))
       return error_json();                    /* purecov: inspected */
 
-    // now remove matches
-    for (Json_dom_vector::iterator it= hits.begin(); it != hits.end(); ++it)
-    {
-      Json_dom *child= *it;
-      Json_dom *parent= child->parent();
+    // Cannot remove the root of the document.
+    if (path.leg_count() == 0)
+      continue;
 
-      // no parent means the root. the path is nonsense.
-      if (parent == NULL)
+    if (binary_diffs)
+    {
+      bool found_path= false;
+      if (wrapper.binary_remove(m_partial_update_column, path,
+                                partial_update_buffer, &found_path))
+        return error_json();                  /* purecov: inspected */
+      if (!found_path)
+        continue;
+    }
+    else
+    {
+      const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+      path.pop();
+      hits.clear();
+      if (dom->seek(path, &hits, false, true))
+        return error_json();                  /* purecov: inspected */
+      if (hits.empty())
+        continue;                               // nothing to do
+      path.append(last_leg);                    // restore the path
+
+      DBUG_ASSERT(hits.size() == 1);
+      Json_dom *parent= hits[0];
+      if (parent->json_type() == enum_json_type::J_OBJECT)
       {
+        auto object= down_cast<Json_object*>(parent);
+        if (last_leg->get_type() != jpl_member ||
+            !object->remove(last_leg->get_member_name()))
+          continue;
+      }
+      else if (parent->json_type() == enum_json_type::J_ARRAY)
+      {
+        auto array= down_cast<Json_array*>(parent);
+        if (last_leg->get_type() != jpl_array_cell)
+          continue;
+        Json_array_index idx= last_leg->first_array_index(array->size());
+        if (!idx.within_bounds() || !array->remove(idx.position()))
+          continue;
+      }
+      else
+      {
+        // Nothing to do. Only objects and arrays can contain values to remove.
         continue;
       }
+    }
 
-      enum_json_type type= parent->json_type();
-      DBUG_ASSERT((type == enum_json_type::J_OBJECT) ||
-                  (type == enum_json_type::J_ARRAY));
-
-      if (type == enum_json_type::J_OBJECT)
-      {
-        Json_object *object= down_cast<Json_object *>(parent);
-        object->remove(child);
-      }
-      else if (type == enum_json_type::J_ARRAY)
-      {
-        Json_array *array= down_cast<Json_array *>(parent);
-        array->remove(child);
-      }
-    } // end of loop through matches on current path
+    if (logical_diffs)
+      table->add_logical_diff(m_partial_update_column, path,
+                              enum_json_diff_operation::REMOVE, nullptr);
   }   // end of loop through all paths
 
   // wrapper still owns the pruned doc, so hand it over to result

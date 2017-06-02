@@ -3927,6 +3927,66 @@ SELECT trace->'$**.json_partial_update'
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 DROP TABLE t;
 
+--echo # Partial update on a DEFAULT NULL value in a NOT NULL column.
+CREATE TABLE t(j JSON NOT NULL);
+INSERT IGNORE INTO t VALUES ();
+UPDATE t SET j = JSON_SET(j, '$[0]', 'abc');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+UPDATE IGNORE t SET j = DEFAULT;
+UPDATE t SET j = JSON_REMOVE(j, '$[0]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
+--echo #               ASSERTION `M_PARTIAL_UPDATE_INFO == NULLPTR' FAIL
+--echo #
+CREATE TEMPORARY TABLE t(j JSON);
+INSERT INTO t VALUES ('["abc"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'de');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'f');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+DROP TABLE t;
+
+--echo # Partial update in JSON_REMOVE.
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(JSON_ARRAY('x', JSON_ARRAY(1, 2, 3, 'abc', 4, 5, 6))),
+(JSON_OBJECT('x', JSON_OBJECT('a', 'one',
+                              'b', 'two',
+                              'c', 'ABC',
+                              'defghijkl', 'm'),
+             'y', 'z')),
+('null'),
+(NULL);
+let $dump_table= SELECT *, JSON_STORAGE_SIZE(j) ss,
+                        JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+--eval $dump_table
+ANALYZE TABLE t;
+--let $query= UPDATE t SET j = JSON_REMOVE(j, '\$.x.b', '\$[1][2]')
+--eval EXPLAIN FORMAT=JSON $query
+--eval $query
+--eval $dump_table
+--echo # See that the free space can be reused by increasing
+--echo # the size of some values.
+UPDATE t SET j = JSON_REPLACE(j, '$[1][2]', 'xyzw', '$.x.c', 'XYZW');
+--eval $dump_table
+--echo # Nested calls
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[1][2]'), '$.x.c');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'xyz'), '$.x.a');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'zyx'), '$.x.a');
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);
+--eval $dump_table
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.b'), '$.x.a', 'efg');
+--eval $dump_table
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[0]', '$[0]', '$.x'),
+                             '$.b', '$.y', '$.z');
+--eval $dump_table
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

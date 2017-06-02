@@ -646,7 +646,8 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
     // Store the value in the JSON binary format.
     Field_json *f= down_cast<Field_json *>(field);
     Json_wrapper wr;
-    val_json(&wr);
+    if (val_json(&wr))
+      return TYPE_ERR_BAD_VALUE;
 
     if (null_value)
       return set_field_to_null(field);

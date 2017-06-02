@@ -2652,17 +2652,19 @@ protected:
 
 public:
   /**
-    Mark this expression as used in partial update, if it is on the right
-    form. For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
+    Check if this expression can be used for partial update of a given
+    JSON column.
+
+    For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
     can be used to partially update the column `foo`.
 
-    @param field   the target column of the update
-    @retval false  if successfully marked for partial update
-    @retval true   if this expression cannot be used for partial update
-                   of @a field
+    @param field  the JSON column that is being updated
+    @return true if this expression can be used for partial update,
+      false otherwise
   */
-  virtual bool mark_for_partial_update(Field *field MY_ATTRIBUTE((unused)))
-  { return true; }
+  virtual bool supports_partial_update(const Field_json *field
+                                       MY_ATTRIBUTE((unused))) const
+  { return false; }
 };
 
 

@@ -492,6 +492,8 @@ SELECT JSON_REMOVE
   '$.b[ 1 ].e'
 );
 
+SELECT JSON_REMOVE('123', '$.a');
+
 --echo # ----------------------------------------------------------------------
 --echo # Test of JSON_MERGE function.
 --echo # ----------------------------------------------------------------------
@@ -2499,6 +2501,11 @@ SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to 0]');
 SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last]');
 SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]');
 SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]');
+
+SELECT JSON_REMOVE('[1,2,3]', '$[last]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-1]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-2]');
+SELECT JSON_REMOVE('[1,2,3]', '$[last-3]');
 
 --error ER_INVALID_JSON_PATH
 SELECT JSON_EXTRACT('true', '$[2 to 1]');

@@ -1280,6 +1280,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     {
       mark_tmp_table_for_reuse(table);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 }

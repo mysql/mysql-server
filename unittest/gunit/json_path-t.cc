@@ -48,10 +48,6 @@ protected:
                         const std::string &expected, bool expected_null) const;
   void vet_wrapper_seek(const char *json_text, const char *path_text,
                         const std::string &expected, bool expected_null) const;
-  void vet_remove(Json_dom *parent, const Json_path &path,
-                  const std::string &expected, bool expect_match) const;
-  void vet_remove(const char *json_text, const char *path_text,
-                  const std::string& expected, bool expect_match) const;
 };
 
 /**
@@ -514,72 +510,6 @@ std::string format(Json_dom *dom)
   EXPECT_FALSE(wrapper.to_string(&buffer, true, "format"));
 
   return std::string(buffer.ptr(), buffer.length());
-}
-
-void JsonPathTest::vet_remove(Json_dom *parent,
-                              const Json_path &path,
-                              const std::string &expected,
-                              bool expect_match) const
-{
-  Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
-
-  parent->seek(path, &hits, true, false);
-
-  if (expect_match)
-  {
-    EXPECT_EQ(1U, hits.size());
-
-    if (hits.size() > 0)
-    {
-      const Json_dom *child= hits[0];
-
-      bool was_removed= false;
-      if (parent->json_type() == enum_json_type::J_OBJECT)
-      {
-        Json_object *object= (Json_object *) parent;
-        was_removed= object->remove(child);
-      }
-      else
-      {
-        Json_array *array= (Json_array *) parent;
-        was_removed= array->remove(child);
-      }
-
-      EXPECT_TRUE(was_removed);
-    }
-  }
-  else
-  {
-    EXPECT_EQ(0U, hits.size());
-  }
-
-  EXPECT_EQ(expected, format(parent));
-}
-
-
-void JsonPathTest::vet_remove(const char *json_text, const char *path_text,
-                              const std::string& expected, bool expect_match)
-  const
-{
-  const char *msg;
-  size_t msg_offset;
-
-  Json_dom *parent= Json_dom::parse(json_text, std::strlen(json_text),
-                                    &msg, &msg_offset);
-  Json_path path;
-  good_path_common(false, path_text, &path);
-  String  serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd(), parent, &serialized_form));
-  json_binary::Value parent_binary=
-    json_binary::parse_binary(
-                              serialized_form.ptr(), serialized_form.length());
-  Json_dom *reparsed_parent= Json_dom::parse(thd(), parent_binary);
-
-  vet_remove(parent, path, expected, expect_match);
-  vet_remove(reparsed_parent, path, expected, expect_match);
-
-  delete parent;
-  delete reparsed_parent;
 }
 
 /*
@@ -1424,20 +1354,27 @@ TEST_F(JsonPathTest, WrapperSeekTest)
 
 TEST_F(JsonPathTest, RemoveDomTest)
 {
-  // successful removes
   {
     SCOPED_TRACE("");
-    vet_remove("[100, 200, 300]",
-               "$[1]",
-               "[100, 300]",
-               true);
-  }
-  {
-    SCOPED_TRACE("");
-    vet_remove("{\"a\": 100, \"b\": 200, \"c\": 300}",
-               "$.b",
-               "{\"a\": 100, \"c\": 300}",
-               true);
+    std::string json_text= "[100, 200, 300]";
+    auto array= static_cast<Json_array*>(Json_dom::parse(json_text.data(),
+                                                         json_text.length(),
+                                                         nullptr, nullptr));
+    EXPECT_TRUE(array->remove(1));
+    EXPECT_EQ("[100, 300]", format(array));
+    EXPECT_FALSE(array->remove(2));
+    EXPECT_EQ("[100, 300]", format(array));
+    delete array;
+
+    json_text= "{\"a\": 100, \"b\": 200, \"c\": 300}";
+    auto object= static_cast<Json_object*>(Json_dom::parse(json_text.data(),
+                                                           json_text.length(),
+                                                           nullptr, nullptr));
+    EXPECT_TRUE(object->remove("b"));
+    EXPECT_EQ("{\"a\": 100, \"c\": 300}", format(object));
+    EXPECT_FALSE(object->remove("d"));
+    EXPECT_EQ("{\"a\": 100, \"c\": 300}", format(object));
+    delete object;
   }
 
   /*
@@ -1459,10 +1396,10 @@ TEST_F(JsonPathTest, RemoveDomTest)
   EXPECT_EQ((char *) "{\"a\": true, \"b\": false, \"c\": null}",
             format(&object1));
   SCOPED_TRACE("");
-  EXPECT_TRUE(object1.remove(null_literal1));
+  EXPECT_TRUE(object1.remove("c"));
   EXPECT_EQ((char *) "{\"a\": true, \"b\": false}",
             format(&object1));
-  EXPECT_FALSE(object1.remove(null_literal1));
+  EXPECT_FALSE(object1.remove("c"));
   EXPECT_EQ((char *) "{\"a\": true, \"b\": false}",
             format(&object1));
 
@@ -1494,9 +1431,9 @@ TEST_F(JsonPathTest, RemoveDomTest)
   array.append_alias(true_literal3);
   EXPECT_EQ((char *) "[true, false, null, true]", format(&array));
   EXPECT_EQ(&array, true_literal3->parent());
-  EXPECT_TRUE(array.remove(true_literal3));
+  EXPECT_TRUE(array.remove(3));
   EXPECT_EQ((char *) "[true, false, null]", format(&array));
-  EXPECT_FALSE(array.remove(true_literal3));
+  EXPECT_FALSE(array.remove(3));
   EXPECT_EQ((char *) "[true, false, null]", format(&array));
 
   // Json_array.insert_clone()
@@ -1513,9 +1450,9 @@ TEST_F(JsonPathTest, RemoveDomTest)
   array.insert_alias(3, false_literal3);
   EXPECT_EQ((char *) "[true, false, true, false, null]", format(&array));
   EXPECT_EQ(&array, false_literal3->parent());
-  EXPECT_TRUE(array.remove(false_literal3));
+  EXPECT_TRUE(array.remove(3));
   EXPECT_EQ((char *) "[true, false, true, null]", format(&array));
-  EXPECT_FALSE(array.remove(false_literal3));
+  EXPECT_FALSE(array.remove(4));
   EXPECT_EQ((char *) "[true, false, true, null]", format(&array));
 
   // Json_array.insert_clone()
@@ -1531,10 +1468,10 @@ TEST_F(JsonPathTest, RemoveDomTest)
             format(&array));
   EXPECT_EQ(&array, false_literal4->parent());
   EXPECT_EQ(&array, array[5]->parent());
-  EXPECT_TRUE(array.remove(false_literal4));
+  EXPECT_TRUE(array.remove(5));
   EXPECT_EQ((char *) "[true, false, true, null, true]",
             format(&array));
-  EXPECT_FALSE(array.remove(false_literal4));
+  EXPECT_FALSE(array.remove(5));
   EXPECT_EQ((char *) "[true, false, true, null, true]",
             format(&array));
 }

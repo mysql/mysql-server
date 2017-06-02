@@ -116,10 +116,12 @@ Base_mock_field_varstring(uint32 length, TABLE_SHARE *share)
 
 class Base_mock_field_json : public Field_json
 {
+  uchar m_null_byte= '\0';
 public:
-  Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, false, "json_field")
+  Base_mock_field_json() : Field_json(MAX_BLOB_WIDTH, true, "json_field")
   {
     ptr= new uchar[pack_length()];
+    set_null_ptr(&m_null_byte, 1);
   }
   ~Base_mock_field_json() { delete[] ptr; }
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }

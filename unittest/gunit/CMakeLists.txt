@@ -387,6 +387,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_json_func
   item_like
   item_timefunc
   join_syntax

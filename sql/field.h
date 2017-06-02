@@ -4221,7 +4221,7 @@ public:
     Get a read-only pointer to the binary representation of the JSON document
     in this field.
   */
-  const char *get_binary();
+  const char *get_binary() const;
 };
 
 

@@ -1806,7 +1806,7 @@ bool Explain_join::explain_extra()
           !bitmap_is_set(table->write_set, (*fld)->field_index))
         continue;
       fmt->entry()->col_used_columns.push_back((*fld)->field_name);
-      if (table->is_partial_update_column(*fld))
+      if (table->is_binary_diff_enabled(*fld))
         fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
     }
   }
@@ -1956,7 +1956,7 @@ bool Explain_table::explain_extra()
     return fmt->entry()->col_message.set(message);
 
   for (Field **fld= table->field; *fld != nullptr; ++fld)
-    if (table->is_partial_update_column(*fld))
+    if (table->is_binary_diff_enabled(*fld))
       fmt->entry()->col_partial_update_columns.push_back((*fld)->field_name);
 
   uint keyno;

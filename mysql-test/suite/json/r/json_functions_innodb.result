@@ -10393,7 +10393,7 @@ trace
             {
               "table": "`t`",
               "column": "j1",
-              "cause": "Not JSON_SET or JSON_REPLACE with same source and target column"
+              "cause": "Updated using a function that does not support partial update, or source and target column differ"
             }
           ]
         },
@@ -10449,7 +10449,7 @@ trace
             {
               "table": "`t`",
               "column": "j1",
-              "cause": "Not JSON_SET or JSON_REPLACE with same source and target column"
+              "cause": "Updated using a function that does not support partial update, or source and target column differ"
             }
           ]
         },
@@ -10510,7 +10510,7 @@ trace
             {
               "table": "`t`",
               "column": "j1",
-              "cause": "Not JSON_SET or JSON_REPLACE with same source and target column"
+              "cause": "Updated using a function that does not support partial update, or source and target column differ"
             }
           ]
         },
@@ -11079,7 +11079,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": [{"cause": "Not JSON_SET or JSON_REPLACE with same source and target column", "table": "`t1`", "column": "j"}]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
+[{"rejected_columns": [{"cause": "Updated using a function that does not support partial update, or source and target column differ", "table": "`t1`", "column": "j"}]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -11107,4 +11107,145 @@ trace->'$**.json_partial_update'
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 [1]	8	0
+DROP TABLE t;
+# Partial update on a DEFAULT NULL value in a NOT NULL column.
+CREATE TABLE t(j JSON NOT NULL);
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+UPDATE t SET j = JSON_SET(j, '$[0]', 'abc');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+"abc"	5	0
+UPDATE IGNORE t SET j = DEFAULT;
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+UPDATE t SET j = JSON_REMOVE(j, '$[0]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+null	2	0
+DROP TABLE t;
+#
+# Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
+#               ASSERTION `M_PARTIAL_UPDATE_INFO == NULLPTR' FAIL
+#
+CREATE TEMPORARY TABLE t(j JSON);
+INSERT INTO t VALUES ('["abc"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'de');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'f');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["f"]	12	2
+DROP TABLE t;
+# Partial update in JSON_REMOVE.
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
+INSERT INTO t(j) VALUES
+(JSON_ARRAY('x', JSON_ARRAY(1, 2, 3, 'abc', 4, 5, 6))),
+(JSON_OBJECT('x', JSON_OBJECT('a', 'one',
+'b', 'two',
+'c', 'ABC',
+'defghijkl', 'm'),
+'y', 'z')),
+('null'),
+(NULL);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 3, "abc", 4, 5, 6]]	42	0
+2	{"x": {"a": "one", "b": "two", "c": "ABC", "defghijkl": "m"}, "y": "z"}	81	0
+3	null	2	0
+4	NULL	NULL	NULL
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON UPDATE t SET j = JSON_REMOVE(j, '$.x.b', '$[1][2]');
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "t",
+      "access_type": "index",
+      "key": "PRIMARY",
+      "used_key_parts": [
+        "id"
+      ],
+      "key_length": "4",
+      "rows_examined_per_scan": 4,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j"
+      ]
+    }
+  }
+}
+UPDATE t SET j = JSON_REMOVE(j, '$.x.b', '$[1][2]');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, "abc", 4, 5, 6]]	42	3
+2	{"x": {"a": "one", "c": "ABC", "defghijkl": "m"}, "y": "z"}	81	12
+3	null	2	0
+4	NULL	NULL	NULL
+# See that the free space can be reused by increasing
+# the size of some values.
+UPDATE t SET j = JSON_REPLACE(j, '$[1][2]', 'xyzw', '$.x.c', 'XYZW');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, "xyzw", 4, 5, 6]]	42	2
+2	{"x": {"a": "one", "c": "XYZW", "defghijkl": "m"}, "y": "z"}	81	11
+3	null	2	0
+4	NULL	NULL	NULL
+# Nested calls
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[1][2]'), '$.x.c');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	42	10
+2	{"x": {"a": "one", "defghijkl": "m"}, "y": "z"}	81	24
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'xyz'), '$.x.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	42	10
+2	{"x": {"defghijkl": "m"}, "y": "z"}	81	36
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_SET(j, '$.x.a', 'zyx'), '$.x.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	42	10
+2	{"x": {"defghijkl": "m"}, "y": "z"}	45	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	42	10
+2	{"x": {"a": "abcd", "b": 9, "defghijkl": "m"}, "y": "z"}	66	0
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.b'), '$.x.a', 'efg');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	["x", [1, 2, 4, 5, 6]]	42	10
+2	{"x": {"a": "efg", "defghijkl": "m"}, "y": "z"}	66	9
+3	null	2	0
+4	NULL	NULL	NULL
+UPDATE t SET j = JSON_REMOVE(JSON_REMOVE(j, '$[0]', '$[0]', '$.x'),
+'$.b', '$.y', '$.z');
+SELECT *, JSON_STORAGE_SIZE(j) ss,
+JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
+id	j	ss	sf
+1	[]	42	37
+2	{}	66	61
+3	null	2	0
+4	NULL	NULL	NULL
 DROP TABLE t;

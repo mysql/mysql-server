@@ -684,6 +684,9 @@ JSON_REMOVE
 '$.b[ 1 ].e'
 )
 {"a": "foo", "b": [true, {"c": 123, "d": 456}]}
+SELECT JSON_REMOVE('123', '$.a');
+JSON_REMOVE('123', '$.a')
+123
 # ----------------------------------------------------------------------
 # Test of JSON_MERGE function.
 # ----------------------------------------------------------------------
@@ -3727,6 +3730,18 @@ JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]')
 SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]');
 JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]')
 [2, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last]');
+JSON_REMOVE('[1,2,3]', '$[last]')
+[1, 2]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-1]');
+JSON_REMOVE('[1,2,3]', '$[last-1]')
+[1, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-2]');
+JSON_REMOVE('[1,2,3]', '$[last-2]')
+[2, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-3]');
+JSON_REMOVE('[1,2,3]', '$[last-3]')
+[1, 2, 3]
 SELECT JSON_EXTRACT('true', '$[2 to 1]');
 ERROR 42000: Invalid JSON path expression. The error is around character position 8.
 SELECT JSON_EXTRACT('true', '$[last to last-1]');

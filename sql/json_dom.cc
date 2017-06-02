@@ -31,6 +31,7 @@
 #include "decimal.h"
 #include "derror.h"             // ER_THD
 #include "field.h"
+#include "json_diff.h"
 #include "json_path.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
@@ -1128,22 +1129,15 @@ Json_dom *Json_object::get(const std::string &key) const
 }
 
 
-bool Json_object::remove(const Json_dom *child)
+bool Json_object::remove(const std::string &key)
 {
-  for (Json_object_map::iterator iter= m_map.begin();
-       iter != m_map.end(); ++iter)
-  {
-    Json_dom *candidate= iter->second;
+  auto it= m_map.find(key);
+  if (it == m_map.end())
+    return false;
 
-    if (child == candidate)
-    {
-      delete candidate;
-      m_map.erase(iter);
-      return true;
-    }
-  } // end of loop through children
-
-  return false;
+  delete it->second;
+  m_map.erase(it);
+  return true;
 }
 
 
@@ -1304,12 +1298,6 @@ bool Json_array::remove(size_t index)
   }
 
   return false;
-}
-
-
-bool Json_array::remove(const Json_dom *child)
-{
-  return remove(std::find(m_v.begin(), m_v.end(), child) - m_v.begin());
 }
 
 
@@ -3854,12 +3842,13 @@ bool Json_wrapper::get_free_space(size_t *space) const
 }
 
 
-bool Json_wrapper::attempt_partial_update(const THD *thd,
-                                          Field_json *field,
-                                          const Json_seekable_path &path,
-                                          Json_wrapper *new_value,
-                                          bool replace,
-                                          String *result)
+bool Json_wrapper::attempt_binary_update(const Field_json *field,
+                                         const Json_seekable_path &path,
+                                         Json_wrapper *new_value,
+                                         bool replace,
+                                         String *result,
+                                         bool *partially_updated,
+                                         bool *replaced_path)
 {
   using namespace json_binary;
 
@@ -3871,7 +3860,11 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
     partial update. The full document is rewritten anyway.
   */
   if (path.leg_count() == 0)
-    return true;
+  {
+    *partially_updated= false;
+    *replaced_path= false;
+    return false;
+  }
 
   // Find the parent of the value we want to modify.
   Json_wrapper_vector hits(key_memory_JSON);
@@ -3884,6 +3877,8 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
       No parent array/object was found, so both JSON_SET and
       JSON_REPLACE will be no-ops. Return success.
     */
+    *partially_updated= true;
+    *replaced_path= false;
     return false;
   }
 
@@ -3896,46 +3891,80 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
   switch (parent.type())
   {
   case Value::OBJECT:
-    if (last_leg->get_type() != enum_json_path_leg_type::jpl_member)
-      return true;
+    if (last_leg->get_type() != jpl_member)
+    {
+      /*
+        Nothing to do for JSON_REPLACE, because we cannot replace an
+        array cell in an object. JSON_SET will auto-wrap the object,
+        so fall back to full update in that case
+      */
+      *partially_updated= replace;
+      *replaced_path= false;
+      return false;
+    }
     element_pos= parent.lookup_index(last_leg->get_member_name());
     /*
       If the member is not found, JSON_REPLACE is done (it's a no-op),
       whereas JSON_SET will need to add a new element to the object.
     */
     if (element_pos == parent.element_count())
-      return !replace;
+    {
+      *partially_updated= replace;
+      *replaced_path= false;
+      return false;
+    }
     break;
   case Value::ARRAY:
     {
-      if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)
-        return true;
+      if (last_leg->get_type() != jpl_array_cell)
+      {
+        // Nothing to do. Cannot replace an object member in an array.
+        *partially_updated= true;
+        *replaced_path= false;
+        return false;
+      }
       Json_array_index idx= last_leg->first_array_index(parent.element_count());
       /*
         If the element is not found, JSON_REPLACE is done (it's a no-op),
         whereas JSON_SET will need to add a new element to the array
       */
       if (!idx.within_bounds())
-        return !replace;
+      {
+        *partially_updated= replace;
+        *replaced_path= false;
+        return false;
+      }
       element_pos= idx.position();
     }
     break;
   default:
-    // Can only partially update values inside an array or an object.
-    return true;
+    /*
+      There's no element to replace inside a scalar, so we're done if
+      we have replace semantics. JSON_SET may want to auto-wrap the
+      scalar if it is accessed as an array, and in that case we need
+      to fall back to full update.
+    */
+    *partially_updated= replace || (last_leg->get_type() != jpl_array_cell);
+    *replaced_path= false;
+    return false;
   }
 
   DBUG_ASSERT(element_pos < parent.element_count());
 
   // Find out how much space we need to store new_value.
   size_t needed;
+  const THD *thd= field->table->in_use;
   if (space_needed(thd, new_value, parent.large_format(), &needed))
     return true;
 
   // Do we have that space available?
   size_t data_offset= 0;
   if (needed > 0 && !parent.has_space(element_pos, needed, &data_offset))
-    return true;
+  {
+    *partially_updated= false;
+    *replaced_path= false;
+    return false;
+  }
 
   /*
     Get a pointer to the binary representation of the document. If the result
@@ -3960,10 +3989,92 @@ bool Json_wrapper::attempt_partial_update(const THD *thd,
   DBUG_ASSERT(result->length() >= data_offset + needed);
 
   char *destination= const_cast<char *>(result->ptr());
-  if (parent.update_in_shadow(thd, field, element_pos, new_value, data_offset,
+  if (parent.update_in_shadow(field, element_pos, new_value, data_offset,
                               needed, original, destination))
     return true;                                /* purecov: inspected */
 
   m_value= parse_binary(result->ptr(), result->length());
+  *partially_updated= true;
+  *replaced_path= true;
+  return false;
+}
+
+
+bool Json_wrapper::binary_remove(const Field_json *field,
+                                 const Json_seekable_path &path,
+                                 String *result, bool *found_path)
+{
+  // Can only do partial update if the input value is binary.
+  DBUG_ASSERT(!is_dom());
+
+  // Empty paths are short-circuited higher up. (Should be a no-op.)
+  DBUG_ASSERT(path.leg_count() > 0);
+
+  *found_path= false;
+
+  Json_wrapper_vector hits(key_memory_JSON);
+  if (seek_no_ellipsis(path, &hits, 0, path.leg_count() - 1, false, true))
+    return true;                                /* purecov: inspected */
+
+  DBUG_ASSERT(hits.size() <= 1);
+
+  if (hits.empty())
+    return false;
+
+  auto &parent= hits[0].m_value;
+  const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+  size_t element_pos;
+  switch (parent.type())
+  {
+  case json_binary::Value::OBJECT:
+    if (last_leg->get_type() != enum_json_path_leg_type::jpl_member)
+      return false;   // no match, nothing to remove
+    element_pos= parent.lookup_index(last_leg->get_member_name());
+    break;
+  case json_binary::Value::ARRAY:
+    {
+      if (last_leg->get_type() != enum_json_path_leg_type::jpl_array_cell)
+        return false;   // no match, nothing to remove
+      Json_array_index idx= last_leg->first_array_index(parent.element_count());
+      if (!idx.within_bounds())
+        return false;  // no match, nothing to remove
+      element_pos= idx.position();
+      break;
+    }
+  default:
+    // Can only remove elements from objects and arrays, so nothing to do.
+    return false;
+  }
+
+  if (element_pos >= parent.element_count())
+    return false;    // no match, nothing to remove
+
+  /*
+    Get a pointer to the binary representation of the document. If the result
+    buffer is not empty, it contains the binary representation of the document,
+    including any other partial updates made to it previously in this
+    operation. If it is empty, the document is unchanged and its binary
+    representation can be retrieved from the Field.
+  */
+  const char *original;
+  if (result->is_empty())
+  {
+    if (m_value.raw_binary(field->table->in_use, result))
+      return true;                              /* purecov: inspected */
+    original= field->get_binary();
+  }
+  else
+  {
+    DBUG_ASSERT(is_binary_backed_by(result));
+    original= result->ptr();
+  }
+
+  char *destination= const_cast<char *>(result->ptr());
+
+  if (parent.remove_in_shadow(field, element_pos, original, destination))
+    return true;                                /* purecov: inspected */
+
+  m_value= json_binary::parse_binary(result->ptr(), result->length());
+  *found_path= true;
   return false;
 }

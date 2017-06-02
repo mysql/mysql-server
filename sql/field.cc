@@ -9033,7 +9033,8 @@ bool Field_json::val_json(Json_wrapper *wr)
   */
   if (s->length() == 0)
   {
-    *wr= Json_wrapper(new (std::nothrow) Json_null());
+    using namespace json_binary;
+    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
     return false;
   }
 
@@ -9154,11 +9155,11 @@ ulonglong Field_json::make_hash_key(ulonglong *hash_val)
 }
 
 
-const char *Field_json::get_binary()
+const char *Field_json::get_binary() const
 {
-  String tmp;
-  String *s= Field_blob::val_str(&tmp, &tmp);
-  return s->ptr();
+  char *blob;
+  memcpy(&blob, ptr + packlength, sizeof(blob));
+  return blob;
 }
 
 
