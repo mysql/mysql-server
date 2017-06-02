@@ -1192,6 +1192,23 @@ public:
 };
 
 
+class Item_func_mbrequals final : public Item_func_spatial_relation
+{
+public:
+  Item_func_mbrequals(const POS &pos, Item *a, Item *b)
+    : Item_func_spatial_relation(pos, a, b)
+  {}
+  enum Functype functype() const override
+  { return SP_EQUALS_FUNC; }
+  enum Functype rev_functype() const override
+  { return SP_EQUALS_FUNC; }
+  const char *func_name() const override
+  { return "mbrequals"; }
+  bool eval(const dd::Spatial_reference_system *srs, const gis::Geometry *g1,
+            const gis::Geometry *g2, bool *result, bool *null) override;
+};
+
+
 class Item_func_mbrintersects final : public Item_func_spatial_relation
 {
 public:
