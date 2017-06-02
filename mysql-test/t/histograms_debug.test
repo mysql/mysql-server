@@ -70,37 +70,26 @@ DROP TABLE t1;
 --echo # Check that histogram with sampling works as expected
 --echo #
 
-SET DEBUG='+d,histogram_deterministic_sampling';
+SET DEBUG='+d,histogram_force_sampling';
 
-CREATE TABLE t1 (col1 VARCHAR(255));
-INSERT INTO t1 SELECT SHA2(RAND(1), 512);
-INSERT INTO t1 SELECT SHA2(RAND(2), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(3), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(4), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(5), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(6), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(7), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(8), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(9), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(10), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(11), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(12), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(13), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(14), 512) FROM t1;
-
-SET histogram_generation_max_mem_size = 1000000;
-
---echo # Ensure that row estimate statistics are stable/correct.
-UPDATE mysql.innodb_table_stats SET n_rows = 8192
-WHERE database_name = "test" AND table_name = "t1";
-FLUSH TABLES;
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
 
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 
-SET DEBUG='-d,histogram_deterministic_sampling';
+SET DEBUG='-d,histogram_force_sampling';
 DROP TABLE t1;
 
 --echo #

@@ -88,27 +88,18 @@ DROP TABLE t1;
 #
 # Check that histogram with sampling works as expected
 #
-SET DEBUG='+d,histogram_deterministic_sampling';
-CREATE TABLE t1 (col1 VARCHAR(255));
-INSERT INTO t1 SELECT SHA2(RAND(1), 512);
-INSERT INTO t1 SELECT SHA2(RAND(2), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(3), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(4), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(5), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(6), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(7), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(8), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(9), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(10), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(11), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(12), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(13), 512) FROM t1;
-INSERT INTO t1 SELECT SHA2(RAND(14), 512) FROM t1;
-SET histogram_generation_max_mem_size = 1000000;
-# Ensure that row estimate statistics are stable/correct.
-UPDATE mysql.innodb_table_stats SET n_rows = 8192
-WHERE database_name = "test" AND table_name = "t1";
-FLUSH TABLES;
+SET DEBUG='+d,histogram_force_sampling';
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 4 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'col1'.
@@ -116,8 +107,8 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	t1	col1	{"buckets": [["base64:type254:MDAwMGMzODYwZmY5MzQ4NTM4ZDM1ZjBhYTJhNWFjZTEyZGQzNDgwNDJh", "base64:type254:M2YyM2YyN2JhMzI4NDJkZTU2ZDc2Mzg1YmU0YTBlYzBiYmZkMDNjNTk5", 0.25, 2060], ["base64:type254:M2YyZThlMmJlYjNjZThmYzBlNjVlYmY1ODc4NDFmYTgwZTEwN2VhNWI3", "base64:type254:N2UxNmNkY2ZlMDRhYzkxM2YyMWExYWFjODY4ODhmYTNiYmYwYzQ4ZDZk", 0.5, 2060], ["base64:type254:N2UxOTNhMGY3ZGY5MGIxMWI1MGUyYjBkODhmNzU5YWYzNzY1NTE5NGQ1", "base64:type254:YzAzNjg2OWI5NDllZTA3M2UzNGEwMGRlNWEyY2RkMDVmYWIxNmFlODI5", 0.75, 2060], ["base64:type254:YzA0NTIwNGQ4ZmYzZjEyZTEwMDIxYzViMGU3NjdkMjA3NzY2NDBlYWRm", "base64:type254:ZmZmYTljZmQzNjJlYWIyYzg4OWZhYzQwNjExZTc4ODEyNzA2MjRhZTE4", 1, 2060]], "data-type": "string", "charset-id": 255, "null-values": 0, "sampling-rate": 0.5868765024038461, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
-SET DEBUG='-d,histogram_deterministic_sampling';
+test	t1	col1	{"buckets": [[0.00004702340815870409, 0.25838108012301947, 0.25, 132], [0.25858305325599673, 0.5217759176360219, 0.5, 132], [0.5347126485171846, 0.744672785275311, 0.75, 132], [0.7537429209367772, 0.9968274254322308, 1, 132]], "data-type": "double", "charset-id": 8, "null-values": 0, "sampling-rate": 0.5, "histogram-type": "equi-height", "number-of-buckets-specified": 4}
+SET DEBUG='-d,histogram_force_sampling';
 DROP TABLE t1;
 #
 # Bug#26020352 WL8943:ASSERTION `M_THD->GET_TRANSACTION()->IS_EMPTY(

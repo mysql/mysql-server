@@ -796,7 +796,11 @@ static bool fill_value_maps(
   std::random_device rd;
   std::uniform_int_distribution<int> dist;
   int sampling_seed= dist(rd);
-  DBUG_EXECUTE_IF("histogram_deterministic_sampling", { sampling_seed= 1; });
+  DBUG_EXECUTE_IF("histogram_force_sampling",
+                  {
+                    sampling_seed= 1;
+                    sample_percentage= 50.0;
+                  });
 
   for (auto &value_map : value_maps)
     value_map.second->set_sampling_rate(sample_percentage / 100.0);
