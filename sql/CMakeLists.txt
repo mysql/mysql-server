@@ -208,6 +208,7 @@ SET(SQL_GIS_SOURCES
   gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/touches.cc
   gis/union.cc
   gis/within.cc
   gis/wkb_parser.cc
@@ -562,6 +563,7 @@ ADD_COMPILE_FLAGS(
 IF(WIN32)
   ADD_COMPILE_FLAGS(
     gis/difference.cc
+    gis/touches.cc
     gis/within.cc
     item_geofunc.cc
     item_geofunc_setops.cc
