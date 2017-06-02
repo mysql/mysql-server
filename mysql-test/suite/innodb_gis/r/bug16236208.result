@@ -40,5 +40,5 @@ ST_WITHIN( ST_GeomFromText('POLYGON( ( 4135 3009 , 4914 3087 , 4236 3194 , 4091
 ST_GeomFromText('MULTILINESTRING( ( 4147 2871 , 4072 3042 , 4081 3099 , 3796
 3021 , 4007 3463 ) , ( 4042 2808 , 4109 2816 , 3730 3673 ) )') ,
 linestring_key ) AND ST_Length( linestring_nokey ) > 1;
-ERROR 22023: Invalid GIS data provided to function st_within.
+ST_AsText(linestring_nokey)
 DROP TABLE linestring;

@@ -1422,6 +1422,15 @@ longlong Item_func_spatial_relation::val_int()
 }
 
 
+bool Item_func_st_contains::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::within(srs, g2, g1, func_name(), result, null);
+}
+
+
 bool Item_func_st_disjoint::eval(const dd::Spatial_reference_system *srs,
                                  const gis::Geometry *g1,
                                  const gis::Geometry *g2,

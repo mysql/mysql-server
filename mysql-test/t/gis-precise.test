@@ -1330,8 +1330,6 @@ SELECT 1,
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
 ST_GEOMFROMTEXT('MULTIPOINT(0 0, 2 0, 2 4)')) as result;
 
-# This one still fails but there is no easy fix for it, and it's not the
-# scope of this bug anyway.
 SELECT 1,
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
                                                 LINESTRING(3 1, 5 1))'),

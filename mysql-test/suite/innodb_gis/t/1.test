@@ -1380,6 +1380,7 @@ WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75'; 
 
 --echo # Conformance Item T44 
+--error ER_SRS_NOT_FOUND
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
@@ -1425,6 +1426,7 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton'; 
 
 --echo # Conformance Item T51 
+--error ER_SRS_NOT_FOUND
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 

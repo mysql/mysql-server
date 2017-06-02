@@ -45,7 +45,6 @@ CREATE INDEX linestring_index ON linestring(linestring_nokey(5));
 ALTER TABLE linestring ADD  KEY (linestring_key(5));
 
 --echo # Invalid polygon.
---error ER_GIS_INVALID_DATA
 SELECT ST_AsText(linestring_nokey) FROM linestring FORCE KEY (
 linestring_key ) WHERE ST_CONTAINS( ST_GeomFromText('POLYGON( ( 3923 2815 , 4246
 2122 , 4028 2971 , 4017 3019 , 3923 2815 ) )') , linestring_key ) AND
