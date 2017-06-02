@@ -110,6 +110,28 @@ bool intersects(const dd::Spatial_reference_system *srs, const Geometry *g1,
                 const Geometry *g2, const char *func_name, bool *intersects,
                 bool *null) noexcept;
 
+/// Computes the covered by relation between the minimum bounding rectangles of
+/// two geometries.
+///
+/// Both geometries must be in the same coordinate system (Cartesian or
+/// geographic), and the coordinate system of the geometries must match
+/// the coordinate system of the SRID. It is the caller's responsibility
+/// to guarantee this.
+///
+/// @param[in] srs The spatial reference system, common to both geometries.
+/// @param[in] g1 First geometry.
+/// @param[in] g2 Second geometry.
+/// @param[in] func_name Function name used in error reporting.
+/// @param[out] covered_by Whether the MBR of g1 is covered by the MBR of g2.
+/// @param[out] null True if the return value is NULL.
+///
+/// @retval false Success.
+/// @retval true An error has occurred. The error has been reported with
+/// my_error().
+bool mbr_covered_by(const dd::Spatial_reference_system *srs, const Geometry *g1,
+                    const Geometry *g2, const char *func_name, bool *covered_by,
+                    bool *null) noexcept;
+
 /// Computes the disjoint relation between the minimum bounding rectangles of
 /// two geometries.
 ///
