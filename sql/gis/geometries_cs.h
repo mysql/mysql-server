@@ -93,8 +93,10 @@ class Cartesian_linestring : public Linestring {
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
 
-  Point &operator[](std::size_t i) override { return m_points[i]; }
-  const Point &operator[](std::size_t i) const override { return m_points[i]; }
+  Cartesian_point &operator[](std::size_t i) override { return m_points[i]; }
+  const Cartesian_point &operator[](std::size_t i) const override {
+    return m_points[i];
+  }
 };
 
 /// A geographic (ellipsoidal) 2d linestring.
@@ -137,8 +139,10 @@ class Geographic_linestring : public Linestring {
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
 
-  Point &operator[](std::size_t i) override { return m_points[i]; }
-  const Point &operator[](std::size_t i) const override { return m_points[i]; }
+  Geographic_point &operator[](std::size_t i) override { return m_points[i]; }
+  const Geographic_point &operator[](std::size_t i) const override {
+    return m_points[i];
+  }
 };
 
 /// A Cartesian 2d linear ring.
@@ -160,10 +164,10 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
   std::size_t size() const override { return Cartesian_linestring::size(); }
   void flip() override { Cartesian_linestring::flip(); }
 
-  Point &operator[](std::size_t i) override {
+  Cartesian_point &operator[](std::size_t i) override {
     return Cartesian_linestring::operator[](i);
   }
-  const Point &operator[](std::size_t i) const override {
+  const Cartesian_point &operator[](std::size_t i) const override {
     return Cartesian_linestring::operator[](i);
   }
 };
@@ -187,10 +191,10 @@ class Geographic_linearring : public Geographic_linestring, public Linearring {
   std::size_t size() const override { return Geographic_linestring::size(); }
   void flip() override { Geographic_linestring::flip(); }
 
-  Point &operator[](std::size_t i) override {
+  Geographic_point &operator[](std::size_t i) override {
     return Geographic_linestring::operator[](i);
   }
-  const Point &operator[](std::size_t i) const override {
+  const Geographic_point &operator[](std::size_t i) const override {
     return Geographic_linestring::operator[](i);
   }
 };
@@ -431,8 +435,8 @@ class Cartesian_multipoint : public Multipoint {
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_points[i]; }
-  const Geometry &operator[](std::size_t i) const override {
+  Cartesian_point &operator[](std::size_t i) override { return m_points[i]; }
+  const Cartesian_point &operator[](std::size_t i) const override {
     return m_points[i];
   }
 };
@@ -472,8 +476,8 @@ class Geographic_multipoint : public Multipoint {
   iterator end() noexcept { return m_points.end(); }
   const_iterator end() const noexcept { return m_points.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_points[i]; }
-  const Geometry &operator[](std::size_t i) const override {
+  Geographic_point &operator[](std::size_t i) override { return m_points[i]; }
+  const Geographic_point &operator[](std::size_t i) const override {
     return m_points[i];
   }
 };
