@@ -20785,6 +20785,7 @@ mysql_declare_plugin(ndbcluster)
   "Clustered, fault-tolerant tables",
   PLUGIN_LICENSE_GPL,
   ndbcluster_init,            /* plugin init */
+  NULL,                       /* plugin check uninstall */
   NULL,                       /* plugin deinit */
   0x0100,                     /* plugin version */
   ndb_status_vars,            /* status variables */
