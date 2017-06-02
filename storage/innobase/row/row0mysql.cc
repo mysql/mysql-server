@@ -4602,18 +4602,9 @@ row_drop_table_for_mysql(
 			}
 		}
 
-		if (is_encrypted) {
-			/* Require the mutex to block key rotation. */
-			mutex_enter(&master_key_id_mutex);
-		}
-
 		/* We can now drop the single-table tablespace. */
 		log_ddl->writeDeleteSpaceLog(
 			trx, nullptr, space_id, filepath, true, true);
-
-		if (is_encrypted) {
-			mutex_exit(&master_key_id_mutex);
-		}
 
 		if (!is_temp) {
 			log_ddl->writeDropLog(trx, table_id);

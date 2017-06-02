@@ -1156,6 +1156,8 @@ LogDDL::replayFreeLog(
 	return;	
 }
 
+extern ib_mutex_t	master_key_id_mutex;
+
 /** Replay DELETE log(delete file if exist)
 @param[in]	space_id	tablespace id
 @param[in]	file_path	file path */
@@ -1164,7 +1166,14 @@ LogDDL::replayDeleteLog(
 	space_id_t	space_id,
 	const char*	file_path)
 {
+	/* Require the mutex to block key rotation. Please note that
+	here we don't know if this tablespace is encrypted or not,
+	so just acquire the mutex unconditionally. */
+	mutex_enter(&master_key_id_mutex);
+
 	row_drop_single_table_tablespace(space_id, NULL, file_path);
+
+	mutex_exit(&master_key_id_mutex);
 
 	ib::info() << "ddl log replay : DELETE space_id " << space_id
 		<< ", file_path " << file_path;
