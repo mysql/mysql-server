@@ -38,6 +38,9 @@ static const char *ndb_ext=".ndb";
 
 bool Ndb_local_schema::Base::mdl_try_lock(void) const
 {
+  DBUG_ENTER("mdl_try_lock");
+  DBUG_PRINT("enter", ("db: '%s, name: '%s'", m_db, m_name));
+
   MDL_request_list mdl_requests;
   MDL_request global_request;
   MDL_request schema_request;
@@ -67,10 +70,10 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
 
     log_warning("Failed to acquire metadata lock");
 
-    return false;
+    DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("acquired metadata lock"));
-  return true;
+  DBUG_RETURN(true);
 }
 
 
@@ -280,6 +283,9 @@ bool
 Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
                                                  const char* new_name) const
 {
+  DBUG_ENTER("mdl_try_lock_for_rename");
+  DBUG_PRINT("enter", ("new_db: '%s, new_name: '%s'", new_db, new_name));
+
   MDL_request_list mdl_requests;
   MDL_request schema_request;
   MDL_request mdl_request;
@@ -304,10 +310,10 @@ Ndb_local_schema::Table::mdl_try_lock_for_rename(const char* new_db,
     log_warning("Failed to acquire exclusive metadata lock for %s.%s",
                 new_db, new_name);
 
-    return false;
+    DBUG_RETURN(false);
   }
   DBUG_PRINT("info", ("acquired metadata lock"));
-  return true;
+  DBUG_RETURN(true);
 }
 
 
