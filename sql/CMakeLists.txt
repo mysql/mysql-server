@@ -280,6 +280,7 @@ SET(SQL_SHARED_SOURCES
   item_strfunc.cc
   item_subselect.cc
   item_sum.cc
+  window.cc
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
@@ -445,6 +446,13 @@ FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/storage/*.h"
 )
 
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching 
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
+) 
+
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -508,6 +516,7 @@ SET(SQL_BOOST_SOURCES
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  window.cc
   sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)

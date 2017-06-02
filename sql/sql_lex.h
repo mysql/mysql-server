@@ -80,6 +80,7 @@
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "violite.h"                  // SSL_type
 #include "xa.h"                       // xa_option_words
+#include "window_lex.h"
 
 class Item_func_set_user_var;
 class Item_sum;
@@ -101,6 +102,7 @@ class Protocol;
 class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
+class Window;
 
 #include "item_create.h"              // Cast_target
 #include "sql_udf.h"                  // Item_udftype
@@ -1066,6 +1068,11 @@ public:
   Group_list_ptrs        *group_list_ptrs;
 
   /**
+    All windows defined on the select, both named and inlined
+  */
+  List<Window>            m_windows;
+
+  /**
     List of columns and expressions:
     SELECT: Columns and expressions in the SELECT list.
     UPDATE: Columns in the SET clause.
@@ -1545,7 +1552,6 @@ private:
     type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
 
   friend class SELECT_LEX_UNIT;
-
   bool record_join_nest_info(List<TABLE_LIST> *tables);
   bool simplify_joins(THD *thd,
                       List<TABLE_LIST> *join_list,
@@ -1983,6 +1989,16 @@ union YYSTYPE {
   Parse_tree_node *node;
   enum olap_type olap_type;
   class PT_group *group;
+  class PT_window_list *windows;
+  class PT_window *window;
+  class PT_frame *window_frame;
+  enum_window_frame_unit frame_units;
+  class PT_borders *frame_extent;
+  class PT_border *bound;
+  class PT_exclusion *frame_exclusion;
+  enum enum_null_treatment null_treatment;
+  enum enum_from_first_last from_first_last;
+  Item_string *item_string;
   class PT_order *order;
   class PT_table_reference *table_reference;
   class PT_joined_table *join_table;
@@ -2031,6 +2047,10 @@ union YYSTYPE {
     class PT_item_list *column_list;
     class PT_query_expression *insert_query_expression;
   } insert_query_expression;
+  struct {
+    class Item *offset;
+    class Item *default_value;
+  } lead_lag_info;
   class PT_insert_values_list *values_list;
   class Parse_tree_root *top_level_node;
   class Table_ident *table_ident;
@@ -3600,6 +3620,12 @@ public:
     aggregate functions are allowed for that query block.
   */
   nesting_map allow_sum_func;
+  /**
+    Windowing functions are not allowed in HAVING - in contrast to group
+    aggregates - then we need to be stricter than allow_sum_func.
+    One bit per query block, as allow_sum_func.
+  */
+  nesting_map m_deny_window_func;
 
   Sql_cmd *m_sql_cmd;
 

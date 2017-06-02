@@ -135,7 +135,8 @@ bool PTI_comp_op_all::itemize(Parse_context *pc, Item **res)
     return true;
 
   *res= all_any_subquery_creator(left, comp_op, is_all, subselect->value());
-  return false;
+
+  return *res == nullptr;
 }
 
 

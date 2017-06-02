@@ -147,6 +147,7 @@ When one supplies long data for a placeholder:
 #include "thr_malloc.h"
 #include "transaction.h"        // trans_rollback_implicit
 #include "violite.h"
+#include "window.h"
 
 #include "mysql_com.h"
 #include <algorithm>
@@ -1877,6 +1878,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
       }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+      if (sl->m_windows.elements > 0)
+      {
+        List_iterator<Window> li(sl->m_windows);
+        Window *w;
+        while ((w= li++))
+            w->reinit_before_use();
+      }
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -1920,6 +1928,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->result->set_thd(thd);
 
   lex->allow_sum_func= 0;
+  lex->m_deny_window_func= 0;
   lex->in_sum_func= NULL;
 
   if (unlikely(lex->is_broken()))

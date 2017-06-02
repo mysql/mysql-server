@@ -1550,6 +1550,8 @@ EXECUTE s1;
 ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
 SELECT b FROM t1;
 ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
+SELECT SUM(b) OVER () FROM t1;
+ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
 EXECUTE s1;
 ERROR 42000: SELECT command denied to user 'testuser'@'localhost' for column 'b' in table 't1'
 CALL p1;

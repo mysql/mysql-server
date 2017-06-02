@@ -325,10 +325,10 @@ SHOW DATABASES;
 --echo #
 SHOW TABLES FROM db1;
 --let $assert_text= Slave should have 1 row in db1.t1 on channel_1
---let $assert_cond= `SELECT COUNT(*) = 1 rows FROM db1.t1`
+--let $assert_cond= `SELECT COUNT(*) = 1 `rows` FROM db1.t1`
 --source include/assert.inc
 --let $assert_text= Slave should have 1 row in db1.t11 on channel_1
---let $assert_cond= `SELECT COUNT(*) = 1 row FROM db1.t11`
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db1.t11`
 --source include/assert.inc
 
 --echo #
@@ -340,7 +340,7 @@ SHOW TABLES FROM db1;
 SHOW TABLES FROM db3;
 SHOW TABLES FROM db333;
 --let $assert_text= Slave should have 1 row in db3.t2 on channel_3
---let $assert_cond= `SELECT COUNT(*) = 1 row FROM db3.t2`
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db3.t2`
 --source include/assert.inc
 
 --echo #
@@ -361,7 +361,7 @@ SHOW TABLES FROM db44;
 SHOW TABLES FROM db5;
 SHOW TABLES FROM db55;
 --let $assert_text= Slave should have 1 row in db5.t1 on channel_5
---let $assert_cond= `SELECT COUNT(*) = 1 row FROM db5.t1`
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db5.t1`
 --source include/assert.inc
 
 --echo #
@@ -374,10 +374,10 @@ SHOW TABLES FROM db55;
 SHOW TABLES FROM db6;
 SHOW TABLES FROM db66;
 --let $assert_text= Slave should have 1 row in db6.t2 on channel_6
---let $assert_cond= `SELECT COUNT(*) = 1 row FROM db6.t2`
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db6.t2`
 --source include/assert.inc
 --let $assert_text= Slave should have 1 row in db66.t1 on channel_6
---let $assert_cond= `SELECT COUNT(*) = 1 row FROM db66.t1`
+--let $assert_cond= `SELECT COUNT(*) = 1 `row` FROM db66.t1`
 --source include/assert.inc
 
 --echo #

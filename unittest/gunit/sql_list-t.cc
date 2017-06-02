@@ -243,5 +243,68 @@ TEST_F(SqlListTest, Sort)
   EXPECT_TRUE(m_int_list.is_empty());
 }
 
+// Tests swap_elts
+TEST_F(SqlListTest, Swap)
+{
+  int values[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(1, 1), false);
+  // Expect no change
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
 
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(9, 10), true /* error */);
+  // Expect no change: 10 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(10, 9), true /* error */);
+  // Expect no change: 10 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(10, 11), true /* error */);
+  // Expect no change: 10, 11 out of bounds
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(0, 1), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 1 :
+                                  (i == 1 ? 0 : i)));
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(0, 9), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 9 :
+                                  (i == 9 ? 0 : i)));
+  }
+
+  insert_values(values, &m_int_list);
+  EXPECT_EQ(m_int_list.swap_elts(9, 0), false);
+
+  for (int i= 0; i < 10 ; i++)
+  {
+    EXPECT_EQ(*m_int_list.pop(), (i == 0 ? 9 :
+                                  (i == 9 ? 0 : i)));
+  }
+}
+  
 }  // namespace

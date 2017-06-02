@@ -4046,6 +4046,10 @@ public:
 
   bool is_a_srv_session() const { return is_a_srv_session_thd; }
   void mark_as_srv_session() { is_a_srv_session_thd= true; }
+#ifndef DBUG_OFF
+  uint get_tmp_table_seq_id() { return tmp_table_seq_id++; }
+  void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id= arg; }
+#endif
 
   bool is_plugin_fake_ddl() const
   { return m_is_plugin_fake_ddl; }
@@ -4067,6 +4071,11 @@ private:
   bool m_is_plugin_fake_ddl;
 
 #ifndef DBUG_OFF
+  /**
+    Sequential number of internal tmp table created in the statement. Useful for
+    tracking tmp tables when number of them is involved in a query.
+  */
+  uint tmp_table_seq_id;
 public:
   /*
     The member serves to guard against duplicate use of the same xid

@@ -987,6 +987,9 @@ bool PT_query_specification::contextualize(Parse_context *pc)
   pc->select->set_where_cond(opt_where_clause);
   pc->select->set_having_cond(opt_having_clause);
 
+  if (contextualize_safe(pc, opt_window_clause))
+    return true;
+
   if (opt_hints != NULL)
   {
     if (pc->thd->lex->sql_command == SQLCOM_CREATE_VIEW)
@@ -2292,6 +2295,111 @@ Sql_cmd *PT_load_index_stmt::make_cmd(THD *thd)
   return new (thd->mem_root) Sql_cmd_load_index(&m_alter_info);
 }
 
+
+/* Window functions */
+
+Item *PT_border::build_addop(Item_cache *order_expr,
+                             bool prec, bool asc, const Window *window)
+{
+  /*
+    Check according to SQL 2014 7.15 <window clause> SR 13.a.iii:
+    ORDER BY expression is temporal iff bound is temporal.
+  */
+  if (order_expr->result_type() == STRING_RESULT &&
+      order_expr->is_temporal())
+  {
+    if (!m_date_time)
+    {
+      my_error(ER_WINDOW_RANGE_FRAME_TEMPORAL_TYPE, MYF(0),
+               window->printable_name());
+      return nullptr;
+    }
+  }
+  else
+  {
+    if (m_date_time)
+    {
+      my_error(ER_WINDOW_RANGE_FRAME_NUMERIC_TYPE, MYF(0),
+               window->printable_name());
+      return nullptr;
+    }
+  }
+
+  Item *addop;
+  const bool substract= prec ? asc : !asc;
+  if (m_date_time)
+  {
+    addop= new Item_date_add_interval(order_expr,
+                                      m_value, m_int_type, substract);
+  }
+  else
+  {
+    if (substract)
+      addop= new Item_func_minus(order_expr, m_value);
+    else
+      addop= new Item_func_plus(order_expr, m_value);
+  }
+  return addop;
+}
+
+
+bool PT_window::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  if (m_partition_by != NULL)
+  {
+    if (m_partition_by->contextualize(pc))
+      return true;
+  }
+
+  if (m_order_by != NULL)
+  {
+    if (m_order_by->contextualize(pc))
+      return true;
+  }
+
+  if (m_frame != NULL)
+  {
+    PT_border *ba[]= { m_frame->m_from, m_frame->m_to };
+    auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
+
+    for (auto bound : Bounds_checked_array<PT_border *>(ba, siz))
+    {
+      if (bound->m_border_type == WBT_VALUE_PRECEDING ||
+           bound->m_border_type == WBT_VALUE_FOLLOWING)
+      {
+        auto **bound_i_ptr= bound->border_ptr();
+        if ((*bound_i_ptr)->itemize(pc, bound_i_ptr))
+          return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+bool PT_window_list::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  uint count= pc->select->m_windows.elements;
+  List_iterator<Window> wi(m_windows);
+  Window *w;
+  while ((w= wi++))
+  {
+    static_cast<PT_window *>(w)->contextualize(pc);
+    w->set_def_pos(++count);
+  }
+
+  SELECT_LEX *select= pc->select;
+  select->m_windows.prepand(&m_windows);
+
+  return false;
+}
 
 Sql_cmd *PT_show_tables::make_cmd(THD *thd)
 {

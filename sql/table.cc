@@ -2806,6 +2806,7 @@ bool unpack_gcol_info(THD *thd,
   // Subquery is not allowed in generated expression
   const bool save_allow_subselects= thd->lex->expr_allows_subselect;
   thd->lex->expr_allows_subselect= false;
+  // allow_sum_func is also 0, banning group aggregates and window functions.
 
   /*
     Step 3: Use the parser to build an Item object from.
@@ -2874,6 +2875,8 @@ bool unpack_gcol_info(THD *thd,
   DBUG_RETURN(FALSE);
 
 parse_err:
+  // Any created window is eliminated as not allowed:
+  thd->lex->current_select()->m_windows.empty();
   thd->free_items();
   lex_end(thd->lex);
   thd->lex= old_lex;

@@ -724,6 +724,13 @@ static Sys_var_ulong Sys_auto_increment_offset(
        VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG);
 
+static Sys_var_bool Sys_windowing_use_high_precision(
+       "windowing_use_high_precision",
+       "For SQL window functions, determines whether to enable inversion "
+       "optimization for moving window frames also for floating values.",
+       SESSION_VAR(windowing_use_high_precision),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
 static Sys_var_bool Sys_automatic_sp_privileges(
        "automatic_sp_privileges",
        "Creating and dropping stored procedures alters ACLs",

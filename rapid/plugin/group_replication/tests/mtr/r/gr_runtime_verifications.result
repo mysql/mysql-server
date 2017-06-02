@@ -179,7 +179,7 @@ SET GLOBAL binlog_checksum= NONE;
 SET SESSION binlog_format= STATEMENT;
 INSERT INTO tn VALUES ('a');
 ERROR HY000: The table does not comply with the requirements by an external plugin.
-SET SESSION binlog_format= ROW;
+SET SESSION binlog_format= "ROW";
 SET SESSION transaction_write_set_extraction=OFF;
 ERROR HY000: The write set algorithm cannot be changed when Group replication is running.
 INSERT INTO tn VALUES ('hash');

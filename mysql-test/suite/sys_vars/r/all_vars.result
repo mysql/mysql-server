@@ -21,5 +21,7 @@ information_schema_stats
 information_schema_stats
 tls_version
 tls_version
+windowing_use_high_precision
+windowing_use_high_precision
 drop table t1;
 drop table t2;

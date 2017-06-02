@@ -1148,6 +1148,28 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  PERSIST_ONLY_SYM              /* MYSQL */
 %token  HISTOGRAM_SYM                 /* MYSQL */
 %token  BUCKETS_SYM                   /* MYSQL */
+%token  CUME_DIST_SYM                 /* SQL-2003-R */
+%token  DENSE_RANK_SYM                /* SQL-2003-R */
+%token  EXCLUDE_SYM                   /* SQL-2003-N */
+%token  FIRST_VALUE_SYM               /* SQL-2011-R */
+%token  FOLLOWING_SYM                 /* SQL-2003-N */
+%token  GROUPS_SYM                    /* SQL-2011-R */
+%token  LAG_SYM                       /* SQL-2011-R */
+%token  LAST_VALUE_SYM                /* SQL-2011-R */
+%token  LEAD_SYM                      /* SQL-2011-R */
+%token  NTH_VALUE_SYM                 /* SQL-2011-R */
+%token  NTILE_SYM                     /* SQL-2011-R */
+%token  NULLS_SYM                     /* SQL-2003-N */
+%token  OTHERS_SYM                    /* SQL-2003-N */
+%token  OVER_SYM                      /* SQL-2003-R */
+%token  PERCENT_RANK_SYM              /* SQL-2003-R */
+%token  PRECEDING_SYM                 /* SQL-2003-N */
+%token  RANK_SYM                      /* SQL-2003-R */
+%token  RESPECT_SYM                   /* SQL_2011-N */
+%token  ROW_NUMBER_SYM                /* SQL-2003-R */
+%token  TIES_SYM                      /* SQL-2003-N */
+%token  UNBOUNDED_SYM                 /* SQL-2003-N */
+%token  WINDOW_SYM                    /* SQL-2003-R */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1252,6 +1274,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         simple_ident expr opt_expr opt_else
         set_function_specification sum_expr
         in_sum_expr grouping_operation
+        window_func_call opt_ll_default
         variable variable_aux bool_pri
         predicate bit_expr
         table_wild simple_expr udf_expr
@@ -1275,6 +1298,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_where_clause_expr
         opt_having_clause
         opt_simple_limit
+
+
+%type <item_string> window_name opt_existing_window_name
 
 %type <item_num> NUM_literal
 
@@ -1443,7 +1469,7 @@ END_OF_INPUT
 %type <order_expr> order_expr alter_order_item
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
-        alter_order_list
+      alter_order_list opt_partition_clause opt_window_order_by_clause
 
 %type <c_str> field_length opt_field_length type_datetime_precision
         opt_place
@@ -1472,6 +1498,31 @@ END_OF_INPUT
 %type <olap_type> olap_opt
 
 %type <group> opt_group_clause
+
+%type <windows> opt_window_clause  ///< Definition of named windows
+                                   ///< for the query specification
+                window_definition_list
+
+%type <window> window_definition window_spec window_spec_details window_name_or_spec
+  windowing_clause   ///< Definition of unnamed window near the window function.
+  opt_windowing_clause ///< For functions which can be either set or window
+                       ///< functions (e.g. SUM), non-empty clause makes the difference.
+
+%type <window_frame> opt_window_frame_clause
+
+%type <frame_units> window_frame_units
+
+%type <frame_extent> window_frame_extent window_frame_between
+
+%type <bound> window_frame_start window_frame_bound
+
+%type <frame_exclusion> opt_window_frame_exclusion
+
+%type <null_treatment> opt_null_treatment
+
+%type <lead_lag_info> opt_lead_lag_info
+
+%type <from_first_last> opt_from_first_last
 
 %type <order> order_clause opt_order_clause
 
@@ -8508,6 +8559,7 @@ query_specification:
           opt_where_clause
           opt_group_clause
           opt_having_clause
+          opt_window_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       $1,  // SELECT_SYM
@@ -8517,7 +8569,8 @@ query_specification:
                                       $5,  // from
                                       $6,  // where
                                       $7,  // group
-                                      $8); // having
+                                      $8,  // having
+                                      $9); // windows
           }
         | SELECT_SYM
           select_options
@@ -8526,6 +8579,7 @@ query_specification:
           opt_where_clause
           opt_group_clause
           opt_having_clause
+          opt_window_clause
           {
             $$= NEW_PTN PT_query_specification(
                                       $1,  // SELECT_SYM
@@ -8535,7 +8589,8 @@ query_specification:
                                       $4,  // from
                                       $5,  // where
                                       $6,  // group
-                                      $7); // having
+                                      $7,  // having
+                                      $8); // windows
           }
         ;
 
@@ -8969,6 +9024,7 @@ simple_expr:
         | param_marker { $$= $1; }
         | variable
         | set_function_specification
+        | window_func_call
         | simple_expr OR_OR_SYM simple_expr
           {
             $$= NEW_PTN Item_func_concat(@$, $1, $3);
@@ -9514,98 +9570,416 @@ set_function_specification:
         ;
 
 sum_expr:
-          AVG_SYM '(' in_sum_expr ')'
+          AVG_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $3, FALSE);
+            $$= NEW_PTN Item_sum_avg(@$, $3, FALSE, $5);
           }
-        | AVG_SYM '(' DISTINCT in_sum_expr ')'
+        | AVG_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $4, TRUE);
+            $$= NEW_PTN Item_sum_avg(@$, $4, TRUE, $6);
           }
-        | BIT_AND  '(' in_sum_expr ')'
+        | BIT_AND  '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_and(@$, $3);
+            $$= NEW_PTN Item_sum_and(@$, $3, $5);
           }
-        | BIT_OR  '(' in_sum_expr ')'
+        | BIT_OR  '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_or(@$, $3);
+            $$= NEW_PTN Item_sum_or(@$, $3, $5);
           }
-        | JSON_ARRAYAGG '(' in_sum_expr ')'
+        | JSON_ARRAYAGG '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_json_array(@$, $3);
+            $$= NEW_PTN Item_sum_json_array(@$, $3, $5);
           }
-        | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')'
+        | JSON_OBJECTAGG '(' in_sum_expr ',' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_json_object(@$, $3, $5);
+            $$= NEW_PTN Item_sum_json_object(@$, $3, $5, $7);
           }
-        | BIT_XOR  '(' in_sum_expr ')'
+        | BIT_XOR  '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_xor(@$, $3);
+            $$= NEW_PTN Item_sum_xor(@$, $3, $5);
           }
-        | COUNT_SYM '(' opt_all '*' ')'
+        | COUNT_SYM '(' opt_all '*' ')' opt_windowing_clause
           {
-            $$= NEW_PTN PTI_count_sym(@$);
+            $$= NEW_PTN PTI_count_sym(@$, $6);
           }
-        | COUNT_SYM '(' in_sum_expr ')'
+        | COUNT_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_count(@$, $3);
+            $$= NEW_PTN Item_sum_count(@$, $3, $5);
           }
-        | COUNT_SYM '(' DISTINCT expr_list ')'
+        | COUNT_SYM '(' DISTINCT expr_list ')' opt_windowing_clause
           {
-            $$= new Item_sum_count(@$, $4);
+            $$= new Item_sum_count(@$, $4, $6);
           }
-        | MIN_SYM '(' in_sum_expr ')'
+        | MIN_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_min(@$, $3);
+            $$= NEW_PTN Item_sum_min(@$, $3, $5);
           }
         /*
           According to ANSI SQL, DISTINCT is allowed and has
           no sense inside MIN and MAX grouping functions; so MIN|MAX(DISTINCT ...)
           is processed like an ordinary MIN | MAX()
         */
-        | MIN_SYM '(' DISTINCT in_sum_expr ')'
+        | MIN_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_min(@$, $4);
+            $$= NEW_PTN Item_sum_min(@$, $4, $6);
           }
-        | MAX_SYM '(' in_sum_expr ')'
+        | MAX_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_max(@$, $3);
+            $$= NEW_PTN Item_sum_max(@$, $3, $5);
           }
-        | MAX_SYM '(' DISTINCT in_sum_expr ')'
+        | MAX_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_max(@$, $4);
+            $$= NEW_PTN Item_sum_max(@$, $4, $6);
           }
-        | STD_SYM '(' in_sum_expr ')'
+        | STD_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_std(@$, $3, 0);
+            $$= NEW_PTN Item_sum_std(@$, $3, 0, $5);
           }
-        | VARIANCE_SYM '(' in_sum_expr ')'
+        | VARIANCE_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_variance(@$, $3, 0);
+            $$= NEW_PTN Item_sum_variance(@$, $3, 0, $5);
           }
-        | STDDEV_SAMP_SYM '(' in_sum_expr ')'
+        | STDDEV_SAMP_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_std(@$, $3, 1);
+            $$= NEW_PTN Item_sum_std(@$, $3, 1, $5);
           }
-        | VAR_SAMP_SYM '(' in_sum_expr ')'
+        | VAR_SAMP_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_variance(@$, $3, 1);
+            $$= NEW_PTN Item_sum_variance(@$, $3, 1, $5);
           }
-        | SUM_SYM '(' in_sum_expr ')'
+        | SUM_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $3, FALSE);
+            $$= NEW_PTN Item_sum_sum(@$, $3, FALSE, $5);
           }
-        | SUM_SYM '(' DISTINCT in_sum_expr ')'
+        | SUM_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $4, TRUE);
+            $$= NEW_PTN Item_sum_sum(@$, $4, TRUE, $6);
           }
         | GROUP_CONCAT_SYM '(' opt_distinct
           expr_list opt_gorder_clause
           opt_gconcat_separator
-          ')'
+          ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_func_group_concat(@$, $3, $4, $5, $6);
+            $$= NEW_PTN Item_func_group_concat(@$, $3, $4, $5, $6, $8);
           }
+        ;
+
+window_func_call:       // Window functions which do not exist as set functions
+          ROW_NUMBER_SYM '(' ')' windowing_clause
+          {
+            $$=  NEW_PTN Item_row_number(@$, $4);
+          }
+        | RANK_SYM '(' ')' windowing_clause
+          {
+            $$= NEW_PTN Item_rank(@$, false, $4);
+          }
+        | DENSE_RANK_SYM '(' ')' windowing_clause
+          {
+            $$= NEW_PTN Item_rank(@$, true, $4);
+          }
+        | CUME_DIST_SYM '(' ')' windowing_clause
+          {
+            $$=  NEW_PTN Item_cume_dist(@$, $4);
+          }
+        | PERCENT_RANK_SYM '(' ')' windowing_clause
+          {
+            $$= NEW_PTN Item_percent_rank(@$, $4);
+          }
+        | NTILE_SYM '(' simple_expr ')' windowing_clause
+          {
+            $$=NEW_PTN Item_ntile(@$, $3, $5);
+          }
+        | LEAD_SYM '(' expr opt_lead_lag_info ')' opt_null_treatment windowing_clause
+          {
+            PT_item_list *args= NEW_PTN PT_item_list;
+            if (args == NULL || args->push_back($3))
+              MYSQL_YYABORT; // OOM
+            if ($4.offset != NULL && args->push_back($4.offset))
+              MYSQL_YYABORT; // OOM
+            if ($4.default_value != NULL && args->push_back($4.default_value))
+              MYSQL_YYABORT; // OOM
+            $$= NEW_PTN Item_lead_lag(@$, true, args, $6, $7);
+          }
+        | LAG_SYM '(' expr opt_lead_lag_info ')' opt_null_treatment windowing_clause
+          {
+            PT_item_list *args= NEW_PTN PT_item_list;
+            if (args == NULL || args->push_back($3))
+              MYSQL_YYABORT; // OOM
+            if ($4.offset != NULL && args->push_back($4.offset))
+              MYSQL_YYABORT; // OOM
+            if ($4.default_value != NULL && args->push_back($4.default_value))
+              MYSQL_YYABORT; // OOM
+            $$= NEW_PTN Item_lead_lag(@$, false, args, $6, $7);
+          }
+        | FIRST_VALUE_SYM '(' expr ')' opt_null_treatment windowing_clause
+          {
+            $$= NEW_PTN Item_first_last_value(@$, true, $3, $5, $6);
+          }
+        | LAST_VALUE_SYM  '(' expr ')' opt_null_treatment windowing_clause
+          {
+            $$= NEW_PTN Item_first_last_value(@$, false, $3, $5, $6);
+          }
+        | NTH_VALUE_SYM '(' expr ',' simple_expr ')' opt_from_first_last opt_null_treatment windowing_clause
+          {
+            PT_item_list *args= NEW_PTN PT_item_list;
+            if (args == NULL ||
+                args->push_back($3) ||
+                args->push_back($5))
+              MYSQL_YYABORT;
+            $$= NEW_PTN Item_nth_value(@$, args, $7 == NFL_FROM_LAST, $8, $9);
+          }
+        ;
+
+opt_lead_lag_info:
+          /* Nothing */
+          {
+            $$.offset= NULL;
+            $$.default_value= NULL;
+          }
+        | ',' NUM_literal opt_ll_default
+          {
+            $$.offset= $2;
+            $$.default_value= $3;
+          }
+        | ',' param_marker opt_ll_default
+          {
+            $$.offset= $2;
+            $$.default_value= $3;
+          }
+        ;
+
+opt_ll_default:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | ',' expr
+          {
+            $$= $2;
+          }
+        ;
+
+opt_null_treatment:
+          /* Nothing */
+          {
+            $$= NT_NONE;
+          }
+        | RESPECT_SYM NULLS_SYM
+          {
+            $$= NT_RESPECT_NULLS;
+          }
+        | IGNORE_SYM NULLS_SYM
+          {
+            $$= NT_IGNORE_NULLS;
+          }
+        ;
+
+
+opt_from_first_last:
+          /* Nothing */
+          {
+            $$= NFL_NONE;
+          }
+        | FROM FIRST_SYM
+          {
+            $$= NFL_FROM_FIRST;
+          }
+        | FROM LAST_SYM
+          {
+            $$= NFL_FROM_LAST;
+          }
+        ;
+
+opt_windowing_clause:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | windowing_clause
+          {
+            $$= $1;
+          }
+        ;
+
+windowing_clause:
+          OVER_SYM window_name_or_spec
+          {
+            $$= $2;
+          }
+        ;
+
+window_name_or_spec:
+          window_name
+          {
+            $$= NEW_PTN PT_window($1);
+          }
+        | window_spec
+          {
+            $$= $1;
+          }
+        ;
+
+window_name:
+          ident
+          {
+            $$= NEW_PTN Item_string($1.str, $1.length, YYTHD->charset());
+          }
+        ;
+
+window_spec:
+          '(' window_spec_details ')'
+          {
+            $$= $2;
+          }
+        ;
+
+window_spec_details:
+           opt_existing_window_name
+           opt_partition_clause
+           opt_window_order_by_clause
+           opt_window_frame_clause
+           {
+             $$= NEW_PTN PT_window($2, $3, $4, $1);
+           }
+         ;
+
+opt_existing_window_name:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | window_name
+          {
+            $$= $1;
+          }
+        ;
+
+opt_partition_clause:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | PARTITION_SYM BY group_list
+          {
+            $$= $3;
+          }
+        ;
+
+opt_window_order_by_clause:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | ORDER_SYM BY order_list
+          {
+            $$= $3;
+          }
+        ;
+
+opt_window_frame_clause:
+          /* Nothing*/
+          {
+            $$= NULL;
+          }
+        | window_frame_units
+          window_frame_extent
+          opt_window_frame_exclusion
+          {
+            $$= NEW_PTN PT_frame($1, $2, $3);
+          }
+        ;
+
+window_frame_extent:
+          window_frame_start
+          {
+            auto end_bound= NEW_PTN PT_border(WBT_CURRENT_ROW);
+            $$= NEW_PTN PT_borders($1, end_bound);
+          }
+        | window_frame_between
+          {
+            $$= $1;
+          }
+        ;
+
+window_frame_start:
+          UNBOUNDED_SYM PRECEDING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_UNBOUNDED_PRECEDING);
+          }
+        | NUM_literal PRECEDING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $1);
+          }
+        | param_marker PRECEDING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $1);
+          }
+        | INTERVAL_SYM expr interval PRECEDING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_PRECEDING, $2, $3);
+          }
+        | CURRENT_SYM ROW_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_CURRENT_ROW);
+          }
+        ;
+
+window_frame_between:
+          BETWEEN_SYM window_frame_bound AND_SYM window_frame_bound
+          {
+            $$= NEW_PTN PT_borders($2, $4);
+          }
+        ;
+
+window_frame_bound:
+          window_frame_start
+          {
+            $$= $1;
+          }
+        | UNBOUNDED_SYM FOLLOWING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_UNBOUNDED_FOLLOWING);
+          }
+        | NUM_literal FOLLOWING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $1);
+          }
+        | param_marker FOLLOWING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $1);
+          }
+        | INTERVAL_SYM expr interval FOLLOWING_SYM
+          {
+            $$= NEW_PTN PT_border(WBT_VALUE_FOLLOWING, $2, $3);
+          }
+        ;
+
+opt_window_frame_exclusion:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | EXCLUDE_SYM CURRENT_SYM ROW_SYM
+          {
+            $$= NEW_PTN PT_exclusion(WFX_CURRENT_ROW);
+          }
+        | EXCLUDE_SYM GROUP_SYM
+          {
+            $$= NEW_PTN PT_exclusion(WFX_GROUP);
+          }
+        | EXCLUDE_SYM TIES_SYM
+          {
+            $$= NEW_PTN PT_exclusion(WFX_TIES);
+          }
+        | EXCLUDE_SYM NO_SYM OTHERS_SYM
+          { $$= NEW_PTN PT_exclusion(WFX_NO_OTHERS);
+          }
+        ;
+
+window_frame_units:
+          ROWS_SYM    { $$= WFU_ROWS; }
+        | RANGE_SYM   { $$= WFU_RANGE; }
+        | GROUPS_SYM  { $$= WFU_GROUPS; }
         ;
 
 grouping_operation:
@@ -10350,7 +10724,43 @@ simple_ident_list:
           {
             $$= $1;
             if ($$.push_back(to_lex_cstring($3)))
-              MYSQL_YYABORT; /* purecov: inspected */
+              MYSQL_YYABORT;  /* purecov: inspected */
+          }
+        ;
+
+opt_window_clause:
+          /* Nothing */
+          {
+            $$= NULL;
+          }
+        | WINDOW_SYM window_definition_list
+          {
+            $$= $2;
+          }
+        ;
+
+window_definition_list:
+          window_definition
+          {
+            $$= NEW_PTN PT_window_list();
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | window_definition_list ',' window_definition
+          {
+            if ($1->push_back($3))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+window_definition:
+          window_name AS window_spec
+          {
+            $$= $3;
+            if ($$ == NULL)
+              MYSQL_YYABORT; // OOM
+            $$->set_name($1);
           }
         ;
 
@@ -12995,6 +13405,7 @@ role_or_label_keyword:
         | EVENTS_SYM               {}
         | EVERY_SYM                {}
         | EXCHANGE_SYM             {}
+        | EXCLUDE_SYM              {}
         | EXPANSION_SYM            {}
         | EXPIRE_SYM               {}
         | EXPORT_SYM               {}
@@ -13002,6 +13413,7 @@ role_or_label_keyword:
         | EXTENT_SIZE_SYM          {}
         | FAULTS_SYM               {}
         | FAST_SYM                 {}
+        | FOLLOWING_SYM            {}
         | FOUND_SYM                {}
         | ENABLE_SYM               {}
         | FULL                     {}
@@ -13097,12 +13509,14 @@ role_or_label_keyword:
         | NEW_SYM                  {}
         | NO_WAIT_SYM              {}
         | NODEGROUP_SYM            {}
+        | NULLS_SYM                {}
         | NOWAIT_SYM               {}
         | NUMBER_SYM               {}
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
         | ONE_SYM                  {}
         | ONLY_SYM                 {}
+        | OTHERS_SYM               {}        
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
         | PARTIAL                  {}
@@ -13115,6 +13529,7 @@ role_or_label_keyword:
         | PLUGINS_SYM              {}
         | POINT_SYM                {}
         | POLYGON_SYM              {}
+        | PRECEDING_SYM            {}        
         | PRESERVE_SYM             {}
         | PREV_SYM                 {}
         | PRIVILEGES               {}
@@ -13145,6 +13560,7 @@ role_or_label_keyword:
         | REPLICATE_WILD_IGNORE_TABLE {}
         | REPLICATE_REWRITE_DB     {}
         | RESOURCES                {}
+        | RESPECT_SYM              {}        
         | RESUME_SYM               {}
         | RETURNED_SQLSTATE_SYM    {}
         | RETURNS_SYM              {}
@@ -13152,10 +13568,8 @@ role_or_label_keyword:
         | ROLLUP_SYM               {}
         | ROTATE_SYM               {}
         | ROUTINE_SYM              {}
-        | ROWS_SYM                 {}
         | ROW_COUNT_SYM            {}
         | ROW_FORMAT_SYM           {}
-        | ROW_SYM                  {}
         | RTREE_SYM                {}
         | SCHEDULE_SYM             {}
         | SCHEMA_NAME_SYM          {}
@@ -13201,6 +13615,7 @@ role_or_label_keyword:
         | TEMPTABLE_SYM            {}
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
+        | TIES_SYM                 {}        
         | TRANSACTION_SYM          {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP_SYM            {}
@@ -13210,6 +13625,7 @@ role_or_label_keyword:
         | TYPES_SYM                {}
         | TYPE_SYM                 {}
         | UDF_RETURNS_SYM          {}
+        | UNBOUNDED_SYM            {}
         | UNCOMMITTED_SYM          {}
         | UNDEFINED_SYM            {}
         | UNDO_BUFFER_SIZE_SYM     {}

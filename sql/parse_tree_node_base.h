@@ -69,6 +69,7 @@ enum enum_parsing_context
   CTX_DERIVED, ///< "Derived" subquery
   CTX_WHERE, ///< Subquery in WHERE clause item tree
   CTX_ON,    ///< ON clause context
+  CTX_WINDOW, ///< Named or unnamed window
   CTX_HAVING, ///< Subquery in HAVING clause item tree
   CTX_ORDER_BY, ///< ORDER BY clause execution context
   CTX_GROUP_BY, ///< GROUP BY clause execution context

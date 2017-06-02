@@ -242,6 +242,14 @@ BBBBBBBBBBBBB - eeeeeeeee		0
 Test Procedures		0
 Documentation		0
 Host communication		0
+select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+row_number() over ()	value	description	COUNT(bug_id)
+1	BBBBBBBBBBBBB - conversion		2
+2	BBBBBBBBBBBBB - generic		2
+3	BBBBBBBBBBBBB - eeeeeeeee		0
+4	Test Procedures		0
+5	Documentation		0
+6	Host communication		0
 drop table t1,t2;
 create table t1 (foo int);
 insert into t1 values (1);
@@ -3390,3 +3398,17 @@ a	0
 c	0
 b	4
 DROP TABLE t;
+#
+# Bug#26162009: INCORRECT RESULT WITH EXPRESSION IN HAVING CLAUSE
+#
+CREATE TABLE t1 (col_varchar VARCHAR(10), col_int_key INT);
+INSERT INTO t1 VALUES('r',83);
+SELECT col_varchar as field1, MAX(col_int_key) AS field3 FROM t1
+GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
+field1	field3
+r	83
+SELECT CONCAT(col_varchar) as field1, MAX(col_int_key) AS field3
+FROM t1 GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
+field1	field3
+r	83
+DROP TABLE t1;

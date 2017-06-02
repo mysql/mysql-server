@@ -156,6 +156,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
 {
   DBUG_ASSERT(max_rows == 0);   // function should not be called twice
   m_fixed_sort_length= sortlen;
+  m_force_stable_sort= file_sort->m_force_stable_sort;
   ref_length= table->file->ref_length;
 
   local_sortorder= sf_array;
@@ -308,8 +309,9 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
     if (sortorder->field)
     {
-      if (strlen(sortorder->field->table->alias) != 0)
-        oto.add_utf8_table(sortorder->field->table->pos_in_table_list);
+      TABLE *t= sortorder->field->table;
+      if (strlen(t->alias) != 0)
+        oto.add_utf8_table(t->pos_in_table_list);
       else
         oto.add_alnum("table", "intermediate_tmp_table");
       oto.add_alnum("field", sortorder->field->field_name ?
@@ -386,11 +388,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     "join_execution".
   */
   Opt_trace_object trace_wrapper(trace);
+  if (tab->join())
+    trace_wrapper.add("sorting_table_in_plan_at_position", tab->idx());
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
   DBUG_ASSERT(tab == table->reginfo.qep_tab);
-  Item_subselect *const subselect= tab && tab->join() ?
+  Item_subselect *const subselect= tab->join() ?
     tab->join()->select_lex->master_unit()->item : NULL;
 
   DEBUG_SYNC(thd, "filesort_start");
@@ -755,7 +759,7 @@ uint Filesort::make_sortorder()
   uint count;
   st_sort_field *sort,*pos;
   ORDER *ord;
-  DBUG_ENTER("make_sortorder");
+  DBUG_ENTER("Filesort::make_sortorder");
 
   count=0;
   for (ord = order; ord; ord= ord->next)
@@ -806,6 +810,9 @@ uint Filesort::make_sortorder()
       pos->item= item;
     pos->reverse= (ord->direction == ORDER_DESC);
     DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
+    DBUG_PRINT("info", ("sorting on %s: %s",
+                        (pos->field ? "field" : "item"),
+                        (pos->field ? pos->field->field_name : "")));
   }
   DBUG_RETURN(count);
 }
@@ -1477,7 +1484,7 @@ size_t make_sortkey_from_item(
 
     // Allow item->str() to use some extra space for trailing zero byte.
     String tmp((char*) to, max_length + 4, cs);
-    String *res= item->str_result(&tmp);
+    String *res= item->val_str(&tmp);
     if (res == nullptr)  // Value is NULL.
     {
       DBUG_ASSERT(item->maybe_null);
@@ -1530,10 +1537,10 @@ size_t make_sortkey_from_item(
   {
     DBUG_ASSERT(!is_varlen);
     longlong value= item->data_type() == MYSQL_TYPE_TIME ?
-                    item->val_time_temporal_result() :
+                    item->val_time_temporal() :
                     item->is_temporal_with_date() ?
-                    item->val_date_temporal_result() :
-                    item->val_int_result();
+                    item->val_date_temporal() :
+                    item->val_int();
     /*
       Note: item->null_value can't be trusted alone here; there are cases
       (for the DATE data type in particular) where we can have item->null_value
@@ -1553,7 +1560,7 @@ size_t make_sortkey_from_item(
   case DECIMAL_RESULT:
   {
     DBUG_ASSERT(!is_varlen);
-    my_decimal dec_buf, *dec_val= item->val_decimal_result(&dec_buf);
+    my_decimal dec_buf, *dec_val= item->val_decimal(&dec_buf);
     /*
       Note: item->null_value can't be trusted alone here; there are cases
       where we can have item->null_value set without maybe_null being set!
@@ -1585,7 +1592,7 @@ size_t make_sortkey_from_item(
   case REAL_RESULT:
   {
     DBUG_ASSERT(!is_varlen);
-    double value= item->val_result();
+    double value= item->val_real();
     if (item->null_value)
     {
       DBUG_ASSERT(item->maybe_null);

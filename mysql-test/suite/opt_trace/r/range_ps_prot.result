@@ -880,17 +880,18 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t2`.`key2`",
-              "items": [
-                {
-                  "item": "`t2`.`key2`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t2`.`key2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t2`.`key2`",
+                "items": [
+                  {
+                    "item": "`t2`.`key2`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t2`.`key2`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -910,6 +911,10 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                 "table": "`t2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1106,17 +1111,19 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t2`.`key2`",
-              "items": [
-                {
-                  "item": "`t2`.`key2`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t2`.`key2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "changed_distinct_to_group_by": true,
+              "simplifying_group_by": {
+                "original_clause": "`t2`.`key2`",
+                "items": [
+                  {
+                    "item": "`t2`.`key2`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t2`.`key2`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -1136,6 +1143,10 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                 "table": "`t2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1423,17 +1434,18 @@ GROUP BY key2	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t2`.`key2`",
-              "items": [
-                {
-                  "item": "`t2`.`key2`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t2`.`key2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t2`.`key2`",
+                "items": [
+                  {
+                    "item": "`t2`.`key2`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t2`.`key2`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -1453,6 +1465,10 @@ GROUP BY key2	{
                 "table": "`t2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -4073,18 +4089,19 @@ EXPLAIN SELECT 1 FROM
                   } /* attaching_conditions_to_tables */
                 },
                 {
-                  "clause_processing": {
-                    "clause": "GROUP BY",
-                    "original_clause": "''",
-                    "items": [
-                      {
-                        "item": "1",
-                        "uses_only_constant_tables": true
-                      }
-                    ] /* items */,
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": ""
-                  } /* clause_processing */
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_group_by": {
+                      "original_clause": "''",
+                      "items": [
+                        {
+                          "item": "1",
+                          "uses_only_constant_tables": true
+                        }
+                      ] /* items */,
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": ""
+                    } /* simplifying_group_by */
+                  } /* optimizing_distinct_group_by_order_by */
                 },
                 {
                   "refine_plan": [
@@ -4103,9 +4120,12 @@ EXPLAIN SELECT 1 FROM
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `d2`",
+                "columns": 1,
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
@@ -4408,18 +4428,19 @@ EXPLAIN SELECT 1 FROM
                   } /* attaching_conditions_to_tables */
                 },
                 {
-                  "clause_processing": {
-                    "clause": "GROUP BY",
-                    "original_clause": "''",
-                    "items": [
-                      {
-                        "item": "1",
-                        "uses_only_constant_tables": true
-                      }
-                    ] /* items */,
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": ""
-                  } /* clause_processing */
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_group_by": {
+                      "original_clause": "''",
+                      "items": [
+                        {
+                          "item": "1",
+                          "uses_only_constant_tables": true
+                        }
+                      ] /* items */,
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": ""
+                    } /* simplifying_group_by */
+                  } /* optimizing_distinct_group_by_order_by */
                 },
                 {
                   "refine_plan": [
@@ -4438,9 +4459,12 @@ EXPLAIN SELECT 1 FROM
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `d2`",
+                "columns": 1,
                 "row_length": 5,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
@@ -4731,20 +4755,21 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`i1`,`t1`.`i2`",
-              "items": [
-                {
-                  "item": "`t1`.`i1`"
-                },
-                {
-                  "item": "`t1`.`i2`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`i1`,`t1`.`i2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`i1`,`t1`.`i2`",
+                "items": [
+                  {
+                    "item": "`t1`.`i1`"
+                  },
+                  {
+                    "item": "`t1`.`i2`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`i1`,`t1`.`i2`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -4832,6 +4857,10 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                 "table_condition_attached": null
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -5066,54 +5095,54 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`i1` desc",
-              "items": [
-                {
-                  "item": "`t1`.`i1`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`i1` desc"
-            } /* clause_processing */
-          },
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-              "clause": "ORDER BY",
-              "index_order_summary": {
-                "table": "`t1`",
-                "index_provides_order": true,
-                "order_direction": "desc",
-                "index": "k1",
-                "plan_changed": false
-              } /* index_order_summary */
-            } /* reconsidering_access_paths_for_index_ordering */
-          },
-          {
-            "reconsidering_access_paths_for_index_ordering": {
-              "clause": "GROUP BY",
-              "index_order_summary": {
-                "table": "`t1`",
-                "index_provides_order": true,
-                "order_direction": "desc",
-                "index": "k1",
-                "plan_changed": false
-              } /* index_order_summary */
-            } /* reconsidering_access_paths_for_index_ordering */
-          },
-          {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`i1` desc",
-              "items": [
-                {
-                  "item": "`t1`.`i1`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`i1` desc"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`i1` desc",
+                "items": [
+                  {
+                    "item": "`t1`.`i1`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`i1` desc"
+              } /* simplifying_order_by */,
+              "unknown_key_1": {
+                "reconsidering_access_paths_for_index_ordering": {
+                  "clause": "ORDER BY",
+                  "index_order_summary": {
+                    "table": "`t1`",
+                    "index_provides_order": true,
+                    "order_direction": "desc",
+                    "index": "k1",
+                    "plan_changed": false
+                  } /* index_order_summary */
+                } /* reconsidering_access_paths_for_index_ordering */
+              },
+              "unknown_key_2": {
+                "reconsidering_access_paths_for_index_ordering": {
+                  "clause": "GROUP BY",
+                  "index_order_summary": {
+                    "table": "`t1`",
+                    "index_provides_order": true,
+                    "order_direction": "desc",
+                    "index": "k1",
+                    "plan_changed": false
+                  } /* index_order_summary */
+                } /* reconsidering_access_paths_for_index_ordering */
+              },
+              "changed_distinct_to_group_by": true,
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`i1` desc",
+                "items": [
+                  {
+                    "item": "`t1`.`i1`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`i1` desc"
+              } /* simplifying_group_by */,
+              "removed_order_by": true
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -5133,6 +5162,10 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -6011,18 +6044,19 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`t1`.`a`",
-              "items": [
-                {
-                  "item": "`t1`.`a`",
-                  "equals_constant_in_where": true
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": ""
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_group_by": {
+                "original_clause": "`t1`.`a`",
+                "items": [
+                  {
+                    "item": "`t1`.`a`",
+                    "equals_constant_in_where": true
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": ""
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -6269,17 +6303,18 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`i1`",
-              "items": [
-                {
-                  "item": "`t1`.`i1`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`i1`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`i1`",
+                "items": [
+                  {
+                    "item": "`t1`.`i1`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`i1`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "added_back_ref_condition": "((`t1`.`c1` <=> '1'))"
@@ -6305,6 +6340,10 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "table_condition_attached": null
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */

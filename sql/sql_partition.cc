@@ -1082,17 +1082,14 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   */
   {
     const bool save_agg_func=  thd->lex->current_select()->agg_func_used();
-    const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
-    thd->lex->allow_sum_func= 0;
 
     error= func_expr->fix_fields(thd, &func_expr);
 
     /*
-      Restore agg_func and allow_sum_func,
+      Restore agg_func.
       fix_fields should not affect the optimizer later, see Bug#46923.
     */
     thd->lex->current_select()->set_agg_func_used(save_agg_func);
-    thd->lex->allow_sum_func= saved_allow_sum_func;
   }
   if (unlikely(error))
   {

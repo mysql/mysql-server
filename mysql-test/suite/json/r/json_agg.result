@@ -688,7 +688,7 @@ ERROR 21000: Operand should contain 1 column(s)
 #
 CREATE TABLE t2(gid int, a int);
 SELECT JSON_ARRAYAGG(ST_PointFromText('POINT(10 10)')) FROM t2;
-ERROR HY000: Incorrect arguments to json_arrayagg(
+ERROR HY000: Incorrect arguments to json_arrayagg
 #
 # Coverage test for fix_fields: check_sum_func.
 #
@@ -721,26 +721,26 @@ SELECT JSON_ARRAYAGG(x) FROM t;
 JSON_ARRAYAGG(x)
 NULL
 Warnings:
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
 SELECT JSON_OBJECTAGG(id, x) FROM t;
 JSON_OBJECTAGG(id, x)
 NULL
 Warnings:
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
 SELECT id % 2 AS i, JSON_ARRAYAGG(x) FROM t GROUP BY i;
 i	JSON_ARRAYAGG(x)
 0	NULL
 1	NULL
 Warnings:
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
-Warning	1301	Result of json_arrayagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_arrayagg() was larger than max_allowed_packet (1024) - truncated
 SELECT id % 2 AS i, JSON_OBJECTAGG(id, x) FROM t GROUP BY i;
 i	JSON_OBJECTAGG(id, x)
 0	NULL
 1	NULL
 Warnings:
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
-Warning	1301	Result of json_objectagg(() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
+Warning	1301	Result of json_objectagg() was larger than max_allowed_packet (1024) - truncated
 SET GLOBAL max_allowed_packet = default;
 SET GLOBAL net_buffer_length = default;
 DROP TABLE t;
@@ -1115,38 +1115,38 @@ gid	1.0 * JSON_ARRAYAGG(a)
 1	0
 2	0
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_arrayagg at row 5
 SELECT gid, 0x30 << JSON_ARRAYAGG(a) FROM t2 GROUP BY gid;
 gid	0x30 << JSON_ARRAYAGG(a)
 1	48
 2	48
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 5
 SELECT gid, DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
 FROM t2 GROUP BY gid;
 gid	DATE_ADD(JSON_ARRAYAGG(a), INTERVAL 31 DAY)
 1	NULL
 2	NULL
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 5
 SELECT gid, ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
 FROM t2 GROUP BY gid;
 gid	ADDTIME(JSON_ARRAYAGG(a), '02:00:00.999998')
 1	NULL
 2	NULL
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_arrayagg at row 5
 SELECT gid, SEC_TO_TIME(JSON_ARRAYAGG(a)) FROM t2 GROUP BY gid;
 gid	SEC_TO_TIME(JSON_ARRAYAGG(a))
 1	00:00:00.000000
 2	00:00:00.000000
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 3
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg( at row 5
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 3
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_arrayagg at row 5
 TRUNCATE TABLE t2;
 SELECT 1.0 * JSON_ARRAYAGG(a) FROM t2;
 1.0 * JSON_ARRAYAGG(a)

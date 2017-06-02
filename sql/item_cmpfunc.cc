@@ -1096,7 +1096,7 @@ get_time_value(THD*, Item ***item_arg, Item **cache_arg,
     Item_cache_datetime *cache= new Item_cache_datetime(item->data_type());
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_value(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
@@ -1154,13 +1154,13 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       cache->set_used_tables(1);
       if (!(*a)->is_temporal_with_date())
       {
-        cache->store((*a), const_value);
+        cache->store_value((*a), const_value);
         a_cache= cache;
         a= &a_cache;
       }
       else
       {
-        cache->store((*b), const_value);
+        cache->store_value((*b), const_value);
         b_cache= cache;
         b= &b_cache;
       }
@@ -1409,7 +1409,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     Item_cache_datetime *cache= new Item_cache_datetime(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_value(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }

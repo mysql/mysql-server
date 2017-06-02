@@ -1058,19 +1058,19 @@ select count(distinct c2) from tab;
 count(distinct c2)
 2
 select sum(c2) from tab;
-ERROR HY000: Incorrect arguments to sum(
+ERROR HY000: Incorrect arguments to sum
 select sum(distinct c2) from tab;
-ERROR HY000: Incorrect arguments to sum(distinct 
+ERROR HY000: Incorrect arguments to sum
 select avg(c2) from tab;
-ERROR HY000: Incorrect arguments to avg(
+ERROR HY000: Incorrect arguments to avg
 select avg(distinct c2) from tab;
-ERROR HY000: Incorrect arguments to avg(distinct 
+ERROR HY000: Incorrect arguments to avg
 select min(c2) from tab;
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 select max(c2) from tab;
-ERROR HY000: Incorrect arguments to max(
+ERROR HY000: Incorrect arguments to max
 select std(c2) from tab;
-ERROR HY000: Incorrect arguments to std(
+ERROR HY000: Incorrect arguments to std
 drop table tab;
 set @g1 = 1;
 set @g2 = 2;

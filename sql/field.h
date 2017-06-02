@@ -707,6 +707,7 @@ private:
   enum_check_fields m_check_for_truncated_fields_saved;
 
 protected:
+
   const uchar *get_null_ptr() const
   { return m_null_ptr; }
 
@@ -4663,7 +4664,6 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  bool *null_row;
   uint	from_bit,to_bit;
   String tmp;					// For items
 
@@ -4730,6 +4730,8 @@ public:
 
   uint to_length() const
   { return m_to_length; }
+
+  void swap_direction();
 };
 
 

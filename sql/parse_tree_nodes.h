@@ -54,9 +54,9 @@
 #include "sql_partition_admin.h"
 #include "sql_security_ctx.h"
 #include "sql_truncate.h"            // Sql_cmd_truncate_table
-#include "table.h"
 #include "table.h"                   // Common_table_expr
 #include "thr_lock.h"
+#include "window.h"                  // Window
 
 class PT_field_def_base;
 class PT_hint_list;
@@ -1897,6 +1897,160 @@ public:
 };
 
 
+/**
+  Parse tree node for a single of a window extent's borders,
+  cf. \<window frame extent\> in SQL 2003.
+*/
+class PT_border : public Parse_tree_node {
+  friend class Window;
+  Item *m_value;       ///< only relevant iff m_border_type == WBT_VALUE_*
+public:
+  enum_window_border_type m_border_type;
+  const bool m_date_time;
+  interval_type m_int_type;
+
+  ///< For unbounded border
+  PT_border(enum_window_border_type type)
+    : m_border_type(type), m_date_time(false)
+  {
+    DBUG_ASSERT(type != WBT_VALUE_PRECEDING &&
+                type != WBT_VALUE_FOLLOWING);
+  }
+
+  ///< For bounded non-temporal border, e.g. 2 PRECEDING: 'value' is 2.
+  PT_border(enum_window_border_type type, Item *value)
+    : m_value(value), m_border_type(type), m_date_time(false)
+  {}
+
+  ///< For bounded INTERVAL 2 DAYS, 'value' is 2, int_type is DAYS.
+  PT_border(enum_window_border_type type, Item *value,
+            interval_type int_type)
+  : m_value(value), m_border_type(type), m_date_time(true),
+    m_int_type(int_type)
+  {}
+
+  ///< @returns the '2' in '2 PRECEDING' or 'INTERVAL 2 DAYS PRECEDING'
+  Item *border() const { return m_value; }
+  /// Need such low-level access so that fix_fields updates the right pointer
+  Item **border_ptr() { return &m_value; }
+
+  /**
+    @returns Addition operator for computation of frames, nullptr if error.
+    @param  order_expr  Expression to add/substract to
+    @param  prec    true if PRECEDING
+    @param  asc     true if ASC
+    @param  window  only used for error generation
+  */
+  Item *build_addop(Item_cache *order_expr,
+                    bool prec, bool asc, const Window *window);
+};
+
+
+/**
+  Parse tree node for one or both of a window extent's borders, cf.
+  \<window frame extent\> in SQL 2003.
+*/
+class PT_borders : public Parse_tree_node {
+  PT_border *m_borders[2];
+  friend class PT_frame;
+public:
+  /**
+    Constructor.
+
+    Frames of the form "frame_start no_frame_end" are translated during
+    parsing to "BETWEEN frame_start AND CURRENT ROW". So both 'start' and
+    'end' are non-nullptr.
+  */
+  PT_borders(PT_border *start, PT_border *end)
+  {
+    m_borders[0]= start;
+    m_borders[1]= end;
+  }
+};
+
+
+/**
+  Parse tree node for a window frame's exclusions, cf. the
+  \<window frame exclusion\> clause in SQL 2003.
+*/
+class PT_exclusion : public Parse_tree_node {
+  enum_window_frame_exclusion m_exclusion;
+
+public:
+  PT_exclusion(enum_window_frame_exclusion e) : m_exclusion(e) {}
+  // enum_window_frame_exclusion exclusion() { return m_exclusion; }
+};
+
+
+/**
+  Parse tree node for a window's frame, cf. the \<window frame clause\>
+  in SQL 2003.
+*/
+class PT_frame : public Parse_tree_node
+{
+
+public:
+  enum_window_frame_unit m_unit;
+
+  PT_border *m_from;
+  PT_border *m_to;
+
+  PT_exclusion *m_exclusion;
+
+  PT_frame(enum_window_frame_unit unit, PT_borders *from_to,
+           PT_exclusion *exclusion)
+    : m_unit(unit),
+      m_from(from_to->m_borders[0]),
+      m_to(from_to->m_borders[1]),
+      m_exclusion(exclusion)
+  {};
+};
+
+
+/**
+  Parse tree node for a window; just a shallow wrapper for
+  class Window, q.v.
+*/
+class PT_window : public Parse_tree_node, public Window
+{
+  typedef Parse_tree_node super;
+
+public:
+  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
+            PT_frame *frame)
+    : Window(partition_by, order_by, frame)
+  {}
+
+  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
+            PT_frame *frame, Item_string *inherit)
+    : Window(partition_by, order_by, frame, inherit)
+  {}
+
+  PT_window(Item_string *name)
+    : Window(name)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+/**
+  Parse tree node for a list of window definitions corresponding
+  to a \<window clause\> in SQL 2003.
+*/
+class PT_window_list : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+  List<Window> m_windows;
+
+public:
+  PT_window_list() {}
+
+  virtual bool contextualize(Parse_context *pc);
+
+  bool push_back(PT_window *w) { return m_windows.push_back(w); }
+};
+
+
 class PT_query_primary : public Parse_tree_node
 {
 public:
@@ -1917,6 +2071,7 @@ class PT_query_specification : public PT_query_primary
   Item *opt_where_clause;
   PT_group *opt_group_clause;
   Item *opt_having_clause;
+  PT_window_list *opt_window_clause;
 
 public:
   PT_query_specification(
@@ -1927,7 +2082,8 @@ public:
     const Mem_root_array_YY<PT_table_reference *> &from_clause_arg,
     Item *opt_where_clause_arg,
     PT_group *opt_group_clause_arg,
-    Item *opt_having_clause_arg)
+    Item *opt_having_clause_arg,
+    PT_window_list *opt_window_clause_arg)
   : opt_hints(opt_hints_arg),
     options(options_arg),
     item_list(item_list_arg),
@@ -1935,7 +2091,8 @@ public:
     from_clause(from_clause_arg),
     opt_where_clause(opt_where_clause_arg),
     opt_group_clause(opt_group_clause_arg),
-    opt_having_clause(opt_having_clause_arg)
+    opt_having_clause(opt_having_clause_arg),
+    opt_window_clause(opt_window_clause_arg)
   {}
 
   PT_query_specification(
@@ -1950,7 +2107,8 @@ public:
     from_clause(from_clause_arg),
     opt_where_clause(opt_where_clause_arg),
     opt_group_clause(NULL),
-    opt_having_clause(NULL)
+    opt_having_clause(NULL),
+    opt_window_clause(NULL)
   {}
 
   explicit PT_query_specification(
@@ -1962,7 +2120,8 @@ public:
     opt_into1(NULL),
     opt_where_clause(NULL),
     opt_group_clause(NULL),
-    opt_having_clause(NULL)
+    opt_having_clause(NULL),
+    opt_window_clause(NULL)
   {
     from_clause.init_empty_const();
   }

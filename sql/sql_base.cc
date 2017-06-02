@@ -96,6 +96,7 @@
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_hset.h"                 // Hash_set
 #include "sql_lex.h"
+#include "window.h"                   // Window
 #include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
 #include "sql_plugin_ref.h"
@@ -9155,10 +9156,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
     }
-    if (item->has_aggregation() &&
-        item->type() != Item::SUM_FUNC_ITEM &&
-        sum_func_list)
-      item->split_sum_func(thd, ref_item_array, *sum_func_list);
+
+    if (sum_func_list)
+    {
+      if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
+           !item->m_is_window_function)) ||
+          item->has_wf())
+        item->split_sum_func(thd, ref_item_array, *sum_func_list);
+    }
+
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
   }

@@ -46,7 +46,7 @@ DROP DATABASE `drop-temp+table-test`;
 RESET MASTER;
 CREATE TABLE t1 ( i text );
 CREATE TEMPORARY TABLE ttmp1 ( i text );
-SET @@session.binlog_format=ROW;
+SET @@session.binlog_format='ROW';
 INSERT INTO t1 VALUES ('1');
 SELECT @@session.binlog_format;
 @@session.binlog_format

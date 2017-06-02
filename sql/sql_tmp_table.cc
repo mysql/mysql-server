@@ -20,6 +20,7 @@
 
 #include "sql_tmp_table.h"
 
+#include <cstring>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -58,6 +59,7 @@
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
+#include "parse_tree_nodes.h"     // PT_order_list
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "sql_base.h"             // free_io_cache
@@ -295,6 +297,10 @@ static Field *create_tmp_field_for_schema(Item *item, TABLE *table)
                        the temporary table
   @param table_cant_handle_bit_fields
   @param make_copy_field
+  @param copy_result_field TRUE <=> return item's result field in the from_field
+                       arg. This is used for a window's OUT table when
+                       windows uses frame buffer to copy a function's result
+                       field from OUT table to frame buffer (and back).
 
   @retval NULL On error.
 
@@ -306,8 +312,10 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
-                        bool make_copy_field)
+                        bool make_copy_field,
+                        bool copy_result_field)
 {
+  DBUG_ENTER("create_tmp_field");
   Field *result= NULL;
   Item::Type orig_type= type;
   Item *orig_item= 0;
@@ -320,15 +328,9 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     type= Item::FIELD_ITEM;
   }
 
+  bool is_wf= type == Item::SUM_FUNC_ITEM && item->real_item()->m_is_window_function;
+
   switch (type) {
-  case Item::SUM_FUNC_ITEM:
-  {
-    Item_sum *item_sum=(Item_sum*) item;
-    result= item_sum->create_tmp_field(group, table);
-    if (!result)
-      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-    break;
-  }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
   case Item::TRIGGER_FIELD_ITEM:
@@ -430,14 +432,29 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
   case Item::PARAM_ITEM:
-    if (make_copy_field)
-    {
-      DBUG_ASSERT(((Item_result_field*)item)->result_field);
-      *from_field= ((Item_result_field*)item)->result_field;
-    }
-    result= create_tmp_field_from_item(item, table,
-                                       (make_copy_field ? NULL : copy_func),
-                                       modify_item);
+  case Item::SUM_FUNC_ITEM:
+      // Need to make result field for WF in the 'else' branch as WFs are
+      // evaluated via copy_funcs
+      if (type == Item::SUM_FUNC_ITEM && !is_wf)
+      {
+        Item_sum *item_sum=(Item_sum*) item;
+        result= item_sum->create_tmp_field(group, table);
+        if (!result)
+          my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
+      }
+      else
+      {
+        if (make_copy_field || (copy_result_field && !is_wf))
+        {
+          DBUG_ASSERT(((Item_result_field*)item)->result_field);
+          *from_field= ((Item_result_field*)item)->result_field;
+        }
+
+        result= create_tmp_field_from_item(item, table,
+                                           (make_copy_field ? NULL : copy_func),
+                                           modify_item);
+        result->flags|= copy_result_field ? FIELD_IS_MARKED : 0;
+      }
     break;
   case Item::TYPE_HOLDER:  
     result= ((Item_type_holder *)item)->make_field_by_type(table);
@@ -449,7 +466,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     DBUG_ASSERT(false);
     break;
   }
-  return result;
+  DBUG_RETURN(result);
 }
 
 /*
@@ -734,7 +751,8 @@ TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                  ORDER *group, bool distinct, bool save_sum_fields,
                  ulonglong select_options, ha_rows rows_limit,
-                 const char *table_alias)
+                 const char *table_alias,
+                 enum_tmpfile_windowing_action windowing)
 {
   MEM_ROOT *mem_root_save, own_root;
   TABLE *table;
@@ -890,6 +908,9 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->keys_in_use_for_group_by.init();
   table->keys_in_use_for_order_by.init();
   table->set_not_started();
+#ifndef DBUG_OFF
+  table->set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
+#endif
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
@@ -929,6 +950,17 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   {
     Field *new_field= NULL;
     Item::Type type= item->type();
+    const bool is_sum_func= type == Item::SUM_FUNC_ITEM && !item->m_is_window_function;
+
+    const Window *tmp_file_window= nullptr;
+
+    if (windowing != TMP_WIN_UNCONDITIONAL)
+    {
+      tmp_file_window= (item->m_is_window_function ?
+                        down_cast<Item_sum*>(item)->window() :
+                        nullptr);
+    }
+
     if (type == Item::COPY_STR_ITEM)
     {
       item= ((Item_copy *)item)->get_item();
@@ -952,16 +984,36 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           goto update_hidden;
         }
       }
-      if (item->const_item() && (int) hidden_field_count <= 0)
+      if (item->const_item() && (int)hidden_field_count <= 0)
         continue; // We don't have to store this
     }
-    if (type == Item::SUM_FUNC_ITEM && !group && !save_sum_fields)
+
+    if ((item->m_is_window_function && (windowing == TMP_WIN_NONE ||
+                                        windowing == TMP_WIN_FRAME_BUFFER ||
+                                        ((windowing == TMP_WIN_CONDITIONAL) &&
+                                         (param->m_window != tmp_file_window))))
+        /*
+          we are not evaluating wf (or expression containing a wf
+          for this window yet, i.e. it will happen in a later windowing step.
+        */
+        || (!item->m_is_window_function &&
+            windowing != TMP_WIN_UNCONDITIONAL && item->has_wf()))
+        /*
+          Query_result_union::create_result_table always sees the
+          evaluated field, not the expression function containing a wf, it is
+          already evaluated:
+        */
+    {
+      /* Do nothing */
+    }
+    else if (is_sum_func && !group && !save_sum_fields)
     {						/* Can't calc group yet */
-      Item_sum *sum_item= (Item_sum *) item;
-      for (i=0 ; i < sum_item->get_arg_count() ; i++)
+      Item_sum *sum_item= down_cast<Item_sum *>(item);
+      uint arg_count= sum_item->get_arg_count();
+      for (i=0 ; i < arg_count ; i++)
       {
         Item *arg= sum_item->get_arg(i);
-        if (!arg->const_item())
+        if (is_sum_func && !arg->const_item())
         {
           new_field=
             create_tmp_field(thd, table, arg, arg->type(), copy_func,
@@ -987,6 +1039,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
             string_total_length+= new_field->pack_length();
           }
           thd->mem_root= mem_root_save;
+
           arg= sum_item->set_arg(i, thd, new Item_field(new_field));
           thd->mem_root= &share->mem_root;
           if (!(new_field->flags & NOT_NULL_FLAG))
@@ -1033,7 +1086,10 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                            usable in this case too.
                          */
                          item->marker == 4 || param->bit_fields_as_long,
-                         force_copy_fields);
+                         force_copy_fields,
+                         (windowing == TMP_WIN_CONDITIONAL &&
+                          param->m_window->frame_buffer_param() &&
+                          item->is_result_field()));
 
       if (!new_field)
       {
@@ -1091,6 +1147,11 @@ update_hidden:
       else
         distinct_key_length+= new_field->pack_length();
     }
+
+    // Update the hidden function count (used in copy_funcs)
+    if (hidden_field_count > 0)
+      param->hidden_func_count= copy_func->size();
+
     if (!--hidden_field_count)
     {
       /*
@@ -1114,6 +1175,7 @@ update_hidden:
       total_uneven_bit_length= 0;
     }
   }
+
   DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
   DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
   field_count= fieldnr;
@@ -1231,9 +1293,9 @@ update_hidden:
 
   /*
     To enforce unique constraint we need to add a field to hold key's hash
-    1) already detected unique constraint
-    2) distinct key is too long
-    3) number of keyparts in distinct key is too big
+    A1) already detected unique constraint
+    A2) distinct key is too long
+    A3) number of keyparts in distinct key is too big
   */
   if (using_unique_constraint ||                              // 1
       distinct_key_length > max_key_length ||                 // 2
@@ -1503,8 +1565,23 @@ update_hidden:
 
     if (from_field[i])
     {						/* Not a table Item */
-      copy->set(field,from_field[i],save_sum_fields);
-      copy++;
+      if (param->m_window &&
+          param->m_window->frame_buffer_param() &&
+          field->flags & FIELD_IS_MARKED)
+      {
+        Temp_table_param *window_fb= param->m_window->frame_buffer_param();
+        // This is the result field of a function in the out-table.
+        // We need to copy it from out-table to window's frame buffer
+        field->flags^= FIELD_IS_MARKED;
+        window_fb->copy_field_end->set(from_field[i], field,
+                                       save_sum_fields);
+        window_fb->copy_field_end++;
+      }
+      else
+      {
+        copy->set(field,from_field[i],save_sum_fields);
+        copy++;
+      }
     }
     length=field->pack_length();
     pos+= length;
@@ -1775,6 +1852,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->covering_keys.init();
   table->keys_in_use_for_query.init();
   table->set_not_started();
+#ifndef DBUG_OFF
+  table->set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
+#endif
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname, &own_root);
@@ -2408,28 +2488,35 @@ static bool create_tmp_table_with_fallback(TABLE *table)
 
 static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
 {
+  TABLE_SHARE *s= table->s;
   Opt_trace_object trace_tmp(trace, "tmp_table_info");
   if (strlen(table->alias) != 0)
     trace_tmp.add_utf8_table(table->pos_in_table_list);
   else
     trace_tmp.add_alnum("table", "intermediate_tmp_table");
-  trace_tmp.add("row_length",table->s->reclength).
+  QEP_TAB *tab= table->reginfo.qep_tab;
+  if (tab)
+    trace_tmp.add("in_plan_at_position", tab->idx());
+  trace_tmp.add("columns", s->fields).
+    add("row_length",s->reclength).
     add("key_length", table->key_info ?
         table->key_info->key_length : 0).
-    add("unique_constraint", table->hash_field ? true : false);
+    add("unique_constraint", table->hash_field ? true : false).
+    add("makes_grouped_rows", table->group != nullptr).
+    add("cannot_insert_duplicates", table->distinct);
 
-  if (table->s->db_type() == myisam_hton)
+  if (s->db_type() == myisam_hton)
   {
     trace_tmp.add_alnum("location", "disk (MyISAM)");
-    if (table->s->db_create_options & HA_OPTION_PACK_RECORD)
+    if (s->db_create_options & HA_OPTION_PACK_RECORD)
       trace_tmp.add_alnum("record_format", "packed");
     else
       trace_tmp.add_alnum("record_format", "fixed");
   }
-  else if(table->s->db_type() == innodb_hton)
+  else if(s->db_type() == innodb_hton)
   {
     trace_tmp.add_alnum("location", "disk (InnoDB)");
-    if (table->s->db_create_options & HA_OPTION_PACK_RECORD)
+    if (s->db_create_options & HA_OPTION_PACK_RECORD)
       trace_tmp.add_alnum("record_format", "packed");
     else
       trace_tmp.add_alnum("record_format", "fixed");
@@ -2440,9 +2527,9 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
   }
   else
   {
-    DBUG_ASSERT(table->s->db_type() == heap_hton);
+    DBUG_ASSERT(s->db_type() == heap_hton);
     trace_tmp.add_alnum("location", "memory (heap)").
-      add("row_limit_estimate", table->s->max_rows);
+      add("row_limit_estimate", s->max_rows);
   }
 }
 
@@ -2571,7 +2658,7 @@ void free_tmp_table(THD *thd, TABLE *entry)
   free_io_cache(entry);
 
   DBUG_ASSERT(!alloc_root_inited(&entry->mem_root));
-
+  
   DBUG_ASSERT(entry->s->ref_count >= 1);
   if (--entry->s->ref_count == 0) // no more TABLE objects
   {
@@ -2836,7 +2923,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
           write_err= new_table.file->ha_write_row(new_table.record[1]);
           DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
           if (write_err)
-            goto err_after_open;                /* purecov: inspected */
+            goto err_after_open;
+          
         }
         /* copy row that filled HEAP table */
         if ((write_err=new_table.file->ha_write_row(table->record[0])))
@@ -2917,10 +3005,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
     /* Update quick select, if any. */
     if (tab && tab->quick())
     {
-      /*
-        This could happen only with result of derived table/view
-        materialization.
-      */
       DBUG_ASSERT(table->pos_in_table_list->uses_materialization());
       tab->quick()->set_handler(table->file);
     }
@@ -2991,6 +3075,20 @@ err_after_proc_info:
   DBUG_RETURN(1);
 }
 
+/**
+  Encode an InnoDB PK in 6 bytes, high-byte first; like
+  InnoDB's dict_sys_write_row_id() does.
+  @param rowid_bytes  where to store the result
+  @param length       how many available bytes in rowid_bytes
+  @param row_num      PK to encode
+*/
+void
+encode_innodb_position(uchar *rowid_bytes, uint length MY_ATTRIBUTE((unused)), ha_rows row_num)
+{
+  DBUG_ASSERT(length == 6);
+  for (int i= 0; i < 6; i++)
+    rowid_bytes[i]= (uchar)(row_num >> ( (5 - i ) * 8 ));
+}
 
 /**
   Helper function for create_ondisk_from_heap().
@@ -3012,14 +3110,9 @@ bool reposition_innodb_cursor(TABLE *table, ha_rows row_num)
   DBUG_ASSERT(table->s->db_type() == innodb_hton);
   if (table->file->ha_rnd_init(false))
     return true;                                /* purecov: inspected */
-  /*
-    Per the explanation above, the wanted InnoDB row has PK=row_num.
-    Encode the PK in 6 bytes, high-byte first; like
-    dict_sys_write_row_id() does.
-  */
+  // Per the explanation above, the wanted InnoDB row has PK=row_num.
   uchar rowid_bytes[6];
-  for (int i= 0; i < 6; i++)
-    rowid_bytes[i]= (uchar)(row_num >> ( (5 - i ) * 8 ));
+  encode_innodb_position(rowid_bytes, sizeof(rowid_bytes), row_num);
   /*
     Go to the row, and discard the row. That places the cursor at
     the same row as before the engine conversion, so that rnd_next() will

@@ -37,6 +37,7 @@
 class Query_result;
 class SELECT_LEX_UNIT;
 class Opt_trace_object;
+class Window;
 
 enum class enum_explain_type;
 
@@ -348,6 +349,8 @@ public:
   */
   uint derived_clone_id;
 
+  List<Window> *m_windows; ///< Windows to describe in this node
+
   qep_row() :
     query_block_id(0),
     is_dependent(false),
@@ -355,7 +358,8 @@ public:
     using_temporary(false),
     mod_type(MT_NONE),
     is_materialized_from_subquery(false),
-    derived_clone_id(0)
+    derived_clone_id(0),
+    m_windows(nullptr)
   {}
 
   virtual ~qep_row() {}
@@ -432,6 +436,7 @@ enum Explain_sort_clause
   ESC_GROUP_BY      = 2,
   ESC_DISTINCT      = 3,
   ESC_BUFFER_RESULT = 4,
+  ESC_WINDOWING     = 5,
 //-----------------
   ESC_MAX
 };

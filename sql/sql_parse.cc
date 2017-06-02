@@ -5056,6 +5056,10 @@ void THD::reset_for_next_command()
     a grant/revoke or flush.
   */
   thd->security_context()->checkout_access_maps();
+#ifndef DBUG_OFF
+  thd->set_tmp_table_seq_id(1);
+#endif
+
   DBUG_VOID_RETURN;
 }
 

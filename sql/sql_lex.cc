@@ -496,6 +496,7 @@ void LEX::reset()
   profile_options= PROFILE_NONE;
   select_number= 0;
   allow_sum_func= 0;
+  m_deny_window_func= 0;
   in_sum_func= NULL;
   create_info= NULL;
   server_options.reset();
@@ -3319,6 +3320,30 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
       str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
 
+  List_iterator<Window> li(m_windows);
+  Window *w;
+  first= true;
+  while ((w= li++))
+  {
+    if (w->name() == nullptr)
+      continue; // will be printed with function
+
+    if (first)
+    {
+      first= false;
+      str->append(" window ");
+    }
+    else
+    {
+      str->append(", ");
+    }
+
+    append_identifier(thd, str, w->name()->item_name.ptr(),
+                      strlen(w->name()->item_name.ptr()));
+    str->append(" AS ");
+    w->print(thd, this, str, query_type, true);
+  }
+
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
@@ -3836,6 +3861,7 @@ void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer)
    - A table-less query (unimportant special case).
    - A query with a LIMIT (limit applies to subquery, so the implementation
      strategy is to materialize this subquery, including row count constraint).
+   - It has windows
 */
 
 bool SELECT_LEX_UNIT::is_mergeable() const
@@ -3848,7 +3874,8 @@ bool SELECT_LEX_UNIT::is_mergeable() const
          !select->having_cond() &&
          !select->is_distinct() &&
          select->table_list.elements > 0 &&
-         !select->has_limit();
+         !select->has_limit() &&
+         select->m_windows.elements == 0;
 }
 
 
@@ -4554,6 +4581,17 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
 Item_exists_subselect::enum_exec_method
 SELECT_LEX::subquery_strategy(THD *thd) const
 {
+  if (m_windows.elements > 0)
+    /*
+      A window function is in the SELECT list.
+      In-to-exists could not work: it would attach an equality like
+      outer_expr = WF to either WHERE or HAVING; but a WF is not allowed in
+      those clauses, and even if we allowed it, it would modify the result
+      rows over which the WF is supposed to be calculated.
+      So, subquery materialization is imposed. Grep for (and read) WL#10431.
+    */
+    return Item_exists_subselect::EXEC_MATERIALIZATION;
+
   if (opt_hints_qb)
   {
     Item_exists_subselect::enum_exec_method strategy=

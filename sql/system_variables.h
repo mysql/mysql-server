@@ -154,6 +154,7 @@ struct System_variables
   ulonglong tmp_table_size;
   ulonglong long_query_time;
   bool end_markers_in_json;
+  bool windowing_use_high_precision;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing

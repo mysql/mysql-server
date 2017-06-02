@@ -2195,6 +2195,9 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     if (!qep_tab->check_weed_out_table ||
         !(res= do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table)))
     {
+      // Set proper slice before going to the next qep_tab
+      Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
+
       set_curr_rec_link(rec_ptr);
       rc= (qep_tab->next_select)(join, qep_tab + 1, 0);
       if (rc != NESTED_LOOP_OK)

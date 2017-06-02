@@ -182,7 +182,7 @@ SET SESSION binlog_format= STATEMENT;
 --error ER_BEFORE_DML_VALIDATION_ERROR
 INSERT INTO tn VALUES ('a');
 
---eval SET SESSION binlog_format= $binlog_format_backup
+--eval SET SESSION binlog_format= "$binlog_format_backup"
 
 #Test the value of transaction_write_set_extraction cannot be changed
 

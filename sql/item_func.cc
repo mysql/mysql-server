@@ -94,6 +94,7 @@
 #include "sql_class.h"           // THD
 #include "sql_error.h"
 #include "sql_lex.h"
+#include "window.h"              // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
@@ -703,45 +704,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 
 
 /**
-  Count max_length and decimals for temporal functions.
-
-  @param item    Argument array
-  @param nitems  Number of arguments in the array.
-*/
-
-void Item_func::count_datetime_length(Item **item, uint nitems)
-{
-  unsigned_flag= false;
-  decimals= 0;
-  if (data_type() != MYSQL_TYPE_DATE)
-  {
-    for (uint i= 0; i < nitems; i++)
-      set_if_bigger(decimals,
-                    data_type() == MYSQL_TYPE_TIME ?
-                    item[i]->time_precision() : item[i]->datetime_precision());
-  }
-  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
-  uint len= decimals ? (decimals + 1) : 0;
-  switch (data_type())
-  {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      len+= MAX_DATETIME_WIDTH;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-      len+= MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-      len+= MAX_TIME_WIDTH;
-      break;
-    default:
-      DBUG_ASSERT(0);
-  }
-  fix_char_length(len);
-}
-
-/**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
 
@@ -765,22 +727,6 @@ void Item_func::count_decimal_length(Item **item, uint nitems)
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
                                                                decimals,
                                                                unsigned_flag));
-}
-
-/**
-  Set char_length to the maximum number of characters required by any
-  of this function's arguments.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
-void Item_func::count_only_length(Item **item, uint nitems)
-{
-  uint32 char_length= 0;
-  for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, item[i]->max_char_length());
-  fix_char_length(char_length);
 }
 
 /**
@@ -816,31 +762,6 @@ void Item_func::count_real_length(Item **item, uint nitems)
   }
 }
 
-/**
-  Calculate max_length and decimals for STRING_RESULT functions.
-
-  @param field_type  Field type.
-  @param items       Argument array.
-  @param nitems      Number of arguments.
-
-  @retval            False on success, true on error.
-*/
-bool Item_func::count_string_result_length(enum_field_types field_type,
-                                           Item **items, uint nitems)
-{
-  if (agg_arg_charsets_for_string_result(collation, items, nitems))
-    return true;
-  if (is_temporal_type(field_type))
-    count_datetime_length(items, nitems);
-  else
-  {
-    decimals= NOT_FIXED_DEC;
-    count_only_length(items, nitems);
-  }
-  return false;
-}
-
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
@@ -863,9 +784,24 @@ void Item_func::signal_invalid_argument_for_log()
 
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
-  if (!has_aggregation() && !const_item())
-    return new Item_field(result_field);
-  return copy_or_same(thd);
+  DBUG_ENTER("Item_func::get_tmp_table_item");
+
+  /*
+    For items with aggregate functions, return the copy
+    of the function.
+    For constant items, return the same object as fields
+    are not created in temp tables for them.
+    For items with windowing functions, return the same
+    object (temp table fields are not created for windowing
+    functions if they are not evaluated at this stage).
+  */
+  if (!has_aggregation() && !const_item() && !has_wf())
+  {
+    Item *result= new Item_field(result_field);
+    DBUG_RETURN(result);
+  }
+  Item *result= copy_or_same(thd);
+  DBUG_RETURN(result);
 }
 
 const Item_field* 
@@ -6741,7 +6677,7 @@ void Item_func_set_user_var::save_item_result(Item *item)
 
   switch (cached_result_type) {
   case REAL_RESULT:
-    save_result.vreal= item->val_result();
+    save_result.vreal= item->val_real_result();
     break;
   case INT_RESULT:
     save_result.vint= item->val_int_result();
@@ -6872,7 +6808,7 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
-double Item_func_set_user_var::val_result()
+double Item_func_set_user_var::val_real_result()
 {
   DBUG_ASSERT(fixed == 1);
   check(TRUE);

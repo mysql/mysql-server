@@ -694,7 +694,7 @@ class PTI_count_sym : public Item_sum_count
   typedef Item_sum_count super;
 
 public:
-  PTI_count_sym(const POS &pos) : super(pos, (Item*)NULL) {}
+  PTI_count_sym(const POS &pos, PT_window *w) : super(pos, (Item*)NULL, w) {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
   {

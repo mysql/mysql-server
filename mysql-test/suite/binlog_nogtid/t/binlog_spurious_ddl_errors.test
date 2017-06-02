@@ -3,7 +3,7 @@
 #           binlog_format errors
 #
 # In the fix of BUG#39934 in 5.1-rep+3, errors are generated when
-# binlog_format=row and a statement modifies a table restricted to
+# binlog_format='row' and a statement modifies a table restricted to
 # statement-logging (ER_BINLOG_ROW_MODE_AND_STMT_ENGINE); or if
 # binlog_format=statement and a statement modifies a table limited to
 # row-logging (ER_BINLOG_STMT_MODE_AND_ROW_ENGINE).
@@ -69,7 +69,7 @@ DROP TABLE t_row;
 --echo # In contrast, CREATE TABLE ... SELECT should trigger the following error:
 --echo # ER_BINLOG_ROW_MODE_AND_STMT_ENGINE.
 --echo ################################################################################
-SET binlog_format = ROW;
+SET binlog_format = 'ROW';
 CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
 
 --error ER_NOT_SUPPORTED_YET

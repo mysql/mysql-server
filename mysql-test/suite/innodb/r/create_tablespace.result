@@ -205,7 +205,7 @@ CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
 ERROR HY000: Duplicate file name for tablespace 'InnoDB_System'
 SHOW WARNINGS;
 Level	Code	Message
-Error	3584	Duplicate file name for tablespace 'InnoDB_System'
+Error	3606	Duplicate file name for tablespace 'InnoDB_System'
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';

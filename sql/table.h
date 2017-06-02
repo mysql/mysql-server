@@ -1473,6 +1473,14 @@ public:
 private:
   /// Cost model object for operations on this table
   Cost_model_table m_cost_model;
+#ifndef DBUG_OFF
+  /**
+    Internal tmp table sequential number. Increased in the order of
+    creation. Used for debugging purposes when many tmp tables are used
+    during execution (e.g several windows with window functions)
+  */
+  uint tmp_table_seq_id;
+#endif
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
@@ -1760,6 +1768,10 @@ public:
     the next statement.
   */
   void cleanup_gc_items();
+
+#ifndef DBUG_OFF
+  void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id= arg; }
+#endif
 
 private:
   /**

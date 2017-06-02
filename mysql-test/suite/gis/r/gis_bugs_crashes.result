@@ -6581,7 +6581,7 @@ ERROR 22023: Invalid GIS data provided to function polygon.
 ######################################################################################################
 CREATE TABLE t(a INTEGER);
 SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 DROP TABLE t;
 ######################################################################################################
 # BUG#21397107: ASSERTION FAILED: K < STATIC_CAST<SIZE_T>(GET_DIMENSION())

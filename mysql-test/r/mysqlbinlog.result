@@ -793,7 +793,7 @@ shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 set timestamp= default;
 FLUSH LOGS;
 Bug#31611 Security risk with BINLOG statement
-SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT='ROW';
 CREATE DATABASE mysqltest1;
 CREATE USER untrusted@localhost;
 GRANT SELECT ON mysqltest1.* TO untrusted@localhost;

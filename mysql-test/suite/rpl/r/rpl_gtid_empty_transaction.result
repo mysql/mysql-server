@@ -57,7 +57,7 @@ include/rpl_sync.inc
 ==== Case 2A: temp table transaction not logged in row format ====
 ---- Initialize ----
 SET @save.binlog_format= @@global.binlog_format;
-SET @@global.binlog_format= row;
+SET @@global.binlog_format= 'row';
 include/restart_slave.inc
 ---- Test ----
 include/gtid_step_reset.inc
@@ -73,7 +73,7 @@ SET @@global.binlog_format= @save.binlog_format;
 ==== Case 2B: transaction with no effect not logged in row format ====
 ---- Initialize ----
 SET @save.binlog_format= @@global.binlog_format;
-SET @@global.binlog_format= row;
+SET @@global.binlog_format= 'row';
 include/restart_slave.inc
 SET @@session.binlog_format= statement;
 CREATE TABLE t1(id INT) ENGINE = InnoDB;
@@ -87,7 +87,7 @@ DROP TABLE t1;
 include/rpl_sync.inc
 SET @@global.binlog_format= @save.binlog_format;
 ==== Case 3: explicit empty transaction on master ====
-SET @@SESSION.binlog_format= row;
+SET @@SESSION.binlog_format= 'row';
 include/gtid_step_reset.inc
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 COMMIT;

@@ -103,10 +103,10 @@ DROP TABLE t2;
 # row has a lower rank than another, the JSON value in that row is
 # expected to be smaller than the JSON value in the other row.
 CREATE TABLE numbers(id INT NOT NULL AUTO_INCREMENT,
-                     rank INT,
+                     `rank` INT,
                      j JSON,
                      PRIMARY KEY(id));
-INSERT INTO numbers(rank, j) VALUES
+INSERT INTO numbers(`rank`, j) VALUES
 (1, '-1e100'),
 (2, '-1e65'),
 # smallest DECIMAL (negative with 65 digits)
@@ -162,10 +162,10 @@ SELECT *, JSON_TYPE(j) FROM numbers ORDER BY id;
 # If all is well, the query returns no rows.
 SELECT a.j, b.j, a.j < b.j, a.j = b.j, a.j > b.j, a.j <=> b.j
 FROM numbers a, numbers b
-WHERE ((a.j < b.j) <> (a.rank < b.rank)) OR
-      ((a.j = b.j) <> (a.rank = b.rank)) OR
-      ((a.j > b.j) <> (a.rank > b.rank)) OR
-      ((a.j <=> b.j) <> (a.rank <=> b.rank));
+WHERE ((a.j < b.j) <> (a.`rank` < b.`rank`)) OR
+      ((a.j = b.j) <> (a.`rank` = b.`rank`)) OR
+      ((a.j > b.j) <> (a.`rank` > b.`rank`)) OR
+      ((a.j <=> b.j) <> (a.`rank` <=> b.`rank`));
 
 DROP TABLE numbers;
 

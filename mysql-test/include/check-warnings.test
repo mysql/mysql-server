@@ -43,7 +43,7 @@ set session transaction read write;
 set session autocommit=1;
 
 create temporary table error_log (
-  row int auto_increment primary key,
+  `row` int auto_increment primary key,
   suspicious int default 1,
   file_name varchar(255),
   line varchar(1024) charset latin1 default null

@@ -29,26 +29,26 @@ SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 STATEMENT
 CREATE TEMPORARY TABLE t2 (a VARCHAR(100));
-# Test allow switching binlog_format from STATEMENT to ROW
+# Test allow switching binlog_format from STATEMENT to 'ROW'
 # when there are open temp tables.
-SET SESSION binlog_format = ROW;
+SET SESSION binlog_format = 'ROW';
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test allow switching binlog_format from ROW to ROW
+# Test allow switching binlog_format from 'ROW' to 'ROW'
 # when there are open temp tables.
-SET SESSION binlog_format = ROW;
+SET SESSION binlog_format = 'ROW';
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test forbids switching binlog_format from ROW to STATEMENT when
+# Test forbids switching binlog_format from 'ROW' to STATEMENT when
 # there are open temp tables and we are logging in row based format.
 SET SESSION binlog_format = STATEMENT;
 ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test allow switching binlog_format from ROW to
+# Test allow switching binlog_format from 'ROW' to
 # MIXED when there are open temp tables.
 SET SESSION binlog_format = MIXED;
 SELECT @@SESSION.binlog_format;
@@ -60,9 +60,9 @@ SET SESSION binlog_format = MIXED;
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 MIXED
-# Test allow switching binlog_format from MIXED to ROW
+# Test allow switching binlog_format from MIXED to 'ROW'
 # when there are open temp tables.
-SET SESSION binlog_format = ROW;
+SET SESSION binlog_format = 'ROW';
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
@@ -86,26 +86,26 @@ SET SESSION binlog_format = MIXED;
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 MIXED
-# Test allow switching binlog_format from MIXED to ROW
+# Test allow switching binlog_format from MIXED to 'ROW'
 # when there are open temp tables.
-SET SESSION binlog_format = ROW;
+SET SESSION binlog_format = 'ROW';
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test allow switching binlog_format from ROW to ROW
+# Test allow switching binlog_format from 'ROW' to 'ROW'
 # when there are open temp tables.
-SET SESSION binlog_format = ROW;
+SET SESSION binlog_format = 'ROW';
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test forbids switching binlog_format from ROW to STATEMENT
+# Test forbids switching binlog_format from 'ROW' to STATEMENT
 # when there are open temp tables.
 SET SESSION binlog_format = STATEMENT;
 ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
 SELECT @@SESSION.binlog_format;
 @@SESSION.binlog_format
 ROW
-# Test allow switching binlog_format from ROW to MIXED
+# Test allow switching binlog_format from 'ROW' to MIXED
 # when there are open temp tables.
 SET SESSION binlog_format = MIXED;
 SELECT @@SESSION.binlog_format;
@@ -144,26 +144,26 @@ SELECT @@binlog_format;
 @@binlog_format
 STATEMENT
 CREATE TEMPORARY TABLE t2 (a VARCHAR(100));
-# Test allow switching binlog_format from STATEMENT to ROW
+# Test allow switching binlog_format from STATEMENT to 'ROW'
 # when there are open temp tables.
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'ROW';
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test allow switching binlog_format from ROW to ROW
+# Test allow switching binlog_format from 'ROW' to 'ROW'
 # when there are open temp tables.
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'ROW';
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test forbids switching binlog_format from ROW to STATEMENT when
+# Test forbids switching binlog_format from 'ROW' to STATEMENT when
 # there are open temp tables and we are logging in row based format.
 SET @@binlog_format = STATEMENT;
 ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test allow switching binlog_format from ROW to
+# Test allow switching binlog_format from 'ROW' to
 # MIXED when there are open temp tables.
 SET @@binlog_format = MIXED;
 SELECT @@binlog_format;
@@ -175,9 +175,9 @@ SET @@binlog_format = MIXED;
 SELECT @@binlog_format;
 @@binlog_format
 MIXED
-# Test allow switching binlog_format from MIXED to ROW
+# Test allow switching binlog_format from MIXED to 'ROW'
 # when there are open temp tables.
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'ROW';
 SELECT @@binlog_format;
 @@binlog_format
 ROW
@@ -201,26 +201,26 @@ SET @@binlog_format = MIXED;
 SELECT @@binlog_format;
 @@binlog_format
 MIXED
-# Test allow switching binlog_format from MIXED to ROW
+# Test allow switching binlog_format from MIXED to 'ROW'
 # when there are open temp tables.
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'ROW';
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test allow switching binlog_format from ROW to ROW
+# Test allow switching binlog_format from 'ROW' to 'ROW'
 # when there are open temp tables.
-SET @@binlog_format = ROW;
+SET @@binlog_format = 'ROW';
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test forbids switching binlog_format from ROW to STATEMENT
+# Test forbids switching binlog_format from 'ROW' to STATEMENT
 # when there are open temp tables.
 SET @@binlog_format = STATEMENT;
 ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
 SELECT @@binlog_format;
 @@binlog_format
 ROW
-# Test allow switching binlog_format from ROW to MIXED
+# Test allow switching binlog_format from 'ROW' to MIXED
 # when there are open temp tables.
 SET @@binlog_format = MIXED;
 SELECT @@binlog_format;

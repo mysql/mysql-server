@@ -4,7 +4,7 @@
 # CREATE...SELECT right before writting 'create table' event into
 # binlog statement cache, right after writting 'create table' event
 # into binlog statement cache or after writting rows event into
-# binlog transaction cache when binlog_format=row and gtid_mode=off.
+# binlog transaction cache when binlog_format='row' and gtid_mode=off.
 #
 # ==== Implementation ====
 #

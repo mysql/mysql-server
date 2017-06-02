@@ -7928,7 +7928,7 @@ ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST
   eng "Recursive Common Table Expression '%s' should have one or more non-recursive query blocks followed by one or more recursive ones"
 
 ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
-  eng "Recursive Common Table Expression '%s' cannot contain aggregation in recursive query block"
+  eng "Recursive Common Table Expression '%s' can contain neither aggregation nor window functions in recursive query block"
 
 ER_CTE_RECURSIVE_FORBIDDEN_JOIN_ORDER
   eng "In recursive query block of Recursive Common Table Expression '%s', the recursive table must neither be in the right argument of a LEFT JOIN, nor be forced to be non-first with join order hints"
@@ -7938,6 +7938,72 @@ ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
 
 ER_SWITCH_TMP_ENGINE
   eng "'%s' requires @@internal_tmp_disk_storage_engine=InnoDB"
+
+ER_WINDOW_NO_SUCH_WINDOW
+  eng "Window name '%s' is not defined."
+
+ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+  eng "There is a circularity in the window dependency graph."
+
+ER_WINDOW_NO_CHILD_PARTITIONING
+  eng "A window which depends on another cannot define partitioning."
+
+ER_WINDOW_NO_INHERIT_FRAME
+  eng "Window '%s' has a frame definition, so cannot be referenced by another window."
+
+ER_WINDOW_NO_REDEFINE_ORDER_BY
+  eng "Window '%s' cannot inherit '%s' since both contain an ORDER BY clause."
+
+ER_WINDOW_FRAME_START_ILLEGAL
+  eng "Window '%s': frame start cannot be UNBOUNDED FOLLOWING."
+
+ER_WINDOW_FRAME_END_ILLEGAL
+  eng "Window '%s': frame end cannot be UNBOUNDED PRECEDING."
+
+ER_WINDOW_FRAME_ILLEGAL
+  eng "Window '%s': frame start or end is negative or NULL"
+
+ER_WINDOW_RANGE_FRAME_ORDER_TYPE
+  eng "Window '%s' with RANGE N PRECEDING/FOLLOWING frame requires exactly one ORDER BY expression, of numeric or temporal type"
+
+ER_WINDOW_RANGE_FRAME_TEMPORAL_TYPE
+  eng "Window '%s' with RANGE frame has ORDER BY expression of datetime type. Only INTERVAL bound value allowed."
+
+ER_WINDOW_RANGE_FRAME_NUMERIC_TYPE
+  eng "Window '%s' with RANGE frame has ORDER BY expression of numeric type, INTERVAL bound value not allowed."
+
+ER_WINDOW_RANGE_BOUND_NOT_CONSTANT
+  eng "Window '%s' has a non-constant frame bound."
+
+ER_WINDOW_DUPLICATE_NAME
+  eng "Window '%s' is defined twice."
+
+ER_WINDOW_ILLEGAL_ORDER_BY
+  eng "Window '%s': ORDER BY or PARTITION BY uses legacy position indication which is not supported, use expression."
+
+ER_WINDOW_INVALID_WINDOW_FUNC_USE
+  eng "You cannot use the window function '%s' in this context.'"
+
+ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE
+  eng "You cannot use the alias '%s' of an expression containing a window function in this context.'"
+
+ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
+  eng "You cannot nest a window function in the specification of window '%s'."
+
+ER_WINDOW_ROWS_INTERVAL_USE
+  eng "Window '%s': INTERVAL can only be used with RANGE frames."
+
+ER_WINDOW_NO_GROUP_ORDER
+  eng "ASC or DESC with GROUP BY isn't allowed with window functions; put ASC or DESC in ORDER BY"
+
+ER_WINDOW_EXPLAIN_JSON
+  eng "To get information about window functions use EXPLAIN FORMAT=JSON"
+
+ER_WINDOW_FUNCTION_IGNORES_FRAME
+  eng "Window function '%s' ignores the frame clause of window '%s' and aggregates over the whole partition"
+
+ER_WINDOW_SE_NOT_ACCEPTABLE
+  eng "Windowing requires @@internal_tmp_mem_storage_engine=TempTable."
 
 ER_INVALID_NO_OF_ARGS
   eng "Too many arguments for function %s: %lu; maximum allowed is %s."

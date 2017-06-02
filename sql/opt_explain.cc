@@ -1326,6 +1326,22 @@ bool Explain_join::shallow_explain()
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true; /* purecov: inspected */
+  if (join->m_windowing_steps)
+  {
+    if (begin_sort_context(ESC_WINDOWING, CTX_WINDOW))
+      return true; /* purecov: inspected */
+    fmt->entry()->m_windows= &select_lex->m_windows;
+    if (!fmt->is_hierarchical())
+    {
+      /*
+        TRADITIONAL prints nothing for window functions, except the use of a
+        temporary table and a filesort.
+      */
+      push_warning(thd, Sql_condition::SL_NOTE,
+                   ER_WINDOW_EXPLAIN_JSON,
+                   ER_THD(thd, ER_WINDOW_EXPLAIN_JSON));
+    }
+  }
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
 
@@ -1354,6 +1370,11 @@ bool Explain_join::shallow_explain()
     return true;
   if (end_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true;
+  if (join->m_windowing_steps)
+  {
+    if (end_sort_context(ESC_WINDOWING, CTX_WINDOW))
+      return true; /* purecov: inspected */
+  }
   if (end_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true;
   if (end_sort_context(ESC_ORDER_BY, CTX_ORDER_BY))

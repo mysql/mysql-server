@@ -4150,7 +4150,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (
 access_id int NOT NULL default '0',
 name varchar(20) default NULL,
-rank int NOT NULL default '0',
+`rank` int NOT NULL default '0',
 KEY idx (access_id)
 );
 CREATE TABLE t2 (
@@ -5269,7 +5269,7 @@ UNION ALL
 SELECT coalesce((avg(distinct (ST_geomfromtext("point(25379 -22010)")))))
 AS foo
 ;
-ERROR HY000: Incorrect arguments to avg(distinct 
+ERROR HY000: Incorrect arguments to avg
 CREATE table t1(a text);
 INSERT INTO t1 VALUES (''), ('');
 SELECT avg(distinct(t1.a)) FROM t1, t1 t2
