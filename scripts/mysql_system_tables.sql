@@ -361,7 +361,7 @@ SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
   next_position BIGINT UNSIGNED NOT NULL,
   next_file VARCHAR(255) NOT NULL,
   PRIMARY KEY(epoch, orig_server_id, orig_epoch)
-  ) ENGINE=INNODB CHARACTER SET latin1 STATS_PERSISTENT=0";
+  ) ENGINE=INNODB CHARACTER SET latin1 STATS_PERSISTENT=0 TABLESPACE=mysql";
 
 SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
