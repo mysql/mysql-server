@@ -204,6 +204,10 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	ib_sequence_t	sequence;
 	/** maximum auto-increment value */
 	ulonglong	max_autoinc;
+	/** auto-increment value of the old table */
+	uint64		old_autoinc;
+	/** dynamic metadata version of the old table */
+	uint64		old_version;
 	/** temporary table name to use for old table when renaming tables */
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
@@ -256,6 +260,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		sequence(prebuilt->trx->mysql_thd,
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
+		old_autoinc (0),
+		old_version (0),
 		tmp_name (0),
 		skip_pk_sort(false),
 		num_to_add_vcol(0),
@@ -6380,19 +6386,18 @@ for inplace_alter_table() and thus might be higher than during
 prepare_inplace_alter_table(). (E.g concurrent writes were blocked
 during prepare, but might not be during commit).
 
-@param ha_alter_info Data used during in-place alter.
-@param table the TABLE
-@param prebuilt the prebuilt struct
+@param[in]	ha_alter_info	Data used during in-place alter.
+@param[in]	table		the TABLE
+@param[in,out]	prebuilt	the prebuilt struct
 @retval true Failure
 @retval false Success
 */
 inline MY_ATTRIBUTE((warn_unused_result))
 bool
 rollback_inplace_alter_table(
-/*=========================*/
-	Alter_inplace_info*	ha_alter_info,
-	const TABLE*		table,
-	row_prebuilt_t*		prebuilt)
+	const Alter_inplace_info*	ha_alter_info,
+	const TABLE*			table,
+	row_prebuilt_t*			prebuilt)
 {
 	bool	fail	= false;
 
@@ -6401,6 +6406,18 @@ rollback_inplace_alter_table(
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ENTER("rollback_inplace_alter_table");
+
+	if (ctx != nullptr && !ctx->need_rebuild()
+	    && table->s->found_next_number_field != nullptr) {
+		dict_table_t*   innobase_table = prebuilt->table;
+
+		innobase_table->version = ctx->old_version;
+		dict_table_autoinc_lock(innobase_table);
+		dict_table_autoinc_initialize(
+			innobase_table, ctx->old_autoinc + 1);
+		dict_table_autoinc_unlock(innobase_table);
+		innobase_table->autoinc_persisted = ctx->old_autoinc;
+	}
 
 	if (!ctx || !ctx->trx) {
 		/* If we have not started a transaction yet,
@@ -7993,6 +8010,9 @@ ha_innobase::commit_inplace_alter_table_impl(
 				autoinc = ctx->max_autoinc;
 			}
 
+			ctx->old_autoinc = ctx->old_table->autoinc_persisted;
+			ctx->old_version = ctx->old_version;
+
 			dict_table_t*	t = ctx->new_table;
 			Field* field = altered_table->found_next_number_field;
 
@@ -8175,6 +8195,11 @@ ha_innobase::commit_inplace_alter_table_impl(
 	}
 #endif /* UNIV_DEBUG */
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+
+	DBUG_EXECUTE_IF("fail_after_commit_inplace_alter_table",
+			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			DBUG_RETURN(true););
+
 	DBUG_RETURN(false);
 }
 
