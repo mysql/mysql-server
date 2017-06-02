@@ -15402,6 +15402,7 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
              instance(),
              tabptr.i,
              fragId));
+    CRASH_INSERTION(5091);
     /**
      * At first COPY_ACTIVEREQ to activate REDO log on any
      * fragment means that the copy fragment process is

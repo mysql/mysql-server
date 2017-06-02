@@ -166,6 +166,7 @@ Backup::execSTTOR(Signal* signal)
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+    c_initial_start_lcp_not_done_yet = false;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
                         Backup::DISK_SPEED_CHECK_DELAY, 1);
   }
@@ -184,6 +185,12 @@ Backup::execSTTOR(Signal* signal)
     m_acc_memory_in_bytes = Uint64(acc_pages) * Uint64(sizeof(GlobalPage));
 
     g_TypeOfStart = typeOfStart;
+    if (g_TypeOfStart == NodeState::ST_INITIAL_START ||
+        g_TypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      c_initial_start_lcp_not_done_yet = true;
+    }
     signal->theData[0] = reference();
     sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
     return;
@@ -10287,54 +10294,58 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
   lqhCreateTableVersion = c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
 
   Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
-  if (maxGci < fragPtr.p->createGci &&
-      maxGci != 0)
+  if ((maxGci < fragPtr.p->createGci &&
+       maxGci != 0 &&
+       createTableVersion < lqhCreateTableVersion) ||
+       (c_initial_start_lcp_not_done_yet &&
+        (ptr.p->preparePrevLocalLcpId != 0 ||
+         ptr.p->preparePrevLcpId != 0)))
   {
-    if (createTableVersion < lqhCreateTableVersion)
-    {
-      jam();
-      /**
-       * This case is somewhat obscure. Due to the fact that we support the
-       * config variable __at_restart_skip_indexes we can actually come here
-       * for a table (should be a unique index table) that have an LCP file
-       * remaining from the previous use of this table id. It is potentially
-       * possible also when dropping a table while this node is down and then
-       * creating it again before this node has started. In this case we could
-       * come here and find an old LCP file. So what we do here is that we
-       * perform the drop of the old LCP fragments and then we restart the
-       * LCP handling again with an empty set of LCP files as it should be.
-       *
-       * This means first closing the CTL files (deleting the older one and
-       * keeping the newer one to ensure we keep one CTL file until all data
-       * files have been deleted and to integrate easily into the drop file
-       * handling in this block.
-       *
-       * We can only discover this case in a cluster where the master is
-       * on 7.6 version. So in upgrade cases we won't discover this case
-       * since we don't get the createGci from the DICT master in that case
-       * when the fragment is created.
-       */
-      DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u).%u (now %u),"
-               " maxGciCompleted: %u,"
-               " maxGciWritten: %u, createGci: %u",
-              instance(),
-              tabPtr.p->tableId,
-              fragPtr.p->fragmentId,
-              createTableVersion,
-              c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
-              maxGciCompleted,
-              maxGciWritten,
-              fragPtr.p->createGci));
+    jam();
+    /**
+     * This case is somewhat obscure. Due to the fact that we support the
+     * config variable __at_restart_skip_indexes we can actually come here
+     * for a table (should be a unique index table) that have an LCP file
+     * remaining from the previous use of this table id. It is potentially
+     * possible also when dropping a table while this node is down and then
+     * creating it again before this node has started. In this case we could
+     * come here and find an old LCP file. So what we do here is that we
+     * perform the drop of the old LCP fragments and then we restart the
+     * LCP handling again with an empty set of LCP files as it should be.
+     *
+     * This means first closing the CTL files (deleting the older one and
+     * keeping the newer one to ensure we keep one CTL file until all data
+     * files have been deleted and to integrate easily into the drop file
+     * handling in this block.
+     *
+     * We can only discover this case in a cluster where the master is
+     * on 7.6 version. So in upgrade cases we won't discover this case
+     * since we don't get the createGci from the DICT master in that case
+     * when the fragment is created.
+     *
+     * We can also get here when doing an initial node restart and there
+     * is old LCP files to clean up.
+     */
+    DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u).%u (now %u),"
+             " maxGciCompleted: %u,"
+             " maxGciWritten: %u, createGci: %u",
+            instance(),
+            tabPtr.p->tableId,
+            fragPtr.p->fragmentId,
+            createTableVersion,
+            c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
+            maxGciCompleted,
+            maxGciWritten,
+            fragPtr.p->createGci));
 
-      ptr.p->prepareState = PREPARE_DROP_CLOSE;
-      closeFile(signal, ptr, filePtr[closeLcpNumber]);
-      closeFile(signal,
-                ptr,
-                filePtr[ptr.p->prepareNextLcpCtlFileNumber],
-                true,
-                true);
-      return;
-    }
+    ptr.p->prepareState = PREPARE_DROP_CLOSE;
+    closeFile(signal, ptr, filePtr[closeLcpNumber]);
+    closeFile(signal,
+              ptr,
+              filePtr[ptr.p->prepareNextLcpCtlFileNumber],
+              true,
+              true);
+    return;
   }
   /* Initialise page to write to next CTL file with new LCP id */
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);

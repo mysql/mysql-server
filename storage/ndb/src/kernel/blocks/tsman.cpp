@@ -54,7 +54,7 @@ static bool g_use_old_format = false;
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_TSMAN_RESTART 1
+#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -954,14 +954,17 @@ Tsman::open_file(Signal* signal,
   req->fileFlags |= FsOpenReq::OM_THREAD_POOL;
   switch(requestInfo){
   case CreateFileImplReq::Create:
+    DEB_TSMAN_RESTART(("File::Create"));
     req->fileFlags |= FsOpenReq::OM_CREATE_IF_NONE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     break;
   case CreateFileImplReq::CreateForce:
+    DEB_TSMAN_RESTART(("File::CreateForce"));
     req->fileFlags |= FsOpenReq::OM_CREATE;
     req->fileFlags |= FsOpenReq::OM_INIT;
     break;
   case CreateFileImplReq::Open:
+    DEB_TSMAN_RESTART(("File::Open"));
     req->fileFlags |= FsOpenReq::OM_READ_SIZE;
     break;
   default:
