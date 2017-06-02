@@ -134,12 +134,16 @@ LogDDL::writeFreeTreeLog(
 	dberr_t	err;
 
 	if (is_drop) {
+		/* Drop index case, if committed, will be redo only */
 		err = insertFreeTreeLog(trx, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
 	} else {
+		/* This is the case of building index during create table
+		scenario. The index will be dropped if ddl is rolled back */
 		err = insertFreeTreeLog(nullptr, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
 
+		/* Delete this operation is the create trx is committed */
 		err = deleteById(trx, id);
 		ut_ad(err == DB_SUCCESS);
 	}

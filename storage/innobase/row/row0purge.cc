@@ -903,8 +903,9 @@ try_again:
 	/* SDI tables are hidden tables and are not registered with global
 	dictionary. Open the table internally. Also acquire dict_operation
 	lock for SDI table to prevent concurrent DROP TABLE and purge */
-	if (dict_table_is_system(table_id)
-	    || dict_table_is_sdi(table_id)
+	ut_ad(!dict_table_is_system(table_id));
+
+	if (dict_table_is_sdi(table_id)
 	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
 			rw_lock_s_lock_inline(

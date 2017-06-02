@@ -4328,10 +4328,8 @@ prepare_inplace_alter_table_dict(
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during an index create operation. */
 
-	/* TODO: NewDD: WL#9535, we will not need ctx->trx once we
-	remove InnoDB System tables */
 	row_mysql_lock_data_dictionary(ctx->prebuilt->trx);
-	ctx->trx->dict_operation_lock_mode = RW_X_LATCH;
+	ut_ad(ctx->trx == ctx->prebuilt->trx);
 	dict_locked = true;
 
 	/* Wait for background stats processing to stop using the table that
@@ -4637,7 +4635,7 @@ prepare_inplace_alter_table_dict(
 			ut_a(ctx->new_table == temp_table);
 			/* n_ref_count must be 1, because purge cannot
 			be executing on this very table as we are
-			holding dict_operation_lock X-latch. */
+			holding MDL lock. */
 			DBUG_ASSERT(ctx->new_table->get_ref_count() == 1);
 			break;
 		case DB_TABLESPACE_EXISTS:
@@ -4901,7 +4899,7 @@ new_clustered_failed:
 	}
 
 	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
-	ctx->trx->dict_operation_lock_mode = 0;
+	ut_ad(ctx->trx == ctx->prebuilt->trx);
 	dict_locked = false;
 
 	if (dd_prepare_inplace_alter_table(
@@ -4958,7 +4956,7 @@ error_handled:
 
 	if (!dict_locked) {
 		row_mysql_lock_data_dictionary(ctx->prebuilt->trx);
-		ctx->trx->dict_operation_lock_mode = RW_X_LATCH;
+		ut_ad(ctx->trx == ctx->prebuilt->trx);
 	}
 
 	if (new_clustered) {
@@ -4991,7 +4989,7 @@ error_handled:
 
 		/* n_ref_count must be 1, because purge cannot
 		be executing on this very table as we are
-		holding dict_operation_lock X-latch. */
+		holding MDL. */
 		DBUG_ASSERT(user_table->get_ref_count() == 1 || ctx->online);
 	} else {
 		ut_ad(!ctx->need_rebuild());
@@ -5012,7 +5010,7 @@ err_exit:
 #endif /* UNIV_DEBUG */
 
 	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
-	ctx->trx->dict_operation_lock_mode = 0;
+	ut_ad(ctx->trx == ctx->prebuilt->trx);
 
 	lock_table_unlock_for_trx(ctx->prebuilt->trx);
 
@@ -7014,7 +7012,7 @@ commit_try_rebuild(
 
 		/* Normally, n_ref_count must be 1, because purge
 		cannot be executing on this very table as we are
-		holding dict_operation_lock X-latch. */
+		holding MDL lock. */
 		my_error(ER_TABLE_REFERENCED,MYF(0));
 		DBUG_RETURN(true);
 	}

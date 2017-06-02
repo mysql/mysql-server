@@ -25,6 +25,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #include <stddef.h>
 
+#include <sql_thd_internal_api.h>
+
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
 #include "my_compiler.h"
@@ -1714,6 +1716,11 @@ trx_undo_assign_undo(
 		UT_LIST_ADD_FIRST(rseg->update_undo_list, undo);
 		ut_ad(undo_ptr->update_undo == NULL);
 		undo_ptr->update_undo = undo;
+	}
+
+	if (trx->mysql_thd && !trx->ddl_operation
+	    && thd_is_dd_update_stmt(trx->mysql_thd)) {
+		trx->ddl_operation = true;
 	}
 
 	if (trx->ddl_operation
