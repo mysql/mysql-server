@@ -273,7 +273,7 @@ POINT(11 102)
 # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 ######################################################################################################
 SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
-ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 100, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 100.
 ######################################################################################################
 # BUG#19552241 : MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
 ######################################################################################################

@@ -603,16 +603,6 @@ public:
 
 
 template<Item_func::Functype Functype>
-using Mbr_rel_instantiator=
-  Instantiator_with_functype<Item_func_spatial_mbr_rel, Functype, 2>;
-
-using Mbr_covers_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC>;
-using Mbr_crosses_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
-
-
-template<Item_func::Functype Functype>
 using Spatial_decomp_instantiator=
   Instantiator_with_functype<Item_func_spatial_decomp, Functype, 1>;
 
@@ -1644,7 +1634,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "MASTER_POS_WAIT", SQL_FN_V(Item_master_pos_wait, 2, 4) },
   { "MBRCONTAINS", SQL_FN(Item_func_mbrcontains, 2) },
   { "MBRCOVEREDBY", SQL_FN(Item_func_mbrcoveredby, 2) },
-  { "MBRCOVERS", SQL_FACTORY(Mbr_covers_instantiator) },
+  { "MBRCOVERS",  SQL_FN(Item_func_mbrcovers, 2)},
   { "MBRDISJOINT", SQL_FN(Item_func_mbrdisjoint, 2) },
   { "MBREQUALS",  SQL_FN(Item_func_mbrequals, 2) },
   { "MBRINTERSECTS", SQL_FN(Item_func_mbrintersects, 2) },

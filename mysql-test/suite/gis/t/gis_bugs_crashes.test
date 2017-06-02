@@ -267,7 +267,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 --echo # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 --echo ######################################################################################################
 
---error ER_GIS_DIFFERENT_SRIDS
+--error ER_SRS_NOT_FOUND
 SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
 
 --echo ######################################################################################################

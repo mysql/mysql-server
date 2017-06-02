@@ -1485,6 +1485,15 @@ bool Item_func_mbrcoveredby::eval(const dd::Spatial_reference_system *srs,
 }
 
 
+bool Item_func_mbrcovers::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::mbr_covered_by(srs, g2, g1, func_name(), result, null);
+}
+
+
 bool Item_func_mbrdisjoint::eval(const dd::Spatial_reference_system *srs,
                                  const gis::Geometry *g1,
                                  const gis::Geometry *g2,
