@@ -1333,6 +1333,7 @@ WHERE divided_routes.name = 'Route 75'
 AND named_places.name = 'Ashton';
 
 --echo # Conformance Item T39
+--error ER_SRS_NOT_FOUND
 SELECT ST_Touches(centerline, shore)
 FROM streams, lakes
 WHERE streams.name = 'Cam Stream'
