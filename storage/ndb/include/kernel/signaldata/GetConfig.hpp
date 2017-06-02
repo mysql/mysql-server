@@ -26,7 +26,7 @@
 /**
  * GetConfig - Get the node's current configuration
  *
- * Successfull return = GET_CONFIG_CONF -  a long signal
+ * Successful return = GET_CONFIG_CONF -  a long signal
  */
 class GetConfigReq {
   /**

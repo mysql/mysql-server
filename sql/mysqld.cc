@@ -4436,7 +4436,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (chdir("/") < 0)
     {
-      fprintf(stderr, "Cannot change to root director: %s\n",
+      fprintf(stderr, "Cannot change to root directory: %s\n",
                       strerror(errno));
       exit(MYSQLD_ABORT_EXIT);
     }

@@ -26,7 +26,7 @@
 /**
  * GetTabInfo - Get table info from DICT
  *
- * Successfull return = series of DICTTABINFO-signals
+ * Successful return = series of DICTTABINFO-signals
  */
 class GetTabInfoReq {
   /**

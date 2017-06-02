@@ -276,7 +276,7 @@ private:
 
   /**
     Indicates whether SSL has been initialized and if that initialization was
-    successfull.
+    successful.
   */
   int m_ssl_init_state;
 
