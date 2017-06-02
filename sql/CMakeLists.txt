@@ -204,6 +204,7 @@ SET(SQL_GIS_SOURCES
   gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/union.cc
   gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
