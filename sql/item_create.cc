@@ -610,8 +610,6 @@ using Mbr_covered_by_instantiator=
   Mbr_rel_instantiator<Item_func::SP_COVEREDBY_FUNC>;
 using Mbr_covers_instantiator=
   Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC>;
-using Mbr_contains_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
 using Mbr_touches_instantiator=
   Mbr_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
 using Mbr_crosses_instantiator=
@@ -1648,7 +1646,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "MAKETIME", SQL_FN(Item_func_maketime, 3) },
   { "MAKE_SET", SQL_FACTORY(Make_set_instantiator) },
   { "MASTER_POS_WAIT", SQL_FN_V(Item_master_pos_wait, 2, 4) },
-  { "MBRCONTAINS", SQL_FACTORY(Mbr_contains_instantiator) },
+  { "MBRCONTAINS", SQL_FN(Item_func_mbrcontains, 2) },
   { "MBRCOVEREDBY", SQL_FACTORY(Mbr_covered_by_instantiator) },
   { "MBRCOVERS", SQL_FACTORY(Mbr_covers_instantiator) },
   { "MBRDISJOINT", SQL_FN(Item_func_mbrdisjoint, 2) },

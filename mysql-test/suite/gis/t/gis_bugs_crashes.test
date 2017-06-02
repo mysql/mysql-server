@@ -962,6 +962,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'
 --echo # More GIS crashes/assertion failure test cases
 --echo ######################################################################################################
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRCONTAINS(ST_UNION(
                        ST_GEOMFROMTEXT(
                            'GEOMETRYCOLLECTION('
@@ -1007,6 +1008,7 @@ SELECT ST_TOUCHES(ST_INTERSECTION(
                       ST_GEOMFROMWKB(ST_ASWKB(POINT(0,2)))));
 
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRCONTAINS(ST_UNION(
                        ST_GEOMFROMTEXT(
                            'GEOMETRYCOLLECTION('
