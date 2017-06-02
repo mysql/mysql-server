@@ -1978,7 +1978,11 @@ NdbImportUtil::File::do_open(int flags)
 {
   const char* path = get_path();
   require(m_fd == -1);
+#ifndef _WIN32
   int fd = ::open(path, flags, Creat_mode);
+#else
+  int fd = ::_open(path, flags, Creat_mode);
+#endif
   if (fd == -1)
   {
     const char* type = "unknown";
@@ -2006,7 +2010,11 @@ NdbImportUtil::File::do_read(uchar* dst, uint size, uint& len)
   while (len < size)
   {
     // short read is possible on pipe
+#ifndef _WIN32
     int ret = ::read(m_fd, dst + len, size - len);
+#else
+    int ret = ::_read(m_fd, dst + len, size - len);
+#endif
     if (ret == -1)
     {
       m_util.set_error_os(m_error, __LINE__,
@@ -2047,7 +2055,11 @@ NdbImportUtil::File::do_write(const uchar* src, uint size)
 {
   const char* path = get_path();
   require(m_fd != -1);
+#ifndef _WIN32
   int ret = ::write(m_fd, src, size);
+#else
+  int ret = ::_write(m_fd, src, size);
+#endif
   if (ret == -1)
   {
     m_util.set_error_os(m_error, __LINE__,
@@ -2080,7 +2092,11 @@ NdbImportUtil::File::do_close()
   const char* path = get_path();
   if (m_fd == -1)
     return 0;
+#ifndef _WIN32
   if (::close(m_fd) == -1)
+#else
+  if (::_close(m_fd) == -1)
+#endif
   {
     m_util.set_error_os(m_error, __LINE__,
                         "%s: close failed", path);
@@ -2095,8 +2111,13 @@ NdbImportUtil::File::do_seek(uint64 offset)
 {
   const char* path = get_path();
   require(m_fd != -1);
+#ifndef _WIN32
   off_t off = (off_t)offset;
-  if (lseek(m_fd, off, SEEK_SET) == -1)
+  if (::lseek(m_fd, off, SEEK_SET) == -1)
+#else
+  __int64 off = (__int64)offset;
+  if (::_lseeki64(m_fd, off, SEEK_SET) == -1)
+#endif
   {
     m_util.set_error_os(m_error, __LINE__,
                         "%s: lseek %llu failed", path, offset);

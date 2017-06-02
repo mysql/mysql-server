@@ -31,6 +31,9 @@
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbImport.hpp>
+#ifdef _WIN32
+#include <io.h>
+#endif
 // STL
 #include <string>
 #include <vector>
@@ -550,10 +553,17 @@ public:
   // files
 
   struct File {
+#ifndef _WIN32
     const static int Read_flags = O_RDONLY;
     const static int Write_flags = O_WRONLY | O_CREAT | O_TRUNC;
     const static int Append_flags = O_WRONLY | O_APPEND;
     const static int Creat_mode = 0644;
+#else
+    const static int Read_flags = _O_RDONLY | _O_BINARY;
+    const static int Write_flags = _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY;
+    const static int Append_flags = _O_WRONLY | _O_APPEND | _O_BINARY;
+    const static int Creat_mode = _S_IREAD | _S_IWRITE;
+#endif
     File(NdbImportUtil& util, Error& error);
     ~File();
     void set_path(const char* path) {
