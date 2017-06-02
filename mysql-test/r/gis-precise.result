@@ -420,7 +420,7 @@ select st_crosses(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_crosses(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 select st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -460,7 +460,7 @@ select st_crosses(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_crosses(st_intersection(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_union(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 select st_intersects(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_intersects(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
@@ -500,7 +500,7 @@ select st_crosses(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multi
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')));
 st_crosses(st_union(ST_GeomFromText('point(1 1)'), ST_GeomFromText('multipoint(2 2, 3 3)')), 
 st_intersection(ST_GeomFromText('point(0 0)'), ST_GeomFromText('point(1 1)')))
-0
+NULL
 #
 # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
 #
@@ -1704,7 +1704,7 @@ result
 0
 SELECT ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
-0
+NULL
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
 NULL
@@ -1728,7 +1728,7 @@ result
 0
 SELECT ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
-0
+NULL
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(0 0)')) as result;
 result
 NULL

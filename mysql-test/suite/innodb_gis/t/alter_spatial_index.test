@@ -188,6 +188,7 @@ SHOW CREATE TABLE tab;
 --replace_column 7 #
 SHOW INDEX FROM tab;
 
+# g1 is an invalid polygon. It contains a spike.
 SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
 
 --echo # Invalid polygon.
