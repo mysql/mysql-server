@@ -93,6 +93,12 @@ class not_implemented_exception : public std::exception {
   }
 };
 
+/// NULL value exception.
+///
+/// Thrown when the functor discovers that the result is NULL. Normally, NULL
+/// returns can be detected before calling the functor, but not always.
+class null_value_exception : public std::exception {};
+
 /// The base class of all functors that takes two geometry arguments.
 ///
 /// Subclasses of this functor base class will implement operator() and call
