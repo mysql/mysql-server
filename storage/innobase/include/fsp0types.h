@@ -175,6 +175,12 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 #define FSP_DICT_HDR_PAGE_NO		7	/*!< data dictionary header
 						page, in tablespace 0 */
 
+/* The following page exists in each v8 Undo Tablespace.
+(space_id = SRV_LOG_SPACE_FIRST_ID - undo_space_num)
+(undo_space_num = rseg_array_slot_num + 1) */
+
+#define FSP_RSEG_ARRAY_PAGE_NO		3	/*!< rollback segment directory
+						page number in each undo tablespace */
 /*--------------------------------------*/
 /* @} */
 
@@ -185,17 +191,10 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
-inline
 bool
 fsp_flags_is_valid(
 	ulint	flags)
 	MY_ATTRIBUTE((warn_unused_result, const));
-
-/** Check whether a space id is an undo tablespace ID
-@param[in]	space_id	space id to check
-@return true if it is undo tablespace else false. */
-bool
-fsp_is_undo_tablespace(space_id_t space_id);
 
 /** Check if a space_id is the system temporary space ID.
 @param[in]	space_id	tablespace ID
@@ -376,5 +375,15 @@ tablespace dictionary.*/
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED
 /* @} */
+
+/* Max number of rollback segments: the number of segment specification slots
+in the transaction system array; rollback segment id must fit in one (signed)
+byte, therefore 128; each slot is currently 8 bytes in size. If you want
+to raise the level to 256 then you will need to fix some assertions that
+impose the 7 bit restriction. e.g., mach_write_to_3() */
+#define	TRX_SYS_N_RSEGS			128
+
+#define FSP_MAX_UNDO_TABLESPACES	(TRX_SYS_N_RSEGS - 1)
+#define FSP_MAX_ROLLBACK_SEGMENTS	(TRX_SYS_N_RSEGS)
 
 #endif /* fsp0types_h */

@@ -29,6 +29,7 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #include "log0log.h"
 #include "ut0byte.h"
+#include "trx0purge.h"
 
 // Forward declaration
 struct dict_table_t;
@@ -63,6 +64,7 @@ and srv_parse_log_group_home_dirs(). */
 void
 srv_free_paths_and_sizes(void);
 /*==========================*/
+
 /*********************************************************************//**
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty.
@@ -72,6 +74,19 @@ srv_add_path_separator_if_needed(
 /*=============================*/
 	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
+
+/** Upgrade undo tablespaces by deleting the old undo tablespaces
+referenced by the TRX_SYS page.
+@return error code */
+dberr_t
+srv_undo_tablespaces_upgrade();
+
+/** Update the number of active undo tablespaces.
+@param[in]	target		target value for srv_undo_tablespaces
+@return error code */
+dberr_t
+srv_undo_tablespaces_update(ulong target);
+
 /** Start InnoDB.
 @param[in]	create_new_db		Whether to create a new database
 @param[in]	scan_directories	Scan directories for .ibd files for

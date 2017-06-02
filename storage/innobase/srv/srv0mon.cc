@@ -39,6 +39,7 @@ Created 12/9/2009 Jimmy Yang
 #include "srv0srv.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
+#include "trx0purge.h"
 
 /* Macro to standardize the counter names for counters in the
 "monitor_buf_page" module as they have very structured defines */
@@ -661,6 +662,10 @@ static monitor_info_t	innodb_counter_info[] =
 	/* MONITOR_ZBLOB2_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("zblob2", "Subsequent Compressed BLOB", ZBLOB2),
 
+	/* MONITOR_RSEG_ARRAY_PAGE_READ */
+	MONITOR_BUF_PAGE_READ("rseg_array", "Rollback Segment Array",
+			      RSEG_ARRAY),
+
 	/* MONITOR_OTHER_PAGE_READ */
 	MONITOR_BUF_PAGE_READ("other", "other/unknown (old version of InnoDB)",
 			      OTHER),
@@ -717,6 +722,10 @@ static monitor_info_t	innodb_counter_info[] =
 	/* MONITOR_ZBLOB2_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("zblob2", "Subsequent Compressed BLOB",
 				 ZBLOB2),
+
+	/* MONITOR_RSEG_ARRAY_PAGE_WRITTEN */
+	MONITOR_BUF_PAGE_WRITTEN("rseg_array", "Rollback Segment Array",
+				 RSEG_ARRAY),
 
 	/* MONITOR_OTHER_PAGE_WRITTEN */
 	MONITOR_BUF_PAGE_WRITTEN("other", "other/unknown (old version InnoDB)",
@@ -1523,26 +1532,57 @@ srv_mon_set_module_control(
 	}
 }
 
-/****************************************************************//**
-Get transaction system's rollback segment size in pages
+/** Get transaction system's rollback segment size in pages.
+If srv_undo_tablespaces == 0, then all rollback segments will come out of
+the system tablespace. If srv_undo_tablespaces > 0, then all rollback
+segments come out of the undo tablespaces.
 @return size in pages */
 static
 ulint
 srv_mon_get_rseg_size(void)
-/*=======================*/
 {
-	ulint		value = 0;
+	ulint	value = 0;
+	ulong	cur_spaces = srv_undo_tablespaces;
+	ulong	cur_rsegs = srv_rollback_segments;
 
-	/* trx_sys_t::rsegs is a static vector, so we can go through it without
-	mutex protection. In addition, we provide an estimate of the
-	total rollback segment size and to avoid mutex contention we
-	don't acquire the rseg->mutex" */
-	for (Rseg_Iterator it = trx_sys->rsegs.begin();
-	     it != trx_sys->rsegs.end(); ++it) {
+	/* Rollback segments used in the temporary tablespace */
+	trx_sys->tmp_rsegs.s_lock();
+	for (const auto tmp_rseg : trx_sys->tmp_rsegs) {
 
-		ut_ad(*it != NULL);
-		value += (*it)->curr_size;
+		value += tmp_rseg->curr_size;
 	}
+	trx_sys->tmp_rsegs.s_unlock();
+
+	if (cur_spaces == 0) {
+		/* Rollback segments used in the system tablespace */
+		trx_sys->rsegs.s_lock();
+		for (const auto rseg : trx_sys->rsegs) {
+
+			value += rseg->curr_size;
+		}
+		trx_sys->rsegs.s_unlock();
+
+		return(value);
+	}
+
+	/* Rollback segments used in undo tablespaces */
+	undo::spaces->s_lock();
+	for (auto undo_space : undo::spaces->m_spaces) {
+
+		if (undo_space->num() > cur_spaces) {
+			break;
+		}
+
+		for (auto rseg : *undo_space->rsegs()) {
+
+			if (rseg->id >= cur_rsegs) {
+				break;
+			}
+
+			value += rseg->curr_size;
+		}
+	}
+	undo::spaces->s_unlock();
 
 	return(value);
 }

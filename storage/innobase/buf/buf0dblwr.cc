@@ -552,14 +552,12 @@ buf_dblwr_recover_page(
 
 		/* Do not report the warning if the tablespace is
 		going to be truncated. */
-		if (!undo::is_under_construction(space->id)) {
-			ib::warn()
-				<< "Page " << page_no_dblwr
+		if (undo::is_active(space->id)) {
+			ib::warn() << "Page " << page_no_dblwr
 				<< " in the doublewrite buffer is"
 				" not within space bounds: page "
 				<< page_id_t(space->id, page_no);
 		}
-
 	} else {
 		const page_size_t	page_size(space->flags);
 		const page_id_t		page_id(space->id, page_no);
@@ -936,6 +934,7 @@ buf_dblwr_check_block(
 	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_RSEG_ARRAY:
 		/* TODO: validate also non-index pages */
 		return;
 	case FIL_PAGE_TYPE_ALLOCATED:

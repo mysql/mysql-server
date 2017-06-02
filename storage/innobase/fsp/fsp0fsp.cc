@@ -252,29 +252,29 @@ fsp_flags_to_dict_tf(
 }
 
 /** Check whether a space id is an undo tablespace ID
+Undo tablespaces have space_id's starting 1 less than the redo logs.
+They are numbered down from this.  Since rseg_id=0 always refers to the
+system tablespace, undo_space_num values start at 1.  The current limit
+is 127. The translation from an undo_space_num is:
+   undo space_id = log_first_space_id - undo_space_num
 @param[in]	space_id	space id to check
 @return true if it is undo tablespace else false. */
 bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
-	/* Quick elimination.  space_id==0 is most common. */
-	if (fsp_is_system_or_temp_tablespace(space_id)
-	    || dict_sys_t::is_reserved(space_id)
-	    /* Before trx_sys_undo_spaces is set, we do not know
-	    what the undo tablespace ID range is. Assume this is
-	    not an undo space. */
-	    || trx_sys_undo_spaces == nullptr
-	    || trx_sys_undo_spaces->size() == 0) {
-		return(false);
+	/* Starting with v8, undo space_ids have a unique range. */
+	if (space_id >= dict_sys_t::min_undo_space_id
+	    && space_id <= dict_sys_t::max_undo_space_id) {
+		return(true);
 	}
 
-	/* There is a list of undo tablespaces.  Search them. */
-	Space_Ids::iterator it = std::find(
-		trx_sys_undo_spaces->begin(),
-		trx_sys_undo_spaces->end(),
-		space_id);
+	/* If upgrading from 5.7, there may be a list of old-style
+	undo tablespaces.  Search them. */
+	if (trx_sys_undo_spaces != nullptr) {
+		return(trx_sys_undo_spaces->contains(space_id));
+	}
 
-	return(it != trx_sys_undo_spaces->end());
+	return(false);
 }
 
 /** Check if tablespace is system temporary.
@@ -609,10 +609,10 @@ xdes_get_descriptor_with_space_hdr(
 	flags = mach_read_from_4(sp_header + FSP_SPACE_FLAGS);
 	ut_ad(limit == fspace->free_limit
 	      || (fspace->free_limit == 0
-		  && (init_space
-		      || fspace->purpose == FIL_TYPE_TEMPORARY
-		      || (srv_startup_is_before_trx_rollback_phase
-			  && fspace->id <= srv_undo_tablespaces))));
+	          && (init_space
+	              || fspace->purpose == FIL_TYPE_TEMPORARY
+	              || (srv_startup_is_before_trx_rollback_phase
+	                  && fsp_is_undo_tablespace(fspace->id)))));
 	ut_ad(size == fspace->size_in_header);
 	ut_ad(flags == fspace->flags);
 
@@ -784,7 +784,7 @@ fsp_space_modify_check(
 			     || type == FIL_TYPE_TEMPORARY
 			     || type == FIL_TYPE_IMPORT
 			     || fil_space_is_redo_skipped(id)
-			     || undo::is_under_construction(id));
+			     || undo::is_inactive(id));
 		}
 #endif /* UNIV_DEBUG */
 		return;

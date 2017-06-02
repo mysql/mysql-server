@@ -16,7 +16,6 @@ c1	LEFT(c2,10)
 DROP TABLE tne_1;
 # Stop the MTR default DB server
 Pattern "Can\'t set redo log tablespace to be encrypted" found
-Pattern "Can\'t set undo log tablespace to be encrypted" found
 # create bootstrap file
 # Prepare new datadir
 # Run the bootstrap command with keyring
@@ -216,3 +215,6 @@ call tde_db.populate_table_set_redo_encrypt('tde_db.t_encrypt');
 call tde_db.populate_table_set_redo_encrypt('tde_db.t_non_encrypt');
 DROP DATABASE tde_db;
 # restart
+#
+# Cleanup
+#

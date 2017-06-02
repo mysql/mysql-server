@@ -186,9 +186,9 @@ drop table t1;
 #
 # 8. try re-starting server with param so that temp-tablespace can't be expanded
 #    and insert enough data to make it full.
-#
+#    Note that each rollback segment will take one full page
 --echo # test condition of full-temp-tablespace
-let $restart_parameters = restart: --innodb_temp_data_file_path=ibtmp1:32M;
+let $restart_parameters = restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:32M;
 --source include/restart_mysqld.inc
 #
 create temporary table t1

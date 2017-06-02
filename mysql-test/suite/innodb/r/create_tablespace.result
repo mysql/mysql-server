@@ -242,14 +242,14 @@ DROP TABLESPACE `ibdata1`;
 ERROR HY000: Tablespace ibdata1 doesn't exist.
 CREATE TABLESPACE `ibdata1` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `ibdata1`;
-DROP TABLESPACE `undo001`;
-ERROR HY000: Tablespace undo001 doesn't exist.
-CREATE TABLESPACE `undo001` ADD DATAFILE 'undo001.ibd';
-DROP TABLESPACE `undo001`;
-DROP TABLESPACE `undo002`;
-ERROR HY000: Tablespace undo002 doesn't exist.
-CREATE TABLESPACE `undo002` ADD DATAFILE 'undo002.ibd';
-DROP TABLESPACE `undo002`;
+DROP TABLESPACE `undo_001`;
+ERROR HY000: Tablespace undo_001 doesn't exist.
+CREATE TABLESPACE `undo_001` ADD DATAFILE 'undo_001.ibd';
+DROP TABLESPACE `undo_001`;
+DROP TABLESPACE `undo_002`;
+ERROR HY000: Tablespace undo_002 doesn't exist.
+CREATE TABLESPACE `undo_002` ADD DATAFILE 'undo_002.ibd';
+DROP TABLESPACE `undo_002`;
 #
 # Test various forms of ADD DATAFILE
 #

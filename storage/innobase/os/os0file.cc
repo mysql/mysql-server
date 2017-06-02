@@ -9701,6 +9701,7 @@ Dir_Walker::is_directory(const Path& path)
 
 	if (os_file_status(path.c_str(), &exists, &type)) {
 
+		ut_ad(exists);
 		ut_ad(type != OS_FILE_TYPE_MISSING);
 
 		return(type == OS_FILE_TYPE_DIR);

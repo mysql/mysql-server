@@ -1013,7 +1013,6 @@ trx_undo_truncate_end_func(
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
 	mtr_t		mtr;
-	const bool	noredo = fsp_is_system_temporary(undo->rseg->space_id);
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
@@ -1021,7 +1020,7 @@ trx_undo_truncate_end_func(
 
 	for (;;) {
 		mtr_start(&mtr);
-		if (noredo) {
+		if (fsp_is_system_temporary(undo->rseg->space_id)) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
 			ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
 		} else {
@@ -2005,6 +2004,10 @@ trx_undo_truncate_tablespace(
 		return(success);
 	}
 
+	/* This undo tablespace is unused. Lock the Rsegs before the
+	file_space because SYNC_RSEGS > SYNC_FSP. */
+	undo_trunc->rsegs()->x_lock();
+
 	/* Step-2: Re-initialize tablespace header.
 	Avoid REDO logging as we don't want to apply the action if server
 	crashes. For fix-up we have UNDO-truncate-ddl-log. */
@@ -2013,18 +2016,19 @@ trx_undo_truncate_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
 			&mtr, false);
+
+	/* Step-3: Add the RSEG_ARRAY page. */
+	trx_rseg_array_create(space_id, &mtr);
 	mtr_commit(&mtr);
 
-	/* Step-3: Re-initialize rollback segment header that resides
+	/* Step-4: Re-initialize rollback segment header that resides
 	in truncated tablespaces. */
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
 
-	for (ulint i = 0; i < undo_trunc->rsegs_size(); ++i) {
+	for (auto rseg : *undo_trunc->rsegs()) {
 		trx_rsegf_t*	rseg_header;
-
-		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
 
 		rseg->page_no = trx_rseg_header_create(
 			space_id, univ_page_size, PAGE_NO_MAX, rseg->id, &mtr);
@@ -2077,14 +2081,16 @@ trx_undo_truncate_tablespace(
 			+ 1;
 
 		ut_ad(rseg->curr_size == 1);
+		ut_ad(rseg->trx_ref_count == 0);
 
-		rseg->trx_ref_count = 0;
 		rseg->last_page_no = FIL_NULL;
 		rseg->last_offset = 0;
 		rseg->last_trx_no = 0;
 		rseg->last_del_marks = FALSE;
 	}
 	mtr_commit(&mtr);
+
+	undo_trunc->rsegs()->x_unlock();
 
 	return(success);
 }

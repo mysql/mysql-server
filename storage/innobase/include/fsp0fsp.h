@@ -728,6 +728,12 @@ fseg_print(
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
 
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id);
+
 /** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	space_id	tablespace ID
 @return true if id is a system tablespace, false if not. */

@@ -711,6 +711,10 @@ buf_page_print(
 		fputs("InnoDB: Page may be a compressed SDI BLOB page\n",
 		      stderr);
 		break;
+	case FIL_PAGE_TYPE_RSEG_ARRAY:
+		fputs("InnoDB: Page may be a Rollback Segment Array page\n",
+		      stderr);
+		break;
 	}
 
 	ut_ad(flags & BUF_PAGE_PRINT_NO_CRASH);
@@ -4950,6 +4954,10 @@ buf_page_monitor(
 
 	case FIL_PAGE_TYPE_ZBLOB2:
 		counter = MONITOR_RW_COUNTER(io_type, MONITOR_ZBLOB2_PAGE);
+		break;
+
+	case FIL_PAGE_TYPE_RSEG_ARRAY:
+		counter = MONITOR_RW_COUNTER(io_type, MONITOR_RSEG_ARRAY_PAGE);
 		break;
 
 	default:

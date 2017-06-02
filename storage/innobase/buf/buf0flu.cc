@@ -952,6 +952,7 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_ZBLOB3:
 				case FIL_PAGE_SDI_BLOB:
 				case FIL_PAGE_SDI_ZBLOB:
+				case FIL_PAGE_TYPE_RSEG_ARRAY:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:
 				case FIL_PAGE_TYPE_XDES:
