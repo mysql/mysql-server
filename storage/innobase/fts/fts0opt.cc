@@ -2146,7 +2146,7 @@ fts_optimize_purge_deleted_doc_id_snapshot(
 /**********************************************************************//**
 Copy the deleted doc ids that will be purged during this optimize run
 to the being deleted FTS auxiliary tables. The transaction is committed
-upon successfull copy and rolled back on DB_DUPLICATE_KEY error.
+upon successful copy and rolled back on DB_DUPLICATE_KEY error.
 @return DB_SUCCESS if all OK */
 static
 ulint
@@ -2165,7 +2165,7 @@ fts_optimize_being_deleted_count(
 /*********************************************************************//**
 Copy the deleted doc ids that will be purged during this optimize run
 to the being deleted FTS auxiliary tables. The transaction is committed
-upon successfull copy and rolled back on DB_DUPLICATE_KEY error.
+upon successful copy and rolled back on DB_DUPLICATE_KEY error.
 @return DB_SUCCESS if all OK */
 static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t

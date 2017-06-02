@@ -303,7 +303,7 @@ public:
 	If the allocation fails this method may throw an exception. This
 	is mandated by the standard and if it returns NULL instead, then
 	STL containers that use it (e.g. std::vector) may get confused.
-	After successfull allocation the returned pointer must be passed
+	After successful allocation the returned pointer must be passed
 	to ut_allocator::deallocate() when no longer needed.
 	@param[in]	n_elements	number of elements
 	@param[in]	hint		pointer to a nearby memory location,
@@ -522,7 +522,7 @@ public:
 	/** Allocate, trace the allocation and construct 'n_elements' objects
 	of type 'T'. If the allocation fails or if some of the constructors
 	throws an exception, then this method will return NULL. It does not
-	throw exceptions. After successfull completion the returned pointer
+	throw exceptions. After successful completion the returned pointer
 	must be passed to delete_array() when no longer needed.
 	@param[in]	n_elements	number of elements to allocate
 	@param[in]	file		file name of the caller
@@ -777,7 +777,7 @@ For example: instead of
 use:
 	Foo*	f = UT_NEW(Foo(args), mem_key_some);
 Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successfull allocation the returned
+will not throw exceptions. After successful allocation the returned
 pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	expr	any expression that could follow "new"
 @param[in]	key	performance schema memory tracing key
@@ -797,7 +797,7 @@ For example: instead of
 use:
 	Foo*	f = UT_NEW_NOKEY(Foo(args));
 Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successfull allocation the returned
+will not throw exceptions. After successful allocation the returned
 pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	expr	any expression that could follow "new"
 @return pointer to the created object or NULL */
