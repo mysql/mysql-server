@@ -195,6 +195,7 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/disjoint.cc
   gis/distance.cc
   gis/geometries.cc
   gis/ring_flip_visitor.cc
