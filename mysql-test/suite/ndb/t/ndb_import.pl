@@ -568,7 +568,7 @@ sub make_byte {
       $val = $fesc.'0';
       last;
     }
-    if ($x == 032) {    # XXX windows only
+    if (0 && $x == 032) {       # now using _O_BINARY on windows
       $val = $fesc.'Z';
       last;
     }
