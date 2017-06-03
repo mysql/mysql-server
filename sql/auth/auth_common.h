@@ -737,7 +737,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
 bool mysql_show_grants(THD *, LEX_USER *,
-                       const List_of_auth_id_refs &);
+                       const List_of_auth_id_refs &, bool);
 bool mysql_show_create_user(THD *thd, LEX_USER *user);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
@@ -818,7 +818,6 @@ typedef enum ssl_artifacts_status
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
@@ -828,6 +827,9 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #define DEFAULT_SSL_CA_KEY      "ca-key.pem"
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
+
+void update_mandatory_roles(void);
+String *func_current_role(THD *thd, String *str, String *active_role);
 
 #endif /* AUTH_COMMON_INCLUDED */
 

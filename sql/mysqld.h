@@ -624,6 +624,7 @@ extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
+extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;
@@ -673,4 +674,7 @@ static inline void set_connection_events_loop_aborted(bool value)
   connection_events_loop_aborted_flag.store(value);
 }
 
+extern LEX_STRING opt_mandatory_roles;
+extern bool opt_mandatory_roles_cache;
+extern bool opt_always_activate_granted_roles;
 #endif /* MYSQLD_INCLUDED */

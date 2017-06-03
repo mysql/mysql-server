@@ -69,7 +69,8 @@
 #include "xa.h"
 #include "mysqld_error.h"
 #include "dynamic_privilege_table.h"
-#include "role_tables.h"        // close_all_role_tables
+#include "role_tables.h"
+#include "sql_authorization.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -115,6 +116,7 @@ Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs= NULL;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles= NULL;
+std::vector<Role_id > *g_mandatory_roles= NULL;
 
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 HASH db_cache;
@@ -1380,7 +1382,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
     sctx->set_password_expired(acl_user->password_expired);
     sctx->lock_account(acl_user->account_locked);
   } // end if
- 
+
   if (acl_user && sctx->get_active_roles()->size() > 0)
   {
     sctx->checkout_access_maps();
@@ -1991,7 +1993,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           {
             user.access |= CREATE_ROLE_ACL;
           }
-          
+
           priv= get_field(&global_acl_memory,
                           table->field[table_schema->drop_role_priv_idx()]);
 
@@ -2513,7 +2515,7 @@ bool acl_reload(THD *thd)
   tables[1].next_local= tables[1].next_global= tables + 2;
   tables[2].next_local= tables[2].next_global= tables + 3;
 
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+  tables[0].open_type= tables[1].open_type= tables[2].open_type=
     tables[3].open_type= OT_BASE_ONLY;
   tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
@@ -3025,7 +3027,7 @@ bool grant_reload(THD *thd)
   bool return_val= 1;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
-  
+
   DBUG_ENTER("grant_reload");
 
   /* Don't do anything if running with --skip-grant-tables */
@@ -3210,7 +3212,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(const char *user, const char *host,
+void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -3225,7 +3227,7 @@ void acl_insert_user(const char *user, const char *host,
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
 
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   /*
      All accounts can authenticate per default. This will change when
      we add a new field to the user table.
@@ -3287,6 +3289,10 @@ void acl_insert_user(const char *user, const char *host,
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  /* Add vertex to role graph. ACL_USER object is copied with a shallow copy */
+  create_role_vertex(&acl_user);
+  /* reparse mandatory roles variable */
+  opt_mandatory_roles_cache= false;
   DBUG_VOID_RETURN;
 }
 
@@ -3461,13 +3467,13 @@ const uchar *hash_key(const uchar *el, size_t *length)
 /**
   Allocate a new cache key based on active roles, current user and
   global cache version
- 
+
   @param [out] out_key The resulting key
   @param [out] key_len Key length
   @param version Global Acl_cache version
   @param uid The authorization ID of the current user
   @param active_roles The active roles of the current user
- 
+
   @return Success state
     @retval true OK
     @retval false Fatal error occurred.
@@ -3500,7 +3506,7 @@ bool create_acl_cache_hash_key(uchar **out_key, unsigned *key_len,
   memcpy(*out_key + offset, reinterpret_cast<void *>(&version), sizeof(uint64));
   it= active_roles.begin();
   offset += sizeof(uint64);
-  
+
   for(; it != active_roles.end(); ++it)
   {
     memcpy(*out_key + offset, it->first.str, it->first.length);
@@ -3659,7 +3665,7 @@ Acl_map::func_acls()
 Dynamic_privileges *
 Acl_map::dynamic_privileges()
 {
-  return &m_dynamic_privileges;  
+  return &m_dynamic_privileges;
 }
 
 void
@@ -3798,7 +3804,7 @@ void Acl_cache::flush_cache()
   Acl_hash_entry *entry= 0;
   mysql_mutex_lock(&m_cache_flush_mutex);
   l_cache_flusher_global_version= version();
-  do 
+  do
   {
     entry=
       static_cast<Acl_hash_entry*>(lf_hash_random_match(&m_cache,
@@ -3833,13 +3839,15 @@ void Acl_map::operator delete(void* p)
 {
   my_free(p);
 }
-        
+
 void init_acl_cache()
 {
   g_default_roles= new Default_roles;
   roles_init_graph();
   dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
+  g_mandatory_roles= new std::vector<Role_id >;
+  opt_mandatory_roles_cache= false;
 }
 
 
@@ -3863,6 +3871,7 @@ void shutdown_acl_cache()
   g_default_roles= NULL;
   roles_delete_graph();
   dynamic_privileges_delete();
+  delete g_mandatory_roles;
 }
 
 

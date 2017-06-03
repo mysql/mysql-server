@@ -1605,7 +1605,7 @@ end:
                       combo->alter_status,
                       what_to_replace);
     else
-      acl_insert_user(combo->user.str, combo->host.str,
+      acl_insert_user(thd, combo->user.str, combo->host.str,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,

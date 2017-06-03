@@ -269,9 +269,9 @@ bool Security_context::check_access(ulong want_access, bool match_any)
 /**
   This method pushes a role to the list of active roles. It requires
   Acl_cache_lock_guard.
- 
+
   This method allocates memory which must be freed when the role is deactivated.
- 
+
   @param role The role name
   @param role_host The role hostname-part.
   @param validate_access True if access validation should be performed.

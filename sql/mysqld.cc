@@ -687,6 +687,7 @@ static PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
+static PSI_mutex_key key_LOCK_mandatory_roles;
 static PSI_mutex_key key_LOCK_sql_rand;
 static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
@@ -771,6 +772,9 @@ LEX_STRING opt_init_connect, opt_init_slave;
 
 /* Global variables */
 
+LEX_STRING opt_mandatory_roles;
+bool opt_mandatory_roles_cache= false;
+bool opt_always_activate_granted_roles= false;
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
@@ -858,6 +862,7 @@ uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
 mysql_mutex_t LOCK_default_password_lifetime;
+mysql_mutex_t LOCK_mandatory_roles;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
@@ -2065,6 +2070,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
+  mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3767,6 +3773,8 @@ static int init_thread_environment()
                    &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_default_password_lifetime,
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_mandatory_roles,
+                   &LOCK_mandatory_roles, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -8730,6 +8738,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);
+  opt_mandatory_roles.length= strlen(opt_mandatory_roles.str);
 
   if (global_system_variables.low_priority_updates)
     thr_upgraded_concurrent_insert_lock= TL_WRITE_LOW_PRIORITY;
@@ -9534,7 +9543,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_GLOBAL, 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_logger;

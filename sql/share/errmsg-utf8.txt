@@ -10787,6 +10787,9 @@ ER_UNABLE_TO_BUILD_HISTOGRAM
 ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
   eng "Waiting until I/O thread for channel '%s' finish writing to disk before stopping. Free some disk space or use 'KILL' to abort I/O thread operation. Notice that aborting the I/O thread while rotating the relay log might corrupt the relay logs, requiring a server restart to fix it."
 
+ER_MANDATORY_ROLE
+  eng "The role %s is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles."
+
 #
 #  End of 8.0 error messages.
 #

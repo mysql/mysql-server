@@ -6368,3 +6368,40 @@ static Sys_var_bool Sys_persisted_globals_load(
        NOT_IN_BINLOG,
        ON_CHECK(0),
        ON_UPDATE(0));
+
+static bool check_authid_string(sys_var*, THD*, set_var *var)
+{
+  if (var->save_result.string_value.str == 0)
+  {
+    var->save_result.string_value.str= const_cast<char*>("");
+    var->save_result.string_value.length= 0;
+  }
+  return false;
+}
+
+static bool sysvar_update_mandatory_roles(sys_var*, THD*, enum_var_type)
+{
+  update_mandatory_roles();
+  return false;
+}
+
+static PolyLock_mutex PLock_sys_mandatory_roles(&LOCK_mandatory_roles);
+static Sys_var_lexstring Sys_mandatory_roles(
+  "mandatory_roles",
+  "All the specified roles are always considered granted to every user and they"
+  " can't be revoked. Mandatory roles still require activation unless they are made into "
+  "default roles. The granted roles will not be visible in the mysql.role_edges"
+  " table.", GLOBAL_VAR(opt_mandatory_roles), CMD_LINE(REQUIRED_ARG),
+  IN_SYSTEM_CHARSET, DEFAULT(""), &PLock_sys_mandatory_roles, NOT_IN_BINLOG,
+  ON_CHECK(check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
+
+static Sys_var_bool Sys_always_activate_granted_roles(
+       "activate_all_roles_on_login",
+       "Automatically set all granted roles as active after the user has "
+       "authenticated successfully.",
+       GLOBAL_VAR(opt_always_activate_granted_roles),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0));

@@ -343,11 +343,7 @@ namespace boost {
 */
 typedef boost::property<boost::vertex_acl_user_t,
                         ACL_USER,
-                        boost::property<boost::vertex_color_t,
-                                        boost::default_color_type,
-                                        boost::property<boost::vertex_name_t,
-                                                        std::string >
-                                       >
+                        boost::property<boost::vertex_name_t, std::string >
                        > Role_properties;
 
 typedef boost::property<boost::edge_capacity_t,

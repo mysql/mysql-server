@@ -2428,25 +2428,33 @@ acl_authenticate(THD *thd, enum_server_command command)
 
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-
     /* Assign default role */
     {
       List_of_auth_id_refs default_roles;
       if (!acl_cache_lock.lock())
         DBUG_RETURN(1);
       Auth_id_ref authid= create_authid_from(acl_user);
-      get_default_roles(authid, &default_roles);
-      List_of_auth_id_refs::iterator it= default_roles.begin();
-      for(;it != default_roles.end(); ++it)
+      if (opt_always_activate_granted_roles)
       {
-        if (sctx->activate_role(it->first, it->second, true))
+        activate_all_granted_and_mandatory_roles(acl_user, sctx);
+      }
+      else
+      {
+        /* The server policy is to only activate default roles */
+        get_default_roles(authid, &default_roles);
+        List_of_auth_id_refs::iterator it= default_roles.begin();
+        for(;it != default_roles.end(); ++it)
         {
-          std::string roleidstr= create_authid_str_from(*it);
-          std::string authidstr= create_authid_str_from(acl_user);
-          LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
-                 roleidstr.c_str(), authidstr.c_str());
+          if (sctx->activate_role(it->first, it->second, true))
+          {
+            std::string roleidstr= create_authid_str_from(*it);
+            std::string authidstr= create_authid_str_from(acl_user);
+            LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
+                   roleidstr.c_str(), authidstr.c_str());
+          }
         }
       }
+
       acl_cache_lock.unlock();
     }
     sctx->checkout_access_maps();

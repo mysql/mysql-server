@@ -1823,6 +1823,10 @@ bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 bool Sql_cmd_show_privileges::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_show_privileges::execute");
+  bool show_mandatory_roles= false;
+  if (for_user == 0)
+    show_mandatory_roles= true;
+
   if (for_user == 0 || for_user->user.str == 0)
   {
 	  /* SHOW PRIVILEGE FOR CURRENT_USER */
@@ -1832,7 +1836,8 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
     {
       List_of_auth_id_refs *active_list=
         thd->security_context()->get_active_roles();
-      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list));
+      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
+                                    show_mandatory_roles));
     }
   }
   else if (strcmp(thd->security_context()->priv_user().str,
@@ -1869,7 +1874,8 @@ bool Sql_cmd_show_privileges::execute(THD *thd)
 
   LEX_USER *tmp_user= const_cast<LEX_USER *>(for_user);
   tmp_user= get_current_user(thd, tmp_user);
-  DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list));
+  DBUG_RETURN(mysql_show_grants(thd, tmp_user, authid_list,
+                                show_mandatory_roles));
 }
 
 
