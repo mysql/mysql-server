@@ -2569,9 +2569,6 @@ srv_dict_recover_on_restart()
 		srv_sys_tablespaces_open = true;
 
 #ifdef INNODB_NO_NEW_DD
-		dberr_t	err = dict_create_or_check_sys_tablespace();
-
-		ut_a(err == DB_SUCCESS); // FIXME: remove in WL#9535
 	}
 
 	/* We can't start any (DDL) transactions if UNDO logging has

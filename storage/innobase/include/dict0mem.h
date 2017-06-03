@@ -1069,11 +1069,6 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
-#ifdef INNODB_DD_TABLE
-	bool		skip_step;/*!< Skip certain steps in
-				dict_create_index_step(), will be removed
-				in wl#9535 */
-#endif /* INNNODB_DD_TABLE */
 	bool		fill_dd;/*!< Flag whether need to fill dd tables
 				when it's a fulltext index. */
 
