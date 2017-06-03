@@ -438,7 +438,7 @@ void set_field_year(Field *f, ulong value);
   @param f the field to read
   @return the field value
 */
-long get_field_year(Field *f);
+ulong get_field_year(Field *f);
 
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants

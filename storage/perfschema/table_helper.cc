@@ -359,7 +359,7 @@ void
 set_field_time(Field *f, const char *value, uint len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
-  Field_time *f2 = (Field_time *)f;
+  Field_timef *f2 = (Field_timef *)f;
   f2->store(value, len, system_charset_info);
 }
 char *
@@ -367,7 +367,7 @@ get_field_time(Field *f, char *val, uint *len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
   String temp;
-  Field_time *f2 = (Field_time *)f;
+  Field_timef *f2 = (Field_timef *)f;
   f2->val_str(&temp, NULL);
   *len = temp.length();
   strncpy(val, temp.ptr(), *len);
@@ -433,11 +433,11 @@ set_field_year(Field *f, ulong value)
   Field_year *f2 = (Field_year *)f;
   f2->store(value, true);
 }
-long
+ulong
 get_field_year(Field *f)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
-  Field_long *f2 = (Field_long *)f;
+  Field_year *f2 = (Field_year *)f;
   return f2->val_int();
 }
 
