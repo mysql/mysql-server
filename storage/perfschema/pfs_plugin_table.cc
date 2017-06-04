@@ -29,7 +29,7 @@
 #include <string>
 
 /**
-  @page PFS_PLUGIN_TABLE_SERVICE Performance Schema Plugin Table service
+  @page PAGE_PFS_TABLE_PLUGIN_SERVICE Plugin table service
   Performance Schema plugin table service is a mechanism which provides
   plugins/components a way to expose their own tables in Performance Schema.
 

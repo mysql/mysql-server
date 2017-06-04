@@ -2026,7 +2026,7 @@ static void clean_up(bool print_message)
     where all dependencies are still ok.
   */
   log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   unregister_pfs_notification_service();
   unregister_pfs_resource_group_service();
 #endif
@@ -5337,10 +5337,10 @@ int mysqld_main(int argc, char **argv)
   /*
     Initialize Performance Schema component services.
   */
-  #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   register_pfs_notification_service();
   register_pfs_resource_group_service();
-  #endif
+#endif
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();

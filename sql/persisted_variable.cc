@@ -23,21 +23,24 @@
 #include "mysqld.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_memory.h"
+#include "psi_memory_key.h"
 #include "set_var.h"
 #include "sql_class.h"
 #include "sql_lex.h"
 #include "sys_vars_shared.h"
 
-#ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key key_persist_file_cnf;
+
+#ifdef HAVE_PSI_FILE_INTERFACE
 static PSI_file_info all_persist_files[]=
 {
   { &key_persist_file_cnf, "cnf", 0}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key key_persist_file, key_persist_hash;
+
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_persist_mutexes[]=
 {
   { &key_persist_file, "m_LOCK_persist_file", 0, 0},
@@ -45,11 +48,12 @@ static PSI_mutex_info all_persist_mutexes[]=
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+PSI_memory_key key_memory_persisted_variables;
+
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-PSI_memory_key key_memory_root;
 static PSI_memory_info all_options[]=
 {
-  {&key_memory_root, "persisted_options_root", PSI_FLAG_GLOBAL}
+  {&key_memory_persisted_variables, "persisted_options_root", PSI_FLAG_GLOBAL}
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
@@ -112,7 +116,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv)
   };
 
   /* create temporary args list and pass it to handle_options */
-  init_alloc_root(key_memory_root, &alloc, 512, 0);
+  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
   if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
     (*argc + 1) * sizeof(char *))))
     return 1;
@@ -682,7 +686,7 @@ int Persisted_variables_cache::read_persist_file()
 bool Persisted_variables_cache::append_read_only_variables(int *argc,
   char ***argv, bool plugin_options)
 {
-  Prealloced_array<char *, 100> my_args(key_memory_root);
+  Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
   TYPELIB group;
   MEM_ROOT alloc;
   const char *type_name= "mysqld";
@@ -692,7 +696,7 @@ bool Persisted_variables_cache::append_read_only_variables(int *argc,
   if (*argc < 2 || no_defaults || !persisted_globals_load)
     return 0;
 
-  init_alloc_root(key_memory_root, &alloc, 512, 0);
+  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
   group.count= 1;
   group.name= "defaults";
   group.type_names= &type_name;

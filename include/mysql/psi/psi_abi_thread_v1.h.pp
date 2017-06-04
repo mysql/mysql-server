@@ -106,7 +106,7 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
                                              const void *from_cs);
 typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
                                          ulonglong *event_id);
-typedef struct
+struct PSI_thread_attrs_v1
 {
   ulonglong m_thread_internal_id;
   ulong m_processlist_id;
@@ -121,16 +121,18 @@ typedef struct
   struct sockaddr_storage m_sock_addr;
   socklen_t m_sock_addr_length;
   bool m_system_thread;
-} PSI_thread_attrs;
+};
+typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
 typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
-typedef struct
+struct PSI_notification_v1
 {
     PSI_notification_cb thread_create;
     PSI_notification_cb thread_destroy;
     PSI_notification_cb session_connect;
     PSI_notification_cb session_disconnect;
     PSI_notification_cb session_change_user;
-} PSI_notification;
+};
+typedef struct PSI_notification_v1 PSI_notification;
 typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
 typedef int (*get_thread_system_attrs_by_id_v1_t)(PSI_thread *thread,
                                                 ulonglong thread_id,

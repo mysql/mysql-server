@@ -334,7 +334,7 @@ typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
   Performance Schema thread type: user/foreground or system/background.
   @sa get_thread_system_attrs
 */
-typedef struct
+struct PSI_thread_attrs_v1
 {
   /* PFS internal thread id, unique. */
   ulonglong m_thread_internal_id;
@@ -374,7 +374,9 @@ typedef struct
 
   /* True if system/background thread, false if user/foreground thread. */
   bool m_system_thread;
-} PSI_thread_attrs;
+};
+
+typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
 
 /**
   Callback for the pfs_notification service.
@@ -386,14 +388,16 @@ typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
   Registration structure for the pfs_notification service.
   @sa register_notification_v1_t
 */
-typedef struct
+struct PSI_notification_v1
 {
     PSI_notification_cb thread_create;
     PSI_notification_cb thread_destroy;
     PSI_notification_cb session_connect;
     PSI_notification_cb session_disconnect;
     PSI_notification_cb session_change_user;
-} PSI_notification;
+};
+
+typedef struct PSI_notification_v1 PSI_notification;
 
 /**
   Get system attributes for the current thread.

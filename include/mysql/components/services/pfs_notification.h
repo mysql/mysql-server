@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/psi/mysql_thread.h>
 
 /**
-  @page PAGE_PFS_NOTIFICATION_SERVICE Performance Schema Notification service
+  @page PAGE_PFS_NOTIFICATION_SERVICE Notification service
 
   @section PFS_NOTIFICATION_INTRO Introduction
   The Performance Schema Notification service provides a means to register
@@ -32,26 +32,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   - session disconnect
   - session change user
 
-  This synchronous, low-level API is designed to impose minimal performance
+  This is a synchronous, low-level API designed to impose minimal performance
   overhead.
 
   @section PFS_NOTIFICATION_CALLBACKS Callback Function Definition
 
   Callback functions are of the type #PSI_notification_cb:
 
-  @verbatim
+  @code
     typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
-  @endverbatim
+  @endcode
 
   For example:
-  @verbatim
+  @code
     void callback_thread_create(const PSI_thread_attrs *thread_attrs)
     {
-      ...
+      set_thread_resource_group(...)
     }
-  @endverbatim
+  @endcode
 
-  When the callback is invoked, the thread attributes structure will contain the
+  When the callback is invoked, the #PSI_thread_attrs structure will contain the
   system attributes of the thread.
   
   @section PFS_NOTIFICATION_REGISTER Registering Events
@@ -63,21 +63,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   Use the service function @c register_notification() to register the callbacks
   with the server
 
-  @verbatim
+  @code
     int register_notification(PSI_notification *callbacks,
                               bool with_ref_count);
-  @endverbatim
+  @endcode
 
   where
-  @verbatim
-    callbacks      Callback function set
-    with_ref_count Set TRUE for callback functions in dynamically loaded
-                   modules. Set FALSE for callback functions in static or
-                   unloadable modules.
-  @endverbatim
+  - @c callbacks is the callback function set
+  - @c with_ref_count determines whether a reference count is used for the
+                      callbacks. Set TRUE for callback functions in
+                      dynamically loaded modules. Set FALSE for callback
+                      functions in static or unloadable modules.
   
   For example:
-  @verbatim
+  @code
     PSI_notification_cb my_callbacks;
 
     my_callbacks.thread_create   = &thread_create_callback;
@@ -88,7 +87,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
     int my_handle =
      mysql_service_pfs_notification->register_notification(&my_callbacks, true);
-  @endverbatim
+  @endcode
 
   A non-zero handle is returned if the registration is successful. This handle
   is used to unregister the callback set.
@@ -111,12 +110,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   For callbacks in static or unloadable modules, @c unregister_notification() will disable the
   callback functions, but the function pointers will remain.
 
-  @section PFS_NOTIFICATION_UNREGISTER Unregistering or Disabling Events
+  @section PFS_NOTIFICATION_UNREGISTER Unregistering Events
 
   To unregister callback functions from the Notification service, use the handle
   returned from @c register_notification(). For example:
 
-  @verbatim
+  @code
     int ret = mysql_service_pfs_notification->unregister_notification(my_handle);
 
     if (ret == 0)
@@ -127,8 +126,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
     {
       // error
     }
-
-  @endverbatim
+  @endcode
 
   Callbacks that reside in a dynamically loaded module such as a server plugin or
   component must be successfully unregistered before the module is unloaded.

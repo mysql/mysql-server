@@ -428,6 +428,8 @@ report_memory_accounting_error(const char *api_name,
   @subpage PAGE_PFS_NOTIFICATION_SERVICE
 
   @subpage PAGE_PFS_RESOURCE_GROUP_SERVICE
+
+  @subpage PAGE_PFS_TABLE_PLUGIN_SERVICE
 */
 
 /**
@@ -2974,6 +2976,57 @@ pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
   if (pfs == NULL)
     pfs = find_thread(thread_id);
   return get_thread_attributes(pfs, false, thread_attrs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::register_notification.
+*/
+int
+pfs_register_notification_v1(const PSI_notification *callbacks,
+                             bool with_ref_count)
+{
+  return pfs_register_notification(callbacks, with_ref_count);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::unregister_notification.
+*/
+int
+pfs_unregister_notification_v1(int handle)
+{
+  return pfs_unregister_notification(handle);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_connect.
+*/
+void
+pfs_notify_session_connect_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_connect(thread);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_disconnect.
+*/
+void
+pfs_notify_session_disconnect_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_disconnect(thread);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_change_user.
+*/
+void
+pfs_notify_session_change_user_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_change_user(thread);
 }
 
 /**

@@ -25,7 +25,7 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/pfs_notification.h>
 
-#include "mysql/psi/psi_thread.h"
+#include "pfs_thread_provider.h"
 #include "pfs_server.h"
 
 /**
@@ -299,22 +299,6 @@ private:
 static PFS_notification_registry pfs_notification_registry;
 
 /**
-  Notification Service implementation.
-*/
-int
-impl_register_notification(const PSI_notification *callbacks,
-                           bool with_ref_count)
-{
-  return pfs_register_notification_v1(callbacks, with_ref_count);
-}
-
-int
-impl_unregister_notification(int handle)
-{
-  return pfs_unregister_notification_v1(handle);
-}
-
-/**
   Register callbacks for the Notification service.
   @param callbacks  block of callback function pointers
   @param with_ref_count true if callbacks can be unregistered
@@ -322,7 +306,7 @@ impl_unregister_notification(int handle)
   @sa PSI_v1::register_notification
 */
 int
-pfs_register_notification_v1(const PSI_notification *callbacks,
+pfs_register_notification(const PSI_notification *callbacks,
                              bool with_ref_count)
 {
   if (unlikely(callbacks == nullptr))
@@ -339,7 +323,7 @@ pfs_register_notification_v1(const PSI_notification *callbacks,
   @sa PSI_v1::unregister_notification
 */
 int
-pfs_unregister_notification_v1(int handle)
+pfs_unregister_notification(int handle)
 {
   return pfs_notification_registry.disable(handle);
 }
@@ -351,7 +335,7 @@ pfs_unregister_notification_v1(int handle)
   @sa pfs_notify_thread_create
 */
 void
-pfs_notify_thread_create(PSI_thread *thread)
+pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused)))
 {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
   if (node == nullptr)
@@ -359,7 +343,7 @@ pfs_notify_thread_create(PSI_thread *thread)
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -378,7 +362,7 @@ pfs_notify_thread_create(PSI_thread *thread)
   @sa pfs_notify_thread_destroy
 */
 void
-pfs_notify_thread_destroy(PSI_thread *thread)
+pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused)))
 {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
   if (node == nullptr)
@@ -386,9 +370,9 @@ pfs_notify_thread_destroy(PSI_thread *thread)
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
     return;
-
+    
   while (node != nullptr)
   {
     auto callback = *node->m_cb.thread_destroy;
@@ -404,7 +388,7 @@ pfs_notify_thread_destroy(PSI_thread *thread)
   @sa PSI_v1::notify_session_connect
 */
 void
-pfs_notify_session_connect_v1(PSI_thread *thread)
+pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
   if (node == nullptr)
@@ -412,7 +396,7 @@ pfs_notify_session_connect_v1(PSI_thread *thread)
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -430,7 +414,7 @@ pfs_notify_session_connect_v1(PSI_thread *thread)
   @sa PSI_v1::notify_session_disconnect
 */
 void
-pfs_notify_session_disconnect_v1(PSI_thread *thread)
+pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
   if (node == nullptr)
@@ -438,7 +422,7 @@ pfs_notify_session_disconnect_v1(PSI_thread *thread)
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -456,7 +440,7 @@ pfs_notify_session_disconnect_v1(PSI_thread *thread)
   @sa PSI_v1::notify_session_change_user
 */
 void
-pfs_notify_session_change_user_v1(PSI_thread *thread)
+pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused)))
 {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
   if (node == nullptr)
@@ -464,7 +448,7 @@ pfs_notify_session_change_user_v1(PSI_thread *thread)
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v1(thread, 0, &thread_attrs) != 0)
+  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(thread, 0, &thread_attrs) != 0)
     return;
 
   while (node != nullptr)
@@ -474,6 +458,22 @@ pfs_notify_session_change_user_v1(PSI_thread *thread)
       callback(&thread_attrs);
     node = pfs_notification_registry.get_next(node, EVENT_SESSION_CHANGE_USER);
   }
+}
+
+/**
+  Notification Service implementation.
+*/
+int
+impl_register_notification(const PSI_notification *callbacks,
+                           bool with_ref_count)
+{
+  return pfs_register_notification(callbacks, with_ref_count);
+}
+
+int
+impl_unregister_notification(int handle)
+{
+  return pfs_unregister_notification(handle);
 }
 
 SERVICE_TYPE(pfs_notification)
