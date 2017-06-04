@@ -6407,8 +6407,8 @@ rollback_inplace_alter_table(
 
 	DBUG_ENTER("rollback_inplace_alter_table");
 
-	if (ctx != nullptr && !ctx->need_rebuild()
-	    && table->s->found_next_number_field != nullptr) {
+	if (table->s->found_next_number_field != nullptr
+	    &&ctx != nullptr && ctx->old_autoinc != 0) {
 		dict_table_t*   innobase_table = prebuilt->table;
 
 		innobase_table->version = ctx->old_version;
