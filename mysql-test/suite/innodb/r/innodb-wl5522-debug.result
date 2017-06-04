@@ -430,7 +430,7 @@ c3 VARCHAR(2048),
 c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
-INDEX idx3(c4(512))) Engine=InnoDB;
+INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
 SET GLOBAL innodb_disable_background_merge=ON;
 SET GLOBAL innodb_monitor_reset = ibuf_merges;
@@ -474,7 +474,7 @@ t1	CREATE TABLE `t1` (
   KEY `idx1` (`c2`),
   KEY `idx2` (`c3`(512)),
   KEY `idx3` (`c4`(512))
-) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=latin1
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 2	32
@@ -605,7 +605,7 @@ c3 VARCHAR(2048),
 c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
-INDEX idx3(c4(512))) Engine=InnoDB;
+INDEX idx3(c4(512))) Engine=InnoDB Charset=latin1;
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
@@ -729,7 +729,7 @@ t1	CREATE TABLE `t1` (
   KEY `idx1` (`c2`),
   KEY `idx2` (`c3`(512)),
   KEY `idx3` (`c4`(512))
-) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=latin1
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 INSERT IGNORE INTO test_wl5522.t1 VALUES
