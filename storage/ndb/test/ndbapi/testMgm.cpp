@@ -133,7 +133,7 @@ int runTestApiTimeoutBasic(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
 
-  ndbout << "TEST timout check_connection" << endl;
+  ndbout << "TEST timeout check_connection" << endl;
   int errs[] = { 1, 2, 3, -1};
 
   for(int error_ins_no=0; errs[error_ins_no]!=-1; error_ins_no++)
