@@ -2906,7 +2906,7 @@ dict_load_table_one(
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#if 0 /* WL#9535/9536 TODO: Maybe just remove all these */
+#if 0 /* WL#9535/9536/6049 TODO: Maybe just remove all these */
 	/* Currently, the master thread may call us in
 	row_drop_tables_for_mysql_in_background(). */
 	ut_ad(!srv_is_being_shutdown);

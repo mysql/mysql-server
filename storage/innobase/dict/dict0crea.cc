@@ -391,10 +391,14 @@ dict_create_index_tree_in_mem(
 	if (page_no == FIL_NULL) {
 		err = DB_OUT_OF_FILE_SPACE;
 	} else {
-		/*Fixme: if it's part of create table, and is
-		file per table, skip ddl log. */
-		//if (!is_create_table
-		//    || !dict_table_is_file_per_table(index->table)) {
+		/* FIXME: Now writing ddl log after the index has been created,
+		so if server crashes before the redo log gets persisted,
+		there is no way to find the resources(two segments, etc.)
+		allocated to this index. Since this is a rare case, living
+		with it is acceptable */
+		/* FIXME: if it's part of CREATE TABLE, and file_per_table is
+		true, skip ddl log, because during rollback, the whole
+		tablespace would be dropped */
 		err = log_ddl->writeFreeTreeLog(trx, index, false);
 	}
 

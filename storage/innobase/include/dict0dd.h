@@ -904,8 +904,6 @@ dd_tablespace_get_filename(const dd::Tablespace* dd_space)
 	return((*dd_space->files().begin())->filename().c_str());
 }
 
-/** WL#9536 TODO: Define this function in debug mode only.
-And just assert it on opening tables, instead of setting it as corrupted */
 /** Check if the InnoDB table is consistent with dd::Table
 @param[in]	table			InnoDB table
 @param[in]	dd_table		dd::Table or dd::Partition
