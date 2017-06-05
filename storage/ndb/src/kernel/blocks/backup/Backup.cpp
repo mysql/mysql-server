@@ -6808,10 +6808,12 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     return;
   }//if
 
-  if (signal->getNoOfSections())
+  if (isNdbMtLqh())
   {
     jam();
-    SectionHandle handle(this, signal);
+    /* This is the decision point for including
+     * this row change in the log file on ndbmtd
+     */
     TablePtr tabPtr;
     c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
     FragmentPtr fragPtr;
@@ -6819,11 +6821,17 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     if (fragPtr.p->node != getOwnNodeId()) 
     {
       jam();
-      trigPtr.p->logEntry = 0;      
+      trigPtr.p->logEntry = 0;
+      SectionHandle handle(this,signal);
       releaseSections(handle);
       return;
     }
+  }
 
+  if (signal->getNoOfSections())
+  {
+    jam();
+    SectionHandle handle(this,signal);
     SegmentedSectionPtr dataPtr[3];
     handle.getSection(dataPtr[0], 0);
     handle.getSection(dataPtr[1], 1);
