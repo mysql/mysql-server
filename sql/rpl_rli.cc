@@ -748,7 +748,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
      Why do we have this mechanism instead of simply monitoring slave_running
      in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
      the SQL thread be stopped?
-     This is becasue if someones does:
+     This is because if someones does:
      STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
      the change may happen very quickly and we may not notice that
      slave_running briefly switches between 1/0/1.
@@ -970,7 +970,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
      Why do we have this mechanism instead of simply monitoring slave_running
      in the loop (we do this too), as CHANGE MASTER/RESET SLAVE require that
      the SQL thread be stopped?
-     This is becasue if someones does:
+     This is because if someones does:
      STOP SLAVE;CHANGE MASTER/RESET SLAVE; START SLAVE;
      the change may happen very quickly and we may not notice that
      slave_running briefly switches between 1/0/1.

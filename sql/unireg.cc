@@ -969,7 +969,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
     int2store(buff+3, static_cast<uint16>(field->length));
-    /* The +1 is here becasue the col offset in .frm file have offset 1 */
+    /* The +1 is here because the col offset in .frm file have offset 1 */
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
     int2store(buff+8,field->pack_flag);

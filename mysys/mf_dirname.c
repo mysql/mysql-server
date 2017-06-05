@@ -110,7 +110,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
 #endif
   DBUG_ENTER("convert_dirname");
 
-  /* We use -2 here, becasue we need place for the last FN_LIBCHAR */
+  /* We use -2 here, because we need place for the last FN_LIBCHAR */
   if (!from_end || (from_end - from) > FN_REFLEN-2)
     from_end=from+FN_REFLEN -2;
 
@@ -141,7 +141,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end)
     *to=0;
   }
 #else
-  /* This is ok even if to == from, becasue we need to cut the string */
+  /* This is ok even if to == from, because we need to cut the string */
   to= strmake(to, from, (size_t) (from_end-from));
 #endif
 

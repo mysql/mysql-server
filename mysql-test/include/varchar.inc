@@ -161,7 +161,7 @@ select v,count(t) from t1 group by v limit 10;
 select sql_big_result v,count(t) from t1 group by v limit 10;
 
 #
-# Test varchar > 512 (special case for GROUP BY becasue of
+# Test varchar > 512 (special case for GROUP BY because of
 # CONVERT_IF_BIGGER_TO_BLOB define)
 #
 
