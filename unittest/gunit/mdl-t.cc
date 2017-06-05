@@ -2224,7 +2224,7 @@ TEST_F(MDLTest, SelfConflict)
   /*
     Acquire X lock on the same table. MDL subsystem should be able to detect
     that conflicting S lock belongs to the same context even though it was
-    was acquired using "fast path".
+    acquired using "fast path".
   */
   MDL_REQUEST_INIT(&m_request,
                    MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
@@ -2833,7 +2833,7 @@ TEST_F(MDLTest, UnusedConcurrentThree)
 
   EXPECT_EQ(0, mdl_get_unused_locks_count());
 
-  /* Now let 3nd thread to release its lock and thus unuse MDL_lock object. */
+  /* Now let 3rd thread to release its lock and thus unuse MDL_lock object. */
   third_release.notify();
   mdl_thread3.join();
 
@@ -4318,7 +4318,7 @@ TEST_F(MDLHtonNotifyTest, NotifyAcquireFail)
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request));
   EXPECT_EQ(m_null_ticket, request.ticket);
   /*
-    We treat failure to acquire X lock after successfull pre-acquire
+    We treat failure to acquire X lock after successful pre-acquire
     notification in the same way as lock release.
   */
   EXPECT_EQ(1U, pre_acquire_count());
@@ -4335,7 +4335,7 @@ TEST_F(MDLHtonNotifyTest, NotifyAcquireFail)
 
   EXPECT_TRUE(m_mdl_context.acquire_lock(&request, zero_timeout));
   /*
-    Again we treat failure to acquire X lock after successfull pre-acquire
+    Again we treat failure to acquire X lock after successful pre-acquire
     notification in the same way as lock release.
   */
   EXPECT_EQ(1U, pre_acquire_count());
@@ -4408,7 +4408,7 @@ TEST_F(MDLHtonNotifyTest, NotifyUpgrade)
   reset_counts_and_keys();
 
   /*
-    Now case when notification is successfull but we fail to upgrade for some
+    Now case when notification is successful but we fail to upgrade for some
     other reason.
   */
 

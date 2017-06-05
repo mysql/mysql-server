@@ -786,7 +786,7 @@ namespace keyring__keys_container_unittest
     Mock_serialized_object *mock_serialized_object= new Mock_serialized_object;
 
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0)); // init successfull
+      .WillOnce(Return(0)); // init successful
     EXPECT_CALL(*keyring_io, get_serialized_object(_))
       .WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(FALSE)));
     EXPECT_CALL(*mock_serialized_object, has_next_key()).WillOnce(Return(FALSE)); // no keys to read
@@ -800,7 +800,7 @@ namespace keyring__keys_container_unittest
     keys_container= new Keys_container(logger);
 
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0)); // init successfull
+      .WillOnce(Return(0)); // init successful
     EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(TRUE));
     EXPECT_CALL(*logger, log(MY_ERROR_LEVEL, StrEq("Error while loading keyring content. The keyring might be malformed")));
 
@@ -823,7 +823,7 @@ namespace keyring__keys_container_unittest
     Mock_serialized_object *mock_serialized_object= new Mock_serialized_object;
 
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0)); // init successfull
+      .WillOnce(Return(0)); // init successful
     {
       InSequence dummy;
       EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(FALSE)));
@@ -856,7 +856,7 @@ namespace keyring__keys_container_unittest
     buffer->position= 0; //rewind buffer
 
     EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0)); // init successfull
+      .WillOnce(Return(0)); // init successful
     {
       InSequence dummy;
       EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(DoAll(SetArgPointee<0>(buffer), Return(FALSE)));

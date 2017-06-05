@@ -133,7 +133,7 @@ init_functions(IO_CACHE* info)
                        If == 0 then use my_default_record_cache_size
     type               Type of cache
     seek_offset        Where cache should start reading/writing
-    use_async_io       Set to 1 of we should use async_io (if avaiable)
+    use_async_io       Set to 1 of we should use async_io (if available)
     cache_myflags      Bitmap of different flags
                        MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                        MY_DONT_CHECK_FILESIZE

@@ -1124,7 +1124,7 @@ const char *get_date_time_format_str(Known_date_time_format *format,
   Functions to create default time/date/datetime strings
  
   NOTE:
-    For the moment the Date_time_format argument is ignored becasue
+    For the moment the Date_time_format argument is ignored because
     MySQL doesn't support comparing of date/time/datetime strings that
     are not in arbutary order as dates are compared as strings in some
     context)

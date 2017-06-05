@@ -181,7 +181,7 @@ where t1.a = 2 and t1.b = 3;
 #  - Same query as above.
 #  - Added explict table locks as cleanup of these is one 
 #    (of several?) way to cause released NdbQuery objects to
-#    be refered.
+#    be referred.
 ################################################################
 
 # LOCK'ed tables invokes the same code path as executing
@@ -534,7 +534,7 @@ where t2.a = 1;
 # to find a single common parent by using the equality set
 #
 # NOTE: We should take care to join the multiparent linked
-# table on field refs. not also being refered from other join expr.
+# table on field refs. not also being referred from other join expr.
 # as this will make them candidates for equality set replacement.
 #
 set ndb_join_pushdown=true;
@@ -1916,7 +1916,7 @@ select straight_join * from
 
 
 ###########################
-### Prepared statments ####
+### Prepared statements ###
 ###########################
 
 prepare stmt1 from

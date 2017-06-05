@@ -293,7 +293,7 @@ private:
      *  - 'common' are those parents for which ::collect_key_refs()
      *     will find key_refs[] (possibly through the EQ-sets) such that all
      *     linkedValues() refer fields from the same parent.
-     *  - 'extended' are those parents refered from some of the 
+     *  - 'extended' are those parents referred from some of the 
      *     key_refs[], and having the rest of the key_refs[] available as
      *     'grandparent refs'.
      */

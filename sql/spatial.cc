@@ -343,7 +343,7 @@ Geometry *Geometry::create_by_typeid(Geometry_buffer *buffer, int type_id)
   @param data is a byte string with an optional srid prepending a WKB format
   byte string, which is called a GEOMETRY byte string and which is the inner
   storage format of all geometries in MySQL.
-  @param data_len number of bytes of the byte string refered by data.
+  @param data_len number of bytes of the byte string referred by data.
   @param has_srid whether data argument starts with an srid or not.
   By default it's true, if false, data starts with WKB header, and caller
   is responsible to specify an srid to this object later.
@@ -371,7 +371,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
     return NULL;
     /*
       Don't try to convert endianess but error out because we can't
-      replace the bytes refered by data, it can be from any source.
+      replace the bytes referred by data, it can be from any source.
       Users can call GeometryFromWKB to use WKB of either endianess
       if they have to pass WKB/Geometry byte string from client to us.
      */

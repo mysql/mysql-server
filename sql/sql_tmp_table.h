@@ -94,7 +94,7 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
 void get_max_key_and_part_length(uint *max_key_length,
                                  uint *max_key_part_length);
 /**
-  Initilize the storage engine properties for the alternative temporary table
+  Initialize the storage engine properties for the alternative temporary table
   storage engines.
 */
 void init_cache_tmp_engine_properties();

@@ -520,7 +520,7 @@ int exit_status() {
 
    At the end, a complete test report should be written, with some
    statistics. If the test returns EXIT_SUCCESS, all tests were
-   successfull, otherwise at least one test failed.
+   successful, otherwise at least one test failed.
 
    To get a TAP complient output and exit status, report the exit
    status in the following manner:

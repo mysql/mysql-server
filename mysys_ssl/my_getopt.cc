@@ -242,7 +242,7 @@ int my_handle_options(int *argc, char ***argv,
     {
       is_cmdline_arg= 1;
 
-      /* save the separator too if skip unkown options  */
+      /* save the separator too if skip unknown options  */
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++]= cur_arg;
       else

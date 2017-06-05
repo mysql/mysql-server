@@ -569,7 +569,7 @@ ndb_pushed_builder_ctx::is_pushable_with_root(const AQP::Table_access* root)
  *     a single parent common to all key fields in the 'REF'
  *
  * In order to increase pushability we use the COND_EQUAL sets 
- * to resolve cases (2) above) where multiple parents are refered.
+ * to resolve cases (2) above) where multiple parents are referred.
  * If needed too make a child pushable, we replace parent 
  * references with another from the COND_EQUAL sets which make
  * it pushable .
@@ -658,7 +658,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
    *     FIELD_ITEMs as set up by the MySQL optimizer.
    *  - 'common' are those we may refer (possibly through the EQ-sets)
    *     such that all FIELD_ITEMs are from the same parent.
-   *  - 'extended' are those parents refered from some of the 
+   *  - 'extended' are those parents referred from some of the 
    *     FIELD_ITEMs, and having the rest of the referred FIELD_ITEM 
    *     tables available as 'grandparent refs'
    *     (The SPJ block can handle field references to any ancestor
@@ -717,7 +717,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       common_parents.intersect(field_parents);
 
       /**
-       * 'Extended' parents are refered from some 'FIELD_ITEM', and contain
+       * 'Extended' parents are referred from some 'FIELD_ITEM', and contain
        * all parents directly referred, or available as 'depend_parents'. 
        * The later excludes those before the first (grand-)parent
        * available from all 'field_parents' (first_grandparent).
@@ -984,7 +984,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
  *
  * @param[in] table The table access operation to which the key item belongs.
  * @param[in] key_item The key_item to examine
- * @param[in] key_part Metatdata about the key item.
+ * @param[in] key_part Metadata about the key item.
  * @param[out] field_parents The set of possible parents for 'key_item' 
  * ('join_root' if keys are constant).
  * @return True if at least one possible parent was found. (False means that 

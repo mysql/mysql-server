@@ -61,7 +61,7 @@ void* generate(void *arg)
       mysql_mutex_lock(&LOCK_verbose);
       std::cout << "Key generate " << key_id << ' ' << key_type << ' ' << user << ' ';
       if(result==FALSE)
-        std::cout << "successfull" << std::endl;
+        std::cout << "successful" << std::endl;
       else
         std::cout << "failed" << std::endl;
       mysql_mutex_unlock(&LOCK_verbose);

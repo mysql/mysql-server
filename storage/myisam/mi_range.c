@@ -152,7 +152,7 @@ static ha_rows _mi_record_pos(MI_INFO *info, const uchar *key,
     operations with a comment like "Not real duplicates", whatever this
     means. From the condition above we can see that 'skip_end_space' is
     always false for these operations. The result is that trailing space
-    counts in key comparison and hence, emtpy strings ('', string length
+    counts in key comparison and hence, empty strings ('', string length
     zero, but not NULL) compare less that strings starting with control
     characters and these in turn compare less than strings starting with
     blanks.

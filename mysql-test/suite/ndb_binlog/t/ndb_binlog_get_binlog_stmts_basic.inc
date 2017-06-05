@@ -59,7 +59,7 @@ insert into binlog_stmt_parts_assoc
 create table binlog_stmts (txt varchar(1000), stmt_num int);
 
 insert into binlog_stmts 
-  select group_concat(right(txt,             # Combine rows in statment into 1
+  select group_concat(right(txt,             # Combine rows in statement into 1
                             length(txt) - 4) # Trim ### from line start
                       order by line_count
                       separator ' '), stmt_num
@@ -68,7 +68,7 @@ insert into binlog_stmts
 
 #select * from binlog_stmts;
 
-# Drop ndb_apply_status entries and sort by the statment 
+# Drop ndb_apply_status entries and sort by the statement 
 # text to get a deterministic order.
 #
 # Reasonable order would be sort by (PK-cols, stmt_num)

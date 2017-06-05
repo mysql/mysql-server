@@ -549,7 +549,7 @@ testRanges(Uint32 bitmask_size)
       tmp.fill(sz32, zero);
 
       // Bit was free
-      // 1) Check how much space is avaiable
+      // 1) Check how much space is available
       // 2) Create new allocation of lrandom size
       // 3) Fill data with lrandom data
       // 4) Update alloc mask

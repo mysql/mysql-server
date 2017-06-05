@@ -4846,7 +4846,7 @@ my_bool Query_cache::in_blocks(Query_cache_block * point)
     if (block->pprev->pnext != block)
     {
       DBUG_PRINT("error",
-		 ("block 0x%lx in physical list is incorrect linked, prev block 0x%lx refered as next to 0x%lx (check from 0x%lx)",
+		 ("block 0x%lx in physical list is incorrect linked, prev block 0x%lx referred as next to 0x%lx (check from 0x%lx)",
 		  (ulong) block, (ulong) block->pprev,
 		  (ulong) block->pprev->pnext,
 		  (ulong) point));
@@ -4874,7 +4874,7 @@ err1:
     if (block->pnext->pprev != block)
     {
       DBUG_PRINT("error",
-		 ("block 0x%lx in physicel list is incorrect linked, next block 0x%lx refered as prev to 0x%lx (check from 0x%lx)",
+		 ("block 0x%lx in physicel list is incorrect linked, next block 0x%lx referred as prev to 0x%lx (check from 0x%lx)",
 		  (ulong) block, (ulong) block->pnext,
 		  (ulong) block->pnext->pprev,
 		  (ulong) point));
@@ -4903,7 +4903,7 @@ my_bool Query_cache::in_list(Query_cache_block * root,
     if (block->prev->next != block)
     {
       DBUG_PRINT("error",
-		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, prev block 0x%lx refered as next to 0x%lx (check from 0x%lx)",
+		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, prev block 0x%lx referred as next to 0x%lx (check from 0x%lx)",
 		  (ulong) block, name, (ulong) root, (ulong) block->prev,
 		  (ulong) block->prev->next,
 		  (ulong) point));
@@ -4932,7 +4932,7 @@ err1:
     if (block->next->prev != block)
     {
       DBUG_PRINT("error",
-		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, next block 0x%lx refered as prev to 0x%lx (check from 0x%lx)",
+		 ("block 0x%lx in list '%s' 0x%lx is incorrect linked, next block 0x%lx referred as prev to 0x%lx (check from 0x%lx)",
 		  (ulong) block, name, (ulong) root, (ulong) block->next,
 		  (ulong) block->next->prev,
 		  (ulong) point));
@@ -4974,7 +4974,7 @@ my_bool Query_cache::in_table_list(Query_cache_block_table * root,
     if (table->prev->next != table)
     {
       DBUG_PRINT("error",
-		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, prev table 0x%lx(0x%lx) refered as next to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
+		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, prev table 0x%lx(0x%lx) referred as next to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
 		  (ulong) table, (ulong) table->block(), name, 
 		  (ulong) root, (ulong) root->block(),
 		  (ulong) table->prev, (ulong) table->prev->block(),
@@ -5009,7 +5009,7 @@ err1:
     if (table->next->prev != table)
     {
       DBUG_PRINT("error",
-		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, next table 0x%lx(0x%lx) refered as prev to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
+		 ("table 0x%lx(0x%lx) in list '%s' 0x%lx(0x%lx) is incorrect linked, next table 0x%lx(0x%lx) referred as prev to 0x%lx(0x%lx) (check from 0x%lx(0x%lx))",
 		  (ulong) table, (ulong) table->block(),
 		  name, (ulong) root, (ulong) root->block(),
 		  (ulong) table->next, (ulong) table->next->block(),

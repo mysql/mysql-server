@@ -4436,7 +4436,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (chdir("/") < 0)
     {
-      fprintf(stderr, "Cannot change to root director: %s\n",
+      fprintf(stderr, "Cannot change to root directory: %s\n",
                       strerror(errno));
       exit(MYSQLD_ABORT_EXIT);
     }
@@ -6966,7 +6966,7 @@ To see what values a running MySQL server is using, type\n\
     It's also needed on some exotic platforms where global variables are
     not set to 0 when a program starts.
 
-    We don't need to set variables refered to in my_long_options
+    We don't need to set variables referred to in my_long_options
     as these are initialized by my_getopt.
 */
 

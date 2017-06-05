@@ -296,7 +296,7 @@
 
       The existance of UDFs are checked during the lexical analysis (in
       sql_lex.cc:find_keyword()). This has the drawback that they must
-      exist before they are refered to, which was ok before SPs existed,
+      exist before they are referred to, which was ok before SPs existed,
       but then it becomes a problem. The first implementation of SP FUNCTIONs
       will work the same way, but this should be fixed a.s.a.p. (This will
       required some reworking of the way UDFs are handled, which is why it's
@@ -329,7 +329,7 @@
       of the mysql.proc table during a query execution, but this it not
       possible at the present.
 
-      So, the solution is to collect the names of the refered FUNCTIONs during
+      So, the solution is to collect the names of the referred FUNCTIONs during
       parsing in the lex.
       Then, before doing anything else in mysql_execute_command(), read all
       functions from the database an keep them in the THD, where the function

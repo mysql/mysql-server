@@ -65,7 +65,7 @@ protected:
   {
     initializer.SetUp();
 
-    // Initilize one storage engine
+    // Initialize one storage engine
     LEX_STRING engine_name= {C_STRING_WITH_LEN("InnoDB")};
     hton2plugin[0]= new st_plugin_int();
     hton2plugin[0]->name= engine_name;

@@ -8515,7 +8515,7 @@ define(["../_base/kernel", "../has", "../dom", "../_base/sniff", "../_base/array
 		//			|	* `[foo$='bar']` attribute end match
 		//			|	* `[foo*='bar']` attribute substring match
 		//			* `:first-child`, `:last-child`, and `:only-child` positional selectors
-		//			* `:empty` content emtpy selector
+		//			* `:empty` content empty selector
 		//			* `:checked` pseudo selector
 		//			* `:nth-child(n)`, `:nth-child(2n+1)` style positional calculations
 		//			* `:nth-child(even)`, `:nth-child(odd)` positional selectors

@@ -880,7 +880,7 @@ void heap_update_auto_increment(HP_INFO *info, const uchar *record)
   }
 
   /*
-    The following code works becasue if s_value < 0 then value is 0
+    The following code works because if s_value < 0 then value is 0
     and if s_value == 0 then value will contain either s_value or the
     correct value.
   */

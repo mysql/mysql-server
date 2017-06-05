@@ -43,7 +43,7 @@ if (`SELECT @my_errno NOT IN (0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,
 }
 --enable_query_log
 #
-# If this operation was successfull, print layout + drop this table
+# If this operation was successful, print layout + drop this table
 if ($run)
 {
    --source suite/parts/inc/partition_layout_check1.inc
@@ -77,7 +77,7 @@ if (`SELECT @my_errno NOT IN (0,$ER_PARSE_ERROR,$ER_TOO_MANY_PARTITIONS_ERROR,
 }
 --enable_query_log
 #
-# If this operation was successfull, print layout + drop this table
+# If this operation was successful, print layout + drop this table
 if ($run)
 {
    --source suite/parts/inc/partition_layout_check1.inc

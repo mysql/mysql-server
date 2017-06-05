@@ -77,8 +77,8 @@ C_MODE_END
    check the pointer, use "----args-separator----" here to ease debug
    if someone misused it.
 
-   The args seprator will only be added when
-   my_getopt_use_args_seprator is set to TRUE before calling
+   The args separator will only be added when
+   my_getopt_use_args_separator is set to TRUE before calling
    load_defaults();
 
    See BUG#25192

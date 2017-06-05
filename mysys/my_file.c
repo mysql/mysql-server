@@ -28,7 +28,7 @@
     max_file_limit		Files to open
 
   NOTES
-    The request may not fulfilled becasue of system limitations
+    The request may not fulfilled because of system limitations
 
   RETURN
     Files available to open.

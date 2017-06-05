@@ -60,7 +60,7 @@ public:
     @param length    size of the packet
 
     @returns
-      -1  fatal protcol error
+      -1  fatal protocol error
       0   ok
       1   non-fatal protocol or parsing error
   */

@@ -751,7 +751,7 @@ event_add(struct event *ev, const struct timeval *tv)
 	}
 
 	/* 
-	 * we should change the timout state only if the previous event
+	 * we should change the timeout state only if the previous event
 	 * addition succeeded.
 	 */
 	if (res != -1 && tv != NULL) {

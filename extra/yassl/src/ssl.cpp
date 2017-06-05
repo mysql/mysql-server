@@ -346,7 +346,7 @@ int SSL_connect(SSL* ssl)
         return SSL_SUCCESS;
 
     default :
-        return SSL_FATAL_ERROR; // unkown state
+        return SSL_FATAL_ERROR; // unknown state
     }
 }
 

@@ -815,7 +815,7 @@ Config::get_nodemask(NodeBitmask& mask,
     Uint32 node_type;
     require(it.get(CFG_TYPE_OF_SECTION, &node_type) == 0);
 
-    if (type == NDB_MGM_NODE_TYPE_UNKNOWN || // UNKOWN -> add all nodes to mask
+    if (type == NDB_MGM_NODE_TYPE_UNKNOWN || // UNKNOWN -> add all nodes to mask
         type == (ndb_mgm_node_type)node_type)
     {
       Uint32 nodeid;

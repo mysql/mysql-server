@@ -884,7 +884,7 @@ NdbTransaction* hupp(NdbTransaction* pBuddyTrans);
 
 Return Value:   Returns a pointer to a connection object.
                 Connected to the same node as pBuddyTrans
-                and also using the same transction id
+                and also using the same transaction id
 Remark:         Start transaction. Synchronous.
 *****************************************************************************/ 
 NdbTransaction* 

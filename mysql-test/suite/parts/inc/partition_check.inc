@@ -556,7 +556,7 @@ INSERT INTO t1
    SET f_int1 = NULL , f_int2 = -@max_row,
        f_char1 = CAST(-@max_row AS CHAR), f_char2 = CAST(-@max_row AS CHAR),
        f_charbig = '#NULL#';
-#      Some other NULL experiments if preceding INSERT was successfull
+#      Some other NULL experiments if preceding INSERT was successful
 --enable_abort_on_error
 if ($no_debug)
 {

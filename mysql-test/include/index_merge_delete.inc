@@ -14,7 +14,7 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
 ANALYZE TABLE t2;
 
-#1. SQL statments with various combinations of comparison operators
+#1. SQL statements with various combinations of comparison operators
 
 # union and sort_union 
 

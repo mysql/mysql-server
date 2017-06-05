@@ -400,7 +400,7 @@ int search_categories(THD *thd, QEP_TAB *categories,
     items   Table of items
     pfname  Field "name" in items
     select  "where" part of query..
-    res     list of finded names
+    res     list of found names
 */
 
 void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,

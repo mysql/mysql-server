@@ -6413,7 +6413,7 @@ restart_cluster_failure:
           Since the ndb binlog thread adds itself to the "global thread list"
           it need to look at the "killed" flag and stop the thread to avoid
           that the server hangs during shutdown while waiting for the "global
-          thread list" to be emtpy.
+          thread list" to be empty.
         */
         sql_print_information("NDB Binlog: Server shutdown detected while "
                               "waiting for ndbcluster to start...");
@@ -6591,7 +6591,7 @@ restart_cluster_failure:
         Since the ndb binlog thread adds itself to the "global thread list"
         it need to look at the "killed" flag and stop the thread to avoid
         that the server hangs during shutdown while waiting for the "global
-        thread list" to be emtpy.
+        thread list" to be empty.
         In pre 5.6 versions the thread was also added to "global thread
         list" but the "global thread *count*" variable was not incremented
         and thus the same problem didn't exist.

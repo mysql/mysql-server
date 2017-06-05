@@ -1307,10 +1307,10 @@ int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
 		if(ep->x_type == x_version_req){
 			/* Negotiation request. See what we can offer */
 			rfd->x_proto = negotiate_protocol(ep->x_version);
-			DBGOUT(STRLIT("incoming connection will use protcol version ");
+			DBGOUT(STRLIT("incoming connection will use protocol version ");
 			   NDBG(rfd->x_proto,u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
 			ADD_EVENTS(
-				add_event(string_arg("incoming connection will use protcol version"));
+				add_event(string_arg("incoming connection will use protocol version"));
 				add_event(string_arg(xcom_proto_to_str(rfd->x_proto)));
 			);
 			if(rfd->x_proto > my_xcom_version)
@@ -1321,11 +1321,11 @@ int	read_msg(connection_descriptor * rfd, pax_msg *p, int64_t *ret)
 			/* Mark connection with negotiated protocol version */
 			if(rfd->snd_tag == ep->tag){
 				rfd->x_proto = ep->x_version;
-				DBGOUT(STRLIT("peer connection will use protcol version ");
+				DBGOUT(STRLIT("peer connection will use protocol version ");
 					   NDBG(rfd->x_proto,u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
 
 				ADD_EVENTS(
-					add_event(string_arg("peer connection will use protcol version"));
+					add_event(string_arg("peer connection will use protocol version"));
 					add_event(string_arg( xcom_proto_to_str(rfd->x_proto)));
 				);
 				if(rfd->x_proto > my_xcom_version || rfd->x_proto == x_unknown_proto)
@@ -1407,10 +1407,10 @@ int	buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 		if(ep->x_type == x_version_req){
 			/* Negotiation request. See what we can offer */
 			rfd->x_proto = negotiate_protocol(ep->x_version);
-			DBGOUT(STRLIT("incoming connection will use protcol version ");
+			DBGOUT(STRLIT("incoming connection will use protocol version ");
 			   NDBG(rfd->x_proto,u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
 			ADD_EVENTS(
-				add_event(string_arg("incoming connection will use protcol version"));
+				add_event(string_arg("incoming connection will use protocol version"));
 				add_event(string_arg( xcom_proto_to_str(rfd->x_proto)));
 			);
 			if(rfd->x_proto > my_xcom_version)
@@ -1421,10 +1421,10 @@ int	buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
 			/* Mark connection with negotiated protocol version */
 			if(rfd->snd_tag == ep->tag){
 				rfd->x_proto = ep->x_version;
-				DBGOUT(STRLIT("peer connection will use protcol version ");
+				DBGOUT(STRLIT("peer connection will use protocol version ");
 					   NDBG(rfd->x_proto,u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
 				ADD_EVENTS(
-					add_event(string_arg("peer connection will use protcol version"));
+					add_event(string_arg("peer connection will use protocol version"));
 				add_event(string_arg( xcom_proto_to_str(rfd->x_proto)));
 				);
 				if(rfd->x_proto > my_xcom_version || rfd->x_proto == x_unknown_proto)
@@ -1947,7 +1947,7 @@ int	client_task(task_arg arg)
 
 		DBGOUT(FN);
 		if (ep->tag == TAG_START && ep->x_type == x_version_reply) {
-			DBGOUT(STRLIT("client task will use protcol version ");
+			DBGOUT(STRLIT("client task will use protocol version ");
 			    NDBG(ep->x_proto, u); STRLIT(xcom_proto_to_str(ep->x_proto)));
 			if (ep->x_proto == x_unknown_proto) {
 				TERMINATE_CLIENT(ep);

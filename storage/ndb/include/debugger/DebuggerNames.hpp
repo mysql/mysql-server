@@ -30,7 +30,7 @@
  * RETURNS: Signal name or 0 if none found
  */
 const char * 
-getSignalName(GlobalSignalNumber gsn, const char * defualtValue = "Unknown");
+getSignalName(GlobalSignalNumber gsn, const char * defaultValue = "Unknown");
 
 /**
  * getGsn

@@ -7450,7 +7450,7 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
        *   the record could have been deleted in between the "save" and
        *   the rnd_pos.
        *   Therefor we return HA_ERR_RECORD_DELETED in this case rather than
-       *   HA_ERR_KEY_NOT_FOUND (which will cause statment to be aborted)
+       *   HA_ERR_KEY_NOT_FOUND (which will cause statement to be aborted)
        *   
        */
       res= HA_ERR_RECORD_DELETED;

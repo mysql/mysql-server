@@ -248,7 +248,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     /*
       If truncate method is not implemented then we don't binlog the
       statement. If truncation has failed in a transactional engine then also we
-      donot binlog the statment. Only in non transactional engine we binlog
+      donot binlog the statement. Only in non transactional engine we binlog
       inspite of errors.
      */
     if (error == HA_ERR_WRONG_COMMAND ||

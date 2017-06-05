@@ -20852,7 +20852,7 @@ void Dbdih::setGCPStopTimeouts()
         We drop these lower limits in certain tests, to verify that the 
         calculated value for max_failure_time is sufficient.
        */
-      ndbout << "Dbdih::setGCPStopTimeouts() setting minimal GCP timout values"
+      ndbout << "Dbdih::setGCPStopTimeouts() setting minimal GCP timeout values"
              << " for test purposes."  << endl;
       micro_GCP_timeout = 0;
       gcp_timeout = 0;

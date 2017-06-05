@@ -420,7 +420,7 @@ typedef struct st_print_event_info
      These three caches are used by the row-based replication events to
      collect the header information and the main body of the events
      making up a statement and in footer section any verbose related details 
-     or comments related to the statment.
+     or comments related to the statement.
    */
   IO_CACHE head_cache;
   IO_CACHE body_cache;

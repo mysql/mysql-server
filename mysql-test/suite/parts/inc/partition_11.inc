@@ -10,7 +10,7 @@ eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 --enable_query_log
 #
-# If this operation was successfull, check + drop this table
+# If this operation was successful, check + drop this table
 if ($run)
 {
    --source suite/parts/inc/partition_10.inc
@@ -26,7 +26,7 @@ eval SET @my_errno= $mysql_errno ;
 let $run= `SELECT @my_errno = 0`;
 --enable_query_log
 #
-# If this operation was successfull, check + drop this table
+# If this operation was successful, check + drop this table
 if ($run)
 {
    --source suite/parts/inc/partition_10.inc

@@ -115,7 +115,7 @@ dojo.declare("dojox.image.SlideShow",
 	_request: null,
 
 	postCreate: function(){
-		// summary: Initilizes the widget, sets up listeners and shows the first image
+		// summary: Initializes the widget, sets up listeners and shows the first image
 		this.inherited(arguments);
 		var img = document.createElement("img");
 
