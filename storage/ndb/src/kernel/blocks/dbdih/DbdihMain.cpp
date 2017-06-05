@@ -9522,7 +9522,17 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
 
   setGCPStopTimeouts(signal);
 
-  if (check_more_start_lcp)
+  /**
+   * Need to check if a node failed that was part of LCP. In this
+   * case we need to ensure that we don't get LCP hang by checking
+   * for sending of LCP_FRAG_ORD with last fragment flag set.
+   *
+   * This code cannot be called in master takeover case, in this
+   * case we restart the LCP in DIH entirely, so no need to worry
+   * here.
+   */
+  if (check_more_start_lcp &&
+      !masterTakeOver)
   {
     jam();
     ndbrequire(isMaster());
