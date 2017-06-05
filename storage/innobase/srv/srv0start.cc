@@ -2556,8 +2556,6 @@ srv_dict_recover_on_restart()
 		if (trx_sys_need_rollback()) {
 			trx_rollback_or_clean_recovered(FALSE);
 		}
-
-		log_ddl->recover();
 	}
 
 	if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {

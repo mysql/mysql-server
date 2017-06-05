@@ -3930,6 +3930,17 @@ success:
 	return(false);
 }
 
+/** DDL crash recovery: process the records recovered from "log_ddl" table */
+static
+void
+innobase_post_recover()
+{
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+		log_ddl->recover();
+	}
+
+}
+
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
 @return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
 static
@@ -4600,6 +4611,9 @@ innodb_init(
 
 	innobase_hton->dict_recover=
 		innobase_dict_recover;
+
+	innobase_hton->post_recover=
+		innobase_post_recover;
 
 	innobase_hton->is_supported_system_table=
 		innobase_is_supported_system_table;
