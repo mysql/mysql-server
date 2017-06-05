@@ -33,9 +33,18 @@ INSERT INTO t1 VALUES
 (19, 21, -8.67, 'Magenta', 'Australia', '2010-09-20', '2007-08-27 14:06:53', 'Y-find', '138GWMWSZTqkkm8eQk3JaweffwDpv72i6cFuyemc'),
 (20, 8.43, 253, 'Crimson', 'Philippines', '2002-08-02', '2000-02-19 02:49:17', 'Tin', '1CPkZjahzzRgoqz4W1NfmH5vueJ3irb7Ae');
 
---echo # CREATE TABLE ... AS SELECT ... using basic non-aggregate window functions
+--echo # INSERT ... SELECT ... using basic non-aggregate window functions
 
-CREATE TABLE t2 AS SELECT
+CREATE TABLE  t2  (
+   c1 int unsigned NOT NULL DEFAULT '0',
+   c2 int unsigned NOT NULL DEFAULT '0',
+   c3 int unsigned NOT NULL DEFAULT '0',
+   c4 int unsigned DEFAULT NULL,
+   c5 double NOT NULL DEFAULT '0',
+   c6 double NOT NULL DEFAULT '0'
+);
+
+INSERT INTO t2 SELECT
    ROW_NUMBER() OVER w1 c1,
    RANK() OVER w1 c2,
    DENSE_RANK() OVER w1 c3,
@@ -53,9 +62,21 @@ INSERT INTO t2 SELECT
    CUME_DIST() OVER (ORDER BY e,f,g,h) c6
    FROM t1;
 
---echo # CREATE TABLE/INSERT ... SELECT with window functions having frame specification
+--echo # INSERT ... SELECT with window functions having frame specification
 
-CREATE TABLE t3a AS SELECT
+CREATE TABLE  t3a  (
+   c1 decimal(27,2) DEFAULT NULL,
+   c2 double DEFAULT NULL,
+   c3 bigint(21) NOT NULL DEFAULT '0',
+   c4 date DEFAULT NULL,
+   c5 datetime DEFAULT NULL,
+   c6 double DEFAULT NULL,
+   c7 double DEFAULT NULL,
+   c8 double DEFAULT NULL,
+   c9 double DEFAULT NULL
+);
+
+INSERT INTO t3a SELECT
    SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
    AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
    COUNT(*) OVER (PARTITION BY d ORDER BY pk ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
@@ -92,7 +113,19 @@ SET GLOBAL windowing_use_high_precision=0;
 --echo [Connection Master]
 --connection master
 
-CREATE TABLE t3b AS SELECT
+CREATE TABLE  t3b  (
+   c1  decimal(27,2) DEFAULT NULL,
+   c2  double DEFAULT NULL,
+   c3  bigint(21) NOT NULL DEFAULT '0',
+   c4  date DEFAULT NULL,
+   c5  datetime DEFAULT NULL,
+   c6  double DEFAULT NULL,
+   c7  double DEFAULT NULL,
+   c8  double DEFAULT NULL,
+   c9  double DEFAULT NULL
+);
+
+INSERT INTO t3b SELECT
    SUM(a) OVER (ROWS UNBOUNDED PRECEDING) c1,
    AVG(b) OVER (ORDER BY pk ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) c2a,
    COUNT(*) OVER (PARTITION BY d ORDER BY pk ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) c3,
@@ -139,8 +172,8 @@ INSERT INTO t4 SELECT
    FIRST_VALUE(d) OVER w1,
    FIRST_VALUE(e) OVER w1,
    FIRST_VALUE(f) OVER w1,
-   FIRST_VALUE(g) OVER w1,
-   FIRST_VALUE(h) OVER w1
+   FIRST_VALUE(g) OVER (PARTITION BY b ORDER BY pk ROWS 2 PRECEDING),
+   FIRST_VALUE(h) OVER (PARTITION BY b ORDER BY pk RANGE UNBOUNDED PRECEDING)
    FROM t1
    WINDOW w1 AS (PARTITION BY b ORDER BY pk);
 
@@ -154,7 +187,7 @@ INSERT INTO t4 SELECT
    LAST_VALUE(g) OVER w2,
    LAST_VALUE(h) OVER w1
    FROM t1
-   WINDOW w1 AS (PARTITION BY c ORDER BY d),
+   WINDOW w1 AS (PARTITION BY c ORDER BY d ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING),
           w2 AS (ORDER BY c,d);
 
 INSERT INTO t4 SELECT
@@ -164,8 +197,8 @@ INSERT INTO t4 SELECT
    NTH_VALUE(d,1) OVER w1,
    NTH_VALUE(e,2) OVER w1,
    NTH_VALUE(f,3) OVER w1,
-   NTH_VALUE(g,1) OVER w1,
-   NTH_VALUE(h,2) OVER w1
+   NTH_VALUE(g,1) OVER (PARTITION BY b ORDER BY pk ROWS 2 PRECEDING),
+   NTH_VALUE(h,2) OVER (PARTITION BY b ORDER BY pk RANGE BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING)
    FROM t1
    WINDOW w1 AS (PARTITION BY b ORDER BY pk);
 
@@ -249,6 +282,8 @@ DELETE FROM t4 WHERE c3 = ANY (SELECT LAST_VALUE('Updated') OVER () FROM DUAL);
 DELETE FROM t4 WHERE c4 = ALL (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
 DELETE FROM t4 WHERE c5 IN (SELECT LAG('2017-01-01',0) OVER () FROM DUAL);
 DELETE FROM t4 WHERE c6 IN (SELECT CAST(FIRST_VALUE('2017-01-01 12:30:45') OVER () AS DATETIME) FROM DUAL);
+DELETE FROM t4 WHERE c7 IN (SELECT LEAD('Updated') OVER () FROM DUAL);
+DELETE FROM t4 WHERE c8 IN (SELECT NTH_VALUE('Updated',1) OVER () FROM DUAL);
 
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]

@@ -11,6 +11,9 @@ INSERT INTO t1 VALUES (1.0, 1, 'M'),
 (10.0, 10, NULL),
 (10.0, 10, NULL),
 (11.0, 11, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 Ok, default semantics:
 EXPLAIN FORMAT=JSON SELECT id, sex, NTH_VALUE(id, 1) RESPECT NULLS OVER () FROM t1;
 EXPLAIN
