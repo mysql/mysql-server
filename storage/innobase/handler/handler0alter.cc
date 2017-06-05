@@ -8475,6 +8475,9 @@ public:
 		return(0);
 	}
 
+	/** Rollback */
+	virtual void rollback() { return; }
+
 protected:
 	/** Constructor
 	@param[in,out]	trx		InnoDB transaction, nullptr if not used
@@ -8899,6 +8902,11 @@ public:
 		dd::Table&		new_dd_tab,
 		TABLE*			altered_table);
 
+	/** Notify the storage engine that the changes made during
+	prepare_inplace_alter_table() and inplace_alter_table()
+	will be rolled back for all the partitions. */
+	void rollback();
+
 	/** Try to commit the changes made during prepare_inplace_alter_table()
 	inside the storage engine. This is protected by MDL_EXCLUSIVE.
 	@param[in]	old_dd_tab	dd::Table before ALTER TABLE
@@ -9215,6 +9223,16 @@ public:
 		return(error);
 	}
 
+	/** Rollback */
+	void rollback()
+	{
+		/* Release the new table so that in post DDL, this table can be
+		rolled back. */
+		if (m_new != nullptr) {
+			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+		}
+	}
+
 private:
 	/** Check if the new partition file needs a temporary name and
 	should be renamed at last */
@@ -9415,6 +9433,16 @@ public:
 		TABLE*			altered_table,
 		const dd::Partition*	old_part,
 		dd::Partition*		new_part);
+
+	/** Rollback */
+	void rollback()
+	{
+		/* Release the new table so that in post DDL, this table can be
+		rolled back. */
+		if (m_new != nullptr) {
+			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+		}
+	}
 
 private:
 	/** ALTER information */
@@ -10114,6 +10142,21 @@ alter_parts::prepare(
 	/* We don't have to prepare for the partitions that will be dropped. */
 
 	return(error);
+}
+
+/** Notify the storage engine that the changes made during
+prepare_inplace_alter_table() and inplace_alter_table()
+will be rolled back for all the partitions. */
+void
+alter_parts::rollback()
+{
+	for (alter_part* alter_part : m_to_drop) {
+		alter_part->rollback();
+	}
+
+	for (alter_part* alter_part : m_news) {
+		alter_part->rollback();
+	}
 }
 
 /** Try to commit the changes made during prepare_inplace_alter_table()
@@ -11019,6 +11062,7 @@ ha_innopart::commit_inplace_alter_partition(
 		return(error != 0);
 	}
 
+	ctx->rollback();
 	UT_DELETE(ctx);
 	ha_alter_info->handler_ctx = nullptr;
 
