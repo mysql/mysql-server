@@ -422,7 +422,7 @@ server(long int servernum)
         /* Header information */
 	/* cdrtype not used */
         /*short           	cdrtype;   */   /* 1 CDR Typ                                            */
-        short           	cdrlen;         /* 2 CDR recored length in bytes excluding CDR type     */
+        short           	cdrlen;         /* 2 CDR recorded length in bytes excluding CDR type     */
         short           	cdrsubtype;     /* 1 CDR subtype                                        */
         unsigned int    	cdrid;          /* 8 CDR unique number of each call                     */
         unsigned int    	cdrtime;        /* 4 CDR Time in seconds                                */

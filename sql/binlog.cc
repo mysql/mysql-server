@@ -5797,7 +5797,7 @@ err:
   Remove logs from index file.
 
   - To make crash safe, we copy the content of index file
-  from index_file_start_offset recored in log_info to
+  from index_file_start_offset recorded in log_info to
   crash safe index file firstly and then move the crash
   safe index file to index file.
 
