@@ -511,7 +511,7 @@ HugoAsynchTransactions::callback(int result,
           taskExecType= NoCommit;
         }
         
-        /* Define a new transction to perform the original task */
+        /* Define a new transaction to perform the original task */
         if (defineTransactionForTask(tInfo, taskExecType) != 0)
         {
           g_err << "Error defining retry transaction in callback" << endl;
