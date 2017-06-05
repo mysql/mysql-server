@@ -930,7 +930,7 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
         intg=intg1*DIG_PER_DEC1;
     }
   }
-  /* Error is guranteed to be set here */
+  /* Error is guaranteed to be set here */
   to->intg=intg;
   to->frac=frac;
 

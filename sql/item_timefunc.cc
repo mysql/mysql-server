@@ -2308,7 +2308,7 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
     my_bool not_used;
     uint second_part= ltime->second_part;
     my_time_tmp= from_tz->TIME_to_gmt_sec(ltime, &not_used);
-    /* my_time_tmp is guranteed to be in the allowed range */
+    /* my_time_tmp is guaranteed to be in the allowed range */
     if (my_time_tmp)
     {
       to_tz->gmt_sec_to_TIME(ltime, my_time_tmp);
