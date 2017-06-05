@@ -40,7 +40,7 @@ public:
 
 private:
   static void timeout_call(int sock, short which, void *arg);
-  static void socket_data_avaiable(int sock, short which, void *arg);
+  static void socket_data_available(int sock, short which, void *arg);
 
   struct Timer_data;
   struct Socket_data;

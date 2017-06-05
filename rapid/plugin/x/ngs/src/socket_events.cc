@@ -133,7 +133,7 @@ bool Socket_events::listen(Socket_interface::Shared_ptr sock, ngs::function<void
   socket_event->callback = callback;
   socket_event->socket = sock;
 
-  event_set(&socket_event->ev, static_cast<int>(sock->get_socket_fd()), EV_READ|EV_PERSIST, &Socket_events::socket_data_avaiable, socket_event);
+  event_set(&socket_event->ev, static_cast<int>(sock->get_socket_fd()), EV_READ|EV_PERSIST, &Socket_events::socket_data_available, socket_event);
   event_base_set(m_evbase, &socket_event->ev);
 
   return 0 == event_add(&socket_event->ev, NULL);
@@ -189,7 +189,7 @@ void Socket_events::timeout_call(int sock, short which, void *arg) {
   }
 }
 
-void Socket_events::socket_data_avaiable(int sock, short which, void *arg) {
+void Socket_events::socket_data_available(int sock, short which, void *arg) {
   Socket_data *data = (Socket_data*)arg;
   Operations_factory operations_factory;
   System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());

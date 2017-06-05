@@ -56,7 +56,7 @@ public:
       bind_addresses.clear();
       bind_addresses.push_back(BIND_IPv4_ADDRESS);
 
-      if (is_ipv6_avaiable()) {
+      if (is_ipv6_available()) {
         log_info("IPv6 is available");
         bind_addresses.push_back(BIND_IPv6_ADDRESS);
       }
@@ -201,7 +201,7 @@ private:
     return ngs::Socket_interface::Shared_ptr();
   }
 
-  bool is_ipv6_avaiable() {
+  bool is_ipv6_available() {
     ngs::Socket_interface::Shared_ptr socket(m_factory.create_socket(PSI_NOT_INSTRUMENTED, AF_INET6, SOCK_STREAM, 0));
     const bool has_ipv6 = INVALID_SOCKET != socket->get_socket_fd();
 

@@ -32,7 +32,7 @@ dojo.experimental("dojox.editor.plugins.TablePlugins");
 
 // summary:
 //		A series of plugins that give the Editor the ability to create and edit
-//		HTML tables. See the end of this document for all avaiable plugins
+//		HTML tables. See the end of this document for all available plugins
 //		and dojox/editorPlugins/tests/editorTablePlugs.html for an example
 //
 // example:
@@ -454,7 +454,7 @@ dojo.declare("dojox.editor.plugins.TablePlugins",
 	{
 		//summary:
 		//		A collection of Plugins for inserting and modifying tables in the Editor
-		//		See end of this document for all avaiable plugs
+		//		See end of this document for all available plugs
 		//		and dojox/editorPlugins/tests/editorTablePlugs.html for an example
 		//
 		//		NOT IMPLEMENTED: Not handling cell merge, span or split
