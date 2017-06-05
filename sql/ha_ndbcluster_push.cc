@@ -984,7 +984,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
  *
  * @param[in] table The table access operation to which the key item belongs.
  * @param[in] key_item The key_item to examine
- * @param[in] key_part Metatdata about the key item.
+ * @param[in] key_part Metadata about the key item.
  * @param[out] field_parents The set of possible parents for 'key_item' 
  * ('join_root' if keys are constant).
  * @return True if at least one possible parent was found. (False means that 
