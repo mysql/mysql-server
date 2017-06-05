@@ -497,10 +497,10 @@ The following options may be given as the first argument:
  to 2 if you are using a case insensitive file system
  --mandatory-roles=name 
  All the specified roles are always considered granted to
- every user and they can't be revoked. The still require
- activation unless they are made into default roles. The
- granted roles will not be visible in the mysql.role_edges
- table.
+ every user and they can't be revoked. Mandatory roles
+ still require activation unless they are made into
+ default roles. The granted roles will not be visible in
+ the mysql.role_edges table.
  --master-info-file=name 
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
