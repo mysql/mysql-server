@@ -242,11 +242,11 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "ASN: bad Signature Length", max);
         break;
 
-    case UNKOWN_SIG_E :
+    case UNKNOWN_SIG_E :
         strncpy(buffer, "ASN: unknown signature OID", max);
         break;
 
-    case UNKOWN_HASH_E :
+    case UNKNOWN_HASH_E :
         strncpy(buffer, "ASN: unknown hash OID", max);
         break;
 

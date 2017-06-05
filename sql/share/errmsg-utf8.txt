@@ -2495,7 +2495,7 @@ ER_UNKNOWN_PROCEDURE 42000
         kor "알수 없는 수행문 : '%-.192s'"
         nor "Ukjent prosedyre %-.192s"
         norwegian-ny "Ukjend prosedyre %-.192s"
-        pol "Unkown procedure %-.192s"
+        pol "Unknown procedure %-.192s"
         por "'Procedure' '%-.192s' desconhecida"
         rum "Procedura unknown '%-.192s'"
         rus "Неизвестная процедура '%-.192s'"

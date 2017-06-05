@@ -58,7 +58,7 @@ TEST(RecPerKeyTest, RecPerKeyAPI)
   EXPECT_EQ(key.records_per_key(1), 2.0);
   EXPECT_EQ(key.records_per_key(2), REC_PER_KEY_UNKNOWN);
 
-  // Reset the rec_per_key value to default/unkown
+  // Reset the rec_per_key value to default/unknown
   key.set_records_per_key(1, REC_PER_KEY_UNKNOWN);
   EXPECT_FALSE(key.has_records_per_key(1));
   EXPECT_EQ(key.records_per_key(1), REC_PER_KEY_UNKNOWN);

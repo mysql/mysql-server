@@ -775,7 +775,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     }
     else
     {
-      error= 6;                                 // Unkown .frm version
+      error= 6;                                 // Unknown .frm version
       goto err;
     }
   }
