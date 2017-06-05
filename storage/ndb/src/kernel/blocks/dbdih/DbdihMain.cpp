@@ -1666,6 +1666,8 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
     {
       jam();
+      globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
+      g_eventLogger->info("Starting with m_restart_seq set to 1");
       c_set_initial_start_flag = TRUE; // In sysfile...
     }
 
@@ -1966,12 +1968,6 @@ void Dbdih::ndbStartReqLab(Signal* signal, BlockReference ref)
     initRestartInfo(signal);
     initGciFilesLab(signal);
     return;
-  }
-  else if (cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
-  {
-    globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
-    g_eventLogger->info("Starting with m_restart_seq set to %u",
-                        globalData.m_restart_seq);
   }
   
   NodeRecordPtr nodePtr;
