@@ -400,10 +400,10 @@ create table t1(x int) engine=ndb;
 create table t2(b int primary key) engine=ndb;
 create table t3_default_engine(c int primary key);
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
-# Write emtpy .ndb file with normal file name
+# Write empty .ndb file with normal file name
 --write_file $MYSQLD_DATADIR/db/t4.ndb
 EOF
-# Write emtpy .ndb file with temporary file name
+# Write empty .ndb file with temporary file name
 --write_file $MYSQLD_DATADIR/db/#sql-1c17_25d0.ndb
 EOF
 

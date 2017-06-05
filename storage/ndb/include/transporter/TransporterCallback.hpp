@@ -212,7 +212,7 @@ public:
    * Called to completely empty the send buffer for a node (ie. disconnect).
    *
    * Can be called to check that no one has written to the sendbuffer
-   * since it was reset last time by using the "should_be_emtpy" flag
+   * since it was reset last time by using the "should_be_empty" flag
    */
   virtual void reset_send_buffer(NodeId node, bool should_be_empty=false) = 0;
 
