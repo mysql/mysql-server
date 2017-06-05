@@ -2833,7 +2833,7 @@ TEST_F(MDLTest, UnusedConcurrentThree)
 
   EXPECT_EQ(0, mdl_get_unused_locks_count());
 
-  /* Now let 3nd thread to release its lock and thus unuse MDL_lock object. */
+  /* Now let 3rd thread to release its lock and thus unuse MDL_lock object. */
   third_release.notify();
   mdl_thread3.join();
 
