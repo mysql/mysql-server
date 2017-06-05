@@ -12209,6 +12209,14 @@ void
 Backup::execRESTORABLE_GCI_REP(Signal *signal)
 {
   Uint32 restorable_gci = signal->theData[0];
+  if (getNodeState().startLevel >= NodeState::SL_STOPPING_4)
+  {
+    jam();
+    DEB_LCP(("(%u)Ignore RESTORABLE_GCI_REP: %u in SL_STOPPING_4",
+             instance(),
+             restorable_gci));
+    return;
+  }
   if (restorable_gci > m_newestRestorableGci)
   {
     jam();
