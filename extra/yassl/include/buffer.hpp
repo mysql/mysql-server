@@ -81,7 +81,7 @@ public:
     
     ~input_buffer();
 
-    // users can pass defualt zero length buffer and then allocate
+    // users can pass default zero length buffer and then allocate
     void allocate(uint s);
 
     // for passing to raw writing functions at beginning, then use add_size
@@ -158,7 +158,7 @@ public:
 
     void set_current(uint c);
 
-    // users can pass defualt zero length buffer and then allocate
+    // users can pass default zero length buffer and then allocate
     void allocate(uint s);
 
     // for passing to reading functions when finished
