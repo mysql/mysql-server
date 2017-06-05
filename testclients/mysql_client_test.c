@@ -15444,7 +15444,7 @@ static void test_bug17667()
     char line_buffer[MAX_TEST_QUERY_LENGTH*2];
     /* more than enough room for the query and some marginalia. */
 
-    /* Prepared statments always occurs twice in log */
+    /* Prepared statements always occurs twice in log */
     if (statement_cursor->qt == QT_PREPARED)
       expected_hits++;
 

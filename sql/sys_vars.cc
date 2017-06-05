@@ -1596,7 +1596,7 @@ static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
     start/stop, there is a possibility that the server variable
     can become out of sync with the real event scheduler state.
 
-    This can happen with two concurrent statments if the first gets
+    This can happen with two concurrent statements if the first gets
     interrupted after start/stop but before retaking
     LOCK_global_system_variables. However, this problem should be quite
     rare and it's difficult to avoid it without opening up possibilities

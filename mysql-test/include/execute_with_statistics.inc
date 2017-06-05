@@ -2,7 +2,7 @@
 #
 # SUMMARY
 #
-#    Explain and execute the select statment in $query.
+#    Explain and execute the select statement in $query.
 #    Then report 'Last_query_cost' estimate from the query
 #    optimizer and total number of 'Handler_read%' when the
 #    query was executed.

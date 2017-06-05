@@ -32,7 +32,7 @@ BEGIN
    SET local_uuid= "36774b1c-6374-11df-a2ca-0ef7ac7a5f6c";
 
    WHILE ins_count > 0 DO
-     # Must use local variables for statment based replication
+     # Must use local variables for statement based replication
      INSERT INTO test.regular_tbl VALUES (NULL, NOW(), cur_user, local_uuid,
                                    ins_count,'Non partitioned table! Going to test replication for MySQL');
      SET ins_count = ins_count - 1;

@@ -4802,7 +4802,7 @@ void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
   which means that both conditions need to be satisfied or any of them is
   enough. For example, 
     
-    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statment is
+    . BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY means that the statement is
     unsafe when the option is on and trx-cache is not empty;
 
     . BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF means the statement is unsafe

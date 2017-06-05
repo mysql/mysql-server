@@ -2562,7 +2562,7 @@ mysql_execute_command(THD *thd, bool first_level)
     }
     
     /*
-      Check if statment should be skipped because of slave filtering
+      Check if statement should be skipped because of slave filtering
       rules
 
       Exceptions are:

@@ -2729,7 +2729,7 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE ..
-        SELECT statment.
+        SELECT statement.
       */
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
                (*f)->field_name, (*f)->table->s->table_name.str);

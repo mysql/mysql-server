@@ -1916,7 +1916,7 @@ select straight_join * from
 
 
 ###########################
-### Prepared statments ####
+### Prepared statements ###
 ###########################
 
 prepare stmt1 from

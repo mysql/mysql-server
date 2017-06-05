@@ -319,7 +319,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /*
     In case a session state exists do not cache the SELECT stmt. If we
-    cache SELECT statment when session state information exists, then
+    cache SELECT statement when session state information exists, then
     the result sets of this SELECT are cached which contains changed
     session information. Next time when same query is executed when there
     is no change in session state, then result sets are picked from cache

@@ -6,7 +6,7 @@
 CREATE TABLE t1 (a INT NOT NULL);
 INSERT INTO t1 VALUES (4), (8), (11), (32), (80);
 
-# Prepared statments
+# Prepared statements
 
 PREPARE st1 FROM 'SELECT SQRT(POW(?,2) + POW(?,2)) AS hypotenuse';
 

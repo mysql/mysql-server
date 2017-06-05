@@ -6,7 +6,7 @@
 # ==== Implementation ====
 #
 # 1. SET SESSION GTID_NEXT='UUID:GNO'
-# 2. Prepare a statment
+# 2. Prepare a statement
 # 3. Execute the statement
 # 4. See that an entry is added in 'gtid_executed' table.
 #
