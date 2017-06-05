@@ -819,7 +819,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
   returnErrIf(column==0, Err_UnknownColumn); // Unknown column
 
-  // Locate refered parrent column in parent operations SPJ projection list;
+  // Locate referred parrent column in parent operations SPJ projection list;
   // Add if not already present
   int error = 0;
   Uint32 colIx = parentImpl.addColumnRef(column, error);
@@ -1076,7 +1076,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
               op->m_bound.highKeys > indexImpl.getNoOfColumns(),
               QRY_TOO_MANY_KEY_VALUES);
 
-  // Bind lowKeys, and if applicable, highKeys to the column being refered
+  // Bind lowKeys, and if applicable, highKeys to the column being referred
   Uint32 i;
   for (i=0; i<op->m_bound.lowKeys; ++i)
   {

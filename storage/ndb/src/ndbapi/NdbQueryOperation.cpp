@@ -3794,7 +3794,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_operationDef(def),
   m_parent(NULL),
   m_children(0),
-  m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
+  m_maxBatchRows(0),   // >0: User specified preferred value, ==0: Use default CFG values
   m_params(),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
@@ -4449,7 +4449,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   const NdbQueryOperationDefImpl& def = getQueryOperationDef();
 
   /**
-   * Serialize parameters refered by this NdbQueryOperation.
+   * Serialize parameters referred by this NdbQueryOperation.
    * Params for the complete NdbQuery is collected in a single
    * serializedParams chunk. Each operations params are 
    * proceeded by 'length' for this operation.

@@ -5392,7 +5392,7 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
 
 /**
   Removes files, as part of a RESET MASTER or RESET SLAVE statement,
-  by deleting all logs refered to in the index file. Then, it starts
+  by deleting all logs referred to in the index file. Then, it starts
   writing to a new log file.
 
   The new index file will only contain this file.

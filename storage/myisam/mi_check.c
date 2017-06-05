@@ -4362,7 +4362,7 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename)
                          my_errno());
     goto end;
   }
-  /* We are modifing */
+  /* We are modifying */
   (*org_info)->s->options&= ~HA_OPTION_READ_ONLY_DATA;
   (void) _mi_readinfo(*org_info,F_WRLCK,0);
   (*org_info)->state->records=info.state->records;

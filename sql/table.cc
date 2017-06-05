@@ -6448,7 +6448,7 @@ void TABLE::mark_columns_needed_for_update(bool mark_binlog_columns)
     Field **reg_field;
     for (reg_field= field ; *reg_field ; reg_field++)
     {
-      /* Merge keys is all keys that had a column refered to in the query */
+      /* Merge keys is all keys that had a column referred to in the query */
       if (merge_keys.is_overlapping((*reg_field)->part_of_key))
         bitmap_set_bit(read_set, (*reg_field)->field_index);
     }

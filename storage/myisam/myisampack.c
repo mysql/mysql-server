@@ -427,7 +427,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
     }
     if (verbose)
       puts("Recompressing already compressed table");
-    share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
+    share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifying it */
   }
   if (! force_pack && share->state.state.records != 0 &&
       (share->state.state.records <= 1 ||

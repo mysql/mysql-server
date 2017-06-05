@@ -353,14 +353,14 @@ public:
    * Register a linked reference to a column from operation
    * @param[in] column Column to refer.
    * @param[out] error Possible error code.
-   * @return position in list of refered columns available from
+   * @return position in list of referred columns available from
    * this (parent) operation. Child ops later refer linked 
    * columns by its position in this list.
    */
   Uint32 addColumnRef(const NdbColumnImpl* column, int& error);
 
   /** 
-   * Register a param operand which is refered by this operation.
+   * Register a param operand which is referred by this operation.
    * Param values are supplied pr. operation when code is serialized.
    * @param[in] param Parameter to add.
    * @return Possible error code.
@@ -776,7 +776,7 @@ public:
   { return m_parentOperation; }
 
   // 'LinkedSrc' is index into parent op's spj-projection list where
-  // the refered column value is available
+  // the referred column value is available
   Uint32 getLinkedColumnIx() const
   { return m_parentColumnIx; }
 
