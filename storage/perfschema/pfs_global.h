@@ -42,7 +42,7 @@ extern bool pfs_initialized;
 #ifdef CPU_LEVEL1_DCACHE_LINESIZE
 #define PFS_CACHE_LINE_SIZE CPU_LEVEL1_DCACHE_LINESIZE
 #else
-#define PFS_CACHE_LINE_SIZE 128
+#error CPU_LEVEL1_DCACHE_LINESIZE is undefined
 #endif
 
 /**
