@@ -12797,11 +12797,13 @@ int compareFragLocation(const void * a, const void * b)
 /********************************************************************
  * sendDihGetNodesLab
  *
- * Will check the 'm_running_scan_frags' list for fragments which 
- * are still 'IDLE'. These should be started by requesting 
- * node info in a DIGETNODESREQ. To avoid too much work in one
- * request we send CONTINUEB every MAX_DIGETNODESREQS'th signal
- * to space out the signals a bit.
+ * Will request DBDIH for the LQH fragment location of all 'scanNoFrag'
+ * fragments. Insert a fragment location record in the list
+ * 'ScanRecord::m_fragLocations' for each fragment to be scanned.
+ *
+ * As the DBDIH signaling is direct executed, we can execute for quite
+ * a while here. To avoid too much work in one request we send CONTINUEB
+ * every MAX_DIGETNODESREQS'th signal to space out the signals a bit.
  ********************************************************************/
 void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
 {
@@ -12844,25 +12846,10 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
    * is used, there cant be any other signals processed inbetween
    * which close the scan, or drop the table.
    */
-  while (true)   //break when done
+  do
   {
     ndbassert(scanP->scanState == ScanRecord::RUNNING);
     ndbassert(tabPtr.p->checkTable(schemaVersion) == true);
-
-    const bool success = sendDihGetNodeReq(signal, scanptr, scanP->scanNextFragId);
-    if (!success)
-    {
-      jam();
-      return;  //sendDihGetNodeReq called scanError() upon failure.
-    }
-
-    fragCnt++;
-    scanP->scanNextFragId++;
-    if (scanP->scanNextFragId >= scanP->scanNoFrag)
-    {
-      jam();
-      break;   //Done
-    }
 
     /**
      * We check for CONTINUEB sending here to limits how many
@@ -12878,7 +12865,17 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
     }
-  }
+
+    const bool success = sendDihGetNodeReq(signal, scanptr, scanP->scanNextFragId);
+    if (!success)
+    {
+      jam();
+      return;  //sendDihGetNodeReq called scanError() upon failure.
+    }
+    fragCnt++;
+    scanP->scanNextFragId++;
+
+  } while (scanP->scanNextFragId < scanP->scanNoFrag);
 
   /**
    * We got the 'fragLocations' for all fragments to be scanned.
