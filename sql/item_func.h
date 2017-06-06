@@ -68,7 +68,7 @@ public:
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
                   EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
-                  NEG_FUNC, GSYSVAR_FUNC };
+                  NEG_FUNC, GSYSVAR_FUNC, GROUPING_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -1384,6 +1384,19 @@ public:
   const char *func_name() const { return "greatest"; }
 };
 
+/*
+  GROUPING function is used in ROLLUP queries, they return
+  int 1 or 0 depending on if the row is a subtotal of a 
+  specific column.
+*/
+class Item_func_grouping :public Item_int_func
+{
+public:
+  Item_func_grouping(const POS &pos, Item *a) :Item_int_func(pos, a){}
+  const char *func_name() const { return "grouping"; }
+  enum Functype functype() const   { return GROUPING_FUNC; }
+  longlong val_int();
+};
 
 /* 
   Objects of this class are used for ROLLUP queries to wrap up 
