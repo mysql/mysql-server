@@ -5077,8 +5077,10 @@ page_zip_verify_checksum(
 
 	if (!strict_check) {
 
-		const uint32_t	crc32 = page_zip_calc_checksum(
-			data, size, SRV_CHECKSUM_ALGORITHM_CRC32);
+		const uint32_t	crc32 =
+			(curr_algo == SRV_CHECKSUM_ALGORITHM_CRC32) ? calc
+			: page_zip_calc_checksum(data, size,
+						 SRV_CHECKSUM_ALGORITHM_CRC32);
 
 		if (is_log_enabled) {
 			fprintf(log_file, "page::%" PRIuMAX ": crc32 checksum:"
