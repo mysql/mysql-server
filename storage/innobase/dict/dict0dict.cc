@@ -5674,21 +5674,6 @@ dict_table_apply_dynamic_metadata(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	/* Here is how version play role. Basically, version would be increased
-	by one during every DDL. So applying metadata here should only be
-	done when the versions match. One reason for this version is that
-	autoinc counter may not be applied if it's bigger if the version is
-	older.
-	If the version of metadata is older than current table,
-	then table already has the latest metadata, the old one should be
-	discarded.
-	If the metadata version is bigger than the one in table.
-	it could be that an ALTER TABLE has been rolled back, so metadata
-	in new version should be ignored too. */
-	if (table->version != metadata->get_version()) {
-		return(get_dirty);
-	}
-
 	/* Apply corrupted index ids first */
 	const corrupted_ids_t corrupted_ids =
 		metadata->get_corrupted_indexes();
@@ -5722,6 +5707,23 @@ dict_table_apply_dynamic_metadata(
 				<< "). The index should have been dropped"
 				<< " or couldn't be loaded.";
 		}
+	}
+
+	/* FIXME: Move this to the beginning of this function once corrupted
+	index IDs are also written back to dd::Table::se_private_data. */
+	/* Here is how version play role. Basically, version would be increased
+	by one during every DDL. So applying metadata here should only be
+	done when the versions match. One reason for this version is that
+	autoinc counter may not be applied if it's bigger if the version is
+	older.
+	If the version of metadata is older than current table,
+	then table already has the latest metadata, the old one should be
+	discarded.
+	If the metadata version is bigger than the one in table.
+	it could be that an ALTER TABLE has been rolled back, so metadata
+	in new version should be ignored too. */
+	if (table->version != metadata->get_version()) {
+		return(get_dirty);
 	}
 
 	ib_uint64_t	autoinc = metadata->get_autoinc();
