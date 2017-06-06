@@ -3359,10 +3359,10 @@ TESTCASE("ScanKeyInfoExhaust",
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug16402744", 
-	 "Test scan behaviour with multiple DIH_SCAN_GET_NODES_REQ "\
-         "and _CONF handling possible delayed/incomplete due to "\
-         "CONTINUEB(ZSTART_FRAG_SCAN)"){
+TESTCASE("Bug16402744",
+         "Test scan behaviour with multiple SCAN_FRAGREQ possibly "
+         "delayed/incomplete due to a CONTINUEB(ZSEND_FRAG_SCANS) break.")
+{
   INITIALIZER(runLoadTable);
   TC_PROPERTY("Parallelism", 240);
   TC_PROPERTY("ErrorCode", 8097);

@@ -12880,15 +12880,6 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
     }
-    if (ERROR_INSERTED_CLEAR(8097) &&
-        scanFragId == scanptr.p->scanNoFrag-1) //Last FragId
-    {
-      jam();
-      signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-      signal->theData[1] = scanptr.i;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
-      return;
-    }
   }
 
   /**
@@ -13326,9 +13317,9 @@ void Dbtc::sendFragScansLab(Signal* signal,
             sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
             return;
           }
-          if (ERROR_INSERTED_CLEAR(8097) &&
-              fragCnt > 0 &&
-              scanFragP.p->scanFragId == scanptr.p->scanNoFrag-1) //Last FragId
+          if (fragCnt > 0 &&
+              scanptr.p->scanNextFragId == scanptr.p->scanNoFrag-1 && //Last FragId
+              ERROR_INSERTED_CLEAR(8097))
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
