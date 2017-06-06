@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 SET @save_session_debug= @@SESSION.debug;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 XA START 'xa1';
