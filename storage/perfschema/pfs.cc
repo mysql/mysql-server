@@ -2897,7 +2897,7 @@ get_thread_attributes(PFS_thread *pfs,
   pfs_optimistic_state session_lock;
 
   DBUG_ASSERT(thread_attrs != NULL);
-  
+
   static_assert(PSI_NAME_LEN == NAME_LEN, "");
   static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
   static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH, "");
@@ -8519,7 +8519,7 @@ DECLARE_COMPONENT(performance_schema, "mysql:pfs")
 END_DECLARE_COMPONENT()
   /* clang-format on */
 
-bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg)
+  bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg)
 {
   int inx = 0;
 

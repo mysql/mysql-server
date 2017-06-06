@@ -216,7 +216,7 @@ static PFS_socket_class *socket_class_array = NULL;
 static std::atomic<uint32> memory_class_dirty_count{0};
 static std::atomic<uint32> memory_class_allocated_count{0};
 
-static std::atomic<PFS_memory_class*> memory_class_array{nullptr};
+static std::atomic<PFS_memory_class *> memory_class_array{nullptr};
 
 uint mutex_class_start = 0;
 uint rwlock_class_start = 0;
@@ -668,7 +668,8 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share,
   new_pfs->m_owner = this;
 
   /* (3) Atomic CAS */
-  if (atomic_compare_exchange_strong(&this->m_race_index_stat[index], &pfs, new_pfs))
+  if (atomic_compare_exchange_strong(
+        &this->m_race_index_stat[index], &pfs, new_pfs))
   {
     /* Ok. */
     return new_pfs;

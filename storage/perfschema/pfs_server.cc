@@ -309,7 +309,6 @@ cleanup_performance_schema(void)
   cleanup_memory_class();
 
   cleanup_instruments();
-
 }
 
 void

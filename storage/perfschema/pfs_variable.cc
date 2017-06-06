@@ -577,8 +577,9 @@ PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd)
       }
       map<string, string> *persist_ro_hash = pv->get_persist_ro_hash();
       map<string, string>::const_iterator ro_iter;
-      for(ro_iter = persist_ro_hash->begin();
-          ro_iter != persist_ro_hash->end(); ro_iter++)
+      for (ro_iter = persist_ro_hash->begin();
+           ro_iter != persist_ro_hash->end();
+           ro_iter++)
       {
         System_variable system_var;
         system_var.m_charset = system_charset_info;

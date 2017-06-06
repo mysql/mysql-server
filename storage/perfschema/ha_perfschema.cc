@@ -47,13 +47,15 @@ handlerton *pfs_hton = NULL;
 
 #define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL) ? true : false
 
-static void lock_pfs_external_table_shares()
+static void
+lock_pfs_external_table_shares()
 {
   if (!opt_initialize)
     pfs_external_table_shares.lock_share_list();
 }
 
-static void unlock_pfs_external_table_shares()
+static void
+unlock_pfs_external_table_shares()
 {
   if (!opt_initialize)
     pfs_external_table_shares.unlock_share_list();

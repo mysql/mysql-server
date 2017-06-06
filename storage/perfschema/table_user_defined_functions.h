@@ -57,7 +57,8 @@ struct row_user_defined_functions
 class PFS_index_user_defined_functions : public PFS_engine_index
 {
 public:
-  PFS_index_user_defined_functions(PFS_engine_key *key_1) : PFS_engine_index(key_1)
+  PFS_index_user_defined_functions(PFS_engine_key *key_1)
+    : PFS_engine_index(key_1)
   {
   }
 
@@ -68,11 +69,12 @@ public:
   virtual bool match(const row_user_defined_functions *row) = 0;
 };
 
-class PFS_index_user_defined_functions_by_name : public PFS_index_user_defined_functions
+class PFS_index_user_defined_functions_by_name
+  : public PFS_index_user_defined_functions
 {
 public:
-  PFS_index_user_defined_functions_by_name() :
-    PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME")
+  PFS_index_user_defined_functions_by_name()
+    : PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME")
   {
   }
 
@@ -92,7 +94,7 @@ class table_user_defined_functions : public PFS_engine_table
 public:
   /** Table share. */
   static PFS_engine_table_share m_share;
-  static PFS_engine_table *create(PFS_engine_table_share*);
+  static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
   virtual void reset_position(void);

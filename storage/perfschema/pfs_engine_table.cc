@@ -1048,7 +1048,7 @@ PFS_internal_schema_access::lookup(const char *name) const
   share = PFS_engine_table::find_engine_table_share(name);
   if (share)
   {
-    const ACL_internal_table_access* acl= share->m_acl;
+    const ACL_internal_table_access *acl = share->m_acl;
     pfs_external_table_shares.unlock_share_list();
     return acl;
   }

@@ -88,7 +88,7 @@ PFS_file **file_handle_array = NULL;
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
-std::atomic<PFS_memory_stat*> global_instr_class_memory_array{nullptr};
+std::atomic<PFS_memory_stat *> global_instr_class_memory_array{nullptr};
 
 static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 

@@ -139,36 +139,40 @@ set_transactions_rows_in_validation(void* const context,
   row->trx_rows_validating = value;
 }
 
-static void set_transactions_remote_applier_queue(void* const context,
-                                                  unsigned long long int value)
+static void
+set_transactions_remote_applier_queue(void* const context,
+                                      unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_remote_applier_queue= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_remote_applier_queue = value;
 }
 
-static void set_transactions_remote_applied(void* const context,
-                                            unsigned long long int value)
+static void
+set_transactions_remote_applied(void* const context,
+                                unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_remote_applied= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_remote_applied = value;
 }
 
-static void set_transactions_local_proposed(void* const context,
-                                            unsigned long long int value)
+static void
+set_transactions_local_proposed(void* const context,
+                                unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_local_proposed= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_local_proposed = value;
 }
 
-static void set_transactions_local_rollback(void* const context,
-                                            unsigned long long int value)
+static void
+set_transactions_local_rollback(void* const context,
+                                unsigned long long int value)
 {
-  struct st_row_group_member_stats* row=
-      static_cast<struct st_row_group_member_stats*>(context);
-  row->trx_local_rollback= value;
+  struct st_row_group_member_stats* row =
+    static_cast<struct st_row_group_member_stats*>(context);
+  row->trx_local_rollback = value;
 }
 
 THR_LOCK table_replication_group_member_stats::m_table_lock;
@@ -251,9 +255,7 @@ table_replication_group_member_stats::rnd_next(void)
     return HA_ERR_END_OF_FILE;
   }
 
-  for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < get_row_count();
-       m_pos.next())
+  for (m_pos.set_at(&m_next_pos); m_pos.m_index < get_row_count(); m_pos.next())
   {
     make_row(m_pos.m_index);
     m_next_pos.set_after(&m_pos);
@@ -294,10 +296,10 @@ table_replication_group_member_stats::make_row(uint index)
   m_row.trx_checked = 0;
   m_row.trx_conflicts = 0;
   m_row.trx_rows_validating = 0;
-  m_row.trx_remote_applier_queue= 0;
-  m_row.trx_remote_applied= 0;
-  m_row.trx_local_proposed= 0;
-  m_row.trx_local_rollback= 0;
+  m_row.trx_remote_applier_queue = 0;
+  m_row.trx_remote_applied = 0;
+  m_row.trx_local_proposed = 0;
+  m_row.trx_local_rollback = 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS callbacks = {
