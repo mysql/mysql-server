@@ -55,6 +55,6 @@ but very slow). */
 extern ut_crc32_func_t	ut_crc32_byte_by_byte;
 
 /** Flag that tells whether the CPU supports CRC32 or not */
-extern bool		ut_crc32_sse2_enabled;
+extern bool		ut_crc32_hw_enabled;
 
 #endif /* ut0crc32_h */
