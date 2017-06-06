@@ -76,6 +76,7 @@
 
 using std::min;
 using std::max;
+using std::unique_ptr;
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -1887,62 +1888,20 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
 }
 
 
-static const uchar *
-get_statement_id_as_hash_key(const uchar *record, size_t *key_length)
-{
-  const Prepared_statement *statement= (const Prepared_statement *) record;
-  *key_length= sizeof(statement->id);
-  return (uchar *) &(statement)->id;
-}
-
-static void delete_statement_as_hash_key(void *key)
-{
-  delete (Prepared_statement *) key;
-}
-
-static const uchar *get_stmt_name_hash_key(const uchar *arg, size_t *length)
-{
-  Prepared_statement *entry= (Prepared_statement*) arg;
-  *length= entry->name().length;
-  return reinterpret_cast<uchar *>(const_cast<char *>(entry->name().str));
-}
-
-
 Prepared_statement_map::Prepared_statement_map()
- :m_last_found_statement(NULL)
+ :st_hash(key_memory_prepared_statement_map),
+  names_hash(system_charset_info, key_memory_prepared_statement_map),
+  m_last_found_statement(NULL)
 {
-  enum
-  {
-    START_STMT_HASH_SIZE = 16,
-    START_NAME_HASH_SIZE = 16
-  };
-  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0,
-               get_statement_id_as_hash_key,
-               delete_statement_as_hash_key, 0,
-               key_memory_prepared_statement_map);
-  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0,
-               get_stmt_name_hash_key,
-               nullptr, 0,
-               key_memory_prepared_statement_map);
 }
 
 
 int Prepared_statement_map::insert(Prepared_statement *statement)
 {
-  if (my_hash_insert(&st_hash, (uchar*) statement))
+  st_hash.emplace(statement->id, unique_ptr<Prepared_statement>(statement));
+  if (statement->name().str)
   {
-    /*
-      Delete is needed only in case of an insert failure. In all other
-      cases hash_delete will also delete the statement.
-    */
-    delete statement;
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    goto err_st_hash;
-  }
-  if (statement->name().str && my_hash_insert(&names_hash, (uchar*) statement))
-  {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    goto err_names_hash;
+    names_hash.emplace(to_string(statement->name()), statement);
   }
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   /*
@@ -1967,10 +1926,8 @@ int Prepared_statement_map::insert(Prepared_statement *statement)
 
 err_max:
   if (statement->name().str)
-    my_hash_delete(&names_hash, (uchar*) statement);
-err_names_hash:
-  my_hash_delete(&st_hash, (uchar*) statement);
-err_st_hash:
+    names_hash.erase(to_string(statement->name()));
+  st_hash.erase(statement->id);
   return 1;
 }
 
@@ -1978,8 +1935,7 @@ err_st_hash:
 Prepared_statement
 *Prepared_statement_map::find_by_name(const LEX_CSTRING &name)
 {
-  return reinterpret_cast<Prepared_statement*>
-    (my_hash_search(&names_hash, (uchar*)name.str, name.length));
+  return find_or_nullptr(names_hash, to_string(name));
 }
 
 
@@ -1987,9 +1943,7 @@ Prepared_statement *Prepared_statement_map::find(ulong id)
 {
   if (m_last_found_statement == NULL || id != m_last_found_statement->id)
   {
-    Prepared_statement *stmt=
-      reinterpret_cast<Prepared_statement*>
-      (my_hash_search(&st_hash, (uchar *) &id, sizeof(id)));
+    Prepared_statement *stmt= find_or_nullptr(st_hash, id);
     if (stmt && stmt->name().str)
       return NULL;
     m_last_found_statement= stmt;
@@ -2003,9 +1957,9 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
   if (statement == m_last_found_statement)
     m_last_found_statement= NULL;
   if (statement->name().str)
-    my_hash_delete(&names_hash, (uchar *) statement);
+    names_hash.erase(to_string(statement->name()));
 
-  my_hash_delete(&st_hash, (uchar *) statement);
+  st_hash.erase(statement->id);
   mysql_mutex_lock(&LOCK_prepared_stmt_count);
   DBUG_ASSERT(prepared_stmt_count > 0);
   prepared_stmt_count--;
@@ -2014,30 +1968,30 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
 
 void Prepared_statement_map::claim_memory_ownership()
 {
-  my_hash_claim(&names_hash);
-  my_hash_claim(&st_hash);
+  for (const auto &key_and_value : st_hash)
+  {
+    my_claim(key_and_value.second.get());
+  }
 }
 
 void Prepared_statement_map::reset()
 {
-  /* Must be first, hash_free will reset st_hash.records */
-  if (st_hash.records > 0)
+  if (!st_hash.empty())
   {
 #ifdef HAVE_PSI_PS_INTERFACE
-    for (uint i=0 ; i < st_hash.records ; i++)
+    for (auto &key_and_value : st_hash)
     {
-      Prepared_statement *stmt=
-        reinterpret_cast<Prepared_statement *>(my_hash_element(&st_hash, i));
+      Prepared_statement *stmt= key_and_value.second.get();
       MYSQL_DESTROY_PS(stmt->get_PS_prepared_stmt());
     }
 #endif
     mysql_mutex_lock(&LOCK_prepared_stmt_count);
-    DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-    prepared_stmt_count-= st_hash.records;
+    DBUG_ASSERT(prepared_stmt_count >= st_hash.size());
+    prepared_stmt_count-= st_hash.size();
     mysql_mutex_unlock(&LOCK_prepared_stmt_count);
   }
-  my_hash_reset(&names_hash);
-  my_hash_reset(&st_hash);
+  names_hash.clear();
+  st_hash.clear();
   m_last_found_statement= NULL;
 }
 
@@ -2048,10 +2002,7 @@ Prepared_statement_map::~Prepared_statement_map()
     We do not want to grab the global LOCK_prepared_stmt_count mutex here.
     reset() should already have been called to maintain prepared_stmt_count.
    */
-  DBUG_ASSERT(st_hash.records == 0);
-
-  my_hash_free(&names_hash);
-  my_hash_free(&st_hash);
+  DBUG_ASSERT(st_hash.empty());
 }
 
 

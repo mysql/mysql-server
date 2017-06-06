@@ -377,11 +377,13 @@
 #include <mysql/plugin.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <string>
 
 #include "current_thd.h"
 #include "key.h"                                // key_copy
 #include "lex_string.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -396,9 +398,13 @@
 
 using std::min;
 using std::max;
+using std::string;
+
+static PSI_memory_key fe_key_memory_federated_share;
 
 /* Variables for federated share methods */
-static HASH federated_open_tables;              // To track open tables
+static malloc_unordered_map<string, FEDERATED_SHARE *>
+  federated_open_tables{fe_key_memory_federated_share};  // To track open tables
 mysql_mutex_t federated_mutex;                // To init the hash
 static char ident_quote_char= '`';              // Character for quoting
                                                 // identifiers
@@ -430,15 +436,6 @@ static handler *federated_create_handler(handlerton *hton,
 }
 
 
-/* Function we use in the creation of our hash to get key */
-
-static const uchar *federated_get_key(const uchar *arg, size_t *length)
-{
-  const FEDERATED_SHARE *share= pointer_cast<const FEDERATED_SHARE*>(arg);
-  *length= share->share_key_length;
-  return (uchar*) share->share_key;
-}
-
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
@@ -448,8 +445,6 @@ static PSI_mutex_info all_federated_mutexes[]=
   { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
-
-static PSI_memory_key fe_key_memory_federated_share;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_federated_memory[]=
@@ -514,12 +509,8 @@ static int federated_db_init(void *p)
   if (mysql_mutex_init(fe_key_mutex_federated,
                        &federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (!my_hash_init(&federated_open_tables, &my_charset_bin, 32, 0,
-                    federated_get_key, nullptr, 0,
-                    fe_key_memory_federated_share))
-  {
-    DBUG_RETURN(FALSE);
-  }
+
+  DBUG_RETURN(FALSE);
 
   mysql_mutex_destroy(&federated_mutex);
 error:
@@ -539,7 +530,6 @@ error:
 
 static int federated_done(void*)
 {
-  my_hash_free(&federated_open_tables);
   mysql_mutex_destroy(&federated_mutex);
 
   return 0;
@@ -1546,46 +1536,47 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
   if (parse_url(&mem_root, &tmp_share, table, 0))
     goto error;
 
-  /* TODO: change tmp_share.scheme to LEX_STRING object */
-  if (!(share= (FEDERATED_SHARE *) my_hash_search(&federated_open_tables,
-                                                  (uchar*) tmp_share.share_key,
-                                                  tmp_share.
-                                                  share_key_length)))
   {
-    query.set_charset(system_charset_info);
-    query.append(STRING_WITH_LEN("SELECT "));
-    for (field= table->field; *field; field++)
+    /* TODO: change tmp_share.scheme to LEX_STRING object */
+    auto it= federated_open_tables.find(table_name);
+    if (it == federated_open_tables.end())
     {
-      append_ident(&query, (*field)->field_name, 
-                   strlen((*field)->field_name), ident_quote_char);
-      query.append(STRING_WITH_LEN(", "));
+      query.set_charset(system_charset_info);
+      query.append(STRING_WITH_LEN("SELECT "));
+      for (field= table->field; *field; field++)
+      {
+        append_ident(&query, (*field)->field_name, 
+                     strlen((*field)->field_name), ident_quote_char);
+        query.append(STRING_WITH_LEN(", "));
+      }
+      /* chops off trailing comma */
+      query.length(query.length() - sizeof_trailing_comma);
+
+      query.append(STRING_WITH_LEN(" FROM "));
+
+      append_ident(&query, tmp_share.table_name, 
+                   tmp_share.table_name_length, ident_quote_char);
+
+      if (!(share= (FEDERATED_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
+          !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
+        goto error;
+
+      share->use_count= 0;
+      share->mem_root= std::move(mem_root);
+
+      DBUG_PRINT("info",
+                 ("share->select_query %s", share->select_query));
+
+      federated_open_tables.emplace(table_name, share);
+      thr_lock_init(&share->lock);
+      mysql_mutex_init(fe_key_mutex_FEDERATED_SHARE_mutex,
+                       &share->mutex, MY_MUTEX_INIT_FAST);
     }
-    /* chops off trailing comma */
-    query.length(query.length() - sizeof_trailing_comma);
-
-    query.append(STRING_WITH_LEN(" FROM "));
-
-    append_ident(&query, tmp_share.table_name, 
-                 tmp_share.table_name_length, ident_quote_char);
-
-    if (!(share= (FEDERATED_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
-        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
-      goto error;
-
-    share->use_count= 0;
-    share->mem_root= std::move(mem_root);
-
-    DBUG_PRINT("info",
-               ("share->select_query %s", share->select_query));
-
-    if (my_hash_insert(&federated_open_tables, (uchar*) share))
-      goto error;
-    thr_lock_init(&share->lock);
-    mysql_mutex_init(fe_key_mutex_FEDERATED_SHARE_mutex,
-                     &share->mutex, MY_MUTEX_INIT_FAST);
+    else
+    {
+      share= it->second;
+    }
   }
-  else
-    free_root(&mem_root, MYF(0)); /* prevents memory leak */
 
   share->use_count++;
   mysql_mutex_unlock(&federated_mutex);
@@ -1594,7 +1585,6 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
 
 error:
   mysql_mutex_unlock(&federated_mutex);
-  free_root(&mem_root, MYF(0));
   DBUG_RETURN(NULL);
 }
 
@@ -1612,7 +1602,7 @@ static int free_share(FEDERATED_SHARE *share)
   mysql_mutex_lock(&federated_mutex);
   if (!--share->use_count)
   {
-    my_hash_delete(&federated_open_tables, (uchar*) share);
+    federated_open_tables.erase(share->share_key);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
     MEM_ROOT mem_root = std::move(share->mem_root);
