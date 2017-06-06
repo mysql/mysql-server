@@ -2454,7 +2454,7 @@ static uint dump_routines_for_db(char *db)
   DBUG_PRINT("enter", ("db: '%s'", db));
 
   mysql_real_escape_string_quote(mysql, db_name_buff,
-                                 db, (ulong)strlen(db), '\'');
+                                 db, (ulong)strlen(db), '`');
   /* nice comments */
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping routines for database '%s'\n--\n",
