@@ -200,6 +200,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
 	component_test_string_service.so qa_auth_interface.so \
     component_pfs_example_component_population.so pfs_example_plugin_employee.so \
 	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
+	test_udf_services.so test_security_context.so test_services_plugin_registry.so \
 	  component_test_pfs_notification.so \
 	  component_test_pfs_resource_group.so \
     component_test_udf_registration.so \
