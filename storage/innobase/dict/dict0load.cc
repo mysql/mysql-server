@@ -356,17 +356,9 @@ dict_process_sys_tables_rec_and_mtr_commit(
 		THD*		thd = current_thd;
 		MDL_ticket*	mdl = nullptr;
 
-		if (dict_get_db_name_len(table_name.m_name) == 0) {
-			/* TODO: NEWDD: Will be removed by WL#9535. Get info
-			on InnoDB system tables */
-			ut_ad(strstr(table_name.m_name, "sys")
-			      || strstr(table_name.m_name, "SYS"));
-			*table = dict_table_get_low(table_name.m_name);
-		} else {
-			*table = dd_table_open_on_name(
-				thd, &mdl, table_name.m_name, true,
-				DICT_ERR_IGNORE_NONE);
-		}
+		*table = dd_table_open_on_name(
+			thd, &mdl, table_name.m_name, true,
+			DICT_ERR_IGNORE_NONE);
 
 		if (!(*table)) {
 			err_msg = "Table not found in cache";
@@ -2906,11 +2898,6 @@ dict_load_table_one(
 	DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#if 0 /* WL#9535/9536 TODO: Maybe just remove all these */
-	/* Currently, the master thread may call us in
-	row_drop_tables_for_mysql_in_background(). */
-	ut_ad(!srv_is_being_shutdown);
-#endif
 
 	heap = mem_heap_create(32000);
 
