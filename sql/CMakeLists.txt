@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -357,7 +357,6 @@ SET(SQL_SHARED_SOURCES
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
-  sql_cache.cc
   sql_call.cc
   sql_class.cc
   sql_component.cc

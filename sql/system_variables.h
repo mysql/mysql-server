@@ -215,7 +215,6 @@ struct System_variables
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
-  ulong query_cache_type;
   ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
@@ -232,7 +231,6 @@ struct System_variables
   bool tx_read_only;
   bool low_priority_updates;
   bool new_mode;
-  bool query_cache_wlock_invalidate;
   bool keep_files_on_create;
 
   bool old_alter_table;

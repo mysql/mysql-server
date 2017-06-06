@@ -4994,7 +4994,7 @@ ER_WRONG_NAME_FOR_CATALOG 42000
         por "Incorreto nome de catálogo '%-.100s'"
         spa "Nombre de catalog incorrecto '%-.100s'"
         swe "Felaktigt katalog namn '%-.100s'"
-ER_WARN_QC_RESIZE  
+OBSOLETE_ER_WARN_QC_RESIZE  
         eng "Query cache failed to set size %lu; new query cache size is %lu"
         ger "Änderung der Query-Cache-Größe auf %lu fehlgeschlagen; neue Query-Cache-Größe ist %lu"
         jpn "クエリキャッシュのサイズを %lu にできませんでした。サイズは %lu になりました。"
@@ -6295,7 +6295,7 @@ ER_UNKNOWN_LOCALE
 ER_SLAVE_IGNORE_SERVER_IDS
   eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
   ger "Die angeforderte Server-ID %d steht im Konflikt mit der Startoption --replicate-same-server-id für den Slave"
-ER_QUERY_CACHE_DISABLED
+OBSOLETE_ER_QUERY_CACHE_DISABLED
   eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
   ger "Abfragen-Cache ist deaktiviert. Starten Sie den Server neu mit query_cache_type=1, um ihn zu aktivieren"
 ER_SAME_NAME_PARTITION_FIELD

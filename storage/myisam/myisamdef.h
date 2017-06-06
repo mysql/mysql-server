@@ -190,7 +190,6 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
 			const uchar *record, my_off_t pos);
   size_t (*file_read)(MI_INFO *, uchar *, size_t, my_off_t, myf);
   size_t (*file_write)(MI_INFO *, const uchar *, size_t, my_off_t, myf);
-  invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_process;			/* processid */
   ulong last_process;			/* For table-change-check */
   ulong last_version;			/* Version on start */
@@ -265,7 +264,6 @@ struct st_myisam_info {
   uint  int_nod_flag;			/*  -""-  */
   uint32 int_keytree_version;		/*  -""-  */
   int (*read_record)(struct st_myisam_info*, my_off_t, uchar*);
-  invalidator_by_filename invalidator;  /* query cache invalidator */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */

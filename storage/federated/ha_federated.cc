@@ -125,7 +125,6 @@
     server supports this.
   * This uses SELECT, INSERT, UPDATE, DELETE and not HANDLER for its
     implementation.
-  * This will not work with the query cache.
 
    Method calls
 

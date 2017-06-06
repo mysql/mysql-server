@@ -471,7 +471,6 @@
 #include "sql_audit.h"                  // mysql_audit_general
 #include "sql_authentication.h"         // init_rsa_keys
 #include "sql_base.h"
-#include "sql_cache.h"                  // Query_cache
 #include "sql_callback.h"               // MUSQL_CALLBACK
 #include "sql_class.h"                  // THD
 #include "sql_common.h"                 // mysql_client_plugin_init
@@ -928,7 +927,6 @@ int32 opt_binlog_max_flush_queue_time= 0;
 ulong opt_binlog_group_commit_sync_delay= 0;
 ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
-ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 std::atomic<query_id_t> atomic_global_query_id { 1 };
 ulong aborted_threads;
@@ -1370,8 +1368,6 @@ static bool dynamic_plugins_are_initialized= false;
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
-ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
-Query_cache query_cache;
 
 bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
@@ -1945,7 +1941,6 @@ static void clean_up(bool print_message)
   servers_free(1);
   acl_free(1);
   grant_free();
-  query_cache.destroy(NULL);
   hostname_cache_free();
   range_optimizer_free();
   item_func_sleep_free();
@@ -4280,22 +4275,6 @@ initialize_storage_engine(char *se_name, const char *se_kind,
 }
 
 
-static void init_server_query_cache()
-{
-  ulong set_cache_size;
-
-  query_cache.set_min_res_unit(query_cache_min_res_unit);
-  query_cache.init();
-
-  set_cache_size= query_cache.resize(NULL, query_cache_size);
-  if (set_cache_size != query_cache_size)
-  {
-    LogErr(WARNING_LEVEL, ER_WARN_QC_RESIZE, query_cache_size, set_cache_size);
-    query_cache_size= set_cache_size;
-  }
-}
-
-
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4318,8 +4297,6 @@ static int init_server_components()
     else
       have_statement_timeout= SHOW_OPTION_YES;
   }
-
-  init_server_query_cache();
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
@@ -7585,14 +7562,6 @@ SHOW_VAR status_vars[]= {
   {"Opened_tables",            (char*) offsetof(System_status_var, opened_tables),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Opened_table_definitions", (char*) offsetof(System_status_var, opened_shares),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count,                     SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,               SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory,                      SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_hits",              (char*) &query_cache.hits,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_inserts",           (char*) &query_cache.inserts,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes,                    SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_not_cached",        (char*) &query_cache.refused,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache,                 SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,                     SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
   {"Queries",                  (char*) &show_queries,                                 SHOW_FUNC,               SHOW_SCOPE_ALL},
   {"Questions",                (char*) offsetof(System_status_var, questions),               SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Select_full_join",         (char*) offsetof(System_status_var, select_full_join_count),  SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
@@ -7898,7 +7867,7 @@ static int mysql_init_variables()
 
   have_dlopen=SHOW_OPTION_YES;
 
-  have_query_cache=SHOW_OPTION_YES;
+  have_query_cache= SHOW_OPTION_NO;
 
   have_geometry=SHOW_OPTION_YES;
 
@@ -8375,7 +8344,6 @@ mysqld_get_one_option(int optid,
     sp_automatic_privileges=0;
     my_enable_symlinks= 0;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
-    query_cache_size=0;
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -9511,7 +9479,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0, 0},
   { &key_mutex_slave_parallel_worker_count, "Relay_log_info::exit_count_lock", 0, 0},
   { &key_mutex_slave_parallel_worker, "Worker_info::jobs_lock", 0, 0},
-  { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0, 0},
   { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0, 0},
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL, 0},
@@ -9532,7 +9499,6 @@ static PSI_mutex_info all_server_mutexes[]=
 };
 
 PSI_rwlock_key key_rwlock_LOCK_logger;
-PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_receiver_sid_lock;
@@ -9553,7 +9519,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_channel_map_lock, "channel_map_lock", 0},
@@ -9602,7 +9567,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_RELAYLOG_prep_xids_cond, "MYSQL_RELAY_LOG::prep_xids_cond", 0},
-  { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
 #if defined(_WIN32)
   { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
 #endif
@@ -9721,7 +9685,6 @@ PSI_stage_info stage_changing_master= { 0, "Changing master", 0};
 PSI_stage_info stage_checking_master_version= { 0, "Checking master version", 0};
 PSI_stage_info stage_checking_permissions= { 0, "checking permissions", 0};
 PSI_stage_info stage_checking_privileges_on_cached_query= { 0, "checking privileges on cached query", 0};
-PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache for query", 0};
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
 PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
@@ -9749,8 +9712,6 @@ PSI_stage_info stage_got_handler_lock= { 0, "got handler lock", 0};
 PSI_stage_info stage_got_old_table= { 0, "got old table", 0};
 PSI_stage_info stage_init= { 0, "init", 0};
 PSI_stage_info stage_insert= { 0, "insert", 0};
-PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating query cache entries (table)", 0};
-PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0};
@@ -9791,7 +9752,6 @@ PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
 PSI_stage_info stage_statistics= { 0, "statistics", 0};
 PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until MASTER_DELAY seconds after master executed event", 0 };
-PSI_stage_info stage_storing_result_in_query_cache= { 0, "storing result in query cache", 0};
 PSI_stage_info stage_storing_row_into_queue= { 0, "storing row into queue", 0};
 PSI_stage_info stage_system_lock= { 0, "System lock", 0};
 PSI_stage_info stage_update= { 0, "update", 0};
@@ -9812,7 +9772,6 @@ PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the slave SQ
 PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0};
 PSI_stage_info stage_waiting_for_slave_thread_to_start= { 0, "Waiting for slave thread to start", 0};
 PSI_stage_info stage_waiting_for_table_flush= { 0, "Waiting for table flush", 0};
-PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache lock", 0};
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
@@ -9837,7 +9796,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_checking_master_version,
   & stage_checking_permissions,
   & stage_checking_privileges_on_cached_query,
-  & stage_checking_query_cache_for_query,
   & stage_cleaning_up,
   & stage_closing_tables,
   & stage_compressing_gtid_table,
@@ -9865,8 +9823,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_got_old_table,
   & stage_init,
   & stage_insert,
-  & stage_invalidating_query_cache_entries_table,
-  & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
   & stage_logging_slow_query,
   & stage_making_temp_file_append_before_load_data,
@@ -9907,7 +9863,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_sorting_result,
   & stage_sql_thd_waiting_until_delay,
   & stage_statistics,
-  & stage_storing_result_in_query_cache,
   & stage_storing_row_into_queue,
   & stage_system_lock,
   & stage_update,
@@ -9928,7 +9883,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_slave_mutex_on_exit,
   & stage_waiting_for_slave_thread_to_start,
   & stage_waiting_for_table_flush,
-  & stage_waiting_for_query_cache_lock,
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,

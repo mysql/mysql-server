@@ -50,7 +50,6 @@
 #include "session_tracker.h"
 #include "sql_base.h"                 // update_non_unique_table_error
 #include "sql_bitmap.h"
-#include "sql_cache.h"                // query_cache
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_executor.h"
@@ -600,12 +599,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd)
 
 cleanup:
   DBUG_ASSERT(!lex->describe);
-  /*
-    Invalidate the table in the query cache if something changed. This must
-    be before binlog writing and ha_autocommit_...
-  */
-  if (deleted_rows > 0)
-    query_cache.invalidate_single(thd, delete_table_ref, true);
 
   if (!transactional_table && deleted_rows > 0)
     thd->get_transaction()->mark_modified_non_trans_table(
@@ -1151,24 +1144,6 @@ void Query_result_delete::send_error(uint errcode,const char *err)
 }
 
 
-/**
-  Wrapper function for query cache invalidation.
-
-  @param thd         THD pointer
-  @param leaf_tables Pointer to list of tables to invalidate cache for.
-                     Skip tables without "updating" state
-*/
-
-static void invalidate_delete_tables(THD *thd, TABLE_LIST *leaf_tables)
-{
-  for (TABLE_LIST *tl= leaf_tables; tl != NULL; tl= tl->next_leaf)
-  {
-    if (tl->updating)
-      query_cache.invalidate_single(thd, tl, 1);
-  }
-}
-
-
 void Query_result_delete::abort_result_set()
 {
   DBUG_ENTER("Query_result_delete::abort_result_set");
@@ -1178,10 +1153,6 @@ void Query_result_delete::abort_result_set()
       (!thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT) && deleted_rows == 0))
     DBUG_VOID_RETURN;
-
-  /* Something already deleted so we have to invalidate cache */
-  if (deleted_rows > 0)
-    invalidate_delete_tables(thd, unit->first_select()->leaf_tables);
 
   /*
     If rows from the first table only has been deleted and it is
@@ -1375,13 +1346,6 @@ bool Query_result_delete::send_eof()
   local_error= local_error || error;
   killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed.load();
   /* reset used flags */
-
-  /*
-    We must invalidate the query cache before binlog writing and
-    ha_autocommit_...
-  */
-  if (deleted_rows > 0)
-    invalidate_delete_tables(thd, unit->first_select()->leaf_tables);
 
   if ((local_error == 0) ||
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT))

@@ -91,7 +91,6 @@
 #include "sql_alter.h"
 #include "sql_base.h"                   // wait_while_table_is_used
 #include "sql_bitmap.h"
-#include "sql_cache.h"                  // query_cache
 #include "sql_class.h"                  // THD
 #include "sql_const.h"
 #include "sql_digest_stream.h"

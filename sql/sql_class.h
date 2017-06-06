@@ -132,7 +132,6 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
 typedef struct user_conn USER_CONN;
@@ -958,11 +957,6 @@ public:
   */
   static const char * const DEFAULT_WHERE;
 
-  /*
-    'first_query_cache_block' should be accessed only via query cache
-    functions and methods to maintain proper locking.
-  */
-  Query_cache_block *first_query_cache_block;
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
   /**

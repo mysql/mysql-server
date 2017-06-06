@@ -2144,274 +2144,6 @@ static void test_ps_conj_select()
 }
 
 
-/* reads Qcache_hits from server and returns its value */
-static uint query_cache_hits(MYSQL *conn)
-{
-  MYSQL_RES *res;
-  MYSQL_ROW row;
-  int rc;
-  uint result;
-
-  rc= mysql_query(conn, "show status like 'qcache_hits'");
-  myquery(rc);
-  res= mysql_use_result(conn);
-  DIE_UNLESS(res);
-
-  row= mysql_fetch_row(res);
-  DIE_UNLESS(row);
-
-  result= atoi(row[1]);
-  mysql_free_result(res);
-  return result;
-}
-
-
-/*
-  utility for the next test; expects 3 rows in the result from a SELECT,
-  compares each row/field with an expected value.
- */
-#define test_ps_query_cache_result(i1,s1,l1,i2,s2,l2,i3,s3,l3)    \
-  r_metadata= mysql_stmt_result_metadata(stmt);                   \
-  DIE_UNLESS(r_metadata != NULL);                                 \
-  rc= mysql_stmt_fetch(stmt);                                     \
-  check_execute(stmt, rc);                                        \
-  if (!opt_silent)                                                \
-    fprintf(stdout, "\n row 1: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
-  DIE_UNLESS((r_int_data == i1) && (r_str_length == l1) &&        \
-             (strcmp(r_str_data, s1) == 0));                      \
-  rc= mysql_stmt_fetch(stmt);                                     \
-  check_execute(stmt, rc);                                        \
-  if (!opt_silent)                                                \
-    fprintf(stdout, "\n row 2: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
-  DIE_UNLESS((r_int_data == i2) && (r_str_length == l2) &&        \
-             (strcmp(r_str_data, s2) == 0));                      \
-  rc= mysql_stmt_fetch(stmt);                                     \
-  check_execute(stmt, rc);                                        \
-  if (!opt_silent)                                                \
-    fprintf(stdout, "\n row 3: %d, %s(%lu)", r_int_data,          \
-            r_str_data, r_str_length);                            \
-  DIE_UNLESS((r_int_data == i3) && (r_str_length == l3) &&        \
-             (strcmp(r_str_data, s3) == 0));                      \
-  rc= mysql_stmt_fetch(stmt);                                     \
-  DIE_UNLESS(rc == MYSQL_NO_DATA);                                \
-  mysql_free_result(r_metadata);
-
-
-/*
-  Test that prepared statements make use of the query cache just as normal
-  statements (BUG#735).
-*/
-static void test_ps_query_cache()
-{
-  MYSQL      *lmysql= mysql;
-  MYSQL_STMT *stmt;
-  int        rc;
-  MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
-  int32      p_int_data, r_int_data;
-  char       p_str_data[32], r_str_data[32];
-  ulong      p_str_length, r_str_length;
-  MYSQL_RES  *r_metadata;
-  char       query[MAX_TEST_QUERY_LENGTH];
-  uint       hits1, hits2;
-  enum enum_test_ps_query_cache
-  {
-    /*
-      We iterate the same prepare/executes block, but have iterations where
-      we vary the query cache conditions.
-    */
-    /* the query cache is enabled for the duration of prep&execs: */
-    TEST_QCACHE_ON= 0,
-    /*
-      same but using a new connection (to see if qcache serves results from
-      the previous connection as it should):
-    */
-    TEST_QCACHE_ON_WITH_OTHER_CONN,
-    /*
-      First border case: disables the query cache before prepare and
-      re-enables it before execution (to test if we have no bug then):
-    */
-    TEST_QCACHE_OFF_ON,
-    /*
-      Second border case: enables the query cache before prepare and
-      disables it before execution:
-    */
-    TEST_QCACHE_ON_OFF
-  };
-  enum enum_test_ps_query_cache iteration;
-
-  myheader("test_ps_query_cache");
-
-  rc= mysql_query(mysql, "SET SQL_MODE=''");
-  myquery(rc);
-
-  /* prepare the table */
-
-  rc= mysql_query(mysql, "drop table if exists t1");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "create table t1 (id1 int(11) NOT NULL default '0', "
-                         "value2 varchar(100), value1 varchar(100))");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "insert into t1 values (1, 'hh', 'hh'), "
-                          "(2, 'hh', 'hh'), (1, 'ii', 'ii'), (2, 'ii', 'ii')");
-  myquery(rc);
-
-  for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
-  {
-
-    switch (iteration) {
-    case TEST_QCACHE_ON:
-    case TEST_QCACHE_ON_OFF:
-      rc= mysql_query(lmysql, "set global query_cache_size=1000000");
-      myquery(rc);
-      break;
-    case TEST_QCACHE_OFF_ON:
-      rc= mysql_query(lmysql, "set global query_cache_size=0");
-      myquery(rc);
-      break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
-      if (!opt_silent)
-        fprintf(stdout, "\n Establishing a test connection ...");
-      if (!(lmysql= mysql_client_init(NULL)))
-      {
-        printf("mysql_client_init() failed");
-        DIE_UNLESS(0);
-      }
-      if (!(mysql_real_connect(lmysql, opt_host, opt_user,
-                               opt_password, current_db, opt_port,
-                               opt_unix_socket, 0)))
-      {
-        printf("connection failed");
-        mysql_close(lmysql);
-        DIE_UNLESS(0);
-      }
-      rc= mysql_query(lmysql, "SET SQL_MODE=''");
-      myquery(rc);
-
-      if (!opt_silent)
-        fprintf(stdout, "OK");
-    }
-
-    my_stpcpy(query, "select id1, value1 from t1 where id1= ? or "
-           "CONVERT(value1 USING utf8)= ?");
-    stmt= mysql_simple_prepare(lmysql, query);
-    check_stmt(stmt);
-
-    verify_param_count(stmt, 2);
-
-    switch (iteration) {
-    case TEST_QCACHE_OFF_ON:
-      rc= mysql_query(lmysql, "set global query_cache_size=1000000");
-      myquery(rc);
-      break;
-    case TEST_QCACHE_ON_OFF:
-      rc= mysql_query(lmysql, "set global query_cache_size=0");
-      myquery(rc);
-    default:
-      break;
-    }
-
-    memset(p_bind, 0, sizeof(p_bind));
-    p_bind[0].buffer_type= MYSQL_TYPE_LONG;
-    p_bind[0].buffer= (void *)&p_int_data;
-    p_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
-    p_bind[1].buffer= (void *)p_str_data;
-    p_bind[1].buffer_length= array_elements(p_str_data);
-    p_bind[1].length= &p_str_length;
-
-    rc= mysql_stmt_bind_param(stmt, p_bind);
-    check_execute(stmt, rc);
-
-    p_int_data= 1;
-    my_stpcpy(p_str_data, "hh");
-    p_str_length= (ulong)strlen(p_str_data);
-
-    memset(r_bind, 0, sizeof(r_bind));
-    r_bind[0].buffer_type= MYSQL_TYPE_LONG;
-    r_bind[0].buffer= (void *)&r_int_data;
-    r_bind[1].buffer_type= MYSQL_TYPE_VAR_STRING;
-    r_bind[1].buffer= (void *)r_str_data;
-    r_bind[1].buffer_length= array_elements(r_str_data);
-    r_bind[1].length= &r_str_length;
-
-    rc= mysql_stmt_bind_result(stmt, r_bind);
-    check_execute(stmt, rc);
-
-    rc= mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
-
-    test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
-
-    /* now retry with the same parameter values and see qcache hits */
-    hits1= query_cache_hits(lmysql);
-    rc= mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
-    test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
-    hits2= query_cache_hits(lmysql);
-    switch(iteration) {
-    case TEST_QCACHE_ON_WITH_OTHER_CONN:
-    case TEST_QCACHE_ON:                 /* should have hit */
-      DIE_UNLESS(hits2-hits1 == 1);
-      break;
-    case TEST_QCACHE_OFF_ON:
-    case TEST_QCACHE_ON_OFF:             /* should not have hit */
-      DIE_UNLESS(hits2-hits1 == 0);
-      break;
-    }
-
-    /* now modify parameter values and see qcache hits */
-    my_stpcpy(p_str_data, "ii");
-    p_str_length= (ulong)strlen(p_str_data);
-    rc= mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
-    test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
-    hits1= query_cache_hits(lmysql);
-
-    switch(iteration) {
-    case TEST_QCACHE_ON:
-    case TEST_QCACHE_OFF_ON:
-    case TEST_QCACHE_ON_OFF:             /* should not have hit */
-      DIE_UNLESS(hits2-hits1 == 0);
-      break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
-      DIE_UNLESS(hits1-hits2 == 1);
-      break;
-    }
-
-    rc= mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
-
-    test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
-    hits2= query_cache_hits(lmysql);
-
-    mysql_stmt_close(stmt);
-
-    switch(iteration) {
-    case TEST_QCACHE_ON:                 /* should have hit */
-      DIE_UNLESS(hits2-hits1 == 1);
-      break;
-    case TEST_QCACHE_OFF_ON:
-    case TEST_QCACHE_ON_OFF:             /* should not have hit */
-      DIE_UNLESS(hits2-hits1 == 0);
-      break;
-    case TEST_QCACHE_ON_WITH_OTHER_CONN: /* should have hit */
-      DIE_UNLESS(hits2-hits1 == 1);
-      break;
-    }
-
-  } /* for(iteration=...) */
-
-  if (lmysql != mysql)
-    mysql_close(lmysql);
-
-  rc= mysql_query(mysql, "set global query_cache_size=DEFAULT");
-  myquery(rc);
-}
-
-
 /* Test BUG#1115 (incorrect string parameter value allocation) */
 
 static void test_bug1115()
@@ -18059,10 +17791,6 @@ static void test_bug36326()
   myquery(rc);
   rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
   myquery(rc);
-  rc= mysql_query(mysql, "SET GLOBAL query_cache_type = 1");
-  myquery(rc);
-  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = 1048576");
-  myquery(rc);
   DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
   DIE_UNLESS(mysql->server_status & SERVER_STATUS_AUTOCOMMIT);
   rc= mysql_query(mysql, "BEGIN");
@@ -18083,8 +17811,6 @@ static void test_bug36326()
   rc= my_process_result(mysql);
   DIE_UNLESS(rc == 1);
   rc= mysql_query(mysql, "DROP TABLE t1");
-  myquery(rc);
-  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = DEFAULT");
   myquery(rc);
 
   DBUG_VOID_RETURN;
@@ -20649,78 +20375,6 @@ static void test_bug22336527()
   mysql_close(l_mysql);
 }
 
-/*
-  Bug#22559575: "the statement (1) has no open cursor" pops
-                sometimes with prepared+query_cache
-*/
-
-static void bug22559575_base(unsigned long type)
-{
-  MYSQL_STMT *stmt;
-  int rc;
-  const char stmt_text[] ="SELECT a FROM t22559575";
-  MYSQL_RES *prepare_meta = NULL;
-  MYSQL_BIND bind[1];
-  short data;
-  unsigned long length;
-
-  stmt = mysql_stmt_init(mysql);
-  check_stmt(stmt);
-  if (type == CURSOR_TYPE_READ_ONLY)
-  {
-    rc = mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (const void*)&type);
-    check_execute(stmt, rc);
-  }
-  rc = mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
-  check_execute(stmt, rc);
-  prepare_meta = mysql_stmt_result_metadata(stmt);
-  DIE_UNLESS(prepare_meta != NULL);
-  rc= mysql_stmt_execute(stmt);
-  check_execute(stmt, rc);
-
-  memset(bind, 0, sizeof(bind));
-  bind[0].buffer_type= MYSQL_TYPE_SHORT;
-  bind[0].buffer= (void *)&data;
-  bind[0].length= &length;
-  rc= mysql_stmt_bind_result(stmt, bind);
-  check_execute(stmt, rc);
-
-  rc= mysql_stmt_store_result(stmt);
-  check_execute(stmt, rc);
-
-  rc= mysql_stmt_fetch(stmt);
-  check_execute(stmt, rc);
-  DIE_UNLESS(data == 1);
-
-  mysql_free_result(prepare_meta);
-  rc= mysql_stmt_close(stmt);
-  check_execute(stmt, rc);
-}
-
-static void test_bug22559575()
-{
-  int rc;
-
-  rc= mysql_query(mysql, "CREATE TABLE t22559575(a SMALLINT)");
-  myquery(rc);
-  rc= mysql_query(mysql, "INSERT INTO t22559575 VALUES (1)");
-  myquery(rc);
-
-  /* Should not cache */
-  bug22559575_base(CURSOR_TYPE_READ_ONLY);
-  bug22559575_base(CURSOR_TYPE_READ_ONLY);
-  /* Should save to cache */
-  bug22559575_base(CURSOR_TYPE_NO_CURSOR);
-  /* Should use cache */
-  bug22559575_base(CURSOR_TYPE_NO_CURSOR);
-  /* should not use cache */
-  bug22559575_base(CURSOR_TYPE_READ_ONLY);
-
-  rc= mysql_query(mysql, "DROP TABLE t22559575");
-  myquery(rc);
-}
-
-
 /**
   Bug#24963580 INFORMATION_SCHEMA:MDL_REQUEST::INIT_WITH_SOURCE
 */
@@ -21170,7 +20824,6 @@ static struct my_tests_st my_tests[]= {
   { "test_bug21635", test_bug21635 },
   { "test_status",   test_status   },
   { "test_bug24179", test_bug24179 },
-  { "test_ps_query_cache", test_ps_query_cache },
   { "test_bug28075", test_bug28075 },
   { "test_bug27876", test_bug27876 },
   { "test_bug28505", test_bug28505 },
@@ -21235,7 +20888,6 @@ static struct my_tests_st my_tests[]= {
   { "test_wl8754", test_wl8754 },
   { "test_bug17883203", test_bug17883203 },
   { "test_bug22336527", test_bug22336527 },
-  { "test_bug22559575", test_bug22559575 },
   { "test_bug24963580", test_bug24963580 },
   { "test_mysql_binlog", test_mysql_binlog },
   { "test_bug22028117", test_bug22028117 },

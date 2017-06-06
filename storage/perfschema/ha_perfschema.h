@@ -242,20 +242,6 @@ public:
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 
-  virtual uint8
-  table_cache_type(void)
-  {
-    return HA_CACHE_TBL_NOCACHE;
-  }
-
-  virtual bool
-  register_query_cache_table(
-    THD *, char *, size_t, qc_engine_callback *engine_callback, ulonglong *)
-  {
-    *engine_callback = 0;
-    return FALSE;
-  }
-
   virtual void print_error(int error, myf errflags);
 
 private:

@@ -41,11 +41,6 @@
   changed at a later date.  (There is an ASSERT() in place that will
   hopefully catch unintentional changes.)
 
-  We also do not intersect with query cache at this time, as QC only
-  caches SELECTs (which we don't rewrite). If and when QC becomes more
-  general, it should probably cache the rewritten query along with the
-  user-submitted one (see sql_parse.cc).
-
   Finally, sp_* have code to print a stored program for use by
   SHOW PROCEDURE CODE / SHOW FUNCTION CODE.
 

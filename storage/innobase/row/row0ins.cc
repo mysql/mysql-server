@@ -913,21 +913,6 @@ row_ins_foreign_report_add_err(
 	mutex_exit(&dict_foreign_err_mutex);
 }
 
-/*********************************************************************//**
-Invalidate the query cache for the given table. */
-static
-void
-row_ins_invalidate_query_cache(
-/*===========================*/
-	que_thr_t*	thr,		/*!< in: query thread whose run_node
-					is an update node */
-	const char*	name)		/*!< in: table name prefixed with
-					database name and a '/' character */
-{
-	ulint	len = strlen(name) + 1;
-	innobase_invalidate_query_cache(thr_get_trx(thr), name, len);
-}
-
 /** Fill virtual column information in cascade node for the child table.
 @param[out]	cascade		child update node
 @param[in]	rec		clustered rec of child table
@@ -1086,14 +1071,6 @@ row_ins_foreign_check_on_constraint(
 	ut_a(mtr);
 
 	trx = thr_get_trx(thr);
-
-	/* Since we are going to delete or update a row, we have to invalidate
-	the MySQL query cache for table. A deadlock of threads is not possible
-	here because the caller of this function does not hold any latches with
-	the mutex rank above the lock_sys_t::mutex. The query cache mutex
-	has a rank just above the lock_sys_t::mutex. */
-
-	row_ins_invalidate_query_cache(thr, table->name.m_name);
 
 	node = static_cast<upd_node_t*>(thr->run_node);
 

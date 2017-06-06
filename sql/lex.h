@@ -598,7 +598,6 @@ static const SYMBOL symbols[] = {
   { SYM("SQL_BEFORE_GTIDS",         SQL_BEFORE_GTIDS)},
   { SYM("SQL_BIG_RESULT",           SQL_BIG_RESULT)},
   { SYM("SQL_BUFFER_RESULT",        SQL_BUFFER_RESULT)},
-  { SYM("SQL_CACHE",                SQL_CACHE_SYM)},
   { SYM("SQL_CALC_FOUND_ROWS",      SQL_CALC_FOUND_ROWS)},
   { SYM("SQL_NO_CACHE",             SQL_NO_CACHE_SYM)},
   { SYM("SQL_SMALL_RESULT",         SQL_SMALL_RESULT)},

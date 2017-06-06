@@ -110,7 +110,6 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   bool compress;
-  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
   char last_error[512];

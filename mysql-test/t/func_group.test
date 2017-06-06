@@ -709,7 +709,7 @@ INSERT INTO t2 VALUES (1,1), (3,3);
 # contains aggregate (SUM) and column (t.a).
 --source include/turn_off_only_full_group_by.inc
 
-SELECT SQL_NO_CACHE 
+SELECT SQL_NO_CACHE
   (SELECT SUM(c.a) FROM t1 ttt, t2 ccc 
    WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;

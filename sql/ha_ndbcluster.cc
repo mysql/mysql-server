@@ -8570,6 +8570,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
                          (long) this, (long) thd, (long) thd_ndb,
                          thd_ndb->lock_count));
 
+#if 0
+    /*
+      No longer relevant after query cache removal.
+      TODO: Remove this and all related code.
+    */
     if (m_rows_changed && global_system_variables.query_cache_type)
     {
       DBUG_PRINT("info", ("Rows has changed"));
@@ -8596,6 +8601,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         mysql_mutex_unlock(&m_share->mutex);
       }
     }
+#endif
 
     if (!--thd_ndb->lock_count)
     {
@@ -14547,12 +14553,6 @@ bool ha_ndbcluster::low_byte_first() const
 #endif
 }
 
-uint8 ha_ndbcluster::table_cache_type()
-{
-  DBUG_ENTER("ha_ndbcluster::table_cache_type=HA_CACHE_TBL_ASKTRANSACT");
-  DBUG_RETURN(HA_CACHE_TBL_ASKTRANSACT);
-}
-
 /**
    Retrieve the commit count for the table object.
 
@@ -14658,6 +14658,12 @@ uint ndb_get_commitcount(THD *thd, const char *norm_name,
   DBUG_RETURN(0);
 }
 
+
+#if 0
+/*
+  No longer relevant after query cache removal.
+  TODO: Remove this and all related code.
+*/
 
 /**
   Check if a cached query can be used.
@@ -14819,6 +14825,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   DBUG_PRINT("exit", ("commit_count: %llu", commit_count));
   DBUG_RETURN(commit_count > 0);
 }
+#endif
 
 
 #ifndef DBUG_OFF

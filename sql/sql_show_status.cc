@@ -103,8 +103,7 @@ build_query(const POS &pos,
 
   static const Query_options options=
   {
-    0, /* query_spec_options */
-    SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
+    0 /* query_spec_options */
   };
 
   /* ... VARIABLE_NAME ... */

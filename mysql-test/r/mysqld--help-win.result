@@ -890,18 +890,6 @@ The following options may be given as the first argument:
  Limit of query profiling memory
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
- --query-cache-limit=# 
- Don't cache results that are bigger than this
- --query-cache-min-res-unit=# 
- The minimum size for blocks allocated by the query cache
- --query-cache-size=# 
- The memory allocated to store results from old queries
- --query-cache-type=name 
- OFF = Don't cache or retrieve results. ON = Cache all
- results except SELECT SQL_NO_CACHE ... queries. DEMAND =
- Cache only SELECT SQL_CACHE ... queries
- --query-cache-wlock-invalidate 
- Invalidate queries in query cache on LOCK for write
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
  --range-alloc-block-size=# 
@@ -1540,11 +1528,6 @@ port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
 query-alloc-block-size 8192
-query-cache-limit 1048576
-query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type OFF
-query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
 range-optimizer-max-mem-size 8388608

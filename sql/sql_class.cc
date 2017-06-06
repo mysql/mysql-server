@@ -53,7 +53,6 @@
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
-#include "sql_cache.h"                       // query_cache
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
@@ -348,7 +347,6 @@ THD::THD(bool enable_plugins)
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
-   first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
    m_current_query_cost(0),
@@ -753,8 +751,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
-
-  query_cache.abort(this);
 
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)

@@ -40,7 +40,6 @@
 #include "rpl_slave.h"   // reset_slave
 #include "sql_admin.h"
 #include "sql_base.h"    // close_cached_tables
-#include "sql_cache.h"   // query_cache
 #include "sql_class.h"   // THD
 #include "sql_connect.h" // reset_mqh
 #include "sql_const.h"
@@ -212,15 +211,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       current_thd= nullptr;
       thd= 0;
     }
-  }
-  if (options & REFRESH_QUERY_CACHE_FREE)
-  {
-    query_cache.pack(thd);			// FLUSH QUERY CACHE
-    options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
-  }
-  if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
-  {
-    query_cache.flush(thd);			// RESET QUERY CACHE
   }
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||

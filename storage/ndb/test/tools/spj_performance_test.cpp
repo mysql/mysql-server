@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -440,7 +440,6 @@ void TestThread::doSQLTest(){
   }else{
     mySQLExec(m_mysql, "set ndb_join_pushdown = off;");
   }
-  mySQLExec(m_mysql, "SET SESSION query_cache_type = OFF");
 
   class TextBuf{
   public:

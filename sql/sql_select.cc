@@ -60,7 +60,6 @@
 #include "query_result.h"
 #include "records.h"             // init_read_record, end_read_record
 #include "sql_base.h"
-#include "sql_cache.h"           // query_cache
 #include "sql_do.h"
 #include "sql_executor.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
@@ -174,14 +173,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
     goto err;
-
-  /*
-    Register query result in cache.
-    Tables must be locked before storing the query in the query cache.
-    Transactional engines must be signalled that the statement has started,
-    by calling external_lock().
-  */
-  query_cache.store_query(thd, lex->query_tables);
 
   if (single_query)
   {
@@ -606,14 +597,6 @@ bool Sql_cmd_dml::execute(THD *thd)
   {
     if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
       goto err;
-
-    /*
-      Register query result in cache.
-      Tables must be locked before storing the query in the query cache.
-      Transactional engines must be signalled that the statement has started,
-      by calling external_lock().
-    */
-    query_cache.store_query(thd, lex->query_tables);
   }
 
   // Perform statement-specific execution

@@ -2282,7 +2282,6 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_query_result(NULL),
   m_base_options(0),
   m_active_options(0),
-  sql_cache(SQL_CACHE_UNSPECIFIED),
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
@@ -4666,7 +4665,6 @@ bool SELECT_LEX::validate_outermost_option(LEX *lex,
           SELECT_BIG_RESULT
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
-          OPTION_TO_QUERY_CACHE
           OPTION_SELECT_FOR_SHOW
   DELETE: OPTION_QUICK
           LOW_PRIORITY
@@ -4687,7 +4685,6 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE |
                                 OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT &&
@@ -4740,71 +4737,13 @@ bool Query_options::merge(const Query_options &a,
                           const Query_options &b)
 {
   query_spec_options= a.query_spec_options | b.query_spec_options;
-
-  if (b.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-  {
-    if (a.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-    {
-      my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_NO_CACHE");
-      return true;
-    }
-    else if (a.sql_cache == SELECT_LEX::SQL_CACHE)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "SQL_CACHE", "SQL_NO_CACHE");
-      return true;
-    }
-  }
-  else if (b.sql_cache == SELECT_LEX::SQL_CACHE)
-  {
-    if (a.sql_cache == SELECT_LEX::SQL_CACHE)
-    {
-      my_error(ER_DUP_ARGUMENT, MYF(0), "SQL_CACHE");
-      return true;
-    }
-    else if (a.sql_cache == SELECT_LEX::SQL_NO_CACHE)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "SQL_NO_CACHE", "SQL_CACHE");
-      return true;
-    }
-  }
-  sql_cache= b.sql_cache;
   return false;
 }
-
 
 bool Query_options::save_to(Parse_context *pc)
 {
   LEX *lex= pc->thd->lex;
   ulonglong options= query_spec_options;
-
-  switch (sql_cache) {
-  case SELECT_LEX::SQL_CACHE_UNSPECIFIED:
-    break;
-  case SELECT_LEX::SQL_NO_CACHE:
-    if (pc->select != lex->select_lex)
-    {
-      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
-      return true;
-    }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
-    lex->safe_to_cache_query= false;
-    options&= ~OPTION_TO_QUERY_CACHE;
-    pc->select->sql_cache= SELECT_LEX::SQL_NO_CACHE;
-    break;
-  case SELECT_LEX::SQL_CACHE:
-    if (pc->select != lex->select_lex)
-    {
-      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
-      return true;
-    }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
-    lex->safe_to_cache_query= true;
-    options|= OPTION_TO_QUERY_CACHE;
-    pc->select->sql_cache= SELECT_LEX::SQL_CACHE;
-    break;
-  default:
-    DBUG_ASSERT(!"Unexpected cache option!");
-  }
   if (pc->select->validate_base_options(lex, options))
     return true;
   pc->select->set_base_options(options);

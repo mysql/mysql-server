@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,6 @@
 #include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                 // lock_table_names
-#include "sql_cache.h"                // query_cache
 #include "sql_class.h"                // THD
 #include "sql_const.h"
 #include "sql_db.h"                   // get_default_db_collation
@@ -2199,10 +2198,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
       thanks to some error. Such situations should be fairly rare.
     */
     close_all_tables_for_name(thd, table->table->s, true, NULL);
-    /*
-      Prepare TABLE_LIST element for Query Cache invalidation,
-      also marks table as needing MDL release.
-    */
+    // Marks table as needing MDL release.
     table->table= 0;
   }
   else
@@ -2266,12 +2262,6 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     }
     return true;
   }
-
-  /*
-    Invalidate query cache once we deleted table in SE even if we will
-    fail to fully delete the table.
-  */
-  query_cache.invalidate_single(thd, table, false);
 
 #ifdef HAVE_PSI_SP_INTERFACE
   remove_all_triggers_from_perfschema(table->db, *table_def);
@@ -2667,8 +2657,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         DROP DATABASE implementation.
       */
       DBUG_ASSERT(drop_ctx.drop_database);
-
-      query_cache.invalidate_single(thd, table, FALSE);
     }
 
 #ifndef DBUG_OFF
@@ -7252,12 +7240,6 @@ Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(THD *thd,
   else
   {
     /*
-      The 0 in the call below means 'not in a transaction', which means
-      immediate invalidation; that is probably what we wish here
-    */
-    query_cache.invalidate(thd, table_list, FALSE);
-
-    /*
       Storage engine supporting atomic DDL can fully rollback discard/
       import if any problem occurs. This will happen during statement
       rollback.
@@ -10684,9 +10666,6 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
   if (atomic_ddl && old_db_type->post_ddl)
     old_db_type->post_ddl(thd);
 
-  table_list->table= NULL;                    // For query cache
-  query_cache.invalidate(thd, table_list, FALSE);
-
   if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
   {
@@ -12254,9 +12233,6 @@ end_inplace:
 
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
-
-  table_list->table= NULL;			// For query cache
-  query_cache.invalidate(thd, table_list, FALSE);
 
   if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)

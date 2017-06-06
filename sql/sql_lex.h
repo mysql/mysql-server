@@ -982,13 +982,6 @@ private:
 
 public:
   /**
-    In sql_cache we store SQL_CACHE flag as specified by user to be
-    able to restore SELECT statement from internal structures.
-  */
-  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
-  /// Query cache hint (should rather belong in LEX object?)
-  e_sql_cache sql_cache;
-  /**
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
@@ -1692,7 +1685,6 @@ struct Limit_options
 
 struct Query_options {
   ulonglong query_spec_options;
-  enum SELECT_LEX::e_sql_cache sql_cache;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -3673,6 +3665,12 @@ public:
   bool m_extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
+
+  /**
+    Whether this query will return the same answer every time, given unchanged data.
+    Used to be for the query cache, but is now used to find out if an expression
+    is usable for partitioning.
+  */
   bool safe_to_cache_query;
   bool subqueries;
 private:

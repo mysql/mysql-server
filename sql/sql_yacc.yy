@@ -417,7 +417,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 108
+%expect 106
 
 /*
    MAINTAINER:
@@ -998,7 +998,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SQL_BEFORE_GTIDS              /* MYSQL */
 %token  SQL_BIG_RESULT
 %token  SQL_BUFFER_RESULT
-%token  SQL_CACHE_SYM
+%token  OBSOLETE_TOKEN_784            /* was: SQL_CACHE_SYM */
 %token  SQL_CALC_FOUND_ROWS
 %token  SQL_NO_CACHE_SYM
 %token  SQL_SMALL_RESULT
@@ -8586,7 +8586,6 @@ select_options:
           /* empty*/
           {
             $$.query_spec_options= 0;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
           }
         | select_option_list
         ;
@@ -8604,25 +8603,11 @@ select_option:
           query_spec_option
           {
             $$.query_spec_options= $1;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
           }
         | SQL_NO_CACHE_SYM
           {
-            /*
-              Allow this flag only on the first top-level SELECT statement, if
-              SQL_CACHE wasn't specified, and only once per query.
-             */
+            /* Ignored since MySQL 8.0. */
             $$.query_spec_options= 0;
-            $$.sql_cache= SELECT_LEX::SQL_NO_CACHE;
-          }
-        | SQL_CACHE_SYM
-          {
-            /*
-              Allow this flag only on the first top-level SELECT statement, if
-              SQL_NO_CACHE wasn't specified, and only once per query.
-             */
-            $$.query_spec_options= 0;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE;
           }
         ;
 
@@ -10998,7 +10983,6 @@ empty_select_options:
           /* empty */
           {
             $$.query_spec_options= 0;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
           }
         ;
 
@@ -12359,8 +12343,6 @@ flush_option:
           { Lex->type|= REFRESH_BINARY_LOG; }
         | RELAY LOGS_SYM opt_channel
           { Lex->type|= REFRESH_RELAY_LOG; }
-        | QUERY_SYM CACHE_SYM
-          { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
         | HOSTS_SYM
           { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
@@ -12422,7 +12404,6 @@ reset_option:
           slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
           master_reset_options
-        | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
         ;
 
 slave_reset_options:
@@ -13545,7 +13526,6 @@ role_or_label_keyword:
         | SQL_AFTER_GTIDS          {}
         | SQL_AFTER_MTS_GAPS       {}
         | SQL_BEFORE_GTIDS         {}
-        | SQL_CACHE_SYM            {}
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
