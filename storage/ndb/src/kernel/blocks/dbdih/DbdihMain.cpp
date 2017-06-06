@@ -9031,7 +9031,8 @@ Dbdih::execEND_TOCONF(Signal* signal)
 }
 
 void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
-                            bool from_master)
+                            bool from_master,
+                            bool skip_check)
 {
   Uint32 startingNode = takeOverPtr.p->toStartingNode;
   takeOverPtr.p->m_copy_threads_completed = 0;
@@ -9069,17 +9070,21 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
      * has to be taken into account when making the code handle
      * multiple copy nodes per node group.
      */
-    NodeRecordPtr nodePtr;
-    NodeGroupRecordPtr NGPtr;
-    nodePtr.i = startingNode;
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    NGPtr.i = nodePtr.p->nodeGroup;
-    ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
-
-    ndbrequire(NGPtr.p->activeTakeOver != startingNode);
-    if (NGPtr.p->activeTakeOver == 0)
+    if (!skip_check)
     {
-      ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+      jam();
+      NodeRecordPtr nodePtr;
+      NodeGroupRecordPtr NGPtr;
+      nodePtr.i = startingNode;
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      NGPtr.i = nodePtr.p->nodeGroup;
+      ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+
+      ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+      if (NGPtr.p->activeTakeOver == 0)
+      {
+        ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+      }
     }
     c_masterActiveTakeOverList.remove(takeOverPtr);
 

@@ -2082,7 +2082,9 @@ private:
                               Uint32 storedType,
                               TakeOverRecordPtr takeOverPtr);
 
-  void releaseTakeOver(TakeOverRecordPtr takeOverPtr, bool from_master);
+  void releaseTakeOver(TakeOverRecordPtr takeOverPtr,
+                       bool from_master,
+                       bool skip_check = false);
 
 //-------------------------------------------------
 // Methods for take over functionality, master part

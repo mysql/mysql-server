@@ -57,7 +57,7 @@ void Dbdih::initData()
     }
     while (c_masterActiveTakeOverList.first(ptr))
     {
-      releaseTakeOver(ptr, true);
+      releaseTakeOver(ptr, true, true);
     }
   }
   
