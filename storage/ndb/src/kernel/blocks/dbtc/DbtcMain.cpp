@@ -12867,8 +12867,10 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
     }
 
     /**
-     * Possibly need to ContinueB later to avoid too large
-     * chunks of work.
+     * We check for CONTINUEB sending here to limits how many
+     * direct executed 'GSN_DIGETNODESREQ' we can do in
+     * one signal to ensure we keep the rules of not executing
+     * for more than 5-10 microseconds per signal.
      */
     if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
     {
@@ -13313,10 +13315,8 @@ void Dbtc::sendFragScansLab(Signal* signal,
         {
           jam();
           /**
-           * We check for CONTINUEB sending here to limit how many
-           * fragment scans we can start in one signal to ensure we keep the
-           * rules of not executing for more than 5-10 microseconds per
-           * signal.
+           * A max fanout of 1::4 of consumed::produced signals are allowed.
+           * If we are about to produce more, we have to contine later.
            */
 	  if (cntLocSignals > 4)
           {
