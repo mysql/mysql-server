@@ -4113,6 +4113,64 @@ dd_process_dd_indexes_rec(
 	return(true);
 }
 
+/* Get space_id for a general tablespace of a given path info.
+@param[in,out]	path		datafile path
+@param[in,out]	space_id	space id of the tablespace to be filled
+@retval true if space_id is filled. */
+bool
+get_id_by_name(
+	char*		path,
+	uint32*		space_id)
+{
+	char*		temp_buf = nullptr;
+	FilSpace	space;
+
+	/* Remove the path info and get file name. */
+	temp_buf = strrchr(path, OS_PATH_SEPARATOR);
+
+	if (temp_buf == nullptr) {
+		temp_buf = path;
+	} else {
+		++temp_buf;
+	}
+
+	/* Gather space_id for the matching file in fil_system. */
+	for (const fil_node_t* node = fil_node_next(nullptr);
+	     node != nullptr;
+	     node = fil_node_next(node)) {
+		char*	path_name;
+
+		space = node->space;
+
+		/* Remove the path info and get file name. */
+		path_name = strrchr(node->name, OS_PATH_SEPARATOR);
+
+		if (path_name!=nullptr) {
+			++path_name;
+		} else {
+			path_name = node->name;
+		}
+
+		/* Fetch space_id if name matches. */
+		if (strcmp(temp_buf, path_name) == 0) {
+
+			/* Skip data dictionary tablespace and temp tablespace. */
+			if (space()->id == 0xFFFFFFFE
+			    || space()->id == dict_sys->temp_space_id) {
+				return(false);
+			}
+
+			*space_id = space()->id;
+
+			return(true);
+		}
+
+		space = nullptr;
+	}
+
+	return(false);
+}
+
 /** Process one mysql.tablespace_files record and get information from it
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
@@ -4136,11 +4194,20 @@ dd_process_dd_datafiles_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_files->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
+	/* Get the data file path. */
+	field = rec_get_nth_field(rec, offsets, 4, &len);
+	*path = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(*path, 0, len + 1);
+	memcpy(*path, field, len);
+
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
-		return(false);
+		/* For general tablespaces we don't store se_private_data field
+		in dd::Tablespace_files. So we retrieve the space_id for the
+		tablspace by querying the fil system. */
+		return(get_id_by_name(*path, space_id));
 	}
 
 	/* Get space id. */
@@ -4167,12 +4234,6 @@ dd_process_dd_datafiles_rec(
 		delete p;
 		return(false);
 	}
-
-	/* Get the data file path. */
-	field = rec_get_nth_field(rec, offsets, 4, &len);
-	*path = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
-	memset(*path, 0, len + 1);
-	memcpy(*path, field, len);
 
 	delete p;
 	return(true);

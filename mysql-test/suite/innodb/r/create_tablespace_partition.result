@@ -156,6 +156,8 @@ test/t2#p#thousands#sp#subpart32	innodb_file_per_table.##	97	5	Dynamic	0	Single
 test/t3	innodb_file_per_table.##	97	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
+s`1	General	DEFAULT	0	Any	s-1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
@@ -434,6 +436,8 @@ test/t2#p#thousands#sp#subpart32	innodb_file_per_table.##	33	5	Dynamic	0	Single
 test/t3	innodb_file_per_table.##	97	4	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
+s`1	General	DEFAULT	0	Any	s-1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t3.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd

@@ -59,6 +59,7 @@ Error	1031	Table storage engine for 's_32k' doesn't have this option
 CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_64k	General	DEFAULT	0	Any	s_64k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
@@ -133,6 +134,7 @@ INSERT INTO t_dyn_in_64k VALUES (4,'d');
 # restart
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_64k	General	DEFAULT	0	Any	s_64k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	s_64k.ibd

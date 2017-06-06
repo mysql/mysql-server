@@ -269,6 +269,7 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1_restart.ibd
@@ -481,6 +482,7 @@ innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p0#sp#s1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s2.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t7_restart#p#p1#sp#s3.ibd
+s1_restart	General	DEFAULT	0	Any	s1_restart.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1_restart.ibd

@@ -661,6 +661,10 @@ test/t_file_per_table_off	innodb_system	161	5	Dynamic	0	System
 test/t_file_per_table_on	innodb_file_per_table.##	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+ts_part1	General	DEFAULT	0	Any	ts_part1.ibd
+ts part2	General	DEFAULT	0	Any	ts_part2.ibd
+ts_part3	General	DEFAULT	0	Any	ts_part3.ibd
+ts_part4	General	DEFAULT	0	Any	ts_part4.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p1#sp#sp4.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp10.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2#p#p3#sp#sp11.ibd
