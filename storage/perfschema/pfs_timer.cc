@@ -222,6 +222,41 @@ void init_timers(void)
     /* Robustness, no known cases. */
     idle_timer= TIMER_NAME_CYCLE;
   }
+
+  /*
+    For WAIT, the cycle timer is used by default. However, it is not available
+    on all architectures. Fall back to the nanosecond timer in this case. It is
+    unlikely that neither cycle nor nanosecond are available, but we continue
+    probing less resolution timers anyway for considency with other events.
+  */
+  if (cycle_to_pico != 0)
+  {
+    /* Normal case. */
+    wait_timer= TIMER_NAME_CYCLE;
+  }
+  else if (nanosec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_NANOSEC;
+  }
+  else if (microsec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_MICROSEC;
+  }
+  else if (millisec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_MILLISEC;
+  }
+  else
+  {
+    /*
+       Will never be reached on any architecture, but must provide a default if
+       no other timers are available.
+    */
+    wait_timer= TIMER_NAME_TICK;
+  }
 }
 
 ulonglong get_timer_raw_value(enum_timer_name timer_name)
