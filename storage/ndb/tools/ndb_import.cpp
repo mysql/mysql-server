@@ -306,6 +306,10 @@ usage()
 
 // check opts and args
 
+// opts
+static std::string g_state_dir;
+
+// args
 struct TableArg {
   std::string m_table;
   std::string m_input_file;
@@ -326,6 +330,26 @@ const char* g_reserved_extension[] = {
   0
 };
 
+/*
+ * File I/O functions in the Windows API convert "/" to "\" (says
+ * MicroSoft).  MTR uses "/" and converts it to "\" when needed.
+ * It does not recognize paths in ndb_import options and arguments.
+ * We solve the mess by converting all "\" to "/".  Messages will
+ * show the converted paths, fix later if it matters.
+ */
+static void
+convertpath(std::string& str)
+{
+#ifdef _WIN32
+  // std::replace() exists but following is more clear
+  for (uint i = 0; i < (uint)str.size(); i++)
+  {
+    if (str[i] == '\\')
+      str[i] = '/';
+  }
+#endif
+}
+
 static int
 checkarg(TableArg& arg, const char* str)
 {
@@ -333,6 +357,7 @@ checkarg(TableArg& arg, const char* str)
   do
   {
     std::string full = str;     // foo/t1.bar.csv
+    convertpath(full);
     std::string base = full;    // t1.bar.csv
     std::size_t slash = full.rfind("/");
     if (slash != std::string::npos)
@@ -420,6 +445,9 @@ checkopts(int argc, char** argv)
     CHK1(checkerrins() == 0);
     if (g_opt.m_csvopt != 0)
       CHK1(checkcsvopt() == 0);
+    g_state_dir = g_opt.m_state_dir;
+    convertpath(g_state_dir);
+    g_opt.m_state_dir = g_state_dir.c_str();
     CHK2(argc >= 1, "database argument is required, use --help for help");
     g_opt.m_database = argv[0];
     argc--;
