@@ -5508,8 +5508,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
  *
  * 3) Before starting a local LCP we need to set state to
  *    not restorable on its own with a proper GCI.
- *    Cannot happen in parallel with any other write of
- *    the local sysfile.
+ *    Can happen in parallel with 4) below.
  *    Sent by NDBCNTR
  *
  * 4) At each GCP_SAVEREQ after starting a local LCP we
@@ -5525,7 +5524,19 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
 
   ndbrequire(c_local_sysfile.m_initial_read_done);
   ndbrequire(!c_local_sysfile.m_last_write_done);
-  ndbrequire(c_local_sysfile.m_sender_ref == 0);
+  if (c_local_sysfile.m_sender_ref != 0)
+  {
+    /**
+     * 3) and 4) above happened concurrently, let one of them simply
+     * wait, should be a very rare event.
+     */
+    sendSignalWithDelay(reference(),
+                        GSN_WRITE_LOCAL_SYSFILE_REQ,
+                        signal,
+                        10,
+                        WriteLocalSysfileReq::SignalLength);
+    return;
+  }
   ndbrequire(c_local_sysfile.m_state == LocalSysfile::NOT_USED);
 
   c_local_sysfile.m_sender_data = req.userPointer;
