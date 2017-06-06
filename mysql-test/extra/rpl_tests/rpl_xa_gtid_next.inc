@@ -49,7 +49,9 @@ if (!$xa_error_simul)
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT = '$gtid_phase1'
 --eval XA START   $xid
+--disable_warnings
 --eval INSERT INTO $xa_table VALUES(1)
+--enable_warnings
 --eval XA END     $xid
 --eval XA PREPARE $xid
 
