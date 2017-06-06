@@ -8873,7 +8873,6 @@ fil_tablespace_name_recover(
 			std::string	to(
 				reinterpret_cast<const char*>(new_name));
 
-			/* Fixme: wl#9536 replay rename only by ddl log */
 			if (!fil_op_replay_rename(
 				page_id, from.c_str(), to.c_str())) {
 

@@ -7782,7 +7782,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 		if (fail) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
 			mtr_commit(&mtr);
-			//trx_rollback_for_mysql(trx);
 		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 #ifdef INNODB_NO_NEW_DD
@@ -7790,19 +7789,14 @@ ha_innobase::commit_inplace_alter_table_impl(
 #endif /* INNODB_NO_NEW_DD */
 
 			/* The following call commits the
-			mini-transaction, making the data dictionary
-			transaction committed at mtr.end_lsn. The
-			transaction becomes 'durable' by the time when
+			mini-transaction, The rename becomes
+			'durable' by the time when
 			log_buffer_flush_to_disk() returns. In the
 			logical sense the commit in the file-based
 			data structures happens here. */
 			mtr_commit(&mtr);
 		}
 
-		/* If server crashes here, the dictionary in
-		InnoDB and MySQL will differ.  The .ibd files
-		and the .frm files must be swapped manually by
-		the administrator. No loss of data. */
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
 				log_make_checkpoint_at(LSN_MAX, TRUE);
 				log_buffer_flush_to_disk();
