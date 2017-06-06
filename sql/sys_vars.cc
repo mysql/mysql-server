@@ -2317,6 +2317,13 @@ static Sys_var_ulong Sys_max_connections(
        /* max_connections is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
 
+static Sys_var_ulong Sys_super_connections(
+       "super_connections", "The number of connections reserved for SUPER user",
+       GLOBAL_VAR(super_connections), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 100000),
+       DEFAULT(1),
+       BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_max_connect_errors(
        "max_connect_errors",
        "If there is more than this number of interrupted connections from "

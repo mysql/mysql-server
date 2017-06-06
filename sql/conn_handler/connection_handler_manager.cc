@@ -92,8 +92,8 @@ bool Connection_handler_manager::check_and_incr_conn_count()
   bool connection_accepted= true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
-    Here we allow max_connections + 1 clients to connect
-    (by checking before we increment by 1).
+    Here we allow max_connections + super_connections clients to connect
+    (by checking before we increment by super_connections).
 
     The last connection is reserved for SUPER users. This is
     checked later during authentication where valid_connection_count()
@@ -107,7 +107,7 @@ bool Connection_handler_manager::check_and_incr_conn_count()
   else
   {
     ++connection_count;
-    if (connection_count > max_used_connections)
+    if (connection_count >= max_used_connections + super_connections)
     {
       max_used_connections= connection_count;
       max_used_connections_time= (ulong)my_time(0);
