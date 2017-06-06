@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -52,6 +52,8 @@ protected:
 
   void add_document_object(const Projection_list &projection, const Object_item_adder &adder) const;
   void add_document_primary_projection_item(const Projection &item) const;
+
+  void add_row_locking(const Find &msg) const;
 };
 
 } // namespace xpl

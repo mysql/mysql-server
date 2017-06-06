@@ -191,6 +191,32 @@ Mysqlx.Crud.Find {
 -->callmacro Show_sql_history
 
 -->callmacro Clear_sql_history
+-->echo ######### Crud.Find with shared lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: SHARED_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
+-->echo ######### Crud.Find with exclusive lock #########
+Mysqlx.Crud.Find {
+  collection {
+    name: "test"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  locking: EXCLUSIVE_LOCK
+}
+-->recvresult
+-->callmacro Show_sql_history
+
+-->callmacro Clear_sql_history
 -->echo ######### Crud.Delete #########
 Mysqlx.Crud.Delete {
   collection { name: "test" schema: "xtest"}

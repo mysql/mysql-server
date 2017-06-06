@@ -67,6 +67,22 @@ command ok
 Query
 SELECT doc FROM `xtest`.`test`
 0 rows affected
+######### Crud.Find with shared lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR SHARE
+0 rows affected
+######### Crud.Find with exclusive lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR UPDATE
+0 rows affected
 ######### Crud.Delete #########
 
 1 rows affected

@@ -260,7 +260,7 @@ TEST(xpl_expr_generator, column_identifier_no_column) {
                Expression_generator::Error);
 
   Document_path::Path path("member");
-  ColumnIdentifier ident2(EMPTY, "table", EMPTY, &path);
+  ColumnIdentifier ident2(path, EMPTY, "table", EMPTY);
   ASSERT_EQ("JSON_EXTRACT(`table`.doc,'$.member')",
             generate_expression(ident2, EMPTY_SCHEMA, DM_DOCUMENT));
 }
@@ -431,8 +431,9 @@ TEST(xpl_expr_generator, complex_expressions) {
 }
 
 TEST(xpl_expr_generator, document_path_root) {
+  Document_path::Path path;
   EXPECT_EQ("'$'",
-            generate_expression(Document_path(Document_path::Path(EMPTY)),
+            generate_expression(Document_path(path.add_member(EMPTY)),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 

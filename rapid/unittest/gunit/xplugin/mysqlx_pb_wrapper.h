@@ -67,7 +67,8 @@ class ColumnIdentifier : public Mysqlx::Expr::ColumnIdentifier {
                    const Document_path::Path *path = NULL);
   ColumnIdentifier(const Document_path &path, const std::string &name = "",
                    const std::string &table_name = "",
-                   const std::string &schema_name = "");
+                   const std::string &schema_name =
+                       "");  // NOLINT(runtime/explicit)
 };
 
 class Scalar : public Mysqlx::Datatypes::Scalar {
@@ -79,21 +80,21 @@ class Scalar : public Mysqlx::Datatypes::Scalar {
   };
 
   struct Octets : public Mysqlx::Datatypes::Scalar_Octets {
-    Octets(const std::string &value, unsigned type);
+    Octets(const std::string &value, unsigned type = 0);
   };
 
   Scalar() {}
-  Scalar(int value);
-  Scalar(unsigned int value);
-  Scalar(bool value);
-  Scalar(float value);
-  Scalar(double value);
-  Scalar(const char *value, unsigned type = 0);
-  Scalar(Scalar::Octets *value);
-  Scalar(const Scalar::Octets &value);
-  Scalar(Scalar::String *value);
-  Scalar(const Scalar::String &value);
-  Scalar(Null value);
+  Scalar(int value);                             // NOLINT(runtime/explicit)
+  Scalar(unsigned int value);                    // NOLINT(runtime/explicit)
+  Scalar(bool value);                            // NOLINT(runtime/explicit)
+  Scalar(float value);                           // NOLINT(runtime/explicit)
+  Scalar(double value);                          // NOLINT(runtime/explicit)
+  Scalar(const char *value, unsigned type = 0);  // NOLINT(runtime/explicit)
+  Scalar(Scalar::Octets *value);                 // NOLINT(runtime/explicit)
+  Scalar(const Scalar::Octets &value);           // NOLINT(runtime/explicit)
+  Scalar(Scalar::String *value);                 // NOLINT(runtime/explicit)
+  Scalar(const Scalar::String &value);           // NOLINT(runtime/explicit)
+  Scalar(Null value);                            // NOLINT(runtime/explicit)
 };
 
 class Any : public Mysqlx::Datatypes::Any {
@@ -108,9 +109,9 @@ class Any : public Mysqlx::Datatypes::Any {
       friend class Array;
     };
 
-    Array(const Scalar_values &values);
-    Array(const Scalar &value);
-    Array(const Object &value);
+    Array(const Scalar_values &values);  // NOLINT(runtime/explicit)
+    Array(const Scalar &value);          // NOLINT(runtime/explicit)
+    Array(const Object &value);          // NOLINT(runtime/explicit)
     Array &operator()(const Scalar &value);
     Array &operator()(const Object &value);
     Array() {}
@@ -134,16 +135,18 @@ class Any : public Mysqlx::Datatypes::Any {
       friend class Object;
     };
 
-    Object(const Scalar_fields &values);
-    Object(const Fields &values);
+    Object(const Scalar_fields &values);  // NOLINT(runtime/explicit)
+    Object(const Fields &values);         // NOLINT(runtime/explicit)
+    Object(const std::string &key, const Any &value);
     Object() {}
+    Object &operator()(const std::string &key, const Any &value);
   };
 
   Any() {}
-  Any(Scalar *scalar);
-  Any(const Scalar &scalar);
-  Any(const Object &obj);
-  Any(const Array &array);
+  Any(Scalar *scalar);        // NOLINT(runtime/explicit)
+  Any(const Scalar &scalar);  // NOLINT(runtime/explicit)
+  Any(const Object &obj);     // NOLINT(runtime/explicit)
+  Any(const Array &array);    // NOLINT(runtime/explicit)
 };
 
 class Placeholder {
@@ -352,13 +355,17 @@ template <typename B, typename T>
 class RepeatedPtrField : public ::google::protobuf::RepeatedPtrField<B> {
  public:
   RepeatedPtrField() {}
+  RepeatedPtrField(const T &arg) { *this->Add() = arg; }
   RepeatedPtrField(std::initializer_list<T> list) {
     for (const T &e : list) *this->Add() = e;
   }
 };
 
 using Filter = Expr;
+using Group = Expr;
+using Grouping_criteria = Expr;
 using Column_projection_list = RepeatedPtrField<Mysqlx::Crud::Column, Column>;
+using Grouping_list = RepeatedPtrField<Mysqlx::Expr::Expr, Group>;
 using Expression_args = RepeatedPtrField<Mysqlx::Datatypes::Scalar, Scalar>;
 using Field_list = RepeatedPtrField<Mysqlx::Expr::Expr, Expr>;
 using Order_list = RepeatedPtrField<Mysqlx::Crud::Order, Order>;

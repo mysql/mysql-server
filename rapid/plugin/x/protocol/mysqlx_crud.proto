@@ -116,8 +116,14 @@ message UpdateOperation {
 // :param order: sort-order in which the rows/document shall be returned in
 // :param grouping: column expression list for aggregation (GROUP BY)
 // :param grouping_criteria: filter criteria for aggregated groups
+// :param locking: perform row locking on matches
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Find {
+  enum RowLock {
+    SHARED_LOCK = 1;   // Lock matching rows against updates
+    EXCLUSIVE_LOCK = 2;  // Lock matching rows so no other transaction can read or write to it
+  };
+
   required Collection collection = 2;
 
   optional DataModel data_model = 3;
@@ -128,6 +134,7 @@ message Find {
   repeated Order order = 7;
   repeated Mysqlx.Expr.Expr grouping = 8;
   optional Mysqlx.Expr.Expr grouping_criteria = 9;
+  optional RowLock locking = 12;
 };
 
 // Insert documents/rows into a collection/table
