@@ -810,7 +810,7 @@ update_hidden:
     share->db_plugin= ha_lock_engine(0, myisam_hton);
     table->file= get_new_handler(share, &table->mem_root,
                                  share->db_type());
-    if (group &&
+    if (group && table->file &&
 	(param->group_parts > table->file->max_key_parts() ||
 	 param->group_length > table->file->max_key_length()))
       using_unique_constraint= true;
@@ -1874,7 +1874,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   filesort_free_buffers(entry, true);
 
-  if (entry->is_created())
+  if (entry->file && entry->is_created())
   {
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
