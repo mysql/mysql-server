@@ -1292,14 +1292,7 @@ public:
     // Timer for checking timeout of this fragment scan
     Uint32  scanFragTimer;
 
-    /**
-     * Id of the current scanned fragment
-     * scanFragId can differ from lqhScanFragId for fully replicated
-     * tables where the full fragments are copies and DIGETNODESREQ
-     * might change the lqhScanFragId to differ from scanFragId to
-     * read a local fragment replica.
-     */
-    Uint32 scanFragId;
+    // Fragment id as reported back by DIGETNODESREQ
     Uint32 lqhScanFragId;
 
     // Blockreference of LQH 

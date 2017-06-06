@@ -12517,7 +12517,6 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
     }
     ptr.p->scanFragState = ScanFragRec::IDLE;
     ptr.p->scanRec = scanptr.i;
-    ptr.p->scanFragId = 0;
     ptr.p->lqhScanFragId = 0;
     ptr.p->lqhBlockref = 0;
     ptr.p->m_apiPtr = apiPtr[i];
@@ -12850,8 +12849,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr)
     ndbassert(scanP->scanState == ScanRecord::RUNNING);
     ndbassert(tabPtr.p->checkTable(schemaVersion) == true);
 
-    const Uint32 scanFragId = scanP->scanNextFragId;
-    const bool success = sendDihGetNodeReq(signal, scanptr, scanFragId);
+    const bool success = sendDihGetNodeReq(signal, scanptr, scanP->scanNextFragId);
     if (!success)
     {
       jam();
@@ -14015,13 +14013,13 @@ bool Dbtc::sendScanFragReq(Signal* signal,
 
   const Uint32 fragId = ptr.p->fragId;
   const Uint32 lqhBlockRef = ptr.p->blockRef;
+  scanP->scanNextFragId++;
   frags.releaseFirst();  //Consumed it
 
   const NodeId nodeId = refToNode(lqhBlockRef);
   Uint32 requestInfo = scanP->scanRequestInfo;
 
   ndbassert(scanFragP.p->scanFragState == ScanFragRec::IDLE);
-  scanFragP.p->scanFragId = scanP->scanNextFragId++;
   scanFragP.p->lqhBlockref = lqhBlockRef;
   scanFragP.p->lqhScanFragId = fragId;
   scanFragP.p->m_connectCount = getNodeInfo(nodeId).m_connectCount;
@@ -15198,10 +15196,9 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     ScanFragRecPtr sfp;
     sfp.i = recordNo;
     c_scan_frag_pool.getPtr(sfp);
-    infoEvent("Dbtc::ScanFragRec[%d]: state=%d fragid=%u, lqhFragId=%u",
+    infoEvent("Dbtc::ScanFragRec[%d]: state=%d, lqhFragId=%u",
 	      sfp.i,
 	      sfp.p->scanFragState,
-	      sfp.p->scanFragId,
               sfp.p->lqhScanFragId);
     infoEvent(" nodeid=%d, timer=%d",
 	      refToNode(sfp.p->lqhBlockref),
