@@ -1039,6 +1039,27 @@ static
 const
 int NbClassification = sizeof(StatusClassificationMapping)/sizeof(ErrorStatusClassification);
 
+int ndb_error_get_next(int index, int* err_no,
+                       const char** status_msg,
+                       const char** class_msg,
+                       const char** error_msg)
+{
+  ndberror_struct error;
+
+  if (index >= NbErrorCodes)
+    return -1; // No error message with that index
+
+  error.code = ErrorCodes[index].code;
+  ndberror_update(&error);
+
+  *err_no = ErrorCodes[index].code;
+  *error_msg = error.message;
+  *status_msg = ndberror_status_message(error.status);
+  *class_msg = ndberror_classification_message(error.classification);
+
+  return index+1;
+}
+
 
 void
 ndberror_update(ndberror_struct * error){

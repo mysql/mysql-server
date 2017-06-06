@@ -1757,3 +1757,29 @@ API	14	16 32 48 49 63 127 192 228 229 230 231 232 233 255
 MGM	1	3
 NDB	2	1 2
 
+
+#
+# Bug#26048272  IMPLEMENT NDBINFO TABLE FOR LOOKUP OF ERROR CODES AND MESSAGES
+#
+select *
+  from ndbinfo.error_messages
+  where error_code = 920;
+error_code	error_description	error_status	error_classification
+920	Row operation defined after refreshTuple()	Permanent error	Application error
+
+select *
+  from ndbinfo.error_messages
+  where error_code = 2304;
+error_code	error_description	error_status	error_classification
+2304	Array index out of range	Temporary error, restart node	Internal error, programming error or missing error message, please report a bug
+
+select *
+  from ndbinfo.error_messages
+  where error_code = 5001;
+error_code	error_description	error_status	error_classification
+5001		Usage error	
+
+select count(*) > 700
+  from ndbinfo.error_messages;
+count(*) > 700
+1
