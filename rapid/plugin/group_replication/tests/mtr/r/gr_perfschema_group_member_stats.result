@@ -30,6 +30,10 @@ INSERT INTO t1 VALUES (3);
 INSERT INTO t1 values (4);
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 server2
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1' was already used, the transaction will rollback");
+call mtr.add_suppression("The requested GTID 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2' was already used, the transaction will rollback");
+SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 # Apply some transactions on the first member so that the queue of the second member is not empty.
 server1
@@ -60,6 +64,7 @@ include/assert.inc ['Transactions_committed_all_members must be equal to expecte
 SET SESSION sql_log_bin= 0;
 include/gtid_utils_end.inc
 SET SESSION sql_log_bin= 1;
+include/diff_tables.inc [server1:t1, server2:t1]
 DROP TABLE t1;
 ####################################
 The values being checked after stop
