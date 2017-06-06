@@ -4651,6 +4651,7 @@ Dbdih::updateToReq_fragmentMutex_locked(Signal * signal,
        */
       jam();
       NGPtr.p->activeTakeOver = 0;
+      NGPtr.p->activeTakeOverCount = 0;
     }
     takeOverPtr.p->toCopyNode = RNIL;
     Mutex mutex(signal, c_mutexMgr, 
@@ -9032,6 +9033,7 @@ Dbdih::execEND_TOCONF(Signal* signal)
 void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
                             bool from_master)
 {
+  Uint32 startingNode = takeOverPtr.p->toStartingNode;
   takeOverPtr.p->m_copy_threads_completed = 0;
   takeOverPtr.p->m_number_of_copy_threads = (Uint32)-1;
   takeOverPtr.p->m_copy_thread_id = (Uint32)-1;
@@ -9048,7 +9050,39 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
 
   if (from_master)
   {
+    jam();
+    /**
+     * We need to ensure that we don't leave any activeTakeOver
+     * lying around since this will block any future restarts in
+     * this node group.
+     *
+     * TODO:
+     * We should make take over be parallelised within one node
+     * group. There is really nothing preventing multiple nodes
+     * to copy different fragments to a starting node in case
+     * we have more than 2 replicas.
+     *
+     * Note that the setting of toCopyNode within the master is a
+     * bit weird, it is set in all UPDATE_TOREQ, but the release
+     * code assumes that it was done only when starting BEFORE_STORED
+     * and ended when acquiring the mutex for BEFORE_COMMIT. So this
+     * has to be taken into account when making the code handle
+     * multiple copy nodes per node group.
+     */
+    NodeRecordPtr nodePtr;
+    NodeGroupRecordPtr NGPtr;
+    nodePtr.i = startingNode;
+    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    NGPtr.i = nodePtr.p->nodeGroup;
+    ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+
+    ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+    if (NGPtr.p->activeTakeOver == 0)
+    {
+      ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+    }
     c_masterActiveTakeOverList.remove(takeOverPtr);
+
   }
   c_takeOverPool.release(takeOverPtr);
 }//Dbdih::releaseTakeOver()
@@ -9675,6 +9709,7 @@ Dbdih::handleTakeOver(Signal* signal, TakeOverRecordPtr takeOverPtr)
     {
       jam();
       NGPtr.p->activeTakeOver = 0;
+      NGPtr.p->activeTakeOverCount = 0;
     }
     releaseTakeOver(takeOverPtr, true);
     return;
@@ -23951,7 +23986,8 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
         loopNGPtr.p->nodesInGroup[3] = RNIL;
         loopNGPtr.p->nextReplicaNode = 0;
         loopNGPtr.p->nodeCount = 0;
-        loopNGPtr.p->activeTakeOver = false;
+        loopNGPtr.p->activeTakeOver = 0;
+        loopNGPtr.p->activeTakeOverCount = 0;
         loopNGPtr.p->nodegroupIndex = RNIL;
         loopNGPtr.p->m_ref_count = 0;
         loopNGPtr.p->m_next_log_part = 0;
