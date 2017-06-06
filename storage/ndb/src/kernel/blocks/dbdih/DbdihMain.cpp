@@ -8413,6 +8413,7 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
   jamEntry();
   UpdateToRef* ref = (UpdateToRef*)signal->getDataPtr();
   Uint32 errCode = ref->errorCode;
+  Uint32 extra = ref->extra;
   (void)errCode; // TODO check for "valid" error
 
   TakeOverRecordPtr takeOverPtr;
@@ -8422,9 +8423,12 @@ Dbdih::execUPDATE_TOREF(Signal* signal)
 
   c_takeOverPool.getPtr(takeOverPtr, c_activeThreadTakeOverPtr.i);
 
-  g_eventLogger->info("UPDATE_TOREF: thread: %u, state:%u",
+  g_eventLogger->info("UPDATE_TOREF: thread: %u, state:%u"
+                      ", errCode: %u, extra: %u",
                       takeOverPtr.i,
-                      takeOverPtr.p->toSlaveStatus);
+                      takeOverPtr.p->toSlaveStatus,
+                      errCode,
+                      extra);
   signal->theData[0] = DihContinueB::ZSEND_UPDATE_TO;
   signal->theData[1] = takeOverPtr.i;
   
