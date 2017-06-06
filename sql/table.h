@@ -24,6 +24,7 @@
 #include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
