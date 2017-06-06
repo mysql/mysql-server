@@ -22,6 +22,7 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
+#include <RWPool.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
 #include <DataBuffer.hpp>
@@ -1225,12 +1226,29 @@ public:
    * Specify the location of a fragment. The 'blockRef' is either
    * the specific LQH where the fragId resides, or the SPJ block
    * responsible for scaning this fragment, if 'viaSPJ'.
-   */ 
-  struct ScanFragLocation
+   */
+  struct ScanFragLocationRec
   {
     Uint32 blockRef;
     Uint32 fragId;
-  }; 
+
+    /**
+     * Next ptr (used in pool/list)
+     */
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+
+    Uint32 m_magic;    //Needed by RWPool
+  };
+
+  typedef Ptr<ScanFragLocationRec> FragLocationPtr;
+  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > FragLocation_pool;
+  typedef SLFifoList<ScanFragLocationRec, FragLocation_pool> FragLocation_list;
+  typedef LocalSLFifoList<ScanFragLocationRec, FragLocation_pool> Local_FragLocation_list;
+
+  FragLocation_pool m_fragLocationPool;
 
   /**
    * There is max 16 ScanFragRec's for 
@@ -1402,11 +1420,8 @@ public:
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
 
-    //ArrayPool<ScanFragLocation> m_fragLocationPool;
-
-    // Temp solution to storing a fragLocations-list
-    // Will be changed in later patches
-    ScanFragLocation fragLocations[256]; //Indexed with scanNextFragId
+    // List of fragment locations as reported by DIH
+    FragLocation_list::Head m_fragLocations;
 
     ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
