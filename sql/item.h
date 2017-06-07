@@ -4711,7 +4711,7 @@ public:
   bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   Ref_Type ref_type() const override { return DIRECT_REF; }
-  type_conversion_status save_in_field_inner(Field *to, bool no_conversions);
+  type_conversion_status save_in_field_inner(Field *to, bool no_conversions) override;
 };
 
 /**

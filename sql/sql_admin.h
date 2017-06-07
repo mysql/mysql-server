@@ -77,7 +77,7 @@ public:
   ~Sql_cmd_analyze_table()
   {}
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   enum_sql_command sql_command_code() const override
   {
