@@ -99,7 +99,7 @@ perl mysql-test-run.pl --comment=all-binlogformat-mix --vardir=var-binlogformat-
 perl mysql-test-run.pl --comment=all-binlogformat-row --vardir=var-binlogformat-row --force --timer --debug-server --parallel=auto --suite=main,sys_vars,federated,gis,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,innodb,innodb_fts,innodb_gis,innodb_zip,innodb_undo,json,x --mysqld=--log-bin --mysqld=--binlog_format=row
 
 # Run default suites with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-tablespace-2 --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
 ######END OF SECTION (DEFAULT SUITES (EXTENDED-WEEKLY))######################
 
 
