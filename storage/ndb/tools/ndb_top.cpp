@@ -261,7 +261,7 @@ my_long_options[] =
    &opt_color, &opt_color, 0, GET_BOOL,
    OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"text", 'x',
-   "Use text instead of ASCII graphs",
+   "Use text to represent data",
    &opt_text, &opt_text, 0, GET_BOOL,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"graph", 'g',
