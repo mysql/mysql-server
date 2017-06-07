@@ -317,6 +317,18 @@ delete from mysql.tables_priv where user='mysqltest_1' or user="mysqltest_2" or 
 delete from mysql.columns_priv where user='mysqltest_1' or user="mysqltest_2" or user="mysqltest_3";
 flush privileges;
 drop table t1;
+create table t1 (abcdefghijklmnopqrstuvwxyz int);
+GRANT select (abcdefghijklmnopqrstuvwxyz) on t1 to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+show grants for mysqltest_1@localhost;
+Grants for mysqltest_1@localhost
+GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
+GRANT SELECT (`abcdefghijklmnopqrstuvwxyz`) ON `test`.`t1` TO `mysqltest_1`@`localhost`
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+table_priv	column_priv
+	Select
+drop table t1;
 GRANT FILE on mysqltest.*  to mysqltest_1@localhost;
 ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
 select 1;
@@ -444,12 +456,13 @@ ERROR HY000: Operation DROP USER failed for 'drop_user1'@'localhost','drop_user2
 drop table t1;
 grant usage on *.* to mysqltest_1@localhost identified by "password";
 Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 grant select, update, insert on test.* to mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
 GRANT SELECT, INSERT, UPDATE ON `test`.* TO `mysqltest_1`@`localhost`
+GRANT SELECT (`abcdefghijklmnopqrstuvwxyz`) ON `test`.`t1` TO `mysqltest_1`@`localhost`
 drop user mysqltest_1@localhost;
 SET NAMES koi8r;
 CREATE DATABASE ÂÄ;

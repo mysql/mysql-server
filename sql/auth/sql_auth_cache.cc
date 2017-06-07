@@ -855,7 +855,8 @@ bool GRANT_TABLE::init(TABLE *col_privs)
                         DBUG_SET("-d,simulate_out_of_memory"););
         return true;
       }
-      hash_columns.emplace(mem_check->column, mem_check);
+      hash_columns.emplace(mem_check->column,
+                           unique_ptr_destroy_only<GRANT_COLUMN>(mem_check));
 
       error= col_privs->file->ha_index_next(col_privs->record[0]);
       DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||

@@ -272,7 +272,8 @@ class GRANT_TABLE :public GRANT_NAME
 {
 public:
   ulong cols;
-  collation_unordered_multimap<std::string, GRANT_COLUMN*> hash_columns;
+  collation_unordered_multimap
+    <std::string, unique_ptr_destroy_only<GRANT_COLUMN>> hash_columns;
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);

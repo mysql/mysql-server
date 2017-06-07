@@ -2162,7 +2162,9 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
         goto end;
       }
       grant_column= new (*THR_MALLOC) GRANT_COLUMN(column->column,privileges);
-      g_t->hash_columns.emplace(grant_column->column, grant_column);
+      g_t->hash_columns.emplace
+        (grant_column->column,
+         unique_ptr_destroy_only<GRANT_COLUMN>(grant_column));
     }
   }
 

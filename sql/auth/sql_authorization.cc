@@ -1283,7 +1283,7 @@ void get_table_access_map(ACL_USER *acl_user,
           for (const auto &key_and_value : grant_table->hash_columns)
           {
             String q_col_name;
-            GRANT_COLUMN *col= key_and_value.second;
+            GRANT_COLUMN *col= key_and_value.second.get();
             // TODO why can this be 0x0 ?!
             if (col)
             {
@@ -2735,7 +2735,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       column_priv= 0;
       for (const auto &key_and_value : grant_table->hash_columns)
       {
-        grant_column= key_and_value.second;
+        grant_column= key_and_value.second.get();
         grant_column->rights&= ~rights;         // Fix other columns
         column_priv|= grant_column->rights;
       }
@@ -5913,7 +5913,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
           {
             for (const auto &key_and_value : grant_table->hash_columns)
             {
-              GRANT_COLUMN *grant_column = key_and_value.second;
+              GRANT_COLUMN *grant_column = key_and_value.second.get();
               if ((grant_column->rights & j) && (table_access & j))
               {
                 if (update_schema_privilege(thd, table, buff, grant_table->db,
