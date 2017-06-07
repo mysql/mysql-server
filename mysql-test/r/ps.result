@@ -2700,6 +2700,8 @@ drop table if exists t1;
 create table t1 (a int, b char(5)) engine=myisam;
 insert into t1 values (1, "one"), (2, "two"), (3, "three");
 SET GLOBAL new_cache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	new_cache.key_buffer_size syntax is deprecated and will be removed in a future release
 create procedure proc_1() cache index t1 in new_cache;
 call proc_1();
 Table	Op	Msg_type	Msg_text
@@ -2712,6 +2714,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	assign_to_keycache	status	OK
 drop procedure proc_1;
 SET GLOBAL second_cache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	second_cache.key_buffer_size syntax is deprecated and will be removed in a future release
 prepare abc from "cache index t1 in second_cache";
 execute abc;
 Table	Op	Msg_type	Msg_text

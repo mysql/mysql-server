@@ -560,12 +560,16 @@ YES
 # SQLCOM_ASSIGN_TO_KEYCACHE
 #
 set global keycache.key_buffer_size=128*1024;
+Warnings:
+Warning	1287	keycache.key_buffer_size syntax is deprecated and will be removed in a future release
 INSERT INTO db1.trans (a) VALUES (1);
 cache index t3 in keycache;
 CALL db1.test_if_commit();
 IMPLICIT COMMIT
 YES
 set global keycache.key_buffer_size=0;
+Warnings:
+Warning	1287	keycache.key_buffer_size syntax is deprecated and will be removed in a future release
 #
 # SQLCOM_PRELOAD_KEYS
 #

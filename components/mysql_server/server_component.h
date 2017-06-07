@@ -46,6 +46,9 @@ void dynamic_loader_scheme_file_init();
 void dynamic_loader_scheme_file_deinit();
 
 void mysql_string_services_init();
+
+void mysql_comp_sys_var_services_init();
+
 /* implementation of the built-in components */
 
 /**

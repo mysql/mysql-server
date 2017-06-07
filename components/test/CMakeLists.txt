@@ -13,6 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/sql)
+
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 
 MYSQL_ADD_COMPONENT(test_udf_registration
@@ -53,4 +56,20 @@ MYSQL_ADD_COMPONENT(udf_unreg_real_func
 
 MYSQL_ADD_COMPONENT(udf_reg_avg_func
   udf_reg_avg_func.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_sys_var_service
+  test_sys_var_service.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_sys_var_service_same
+  test_sys_var_service_same.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_sys_var_service_int
+  test_sys_var_service_int.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_sys_var_service_str
+  test_sys_var_service_str.cc
   TEST MODULE)

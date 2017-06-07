@@ -1279,6 +1279,13 @@ void set_remaining_args(int argc, char **argv)
   remaining_argc= argc;
   remaining_argv= argv;
 }
+
+int *get_remaining_argc()
+{ return &remaining_argc; }
+
+char ***get_remaining_argv()
+{ return &remaining_argv; }
+
 /* 
   Multiple threads of execution use the random state maintained in global
   sql_rand to generate random numbers. sql_rnd_with_mutex use mutex
@@ -1478,11 +1485,12 @@ static bool mysql_component_infrastructure_init()
     return true;
   }
   /*
-   * Its a dummy initialization function. Else linker, is cutting out (as
-   * library optimization) the string service code because libsql code is not
-   * calling any functions of it.
+   * Below are dummy initialization functions. Else linker, is cutting out (as
+   * library optimization) the string services and component system variables
+   * code. This is because of libsql code is not calling any functions of them.
    */
   mysql_string_services_init();
+  mysql_comp_sys_var_services_init();
   return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
@@ -4737,36 +4745,6 @@ static int init_server_components()
   }
   if (tmp_str)
     my_free(tmp_str);
-  /* we do want to exit if there are any other unknown options */
-  if (remaining_argc > 1)
-  {
-    int ho_error;
-    struct my_option no_opts[]=
-    {
-      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-    };
-    /*
-      We need to eat any 'loose' arguments first before we conclude
-      that there are unprocessed options.
-    */
-    my_getopt_skip_unknown= 0;
-
-    if ((ho_error= handle_options(&remaining_argc, &remaining_argv, no_opts,
-                                  mysqld_get_one_option)))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    /* Add back the program name handle_options removes */
-    remaining_argc++;
-    remaining_argv--;
-    my_getopt_skip_unknown= TRUE;
-
-    if (remaining_argc > 1)
-    {
-      LogErr(ERROR_LEVEL, ER_EXCESS_ARGUMENTS, remaining_argv[1]);
-      LogErr(INFORMATION_LEVEL, ER_VERBOSE_HINT);
-      unireg_abort(MYSQLD_ABORT_EXIT);
-
-    }
-  }
 
   if (opt_help)
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -5725,15 +5703,47 @@ int mysqld_main(int argc, char **argv)
   if (
     /*
       Read components table to restore previously installed components. This
-      requires read access to mysql.component table. Possibly this is not
-      optimal place, if you find any earlies possible, please move it there and
-      document requirements and by what means they are provided.
+      requires read access to mysql.component table.
     */
     (!opt_initialize && mysql_component_infrastructure_init())
      || mysql_rm_tmp_tables())
   {
     abort= true;
   }
+
+  /* we do want to exit if there are any other unknown options */
+  if (remaining_argc > 1)
+  {
+    int ho_error;
+    struct my_option no_opts[]=
+    {
+      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    };
+    /*
+      We need to eat any 'loose' arguments first before we conclude
+      that there are unprocessed options.
+    */
+    my_getopt_skip_unknown= 0;
+
+    if ((ho_error= handle_options(&remaining_argc, &remaining_argv, no_opts,
+                                  mysqld_get_one_option)))
+      abort= true;
+    else
+    {
+      /* Add back the program name handle_options removes */
+      remaining_argc++;
+      remaining_argv--;
+      my_getopt_skip_unknown= TRUE;
+
+      if (remaining_argc > 1)
+      {
+        LogErr(ERROR_LEVEL, ER_EXCESS_ARGUMENTS, remaining_argv[1]);
+        LogErr(INFORMATION_LEVEL, ER_VERBOSE_HINT);
+        abort= true;
+      }
+    }
+  }
+
   if (abort || acl_init(opt_noacl))
   {
     /*

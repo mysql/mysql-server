@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "server_component.h"
 #include "auth/dynamic_privileges_impl.h"
 #include "udf_registration_imp.h"
+#include "component_sys_var_service.h"
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
   mysql_registry_imp::acquire,
@@ -154,7 +155,6 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_string_ctype)
   mysql_string_imp::is_digit
 END_SERVICE_IMPLEMENTATION()
 
-
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
   log_builtins_imp::wellknown_by_type,
   log_builtins_imp::wellknown_by_name,
@@ -249,6 +249,15 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, udf_registration_aggregate)
   mysql_udf_registration_imp::udf_unregister
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
+  mysql_component_sys_variable_imp::register_variable,
+  mysql_component_sys_variable_imp::get_variable
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
+  mysql_component_sys_variable_imp::unregister_variable,
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -278,6 +287,8 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)
   PROVIDES_SERVICE(mysql_server, udf_registration)
   PROVIDES_SERVICE(mysql_server, udf_registration_aggregate)
+  PROVIDES_SERVICE(mysql_server, component_sys_variable_register)
+  PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

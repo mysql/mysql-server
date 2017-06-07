@@ -63,6 +63,11 @@ static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
 ulonglong system_variable_hash_version= 0;
 
+HASH *get_system_variable_hash(void)
+{
+    return &system_variable_hash;
+}
+
 /**
   Return variable name and length for hashing of variables.
 */

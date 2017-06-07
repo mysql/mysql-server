@@ -2037,8 +2037,14 @@ HANDLER t1 READ FIRST;
 ERROR 42S02: Unknown table 't1' in HANDLER
 CREATE TEMPORARY TABLE t1(a INT, b INT, INDEX i(a));
 set global keycache1.key_cache_block_size=2048;
+Warnings:
+Warning	1287	keycache1.key_cache_block_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=1*1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 set global keycache1.key_buffer_size=1024*1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 # -- CACHE INDEX
 HANDLER t1 OPEN;
 CACHE INDEX t1 IN keycache1;

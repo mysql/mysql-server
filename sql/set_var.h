@@ -39,6 +39,7 @@
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
 #include "my_systime.h"
+#include "hash.h"             // HASH
 
 class Item;
 class Item_func_set_user_var;
@@ -159,6 +160,7 @@ public:
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
   virtual void set_arg_source(get_opt_arg_source*) {}
+  virtual void set_is_plugin(bool) {}
   enum_variable_source get_source() { return source.m_source; }
   const char* get_source_name() { return source.m_path_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
@@ -413,6 +415,7 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 */
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
+HASH *get_system_variable_hash(void);
 
 bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
@@ -433,6 +436,8 @@ extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;
 extern sys_var *Sys_gtid_next_list_ptr;
 extern sys_var *Sys_gtid_purged_ptr;
+
+extern ulonglong system_variable_hash_version;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

@@ -34,6 +34,7 @@
 #include "system_variables.h"
 #include "trigger_def.h"
 #include "parse_tree_nodes.h"
+#include <array>
 
 
 /**

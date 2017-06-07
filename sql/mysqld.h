@@ -653,6 +653,9 @@ extern sigset_t mysqld_signal_mask;
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
 
+int *get_remaining_argc();
+char ***get_remaining_argv();
+
 /* increment query_id and return it.  */
 inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 {

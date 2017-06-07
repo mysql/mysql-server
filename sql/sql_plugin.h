@@ -29,12 +29,15 @@
 #include "sql_cmd.h"                // Sql_cmd
 #include "sql_plugin_ref.h"         // plugin_ref
 #include "thr_malloc.h"
+#include "hash.h"                   // HASH
+#include "map_helpers.h"
 
 class THD;
 class i_string;
 struct my_option;
 struct st_mysql_sys_var;
 template <class T> class I_List;
+struct st_bookmark;
 
 typedef struct st_mysql_show_var SHOW_VAR;
 
@@ -191,6 +194,7 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+malloc_unordered_map<std::string, st_bookmark *>* get_bookmark_hash();
 
 bool end_transaction(THD *thd, bool error);
 

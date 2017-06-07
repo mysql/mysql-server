@@ -252,5 +252,6 @@ inline bool is_identifier(const LEX_STRING &str, const char *ident)
 {
   return is_identifier(str.str, ident);
 }
+bool is_key_cache_variable_suffix(const char *suffix);
 
 #endif /* PARSE_TREE_HELPERS_INCLUDED */

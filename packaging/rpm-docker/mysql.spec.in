@@ -212,7 +212,13 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
     component_udf_reg_real_func.so \
     component_udf_unreg_3_func.so \
     component_udf_unreg_int_func.so \
-    component_udf_unreg_real_func.so ; do
+    component_udf_unreg_real_func.so ; \
+    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so component_test_component_sys_var_service.so \
+    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so \
+    component_test_sys_var_service_int.so component_test_sys_var_service.so component_test_sys_var_service_same.so \
+    component_test_sys_var_service_str.so \
+    qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
+    test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
@@ -354,6 +360,15 @@ rm -r $(readlink var) var
 %changelog
 * Thu May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
 - Add UDF components
+
+* Wed Apr 30 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.2-0.1
+- Add component_test_component_sys_var_service.so
+
+* Wed May 24 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.2-0.1
+- Add component_test_sys_var_service_int.so
+- Add component_test_sys_var_service.so
+- Add component_test_sys_var_service_same.so
+- Add component_test_sys_var_service_str.so
 
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin

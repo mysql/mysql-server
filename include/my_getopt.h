@@ -183,6 +183,7 @@ ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);
 int findopt(char *, uint, const struct my_option **);
 
+bool is_key_cache_variable_suffix(const char *suffix);
 
 C_MODE_END
 

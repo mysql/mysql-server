@@ -47,6 +47,7 @@
 #include "sql_update.h"     // Sql_cmd_update...
 #include "system_variables.h"
 #include "trigger_def.h"
+#include "my_getopt.h"
 
 class Sql_cmd;
 
@@ -321,13 +322,47 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc)
   }
   else
   {
-    sys_var *tmp=find_sys_var(thd, ident2.str, ident2.length);
+    const LEX_STRING *domain;
+    const LEX_STRING *variable;
+    bool is_key_cache_variable= false;
+    sys_var *tmp;
+    if (ident2.str && is_key_cache_variable_suffix(ident2.str))
+    {
+      is_key_cache_variable= true;
+      domain= &ident2;
+      variable= &ident1;
+      tmp= find_sys_var(thd, domain->str, domain->length);
+    }
+    else
+    {
+      domain= &ident1;
+      variable= &ident2;
+      /*
+        We are getting the component name as domain->str and variable name
+        as variable->str, and we are adding the "." as a separator to find
+        the variable from systam_variable_hash.
+        We are doing this, because we use the structured variable syntax for
+        component variables.
+      */
+      String tmp_name;
+      if (tmp_name.reserve(domain->length + 1 + variable->length + 1) ||
+          tmp_name.append(domain->str) ||
+          tmp_name.append(".") ||
+          tmp_name.append(variable->str))
+        return true; // OOM
+      tmp= find_sys_var(thd, tmp_name.c_ptr(), tmp_name.length());
+    }
     if (!tmp)
       return true;
-    if (!tmp->is_struct())
-      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), ident2.str);
+
+    if (is_key_cache_variable && !tmp->is_struct())
+      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), domain->str);
+
     value.var= tmp;
-    value.base_name= ident1;
+    if (is_key_cache_variable)
+      value.base_name= *variable;
+    else
+      value.base_name= null_lex_str;
   }
   return false;
 }
