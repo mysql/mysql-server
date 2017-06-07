@@ -555,25 +555,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options)
   }
   if (sql_set_variables(thd, &tmp_var_list, false))
   {
-    /*
-     If there is a connection and an error occurred during install plugin
-     then report error at sql layer, else log the error in server log.
-    */
-    if (current_thd && plugin_options)
-    {
-      if (thd->is_error())
-        my_error(ER_CANT_SET_PERSISTED, MYF(0),
-          thd->get_stmt_da()->message_text());
-      else
-        my_error(ER_CANT_SET_PERSISTED, MYF(0));
-    }
-    else
-    {
-      if (thd->is_error())
-        sql_print_error("%s", thd->get_stmt_da()->message_text());
-      else
-        LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
-    }
+    LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
     result= 1;
     goto err;
   }

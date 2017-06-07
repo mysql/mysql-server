@@ -193,8 +193,8 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 
   /* set default values */
   source.m_source= enum_variable_source::COMPILED;
-  /* initialize to server startup time */
-  timestamp= my_getsystime()/10.0;
+
+  timestamp= 0;
   user[0]= '\0';
   host[0]= '\0';
 

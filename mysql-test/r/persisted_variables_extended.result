@@ -319,60 +319,8 @@ VARIABLE_NAME	SET_USER	SET_HOST	SET_TIME
 autocommit	external_u2	localhost	#
 max_connections	external_u1	localhost	#
 # Cleanup
-drop USER 'user1'@'localhost';
 drop USER 'internal_proxied'@'%';
 drop USER 'external_u1'@'%';
 drop USER 'external_u2'@'%';
 SET GLOBAL max_connections = @saved_max_connections;
 SET GLOBAL autocommit = @saved_autocommit;
-#
-# Bug#25563891: OPTION SET BY !INCLUDE OR !INCLUDEDIR SHOWED AS 'COMPILED'
-#               IN P_S.VARIABLES_INFO
-#
-SELECT VARIABLE_NAME, VARIABLE_SOURCE
-FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_connections', 'max_digest_length',
-'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
-VARIABLE_NAME	VARIABLE_SOURCE
-innodb_default_row_format	DYNAMIC
-innodb_fast_shutdown	DYNAMIC
-innodb_flush_log_at_trx_commit	DYNAMIC
-max_connections	DYNAMIC
-max_digest_length	COMPILED
-sort_buffer_size	COMPILED
-SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
-@@sort_buffer_size	@@max_connections	@@max_digest_length
-262144	100	1024
-SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
-@@innodb_fast_shutdown	@@innodb_default_row_format	@@innodb_flush_log_at_trx_commit
-1	dynamic	1
-SELECT VARIABLE_NAME, VARIABLE_SOURCE
-FROM performance_schema.variables_info WHERE VARIABLE_NAME IN
-('sort_buffer_size', 'max_connections', 'max_digest_length',
-'innodb_fast_shutdown', 'innodb_default_row_format', 'innodb_flush_log_at_trx_commit');
-VARIABLE_NAME	VARIABLE_SOURCE
-innodb_default_row_format	EXPLICIT
-innodb_fast_shutdown	EXPLICIT
-innodb_flush_log_at_trx_commit	EXPLICIT
-max_connections	EXPLICIT
-max_digest_length	EXPLICIT
-sort_buffer_size	EXPLICIT
-SELECT @@sort_buffer_size, @@max_connections, @@max_digest_length;
-@@sort_buffer_size	@@max_connections	@@max_digest_length
-314156	51	2024
-SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_at_trx_commit;
-@@innodb_fast_shutdown	@@innodb_default_row_format	@@innodb_flush_log_at_trx_commit
-1	redundant	2
-# Cleanup
-# Restart server with all defaults
-# restart
-#
-# Bug#25608115: VARIABLES_INFO.SET_TIME COLUMN INITIALIZED INCORRECTLY
-#
-# must return 1
-SELECT TIMESTAMPDIFF(SECOND, 'current_time - server startup time', 'current_time - server startup time') <> 0;;
-TIMESTAMPDIFF(SECOND, 'current_time - server startup time', 'current_time - server startup time') <> 0
-1
-SELECT 'END OF TEST';
-END OF TEST
-END OF TEST
