@@ -385,9 +385,6 @@ ndb_dd_drop_table(THD *thd,
 
   thd->variables.option_bits = save_option_bits;
 
-  // TODO Must be done in _all_ return paths
-  thd->mdl_context.release_transactional_locks();
-
   DBUG_RETURN(true); // OK
 }
 
