@@ -1243,12 +1243,12 @@ public:
     Uint32 m_magic;    //Needed by RWPool
   };
 
-  typedef Ptr<ScanFragLocationRec> FragLocationPtr;
-  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > FragLocation_pool;
-  typedef SLFifoList<ScanFragLocationRec, FragLocation_pool> FragLocation_list;
-  typedef LocalSLFifoList<ScanFragLocationRec, FragLocation_pool> Local_FragLocation_list;
+  typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
+  typedef RecordPool<ScanFragLocationRec, RWPool<ScanFragLocationRec> > ScanFragLocation_pool;
+  typedef SLFifoList<ScanFragLocationRec, ScanFragLocation_pool> ScanFragLocation_list;
+  typedef LocalSLFifoList<ScanFragLocationRec, ScanFragLocation_pool> Local_ScanFragLocation_list;
 
-  FragLocation_pool m_fragLocationPool;
+  ScanFragLocation_pool m_fragLocationPool;
 
   /**
    * There is max 16 ScanFragRec's for 
@@ -1414,7 +1414,7 @@ public:
     Uint32 scanAttrInfoPtr;
 
     // List of fragment locations as reported by DIH
-    FragLocation_list::Head m_fragLocations;
+    ScanFragLocation_list::Head m_fragLocations;
 
     ScanFragRec_dllist::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
