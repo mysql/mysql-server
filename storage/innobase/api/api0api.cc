@@ -3171,7 +3171,8 @@ ib_cursor_open_table_using_id(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = nullptr;
 
-	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false);
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd,
+				    &mdl, false, true);
 
 	if (table == NULL) {
 

@@ -26,7 +26,4 @@ innodb.innodb_tsof_use_2  @windows : Bug#25716110 2017-03-14 Anitha Fails consis
 
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
 
-log_corruption            : WL9535 disable it, need to check it deeper
-innodb-wl5980-discard     : WL9535 disable it, need to check it deeper
-
 innodb.table_compress      : Bug#22916982 2017-05-04 Satya To be fixed by new fix for Bug#22916982

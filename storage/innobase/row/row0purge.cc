@@ -919,7 +919,7 @@ try_again:
 			node->mdl = no_mdl;
 
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl, false);
+				table_id, thd, &node->mdl, false, true);
 
 			if (node->table != nullptr) {
 				if (node->table->is_fts_aux()) {
@@ -932,7 +932,8 @@ try_again:
 					node->parent_mdl = nullptr;
 					node->parent = dd_table_open_on_id(
 						parent_id, thd,
-						&node->parent_mdl, false);
+						&node->parent_mdl,
+						false, true);
 
 					if (node->parent == nullptr) {
 						goto err_exit;
@@ -942,7 +943,7 @@ try_again:
 					node->mdl = nullptr;
 					node->table = dd_table_open_on_id(
 						table_id, thd,
-						&node->mdl, false);
+						&node->mdl, false, true);
 
 				}
 				break;

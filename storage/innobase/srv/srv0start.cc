@@ -1583,6 +1583,14 @@ srv_start(bool create_new_db, const char* scan_directories)
 			" of memory.";
 	}
 
+	if (srv_is_upgrade_mode) {
+		if (srv_read_only_mode) {
+			ib::error() << "Database upgrade cannot be"
+					" accomplished in read-only mode.";
+			return(srv_init_abort(DB_ERROR));
+		}
+	}
+
 #ifdef UNIV_DEBUG
 	ib::info() << "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!";
 #endif

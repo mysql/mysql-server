@@ -624,9 +624,11 @@ dd_table_open_on_dd_obj(
 	THD*				thd);
 
 /** Open a persistent InnoDB table based on table id.
-@param[in]	table_id	table identifier
-@param[in,out]	thd		current MySQL connection (for mdl)
-@param[in,out]	mdl		metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	table_id		table identifier
+@param[in,out]	thd			current MySQL connection (for mdl)
+@param[in,out]	mdl			metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	dict_locked		dict_sys mutex is held
+@param[in]	check_corruption	check if the table is corrupted or not.
 @return table
 @retval NULL if the table does not exist or cannot be opened */
 dict_table_t*
@@ -634,7 +636,8 @@ dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
 	MDL_ticket**	mdl,
-	bool		dict_locked);
+	bool		dict_locked,
+	bool		check_corruption);
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table	InnoDB table handle

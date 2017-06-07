@@ -205,10 +205,10 @@ a	b	c
 #
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980	innodb_file_per_table.##	0	6	Dynamic	0	Single
+test/t5980	innodb_file_per_table.##	97	6	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
@@ -416,10 +416,10 @@ t5980	CREATE TABLE `t5980` (
 #
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980	innodb_file_per_table.##	0	4	Dynamic	0	Single
+test/t5980	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
@@ -473,24 +473,19 @@ Table	Create Table
 t5980d	CREATE TABLE `t5980d` (
   `a` int(11) DEFAULT NULL,
   `b` text
-<<<<<<< HEAD
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_tables  and innodb_tablespaces ===
-=======
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
->>>>>>> mysql-trunk
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980a	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980b	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980c	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980d	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/t5980a	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980b	innodb_file_per_table.##	97	5	Dynamic	0	Single
+test/t5980c	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980d	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 innodb_file_per_table.##	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t5980a.ibd
@@ -539,16 +534,16 @@ SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980a	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980b	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980c	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980d	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/t5980a	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980b	innodb_file_per_table.##	97	5	Dynamic	0	Single
+test/t5980c	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980d	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
@@ -607,16 +602,16 @@ SHOW CREATE TABLE t5980d;
 ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980aa	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980bb	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980c	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980d	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/t5980aa	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980bb	innodb_file_per_table.##	97	5	Dynamic	0	Single
+test/t5980c	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980d	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980a.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 #
@@ -661,24 +656,19 @@ t5980bb	CREATE TABLE `t5980bb` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-<<<<<<< HEAD
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_tables  and innodb_tablespaces ===
-=======
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-=== information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
->>>>>>> mysql-trunk
+=== information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980aa	innodb_file_per_table.##	0	4	Dynamic	0	Single
-test/t5980bb	innodb_file_per_table.##	0	4	Dynamic	0	Single
-test/t5980c	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980d	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/t5980aa	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980bb	innodb_file_per_table.##	97	5	Dynamic	0	Single
+test/t5980c	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980d	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
@@ -720,16 +710,16 @@ Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
-test/t5980a	innodb_file_per_table.##	0	4	Dynamic	0	Single
-test/t5980b	innodb_file_per_table.##	0	4	Dynamic	0	Single
-test/t5980c	innodb_file_per_table.##	0	5	Dynamic	0	Single
-test/t5980d	innodb_file_per_table.##	0	5	Dynamic	0	Single
+test/t5980a	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980b	innodb_file_per_table.##	97	5	Dynamic	0	Single
+test/t5980c	innodb_file_per_table.##	33	5	Dynamic	0	Single
+test/t5980d	innodb_file_per_table.##	97	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
-innodb_file_per_table.##	SINGLE	0	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980c.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t5980aa.ibd
+innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test

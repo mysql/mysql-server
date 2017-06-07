@@ -6945,7 +6945,7 @@ fts_rename_aux_tables_to_hex_format_low(
 			ib_vector_get(tables, count));
 
 		table = dd_table_open_on_id(aux_table->id, thd,
-					    &mdl, true);
+					    &mdl, true, true);
 
 		ut_ad(table != NULL);
 		ut_ad(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_AUX_HEX_NAME));
@@ -7007,7 +7007,7 @@ fts_rename_aux_tables_to_hex_format_low(
 
 			mdl = nullptr;
 			table = dd_table_open_on_id(aux_table->id, thd,
-						    &mdl, true);
+						    &mdl, true, true);
 			ut_ad(table != NULL);
 
 			if (not_rename) {
@@ -7192,7 +7192,7 @@ fts_get_parent_table_name(
 		dict_table_t*	parent_table;
 
 		parent_table = dd_table_open_on_id(
-			aux_table.parent_id, thd, &mdl, true);
+			aux_table.parent_id, thd, &mdl, true, true);
 
 		if (parent_table != NULL) {
 			parent_table_name = mem_strdupl(
@@ -7220,7 +7220,7 @@ fts_valid_parent_table(
 	THD*		thd = current_thd;
 
 	parent_table = dd_table_open_on_id(
-		aux_table->parent_id, thd, &mdl, true);
+		aux_table->parent_id, thd, &mdl, true, true);
 
 	if (parent_table != NULL && parent_table->fts != NULL) {
 		if (aux_table->index_id == 0) {
@@ -7474,7 +7474,7 @@ fts_check_and_drop_orphaned_tables(
 			ib_vector_get(tables, i));
 
 		table = dd_table_open_on_id(
-			aux_table->id, thd, &mdl, true);
+			aux_table->id, thd, &mdl, true, true);
 		orig_parent_id = aux_table->parent_id;
 		orig_index_id = aux_table->index_id;
 
@@ -7518,7 +7518,7 @@ fts_check_and_drop_orphaned_tables(
 							aux_table->parent_id);
 
 					parent_table = dd_table_open_on_id(
-						parent_id, thd, &mdl, true);
+						parent_id, thd, &mdl, true, true);
 
 					fts_rename_aux_tables_to_hex_format(
 						aux_tables_to_rename, parent_table);
@@ -7552,7 +7552,7 @@ fts_check_and_drop_orphaned_tables(
 
 				parent_table = dd_table_open_on_id(
 					aux_table->parent_id, thd,
-					&mdl, true);
+					&mdl, true, true);
 
 				ut_ad(parent_table != NULL);
 				ut_ad(parent_table->fts != NULL);
@@ -7618,7 +7618,7 @@ fts_check_and_drop_orphaned_tables(
 
 				parent_table = dd_table_open_on_id(
 					aux_table->parent_id, thd,
-					&mdl, true);
+					&mdl, true, true);
 
 				if (!ib_vector_is_empty(aux_tables_to_rename)) {
 					fts_rename_aux_tables_to_hex_format(
@@ -7638,7 +7638,7 @@ fts_check_and_drop_orphaned_tables(
 		mdl = nullptr;
 
 		parent_table = dd_table_open_on_id(
-			aux_table->parent_id, thd, &mdl, true);
+			aux_table->parent_id, thd, &mdl, true, true);
 
 		if (drop) {
 			ib_vector_push(drop_aux_tables, aux_table);
@@ -7696,7 +7696,7 @@ fts_check_and_drop_orphaned_tables(
 			MDL_ticket*	aux_mdl = nullptr;
 
 			table = dd_table_open_on_id(
-				aux_table->id, thd, &aux_mdl, true);
+				aux_table->id, thd, &aux_mdl, true, true);
 
 			if (table != NULL
 			    && strcmp(table->name.m_name, aux_table->name)) {

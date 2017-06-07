@@ -321,7 +321,7 @@ MetadataRecover::apply()
 		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dd_table_open_on_id(table_id, NULL, NULL, false);
+		table = dd_table_open_on_id(table_id, NULL, NULL, false, true);
 
 		/* If the table is nullptr, it might be already dropped */
 		if (table == nullptr) {

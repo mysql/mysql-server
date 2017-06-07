@@ -4854,6 +4854,13 @@ innobase_init_files(
 	}
 
 	if (srv_is_upgrade_mode) {
+		if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+		    || srv_read_only_mode) {
+			ib::error() << "Database upgrade cannot be"
+				" accomplished in read-only mode.";
+			DBUG_RETURN(innodb_init_abort());
+		}
+
 		dict_sys_table_id_build();
 		/* Disable AHI when we start loading tables for purge.
 		These tables are evicted anyway after purge. */

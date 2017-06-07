@@ -515,10 +515,11 @@ dd_check_corrupted(dict_table_t*& table)
 
 /** Open a persistent InnoDB table based on InnoDB table id, and
 hold Shared MDL lock on it.
-@param[in]	table_id	table identifier
-@param[in,out]	thd		current MySQL connection (for mdl)
-@param[in,out]	mdl		metadata lock (*mdl set if table_id was found);
-@param[in]	dict_locked	dict_sys mutex is held
+@param[in]	table_id		table identifier
+@param[in,out]	thd			current MySQL connection (for mdl)
+@param[in,out]	mdl			metadata lock (*mdl set if table_id was found);
+@param[in]	dict_locked		dict_sys mutex is held
+@param[in]	check_corruption	check if the table is corrupted or not.
 mdl=NULL if we are resurrecting table IX locks in recovery
 @return table
 @retval NULL if the table does not exist or cannot be opened */
@@ -527,7 +528,8 @@ dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
 	MDL_ticket**	mdl,
-	bool		dict_locked)
+	bool		dict_locked,
+	bool		check_corruption)
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
@@ -636,7 +638,8 @@ reopen:
 					      full_name, namelen)) {
 					dd_mdl_release(thd, mdl);
 					continue;
-				} else if (dd_check_corrupted(ib_table)) {
+				} else if (check_corruption
+					   && dd_check_corrupted(ib_table)) {
 					ut_ad(ib_table == nullptr);
 				} else if (ib_table->discard_after_ddl) {
 					btr_drop_ahi_for_table(ib_table);
@@ -3697,14 +3700,14 @@ dd_startscan_system(
 
 	ut_a(system_id < DD_LAST_ID);
 
-	system_table = dd_table_open_on_id(system_id, thd, mdl, true);
+	system_table = dd_table_open_on_id(system_id, thd, mdl, true, true);
 	mtr_commit(mtr);
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
 	mtr_start(mtr);
 	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
-			 	    true, 0, mtr);
+				    true, 0, mtr);
 
 	rec = dd_getnext_system_low(pcur, mtr);
 
@@ -3774,7 +3777,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true, false);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
@@ -3844,7 +3847,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true, false);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
@@ -3964,7 +3967,7 @@ dd_process_dd_columns_rec(
 
 		/* Commit before we try to load the table. */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
+		table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
 
 		if (!table) {
 			return(false);
@@ -4087,7 +4090,7 @@ dd_process_dd_indexes_rec(
 
 		/* Commit before load the table */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(table_id, thd, mdl, true);
+		table = dd_table_open_on_id(table_id, thd, mdl, true, true);
 
 		if (!table) {
 			delete p;

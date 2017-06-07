@@ -791,7 +791,7 @@ trx_resurrect_locks()
 		for (table_id_set::const_iterator i = tables.begin();
 		     i != tables.end(); i++) {
 			dict_table_t* table = dd_table_open_on_id(
-				*i, NULL, NULL, false);
+				*i, NULL, NULL, false, true);
 			if (table) {
 				ut_ad(!table->is_temporary());
 
