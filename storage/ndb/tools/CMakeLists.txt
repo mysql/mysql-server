@@ -153,6 +153,21 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 
+IF(NOT WIN32)
+  MYSQL_ADD_EXECUTABLE(ndb_top
+    ndb_top.cpp
+    COMPONENT ClusterTools)
+  IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncursesw)
+  ELSE()
+    IF (CMAKE_SYSTEM_NAME MATCHES "Solaris")
+      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncursesw)
+    ELSE()
+      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncurses)
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 # Install the ndb_dist_priv.sql script
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
         DESTINATION ${INSTALL_MYSQLSHAREDIR})
