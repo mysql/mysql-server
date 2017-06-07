@@ -441,6 +441,7 @@ class Dblqh
 #endif
 {
   friend class DblqhProxy;
+  friend class Backup;
 
 public:
 #ifndef DBLQH_STATE_EXTRACT

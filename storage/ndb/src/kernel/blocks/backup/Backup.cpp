@@ -12209,7 +12209,11 @@ void
 Backup::execRESTORABLE_GCI_REP(Signal *signal)
 {
   Uint32 restorable_gci = signal->theData[0];
-  if (getNodeState().startLevel >= NodeState::SL_STOPPING_4)
+  /**
+   * LQH has a more up-to-date view of the node state so use LQHs version
+   * of the node state rather than our own.
+   */
+  if (c_lqh->getNodeState().startLevel >= NodeState::SL_STOPPING_4)
   {
     jam();
     DEB_LCP(("(%u)Ignore RESTORABLE_GCI_REP: %u in SL_STOPPING_4",
