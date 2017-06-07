@@ -327,7 +327,7 @@ exec $MYSQLXTEST
 	--user=root
 	--password=''
 	--schema=xtest
-	-v%NO_SUPPORTED_ON_COLLECTION%=ER_X_BAD_UPDATE_DATA
+	-v%NO_SUPPORTED_ON_COLLECTION%=ER_X_DOC_ID_MISSING
 	-v%TABLE_SPECIFIC_OPERATIONS%=test_collection_create_update_find.macro
 	--file=$MYSQL_TMP_DIR/crud_update_merge.tmp 2>&1;
 

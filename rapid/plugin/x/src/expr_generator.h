@@ -30,9 +30,10 @@ namespace xpl {
 
 class Expression_generator {
  public:
-  typedef ::Mysqlx::Expr::Expr Expr;
-  typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Datatypes::Scalar>
-      Args;
+  using Expr = ::Mysqlx::Expr::Expr;
+  using Args = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Scalar>;
+  using Document_path =
+      ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::DocumentPathItem>;
 
   class Error : public std::invalid_argument {
     int m_error;
@@ -68,9 +69,7 @@ class Expression_generator {
   Query_string_builder &query_string_builder() const { return *m_qb; }
 
  private:
-  typedef ::google::protobuf::RepeatedPtrField<
-      ::Mysqlx::Expr::DocumentPathItem> Document_path;
-  typedef ::google::protobuf::uint32 Placeholder;
+  using Placeholder = ::google::protobuf::uint32;
 
   void generate(const Mysqlx::Expr::Expr &arg) const;
   void generate(const Mysqlx::Expr::Identifier &arg,

@@ -209,8 +209,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg)
 
     case Mysqlx::Datatypes::Scalar::V_STRING:
       if (arg.v_string().has_collation()) {
-        // TODO(owner) handle _utf8'string' type charset specification... but
-        // 1st
+        // TODO handle _utf8'string' type charset specification... but 1st
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }

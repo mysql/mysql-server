@@ -47,16 +47,16 @@ in main, line 157:ERROR: Undefined macro DocumentProtobuf_OnlyTable_UpdatePatch_
 # doc:{}  patch:["c", "d"] result:["c", "d"]
 # document can't be an array
 # Verification of JSON patch [{"a": "foo", "_id": 1} patch ["c"] = {"a": "foo", "_id": 1}]
-Got expected error: Invalid data for update operation on document collection table (code 5050)
+Got expected error: Document is missing a required field (code 5115)
 
 # Verification of JSON patch [{"a": "foo", "_id": 1} patch {"_id": "foo"} = {"a": "foo", "_id": 1}]
 Got expected error (code 0)
 
 # Verification of JSON patch [{"a": "foo", "_id": 1} patch null = {"a": "foo", "_id": 1}]
-Got expected error: Invalid data for update operation on document collection table (code 5050)
+Got expected error: Document is missing a required field (code 5115)
 
 # Verification of JSON patch [{"a": "foo", "_id": 1} patch "bar" = {"a": "foo", "_id": 1}]
-Got expected error: Invalid data for update operation on document collection table (code 5050)
+Got expected error: Document is missing a required field (code 5115)
 
 # Verification of JSON patch [{"e": null, "_id": 1} patch {"a": 1} = {"a": 1, "e": null, "_id": 1}]
 Got expected error (code 0)
