@@ -402,11 +402,12 @@ String *Item_func_geometry_from_text::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -501,6 +502,38 @@ String *Item_func_geometry_from_text::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
@@ -652,12 +685,13 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser
-      m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -761,6 +795,38 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
