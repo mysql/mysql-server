@@ -674,6 +674,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       {
         binlog_stmt= false;
         binlog_is_trans= false; // Safety.
+
+        /* FIXME: Runtime need to check if following close table is Ok */
+	if (table_ref->table)
+        {
+          close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
+        }
       }
     }
 

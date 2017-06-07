@@ -347,6 +347,11 @@ LogDDL::writeRenameSpaceLog(
 	const char*	old_file_path,
 	const char*	new_file_path)
 {
+	/* Missing current_thd, it happens during crash recovery */
+	if (!current_thd) {
+		return(DB_SUCCESS);
+	}
+
 	trx = thd_to_trx(current_thd);
 
 	/* This is special case for fil_rename_tablespace during recovery */
@@ -791,7 +796,7 @@ LogDDL::scanAll(
 			" SELECT id, type, thread_id, space_id, page_no,"
 			" index_id, table_id, old_file_path, new_file_path\n"
 			" FROM mysql/innodb_ddl_log\n"
-			" ORDER BY id;\n"
+			" ORDER BY id DESC;\n"
 			"BEGIN\n"
 			"\n"
 			"OPEN c;\n"

@@ -14598,10 +14598,14 @@ ha_innobase::truncate(dd::Table *table_def)
 		error = truncate_rename_tablespace(name, table_def);
 	}
 
+	DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
+
 	if (!error) {
 		error = innobase_basic_ddl::delete_impl(
 			thd, name, table_def, SQLCOM_TRUNCATE);
 	}
+
+	DBUG_EXECUTE_IF("ib_truncate_crash_after_drop_old_table", DBUG_SUICIDE(););
 
 	if (!error) {
 		table_def->set_se_private_id(dd::INVALID_OBJECT_ID);
@@ -14618,6 +14622,8 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_set_autoinc(table_def->se_private_data(), 0);
 		}
 	}
+
+	DBUG_EXECUTE_IF("ib_truncate_crash_after_create_new_table", DBUG_SUICIDE(););
 
 	open(name, 0, 0, table_def);
 
@@ -14645,6 +14651,10 @@ ha_innobase::truncate(dd::Table *table_def)
 			error = 0;
 		}
 	}
+
+	DBUG_EXECUTE_IF("ib_truncate_crash_after_innodb_complete", DBUG_SUICIDE(););
+
+	DBUG_EXECUTE_IF("ib_truncate_rollback_test", error = HA_ERR_GENERIC;);
 
 	ut_free(name);
 	ut_free(tsname);

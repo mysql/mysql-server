@@ -1,0 +1,48 @@
+
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+CREATE TABLE t2 ( a int);
+
+INSERT INTO t2 VALUES(10);
+INSERT INTO t2 VALUES(11);
+
+set session debug = "+d,ib_truncate_crash_after_rename";
+--source include/expect_crash.inc
+--error 2013
+TRUNCATE TABLE t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+set session debug = "+d,ib_truncate_crash_after_drop_old_table";
+--source include/expect_crash.inc
+--error 2013
+truncate table t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+set session debug = "+d,ib_truncate_crash_after_create_new_table";
+--source include/expect_crash.inc
+--error 2013
+truncate table t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+set session debug = "+d,ib_truncate_crash_after_innodb_complete";
+--source include/expect_crash.inc
+--error 2013
+truncate table t2;
+--source include/start_mysqld.inc
+SELECT * FROM t2;
+
+set session debug = "+d,ib_truncate_rollback_test";
+--error 1030
+truncate table t2;
+SELECT * FROM t2;
+
+DROP TABLE t2;
+

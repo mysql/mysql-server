@@ -4896,36 +4896,7 @@ fil_space_for_table_exists_in_mem(
 	    && row_is_mysql_tmp_table_name(space->name)
 	    && !row_is_mysql_tmp_table_name(name)) {
 
-		mutex_exit(&fil_system->mutex);
-
-		DBUG_EXECUTE_IF("ib_crash_before_adjust_fil_space",
-				DBUG_SUICIDE(););
-
-		if (fnamespace) {
-			const char*	tmp_name;
-
-			tmp_name = dict_mem_create_temporary_tablename(
-				heap, name, table_id);
-
-			fil_rename_tablespace(
-				fnamespace->id,
-				UT_LIST_GET_FIRST(fnamespace->chain)->name,
-				tmp_name, NULL);
-		}
-
-		DBUG_EXECUTE_IF("ib_crash_after_adjust_one_fil_space",
-				DBUG_SUICIDE(););
-
-		fil_rename_tablespace(
-			id, UT_LIST_GET_FIRST(space->chain)->name,
-			name, NULL);
-
-		DBUG_EXECUTE_IF("ib_crash_after_adjust_fil_space",
-				DBUG_SUICIDE(););
-
-		mutex_enter(&fil_system->mutex);
-		fnamespace = fil_space_get_by_name(name);
-		ut_ad(space == fnamespace);
+		/* Atomic DDL's "ddl_log" will adjust the tablespace name */
 		mutex_exit(&fil_system->mutex);
 
 		return(true);
