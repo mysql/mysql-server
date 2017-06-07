@@ -293,6 +293,9 @@ short_usage_sub(void)
     "suffixes .res, .rej, and .map.  By default these are removed\n"
     "when the job completes successfully with no rejects.\n"
     "See options --state-dir and --keep-state.\n"
+    "\n"
+    "Windows notes: File paths are shown with forward slash (/).\n"
+    "To load windows format files currently requires --csvopt=r.\n"
     "\n",
     my_progname);
 }
