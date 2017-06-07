@@ -17,6 +17,7 @@
 ###############################################################################
 
 --source include/have_innodb.inc
+--source include/not_embedded.inc
 
 --disable_query_log
 call mtr.add_suppression("The parameter innodb_undo_logs is deprecated and may be removed in future releases");
