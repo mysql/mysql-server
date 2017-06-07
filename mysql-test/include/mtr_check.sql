@@ -137,7 +137,8 @@ BEGIN
     mysql.time_zone_name,
     mysql.time_zone_transition,
     mysql.time_zone_transition_type,
-    mysql.user;
+    mysql.user,
+    mysql.global_grants;
 
 END||
 

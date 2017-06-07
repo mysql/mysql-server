@@ -647,6 +647,8 @@ Usage	Server Admin	No privileges - allow connect only
 XA_RECOVER_ADMIN	Server Admin	
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
+# restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
@@ -697,6 +699,8 @@ PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
 # restart
 DROP USER u1@localhost;
+# restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
 #
 # Test for WL#7194
 # This test checks that a user who granted XA_RECOVER_ADMIN with
