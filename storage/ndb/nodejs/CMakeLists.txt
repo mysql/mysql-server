@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.  
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -132,10 +132,13 @@ add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 
 target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
 
-if(APPLE) 
+# non-gcc linker flags to deal with undefined & multiply-defined symbols
+if(APPLE)
   set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
 elseif(WIN32)
   set(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
+elseif(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  set(FINAL_LINK_FLAGS "-z muldefs")
 endif()
 
 set_target_properties(ndb_adapter PROPERTIES

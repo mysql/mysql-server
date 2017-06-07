@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015 , Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -21,11 +21,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <math.h>
-
-#ifdef WIN32
 #include <float.h>
-#endif
 
 #include "adapter_global.h"
 #include "NdbTypeEncoders.h"
@@ -38,6 +36,12 @@
 #include "ndb_util/CharsetMap.hpp"
 #include "ndb_util/decimal_utils.hpp"
 #include "EncoderCharset.h"
+
+#ifndef isfinite
+#include <limits>
+#define isfinite(x) \
+  ( ! ( x == std::numeric_limits<double>::infinity()) || isnan(x))
+#endif
 
 using namespace v8;
 
@@ -954,7 +958,7 @@ int writeRecode(const NdbDictionary::Column *col,
   int columnSizeInBytes = col->getLength();
   int utf8bufferSize = getUtf8BufferSizeForColumn(columnSizeInBytes, csinfo);
  
-#ifdef WIN32
+#ifndef __GNUC__
   /* Write to the heap */
   char * recode_stack = new char[utf8bufferSize];
 #else
@@ -971,7 +975,7 @@ int writeRecode(const NdbDictionary::Column *col,
   int bytesWritten = recodeFromUtf8(recode_stack, recodeSz, 
                                     buffer, columnSizeInBytes,
                                     col->getCharsetNumber());
-#ifdef WIN32
+#ifndef __GNUC__
   delete[] recode_stack;
 #endif
   return bytesWritten; 
@@ -1140,7 +1144,7 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(len, csinfo);
-#ifdef WIN32
+#ifndef __GNUC__
     char * recode_buffer = new char[recode_size];
 #else
     char recode_buffer[recode_size];
@@ -1160,7 +1164,7 @@ Handle<Value> CharReader(const NdbDictionary::Column *col,
     /* Create a new JS String from the UTF-8 recode buffer */
     string = String::New(recode_buffer, len);
 
-#ifdef WIN32
+#ifndef __GNUC__
     delete[] recode_buffer;
 #endif
 
@@ -1214,7 +1218,7 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
     stats.read_strings_recoded++;
     CharsetMap csmap;
     size_t recode_size = getUtf8BufferSizeForColumn(length, csinfo);
-#ifdef WIN32
+#ifndef __GNUC__
     char * recode_buffer = new char[recode_size];
 #else
     char recode_buffer[recode_size];
@@ -1226,7 +1230,7 @@ Handle<Value> varcharReader(const NdbDictionary::Column *col,
                  col->getCharsetNumber(), csmap.getUTF8CharsetNumber(),
                  str, recode_buffer);
     string = String::New(recode_buffer, lengths[1]);
-#ifdef WIN32
+#ifndef __GNUC__
     delete[] recode_buffer;
 #endif
     //DEBUG_PRINT("(D.2): Recode to UTF-8 and create new [size %d]", length);
