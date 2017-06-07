@@ -1420,17 +1420,6 @@ innobase_alter_tablespace(
 	const dd::Tablespace*	old_ts_def,
 	dd::Tablespace*		new_ts_def);
 
-/** Remove all tables in the named database inside InnoDB.
-@param[in]	hton	handlerton from InnoDB
-@param[in]	path	Database path; Inside InnoDB the name of the last
-directory in the path is used as the database name.
-For example, in 'mysql/data/test' the database name is 'test'. */
-static
-void
-innobase_drop_database(
-	handlerton*	hton,
-	char*		path);
-
 /** Free tablespace resources. */
 static
 void
@@ -4583,7 +4572,6 @@ innodb_init(
 	innobase_hton->upgrade_tablespace = dd_upgrade_tablespace;
 	innobase_hton->upgrade_logs = dd_upgrade_logs;
 	innobase_hton->finish_upgrade = dd_upgrade_finish;
-	innobase_hton->drop_database = innobase_drop_database;
 	innobase_hton->pre_dd_shutdown = innodb_pre_dd_shutdown;
 	innobase_hton->panic = innodb_shutdown;
 	innobase_hton->partition_flags= innobase_partition_flags;
@@ -15073,77 +15061,6 @@ innobase_alter_tablespace(
 	}
 
 	DBUG_RETURN(error);
-}
-
-/** Remove all tables in the named database inside InnoDB.
-@param[in]	hton	handlerton from InnoDB
-@param[in]	path	Database path; Inside InnoDB the name of the last
-directory in the path is used as the database name.
-For example, in 'mysql/data/test' the database name is 'test'. */
-static
-void
-innobase_drop_database(
-	handlerton*	hton,
-	char*		path)
-{
-	char*	namebuf;
-
-	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
-
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-
-	if (srv_read_only_mode) {
-		return;
-	}
-
-	THD*	thd = current_thd;
-
-	/* In the Windows plugin, thd = current_thd is always NULL */
-	if (thd != NULL) {
-		check_trx_exists(thd);
-	}
-
-	ulint	len = 0;
-	char*	ptr = strend(path) - 2;
-
-	while (ptr >= path && *ptr != '\\' && *ptr != '/') {
-		ptr--;
-		len++;
-	}
-
-	ptr++;
-	namebuf = (char*) my_malloc(PSI_INSTRUMENT_ME, (uint) len + 2, MYF(0));
-
-	memcpy(namebuf, ptr, len);
-	namebuf[len] = '/';
-	namebuf[len + 1] = '\0';
-
-#ifdef	_WIN32
-	innobase_casedn_str(namebuf);
-#endif /* _WIN32 */
-
-	trx_t*	trx = innobase_trx_allocate(thd);
-
-	/* Either the transaction is already flagged as a locking transaction
-	or it hasn't been started yet. */
-
-	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
-
-	/* We are doing a DDL operation. */
-	++trx->will_lock;
-
-	my_free(namebuf);
-
-	/* Flush the log to reduce probability that the .frm files and
-	the InnoDB data dictionary get out-of-sync if the user runs
-	with innodb_flush_log_at_trx_commit = 0 */
-
-	log_buffer_flush_to_disk();
-
-	innobase_commit_low(trx);
-
-	trx_free_for_mysql(trx);
 }
 
 /*********************************************************************//**
