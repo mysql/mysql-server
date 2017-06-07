@@ -316,6 +316,9 @@ static void usage(void)
   puts("The sorted view is based on the maximum of the measured load and the load");
   puts("reported by the OS");
   puts("");
+  puts("The view will adjust itself to the height and width of the terminal window.");
+  puts("The minimum width required is 76 characters wide");
+  puts("");
   short_usage_sub();
   /*
     Turn default for zombies off so that the help on how to
