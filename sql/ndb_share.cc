@@ -137,17 +137,10 @@ void NDB_SHARE::free_key(NDB_SHARE_KEY* key)
 }
 
 
-const uchar* NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
+std::string NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
 {
   assert(key->m_key_length == strlen(key->m_buffer));
-  return (const uchar*)key->m_buffer;
-}
-
-
-size_t NDB_SHARE::key_get_length(NDB_SHARE_KEY* key)
-{
-  assert(key->m_key_length == strlen(key->m_buffer));
-  return key->m_key_length;
+  return key->m_buffer;
 }
 
 
