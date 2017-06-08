@@ -230,8 +230,9 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
                                       const char* new_name) const
 {
   // Take write lock for the new table name
-  if (mdl_try_lock_for_rename(new_db, new_name))
+  if (!mdl_try_lock_for_rename(new_db, new_name))
   {
+    log_warning("Failed to acquire MDL lock for rename");
     return;
   }
 
