@@ -154,18 +154,21 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 
 IF(NOT WIN32)
-IF(NOT CMAKE_SYSTEM_NAME MATCHES "Solaris")
-    MYSQL_ADD_EXECUTABLE(ndb_top
-    ndb_top.cpp
-    COMPONENT ClusterTools)
-  IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncursesw)
-  ELSE()
-    IF (CMAKE_SYSTEM_NAME MATCHES "Solaris")
-      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncursesw)
-    ELSE()
-      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ncurses)
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF (HAVE_NCURSESW_1 OR HAVE_NCURSESW_2 OR HAVE_NCURSESW_3 OR HAVE_NCURSESW_4 OR HAVE_NCURSESW_5)
+    MESSAGE("-- Adding ndb_top executable")
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncursesw)
+    IF (NOT NCURSESW_LIB)
+      FIND_LIBRARY(NCURSESW_LIB
+                   NAMES ncurses)
     ENDIF()
+    MYSQL_ADD_EXECUTABLE(ndb_top
+      ndb_top.cpp
+      COMPONENT ClusterTools)
+    TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+  ELSE()
+    MESSAGE(FATAL_ERROR "ndb_top executable could not be built, install ncursesw library")
   ENDIF()
 ENDIF()
 ENDIF()

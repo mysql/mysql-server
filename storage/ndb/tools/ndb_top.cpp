@@ -17,7 +17,18 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <locale.h>
+#include <ndb_config.h>
+#ifdef HAVE_NCURSESW_CURSES_H
+#include <ncursesw/curses.h>
+#elif HAVE_NCURSESW_H
+#include <ncursesw.h>
+#elif HAVE_NCURSES_CURSES_H
+#include <ncurses/curses.h>
+#elif HAVE_NCURSES_H
+#include <ncurses.h>
+#else
 #include <curses.h>
+#endif
 #include <unistd.h>
 #include <my_global.h>
 #include <mysql.h>
@@ -129,16 +140,20 @@ query_mysql()
       " cs.thr_no = ts.thr_no AND"
       " cs.node_id = ts.node_id",
       opt_node_id);
-      
-  if (mysql_query(con, query_str))
-    return 1;
+
+  int res;
+  if ((res = mysql_query(con, query_str)))
+    return res;
 
   MYSQL_RES *result = mysql_store_result(con);
   if (result == NULL)
-    return 1;
+    return 2;
 
   int num_fields = mysql_num_fields(result);
-  assert(num_fields == 10);
+  if (num_fields != 10)
+  {
+    return 3;
+  }
 
   my_ulonglong num_rows = mysql_num_rows(result);
 
@@ -149,7 +164,7 @@ query_mysql()
   }
   if (num_rows == 0)
   {
-    return 1;
+    return 4;
   }
   THREAD_RESULT *tr_array =
     (THREAD_RESULT*)malloc(sizeof(THREAD_RESULT) * num_rows);
@@ -190,24 +205,42 @@ query_mysql()
   return 0;
 }
 
+static char* tombs(const wchar_t* wc, const char* c)
+{
+  char* p;
+  size_t n = wcstombs(NULL, wc, 0);
+  if (n == (size_t)-1) {
+    p = strdup(c);
+  }
+  else {
+    p = (char*)malloc(n+1);
+    wcstombs(p, wc, n+1);
+  }
+  return p;
+}
+
 int print_black_block()
 {
-  return addwstr(L"\u2588");
+  static char *mbs=tombs(L"\u2588", "#");
+  return addstr(mbs);
 }
 
 int print_dark_shade()
 {
-  return addwstr(L"\u2593");
+  static char *mbs=tombs(L"\u2593", "@");
+  return addstr(mbs);
 }
 
 int print_medium_shade()
 {
-  return addwstr(L"\u2592");
+  static char *mbs=tombs(L"\u2592", "X");
+  return addstr(mbs);
 }
 
 int print_light_shade()
 {
-  return addwstr(L"\u2591");
+  static char *mbs=tombs(L"\u2591", "o");
+  return addstr(mbs);
 }
 
 int print_space()
@@ -232,10 +265,6 @@ my_long_options[] =
    "Port of MySQL Server",
    &opt_port_number, &opt_port_number, 0, GET_UINT,
    OPT_ARG, 3306, 0, 0, 0, 0, 0},
-  {"node_id", 'n',
-   "Node id of data node to watch",
-   &opt_node_id, &opt_node_id, 0, GET_UINT,
-   OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"user", 'u',
    "Username to log into MySQL Server",
    (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
@@ -244,6 +273,10 @@ my_long_options[] =
    "Password to log into MySQL Server (default is NULL)",
    (uchar**) &opt_password, (uchar**) &opt_password, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"node_id", 'n',
+   "Node id of data node to watch",
+   &opt_node_id, &opt_node_id, 0, GET_UINT,
+   OPT_ARG, 1, 0, 0, 0, 0, 0},
   {"sleep_time", 's',
    "Sleep time between each refresh of statistics",
    &opt_sleep_time, &opt_sleep_time, 0, GET_UINT,
@@ -303,6 +336,7 @@ static void usage(void)
   puts("ndb_top");
   puts("");
   puts("ndb_top uses the ndbinfo table cpustat to view CPU stats of NDB threads");
+  puts("");
   puts("Each thread can be represented by two rows, the first one shows the OS stats,");
   puts("the second row shows the measured stats in the thread (also affected by");
   puts("the OS descheduling the thread.");
@@ -310,14 +344,20 @@ static void usage(void)
   puts("The graph display shows OS user time as filled blue boxes, OS system time as");
   puts("shady green boxes and idle time as space, for measured load we use filled");
   puts("blue boxes for execution time, yellow shady boxes for send time and red");
-  puts("filled boxes for time spent in send buffer full waits and space for idle");
-  puts("The percentage is the sum of all non-idle percentages");
+  puts("filled boxes for time spent in send buffer full waits and space for idle.");
+  puts("");
+  puts("The percentage shown in graph display is the sum of all non-idle percentages.");
+  puts("The text display shows the same information as the graph display but in text");
+  puts("representation. It is possible to use text and graph at the same time.");
   puts("");
   puts("The sorted view is based on the maximum of the measured load and the load");
-  puts("reported by the OS");
+  puts("reported by the OS.");
   puts("");
   puts("The view will adjust itself to the height and width of the terminal window.");
-  puts("The minimum width required is 76 characters wide");
+  puts("The minimum width required is 76 characters wide.");
+  puts("");
+  puts("By default it shows the CPU usage in node 1.");
+  puts("Quit program by using Ctrl-C.");
   puts("");
   short_usage_sub();
   /*
@@ -524,11 +564,40 @@ int main(int argc, char **argv)
   }
   while (1)
   {
-    if (query_mysql() != 0)
+    int res;
+    if ((res = query_mysql() != 0))
     {
       refresh();
       endwin();
       usage();
+      switch (res)
+      {
+      case 1:
+        printf("\n\rFailed in mysql_query, empty result set, check node_id\n\r");
+        break;
+      case 2:
+        printf("\n\rFailed in mysql_store_results:\n\r");
+        break;
+      case 3:
+        printf("\n\rFailed in mysql_num_fields:\n\r");
+        break;
+      case 4:
+        printf("\n\rFailed in mysql_num_rows:\n\r");
+        break;
+      default:
+        if (res == CR_SERVER_LOST)
+          printf("\n\rFailed in mysql_query: Server lost\n\r");
+        else if (res == CR_SERVER_GONE_ERROR)
+          printf("\n\rFailed in mysql_query: Server gone\n\r");
+        else if (res == CR_UNKNOWN_ERROR)
+          printf("\n\rFailed in mysql_query: MySQL unknown error\n\r");
+        else if (res == CR_COMMANDS_OUT_OF_SYNC)
+          printf("\n\rFailed in mysql_query: Commands out of sync\n\r");
+        else
+          printf("\n\rFailed in mysql_query: Error code not documented\n\r");
+
+        break;
+      }
       printf("\n\rError message:\n\rFailed to query MySQL\n\r");
       handle_error();
       exit_code = 1;
