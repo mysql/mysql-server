@@ -38,7 +38,7 @@ Bucket<T>::Bucket(T lower, T upper, double freq, ha_rows num_distinct)
   DBUG_ASSERT(m_cumulative_frequency >= 0.0);
   DBUG_ASSERT(m_cumulative_frequency <= 1.0);
   DBUG_ASSERT(m_num_distinct >= 1);
-  DBUG_ASSERT(histograms::Histogram_comparator::compare(lower, upper) <= 0);
+  DBUG_ASSERT(!histograms::Histogram_comparator()(upper, lower));
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ LEX_STRING default_key_cache_base= {C_STRING_WITH_LEN("default")};
 
 KEY_CACHE zero_key_cache; ///< @@nonexistent_cache.param->value_ptr() points here
 
-KEY_CACHE *get_key_cache(LEX_STRING *cache_name)
+KEY_CACHE *get_key_cache(const LEX_STRING *cache_name)
 {
   if (!cache_name || ! cache_name->length)
     cache_name= &default_key_cache_base;

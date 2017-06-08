@@ -22,6 +22,8 @@
 #include <pfs_stat.h>
 #include <tap.h>
 
+#include "stub_pfs_plugin_table.h"
+
 static void test_digest_length_overflow()
 {
   if (sizeof(size_t) != 4)

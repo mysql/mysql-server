@@ -2357,43 +2357,7 @@ bool Item_func_current_role::fix_fields(THD *thd, Item **ref)
 String *Item_func_current_role::val_str(String* str)
 {
   THD *thd= current_thd;
-  Security_context *ctx= thd->security_context();
-  /*
-    We need the order of the current roles to stay consistent across platforms
-    so we copy the list of active roles here and sort the list.
-    Copying is crucial as the std::sort algorithms operates on pointers and
-    not on values which cause all references to become invalid.
-  */
-  List_of_auth_id_refs roles= *(ctx->get_active_roles());
-  if (roles.size() == 0)
-  {
-    m_active_role.set_ascii("NONE", 4);
-    str->copy(m_active_role);
-    return str;
-  }
-  std::sort(roles.begin(), roles.end());
-  bool first= true;
-  for(List_of_auth_id_refs::iterator it= roles.begin(); it != roles.end();
-      ++it)
-  {
-    if (!first)
-    {
-      m_active_role.append(',');
-    }
-    else
-    {
-      first= false;
-    }
-    append_identifier(thd, &m_active_role, it->first.str, it->first.length);
-    m_active_role.append("@");
-    append_identifier(thd, &m_active_role, it->second.str, it->second.length);
-  }
-  if (str != 0)
-  {
-    str->copy(m_active_role);
-    return str;
-  }
-  return &m_active_role;
+  return func_current_role(thd, str, &m_active_role);
 }
 
 bool Item_func_current_user::itemize(Parse_context *pc, Item **res)

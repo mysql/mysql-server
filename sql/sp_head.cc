@@ -41,6 +41,7 @@
 #include "my_bitmap.h"
 #include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
 #include "mysql/psi/mysql_error.h"
@@ -1948,9 +1949,9 @@ sp_head::~sp_head()
   DBUG_ASSERT(!m_parser_data.is_parsing_sp_body());
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
-    delete i;
+    ::destroy(i);
 
-  delete m_root_parsing_ctx;
+  ::destroy(m_root_parsing_ctx);
 
   free_items();
 
@@ -2565,7 +2566,7 @@ err_with_cleanup:
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
-  delete trigger_runtime_ctx;
+  ::destroy(trigger_runtime_ctx);
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2802,7 +2803,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   m_security_ctx.restore_security_context(thd, save_security_ctx);
 
 err_with_cleanup:
-  delete func_runtime_ctx;
+  ::destroy(func_runtime_ctx);
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
   thd->sp_runtime_ctx= parent_sp_runtime_ctx;
@@ -2865,7 +2866,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->sp_runtime_ctx= sp_runtime_ctx_saved;
 
     if (!sp_runtime_ctx_saved)
-      delete parent_sp_runtime_ctx;
+      ::destroy(parent_sp_runtime_ctx);
 
     DBUG_RETURN(true);
   }
@@ -3059,9 +3060,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     m_security_ctx.restore_security_context(thd, save_security_ctx);
 
   if (!sp_runtime_ctx_saved)
-    delete parent_sp_runtime_ctx;
+    ::destroy(parent_sp_runtime_ctx);
 
-  delete proc_runtime_ctx;
+  ::destroy(proc_runtime_ctx);
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->utime_after_lock= utime_before_sp_exec;
 
@@ -3244,7 +3245,7 @@ void sp_head::optimize()
   {
     if (!i->opt_is_marked())
     {
-      delete i;
+      ::destroy(i);
       src+= 1;
     }
     else
@@ -3349,10 +3350,10 @@ bool sp_head::show_routine_code(THD *thd)
     */
     if (ip != i->get_ip())
     {
-      const char *format= "Instruction at position %u has m_ip=%u";
-      char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
-
-      sprintf(tmp, format, ip, i->get_ip());
+      char tmp[64 + 2 * MY_INT32_NUM_DECIMAL_DIGITS];
+      snprintf(tmp, sizeof(tmp),
+               "Instruction at position %u has m_ip=%u",
+               ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.

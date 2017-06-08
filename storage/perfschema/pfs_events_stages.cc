@@ -20,13 +20,14 @@
 
 #include "storage/perfschema/pfs_events_stages.h"
 
+#include <atomic>
+
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "pfs_account.h"
-#include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_global.h"
@@ -46,7 +47,7 @@ PFS_ALIGNED bool flag_events_stages_history_long = false;
 /** True if EVENTS_STAGES_HISTORY_LONG circular buffer is full. */
 PFS_ALIGNED bool events_stages_history_long_full = false;
 /** Index in EVENTS_STAGES_HISTORY_LONG circular buffer. */
-PFS_ALIGNED PFS_cacheline_uint32 events_stages_history_long_index;
+PFS_ALIGNED PFS_cacheline_atomic_uint32 events_stages_history_long_index;
 /** EVENTS_STAGES_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_stages *events_stages_history_long_array = NULL;
 
@@ -59,7 +60,7 @@ init_events_stages_history_long(uint events_stages_history_long_sizing)
 {
   events_stages_history_long_size = events_stages_history_long_sizing;
   events_stages_history_long_full = false;
-  PFS_atomic::store_u32(&events_stages_history_long_index.m_u32, 0);
+  events_stages_history_long_index.m_u32.store(0);
 
   if (events_stages_history_long_size == 0)
   {
@@ -143,7 +144,7 @@ insert_events_stages_history_long(PFS_events_stages *stage)
 
   DBUG_ASSERT(events_stages_history_long_array != NULL);
 
-  uint index = PFS_atomic::add_u32(&events_stages_history_long_index.m_u32, 1);
+  uint index = events_stages_history_long_index.m_u32++;
 
   index = index % events_stages_history_long_size;
   if (index == 0)
@@ -193,7 +194,7 @@ reset_events_stages_history(void)
 void
 reset_events_stages_history_long(void)
 {
-  PFS_atomic::store_u32(&events_stages_history_long_index.m_u32, 0);
+  events_stages_history_long_index.m_u32.store(0);
   events_stages_history_long_full = false;
 
   PFS_events_stages *pfs = events_stages_history_long_array;

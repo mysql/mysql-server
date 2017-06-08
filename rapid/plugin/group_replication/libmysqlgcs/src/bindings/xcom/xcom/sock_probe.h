@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #ifndef SOCK_PROBE_H
 #define SOCK_PROBE_H
+
+#include "xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,13 +37,15 @@ typedef struct in_addr in_addr;
 typedef struct sockaddr sockaddr;
 
 void get_host_name(char *a, char *name);
-bool_t sockaddr_default_eq(sockaddr *x, sockaddr *y);
 node_no xcom_find_node_index(node_list *nodes);
-node_no	xcom_mynode_match(char *name, xcom_port port);
+node_no xcom_mynode_match(char *name, xcom_port port);
+
+typedef int (*port_matcher)(xcom_port if_port);
+void set_port_matcher(port_matcher x);
+port_matcher get_port_matcher();
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

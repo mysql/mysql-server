@@ -81,9 +81,9 @@ one	1
 two	1
 nothing	2
 drop table t1;
-create table t1 (row int not null, col int not null, val varchar(255) not null);
+create table t1 (`row` int not null, col int not null, val varchar(255) not null);
 insert into t1 values (1,1,'orange'),(1,2,'large'),(2,1,'yellow'),(2,2,'medium'),(3,1,'green'),(3,2,'small');
-select max(case col when 1 then val else null end) as color from t1 group by row;
+select max(case col when 1 then val else null end) as color from t1 group by `row`;
 color
 orange
 yellow

@@ -28,6 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "ha_innopart.h"
 #include "dict0upgrade.h"
+#include "srv0start.h"
 
 /* This is used only during upgrade. We don't use ids
 from DICT_HDR during upgrade because unlike bootstrap case,
@@ -628,7 +629,7 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t* index,
   }
 }
 
-/** Migrate paritions to new dictionary
+/** Migrate partitions to new dictionary
 @param[in]	thd		Server thread object
 @param[in]	norm_name	partition table name
 @param[in,out]	dd_table	Server new DD table object to be filled
@@ -1039,9 +1040,14 @@ int dd_upgrade_finish(THD* thd, bool failed_upgrade) {
 
   if (failed_upgrade) {
     srv_downgrade_logs = true;
+
   } else {
     /* Flush entire buffer pool. */
     buf_flush_sync_all_buf_pools();
+
+    /* Delete the old undo tablespaces and the references to them
+    in the TRX_SYS page. */
+    srv_undo_tablespaces_upgrade();
   }
 
   srv_is_upgrade_mode = false;

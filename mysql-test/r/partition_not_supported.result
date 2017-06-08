@@ -79,7 +79,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE Archive;
 Got one of the listed errors
@@ -155,7 +155,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE Blackhole;
 Got one of the listed errors
@@ -231,7 +231,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE CSV;
 Got one of the listed errors
@@ -307,7 +307,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE Heap;
 Got one of the listed errors
@@ -383,7 +383,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE Memory;
 Got one of the listed errors
@@ -459,7 +459,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (i)
+/*!50100 PARTITION BY HASH (`i`)
 PARTITIONS 2 */
 ALTER TABLE t1 ENGINE MyISAM;
 Got one of the listed errors

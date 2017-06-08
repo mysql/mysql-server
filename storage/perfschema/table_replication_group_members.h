@@ -52,6 +52,10 @@ struct st_row_group_members
   uint member_port;
   char member_state[NAME_LEN];
   uint member_state_length;
+  char member_role[NAME_LEN];
+  uint member_role_length;
+  char member_version[NAME_LEN];
+  uint member_version_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */
@@ -62,8 +66,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_group_members m_row;
   /** Current position. */

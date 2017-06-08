@@ -12,7 +12,6 @@ max_binlog_size = 4096
 log-slave-updates
 max_binlog_size = 4096
 log-slave-updates
-relay_log_info_repository = TABLE
 [mysqld.3]
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2

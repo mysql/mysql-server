@@ -38,7 +38,7 @@
 #include "key.h"                        /* key_copy, key_cmp_if_same */
 #include "lex_string.h"
                                         /* key_restore */
-#include "log.h"                        /* sql_print_warning */
+#include "log.h"                        /* log_*() */
 #include "m_ctype.h"
 #include "m_string.h"                   /* C_STRING_WITH_LEN */
 #include "mdl.h"
@@ -1019,17 +1019,11 @@ bool log_and_commit_acl_ddl(THD *thd,
           }
         }
         if (log_warning)
-          sql_print_warning("Following users were specified in %s but they "
-                            "%s. Corresponding entry in binary log used default "
-                            "authentication plugin '%s' to rewrite authentication "
-                            "information(if any) for them: %s",
-                            command == SQLCOM_CREATE_USER ?
-                            "CREATE USER IF NOT EXISTS" :
-                            "ALTER USER IF EXISTS",
-                            command == SQLCOM_CREATE_USER ?
-                            "already exist" : "do not exist",
-                            default_auth_plugin_name.str,
-                            warn_user.c_ptr_safe());
+          LogErr(WARNING_LEVEL,
+                 (command == SQLCOM_CREATE_USER)
+                 ? ER_SQL_USER_TABLE_CREATE_WARNING
+                 : ER_SQL_USER_TABLE_ALTER_WARNING,
+                 default_auth_plugin_name.str, warn_user.c_ptr_safe());
 
         warn_user.mem_free();
       }
@@ -1611,7 +1605,7 @@ end:
                       combo->alter_status,
                       what_to_replace);
     else
-      acl_insert_user(combo->user.str, combo->host.str,
+      acl_insert_user(thd, combo->user.str, combo->host.str,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,
@@ -2167,12 +2161,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
         result= -1;
         goto end;
       }
-      grant_column= new GRANT_COLUMN(column->column,privileges);
-      if (my_hash_insert(&g_t->hash_columns,(uchar*) grant_column))
-      {
-        result= -1;
-        goto end;
-      }
+      grant_column= new (*THR_MALLOC) GRANT_COLUMN(column->column,privileges);
+      g_t->hash_columns.emplace
+        (grant_column->column,
+         unique_ptr_destroy_only<GRANT_COLUMN>(grant_column));
     }
   }
 
@@ -2259,7 +2251,9 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
             goto end;
           }
           if (grant_column)
-            my_hash_delete(&g_t->hash_columns,(uchar*) grant_column);
+            erase_specific_element(&g_t->hash_columns,
+                                   grant_column->column,
+                                   grant_column);
         }
       }
       error= table->file->ha_index_next(table->record[0]);
@@ -2292,6 +2286,8 @@ end:
 
   @param thd     The current thread.
   @param grant_table  Cached info about table/columns privileges.
+  @param deleted_grant_table  If non-nullptr and grant is removed from
+    column cache, it is returned here instead of being destroyed.
   @param table   Pointer to a TABLE object for open mysql.tables_priv table.
   @param combo   User information.
   @param db      Database name of table to give grant.
@@ -2304,13 +2300,17 @@ end:
     @retval  0    OK.
     @retval  < 0  System error or storage engine error happen.
     @retval  1    No entry for request.
+
 */
 
-int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
-                        TABLE *table, const LEX_USER &combo,
-                        const char *db, const char *table_name,
-                        ulong rights, ulong col_rights,
-                        bool revoke_grant)
+int replace_table_table
+  (THD *thd, GRANT_TABLE *grant_table,
+   std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+     *deleted_grant_table,
+   TABLE *table, const LEX_USER &combo,
+   const char *db, const char *table_name,
+   ulong rights, ulong col_rights,
+   bool revoke_grant)
 {
   char grantor[USER_HOST_BUFF_SIZE];
   int old_row_exists = 1;
@@ -2449,7 +2449,21 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   }
   else
   {
-    my_hash_delete(&column_priv_hash,(uchar*) grant_table);
+    // Find this specific grant in column_priv_hash.
+    auto it_range= column_priv_hash->equal_range(grant_table->hash_key);
+    for (auto it= it_range.first; it != it_range.second; ++it)
+    {
+      if (it->second.get() == grant_table)
+      {
+        if (deleted_grant_table != nullptr)
+        {
+          // Caller now takes ownership.
+          *deleted_grant_table= std::move(it->second);
+        }
+        column_priv_hash->erase(it);
+        break;
+      }
+    }
   }
   DBUG_RETURN(0);
 
@@ -2620,8 +2634,9 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
   else
   {
-    my_hash_delete(is_proc ? &proc_priv_hash : &func_priv_hash,(uchar*)
-                   grant_name);
+    erase_specific_element
+      (is_proc ? proc_priv_hash.get() : func_priv_hash.get(),
+       grant_name->hash_key, grant_name);
   }
   DBUG_RETURN(0);
 
@@ -3037,8 +3052,11 @@ bool check_acl_tables(TABLE_LIST *tables, bool report_error)
         break;
       }
       else
-        sql_print_warning("ACL table mysql.'%s' must use "
-                          "supported storage engine", t->table_name);
+      {
+        LogErr(WARNING_LEVEL, ER_UNSUPPORTED_ENGINE,
+               ha_resolve_storage_engine_name(t->table->file->ht),
+               t->db, t->table_name);
+      }
      }
   }
 

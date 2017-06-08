@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#define LOG_SUBSYSTEM_TAG "event"
+
 #include "sql/event_queue.h"
 
 #include <stdio.h>
@@ -21,7 +23,7 @@
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
-#include "log.h"                  // sql_print_error
+#include "log.h"                  // log_*()
 #include "malloc_allocator.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -108,7 +110,7 @@ Event_queue::init_queue()
 
   if (queue.reserve(EVENT_QUEUE_INITIAL_SIZE))
   {
-    sql_print_error("Event Scheduler: Can't initialize the execution queue");
+    LogErr(ERROR_LEVEL, ER_EVENT_CANT_INIT_QUEUE);
     goto err;
   }
 
@@ -500,7 +502,7 @@ Event_queue::empty_queue()
   DBUG_ENTER("Event_queue::empty_queue");
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)",
                        static_cast<unsigned>(queue.size())));
-  sql_print_information("Event Scheduler: Purging the queue. %u events",
+  LogErr(INFORMATION_LEVEL, ER_EVENT_PURGING_QUEUE,
                         static_cast<unsigned>(queue.size()));
   /* empty the queue */
   queue.delete_elements();
@@ -642,10 +644,10 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     if (top->m_status == Event_parse_data::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
-      sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
-                            top->m_schema_name.str,
-                            top->m_event_name.str,
-                            top->m_dropped? "Dropping.":"");
+      LogErr(INFORMATION_LEVEL, ER_EVENT_LAST_EXECUTION,
+             top->m_schema_name.str,
+             top->m_event_name.str,
+             top->m_dropped? "Dropping.":"");
       delete top;
       queue.pop();
       /*

@@ -20,10 +20,7 @@
 #include <map>
 #include <string>
 
-#include "my_inttypes.h"
-#include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_mutex.h"
 
 class THD;
 class set_var;
@@ -56,7 +53,7 @@ void my_init_persist_psi_keys(void);
 class Persisted_variables_cache
 {
 public:
-  void init();
+  int init(int *argc, char ***argv);
   static Persisted_variables_cache* get_instance();
   /**
     Update in-memory copy for every SET PERSIST statement
@@ -77,7 +74,7 @@ public:
   /**
     Set persisted options
   */
-  bool set_persist_options(bool what_options= FALSE);
+  bool set_persist_options(bool plugin_options= FALSE);
   /**
     Reset persisted options
   */
@@ -85,8 +82,17 @@ public:
   /**
     Get persist hash
   */
-  map<string,string>* get_persist_hash();
-
+  map<string, string>* get_persist_hash();
+  /**
+    Get persist hash for static variables
+  */
+  map<string, string>* get_persist_ro_hash();
+  /**
+    append read only persisted variables to command line options with a
+    separator.
+  */
+  bool append_read_only_variables(int *argc, char ***argv,
+    bool plugin_options= FALSE);
   void cleanup();
 
 private:
@@ -106,6 +112,8 @@ private:
   map<string, string> m_persist_hash;
   /* copy of plugin variables whose plugin is not yet installed */
   map<string, string> m_persist_plugin_hash;
+  /* In memory copy of read only persistent variables */
+  map<string, string> m_persist_ro_hash;
 
   mysql_mutex_t m_LOCK_persist_hash;
   static Persisted_variables_cache* m_instance;
@@ -114,6 +122,10 @@ private:
   MYSQL_FILE *fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
+  /* read only persisted options */
+  char** ro_persisted_argv;
+  /* read only persisted plugin options */
+  char** ro_persisted_plugin_argv;
 };
 
 #endif /* PERSISTED_VARIABLE_H_INCLUDED */

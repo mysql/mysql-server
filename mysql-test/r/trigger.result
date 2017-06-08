@@ -603,8 +603,8 @@ select @a;
 10
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+t1_bi	INSERT	t1	set new."t1 column" = 5	BEFORE	#	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+t1_af	INSERT	t1	set @a=10	AFTER	#		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop table t1;
 set sql_mode="traditional";
 Warnings:
@@ -631,7 +631,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 show triggers;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row reset query cache;
@@ -2102,7 +2102,7 @@ CREATE TABLE t2 (a INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1	INSERT	t2	INSERTINTO t1 VALUES (1)	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES (1);
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 SELECT * FROM t1;
@@ -2613,7 +2613,7 @@ CREATE TABLE test.silly_one (ID INT);
 CREATE DEFINER=user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char TRIGGER test.silly_trigger BEFORE INSERT ON test.silly_one FOR EACH ROW SET @x=1;
 SHOW TRIGGERS FROM test LIKE 'silly_one';
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+silly_trigger	INSERT	silly_one	SET @x=1	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT DEFINER FROM information_schema.triggers WHERE TRIGGER_NAME='silly_trigger';
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
@@ -2649,11 +2649,11 @@ PARTITION p2 VALUES IN (4,5)
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
 ALTER TABLE t1 DROP PARTITION p1;
 SHOW CREATE TRIGGER t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
 DROP TABLE t1;
 #
 # Bug#24482919 -- SHOW TRIGGER OUTPUT INCONSISTENCY ON WINDOWS / LINUX ON 8.0.0
@@ -2697,23 +2697,23 @@ trg1f
 trg1f2
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1a0	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a2	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1a3	INSERT	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b0	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b2	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1b3	INSERT	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c0	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c2	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1c3	UPDATE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1d	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1d2	UPDATE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1e	DELETE	t1	BEGIN END	BEFORE	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1f	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg1f2	DELETE	t1	BEGIN END	AFTER	#	#	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#25581925: 'MDL_CHECKER::IS_READ_LOCKED(M_THD, *OBJECT)' AT
@@ -2875,8 +2875,8 @@ INSERT INTO t1 VALUES(6);
 ERROR HY000: The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @new_sum = 0	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_inv@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-trg2	INSERT	t1	SET @new_sum = 0	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_nonexs@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+trg1	INSERT	t1	SET @new_sum = 0	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_inv@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+trg2	INSERT	t1	SET @new_sum = 0	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	mysqltest_nonexs@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 
@@ -3246,3 +3246,153 @@ ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user nam
 DROP DATABASE test1;
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
+#
+# Bug#25209512:  CURRENT_TIMESTAMP PRODUCES ZEROS IN TRIGGER
+#
+
+# Case 1: With BEFORE INSERT triggers
+# Scenario 1.1: Normal INSERT
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-03-30 07:07:07");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
+CREATE TRIGGER trigger_for_normal_insert BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1() VALUES();
+SELECT * FROM t1;
+a
+2017-03-30 07:07:07
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-03-30 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.2: INSERT INTO... SELECT
+CREATE TABLE t1(a DATETIME NOT NULL DEFAULT NOW(), b INT);
+CREATE TRIGGER trigger_for_insert_select BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1(b) SELECT 1;
+SELECT * FROM t1;
+a	b
+2017-03-30 07:07:07	1
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-03-30 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.3: Normal REPLACE
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
+CREATE TRIGGER trigger_for_normal_replace BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+REPLACE INTO t1() VALUES();
+SELECT * FROM t1;
+a
+2017-03-30 07:07:07
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-03-30 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.4: REPLACE INTO... SELECT
+CREATE TABLE t1(a DATETIME NOT NULL DEFAULT NOW(), b INT);
+CREATE TRIGGER trigger_for_replace_select BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+REPLACE INTO t1(b) SELECT 1;
+SELECT * FROM t1;
+a	b
+2017-03-30 07:07:07	1
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-03-30 07:07:07
+DROP TABLE t1;
+
+# Case 2: With BEFORE UPDATE triggers
+# Scenario 2.1: Normal UPDATE with ON UPDATE NOW() clause for
+#               the timestamp field.
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-11 09:09:09");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE NOW(), b INT DEFAULT 1 );
+CREATE TRIGGER trigger_before_update BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+a	b
+2017-04-11 09:09:09	1
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-12 10:10:10");
+UPDATE t1 SET b= 2;
+SELECT * FROM t1;
+a	b
+2017-04-12 10:10:10	2
+# Without the patch, x contained the old timestamp.
+SELECT @x;
+@x
+2017-04-12 10:10:10
+DROP TABLE t1;
+
+# Scenario 2.2: Normal UPDATE without ON UPDATE NOW() clause for
+#               the timestamp field.
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-13 08:08:08");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+b INT DEFAULT 1 );
+CREATE TRIGGER trigger_before_update BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+a	b
+2017-04-13 08:08:08	1
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-05-04 05:05:05");
+UPDATE t1 SET b= 2;
+SELECT * FROM t1;
+a	b
+2017-04-13 08:08:08	2
+# x contains the old timestamp because of the absence of
+# ON UPDATE clause for the timestamp field.
+SELECT @x;
+@x
+2017-04-13 08:08:08
+DROP TABLE t1;
+
+# Scenario 2.3: UPDATE with join
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-25 11:11:11");
+CREATE TABLE t1( a DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP, b INT);
+CREATE TABLE t2( d INT);
+INSERT INTO t1(b) VALUES(1);
+INSERT INTO t2 VALUES(2);
+SELECT * FROM t1;
+a	b
+2017-04-25 11:11:11	1
+SELECT * FROM t2;
+d
+2
+CREATE TRIGGER trigger_before_update_with_join BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-25 01:01:01");
+UPDATE t1, t2 SET t1.b= t2.d;
+SELECT * FROM t1;
+a	b
+2017-04-25 01:01:01	2
+# Without the patch, x contained old timestamp
+SELECT @x;
+@x
+2017-04-25 01:01:01
+DROP TABLE t1, t2;
+
+# Case 3: LOAD DATA INFILE... with BEFORE INSERT triggers
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-17 06:06:06");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT NOW(), b INT );
+CREATE TRIGGER trigger_for_load_infile BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+SELECT 1 INTO OUTFILE 't1.dat' FROM dual;
+LOAD DATA INFILE 't1.dat' INTO TABLE t1(b);
+SELECT * FROM t1;
+a	b
+2017-04-17 06:06:06	1
+# Without the patch, x contained zero timestamp
+SELECT @x;
+@x
+2017-04-17 06:06:06
+DROP TABLE t1;
+SET TIMESTAMP= DEFAULT;

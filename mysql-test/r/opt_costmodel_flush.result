@@ -608,6 +608,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` semi join (`test`.`t1`) where (`<subquery2>`.`i1` = `test`.`t1`.`i1`)
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
+set global internal_tmp_mem_storage_engine='memory';
+set session internal_tmp_mem_storage_engine='memory';
 set @max_heap_table_size_save= @@max_heap_table_size;
 set max_heap_table_size= 16384;
 #
@@ -934,6 +936,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
 set max_heap_table_size= @max_heap_table_size_save;
+set session internal_tmp_mem_storage_engine=default;
+set global internal_tmp_mem_storage_engine=default;
 #
 # Test effect of changing the memory_block_read_cost
 #

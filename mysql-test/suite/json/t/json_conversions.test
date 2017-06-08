@@ -6659,7 +6659,7 @@ create table t_gco select DISTINCT(_gco) FROM at;
 
 drop table if exists comparison_weight;
 
-create table comparison_weight(rank int, type varchar(100));
+create table comparison_weight(`rank` int, type varchar(100));
 INSERT INTO comparison_weight values ( 10,'OPAQUE');
 INSERT INTO comparison_weight values ( 9,'TIMESTAMP');
 INSERT INTO comparison_weight values ( 9,'DATETIME');
@@ -6683,9 +6683,9 @@ delimiter $;
 CREATE FUNCTION GET_JSON_WEIGHT(json_type varchar(100)) RETURNS INT
 BEGIN
 DECLARE JSON_WEIGHT INT(11);
-SELECT rank into JSON_WEIGHT from  comparison_weight where
+SELECT `rank` into JSON_WEIGHT from  comparison_weight where
 (UPPER(type)=json_type ) OR
-(type is NULL) order by rank desc limit 1;
+(type is NULL) order by `rank` desc limit 1;
 RETURN (JSON_WEIGHT);
 END $
 delimiter ;$

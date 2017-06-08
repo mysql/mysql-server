@@ -2087,6 +2087,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_RSEG_ARRAY:
 
 		/* Work directly on the uncompressed page headers. */
 		/* This is on every page in the tablespace. */

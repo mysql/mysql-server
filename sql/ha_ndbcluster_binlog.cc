@@ -4313,7 +4313,7 @@ class Ndb_binlog_index_table_util
                           error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
                         }
                       });
-    
+
       if (error)
       {
         ndb_log_error("NDB Binlog: Failed writing to ndb_binlog_index for "
@@ -4333,12 +4333,12 @@ class Ndb_binlog_index_table_util
             my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
                         uint(epoch >> 32), uint(epoch),
                         uint(cursor->orig_server_id),
-                        uint(cursor->orig_epoch >> 32), 
+                        uint(cursor->orig_epoch >> 32),
                         uint(cursor->orig_epoch));
-        
+
           else
             my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
-        
+
           bool error_row = (row == (cursor->next));
           ndb_log_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
                         tmp,
@@ -4347,7 +4347,7 @@ class Ndb_binlog_index_table_util
           seen_error_row |= error_row;
 
         } while ((cursor = cursor->next));
-      
+
         error= -1;
         goto add_ndb_binlog_index_err;
       }
@@ -4486,7 +4486,7 @@ int ndbcluster_binlog_start()
                     "another server id by slave mysqlds");
   }
 
-  /* 
+  /*
      Check that ServerId is not using the reserved bit or bits reserved
      for application use
   */
@@ -7166,7 +7166,7 @@ restart_cluster_failure:
             {
 	      log_info("Just lost schema connection, hanging around");
               ndb_milli_sleep(10*1000); // seconds * 1000
-              /* There could be a race where client side reconnect before we 
+              /* There could be a race where client side reconnect before we
                * are able to detect 's_ndb->getEventOperation() == NULL'.
                * Thus, we never restart the binlog thread as supposed to.
                * -> 'ndb_binlog_is_ready' remains false and we get stuck in RO-mode

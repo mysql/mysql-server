@@ -19,7 +19,7 @@
 #include <sys/types.h>
 
 #include "binlog_event.h"
-#include "log.h"           // sql_print_warning
+#include "log.h"
 #include "log_event.h"     // Log_event
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -56,6 +56,7 @@ void Transaction_boundary_parser::reset()
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[EVENT_PARSER_NONE]));
   current_parser_state= EVENT_PARSER_NONE;
+  last_parser_state= EVENT_PARSER_NONE;
   DBUG_VOID_RETURN;
 }
 
@@ -215,6 +216,13 @@ Transaction_boundary_parser::get_event_boundary_type(
       break;
 
     /*
+      Incident events have their own boundary type.
+    */
+    case binary_log::INCIDENT_EVENT:
+      boundary_type= EVENT_BOUNDARY_TYPE_INCIDENT;
+      break;
+
+    /*
       Rotate, Format_description and Heartbeat should be ignored.
       Also, any other kind of event not listed in the "cases" above
       will be ignored.
@@ -223,11 +231,9 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::FORMAT_DESCRIPTION_EVENT:
     case binary_log::HEARTBEAT_LOG_EVENT:
     case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
-    case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
     case binary_log::SLAVE_EVENT:
     case binary_log::DELETE_FILE_EVENT:
-    case binary_log::INCIDENT_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
       break;
@@ -244,9 +250,8 @@ Transaction_boundary_parser::get_event_boundary_type(
       {
         boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
         if (throw_warnings)
-          sql_print_warning(
-            "Unsupported non-ignorable event fed into the "
-            "event stream.");
+          LogErr(WARNING_LEVEL,
+                 ER_RPL_UNSUPPORTED_UNIGNORABLE_EVENT_IN_STREAM);
       }
   } /* End of switch(event_type) */
 
@@ -289,9 +294,7 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_DDL:
     case EVENT_PARSER_DML:
       if (throw_warnings)
-        sql_print_warning(
-          "GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT "
-          "is not expected in an event stream %s.",
+        LogErr(WARNING_LEVEL, ER_RPL_GTID_LOG_EVENT_IN_STREAM,
           current_parser_state == EVENT_PARSER_GTID ?
             "after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT" :
             current_parser_state == EVENT_PARSER_DDL ?
@@ -319,9 +322,7 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_DDL:
     case EVENT_PARSER_DML:
       if (throw_warnings)
-        sql_print_warning(
-          "QUERY(BEGIN) is not expected in an event stream "
-          "in the middle of a %s.",
+        LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_BEGIN_IN_STREAM,
           current_parser_state == EVENT_PARSER_DDL ? "DDL" : "DML");
       error= true;
       break;
@@ -343,10 +344,8 @@ bool Transaction_boundary_parser::update_state(
     case EVENT_PARSER_GTID:
     case EVENT_PARSER_DDL:
       if (throw_warnings)
-        sql_print_warning(
-          "QUERY(COMMIT or ROLLBACK) or "
-          "XID_LOG_EVENT is not expected "
-          "in an event stream %s.",
+        LogErr(WARNING_LEVEL,
+               ER_RPL_UNEXPECTED_COMMIT_ROLLBACK_OR_XID_LOG_EVENT_IN_STREAM,
           current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
           current_parser_state == EVENT_PARSER_GTID ? "after a GTID_LOG_EVENT" :
           "in the middle of a DDL"); /* EVENT_PARSER_DDL */
@@ -368,9 +367,7 @@ bool Transaction_boundary_parser::update_state(
       case EVENT_PARSER_NONE:
       case EVENT_PARSER_DDL:
         if (throw_warnings)
-          sql_print_warning(
-              "QUERY(XA ROLLBACK) is "
-              "not expected in an event stream %s.",
+          LogErr(WARNING_LEVEL, ER_RPL_UNEXPECTED_XA_ROLLBACK_IN_STREAM,
               current_parser_state == EVENT_PARSER_NONE ? "outside a transaction" :
               "in the middle of a DDL"); /* EVENT_PARSER_DDL */
         error= true;
@@ -427,6 +424,16 @@ bool Transaction_boundary_parser::update_state(
     break;
 
   /*
+    Incident events can happen without a GTID (before BUG#19594845 fix) or
+    with its own GTID in order to be skipped. In any case, it should always
+    mark "the end" of a transaction.
+  */
+  case EVENT_BOUNDARY_TYPE_INCIDENT:
+    /* In any case, we will update the state to NONE */
+    new_parser_state= EVENT_PARSER_NONE;
+    break;
+
+  /*
     Rotate, Format_description and Heartbeat should be ignored.
     The rotate might be fake, like when the IO thread receives from dump thread
     Previous_gtid and Heartbeat events due to reconnection/auto positioning.
@@ -445,6 +452,8 @@ bool Transaction_boundary_parser::update_state(
                       "from '%s' to '%s'",
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[new_parser_state]));
+
+  last_parser_state= current_parser_state;
   current_parser_state= new_parser_state;
 
   DBUG_RETURN(error);

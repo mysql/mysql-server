@@ -20,8 +20,8 @@
 #include <atomic>
 
 #include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "psi_memory_key.h"
 #include "sp_head.h"
@@ -33,34 +33,16 @@
   Cache of stored routines.
 */
 
-static const uchar *hash_get_key_for_sp_head(const uchar *ptr, size_t *plen)
-{
-  sp_head *sp= (sp_head *)ptr;
-  *plen= sp->m_qname.length;
-  return (uchar*) sp->m_qname.str;
-}
-
-
-static void hash_free_sp_head(void *p)
-{
-  sp_head *sp= (sp_head *)p;
-  sp_head::destroy(sp);
-}
-
-
 class sp_cache
 {
 public:
   sp_cache()
+    : m_hashtable(system_charset_info, key_memory_sp_cache)
   {
-    my_hash_init(&m_hashtable, system_charset_info, 0, 0,
-                 hash_get_key_for_sp_head, hash_free_sp_head, 0,
-                 key_memory_sp_cache);
   }
 
   ~sp_cache()
   {
-    my_hash_free(&m_hashtable);
   }
 
   /**
@@ -72,18 +54,19 @@ public:
   */
   bool insert(sp_head *sp)
   {
-    return my_hash_insert(&m_hashtable, (const uchar *)sp);
+    m_hashtable.emplace(
+      to_string(sp->m_qname), std::unique_ptr<sp_head, sp_head_deleter>(sp));
+    return false;
   }
 
   sp_head *lookup(char *name, size_t namelen)
   {
-    return (sp_head *) my_hash_search(&m_hashtable, (const uchar *)name,
-                                      namelen);
+    return find_or_nullptr(m_hashtable, std::string(name, namelen));
   }
 
   void remove(sp_head *sp)
   {
-    my_hash_delete(&m_hashtable, (uchar *)sp);
+    m_hashtable.erase(to_string(sp->m_qname));
   }
 
   /**
@@ -95,13 +78,18 @@ public:
   */
   void enforce_limit(ulong upper_limit_for_elements)
   {
-    if (m_hashtable.records > upper_limit_for_elements)
-      my_hash_reset(&m_hashtable);
+    if (m_hashtable.size() > upper_limit_for_elements)
+      m_hashtable.clear();
   }
 
 private:
+  struct sp_head_deleter {
+    void operator() (sp_head *sp) const { sp_head::destroy(sp); }
+  };
+
   /* All routines in this cache */
-  HASH m_hashtable;
+  collation_unordered_map<
+    std::string, std::unique_ptr<sp_head, sp_head_deleter>> m_hashtable;
 }; // class sp_cache
 
 

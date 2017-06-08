@@ -22,7 +22,7 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
-#include "log.h"                        // sql_print_error
+#include "log.h"
 #include "mysqld.h"                     // global_system_variables
 #include "named_pipe.h"                 // create_server_named_pipe.
 #include "sql_class.h"                  // THD
@@ -91,7 +91,7 @@ bool Named_pipe_listener::setup_listener()
   m_connect_overlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
   if (!m_connect_overlapped.hEvent)
   {
-    sql_print_error("Can't create event, last error=%u", GetLastError());
+    LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_EVENT, GetLastError());
     return true;
   }
 
@@ -142,7 +142,7 @@ Channel_info* Named_pipe_listener::listen_for_connection_event()
                          NMPWAIT_USE_DEFAULT_WAIT,
                          &m_sa_pipe_security)) == INVALID_HANDLE_VALUE)
     {
-      sql_print_error("Can't create new named pipe!: %s", strerror(errno));
+      LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_PIPE, strerror(errno));
       return NULL;
     }
   }
@@ -161,7 +161,7 @@ Channel_info* Named_pipe_listener::listen_for_connection_event()
                        NMPWAIT_USE_DEFAULT_WAIT,
                        &m_sa_pipe_security)) == INVALID_HANDLE_VALUE)
   {
-    sql_print_error("Can't create new named pipe!: %s", strerror(errno));
+    LogErr(ERROR_LEVEL, ER_CONN_PIP_CANT_CREATE_PIPE, strerror(errno));
     m_pipe_handle=hConnectedPipe;
     return NULL;         // We have to try again
   }

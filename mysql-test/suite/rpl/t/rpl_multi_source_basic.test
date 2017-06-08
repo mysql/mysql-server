@@ -21,6 +21,8 @@
 
 #Skip on group replication runs
 --source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 
 --echo #
 --echo # set up masters server_1 and server_3 with server_2 being a slave.
@@ -83,10 +85,10 @@ SHOW DATABASES;
 --echo #  Slave should have databases db1 and db3 and tables.
 SHOW DATABASES;
 --let $assert_text= Slave should have 10 rows in db1.t1
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM db1.t1`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM db1.t1`
 --source include/assert.inc
 --let $assert_text= Slave should have 10 rows in db3.t1
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM db3.t1`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM db3.t1`
 --source include/assert.inc
 
 --echo #
@@ -188,10 +190,10 @@ SHOW DATABASES;
 USE dbcommon;
 SHOW TABLES;
 --let $assert_text= Slave should have 10 rows in dbcommon.t11
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM dbcommon.t11`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM dbcommon.t11`
 --source include/assert.inc
 --let $assert_text= Slave should have 10 rows in dbcommon.t33
---let $assert_cond= `SELECT COUNT(*) = 10 rows FROM dbcommon.t33`
+--let $assert_cond= `SELECT COUNT(*) = 10 `rows` FROM dbcommon.t33`
 --source include/assert.inc
 
 --echo #
@@ -275,7 +277,7 @@ while ($i)
 USE dbcommon;
 SHOW TABLES;
 --let $assert_text= Slave should have 20 rows in dbcommon.t101
---let $assert_cond= `SELECT COUNT(*) = 20 rows FROM dbcommon.t101`
+--let $assert_cond= `SELECT COUNT(*) = 20 `rows` FROM dbcommon.t101`
 --source include/assert.inc
 
 

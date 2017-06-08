@@ -214,8 +214,19 @@ struct Char_Ptr_Compare {
 	}
 };
 
+/** Maximum number of tablespaces.open.* files */
+static const uint32_t	MAX_TABLESPACE_OPEN_FILES = 2;
+
 using Names = std::unordered_map<
 	const char*, fil_space_t*, Char_Ptr_Hash, Char_Ptr_Compare>;
+
+/* File Handle for tablespaces.open.* file */
+struct Fil_Open_Hdl {
+	/** Path to tablespace open file */
+	std::string	path;
+	/** File handle for tablespace open state files. */
+	pfs_os_file_t	handle;
+};
 
 /** For tracking space ID to physical filename during recovery */
 struct Fil_Open {
@@ -378,6 +389,9 @@ struct Fil_Open {
 		m_next()
 	{
 		mutex_create(LATCH_ID_FILE_OPEN, &m_mutex);
+		for (Fil_Open_Hdl& hdl : m_handles) {
+			hdl.handle.m_file = OS_FILE_CLOSED;
+		}
 	}
 
 	/** Copy constructor
@@ -389,12 +403,23 @@ struct Fil_Open {
 		m_next(other.m_next)
 	{
 		mutex_create(LATCH_ID_FILE_OPEN, &m_mutex);
+
+		for (uint32_t i = 0; i < MAX_TABLESPACE_OPEN_FILES; i++) {
+			m_handles.at(i) = other.m_handles.at(i);
+		}
 	}
 
 	/** Destructor */
 	~Fil_Open()
 	{
 		mutex_free(&m_mutex);
+
+		for (Fil_Open_Hdl& hdl : m_handles) {
+			if (hdl.handle.m_file != OS_FILE_CLOSED) {
+				os_file_close(hdl.handle);
+				hdl.handle.m_file = OS_FILE_CLOSED;
+			}
+		}
 	}
 
 	/** Acquire the mutex. */
@@ -408,6 +433,9 @@ struct Fil_Open {
 	{
 		mutex_exit(&m_mutex);
 	}
+
+	/** Create tablespaces.open.* files */
+	void create_open_files();
 
 	/** Redo log an open file request.
 	@param[in]	space_id	Tablespace ID being opened
@@ -492,13 +520,11 @@ struct Fil_Open {
 	bool parse(std::istream& is, lsn_t& max_lsn, bool recovery);
 
 	/** Write the data to the file.
-	@param[in]	path		Filename - where to write
 	@param[in]	version		File format version
 	@param[in]	original_len	Uncompressed data len
 	@param[in]	compressed_len	Compressed data len
 	@param[in]	data		The data to write */
-	static void write(
-		const char*	path,
+	void write(
 		size_t		version,
 		size_t		original_len,
 		size_t		compressed_len,
@@ -537,6 +563,9 @@ struct Fil_Open {
 
 	/** Next file number from PATHS. */
 	size_t			m_next;
+
+	/** Paths to tablespace open files. */
+	std::array<Fil_Open_Hdl, MAX_TABLESPACE_OPEN_FILES>	m_handles;
 };
 
 /** Tablespace open state files. */
@@ -647,6 +676,74 @@ Fil_Open::Nodes::rename(const std::string& from, const std::string& to)
 	it->m_state = OPEN;
 
 	return(true);
+}
+
+/** Create tablespaces.open.* files */
+void
+Fil_Open::create_open_files()
+{
+
+	for (uint32_t i = 0; i < MAX_TABLESPACE_OPEN_FILES; i++) {
+
+		if (m_handles.at(i).handle.m_file != OS_FILE_CLOSED) {
+			continue;
+		}
+
+		const std::string&	filename = PATHS[i];
+
+		std::string	path_filename(srv_log_group_home_dir);
+
+		/* Append PATH separator */
+		if ((path_filename.length() != 0)
+		    && (*path_filename.rbegin() != OS_PATH_SEPARATOR)) {
+			path_filename += OS_PATH_SEPARATOR;
+		}
+
+		path_filename.append(filename);
+
+		const char*	path = path_filename.c_str();
+		bool		success;
+
+		pfs_os_file_t	file;
+
+		file = os_file_create(innodb_tablespace_open_file_key, path,
+					  OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
+					  OS_FILE_NORMAL,
+					  OS_BUFFERED_FILE,
+					  srv_read_only_mode,
+					  &success);
+
+		if (!success) {
+			ulint	error = os_file_get_last_error(false);
+			bool	success_open;
+
+			if (error == OS_FILE_ALREADY_EXISTS) {
+				/* Open the file now. */
+				file = os_file_create(
+					innodb_tablespace_open_file_key, path,
+					OS_FILE_OPEN | OS_FILE_ON_ERROR_NO_EXIT,
+					OS_FILE_NORMAL,
+					OS_BUFFERED_FILE,
+					srv_read_only_mode,
+					&success_open);
+
+				if (!success_open) {
+					/* print msg to stderr */
+					os_file_get_last_error(true);
+					ib::fatal() << "Failed to open: " << path;
+				}
+			} else {
+				os_file_get_last_error(true);
+				ib::fatal() << "Failed to create: " << path;
+			}
+		}
+
+		ut_ad(file.m_file != OS_FILE_CLOSED);
+		ut_ad(path_filename.length() >= PATHS[0].length());
+
+		m_handles.at(i).handle = file;
+		m_handles.at(i).path.assign(path_filename);
+	}
 }
 
 /** Rename a file for a given tablespace ID.
@@ -1259,7 +1356,7 @@ fil_node_open_file(fil_node_t* node, bool extend)
 	bool		success;
 	byte*		buf2;
 	byte*		page;
-	ulint		space_id;
+	space_id_t	space_id;
 	ulint		flags;
 	ulint		min_size;
 	bool		read_only_mode;
@@ -1295,9 +1392,10 @@ fil_node_open_file(fil_node_t* node, bool extend)
 		&& srv_read_only_mode;
 
 	if (node->size == 0
-	    || (space->purpose == FIL_TYPE_TABLESPACE
+	    || (space->size_in_header == 0
+		&& space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& !undo::is_under_construction(space->id)
+		&& undo::is_active(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we
 		open the file in the normal mode, no async I/O here,
@@ -3088,7 +3186,6 @@ fil_check_pending_operations(
 @param[in]	lhs		Filename to compare
 @param[in]	rhs		Filename to compare
 @return true if they are the same */
-static
 bool
 fil_paths_equal(const char* lhs, const char* rhs)
 {
@@ -3134,94 +3231,18 @@ fil_paths_equal(const char* lhs, const char* rhs)
 	return(abs_path1.compare(abs_path2) == 0);
 }
 
-/** Check if an undo tablespace was opened during crash recovery.
-@param[in]	file_name	undo tablespace file name
-@param[in]	undo_name	undo tablespace name
+/** Fetch the file name opened for a space_id during recovery
+from the file map.
 @param[in]	space_id	undo tablespace id
-@retval DB_SUCCESS		if it was already opened
-@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
-@retval DB_ERROR		if the data is inconsistent */
-dberr_t
-fil_space_undo_check_if_opened(
-	const char*	file_name,
-	const char*	undo_name,
-	space_id_t	space_id)
+@return file name that was opened */
+std::string
+fil_system_open_fetch(space_id_t space_id)
 {
-	/* At this stage we are still in single threaded mode. */
-
-	ut_a(Fil_Open::is_undo_tablespace_name(file_name, strlen(file_name)));
-
+	fil_system->m_open.enter();
 	std::string	name = fil_system->m_open.fetch(space_id);
+	fil_system->m_open.exit();
 
-	/* If we don't find the space ID to filename mapping in the
-	tablespaces.open.* files then we suppress the path checks. */
-
-	if (name.length() == 0) {
-#ifdef UNIV_DEBUG
-		/* If Fil_Open doesn't know about it then it can't be open. */
-		mutex_enter(&fil_system->mutex);
-
-		fil_space_t*    space   = fil_space_get_by_id(space_id);
-		ut_ad(space == nullptr);
-
-		mutex_exit(&fil_system->mutex);
-#endif /* UNIV_DEBUG */
-
-		return(DB_TABLESPACE_NOT_FOUND);
-	}
-
-	/* NOTE: This check should be eliminated. It prevents the user from
-	moving undo tablespaces around. It doesn't really help, instead gets
-	in the way. */
-
-	/* The file_name that we opened before must be the same as what we
-	need to open now.  If not, maybe the srv_undo_dir has changed. */
-
-	if (!fil_paths_equal(file_name, name.c_str())) {
-		/* This is a different space with different name. So
-		this undo tablespace and all following ones don't exist.
-		Just return silently because this is expceted */
-
-		return(DB_ERROR);
-	}
-
-	/* Check if the undo tablespace has been opened. */
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*    space   = fil_space_get_by_id(space_id);
-
-	if (space == nullptr) {
-
-		mutex_exit(&fil_system->mutex);
-
-		return(DB_TABLESPACE_NOT_FOUND);
-	}
-
-	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
-	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-
-		ib::error()
-			<< "Cannot load UNDO tablespace '"
-			<< file_name << "' with flags=" << space->flags;
-
-		mutex_exit(&fil_system->mutex);
-
-		return(DB_ERROR);
-	}
-
-	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
-
-	mutex_exit(&fil_system->mutex);
-
-	/* Flush and close the redo recovery handle. Also, free up the
-	memory object because it was not created as an undo tablespace. */
-
-	fil_flush(space_id);
-	fil_space_close(space_id);
-	fil_space_free(space_id, false);
-
-	return(DB_TABLESPACE_NOT_FOUND);
+	return(name);
 }
 
 /*******************************************************************//**
@@ -4529,23 +4550,21 @@ fil_ibd_open_for_recovery(
 	if (space != NULL) {
 
 		/* Compare the filename we are trying to open with the
-		filename from the first node of the tablespace we opened
-		previously. Fail if it is different if it is not system
-		tablespace. */
+		filename of all the  nodes of the tablespace we opened
+		previously. Fail if it is different. */
 
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-		fil_node_t* node1 = node;
 
 		if (0 == strcmp(filename, node->name)) {
 			return (FIL_LOAD_OK);
 		}
 
-		/* Same space id can be mapped to many ibdata* files.
+		/* The same space id can be mapped to many ibdata* files.
 		It depends on the innodb_data_file_path configuration.
 		In this case, traverse all the chain from the fil_node_t */
 		if (space_id == TRX_SYS_SPACE) {
 
-			for (; node1 != NULL;
+			for (fil_node_t* node1 = node; node1 != NULL;
 			     node1 = UT_LIST_GET_NEXT(chain, node1)) {
 
 				if (0 == strcmp(filename, node1->name)) {
@@ -5501,16 +5520,10 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-
-	/* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
-	SDI root page numbers, which conflicts with PAGE_IO compression
-	or Encryption. So never IO compress or encrypt pages 0, 1 & 2. */
-
-	/* Don't encrypt pages 0,1,2 of all tablespaces except redo log
+	/* Don't encrypt page 0 of all tablespaces except redo log
 	tablespace, all pages from the system tablespace. */
 	if (space->encryption_type == Encryption::NONE
-	    || (page_id.page_no() <= FSP_FIRST_INODE_PAGE_NO
-		&& !req_type.is_log())) {
+	    || (page_id.page_no() == 0 && !req_type.is_log())) {
 		req_type.clear_encrypted();
 		return;
 	}
@@ -5701,7 +5714,7 @@ fil_io(
 			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && req_type.is_read()
-			    && undo::is_under_construction(space->id)) {
+			    && undo::is_inactive(space->id)) {
 
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
@@ -5811,10 +5824,7 @@ fil_io(
 	if (req_type.is_write()
 	    && !req_type.is_log()
 	    && !page_size.is_compressed()
-	    /* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
-	    SDI root page numbers, which conflicts with PAGE_IO compression.
-	    So never IO compress pages 0, 1 & 2. */
-	    && (page_id.page_no() > FSP_FIRST_INODE_PAGE_NO)
+	    && page_id.page_no() > 0
 	    && IORequest::is_punch_hole_supported()
 	    && node->punch_hole) {
 
@@ -5850,17 +5860,6 @@ fil_io(
 			req_type, node->name, node->handle, buf, offset, len);
 	}
 #else
-
-#ifdef UNIV_DEBUG
-	/* On pages 1 & 2, FIL_PAGE_FILE_FLUSH_LSN is used for storing
-	SDI root page numbers, which conflicts with PAGE_IO compression
-	or Encryption. So never IO compress or encrypt pages 0, 1 & 2. */
-	if (!req_type.is_log() && (req_type.is_encrypted()
-	    || req_type.is_compressed())) {
-		ut_ad(page_id.page_no() > FSP_FIRST_INODE_PAGE_NO);
-	}
-#endif /* UNIV_DEBUG */
-
 	/* Queue the aio request */
 	err = os_aio(
 		req_type,
@@ -6407,9 +6406,6 @@ fil_iterate(
 	ulint	read_type = IORequest::READ;
 	ulint	write_type = IORequest::WRITE;
 
-	/* Page 2 offset. Used for disabling encryption on Pages 0,1,2 */
-	os_offset_t	page_2_offset = FSP_FIRST_INODE_PAGE_NO * iter.page_size;
-
 	for (offset = iter.start; offset < iter.end; offset += n_bytes) {
 
 		byte*	io_buffer = iter.io_buffer;
@@ -6449,10 +6445,8 @@ fil_iterate(
 		dberr_t		err;
 		IORequest	read_request(read_type);
 
-		/* For encrypted table, set encryption information.
-		Pages 0,1,2 should not be encrypted. */
-		if (iter.encryption_key != NULL
-		    && (offset > page_2_offset)) {
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
 			read_request.encryption_key(iter.encryption_key,
 						    ENCRYPTION_KEY_LEN,
 						    iter.encryption_iv);
@@ -6497,10 +6491,8 @@ fil_iterate(
 
 		IORequest	write_request(write_type);
 
-		/* For encrypted table, set encryption information.
-		Pages 0,1,2 should not be encrypted. */
-		if (iter.encryption_key != NULL
-		    && (offset > page_2_offset)) {
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
 			write_request.encryption_key(iter.encryption_key,
 						     ENCRYPTION_KEY_LEN,
 						     iter.encryption_iv);
@@ -7649,53 +7641,28 @@ Fil_Open::to_string() const
 }
 
 /** Write the data to the file.
-@param[in]	path		Filename - where to write
 @param[in]	version		File format version
 @param[in]	original_len	Uncompressed data len
 @param[in]	compressed_len	Compressed data len
 @param[in]	data		The data to write */
 void
 Fil_Open::write(
-	const char*	path,
 	size_t		version,
 	size_t		original_len,
 	size_t		compressed_len,
 	const byte*	data)
 {
-	pfs_os_file_t		pfs_file;
-#ifdef UNIV_PFS_IO
-	PSI_file_locker_state	state;
-	PSI_file_locker*	locker = nullptr;
+	pfs_os_file_t	file =
+		m_handles.at(m_next % MAX_TABLESPACE_OPEN_FILES).handle;
+	std::string	file_path =
+		m_handles.at(m_next % MAX_TABLESPACE_OPEN_FILES).path;
+	++m_next;
 
-	/* Register the file open. */
-	register_pfs_file_open_begin(
-		&state, locker, innodb_tablespace_open_file_key,
-		PSI_FILE_OPEN, path, __FILE__, __LINE__);
-#endif /* UNIV_PFS_IO */
+	const char*	path = file_path.c_str();
 
-	/* Can't use std::ofstream because there is no method to sync the
-	contents to disk. */
+	ut_ad(file.m_file != OS_FILE_CLOSED);
 
-	FILE*   fp = fopen(path, "w+b");
-
-	if (fp == nullptr) {
-
-		ib::fatal()
-			<< "Failed to create: '" << path << "' : '"
-			<< strerror(errno) << "'";
-	}
-
-	pfs_file.m_psi = nullptr;
-
-#ifdef _WIN32
-	pfs_file.m_file = OS_FILE_FROM_FD(_fileno(fp));
-#else
-	pfs_file.m_file = fileno(fp);
-#endif /* _WIN32 */
-
-#ifdef UNIV_PFS_IO
-	register_pfs_file_open_end(locker, pfs_file, 0);
-#endif /* UNIV_PFS_IO */
+	os_file_truncate(path, file, 0);
 
 	char	header[sizeof(uint32_t) * 3];
 	byte*	ptr = reinterpret_cast<byte*>(header);
@@ -7711,122 +7678,87 @@ Fil_Open::write(
 	/* Write out the compressed length. */
 	mach_write_to_4(ptr, compressed_len);
 
-#ifdef UNIV_PFS_IO
-	locker = nullptr;
 
-	/* Register the write I/O. */
-	register_pfs_file_io_begin(
-		&state, locker, pfs_file, sizeof(header) + compressed_len,
-		PSI_FILE_WRITE, __FILE__, __LINE__);
+	IORequest               request(IORequest::WRITE);
 
-#endif /* UNIV_PFS_IO */
+	os_offset_t	offset = 0;
+	ulint		len = 0;
 
-	for (;;) {
+	/* Simulate a crash before having written anything
+	to disk at all. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_crash_before_write",
+		DBUG_SUICIDE(););
 
-		rewind(fp);
+	/* Simulate a massive corruption of the data written to disk.
+	~ temporary or permanent hardware failure. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_0",
+		char buf[]="0123456789AB";
+		len = strlen(buf);
+		os_file_write(request, path, file, buf, offset, len);
+		offset += len;
 
-		/* Simulate a powerloss before having written anything
-		to disk at all. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_crash_before_write",
-			DBUG_SUICIDE(););
+		char buf1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		len = strlen(buf1);
+		os_file_write(request, path, file, buf1, offset, len);
+		offset += len;
 
-		/* Simulate a massive corruption of the data written to disk.
-		~ temporary or permanent hardware failure. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_0",
-			fwrite("0123456789AB", 12, 1, fp);
-			fwrite("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 26, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
+		os_file_flush(file);
+		DBUG_SUICIDE(););
 
-		/* Simulate that a powerloss during write to disk causes
-		that the header is incomplete and what remains is lost
-		anyway. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_1",
-			fwrite(header, sizeof(header) - 1, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
+	/* Simulate that a powerloss during write to disk causes
+	that the header is incomplete and what remains is lost
+	anyway. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_1",
+		len = sizeof(header) - 1;
+		os_file_write(request, path, file, header, offset, len);
+		offset += len;
 
-		size_t	ret = fwrite(header, sizeof(header), 1, fp);
+		os_file_flush(file);
+		DBUG_SUICIDE(););
 
-		if (ret != 1) {
+	len = sizeof(header);
+	dberr_t	err = os_file_write(request, path, file, header, offset, len);
+	if (err != DB_SUCCESS) {
+		/* print msg to stderr */
+		os_file_get_last_error(true);
 
-			ib::fatal()
-				<< "fwrite() failed to write header : '"
-				<< path << "' : " << strerror(errno);
-		}
-
-		/* Simulate that a powerloss during write to disk causes
-		that the compressed data is incomplete. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_write_corrupt_2",
-			fwrite(data, compressed_len - 1, 1, fp);
-			fflush(fp);
-			DBUG_SUICIDE(););
-
-		/* Write out the compressed data. */
-		ret = fwrite(data, compressed_len, 1, fp);
-
-		if (ret != 1) {
-
-			ib::fatal()
-				<< "fwrite() failed to write data: '"
-				<< path << "' : " << strerror(errno);
-		}
-
-#ifdef UNIV_PFS_IO
-		register_pfs_file_io_end(
-			locker, sizeof(header) + compressed_len);
-#endif /* UNIV_PFS_IO */
-
-		/* Crash before writing out the file. */
-		DBUG_EXECUTE_IF(
-			"ib_tablespace_open_flush_crash",
-			DBUG_SUICIDE(););
-
-		/* Flush the IO buffer to disk. */
-		if (fflush(fp) == 0) {
-
-			/* Simulate an EINTR error (retry). */
-			DBUG_EXECUTE_IF(
-				"ib_tablespace_open_flush_eintr",
-				continue; );
-
-			break;
-		}
-
-		switch (errno) {
-		case EINTR:
-		case EAGAIN:
-			break;
-
-		default:
-			ib::fatal()
-				<< "fflush() failed: '"
-				<< path << "' : " << strerror(errno);
-		}
+		ib::fatal() << "write() failed to write header : " << path;
+	} else {
+		offset += len;
 	}
 
+	/* Simulate that a powerloss during write to disk causes
+	that the compressed data is incomplete. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_write_corrupt_2",
+		len = compressed_len - 1;
+		os_file_write(request, path, file, data, offset , len);
+		os_file_flush(file);
+		DBUG_SUICIDE(););
+
+	/* Write out the compressed data. */
+	len = compressed_len;
+	err = os_file_write(request, path, file, data, offset, len);
+
+	if (err != DB_SUCCESS) {
+		/* print msg to stderr */
+		os_file_get_last_error(true);
+
+		ib::fatal() << "write() failed to write header : " << path;
+	} else {
+		offset += len;
+	}
+
+	/* Crash before writing out the file. */
+	DBUG_EXECUTE_IF(
+		"ib_tablespace_open_flush_crash",
+		DBUG_SUICIDE(););
+
 	/** Flush the OS buffer to disk. */
-	auto	success = os_file_flush(pfs_file);
-
-#ifdef UNIV_PFS_IO
-	locker = nullptr;
-
-	register_pfs_file_close_begin(
-		&state, locker, innodb_tablespace_open_file_key,
-		PSI_FILE_CLOSE, path, __FILE__, __LINE__);
-
-#endif /* UNIV_PFS_IO */
-
-	int	ret = fclose(fp);
-	ut_a(ret == 0);
-
-#ifdef UNIV_PFS_IO
-	register_pfs_file_close_end(locker, 0);
-#endif /* UNIV_PFS_IO */
+	bool	success = os_file_flush(file);
 
 	if (!success) {
 
@@ -7874,11 +7806,6 @@ Fil_Open::to_file()
 	if (!m_needs_flush) {
 		return;
 	}
-
-	const std::string&	filename = PATHS[m_next % PATHS.size()];
-
-	++m_next;
-
 
 	std::ostringstream	os;
 
@@ -7986,9 +7913,7 @@ Fil_Open::to_file()
 		break;
 	}
 
-	std::string abs_path = get_path(srv_log_group_home_dir, filename);
-
-	write(abs_path.c_str(), VERSION_1, data.length(), zlen, dst);
+	write(VERSION_1, data.length(), zlen, dst);
 
 	ut_free(dst);
 
@@ -8385,7 +8310,8 @@ Fil_Open::from_file(bool recovery)
 
 	for (const auto& space : files[i].m_spaces) {
 
-		if (space.first == TRX_SYS_SPACE){
+		if (space.first == TRX_SYS_SPACE
+		    || space.first == dict_sys_t::temp_space_id){
 
 			continue;
 		}
@@ -8615,12 +8541,13 @@ Fil_Open::is_undo_tablespace_name(const char* name, ulint len)
 	if (len >= 8) {
 
 		const char*	end_ptr = name + len;
+		size_t	u = (end_ptr[-4] == '_' ? 1 : 0);
 
-		return(end_ptr[-8] == OS_PATH_SEPARATOR
-		       && end_ptr[-7] == 'u'
-		       && end_ptr[-6] == 'n'
-		       && end_ptr[-5] == 'd'
-		       && end_ptr[-4] == 'o'
+		return(end_ptr[-8-u] == OS_PATH_SEPARATOR
+		       && end_ptr[-7-u] == 'u'
+		       && end_ptr[-6-u] == 'n'
+		       && end_ptr[-5-u] == 'd'
+		       && end_ptr[-4-u] == 'o'
 		       && isdigit(end_ptr[-3])
 		       && isdigit(end_ptr[-2])
 		       && isdigit(end_ptr[-1]));
@@ -9234,3 +9161,11 @@ fil_scan_for_tablespaces(const std::string& directories)
 	return(err);
 }
 
+/** Create tablespaces.open.* files. */
+void
+fil_tablespace_open_create()
+{
+	if (!srv_read_only_mode) {
+		fil_system->m_open.create_open_files();
+	}
+}

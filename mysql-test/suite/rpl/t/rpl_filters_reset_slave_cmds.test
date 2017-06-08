@@ -24,6 +24,8 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 
@@ -39,13 +41,6 @@ CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=     ('test.t%');
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE= ('test.i%');
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=         (nodb);
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=             (test, db1, db2);
-
-# Create one channel.
-# Per channel filters will be set as per global filters.
---let $saved_master_repo= `SELECT @@GLOBAL.MASTER_INFO_REPOSITORY`
---let $saved_relay_log_repo= `SELECT @@GLOBAL.RELAY_LOG_INFO_REPOSITORY`
-SET GLOBAL master_info_repository="TABLE";
-SET GLOBAL relay_log_info_repository="TABLE";
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
@@ -101,10 +96,6 @@ SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME='' ORDER BY FILTER_NAME;
 
 # Setup slave
---disable_query_log
---eval SET GLOBAL master_info_repository= "$saved_master_repo"
---eval SET GLOBAL relay_log_info_repository= "$saved_relay_log_repo"
---enable_query_log
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT

@@ -29,11 +29,14 @@
 #include "read_mode_handler.h"
 #include "delayed_plugin_initialization.h"
 #include "gcs_operations.h"
+#include "asynchronous_channels_state_observer.h"
+#include "group_partition_handling.h"
 
 #include "plugin_constants.h"
 #include "plugin_server_include.h"
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
+#include "services/registry.h"
 
 //Definition of system var structures
 
@@ -60,12 +63,13 @@ extern Wait_ticket<my_thread_id> *certification_latch;
 extern Gcs_operations *gcs_module;
 extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
+extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
+extern Asynchronous_channels_state_observer *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
-extern Read_mode_handler *read_mode_handler;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 
 //Auxiliary Functionality
@@ -73,6 +77,8 @@ extern Plugin_gcs_events_handler* events_handler;
 extern Plugin_gcs_view_modification_notifier* view_change_notifier;
 extern Group_member_info* local_member_info;
 extern Compatibility_module* compatibility_mgr;
+extern Group_partition_handling* group_partition_handler;
+extern Blocked_transaction_handler* blocked_transaction_handler;
 
 //Plugin global methods
 bool server_engine_initialized();
@@ -83,6 +89,7 @@ int configure_group_member_manager(char *hostname, char *uuid,
 int configure_compatibility_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
+void initialize_group_partition_handler();
 int terminate_recovery_module();
 int configure_group_communication(st_server_ssl_variables *ssl_variables);
 int start_group_communication();
@@ -93,6 +100,9 @@ int terminate_plugin_modules();
 bool get_allow_local_lower_version_join();
 bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
+void initialize_asynchronous_channels_observer();
+void terminate_asynchronous_channels_observer();
+bool is_plugin_waiting_to_set_server_read_mode();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
@@ -105,7 +115,7 @@ bool plugin_get_connection_status(
 bool plugin_get_group_members(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 bool plugin_get_group_member_stats(
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 uint plugin_get_group_members_number();
 /**
   Method to set retrieved certification info from a recovery channel extracted

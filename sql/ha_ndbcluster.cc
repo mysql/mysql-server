@@ -1109,7 +1109,8 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd,
+                                   ER_EXCEPTIONS_WRITE_ERROR), msg);
         /* Slave will stop replication. */
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -2195,7 +2196,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
                       ndbCol->getColumnNo(), ndbCol->getNullable());
         break;
       }
-    } 
+    }
     tmp_restore_column_map(table->read_set, old_map);
   }
 
@@ -4865,7 +4866,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                       m_share->key_string());
       DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
     }
-    
+
     if (extra_row_info.getFlags() &
         Ndb_binlog_extra_row_info::NDB_ERIF_TRANSID)
       transaction_id = extra_row_info.getTransactionId();
@@ -5951,7 +5952,8 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_EXCEPTIONS_WRITE_ERROR,
-                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
+                            ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
+                            msg);
 
         DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
       }
@@ -6077,7 +6079,8 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
+                              msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -6125,7 +6128,8 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                       err.message);
           push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_EXCEPTIONS_WRITE_ERROR,
-                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR), msg);
+                              ER_THD(current_thd, ER_EXCEPTIONS_WRITE_ERROR),
+                              msg);
           /* Slave will stop replication. */
           DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
         }
@@ -10910,7 +10914,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
 
     if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info.requested_algorithm ==
+        (thd->lex->alter_info->requested_algorithm ==
          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
     {
       // Copying alter table is not allowed and user
@@ -12377,7 +12381,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   */
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
   {
-    Alter_info *alter_info= &(thd->lex->alter_info);
+    Alter_info *alter_info= thd->lex->alter_info;
     uint flags= alter_info->flags;
 
     if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
@@ -12472,7 +12476,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     }
 
     // Make sure that inplace was not requested
-    DBUG_ASSERT(thd->lex->alter_info.requested_algorithm !=
+    DBUG_ASSERT(thd->lex->alter_info->requested_algorithm !=
                   Alter_info::ALTER_TABLE_ALGORITHM_INPLACE);
 
     /*
@@ -12538,7 +12542,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
       */
       const char* orig_name = thd->lex->select_lex->table_list.first->table_name;
       const char* orig_db = thd->lex->select_lex->table_list.first->db;
-      if (thd->lex->alter_info.flags & Alter_info::ALTER_RENAME &&
+      if (thd->lex->alter_info->flags & Alter_info::ALTER_RENAME &&
           (my_strcasecmp(system_charset_info, orig_db, new_dbname) ||
            my_strcasecmp(system_charset_info, orig_name, new_tabname)))
       {
@@ -12692,9 +12696,9 @@ drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
 {
   DBUG_ENTER("drop_table_and_related");
   DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d skip_related: %d",
-                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints),
-                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB),
-                       skip_related));
+    static_cast<bool>(drop_flags & NDBDICT::DropTableCascadeConstraints),
+    static_cast<bool>(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB),
+    skip_related));
 
   /*
     Build list of objects which should be dropped after the table
@@ -13979,7 +13983,7 @@ static Uint32 ndb_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
   version,                          /* name */
   ndb_version,                      /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version for ndbcluster",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
@@ -13994,7 +13998,7 @@ static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
 static MYSQL_SYSVAR_STR(
   version_string,                  /* name */
   ndb_version_string,              /* var */
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Compile version string for ndbcluster",
   NULL,                             /* check func. */
   NULL,                             /* update func. */
@@ -16209,7 +16213,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
 
   m_disable_multi_read= FALSE;
 
-  mrr_is_output_sorted= MY_TEST(mode & HA_MRR_SORTED);
+  mrr_is_output_sorted= (mode & HA_MRR_SORTED);
   /*
     Copy arguments into member variables
   */
@@ -16218,7 +16222,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_iter= mrr_funcs.init(seq_init_param, n_ranges, mode);
   ranges_in_seq= n_ranges;
   m_range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range);
-  mrr_need_range_assoc = !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
+  mrr_need_range_assoc = !(mode & HA_MRR_NO_ASSOCIATION);
   if (mrr_need_range_assoc)
   {
     ha_statistic_increment(&System_status_var::ha_multi_range_read_init_count);
@@ -18770,7 +18774,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     DBUG_RETURN(true);
 
   NDB_ALTER_DATA *alter_data;
-  if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
+  if (!(alter_data= new (*THR_MALLOC) NDB_ALTER_DATA(dict, m_table)))
     DBUG_RETURN(true);
 
   const NDBTAB* const old_tab = alter_data->old_table;
@@ -20886,6 +20890,7 @@ mysql_declare_plugin(ndbcluster)
   "Clustered, fault-tolerant tables",
   PLUGIN_LICENSE_GPL,
   ndbcluster_init,            /* plugin init */
+  NULL,                       /* plugin check uninstall */
   NULL,                       /* plugin deinit */
   0x0100,                     /* plugin version */
   ndb_status_vars,            /* status variables */

@@ -18,30 +18,44 @@
 #include "derror.h"           // ER_THD
 #include "json_dom.h"
 #include "lex_string.h"
-#include "log.h"                        // sql_print_error
+#include "log.h"
 #include "my_default.h"                 // check_file_permissions
 #include "mysqld.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_memory.h"
+#include "psi_memory_key.h"
 #include "set_var.h"
 #include "sql_class.h"
 #include "sql_lex.h"
 #include "sys_vars_shared.h"
 
-#ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key key_persist_file_cnf;
+
+#ifdef HAVE_PSI_FILE_INTERFACE
 static PSI_file_info all_persist_files[]=
 {
   { &key_persist_file_cnf, "cnf", 0}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key key_persist_file, key_persist_hash;
+
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_persist_mutexes[]=
 {
   { &key_persist_file, "m_LOCK_persist_file", 0, 0},
   { &key_persist_hash, "m_LOCK_persist_hash", 0, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
+
+PSI_memory_key key_memory_persisted_variables;
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+static PSI_memory_info all_options[]=
+{
+  {&key_memory_persisted_variables, "persisted_options_root", PSI_FLAG_GLOBAL}
+};
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #ifdef HAVE_PSI_INTERFACE
 void my_init_persist_psi_keys(void)
@@ -58,28 +72,82 @@ void my_init_persist_psi_keys(void)
   count= static_cast<int>(array_elements(all_persist_mutexes));
   PSI_MUTEX_CALL(register_mutex)(category, all_persist_mutexes, count);
 #endif
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  count= static_cast<int>(array_elements(all_options));
+  mysql_memory_register(category, all_options, count);
+#endif
 }
 #endif
 
 Persisted_variables_cache* Persisted_variables_cache::m_instance= NULL;
 
 /**
-  Initilize class members.
-*/
-void Persisted_variables_cache::init()
-{
-  char name[FN_REFLEN];
+  Initialize class members. This function reads datadir if present in
+  config file or set at command line, in order to know from where to
+  load this config file. If datadir is not set then read from MYSQL_DATADIR.
 
+   @param [in] argc                      Pointer to argc of original program
+   @param [in] argv                      Pointer to argv of original program
+
+   @return 0 Success
+   @return 1 Failure
+
+*/
+int Persisted_variables_cache::init(int *argc, char ***argv)
+{
 #ifdef HAVE_PSI_INTERFACE
    my_init_persist_psi_keys();
 #endif
 
-  if (mysql_real_data_home_ptr)
-    convert_dirname(name, mysql_real_data_home_ptr, NullS);
-  else
-    convert_dirname(name, MYSQL_DATADIR, NullS);
+  int temp_argc= *argc;
+  MEM_ROOT alloc;
+  char *ptr, **res, *datadir= NULL;
+  char dir[FN_REFLEN]= { 0 };
+  const char *dirs= NULL;
+  bool persist_load= true;
 
-  m_persist_filename= string(name) + MYSQL_PERSIST_CONFIG_NAME + ".cnf";
+  my_option persist_options[]= {
+    {"persisted_globals_load", 0, "", &persist_load, &persist_load,
+      0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+    {"datadir", 0, "", &datadir, 0, 0, GET_STR, OPT_ARG,
+      0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  };
+
+  /* create temporary args list and pass it to handle_options */
+  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
+  if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
+    (*argc + 1) * sizeof(char *))))
+    return 1;
+  memset(ptr, 0, (sizeof(char *) * (*argc + 1)));
+  res= (char **) (ptr);
+  memcpy((uchar *) res, (char *) (*argv), (*argc) * sizeof(char *));
+
+  my_getopt_skip_unknown= TRUE;
+  if (my_handle_options(&temp_argc, &res, persist_options,
+                        NULL, NULL, TRUE))
+  {
+    free_root(&alloc, MYF(0));
+    return 1;
+  }
+  my_getopt_skip_unknown= 0;
+  free_root(&alloc, MYF(0));
+
+  persisted_globals_load= persist_load;
+  /*
+    if datadir is set then search in this data dir else search in
+    MYSQL_DATADIR
+  */
+  dirs= ((datadir) ? datadir : MYSQL_DATADIR);
+  /* expand path if it is a relative path */
+  if (dirs[0] == FN_CURLIB && my_getwd(dir, sizeof(dir), MYF(0)))
+    return 1;
+  if (fn_format(datadir_buffer, dirs, dir, "",
+      MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH) == NULL)
+    return 1;
+  unpack_dirname(datadir_buffer, datadir_buffer);
+  m_persist_filename= string(datadir_buffer) + MYSQL_PERSIST_CONFIG_NAME + ".cnf";
 
   mysql_mutex_init(key_persist_hash,
     &m_LOCK_persist_hash, MY_MUTEX_INIT_FAST);
@@ -88,6 +156,9 @@ void Persisted_variables_cache::init()
     &m_LOCK_persist_file, MY_MUTEX_INIT_FAST);
 
   m_instance= this;
+  ro_persisted_argv= NULL;
+  ro_persisted_plugin_argv= NULL;
+  return 0;
 }
 
 /**
@@ -111,8 +182,9 @@ Persisted_variables_cache* Persisted_variables_cache::get_instance()
 */
 void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 {
-  char val_buf[1024];
-  size_t val_length;
+  char val_buf[1024]= { 0 };
+  String str(val_buf, sizeof(val_buf), system_charset_info), *res;
+  size_t val_length= 0;
 
   struct st_persist_var_data
   {
@@ -123,8 +195,15 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 
   const char* var_name=
     Persisted_variables_cache::get_variable_name(system_var);
-  const char* var_value=
-    Persisted_variables_cache::get_variable_value(thd,
+  const char* var_value= val_buf;
+  if (setvar->type == OPT_PERSIST_ONLY && setvar->value)
+  {
+    res= setvar->value->val_str(&str);
+    if (res && res->length())
+      var_value= res->ptr();
+  }
+  else
+    var_value= Persisted_variables_cache::get_variable_value(thd,
                              system_var, val_buf, &val_length);
 
   /* structured variables may have basename if specified */
@@ -134,10 +213,14 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar)
 
   if (struct_var_name.length())
     tmp_var.name= struct_var_name.append(".").append(tmp_var.name);
+
   /* modification to in-memory must be thread safe */
   mysql_mutex_lock(&m_LOCK_persist_hash);
   /* if present update variable with new value else insert into hash */
-  m_persist_hash[tmp_var.name]= tmp_var.value;
+  if (setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly())
+    m_persist_ro_hash[tmp_var.name]= tmp_var.value;
+  else
+    m_persist_hash[tmp_var.name]= tmp_var.value;
   mysql_mutex_unlock(&m_LOCK_persist_hash);
 }
 
@@ -237,6 +320,40 @@ bool Persisted_variables_cache::flush_to_file()
     if (m_persist_hash.size() > 1 && iter != last_iter)
       dest.append(" , ");
   }
+
+  if (m_persist_ro_hash.size())
+  {
+    if (m_persist_hash.size())
+      dest.append(" ,");
+    dest.append(" \"mysql_server_static_options\": {");
+  }
+
+  if (m_persist_ro_hash.size() > 1)
+    last_iter= --(m_persist_ro_hash.end());
+
+  for (iter = m_persist_ro_hash.begin();
+       iter != m_persist_ro_hash.end(); iter++)
+  {
+    String str;
+    std::unique_ptr<Json_string> var_name(new (std::nothrow)
+                    Json_string(iter->first));
+    Json_wrapper vn(var_name.release());
+    vn.to_string(&str, true, String().ptr());
+    dest.append(str);
+    dest.append(": ");
+    str= String();
+    std::unique_ptr<Json_string> var_val(new (std::nothrow)
+                    Json_string(iter->second));
+    Json_wrapper vv(var_val.release());
+    vv.to_string(&str, true, String().ptr());
+    dest.append(str);
+    if (m_persist_ro_hash.size() > 1 && iter != last_iter)
+      dest.append(" , ");
+  }
+
+  if (m_persist_ro_hash.size())
+     dest.append(" }");
+
   dest.append(" } }");
   /*
     If file does not exists create one. When persisted_globals_load is 0
@@ -291,13 +408,7 @@ void Persisted_variables_cache::close_persist_file()
 }
 
 /**
-  load_persist_file() searches for persisted config file in
-  data dir, reads options from this config file
-
-  Before loading this config file do following:
-    1. Read the datadir if present in config file or set as command line,
-       in order to know from where to load this config file. If not set
-       then read from MYSQL_DATADIR.
+  load_persist_file() read persisted config file
 
   @return Error state
     @retval TRUE An error occurred
@@ -305,32 +416,8 @@ void Persisted_variables_cache::close_persist_file()
 */
 bool Persisted_variables_cache::load_persist_file()
 {
-  const char *conf_file= MYSQL_PERSIST_CONFIG_NAME;
-  char *end;
-  const char *dirs, *ext= ".cnf";
-  char persist_config_file[FN_REFLEN + 10];
-
-  /*
-    if datadir is set then search in this data dir else search in
-    MYSQL_DATADIR
-  */
-  dirs= ((mysql_real_data_home_ptr) ?
-    mysql_real_data_home_ptr : MYSQL_DATADIR);
-  if (dirs && (strlen(dirs) >= FN_REFLEN-3))
-    return 1;
-  end=convert_dirname(persist_config_file, dirs, NullS);
-  if (dirs[0] == FN_HOMELIB)
-    *end++='.';
-  strxmov(end, conf_file, ext, NullS);
-  fn_format(persist_config_file, persist_config_file, "", "",
-            MY_UNPACK_FILENAME);
-
-  // set file name
-  m_persist_filename= string(persist_config_file);
-
   if (read_persist_file() > 0)
     return 1;
-
   return 0;
 }
 
@@ -340,7 +427,7 @@ bool Persisted_variables_cache::load_persist_file()
   This function does nothing when --no-defaults is set or if
   persisted_globals_load is set to false
 
-   @param [in] what_options        Flag which tell what options are being set.
+   @param [in] plugin_options      Flag which tells what options are being set.
                                    If set to FALSE non plugin variables are set
                                    else plugin variables are set
 
@@ -348,7 +435,7 @@ bool Persisted_variables_cache::load_persist_file()
     @retval TRUE An error occurred
     @retval FALSE Success
 */
-bool Persisted_variables_cache::set_persist_options(bool what_options)
+bool Persisted_variables_cache::set_persist_options(bool plugin_options)
 {
   THD *thd;
   LEX lex_tmp, *sav_lex= NULL;
@@ -386,7 +473,7 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
   {
     if (!(thd= new THD))
     {
-      sql_print_error("Failed to set persisted options.");
+      LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
       return 1;
     }
     thd->thread_stack= (char*) &thd;
@@ -401,12 +488,12 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
   }
 
   /*
-    Based on what_options, we decide on what options to be set. If
-    what_options is false we set all non plugin variables and then
+    Based on plugin_options, we decide on what options to be set. If
+    plugin_options is false we set all non plugin variables and then
     keep all plugin variables in a map. When the plugin is installed
     plugin variables are read from the map and set.
   */
-  persist_hash= (what_options ? &m_persist_plugin_hash : &m_persist_hash);
+  persist_hash= (plugin_options ? &m_persist_plugin_hash : &m_persist_hash);
 
   for (iter = persist_hash->begin();
        iter != persist_hash->end(); iter++)
@@ -415,6 +502,7 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
     set_var *var= NULL;
     sys_var *sysvar= NULL;
     string var_name= iter->first;
+
     LEX_STRING base_name= { const_cast<char*>(var_name.c_str()),
                             var_name.length() };
 
@@ -467,7 +555,25 @@ bool Persisted_variables_cache::set_persist_options(bool what_options)
   }
   if (sql_set_variables(thd, &tmp_var_list, false))
   {
-    sql_print_error("Failed to set persisted options.");
+    /*
+     If there is a connection and an error occurred during install plugin
+     then report error at sql layer, else log the error in server log.
+    */
+    if (current_thd && plugin_options)
+    {
+      if (thd->is_error())
+        my_error(ER_CANT_SET_PERSISTED, MYF(0),
+          thd->get_stmt_da()->message_text());
+      else
+        my_error(ER_CANT_SET_PERSISTED, MYF(0));
+    }
+    else
+    {
+      if (thd->is_error())
+        sql_print_error("%s", thd->get_stmt_da()->message_text());
+      else
+        LogErr(ERROR_LEVEL, ER_CANT_SET_PERSISTED);
+    }
     result= 1;
     goto err;
   }
@@ -534,7 +640,7 @@ int Persisted_variables_cache::read_persist_file()
                                  parsed_value.length(), &error, &offset));
   if (!json.get())
   {
-    sql_print_error("JSON parsing error");
+    LogErr(ERROR_LEVEL, ER_JSON_PARSE_ERROR);
     return 1;
   }
   Json_object *obj= reinterpret_cast<Json_object *>(json.get());
@@ -542,7 +648,7 @@ int Persisted_variables_cache::read_persist_file()
   Json_string *group_name= reinterpret_cast<Json_string *>(group);
   if (!group_name)
   {
-    sql_print_error("Found option without preceding group in config file");
+    LogErr(ERROR_LEVEL, ER_CONFIG_OPTION_WITHOUT_GROUP);
     return 1;
   }
   /* Extract key/value pair and populate in a global hash map */
@@ -550,11 +656,132 @@ int Persisted_variables_cache::read_persist_file()
   while(!iter.empty())
   {
     const std::string key= iter.elt().first;
-    const std::string key_value= iter.elt().second.get_data();
-    m_persist_hash[key] = key_value;
+    if (key == "mysql_server_static_options")
+    {
+      if (iter.elt().second.is_dom())
+      {
+        Json_dom *ro_group= iter.elt().second.to_dom(NULL);
+        /* Extract key/value pair for all static variables */
+        Json_wrapper_object_iterator
+          ro_iter(reinterpret_cast<Json_object *>(ro_group));
+        while (!ro_iter.empty())
+        {
+          const std::string key= ro_iter.elt().first;
+          const std::string key_value= ro_iter.elt().second.get_data();
+          m_persist_ro_hash[key]= key_value;
+          ro_iter.next();
+        }
+      }
+    }
+    else
+    {
+      const std::string key_value= iter.elt().second.get_data();
+      m_persist_hash[key]= key_value;
+    }
     iter.next();
   }
   return 0;
+}
+
+/**
+  append_read_only_variables() does a lookup into persist_hash for read only
+  variables and place them after the command line options with a separator
+  "----persist-args-separator----"
+
+  This function does nothing when --no-defaults is set or if
+  persisted_globals_load is disabled.
+
+  @param [in] argc                      Pointer to argc of original program
+  @param [in] argv                      Pointer to argv of original program
+  @param [in] plugin_options            This flag tells wether options are handled
+                                        during plugin install. If set to TRUE
+                                        options are handled as part of install
+                                        plugin.
+
+  @return 0 Success
+  @return 1 Failure
+*/
+bool Persisted_variables_cache::append_read_only_variables(int *argc,
+  char ***argv, bool plugin_options)
+{
+  Prealloced_array<char *, 100> my_args(key_memory_persisted_variables);
+  TYPELIB group;
+  MEM_ROOT alloc;
+  const char *type_name= "mysqld";
+  char *ptr, **res;
+  map<string, string>::const_iterator iter;
+
+  if (*argc < 2 || no_defaults || !persisted_globals_load)
+    return 0;
+
+  init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
+  group.count= 1;
+  group.name= "defaults";
+  group.type_names= &type_name;
+
+  for (iter= m_persist_ro_hash.begin();
+       iter != m_persist_ro_hash.end(); iter++)
+  {
+    string persist_option= "--loose_" + iter->first + "=" + iter->second;
+    if (find_type((char *) type_name, &group, FIND_TYPE_NO_PREFIX))
+    {
+      char *tmp;
+      if ((!(tmp= (char *)
+          alloc_root(&alloc, strlen(persist_option.c_str()) + 1))) ||
+          my_args.push_back(tmp))
+        return 1;
+      my_stpcpy(tmp, (const char *) persist_option.c_str());
+    }
+  }
+  /*
+   Update existing command line options if there are any persisted
+   reasd only options to be appendded
+  */
+  if (my_args.size())
+  {
+    if (!(ptr= (char *) alloc_root(&alloc, sizeof(alloc) +
+        (my_args.size() + *argc + 2) * sizeof(char *))))
+      goto err;
+    if (plugin_options)
+    {
+      /* free previously allocated memory */
+      if (ro_persisted_plugin_argv)
+      {
+        free_defaults(ro_persisted_plugin_argv);
+        ro_persisted_plugin_argv= NULL;
+      }
+      ro_persisted_plugin_argv= res= (char **) (ptr + sizeof(alloc));
+    }
+    else
+      ro_persisted_argv= res= (char **) (ptr + sizeof(alloc));
+    memset(res, 0, (sizeof(char *) * (my_args.size() + *argc + 2)));
+    /* copy all arguments to new array */
+    memcpy((uchar *) (res), (char *) (*argv), (*argc) * sizeof(char *));
+
+    if (!my_args.empty())
+    {
+      /*
+       Set args separator to know options set as part of command line and
+       options set from persisted config file
+      */
+      set_persist_args_separator(&res[*argc]);
+      /* copy arguments from persistent config file */
+      memcpy((res + *argc + 1), &my_args[0], my_args.size() * sizeof(char *));
+    }
+    res[my_args.size() + *argc + 1] = 0;  /* last null */
+    (*argc)+= my_args.size() + 1;
+    *argv= res;
+    *(MEM_ROOT *) ptr= std::move(alloc);
+    return 0;
+  }
+  else
+    free_root(&alloc, MYF(0));
+  return 0;
+
+  err:
+  my_message_local(ERROR_LEVEL,
+                   "Fatal error in defaults handling. Program aborted!");
+  exit(1);
 }
 
 /**
@@ -579,12 +806,18 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   bool reset_all= (name ? 0 : 1);
   var_name= (name ? name : string());
   std::map<string, string>::iterator it= m_persist_hash.find(var_name);
+  std::map<string, string>::iterator it_ro= m_persist_ro_hash.find(var_name);
 
   if (reset_all)
   {
     if (!m_persist_hash.empty())
     {
       m_persist_hash.clear();
+      flush= 1;
+    }
+    if (!m_persist_ro_hash.empty())
+    {
+      m_persist_ro_hash.clear();
       flush= 1;
     }
   }
@@ -596,9 +829,15 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
       m_persist_hash.erase(it);
       flush= 1;
     }
+    else if (it_ro != m_persist_ro_hash.end())
+    {
+      /* if static variable is present in config file remove it */
+      m_persist_ro_hash.erase(it_ro);
+      flush= 1;
+    }
     else
     {
-      /* if not present and if exists is specified report warning */
+      /* if not present and if exists is specified, report warning */
       if (if_exists)
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -626,8 +865,27 @@ map<string, string>* Persisted_variables_cache::get_persist_hash()
 {
   return &m_persist_hash;
 }
+
+/**
+  Return in-memory copy for static persisted variables
+*/
+map<string, string>* Persisted_variables_cache::get_persist_ro_hash()
+{
+  return &m_persist_ro_hash;
+}
+
 void Persisted_variables_cache::cleanup()
 {
   mysql_mutex_destroy(&m_LOCK_persist_hash);
   mysql_mutex_destroy(&m_LOCK_persist_file);
+  if (ro_persisted_argv)
+  {
+    free_defaults(ro_persisted_argv);
+    ro_persisted_argv= NULL;
+  }
+  if (ro_persisted_plugin_argv)
+  {
+    free_defaults(ro_persisted_plugin_argv);
+    ro_persisted_plugin_argv= NULL;
+  }
 }

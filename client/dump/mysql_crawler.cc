@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/mysql_query_runner.h"
+#include "column_statistic.h"
 #include "event_scheduler_event.h"
 #include "mysql_crawler.h"
 #include "mysql_function.h"
@@ -247,6 +248,8 @@ void Mysql_crawler::enumerate_tables(const Database& db)
 
     this->enumerate_table_triggers(*table, rows_task);
 
+    this->enumerate_column_statistics(*table, rows_task);
+
     this->process_dump_task(indexes_task);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
@@ -458,6 +461,52 @@ void Mysql_crawler::enumerate_table_triggers(
   delete runner;
 }
 
+void Mysql_crawler::enumerate_column_statistics(
+  const Table& table, Abstract_dump_task* dependency)
+{
+  // Column statistics were supported since 8.0.2
+  if (this->get_server_version() < 80002)
+    return;
+
+  Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
+
+  std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*> column_statistics;
+  runner->run_query_store(
+  "SELECT COLUMN_NAME, \
+          JSON_EXTRACT(HISTOGRAM, '$.\"number-of-buckets-specified\"') \
+   FROM information_schema.column_statistics \
+   WHERE SCHEMA_NAME = '" + runner->escape_string(table.get_schema()) + "' \
+     AND TABLE_NAME = '" + runner->escape_string(table.get_name()) + "';",
+     &column_statistics);
+
+  for (std::vector<const Mysql::Tools::Base::Mysql_query_runner::Row*>::iterator
+    it= column_statistics.begin(); it != column_statistics.end(); ++it)
+  {
+    const Mysql::Tools::Base::Mysql_query_runner::Row& column_row= **it;
+
+    std::string definition;
+    definition.append("/*!80002 ANALYZE TABLE ");
+    definition.append(this->quote_name(table.get_schema()));
+    definition.append(".");
+    definition.append(this->quote_name(table.get_name()));
+    definition.append(" UPDATE HISTOGRAM ON ");
+    definition.append(this->quote_name(column_row[0]));
+    definition.append(" WITH ");
+    definition.append(column_row[1]);
+    definition.append(" BUCKETS */");
+
+    Column_statistic* column_statistic=
+      new Column_statistic(this->generate_new_object_id(), table.get_schema(),
+                           definition, &table);
+
+    column_statistic->add_dependency(dependency);
+    m_current_database_end_dump_task->add_dependency(column_statistic);
+
+    this->process_dump_task(column_statistic);
+  }
+  Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&column_statistics);
+  delete runner;
+}
 
 std::string Mysql_crawler::get_version_specific_statement(
   std::string create_string, const std::string& keyword,

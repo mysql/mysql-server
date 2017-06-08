@@ -91,6 +91,7 @@
 #include "table_mems_global_by_event_name.h"
 #include "table_os_global_by_type.h"
 #include "table_performance_timers.h"
+#include "table_plugin_table.h"
 #include "table_prepared_stmt_instances.h"
 #include "table_replication_applier_configuration.h"
 #include "table_replication_applier_status.h"
@@ -130,6 +131,7 @@
 #include "table_variables_by_thread.h"
 #include "table_variables_info.h"
 #include "table_persisted_variables.h"
+#include "table_user_defined_functions.h"
 
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
@@ -480,17 +482,6 @@ PFS_table_context::initialize(void)
     m_map = NULL;
     m_word_size = sizeof(ulong) * 8;
 
-#if 0
-    /* Disabled. */
-    /* Allocate a bitmap to record which threads are materialized. */
-    if (m_map_size > 0)
-    {
-      THD *thd= current_thd;
-      ulong words= m_map_size / m_word_size + (m_map_size % m_word_size > 0);
-      m_map= (ulong *)thd->mem_calloc(words * m_word_size);
-    }
-#endif
-
     /* Write to TLS. */
     THR_PFS_contexts[m_thr_key] = context;
   }
@@ -674,106 +665,22 @@ static PFS_engine_table_share *all_shares[] = {
   &table_session_variables::m_share,
   &table_variables_info::m_share,
   &table_persisted_variables::m_share,
+  &table_user_defined_functions::m_share,
 
   NULL};
 
-/**
-  Check all the tables structure.
-  @param thd              current thread
-*/
+PFS_dynamic_table_shares pfs_external_table_shares;
+
+/** Get all the core performance schema tables. */
 void
-PFS_engine_table_share::check_all_tables(THD *thd)
+PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables)
 {
   PFS_engine_table_share **current;
 
-  DBUG_EXECUTE_IF("tampered_perfschema_table1", {
-    /* Hack SETUP_INSTRUMENT, incompatible change. */
-    all_shares[20]->m_field_def->count++;
-  });
-
   for (current = &all_shares[0]; (*current) != NULL; current++)
   {
-    (*current)->check_one_table(thd);
+    tables->push_back((*current)->m_table_def);
   }
-}
-
-/** Error reporting for schema integrity checks. */
-class PFS_check_intact : public Table_check_intact
-{
-protected:
-  virtual void report_error(uint code, const char *fmt, ...);
-
-public:
-  PFS_check_intact()
-  {
-  }
-
-  ~PFS_check_intact()
-  {
-  }
-};
-
-void
-PFS_check_intact::report_error(uint, const char *fmt, ...)
-{
-  va_list args;
-  char buff[MYSQL_ERRMSG_SIZE];
-
-  va_start(args, fmt);
-  my_vsnprintf(buff, sizeof(buff), fmt, args);
-  va_end(args);
-
-  /*
-    This is an install/upgrade issue:
-    - do not report it in the user connection, there is none in main(),
-    - report it in the server error log.
-  */
-  sql_print_error("%s", buff);
-}
-
-/**
-  Check integrity of the actual table schema.
-  The actual table schema is compared to the expected schema.
-  @param thd              current thread
-*/
-void
-PFS_engine_table_share::check_one_table(THD *thd)
-{
-  TABLE_LIST tables;
-
-  tables.init_one_table(PERFORMANCE_SCHEMA_str.str,
-                        PERFORMANCE_SCHEMA_str.length,
-                        m_name.str,
-                        m_name.length,
-                        m_name.str,
-                        TL_READ);
-
-  /* Work around until Bug#32115 is backported. */
-  LEX dummy_lex;
-  LEX *old_lex = thd->lex;
-  thd->lex = &dummy_lex;
-  lex_start(thd);
-
-  if (!open_and_lock_tables(thd, &tables, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    PFS_check_intact checker;
-
-    if (!checker.check(thd, tables.table, m_field_def))
-    {
-      m_checked = true;
-    }
-    close_thread_tables(thd);
-  }
-  else
-  {
-    sql_print_error(ER_DEFAULT(ER_WRONG_NATIVE_TABLE_STRUCTURE),
-                    PERFORMANCE_SCHEMA_str.str,
-                    m_name.str);
-    thd->clear_error();
-  }
-
-  lex_end(&dummy_lex);
-  thd->lex = old_lex;
 }
 
 /** Initialize all the table share locks. */
@@ -807,20 +714,12 @@ PFS_engine_table_share::get_row_count(void) const
 }
 
 int
-PFS_engine_table_share::write_row(TABLE *table,
+PFS_engine_table_share::write_row(PFS_engine_table *pfs_table,
+                                  TABLE *table,
                                   unsigned char *buf,
                                   Field **fields) const
 {
   my_bitmap_map *org_bitmap;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in m_write_row.
-  */
-  if (!m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   if (m_write_row == NULL)
   {
@@ -829,13 +728,13 @@ PFS_engine_table_share::write_row(TABLE *table,
 
   /* We internally read from Fields to support the write interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
-  int result = m_write_row(table, buf, fields);
+  int result = m_write_row(pfs_table, table, buf, fields);
   dbug_tmp_restore_column_map(table->read_set, org_bitmap);
 
   return result;
 }
 
-static int
+int
 compare_table_names(const char *name1, const char *name2)
 {
   /*
@@ -870,18 +769,24 @@ PFS_engine_table_share *
 PFS_engine_table::find_engine_table_share(const char *name)
 {
   DBUG_ENTER("PFS_engine_table::find_table_share");
+  PFS_engine_table_share *result;
 
+  /* First try to find in native performance schema table shares */
   PFS_engine_table_share **current;
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
   {
-    if (compare_table_names(name, (*current)->m_name.str) == 0)
+    if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0)
     {
       DBUG_RETURN(*current);
     }
   }
 
-  DBUG_RETURN(NULL);
+  /* Now try to find in non-native performance schema tables shares */
+  result = pfs_external_table_shares.find_share(name, false);
+
+  // FIXME : here we return an object that could be destroyed, unsafe.
+  DBUG_RETURN(result);
 }
 
 /**
@@ -897,15 +802,6 @@ PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
   my_bitmap_map *org_bitmap;
   Field *f;
   Field **fields_reset;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in read_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   /* We must read all columns in case a table is opened for update */
   bool read_all = !bitmap_is_clear_all(table->write_set);
@@ -946,15 +842,6 @@ PFS_engine_table::update_row(TABLE *table,
 {
   my_bitmap_map *org_bitmap;
 
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in update_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
-
   /* We internally read from Fields to support the write interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
   int result = update_row_values(table, old_buf, new_buf, fields);
@@ -969,15 +856,6 @@ PFS_engine_table::delete_row(TABLE *table,
                              Field **fields)
 {
   my_bitmap_map *org_bitmap;
-
-  /*
-    Make sure the table structure is as expected before mapping
-    hard wired columns in delete_row_values.
-  */
-  if (!m_share_ptr->m_checked)
-  {
-    return HA_ERR_TABLE_NEEDS_UPGRADE;
-  }
 
   /* We internally read from Fields to support the delete interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
@@ -1082,6 +960,48 @@ PFS_engine_table::index_next_same(const uchar *, uint)
   return index_next();
 }
 
+/**
+  Find a share in the list
+  @param table_name  name of the table
+  @param is_dead_too if true, consider tables marked to be deleted
+
+  @return if found table share or NULL
+*/
+PFS_engine_table_share *
+PFS_dynamic_table_shares::find_share(const char *table_name, bool is_dead_too)
+{
+  if (!opt_initialize)
+    mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+
+  for (auto it : shares_vector)
+  {
+    if ((compare_table_names(table_name, it->m_table_def->get_name()) == 0) &&
+        (it->m_in_purgatory == false || is_dead_too))
+      return it;
+  }
+  return NULL;
+}
+
+/**
+  Remove a share from the list
+  @param share  share to be removed
+*/
+void
+PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share)
+{
+  mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+
+  std::vector<PFS_engine_table_share *>::iterator it;
+
+  /* Search for the share in share list */
+  it = std::find(shares_vector.begin(), shares_vector.end(), share);
+  if (it != shares_vector.end())
+  {
+    /* Remove the share from the share list */
+    shares_vector.erase(it);
+  }
+}
+
 /** Implementation of internal ACL checks, for the performance schema. */
 class PFS_internal_schema_access : public ACL_internal_schema_access
 {
@@ -1123,11 +1043,17 @@ const ACL_internal_table_access *
 PFS_internal_schema_access::lookup(const char *name) const
 {
   const PFS_engine_table_share *share;
+
+  pfs_external_table_shares.lock_share_list();
   share = PFS_engine_table::find_engine_table_share(name);
   if (share)
   {
-    return share->m_acl;
+    const ACL_internal_table_access *acl = share->m_acl;
+    pfs_external_table_shares.unlock_share_list();
+    return acl;
   }
+
+  pfs_external_table_shares.unlock_share_list();
   /*
     Do not return NULL, it would mean we are not interested
     in privilege checks for unknown tables.
@@ -1477,15 +1403,6 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     *buffer_length = (uint)string_len;
 
     uchar *pos = (uchar *)buffer;
-#if 0
-    const CHARSET_INFO *cs= &my_charset_utf8_bin; // FIXME
-    if (cs->mbmaxlen > 1)
-    {
-      size_t char_length;
-      char_length= my_charpos(cs, pos, pos + string_len, string_len/cs->mbmaxlen);
-      set_if_smaller(string_len, char_length);
-    }
-#endif
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);
 

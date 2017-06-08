@@ -57,16 +57,17 @@ extern thread_local PFS_thread *THR_PFS;
 /**
   Performance schema Thread Local Storage keys; indexes into THR_PFS_contexts.
 */
-enum THR_PFS_key {
-	THR_PFS_SV,   // session_variables
-	THR_PFS_VG,   // global_variables
-	THR_PFS_VBT,  // variables_by_thread
-	THR_PFS_SG,   // global_status
-	THR_PFS_SS,   // session_status
-	THR_PFS_SBT,  // status_by_thread
-	THR_PFS_SBU,  // status_by_user
-	THR_PFS_SBH,  // status_by_host
-	THR_PFS_NUM_KEYS
+enum THR_PFS_key
+{
+  THR_PFS_SV,   // session_variables
+  THR_PFS_VG,   // global_variables
+  THR_PFS_VBT,  // variables_by_thread
+  THR_PFS_SG,   // global_status
+  THR_PFS_SS,   // session_status
+  THR_PFS_SBT,  // status_by_thread
+  THR_PFS_SBU,  // status_by_user
+  THR_PFS_SBH,  // status_by_host
+  THR_PFS_NUM_KEYS
 };
 extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 

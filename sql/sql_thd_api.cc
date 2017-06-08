@@ -378,7 +378,7 @@ int mysql_tmpfile(const char *prefix)
 extern "C"
 int thd_in_lock_tables(const MYSQL_THD thd)
 {
-  return MY_TEST(thd->in_lock_tables);
+  return thd->in_lock_tables;
 }
 
 
@@ -390,8 +390,11 @@ int thd_tablespace_op(const MYSQL_THD thd)
     statement, so this function must check both the SQL command
     code and the Alter_info::flags.
   */
-  return MY_TEST(thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
-                 (thd->lex->alter_info.flags &
+  if (thd->lex->sql_command != SQLCOM_ALTER_TABLE)
+    return 0;
+  DBUG_ASSERT(thd->lex->alter_info != NULL);
+
+  return MY_TEST((thd->lex->alter_info->flags &
                   (Alter_info::ALTER_DISCARD_TABLESPACE |
                    Alter_info::ALTER_IMPORT_TABLESPACE)));
 }

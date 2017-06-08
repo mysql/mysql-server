@@ -171,12 +171,8 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /**
-    Fields definition.
-    Also used by table_events_stages_history
-    and table_events_stages_history_long.
-  */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;
@@ -216,6 +212,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   pos_events_stages_history m_pos;
@@ -251,6 +249,8 @@ public:
 private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current position. */
   PFS_simple_index m_pos;

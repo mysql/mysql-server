@@ -200,13 +200,14 @@ public:
     on which the FK is created.
 
     @param thd                  Thread handle
+    @param db                   Database name
     @param table_name           Table name (for error reporting)
     @param table_fields         List of columns
 
     @retval false   Key valid
     @retval true    Key invalid
  */
-  bool validate(THD *thd, const char *table_name,
+  bool validate(THD *thd, const char *db, const char *table_name,
                 List<Create_field> &table_fields) const;
 };
 

@@ -62,8 +62,9 @@ public:
   uint	field_count; 
   /**
     Number of fields in the query that have functions. Includes both
-    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND).
-    Also counts functions referred to from aggregate functions, i.e.,
+    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND)
+    and windowing functions.
+    Also counts functions referred to from windowing or aggregate functions, i.e.,
     "SELECT SUM(RAND())" sets this counter to 2.
 
     @see count_field_types
@@ -77,7 +78,7 @@ public:
 
     @see opt_sum_query, count_field_types
   */
-  uint  sum_func_count;   
+  uint  sum_func_count;
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
@@ -122,14 +123,21 @@ public:
   bool can_use_pk_for_unique;
   /**
     Whether table scan may start from any row defined by a rnd_pos() call.
-    @todo remove in WL#8117.
+    @todo remove in WL#9236.
   */
   bool allow_scan_from_position;
 
+  bool m_window_short_circuit; ///< (Last) window's tmp file step can be skipped
+  Window *m_window; ///< The window, if any,  dedicated to this tmp table
+  uint hidden_func_count; ///< Count of functions not present in select list
+
   Temp_table_param()
     :copy_field(NULL), copy_field_end(NULL),
+     group_buff(nullptr),
+     items_to_copy(nullptr),
      recinfo(NULL), start_recinfo(NULL),
      keyinfo(NULL),
+     end_write_records(0),
      field_count(0), func_count(0), sum_func_count(0), hidden_field_count(0),
      group_parts(0), group_length(0), group_null_parts(0),
      quick_group(1),
@@ -138,7 +146,9 @@ public:
      table_charset(NULL),
      schema_table(false), precomputed_group_by(false), force_copy_fields(false),
      skip_create_table(false), bit_fields_as_long(false),
-     can_use_pk_for_unique(true), allow_scan_from_position(false)
+     can_use_pk_for_unique(true), allow_scan_from_position(false),
+     m_window_short_circuit(false),
+     m_window(nullptr), hidden_func_count(0)
   {}
   ~Temp_table_param()
   {

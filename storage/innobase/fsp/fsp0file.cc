@@ -291,6 +291,9 @@ Datafile::set_name(const char*	name)
 		m_name = mem_strdup(name);
 	} else if (fsp_is_file_per_table(m_space_id, m_flags)) {
 		m_name = fil_path_to_space_name(m_filepath);
+	} else if (fsp_is_undo_tablespace(m_space_id)) {
+		undo::Tablespace	undo_space(m_space_id);
+		m_name = mem_strdup(undo_space.space_name());
 	} else {
 		/* Give this general tablespace a temporary name. */
 		m_name = static_cast<char*>(

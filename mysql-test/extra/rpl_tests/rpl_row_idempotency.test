@@ -42,7 +42,7 @@ connection master;
 
 # from now on checking rbr specific idempotent errors
 set @save_binlog_format= @@session.binlog_format;
-set @@session.binlog_format= row;
+set @@session.binlog_format= 'row';
 delete from ti1 where b=1;
 
 select * from ti1 order by b /* must be (2),(3) */;

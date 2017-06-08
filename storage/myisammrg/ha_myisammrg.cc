@@ -1629,6 +1629,7 @@ mysql_declare_plugin(myisammrg)
   PLUGIN_LICENSE_GPL,
   myisammrg_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
+  NULL, /* Plugin Check uninstall */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */

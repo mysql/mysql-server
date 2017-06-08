@@ -169,14 +169,15 @@ FROM at;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bin_to_uuid(_bin)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
-  `bin_to_uuid(_vbn)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
-  `bin_to_uuid(_tbl)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
-  `bin_to_uuid(_ttx)` varchar(36) CHARACTER SET latin1 DEFAULT NULL,
-  `bin_to_uuid(_blb)` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+  `bin_to_uuid(_bin)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_vbn)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_tbl)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_ttx)` varchar(36) DEFAULT NULL,
+  `bin_to_uuid(_blb)` varchar(36) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
 # Compare with hex:
+set names latin1;
 DELETE FROM at;
 INSERT into at(_bin,_blb) VALUES('c8eb4b15cb0948bb','c8eb4b15cb0948bb');
 CREATE TABLE t3 AS SELECT hex('c8eb4b15cb0948bb'),hex(_bin),hex(_blb) FROM at;
@@ -188,6 +189,7 @@ t3	CREATE TABLE `t3` (
   `hex(_blb)` longtext CHARACTER SET latin1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t3;
+set names utf8mb4;
 # Output types of uuid_to_bin
 CREATE TABLE t3 AS SELECT
 uuid_to_bin('c8eb4b15-cb09-48bb-bbb2-e6a0b6b4d5c7') AS a,

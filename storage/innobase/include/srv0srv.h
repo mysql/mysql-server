@@ -208,6 +208,7 @@ extern	ulong	srv_adaptive_max_sleep_delay;
 
 /** Sort buffer size in index creation */
 extern ulong	srv_sort_buf_size;
+
 /** Maximum modification log file size for online index creation */
 extern unsigned long long	srv_online_max_size;
 
@@ -225,14 +226,8 @@ extern char*	srv_undo_dir;
 /** Number of undo tablespaces to use. */
 extern ulong	srv_undo_tablespaces;
 
-/** The number of rollback segments to use for durable,
-redo-logged, non-temporary transactions. */
+/** The number of rollback segments per tablespace */
 extern ulong	srv_rollback_segments;
-
-/** The number of rollback segments to use for non-durable,
-non-redo-logged, temporary transactions. These logs reside in
-the temp tablespace. */
-extern ulong	srv_tmp_rollback_segments;
 
 /** Maximum size of undo tablespace. */
 extern unsigned long long	srv_max_undo_tablespace_size;
@@ -414,7 +409,6 @@ extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
 extern ulint	srv_truncated_status_writes;
-extern ulint	srv_available_rollback_segments;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 extern bool	srv_ibuf_disable_background_merge;
@@ -858,8 +852,6 @@ struct export_var_t{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
-	ulint innodb_available_rollback_segments; /*!< srv_available_rollback_segments */
-	ulint innodb_available_undo_logs;	/*!< srv_available_undo_logs */
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
 	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id

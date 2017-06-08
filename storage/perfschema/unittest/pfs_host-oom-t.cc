@@ -23,6 +23,7 @@
 #include <tap.h>
 
 #include "stub_pfs_global.h"
+#include "stub_pfs_plugin_table.h"
 
 extern struct PSI_bootstrap PFS_bootstrap;
 

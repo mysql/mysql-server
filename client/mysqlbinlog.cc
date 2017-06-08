@@ -795,7 +795,6 @@ static bool shall_skip_gtids(Log_event* ev)
       In this case, ROTATE and FD events should be processed and
       outputted.
     */
-    case binary_log::START_EVENT_V3: /* for completion */
     case binary_log::SLAVE_EVENT: /* for completion */
     case binary_log::STOP_EVENT:
     case binary_log::FORMAT_DESCRIPTION_EVENT:
@@ -2164,21 +2163,13 @@ static Exit_status check_master_version()
   }
   delete glob_description_event;
   switch (*version) {
-  case '3':
-    glob_description_event= new Format_description_log_event(1);
-    break;
-  case '4':
-    glob_description_event= new Format_description_log_event(3);
-    break;
   case '5':
   case '8':
     /*
       The server is soon going to send us its Format_description log
-      event, unless it is a 5.0 server with 3.23 or 4.0 binlogs.
-      So we first assume that this is 4.0 (which is enough to read the
-      Format_desc event if one comes).
+      event.
     */
-    glob_description_event= new Format_description_log_event(3);
+    glob_description_event= new Format_description_log_event;
     break;
   default:
     glob_description_event= NULL;
@@ -2547,7 +2538,7 @@ static Exit_status check_header(IO_CACHE* file,
   MY_STAT my_file_stat;
 
   delete glob_description_event;
-  if (!(glob_description_event= new Format_description_log_event(3)))
+  if (!(glob_description_event= new Format_description_log_event))
   {
     error("Failed creating Format_description_log_event; out of memory?");
     DBUG_RETURN(ERROR_STOP);
@@ -2619,25 +2610,7 @@ static Exit_status check_header(IO_CACHE* file,
     {
       DBUG_PRINT("info",("buf[EVENT_TYPE_OFFSET=%d]=%d",
                          EVENT_TYPE_OFFSET, buf[EVENT_TYPE_OFFSET]));
-      /* always test for a Start_v3, even if no --start-position */
-      if (buf[EVENT_TYPE_OFFSET] == binary_log::START_EVENT_V3)
-      {
-        /* This is 3.23 or 4.x */
-        if (uint4korr(buf + EVENT_LEN_OFFSET) < 
-            (LOG_EVENT_MINIMAL_HEADER_LEN + Binary_log_event::START_V3_HEADER_LEN))
-        {
-          /* This is 3.23 (format 1) */
-          delete glob_description_event;
-          if (!(glob_description_event= new Format_description_log_event(1)))
-          {
-            error("Failed creating Format_description_log_event; "
-                  "out of memory?");
-            DBUG_RETURN(ERROR_STOP);
-          }
-        }
-        break;
-      }
-      else if (tmp_pos >= start_position)
+      if (tmp_pos >= start_position)
         break;
       else if (buf[EVENT_TYPE_OFFSET] == binary_log::FORMAT_DESCRIPTION_EVENT)
       {

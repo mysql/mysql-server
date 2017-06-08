@@ -500,7 +500,7 @@ public:
     if ( pushed_cond_guards)
       pushed_cond_guards[i]= v;
   }
-  bool have_guarded_conds() override { return MY_TEST(pushed_cond_guards); }
+  bool have_guarded_conds() override { return pushed_cond_guards != nullptr; }
 
   Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
   Item_in_subselect(const POS &pos, Item * left_expr,

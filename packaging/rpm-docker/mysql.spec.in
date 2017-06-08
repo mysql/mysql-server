@@ -17,7 +17,7 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-%global milestone    dmr
+%global milestone    rc
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
@@ -182,7 +182,7 @@ done
 rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
-for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
+for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
          mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
@@ -192,9 +192,31 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysql
 done
 
 #  Remove test plugins
-for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
-    component_example_component1.so component_example_component2.so component_example_component3.so \
+for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
+	authentication_ldap_simple.so daemon_example.ini libdaemon_example.so \
+	qa_auth_client.so component_example_component1.so component_example_component2.so \
+	component_example_component3.so component_log_sink_test.so \
+	component_test_string_service_charset.so component_test_string_service_long.so \
+	component_test_string_service.so qa_auth_interface.so \
+    component_pfs_example_component_population.so pfs_example_plugin_employee.so \
+	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
+	test_udf_services.so test_security_context.so test_services_plugin_registry.so \
+	  component_test_pfs_notification.so \
+	  component_test_pfs_resource_group.so \
+    component_test_udf_registration.so \
+    component_udf_reg_3_func.so \
+    component_udf_reg_int_same_func.so \
+    component_udf_reg_avg_func.so \
+    component_udf_reg_only_3_func.so \
+    component_udf_reg_int_func.so \
+    component_udf_reg_real_func.so \
+    component_udf_unreg_3_func.so \
+    component_udf_unreg_int_func.so \
+    component_udf_unreg_real_func.so ; \
+    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so component_test_component_sys_var_service.so \
     component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so \
+    component_test_sys_var_service_int.so component_test_sys_var_service.so component_test_sys_var_service_same.so \
+    component_test_sys_var_service_str.so \
     qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
     test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
@@ -212,9 +234,12 @@ rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 %check
-%if 0%{?runselftest}
+%if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-make test VERBOSE=1
+export CTEST_OUTPUT_ON_FAILURE=1
+make test || true
+%endif
+%if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
@@ -244,6 +269,7 @@ rm -r $(readlink var) var
 %dir %{_sysconfdir}/my.cnf.d
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_bindir}/mysql
+%attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -256,6 +282,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
@@ -330,6 +358,14 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 release
+
+* Thu May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
+- Add UDF components
+- Add component_test_component_sys_var_service plugin
+- Add component_test_sys_var_service plugins
+
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin
 - Add connection_control.so to server subpackage

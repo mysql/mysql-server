@@ -156,7 +156,7 @@ INSERT INTO t2 VALUES (3);
 --echo #    garbage collection.
 --connection server1
 --let $wait_timeout= 65
---let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 
@@ -167,12 +167,12 @@ INSERT INTO t2 VALUES (3);
 --echo #    certification info garbage collection on server 1.
 --connection server1
 
---let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
 --let $assert_text= 'Count_transactions_rows_validating must be 0'
 --let $assert_cond= $count_transactions_validating = 0
 --source include/assert.inc
 
---let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
 --let $assert_text= 'Transactions_committed_all_members must be equal to GTID_EXECUTED'
 --let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", $expected_gtid_set)
 --source include/assert.inc
@@ -185,12 +185,12 @@ INSERT INTO t2 VALUES (3);
 --echo #    certification info garbage collection on server 2.
 --connection server2
 
---let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
 --let $assert_text= 'Count_transactions_rows_validating must be 0'
 --let $assert_cond= $count_transactions_validating = 0
 --source include/assert.inc
 
---let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
 --let $assert_text= 'Transactions_committed_all_members must be equal to GTID_EXECUTED'
 --let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", $expected_gtid_set)
 --source include/assert.inc

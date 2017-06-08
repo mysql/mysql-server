@@ -1,2 +1,3 @@
 --max_binlog_size=1M
 --relay-log=master-relay-bin
+--relay-log-info-repository=FILE

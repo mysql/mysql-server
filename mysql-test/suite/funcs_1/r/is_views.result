@@ -40,7 +40,7 @@ CHARACTER_SET_CLIENT	varchar(64)	NO		NULL
 COLLATION_CONNECTION	varchar(64)	NO		NULL	
 SHOW CREATE TABLE information_schema.VIEWS;
 View	Create View	character_set_client	collation_connection
-VIEWS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`VIEWS` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`vw`.`name` AS `TABLE_NAME`,if((can_access_view(`sch`.`name`,`vw`.`name`,`vw`.`view_definer`,`vw`.`options`) = TRUE),`vw`.`view_definition_utf8`,'') AS `VIEW_DEFINITION`,`vw`.`view_check_option` AS `CHECK_OPTION`,`vw`.`view_is_updatable` AS `IS_UPDATABLE`,`vw`.`view_definer` AS `DEFINER`,if((`vw`.`view_security_type` = 'DEFAULT'),'DEFINER',`vw`.`view_security_type`) AS `SECURITY_TYPE`,`cs`.`name` AS `CHARACTER_SET_CLIENT`,`conn_coll`.`name` AS `COLLATION_CONNECTION` from (((((`mysql`.`tables` `vw` join `mysql`.`schemata` `sch` on((`vw`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `conn_coll` on((`conn_coll`.`id` = `vw`.`view_connection_collation_id`))) join `mysql`.`collations` `client_coll` on((`client_coll`.`id` = `vw`.`view_client_collation_id`))) join `mysql`.`character_sets` `cs` on((`cs`.`id` = `client_coll`.`character_set_id`))) where (can_access_table(`sch`.`name`,`vw`.`name`,FALSE) and (`vw`.`type` = 'VIEW'))	utf8	utf8_general_ci
+VIEWS	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`VIEWS` AS select `cat`.`name` AS `TABLE_CATALOG`,`sch`.`name` AS `TABLE_SCHEMA`,`vw`.`name` AS `TABLE_NAME`,if((can_access_view(`sch`.`name`,`vw`.`name`,`vw`.`view_definer`,`vw`.`options`) = TRUE),`vw`.`view_definition_utf8`,'') AS `VIEW_DEFINITION`,`vw`.`view_check_option` AS `CHECK_OPTION`,`vw`.`view_is_updatable` AS `IS_UPDATABLE`,`vw`.`view_definer` AS `DEFINER`,if((`vw`.`view_security_type` = 'DEFAULT'),'DEFINER',`vw`.`view_security_type`) AS `SECURITY_TYPE`,`cs`.`name` AS `CHARACTER_SET_CLIENT`,`conn_coll`.`name` AS `COLLATION_CONNECTION` from (((((`mysql`.`tables` `vw` join `mysql`.`schemata` `sch` on((`vw`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `conn_coll` on((`conn_coll`.`id` = `vw`.`view_connection_collation_id`))) join `mysql`.`collations` `client_coll` on((`client_coll`.`id` = `vw`.`view_client_collation_id`))) join `mysql`.`character_sets` `cs` on((`cs`.`id` = `client_coll`.`character_set_id`))) where (can_access_table(`sch`.`name`,`vw`.`name`) and (`vw`.`type` = 'VIEW'))	utf8	utf8_general_ci
 SHOW COLUMNS FROM information_schema.VIEWS;
 Field	Type	Null	Key	Default	Extra
 TABLE_CATALOG	varchar(64)	NO		NULL	
@@ -177,19 +177,19 @@ GRANT SHOW VIEW, CREATE VIEW ON db_datadict.* TO 'testuser2'@'localhost';
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob	select `db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	db_datadict	v_granted_to_1	select `db_datadict`.`t1`.`f1` AS `f1`,`db_datadict`.`t1`.`f2` AS `f2`,`db_datadict`.`t1`.`f3` AS `f3` from `db_datadict`.`t1`	NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
-def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	db_datadict	v_granted_glob		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
+def	db_datadict	v_granted_to_1		NONE	YES	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 # Establish connection test_no_views (user=test_no_views)
 SELECT * FROM information_schema.views
 WHERE table_schema = 'db_datadict' ORDER BY table_name;
@@ -217,7 +217,7 @@ CREATE VIEW test.t1_view AS SELECT DISTINCT f1 FROM test.t1_table;
 SELECT * FROM information_schema.views
 WHERE table_name LIKE 't1_%';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-def	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
+def	test	t1_view	select distinct `test`.`t1_table`.`f1` AS `f1` from `test`.`t1_table`	NONE	NO	root@localhost	DEFINER	utf8mb4	utf8mb4_0900_ai_ci
 SELECT table_name,definer FROM information_schema.views
 WHERE table_name = 't1_view';
 TABLE_NAME	DEFINER

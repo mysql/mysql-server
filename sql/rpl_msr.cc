@@ -297,6 +297,29 @@ void Multisource_filter_info::delete_filter(Rpl_filter* rpl_filter)
   DBUG_VOID_RETURN;
 }
 
+void Multisource_filter_info::discard_group_replication_filters()
+{
+  /* Traverse the filter map. */
+  m_channel_to_filter_lock->wrlock();
+
+  filter_map::iterator it= channel_to_filter.begin();
+  while (it != channel_to_filter.end())
+  {
+    if (channel_map.is_group_replication_channel_name(it->first.c_str()))
+    {
+      sql_print_warning("There are per-channel replication filter(s) "
+                        "configured for group replication channel '%.192s' "
+                        "which is disallowed. The filter(s) have been "
+                        "discarded.", it->first.c_str());
+      delete it->second;
+      it->second= NULL;
+      it= channel_to_filter.erase(it);
+    }
+    else
+      it++;
+  }
+  m_channel_to_filter_lock->unlock();
+}
 
 void Multisource_filter_info::discard_all_unattached_filters()
 {
@@ -321,18 +344,10 @@ void Multisource_filter_info::discard_all_unattached_filters()
     */
     delete it->second;
     it->second= NULL;
-    if (channel_map.is_group_replication_channel_name(it->first.c_str()))
-    {
-      sql_print_warning("There are per-channel replication filter(s) "
-                        "configured for group replication channel '%.192s' "
-                        "which is disallowed. The filter(s) have been "
-                        "discarded.", it->first.c_str());
-    }
-    else
-      sql_print_warning("There are per-channel replication filter(s) "
-                        "configured for channel '%.192s' which does not "
-                        "exist. The filter(s) have been discarded.",
-                        it->first.c_str());
+    sql_print_warning("There are per-channel replication filter(s) "
+                      "configured for channel '%.192s' which does not "
+                      "exist. The filter(s) have been discarded.",
+                      it->first.c_str());
     it= channel_to_filter.erase(it);
   }
   m_channel_to_filter_lock->unlock();

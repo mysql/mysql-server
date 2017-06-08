@@ -18,6 +18,8 @@
 #include "my_config.h"
 #include "log.h"
 #include "named_pipe.h"
+#include "mysqld_error.h"
+#include <mysql/components/services/log_builtins.h>
 
 /**
   Creates an instance of a named pipe and returns a handle.
@@ -50,14 +52,20 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
   memset(sec_descr, 0, sizeof(SECURITY_DESCRIPTOR));
   if (!InitializeSecurityDescriptor(sec_descr, SECURITY_DESCRIPTOR_REVISION))
   {
-    sql_print_error("Can't start server : Initialize security descriptor: %s",
-                    strerror(errno));
+    log_message(LOG_TYPE_ERROR,
+                LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP,
+                  ER_NPIPE_FAILED_TO_INIT_SECURITY_DESCRIPTOR,
+                  strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   if (!SetSecurityDescriptorDacl(sec_descr, TRUE, NULL, FALSE))
   {
-    sql_print_error("Can't start server : Set security descriptor: %s",
-                    strerror(errno));
+    log_message(LOG_TYPE_ERROR,
+                LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP,
+                  ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR,
+                  strerror(errno));
     return INVALID_HANDLE_VALUE;
   }
   sec_attr->nLength= sizeof(SECURITY_ATTRIBUTES);
@@ -72,15 +80,17 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
                               buffer_size,
                               NMPWAIT_USE_DEFAULT_WAIT,
                               sec_attr);
-  
+
   if (ret_handle == INVALID_HANDLE_VALUE)
   {
     int error= GetLastError();
 
     if (error == ERROR_ACCESS_DENIED)
     {
-      sql_print_error("Can't start server : Named Pipe \"%s\" already in use.",
-                      name);
+      log_message(LOG_TYPE_ERROR,
+                  LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                  LOG_ITEM_LOG_LOOKUP,
+                    ER_NPIPE_PIPE_ALREADY_IN_USE, name);
     }
     else
     {
@@ -89,10 +99,13 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
       FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
                     NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                     (LPTSTR) &msg_buff, 0, NULL );
-      
+
       if (msg_buff != NULL)
       {
-        sql_print_error("%s: %s", (char*)msg_buff, strerror(errno));
+        log_message(LOG_TYPE_ERROR,
+                    LOG_ITEM_LOG_PRIO, (longlong) ERROR_LEVEL,
+                    LOG_ITEM_LOG_LOOKUP,
+                      ER_NPIPE_CANT_CREATE, (char*) msg_buff, strerror(errno));
         LocalFree(msg_buff);
       }
     }

@@ -753,8 +753,8 @@ INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
 SELECT col_1_text = REPEAT("स", 4000) , col_2_text = REPEAT("o", 4000)
 FROM worklog5743;
 col_1_text = REPEAT("स", 4000)	col_2_text = REPEAT("o", 4000)
-1	1
 0	0
+1	1
 UPDATE worklog5743 SET col_1_text = REPEAT("क", 4000)
 WHERE col_1_text = REPEAT("स", 4000) AND col_2_text = REPEAT("o", 4000);
 SELECT col_1_text = REPEAT("क", 4000) FROM worklog5743

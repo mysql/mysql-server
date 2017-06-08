@@ -14,7 +14,7 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-%global milestone       dmr
+%global milestone       rc
 
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
@@ -28,6 +28,13 @@
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+
+# Pass path to the AWS SDK install
+%{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
+%{?with_aws_sdk: %global aws_sdk 1}
+
+# Pass path to the libcurl "lib" directory
+%{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -500,6 +507,8 @@ mkdir debug
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?aws_sdk_option} \
+           %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -539,6 +548,8 @@ mkdir release
            -DWITH_NUMA=ON \
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?aws_sdk_option} \
+           %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -599,9 +610,12 @@ ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
 %endif
 
 %check
-%if 0%{?runselftest}
+%if 0%{?runselftest} || 0%{?with_unittests}
 pushd release
-make test VERBOSE=1
+export CTEST_OUTPUT_ON_FAILURE=1
+make test || true
+%endif
+%if 0%{?runselftest}
 export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
@@ -730,6 +744,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
@@ -751,6 +767,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
@@ -791,6 +809,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
+%if 0%{?aws_sdk}
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
+%endif
 %endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
@@ -975,9 +997,28 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
@@ -1014,9 +1055,28 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component1.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component2.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_same_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_only_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_3_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_int_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
@@ -1108,6 +1168,13 @@ fi
 %endif # cluster
 
 %changelog
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 release
+
+* Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
+- Add keyring_aws plugin and UDF components
+- Add component_test_sys_var_service plugins
+
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin
 - Add connection_control.so to server subpackage

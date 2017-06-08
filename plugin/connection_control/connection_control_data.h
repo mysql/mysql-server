@@ -16,6 +16,9 @@
 #ifndef CONNECTION_CONTROL_DATA_H
 #define CONNECTION_CONTROL_DATA_H
 
+#include <atomic>
+
+#include "my_inttypes.h"
 
 /**
   Enum for system variables : Must be in sync with
@@ -58,7 +61,7 @@ namespace connection_control
     Connection_control_statistics()
     {}
     /* Various statistics to be collected */
-    volatile int64 stats_array[STAT_LAST];
+    std::atomic<int64> stats_array[STAT_LAST];
   };
 }
 

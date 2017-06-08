@@ -793,7 +793,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` varchar(10) GENERATED ALWAYS AS (export_set(`a`,_latin1'1',_latin1'0',_latin1'',10)) VIRTUAL
+  `b` varchar(10) GENERATED ALWAYS AS (export_set(`a`,_utf8mb4'1',_utf8mb4'0',_utf8mb4'',10)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (6,default);
 select * from t1;
@@ -1996,7 +1996,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (addtime(`a`,_latin1'02:00:00')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (addtime(`a`,_utf8mb4'02:00:00')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2011,7 +2011,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (convert_tz(`a`,_latin1'MET',_latin1'UTC')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (convert_tz(`a`,_utf8mb4'MET',_utf8mb4'UTC')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2041,7 +2041,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(64) GENERATED ALWAYS AS (date_format(`a`,_latin1'%W %M %D')) VIRTUAL
+  `b` varchar(64) GENERATED ALWAYS AS (date_format(`a`,_utf8mb4'%W %M %D')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2086,7 +2086,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` bigint(20) GENERATED ALWAYS AS ((to_days(`a`) - to_days(_latin1'2000-01-01'))) VIRTUAL
+  `b` bigint(20) GENERATED ALWAYS AS ((to_days(`a`) - to_days(_utf8mb4'2000-01-01'))) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2221,7 +2221,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(32) GENERATED ALWAYS AS (date_format(`a`,get_format(DATE, _latin1'EUR'))) VIRTUAL
+  `b` varchar(32) GENERATED ALWAYS AS (date_format(`a`,get_format(DATE, _utf8mb4'EUR'))) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2435,7 +2435,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(64) DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (str_to_date(`a`,_latin1'%m/%d/%Y')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (str_to_date(`a`,_utf8mb4'%m/%d/%Y')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('04/30/2004',default);
 select * from t1;
@@ -2465,7 +2465,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` datetime GENERATED ALWAYS AS (subtime(`a`,_latin1'02:00:00')) VIRTUAL
+  `b` datetime GENERATED ALWAYS AS (subtime(`a`,_utf8mb4'02:00:00')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31',default);
 select * from t1;
@@ -2480,7 +2480,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` varchar(32) GENERATED ALWAYS AS (time_format(`a`,_latin1'%r')) VIRTUAL
+  `b` varchar(32) GENERATED ALWAYS AS (time_format(`a`,_utf8mb4'%r')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-08-31 02:03:04',default);
 select * from t1;
@@ -2541,7 +2541,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS (cast(`a` as datetime)) VIRTUAL NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2008-12-31',default);
 select * from t1;
@@ -2556,7 +2556,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` datetime DEFAULT NULL,
-  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NOT NULL
+  `b` timestamp GENERATED ALWAYS AS ((`a` + interval 1 minute)) VIRTUAL NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2003-01-02',default);
 select * from t1;
@@ -2570,7 +2570,7 @@ create table t1 (a timestamp, c bigint generated always as (timestampdiff(MONTH,
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `a` timestamp NULL DEFAULT NULL,
   `c` bigint(20) GENERATED ALWAYS AS (timestampdiff(MONTH,`a`,`a`)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('2003-02-01',default);
@@ -2787,7 +2787,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (aes_encrypt(aes_decrypt(`a`,_latin1'adf'),_latin1'adf')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (aes_encrypt(aes_decrypt(`a`,_utf8mb4'adf'),_utf8mb4'adf')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;
@@ -2877,7 +2877,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (decode(encode(`a`,_latin1'abc'),_latin1'abc')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (decode(encode(`a`,_utf8mb4'abc'),_utf8mb4'abc')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 Warnings:
@@ -2912,13 +2912,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (des_encrypt(des_decrypt(`a`,_latin1'adf'),_latin1'adf')) VIRTUAL
+  `b` varchar(1024) GENERATED ALWAYS AS (des_encrypt(des_decrypt(`a`,_utf8mb4'adf'),_utf8mb4'adf')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ('MySQL',default);
 select * from t1;
 a	b
-MySQL	ˇw2•
-Ëı¡
+MySQL	√øw2¬•√∞
+√®√µ√Å
 drop table t1;
 # INET_ATON(), INET_NTOA()
 set sql_warnings = 1;

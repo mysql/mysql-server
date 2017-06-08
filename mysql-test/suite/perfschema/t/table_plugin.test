@@ -1,0 +1,247 @@
+################################################################################
+# Test case to test functionality in which a plugin/component can add its own
+# tables in performance schema.
+#
+# This test script:
+#    - Installs the plugin named pfs_example_plugin_employee. This plugin
+#         calls pfs_plugin_table service methods add_table()/delete_table() to
+#         add new tables named
+#              - pfs_example_employee_name
+#              - pfs_example_employee_salary
+#              - pfs_example_machine
+#              - pfs_example_machine_by_employee_by_type
+#         in performance_schema database.
+#       - Tries to insert few rows in these tables and tries to fetch them.
+#       - Does some joins on two tables and fetch results.
+#       - Verifes that Indexes are bing used (PRIMARY KEY and KEY)
+################################################################################
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Install pfs_example_plugin_employee plugin.
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+# Make sure tables are visible in performance_schema.
+show tables in performance_schema
+  where Tables_in_performance_schema like "%pfs_example%";
+
+# Make sure tables are visible in information_schema.
+select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE
+  from information_schema.tables
+  where TABLE_NAME like "pfs_example%" AND
+        TABLE_SCHEMA= "performance_schema";
+
+--echo ##############
+--echo # Operations #
+--echo ##############
+
+--echo -------------------------------------------------------------
+--echo Displaying records inserted from plugin/component code itself
+--echo -------------------------------------------------------------
+select * from performance_schema.pfs_example_employee_name;
+select * from performance_schema.pfs_example_employee_salary;
+select * from performance_schema.pfs_example_machine;
+select * from performance_schema.pfs_example_machine_by_employee_by_type;
+
+--echo -------------------------------
+--echo Inserting rows in plugin tables
+--echo -------------------------------
+insert into performance_schema.pfs_example_employee_name
+  values (4, "foo4", "bar4");
+
+insert into performance_schema.pfs_example_employee_salary
+  values (4, 4000, "2013-12-12", "10:10:10");
+
+insert into performance_schema.pfs_example_machine
+  values (10, 'LAPTOP', "IBM", 4);
+
+insert into performance_schema.pfs_example_employee_salary
+  values (NULL,1000000000,NULL,NULL);
+
+insert into performance_schema.pfs_example_employee_salary (employee_salary,date_of_birth)
+  values (10000000,'1988-04-17');
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.pfs_example_machine_by_employee_by_type
+  values ("a", "b", LAPTOP, 101);
+
+select * from performance_schema.pfs_example_employee_name;
+select * from performance_schema.pfs_example_employee_salary;
+select * from performance_schema.pfs_example_machine;
+select * from performance_schema.pfs_example_machine_by_employee_by_type;
+
+--echo -----------------------------------
+--echo Fetching records from plugin tables
+--echo -----------------------------------
+select FIRST_NAME, LAST_NAME, EMPLOYEE_SALARY
+   from performance_schema.pfs_example_employee_name,
+        performance_schema.pfs_example_employee_salary
+   where performance_schema.pfs_example_employee_name.EMPLOYEE_NUMBER=
+         performance_schema.pfs_example_employee_salary.EMPLOYEE_NUMBER;
+
+--echo ------------------------------
+--echo Updating rows in plugin tables
+--echo ------------------------------
+update performance_schema.pfs_example_employee_name
+  set FIRST_NAME="foo42", LAST_NAME="bar42"
+  where LAST_NAME="bar4";
+
+update performance_schema.pfs_example_employee_salary
+  set EMPLOYEE_SALARY=8000
+  where EMPLOYEE_NUMBER=2;
+
+update performance_schema.pfs_example_machine
+  set MACHINE_TYPE = 'DESKTOP'
+  where MACHINE_SL_NUMBER=10;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.pfs_example_machine_by_employee_by_type
+  set count=0
+  where MACHINE_SL_NUMBER=10;
+
+select * from performance_schema.pfs_example_employee_name;
+select * from performance_schema.pfs_example_employee_salary;
+select * from performance_schema.pfs_example_machine;
+select * from performance_schema.pfs_example_machine_by_employee_by_type;
+
+--echo -----------------------------------
+--echo Fetching records from plugin tables
+--echo -----------------------------------
+select FIRST_NAME, LAST_NAME, EMPLOYEE_SALARY
+   from performance_schema.pfs_example_employee_name,
+        performance_schema.pfs_example_employee_salary
+   where performance_schema.pfs_example_employee_name.EMPLOYEE_NUMBER=
+         performance_schema.pfs_example_employee_salary.EMPLOYEE_NUMBER;
+
+--echo -----------------------------------
+--echo Verify indexes usage
+--echo -----------------------------------
+--disable_warnings
+explain select * from performance_schema.pfs_example_employee_name
+  where EMPLOYEE_NUMBER=2;
+
+insert into performance_schema.pfs_example_employee_name values
+   (5,"foo","bar"), (6,"foofoo","barbar")
+ , (7,"foo","bar"), (8,"foofoo","barbar")
+ , (9,"foo","bar"), (10,"foofoo","barbar")
+ , (11,"foo","bar"), (12,"foofoo","barbar")
+ , (13,"foo","bar"), (14,"foofoo","barbar")
+ , (15,"foo","bar"), (16,"foofoo","barbar")
+ , (17,"foo","bar"), (18,"foofoo","barbar")
+ , (19,"foo","bar"), (20,"foofoo","barbar")
+ , (21,"foo","bar"), (22,"foofoo","barbar")
+ , (23,"foo","bar"), (24,"foofoo","barbar")
+ , (25,"foo","bar"), (26,"foofoo","barbar")
+ , (27,"foo","bar"), (28,"foofoo","barbar")
+ , (29,"foo","bar"), (30,"foofoo","barbar")
+ , (31,"foo","bar"), (32,"foofoo","barbar")
+ , (33,"foo","bar"), (34,"foofoo","barbar")
+ , (35,"foo","bar"), (36,"foofoo","barbar")
+ , (37,"foo","bar"), (38,"foofoo","barbar")
+ , (39,"foo","bar"), (40,"foofoo","barbar")
+ , (41,"foo","bar"), (42,"foofoo","barbar")
+ , (43,"foo","bar"), (44,"foofoo","barbar")
+ , (45,"foo","bar"), (46,"foofoo","barbar")
+ , (47,"foo","bar"), (48,"foofoo","barbar")
+ , (49,"foo","bar"), (50,"foofoo","barbar")
+ , (51,"foo","bar"), (52,"foofoo","barbar")
+ , (53,"foo","bar"), (54,"foofoo","barbar")
+ , (55,"foo","bar"), (56,"foofoo","barbar")
+ , (57,"foo","bar"), (58,"foofoo","barbar")
+ , (59,"foo","bar"), (60,"foofoo","barbar");
+
+explain select * from performance_schema.pfs_example_employee_name
+  where FIRST_NAME='foo';
+--enable_warnings
+
+--echo -------------------------------------------------
+--echo Verify stats collection in PFS stats tables
+--echo -------------------------------------------------
+update performance_schema.setup_consumers set ENABLED='YES';
+update performance_schema.setup_instruments set ENABLED='YES', TIMED='YES';
+
+insert into performance_schema.setup_objects values
+  ('TABLE', "performance_schema", "pfs_example_employee_name", 'YES', 'YES');
+
+truncate table performance_schema.table_io_waits_summary_by_table;
+truncate table performance_schema.table_io_waits_summary_by_index_usage;
+
+--echo ---------- insert query ----------
+insert into performance_schema.pfs_example_employee_name values
+  (61, "foo5", "bar5");
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- update query with EMPLOYEE_NUMBER ----------
+update performance_schema.pfs_example_employee_name set LAST_NAME="bar55"
+  where EMPLOYEE_NUMBER=61;
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- update query with FIRST_NAME ----------
+update performance_schema.pfs_example_employee_name set LAST_NAME="bar56"
+  where FIRST_NAME="foo5";
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- delete query ----------
+delete from performance_schema.pfs_example_employee_name
+  where EMPLOYEE_NUMBER=61;
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_employee_name";
+
+delete from performance_schema.setup_objects
+  where OBJECT_NAME="pfs_example_employee_name";
+
+--echo -------------------------------------------------
+--echo Fetching from plugin table after plugin uninstall
+--echo -------------------------------------------------
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_salary;
+
+# Make sure that tables are removed from performance_schema.
+show tables in performance_schema
+     where Tables_in_performance_schema like "%pfs_example%";
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########

@@ -668,7 +668,6 @@ Warning	1264	Out of range value for column 'dt1' at row 1
 DELETE IGNORE  FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-01 00:00:01' for column 'dt1' at row 1
 # Should be empty
 SELECT * FROM t1;
 dt1
@@ -946,3 +945,28 @@ instr(1,pow(15270551309908264860,100)),
 )
 );
 ERROR 22003: DOUBLE value is out of range in 'pow(15270551309908264860,100)'
+#
+# Bug#26147274 ASSERTION `ITEM->MAYBE_NULL' AT MAKE_SORTKEY_FROM_ITEM
+#              IN SQL/FILESORT.CC
+#
+CREATE TABLE t1 (
+col_datetime_1_not_null datetime NOT NULL,
+col_datetime_2_not_null datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SET sql_mode=NO_ENGINE_SUBSTITUTION;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 VALUES ('0000-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+INSERT INTO t1 VALUES ('9999-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+SET sql_mode=default;
+SELECT * FROM t1 order by col_datetime_1_not_null;
+col_datetime_1_not_null	col_datetime_2_not_null
+0000-00-00 00:00:00	2005-12-22 19:53:31
+9999-00-00 00:00:00	2005-12-22 19:53:31
+SELECT LEAST( '2005-06-05',
+LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
+AS c1 FROM t1 ORDER BY c1;
+c1
+0000-00-00 00:00:00
+2005-06-05
+DROP TABLE t1;

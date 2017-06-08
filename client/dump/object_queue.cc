@@ -15,12 +15,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <boost/date_time.hpp>
 #include <stddef.h>
+#include <chrono>
 #include <functional>
+#include <thread>
 
 #include "object_queue.h"
-#include "this_thread.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
@@ -90,7 +90,7 @@ void Object_queue::queue_thread()
       or allow main thread to insert new items into the queue.
     */
     {
-      my_boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
   }

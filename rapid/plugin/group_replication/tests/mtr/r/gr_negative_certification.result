@@ -21,7 +21,7 @@ SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
 ############################################################
 # 3. First insert must be aborted.
 INSERT INTO t1 VALUES (2);
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 INSERT INTO t1 VALUES (3);
 include/sync_slave_sql_with_master.inc
 include/assert.inc ['There is no value 2 in table t1 on server 1']

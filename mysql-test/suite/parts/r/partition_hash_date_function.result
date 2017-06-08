@@ -10,7 +10,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -25,7 +25,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -40,7 +40,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -55,7 +55,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -70,7 +70,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -85,7 +85,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -100,7 +100,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -115,7 +115,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -130,7 +130,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -145,7 +145,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -160,7 +160,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -175,7 +175,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(c3)) */
+/*!50100 PARTITION BY HASH (year(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -190,7 +190,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -205,7 +205,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -220,7 +220,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -235,7 +235,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -250,7 +250,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -265,7 +265,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -280,7 +280,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -295,7 +295,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -310,7 +310,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -325,7 +325,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -340,7 +340,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -355,7 +355,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (MONTH(c3)) */
+/*!50100 PARTITION BY HASH (month(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -370,7 +370,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -385,7 +385,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -400,7 +400,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -415,7 +415,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -430,7 +430,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -445,7 +445,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -460,7 +460,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -475,7 +475,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -490,7 +490,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -505,7 +505,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -520,7 +520,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -535,7 +535,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAY(c3)) */
+/*!50100 PARTITION BY HASH (dayofmonth(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -550,7 +550,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -565,7 +565,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -580,7 +580,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -595,7 +595,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -610,7 +610,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -625,7 +625,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -640,7 +640,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -655,7 +655,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -670,7 +670,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -685,7 +685,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -700,7 +700,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test
@@ -715,7 +715,7 @@ t2	CREATE TABLE `t2` (
   `c2` char(5) DEFAULT NULL,
   `c3` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFWEEK(c3)) */
+/*!50100 PARTITION BY HASH (dayofweek(`c3`)) */
 DROP TABLE t2;
 SHOW TABLES;
 Tables_in_test

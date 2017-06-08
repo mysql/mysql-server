@@ -45,6 +45,7 @@ mysql_declare_plugin(test_udf_services)
   "MySQL mtr test framework",
   PLUGIN_LICENSE_GPL,
   NULL,                       /* Plugin Init          */
+  NULL,                       /* Plugin Check uninstall */
   NULL,                       /* Plugin Deinit        */
   0x0100,                     /* Plugin version: 1.0  */
   NULL,                       /* status variables     */

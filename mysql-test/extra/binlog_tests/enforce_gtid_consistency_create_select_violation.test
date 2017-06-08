@@ -14,8 +14,8 @@ INSERT INTO nonempty_myisam VALUES (1);
 
 # CREATE...SELECT for base table is not allowed, regardless of engine,
 # since it may get logged as CREATE followed by BEGIN; rows; COMMIT
-# (on this server if binlog_format=row or on a slave that uses
-# binlog_format=row).
+# (on this server if binlog_format='row' or on a slave that uses
+# binlog_format='row').
 #
 # There is a corner case in the server code when 0 rows are selected,
 # so we test that too.

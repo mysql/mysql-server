@@ -342,7 +342,27 @@ SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
 # Check mysqld-auto.cnf file.
-{ "mysql_server": {"autocommit": "OFF" , "enforce_gtid_consistency": "ON" , "general_log": "ON" , "innodb_buffer_pool_size": "25165824" , "innodb_deadlock_detect": "OFF" } }# Restart server with all defaults
+{ "mysql_server": {"autocommit": "OFF" , "enforce_gtid_consistency": "ON" , "general_log": "ON" , "innodb_buffer_pool_size": "25165824" , "innodb_deadlock_detect": "OFF" } }
+#
+# Bug#26085712: SERVER FAILS TO START AFTER SET PERSIST GTID_MODE
+#                = ON_PERMISSIVE OR ON
+#
+RESET PERSIST;
+SELECT @@gtid_mode;
+@@gtid_mode
+OFF
+SET PERSIST gtid_mode=OFF_PERMISSIVE;
+SET PERSIST gtid_mode=ON_PERMISSIVE;
+SELECT @@gtid_mode;
+@@gtid_mode
+ON_PERMISSIVE
+# Restart server and check for gtid_mode value
+# restart
+SELECT @@gtid_mode;
+@@gtid_mode
+ON_PERMISSIVE
+RESET PERSIST;
+# Restart server with all defaults
 # restart
 SELECT 'END OF TEST';
 END OF TEST

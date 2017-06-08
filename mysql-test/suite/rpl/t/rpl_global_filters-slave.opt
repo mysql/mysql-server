@@ -22,6 +22,3 @@
 --replicate-wild-do-table=channel_1:db1.t%
 --replicate-wild-ignore-table=channel_1:db2.m%
 --replicate-rewrite-db=channel_1:my_db9->rewrite_db9
-
---master-info-repository=TABLE
---relay-log-info-repository=TABLE

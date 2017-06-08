@@ -22,7 +22,7 @@
 #include "event_parse_data.h"   // Event_parse_data
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                // sql_print_error
+#include "log.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -38,6 +38,8 @@
 
 namespace dd {
 
+static const char *failsafe_object= "Event status option";
+
 int get_old_status(Event::enum_event_status event_status)
 {
   switch(event_status)
@@ -51,7 +53,7 @@ int get_old_status(Event::enum_event_status event_status)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return Event_parse_data::DISABLED;
@@ -81,7 +83,7 @@ static Event::enum_event_status get_enum_event_status(int event_status)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return Event::ES_DISABLED;
@@ -100,7 +102,7 @@ int get_old_on_completion(Event::enum_on_completion on_completion)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return Event_parse_data::ON_COMPLETION_DROP;
@@ -129,7 +131,7 @@ static Event::enum_on_completion get_on_completion(int on_completion)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return Event::OC_DROP;
@@ -184,7 +186,7 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field)
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return INTERVAL_YEAR;
@@ -251,7 +253,7 @@ static Event::enum_interval_field get_enum_interval_field(
   }
 
   /* purecov: begin deadcode */
-  sql_print_error("Error: Invalid Event status option");
+  LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
   DBUG_ASSERT(false);
 
   return Event::IF_YEAR;

@@ -104,8 +104,8 @@ if (!$gtid_util_included)
 }
 # Remember the gtid position
 --source include/gtid_step_reset.inc
---let $prev_certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
---let $prev_negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $prev_certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Transactions_Checked, 1)
+--let $prev_negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Conflicts_Detected, 1)
 
 --echo
 --echo ############################################################
@@ -188,13 +188,13 @@ SET @@GLOBAL.DEBUG=@debug_save;
 --echo # 9. Assert that number of certified transactions are the
 --echo #    expected ones.
 --let $expected_certified_transactions= `SELECT $prev_certified_transactions + 2`
---let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Transactions_Checked, 1)
 --let $assert_text= The value of Count_Transactions_Checked should be $expected_certified_transactions after starting group replication
 --let $assert_cond= "$certified_transactions" = $expected_certified_transactions
 --source include/assert.inc
 
 --let $expected_negatively_certified_transactions= `SELECT $prev_negatively_certified + $conflict_test`
---let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (select @@server_uuid), Count_Conflicts_Detected, 1)
 --let $assert_text= The value of Count_Conflicts_Detected should be $expected_negatively_certified_transactions after starting group replication
 --let $assert_cond= "$negatively_certified" = $expected_negatively_certified_transactions
 --source include/assert.inc

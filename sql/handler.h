@@ -37,6 +37,7 @@
 #include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -603,6 +604,7 @@ enum legacy_db_type
   DB_TYPE_MARIA,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
+  DB_TYPE_TEMPTABLE,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -829,8 +831,8 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 /**
   Class to hold information regarding a table to be created on
-  behalf of a plugin. The class stores the name, definition and
-  options of the table. The definition should not contain the
+  behalf of a plugin. The class stores the name, definition, options
+  and optional tablespace of the table. The definition should not contain the
   'CREATE TABLE name' prefix.
 
   @note The data members are not owned by the class, and will not
@@ -839,17 +841,27 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 class Plugin_table
 {
 private:
+  const char *m_schema_name;
   const char *m_table_name;
   const char *m_table_definition;
   const char *m_table_options;
+  const char *m_tablespace_name;
 
 public:
-  Plugin_table(const char *name, const char *definition,
-               const char *options):
-    m_table_name(name),
+  Plugin_table(const char *schema_name,
+               const char *table_name,
+               const char *definition,
+               const char *options,
+               const char *tablespace_name)
+  : m_schema_name(schema_name),
+    m_table_name(table_name),
     m_table_definition(definition),
-    m_table_options(options)
+    m_table_options(options),
+    m_tablespace_name(tablespace_name)
   { }
+
+  const char *get_schema_name() const
+  { return m_schema_name; }
 
   const char *get_name() const
   { return m_table_name; }
@@ -859,6 +871,9 @@ public:
 
   const char *get_table_options() const
   { return m_table_options; }
+
+  const char *get_tablespace_name() const
+  { return m_tablespace_name; }
 };
 
 /**
@@ -2269,7 +2284,7 @@ public:
 
   ~Alter_inplace_info()
   {
-    delete handler_ctx;
+    destroy(handler_ctx);
   }
 
   /**
@@ -5647,7 +5662,7 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type);
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
-  return db_type == NULL ? FALSE : MY_TEST(db_type->flags & flag);
+  return db_type == nullptr ? false : (db_type->flags & flag);
 }
 
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
@@ -5744,7 +5759,8 @@ int ha_prepare(THD *thd);
     there should be no prepared transactions in this case.
 */
 
-int ha_recover(HASH *commit_list);
+typedef ulonglong my_xid; // this line is the same as in log_event.h
+int ha_recover(const memroot_unordered_set<my_xid> *commit_list);
 
 /*
  transactions: interface to low-level handlerton functions. These are
@@ -5803,5 +5819,55 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
 int check_table_for_old_types(const TABLE *table);
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
+
+/** Generate a string representation of an `ha_rkey_function` enum value.
+ * @param[in] r value to turn into string
+ * @return a string, e.g. "HA_READ_KEY_EXACT" if r == HA_READ_KEY_EXACT */
+const char* ha_rkey_function_to_str(enum ha_rkey_function r);
+
+/** Generate a human readable string that describes a table structure. For
+ * example:
+ * t1 (`c1` char(60) not null, `c2` char(60), hash unique index0(`c1`, `c2`))
+ * @param[in] table_name name of the table to be described
+ * @param[in] mysql_table table structure
+ * @return a string similar to a CREATE TABLE statement */
+std::string table_definition(const char *table_name, const TABLE *mysql_table);
+
+#ifndef DBUG_OFF
+/** Generate a human readable string that describes the contents of a row. The
+ * row must be in the same format as provided to handler::write_row(). For
+ * example, given this table structure:
+ * t1 (`pk` int(11) not null,
+ *     `col_int_key` int(11),
+ *     `col_varchar_key` varchar(1),
+ *     hash unique index0(`pk`, `col_int_key`, `col_varchar_key`))
+ *
+ * something like this will be generated (without the new lines):
+ *
+ * len=16,
+ * raw=..........c.....,
+ * hex=f9 1d 00 00 00 08 00 00 00 01 63 a5 a5 a5 a5 a5,
+ * human=(`pk`=29, `col_int_key`=8, `col_varchar_key`=c)
+ *
+ * @param[in] mysql_row row to dump
+ * @param[in] mysql_table table to which the row belongs, for querying metadata
+ * @return textual dump of the row */
+std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table);
+
+/** Generate a human readable string that describes indexed cells that are given
+ * to handler::index_read() as input. The generated string is similar to the one
+ * generated by row_to_string(), but only contains the cells covered by the
+ * given index.
+ * @param[in] indexed_cells raw buffer in handler::index_read() input format
+ * @param[in] indexed_cells_len length of indexed_cells in bytes
+ * @param[in] mysql_index the index that covers the cells, for querying metadata
+ * @return textual dump of the cells */
+std::string indexed_cells_to_string(const uchar *indexed_cells,
+                                    uint indexed_cells_len,
+                                    const KEY &mysql_index);
+#endif /* DBUG_OFF */
 
 #endif /* HANDLER_INCLUDED */

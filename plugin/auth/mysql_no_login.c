@@ -83,6 +83,7 @@ mysql_declare_plugin(mysql_no_login)
   "No login authentication plugin",             /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
+  NULL,                                         /* Check uninstall function */
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -76,6 +76,16 @@ void pfs_set_connection_type_v1(opaque_vio_type conn_type);
 
 void pfs_set_thread_info_v1(const char* info, uint info_len);
 
+int pfs_set_thread_resource_group_v1(const char *group_name,
+                                     int group_name_len,
+                                     void *user_data);
+
+int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+                                           ulonglong thread_id,
+                                           const char *group_name,
+                                           int group_name_len,
+                                           void *user_data);
+
 void pfs_set_thread_v1(PSI_thread* thread);
 
 void pfs_delete_current_thread_v1(void);
@@ -83,10 +93,28 @@ void pfs_delete_current_thread_v1(void);
 void pfs_delete_thread_v1(PSI_thread *thread);
 
 int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
-                                      const void *from_cs);
+                                    const void *from_cs);
 
 void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
                                 ulonglong *event_id);
+
+int pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs);
+
+int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+                                         ulonglong thread_id,
+                                         PSI_thread_attrs *thread_attrs);
+
+int pfs_register_notification_v1(const PSI_notification *callbacks,
+                                 bool with_ref_count);
+
+int pfs_unregister_notification_v1(int handle);
+
+void pfs_notify_session_connect_v1(PSI_thread *thread);
+
+void pfs_notify_session_disconnect_v1(PSI_thread *thread);
+
+void pfs_notify_session_change_user_v1(PSI_thread *thread);
+
 C_MODE_END
 
 #endif /* HAVE_PSI_THREAD_INTERFACE */

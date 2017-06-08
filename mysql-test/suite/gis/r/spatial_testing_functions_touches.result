@@ -1071,46 +1071,46 @@ MBRTOUCHES(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collect
 #====================================================================================
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_center),ST_GEOMFROMTEXT(@star_center))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center))
-0
+NULL
 SELECT ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_center)) FROM gis_geometrycollection WHERE fid=105;
 ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_center))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('POINT(10 0)'))
-0
+NULL
 #====================================================================================
 # point,multipoint
 #====================================================================================
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_left),ST_GEOMFROMTEXT(@star_bottom_points))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_bottom_points));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_bottom_points))
-0
+NULL
 SELECT ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
 ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_bottom_points))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,10 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(10 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(20 0)'),ST_GEOMFROMTEXT('MULTIPOINT(0 0,5 0,10 0)'))
-0
+NULL
 #====================================================================================
 # point,linestring
 #====================================================================================
@@ -1227,16 +1227,16 @@ ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_collection_elems))
 1
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr))
-0
+1
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(5 5))'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTIPOINT(0 0,5 5,10 10),GEOMETRYCOLLECTION())'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,10 0,10 10,0 10,0 0))))'))
 1
@@ -1248,28 +1248,28 @@ ST_TOUCHES(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(G
 #====================================================================================
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_top))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_center))
-0
+NULL
 SELECT ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_bottom_left))
-0
+NULL
 #====================================================================================
 # multipoint,multipoint
 #====================================================================================
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_bottom_points))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_bottom_points),ST_GEOMFROMTEXT(@star_all_points))
-0
+NULL
 SELECT ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
 ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_all_points))
-0
+NULL
 SELECT ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
 ST_TOUCHES(g,ST_GEOMFROMTEXT(@star_all_points))
-0
+NULL
 #====================================================================================
 # multipoint,linestring
 #====================================================================================
@@ -1967,40 +1967,15 @@ SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 100.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 20000.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 123456.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 1048575.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -2012,42 +1987,17 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 100.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 20000.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 123456.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 1048575.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -2063,7 +2013,7 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 0 and 4326, which should have been identical.
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 1048576.
 SELECT ST_TOUCHES(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_TOUCHES(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -2121,7 +2071,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrtouches given two geometries of different srids: 0 and 4326, which should have been identical.
 SELECT MBRTOUCHES(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR HY000: Binary geometry function mbrtouches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 1048576.
 SELECT MBRTOUCHES(NULL,ST_GEOMFROMTEXT(@star_top));
 MBRTOUCHES(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -2255,891 +2205,9 @@ GEOMETRYCOLLECTION(POLYGON(LINESTRING(POINT(1,1), POINT(10,1), POINT(10,10),
 POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
 POINT(4,6),POINT(4,4))))));
 SELECT ST_TOUCHES(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-ST_TOUCHES(a.g, b.g)
-0
-1
-1
-0
-0
-1
-1
-1
-1
-0
-1
-1
-0
-0
-1
-1
-1
-1
-0
-0
-1
-1
-0
-1
-0
-1
-0
-1
-1
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-0
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-1
-1
-0
-1
-1
-0
-0
-1
-1
-1
-1
-0
-0
-1
-1
-0
-1
-0
-1
-0
-1
-1
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-1
-1
-0
-0
-1
-1
-1
-0
-0
-0
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-1
-0
-1
-0
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
 SELECT MBRTOUCHES(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
-MBRTOUCHES(a.g, b.g)
-0
-1
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-1
-1
-0
-0
-0
-0
-0
-1
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-1
-1
-0
-0
-0
-0
-1
-1
-0
-1
-1
-0
-0
-0
-0
-0
-1
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-1
-1
-0
-0
-1
-1
-0
-0
-0
-0
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-1
-0
-1
-0
-0
-0
-0
-0
-0
-0
-0
-0
+SELECT ST_TOUCHES(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
 # clean up
 DROP TABLE t1;
 DROP TABLE gis_geometrycollection;
@@ -3156,7 +2224,7 @@ ST_TOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 0),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)
 )
-0
+NULL
 SELECT MBRTOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 0),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)
@@ -3175,7 +2243,7 @@ ST_TOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 2000),
 ST_GEOMFROMTEXT('POINT(0 0)', 2000)
 )
-0
+NULL
 SELECT MBRTOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 2000),
 ST_GEOMFROMTEXT('POINT(0 0)', 2000)
@@ -3194,7 +2262,7 @@ ST_TOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 )
-0
+NULL
 SELECT MBRTOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
@@ -3204,33 +2272,17 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 )
 0
-# Undefined SRS (should pass with warning)
+# Undefined SRS (should fail)
 SELECT ST_TOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
 );
-ST_TOUCHES(
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
-)
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 23000000. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 23000000.
 SELECT MBRTOUCHES(
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
 ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
 );
-MBRTOUCHES(
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 23000000)
-)
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 23000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 23000000. Calculations in function mbrtouches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 23000000.
 # Unparseable SRS definition (should fail)
 INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
 organization, organization_coordsys_id, definition, description)

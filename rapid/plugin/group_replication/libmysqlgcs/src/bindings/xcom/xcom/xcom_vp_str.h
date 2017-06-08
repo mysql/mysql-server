@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,13 +15,13 @@
 
 #ifndef E_T_S
 #define E_T_S
-extern const char *delivery_status_to_str(delivery_status x) ;
-extern const char *cons_type_to_str(cons_type x) ;
-extern const char *cargo_type_to_str(cargo_type x) ;
-extern const char *recover_action_to_str(recover_action x) ;
-extern const char *pax_op_to_str(pax_op x) ;
-extern const char *pax_msg_type_to_str(pax_msg_type x) ;
-extern const char *start_t_to_str(start_t x) ;
-extern const char *client_reply_code_to_str(client_reply_code x) ;
-extern const char *xcom_proto_to_str(xcom_proto x) ;
+extern const char *delivery_status_to_str(delivery_status x);
+extern const char *cons_type_to_str(cons_type x);
+extern const char *cargo_type_to_str(cargo_type x);
+extern const char *recover_action_to_str(recover_action x);
+extern const char *pax_op_to_str(pax_op x);
+extern const char *pax_msg_type_to_str(pax_msg_type x);
+extern const char *start_t_to_str(start_t x);
+extern const char *client_reply_code_to_str(client_reply_code x);
+extern const char *xcom_proto_to_str(xcom_proto x);
 #endif

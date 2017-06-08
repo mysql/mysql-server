@@ -42,7 +42,7 @@
 #
 --connection server1
 
-if (`select view_id <> 0 from performance_schema.replication_group_member_stats`)
+if (`select view_id <> 0 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`)
 {
     --echo incorrect non-zero view_id when the Member is never started.
     --source ../inc/gr_error_out.inc
@@ -89,6 +89,7 @@ while($restart_cnt)
     --connection server$s_id1
 
     STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
 
     --let $s_id2= $s_id1
     while ($s_id2 == $s_id1)
@@ -105,6 +106,7 @@ while($restart_cnt)
     --source ../inc/gr_wait_for_number_of_members.inc
 
     STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
 
     --connection server$s_id1
     --source include/start_group_replication_command.inc
@@ -171,10 +173,10 @@ if (`SELECT COUNT(*) <> 2 from performance_schema.replication_group_members`)
 # By above the Primary Component of two group members installation is proved.
 # Let's check out view-id values.
 --connection server1
---let $view_id_server1=`select view_id from performance_schema.replication_group_member_stats`
+--let $view_id_server1=`select view_id from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
 
 --connection server2
---let $view_id_server2=`select view_id from performance_schema.replication_group_member_stats`
+--let $view_id_server2=`select view_id from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
 
 if ($view_id_server1 == 0)
 {
@@ -235,7 +237,7 @@ while ($s_cnt)
 #
 #  a proof of view-id is monotonic
 #
---let $view_id_now=`select RIGHT(view_id, 2) from performance_schema.replication_group_member_stats`
+--let $view_id_now=`select RIGHT(view_id, 2) from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
 --let $view_id_server1_number= `SELECT RIGHT('$view_id_server1', 2)`
 if ($view_id_now <= $view_id_server1_number)
 {
@@ -251,7 +253,7 @@ if ($view_id_now <= $view_id_server1_number)
 while ($s_cnt)
 {
     --connection server$s_cnt
-    --let $view_id_now_s=`select RIGHT(view_id,2) from performance_schema.replication_group_member_stats`
+    --let $view_id_now_s=`select RIGHT(view_id,2) from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)`
     if ($view_id_now != $view_id_now_s)
     {
       --echo The 4th member view inconsistent with that of $s_cnt.

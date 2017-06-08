@@ -51,6 +51,22 @@ MYSQLFILES=/var/lib/mysql-files
 MYSQLKEYRING=/var/lib/mysql-keyring
 MYSQLLOG=/var/log/mysql
 
+# Do a quick check that the user is allowed to access the pid file
+MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
+if [ -d "$MYSQLDATA" ] && [ ! -r "$MYSQLDATA" ];
+then
+	echo "Permission denied. Please run as root."
+	exit 1
+fi
+PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
+if [ -z "$PIDFILE" ]; then
+	PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
+fi
+if [ -e "$PIDFILE" ] && [ ! -r "$PIDFILE" ]; then
+	echo "Permission denied. Please run as root."
+	exit 1
+fi
+
 case "$1" in
   'start')
 	if [ "$(get_running)" -eq 1 ];

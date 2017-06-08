@@ -59,7 +59,7 @@ Views::Views()
   m_target_def.add_from("JOIN mysql.character_sets cs"
                         " ON cs.id= client_coll.character_set_id");
 
-  m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, vw.name, FALSE)");
+  m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, vw.name)");
   m_target_def.add_where("AND vw.type = 'VIEW'");
 }
 

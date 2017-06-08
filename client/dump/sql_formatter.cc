@@ -26,6 +26,7 @@
 #include <functional>
 #include <sstream>
 
+#include "column_statistic.h"
 #include "mysql_function.h"
 #include "privilege.h"
 #include "stored_procedure.h"
@@ -399,6 +400,16 @@ void Sql_formatter::format_plain_sql_object(
       this->append_output("DROP USER "
        + (dynamic_cast<Abstract_data_object*>(new_priv_task))->get_name()
        + ";\n");
+  }
+
+  Column_statistic* new_col_stats_task=
+    dynamic_cast<Column_statistic*>(plain_sql_dump_task);
+  if (new_col_stats_task != NULL)
+  {
+    if (m_options->m_column_statistics)
+      this->append_output(plain_sql_dump_task->get_sql_formatted_definition()
+        + ";\n");
+    return;
   }
 
   this->append_output(plain_sql_dump_task->get_sql_formatted_definition()

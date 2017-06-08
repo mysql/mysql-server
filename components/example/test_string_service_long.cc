@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
   Initialization entry method for test component. It executes the tests
   of the service.
 */
-bool test_string_service_init()
+mysql_service_status_t test_string_service_init()
 {
   FILE *outfile;
 
@@ -274,7 +274,7 @@ bool test_string_service_init()
 /**
   De-initialization method for Component.
 */
-bool test_string_service_deinit()
+mysql_service_status_t test_string_service_deinit()
 {
   return false;
 }

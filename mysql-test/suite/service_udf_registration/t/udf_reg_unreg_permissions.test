@@ -1,0 +1,86 @@
+# Check if register/unregister deoends on privileges and root.
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+# Create users and assign privileges to them.
+--enable_connect_log
+CREATE USER test@localhost;
+CREATE USER test_2@localhost;
+GRANT CREATE,INSERT,DELETE,DROP,SELECT ON test.* TO test@localhost;
+GRANT CREATE,INSERT,DELETE,DROP,SELECT ON test.* TO test_2@localhost;
+
+# Register UDF as root: Must work.
+INSTALL COMPONENT "file://component_udf_reg_avg_func";
+
+# Shows the component name.
+SELECT component_urn from mysql.component;
+
+# Open session as normal user. Privileges see above.
+connect(c1,localhost,test,,);
+
+# No right to access performance_schema.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM performance_schema.user_defined_functions
+  ORDER BY udf_name;
+
+# Check UDFs can be executed by normal user with right privileges..
+create table t1(sum int, price float(24));
+insert into t1 values(100, 50.00), (100, 100.00);
+select avgcost(sum, price) from t1;
+delete from t1;
+insert into t1 values(100, 54.33), (200, 199.99);
+select avgcost(sum, price) from t1;
+drop table t1;
+
+# Not allowed actions.
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT component_urn from mysql.component;
+--error ER_TABLEACCESS_DENIED_ERROR
+UNINSTALL COMPONENT "file://component_udf_reg_avg_func";
+
+# Give access to mysql.component to normal user.
+connection default;
+GRANT CREATE,INSERT,DELETE,DROP,SELECT ON mysql.component TO test@localhost;
+
+# Now, components can be shown and components can be unloaded..
+connection c1;
+SELECT component_urn from mysql.component;
+UNINSTALL COMPONENT "file://component_udf_reg_avg_func";
+
+# Register another UDF by normal user with right privileges.
+connection default;
+disconnect c1;
+INSTALL COMPONENT "file://component_udf_reg_int_func";
+
+# Try to see UDF_USAGE_COUNT with a count>1. As it is increased only for a short time,
+# It will be mostly 1.
+connect(c2,localhost,test_2,,);
+send SELECT myfunc_int(23);
+
+connect(c1,localhost,test,,);
+send SELECT myfunc_int(23);
+
+# Check of UDF_USAGE_COUNT.
+connection default;
+SELECT udf_name,udf_return_type,udf_type,udf_library,udf_usage_count>0
+       FROM performance_schema.user_defined_functions
+       ORDER BY udf_name;
+
+# execution of sent commands.
+connection c1;
+reap;
+
+connection c2;
+reap;
+
+#Clean up.
+connection default;
+UNINSTALL COMPONENT "file://component_udf_reg_int_func";
+disconnect c1;
+disconnect c2;
+DROP USER test@localhost;
+DROP USER test_2@localhost;
+--disable_connect_log
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

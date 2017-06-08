@@ -121,11 +121,14 @@
 #include "transaction.h"       // trans_rollback_stmt
 #include "transaction_info.h"
 #include "tztime.h"            // Time_zone
+#include "rpl_msr.h"           // channel_map
+#include "binary_log.h"        // binary_log
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
-                           sql_print_information,
+                           INFORMATION_LEVEL, ER_SLAVE_IGNORED_TABLE,
+                           "replication",
                            "Error log throttle: %lu time(s) Error_code: 1237"
                            " \"Slave SQL thread ignored the query because of"
                            " replicate-*-table rules\" got suppressed.");
@@ -728,7 +731,7 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
   {
     if (*need_comma)
       my_b_printf(file,", ");
-    my_b_printf(file,"%s=%d", name, MY_TEST(flags & option));
+    my_b_printf(file,"%s=%d", name, static_cast<bool>(flags & option));
     *need_comma= 1;
   }
 }
@@ -763,7 +766,6 @@ time_t Log_event::get_time()
 const char* Log_event::get_type_str(Log_event_type type)
 {
   switch(type) {
-  case binary_log::START_EVENT_V3:  return "Start_v3";
   case binary_log::STOP_EVENT:   return "Stop";
   case binary_log::QUERY_EVENT:  return "Query";
   case binary_log::ROTATE_EVENT: return "Rotate";
@@ -1555,10 +1557,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
 
   uint event_type= buf[EVENT_TYPE_OFFSET];
-  // all following START events in the current file are without checksum
-  if (event_type == binary_log::START_EVENT_V3)
-    (const_cast< Format_description_log_event *>(description_event))->
-            common_footer->checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
   // Sanity check for Format description event
   if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT)
   {
@@ -1649,31 +1647,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
   else
   {
-    /*
-      In some previuos versions (see comment in
-      Format_description_log_event::Format_description_log_event(char*,...)),
-      event types were assigned different id numbers than in the
-      present version. In order to replicate from such versions to the
-      present version, we must map those event type id's to our event
-      type id's.  The mapping is done with the event_type_permutation
-      array, which was set up when the Format_description_log_event
-      was read.
-    */
-    if (description_event->event_type_permutation)
-    {
-      uint new_event_type;
-      if (event_type >= EVENT_TYPE_PERMUTATION_NUM)
-        /* Safe guard for read out of bounds of event_type_permutation. */
-        new_event_type= binary_log::UNKNOWN_EVENT;
-      else
-        new_event_type= description_event->event_type_permutation[event_type];
-
-      DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                 event_type, new_event_type,
-                 get_type_str((Log_event_type)new_event_type)));
-      event_type= new_event_type;
-    }
-
     if (alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
         (event_type == binary_log::FORMAT_DESCRIPTION_EVENT ||
          alg != binary_log::BINLOG_CHECKSUM_ALG_OFF))
@@ -1696,9 +1669,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case binary_log::DELETE_FILE_EVENT:
       ev = new Delete_file_log_event(buf, event_len, description_event);
-      break;
-    case binary_log::START_EVENT_V3: /* this is sent only by MySQL <=4.x */
-      ev = new Start_log_event_v3(buf, event_len, description_event);
       break;
     case binary_log::STOP_EVENT:
       ev = new Stop_log_event(buf, description_event);
@@ -2678,8 +2648,7 @@ void Log_event::print_base64(IO_CACHE* file,
       size-= BINLOG_CHECKSUM_LEN; // checksum is displayed through the header
 
     const Format_description_event fd_evt=
-          Format_description_event(glob_description_event->binlog_version,
-                                   server_version);
+      Format_description_event(BINLOG_VERSION, server_version);
     switch(et)
     {
     case binary_log::TABLE_MAP_EVENT:
@@ -2983,7 +2952,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           rli->abort_slave= 1;
           if (is_gtid_event(this))
           {
-            rli->clear_processing_trx(true /*need_lock*/);
+            rli->clear_processing_trx();
           }
           DBUG_RETURN(NULL);
         }
@@ -3339,6 +3308,37 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   DBUG_RETURN (ret_worker);
 }
 
+
+int Log_event::apply_gtid_event(Relay_log_info *rli)
+{
+  DBUG_ENTER("LOG_EVENT:apply_gtid_event");
+
+  int error= 0;
+  if (rli->curr_group_da.size() < 1)
+    DBUG_RETURN(1);
+
+  Log_event* ev= rli->curr_group_da[0].data;
+  DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
+              ev->get_type_code() ==
+              binary_log::ANONYMOUS_GTID_LOG_EVENT);
+
+  error= ev->do_apply_event(rli);
+  /* Clean up */
+  delete ev;
+  rli->curr_group_da.clear();
+  rli->curr_group_seen_gtid= false;
+  /*
+    Removes the job from the (G)lobal (A)ssigned (Q)ueue after
+    applying it.
+  */
+  DBUG_ASSERT(rli->gaq->len > 0);
+  Slave_job_group g= Slave_job_group();
+  rli->gaq->de_queue(&g);
+
+  DBUG_RETURN(error);
+}
+
+
 /**
    Scheduling event to execute in parallel or execute it directly.
    In MTS case the event gets associated with either Coordinator or a
@@ -3418,7 +3418,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           Workers to sync.
         */
         if (rli->curr_group_da.size() > 0 &&
-            is_mts_db_partitioned(rli))
+            is_mts_db_partitioned(rli) &&
+            get_type_code() != binary_log::INCIDENT_EVENT)
         {
           char llbuff[22];
           /*
@@ -3435,6 +3436,28 @@ int Log_event::apply_event(Relay_log_info *rli)
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
 
           goto err;
+        }
+
+        if (get_type_code() == binary_log::INCIDENT_EVENT &&
+            rli->curr_group_da.size() > 0 &&
+            rli->current_mts_submode->get_type() ==
+            MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+        {
+#ifndef DBUG_OFF
+          DBUG_ASSERT(rli->curr_group_da.size() == 1);
+          Log_event* ev= rli->curr_group_da[0].data;
+          DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
+                      ev->get_type_code() ==
+                      binary_log::ANONYMOUS_GTID_LOG_EVENT);
+#endif
+          /*
+            With MTS logical clock mode, when coordinator is applying an
+            incident event, it must withdraw delegated_job increased by
+            the incident's GTID before waiting for workers to finish.
+            So that it can exit from mts_checkpoint_routine.
+          */
+          ((Mts_submode_logical_clock*)rli->current_mts_submode)->
+            withdraw_delegated_job();
         }
         /*
           Marking sure the event will be executed in sequential mode.
@@ -3454,6 +3477,20 @@ int Log_event::apply_event(Relay_log_info *rli)
         */
         DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
                     || !is_mts_db_partitioned(rli));
+
+        if (get_type_code() == binary_log::INCIDENT_EVENT &&
+            rli->curr_group_da.size() > 0)
+        {
+          DBUG_ASSERT(rli->curr_group_da.size() == 1);
+          /*
+            When MTS is enabled, the incident event must be applied by the
+            coordinator. So the coordinator applies its GTID right before
+            applying the incident event..
+          */
+          int error= apply_gtid_event(rli);
+          if (error)
+            DBUG_RETURN(-1);
+        }
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -3772,17 +3809,6 @@ bool Query_log_event::write(IO_CACHE* file)
     *start++= Q_TABLE_MAP_FOR_UPDATE_CODE;
     int8store(start, table_map_for_update);
     start+= 8;
-  }
-  if (master_data_written != 0)
-  {
-    /*
-      Q_MASTER_DATA_WRITTEN_CODE only exists in relay logs where the master
-      has binlog_version<4 and the slave has binlog_version=4. See comment
-      for master_data_written in log_event.h for details.
-    */
-    *start++= Q_MASTER_DATA_WRITTEN_CODE;
-    int4store(start, static_cast<uint32>(master_data_written));
-    start+= 4;
   }
 
   if (thd && thd->need_binlog_invoker())
@@ -4926,6 +4952,37 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         mysql_parse(thd, &parser_state);
 
         enum_sql_command command= thd->lex->sql_command;
+
+        /*
+          Transaction isolation level of pure row based replicated transactions
+          can be optimized to ISO_READ_COMMITTED by the applier when applying
+          the Gtid_log_event.
+
+          If we are applying a statement other than transaction control ones
+          after having optimized the transactions isolation level, we must warn
+          about the non-standard situation we have found.
+        */
+        if (is_sbr_logging_format() &&
+            thd->variables.tx_isolation > ISO_READ_COMMITTED &&
+            thd->tx_isolation == ISO_READ_COMMITTED)
+        {
+          String message;
+          message.append("The isolation level for the current transaction "
+                         "was changed to READ_COMMITTED based on the "
+                         "assumption that it had only row events and was "
+                         "not mixed with statements. "
+                         "However, an unexpected statement was found in "
+                         "the middle of the transaction."
+                         "Query: '");
+          message.append(thd->query().str);
+          message.append("'");
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                      message.c_ptr());
+          thd->is_slave_error= true;
+          goto end;
+        }
+
         /*
           Do not need to increase rewrite_db_filter counter for
           SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_BEGIN and
@@ -5302,44 +5359,61 @@ err:
 }
 
 
-/**************************************************************************
-	Start_log_event_v3 methods
-**************************************************************************/
+/***************************************************************************
+       Format_description_log_event methods
+****************************************************************************/
+
+/**
+  Format_description_log_event 1st ctor.
+
+    Ctor. Can be used to create the event to write to the binary log (when the
+    server starts or when FLUSH LOGS).
+*/
+Format_description_log_event::Format_description_log_event()
+  : Format_description_event(BINLOG_VERSION, ::server_version),
 #ifdef MYSQL_SERVER
-Start_log_event_v3::Start_log_event_v3()
-  : binary_log::Start_event_v3(),
     Log_event(header(), footer(), Log_event::EVENT_INVALID_CACHE,
               Log_event::EVENT_INVALID_LOGGING)
+#else
+    Log_event(header(), footer())
+#endif
 {
   is_valid_param= true;
 }
 
+/**
+  The problem with this constructor is that the fixed header may have a
+  length different from this version, but we don't know this length as we
+  have not read the Format_description_log_event which says it, yet. This
+  length is in the post-header of the event, but we don't know where the
+  post-header starts.
 
-/*
-  Start_log_event_v3::pack_info()
+  So this type of event HAS to:
+  - either have the header's length at the beginning (in the header, at a
+  fixed position which will never be changed), not in the post-header. That
+  would make the header be "shifted" compared to other events.
+  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
+  versions, so that we know for sure.
+
+  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
+  it is sent before Format_description_log_event).
 */
 
-int Start_log_event_v3::pack_info(Protocol *protocol)
+Format_description_log_event::
+Format_description_log_event(const char* buf, uint event_len,
+                             const Format_description_event
+                             *description_event)
+  : Format_description_event(buf, event_len, description_event),
+    Log_event(header(), footer())
 {
-  char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
-  pos= my_stpcpy(buf, "Server ver: ");
-  pos= my_stpcpy(pos, server_version);
-  pos= my_stpcpy(pos, ", Binlog ver: ");
-  pos= int10_to_str(binlog_version, pos, 10);
-  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
-  return 0;
+  is_valid_param= header_is_valid() && version_is_valid();
+  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
 }
-#endif
-
-
-/*
-  Start_log_event_v3::print()
-*/
 
 #ifndef MYSQL_SERVER
-void Start_log_event_v3::print(FILE*, PRINT_EVENT_INFO* print_event_info)
+void Format_description_log_event::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 {
-  DBUG_ENTER("Start_log_event_v3::print");
+  DBUG_ENTER("Format_description_log_event::print");
 
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -5411,230 +5485,22 @@ void Start_log_event_v3::print(FILE*, PRINT_EVENT_INFO* print_event_info)
 }
 #endif /* !MYSQL_SERVER */
 
-/*
-  Start_log_event_v3::Start_log_event_v3()
-*/
-
-Start_log_event_v3::Start_log_event_v3(const char* buf, uint event_len,
-                                       const Format_description_event
-                                       *description_event)
-: binary_log::Start_event_v3(buf, event_len, description_event),
-  Log_event(header(), footer())
-{
-  is_valid_param= server_version[0] != 0;
-  if (event_len < (uint)description_event->common_header_len +
-      ST_COMMON_HEADER_LEN_OFFSET)
-  {
-    server_version[0]= 0;
-    return;
-  }
-  buf+= description_event->common_header_len;
-  binlog_version= uint2korr(buf+ST_BINLOG_VER_OFFSET);
-  memcpy(server_version, buf+ST_SERVER_VER_OFFSET,
-	 ST_SERVER_VER_LEN);
-  // prevent overrun if log is corrupted on disk
-  server_version[ST_SERVER_VER_LEN-1]= 0;
-  created= uint4korr(buf+ST_CREATED_OFFSET);
-  dont_set_created= 1;
-}
-
-
-/*
-  Start_log_event_v3::write()
-*/
-
 #ifdef MYSQL_SERVER
-bool Start_log_event_v3::write(IO_CACHE* file)
+int Format_description_log_event::pack_info(Protocol *protocol)
 {
-  char buff[Binary_log_event::START_V3_HEADER_LEN];
-  int2store(buff + ST_BINLOG_VER_OFFSET,binlog_version);
-  memcpy(buff + ST_SERVER_VER_OFFSET,server_version,ST_SERVER_VER_LEN);
-  if (!dont_set_created)
-    created= get_time();
-  int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
-  return (write_header(file, sizeof(buff)) ||
-          wrapper_my_b_safe_write(file, (uchar*) buff, sizeof(buff)) ||
-	  write_footer(file));
+  char buf[12 + ST_SERVER_VER_LEN + 14 + 22], *pos;
+  pos= my_stpcpy(buf, "Server ver: ");
+  pos= my_stpcpy(pos, server_version);
+  pos= my_stpcpy(pos, ", Binlog ver: ");
+  pos= int10_to_str(binlog_version, pos, 10);
+  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
+  return 0;
 }
 
-
-/**
-  Start_log_event_v3::do_apply_event() .
-  The master started
-
-    IMPLEMENTATION
-    - To handle the case where the master died without having time to write
-    DROP TEMPORARY TABLE, DO RELEASE_LOCK (prepared statements' deletion is
-    TODO), we clean up all temporary tables that we got, if we are sure we
-    can (see below).
-
-  @todo
-    - Remove all active user locks.
-    Guilhem 2003-06: this is true but not urgent: the worst it can cause is
-    the use of a bit of memory for a user lock which will not be used
-    anymore. If the user lock is later used, the old one will be released. In
-    other words, no deadlock problem.
-*/
-
-int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
-{
-  DBUG_ENTER("Start_log_event_v3::do_apply_event");
-  int error= 0;
-  switch (binlog_version)
-  {
-  case 3:
-  case 4:
-    /*
-      This can either be 4.x (then a Start_log_event_v3 is only at master
-      startup so we are sure the master has restarted and cleared his temp
-      tables; the event always has 'created'>0) or 5.0 (then we have to test
-      'created').
-    */
-    if (created)
-    {
-      error= close_temporary_tables(thd);
-      cleanup_load_tmpdir();
-    }
-    else
-    {
-      /*
-        Set all temporary tables thread references to the current thread
-        as they may point to the "old" SQL slave thread in case of its
-        restart.
-      */
-      TABLE *table;
-      for (table= thd->temporary_tables; table; table= table->next)
-        table->in_use= thd;
-    }
-    break;
-
-    /*
-       Now the older formats; in that case load_tmpdir is cleaned up by the I/O
-       thread.
-    */
-  case 1:
-    if (strncmp(rli->get_rli_description_event()->server_version,
-                "3.23.57",7) >= 0 && created)
-    {
-      /*
-        Can distinguish, based on the value of 'created': this event was
-        generated at master startup.
-      */
-      error= close_temporary_tables(thd);
-    }
-    /*
-      Otherwise, can't distinguish a Start_log_event generated at
-      master startup and one generated by master FLUSH LOGS, so cannot
-      be sure temp tables have to be dropped. So do nothing.
-    */
-    break;
-  default:
-    /* this case is impossible */
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(error);
-}
-#endif /* defined(MYSQL_SERVER) */
-
-
-/***************************************************************************
-       Format_description_log_event methods
-****************************************************************************/
-
-/**
-  Format_description_log_event 1st ctor.
-
-    Ctor. Can be used to create the event to write to the binary log (when the
-    server starts or when FLUSH LOGS), or to create artificial events to parse
-    binlogs from MySQL 3.23 or 4.x.
-    When in a client, only the 2nd use is possible.
-
-  @param binlog_ver             the binlog version for which we want to build
-                                an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                old 4.0 (binlog version 2) is not supported;
-                                it should not be used for replication with
-                                5.0.
-  @param server_ver             a string containing the server version.
-*/
-
-Format_description_log_event::
-Format_description_log_event(uint8_t binlog_ver, const char* server_ver)
-: binary_log::Start_event_v3(binary_log::FORMAT_DESCRIPTION_EVENT),
-  Format_description_event(binlog_ver,  (binlog_ver <= 3 || server_ver != 0) ?
-                           server_ver : ::server_version)
-{
-  is_valid_param= header_is_valid() && version_is_valid();
-  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
-  /*
-   We here have the possibility to simulate a master before we changed
-   the table map id to be stored in 6 bytes: when it was stored in 4
-   bytes (=> post_header_len was 6). This is used to test backward
-   compatibility.
-   This code can be removed after a few months (today is Dec 21st 2005),
-   when we know that the 4-byte masters are not deployed anymore (check
-   with Tomas Ulin first!), and the accompanying test (rpl_row_4_bytes)
-   too.
-  */
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  post_header_len[binary_log::TABLE_MAP_EVENT-1]=
-                  post_header_len[binary_log::WRITE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::UPDATE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::DELETE_ROWS_EVENT_V1-1]= 6;);
-}
-
-
-/**
-  The problem with this constructor is that the fixed header may have a
-  length different from this version, but we don't know this length as we
-  have not read the Format_description_log_event which says it, yet. This
-  length is in the post-header of the event, but we don't know where the
-  post-header starts.
-
-  So this type of event HAS to:
-  - either have the header's length at the beginning (in the header, at a
-  fixed position which will never be changed), not in the post-header. That
-  would make the header be "shifted" compared to other events.
-  - or have a header of size LOG_EVENT_MINIMAL_HEADER_LEN (19), in all future
-  versions, so that we know for sure.
-
-  I (Guilhem) chose the 2nd solution. Rotate has the same constraint (because
-  it is sent before Format_description_log_event).
-*/
-
-Format_description_log_event::
-Format_description_log_event(const char* buf, uint event_len,
-                             const Format_description_event
-                             *description_event)
-  : binary_log::Start_event_v3(buf, event_len, description_event),
-    Format_description_event(buf, event_len, description_event),
-    Start_log_event_v3(buf, event_len, description_event)
-{
-  is_valid_param= header_is_valid() && version_is_valid();
-  common_header->type_code= binary_log::FORMAT_DESCRIPTION_EVENT;
-
-  /*
-   We here have the possibility to simulate a master of before we changed
-   the table map id to be stored in 6 bytes: when it was stored in 4
-   bytes (=> post_header_len was 6). This is used to test backward
-   compatibility.
- */
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  post_header_len[binary_log::TABLE_MAP_EVENT-1]=
-                  post_header_len[binary_log::WRITE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::UPDATE_ROWS_EVENT_V1-1]=
-                  post_header_len[binary_log::DELETE_ROWS_EVENT_V1-1]= 6;);
-}
-
-#ifdef MYSQL_SERVER
 bool Format_description_log_event::write(IO_CACHE* file)
 {
   bool ret;
   bool no_checksum;
-  /*
-    We don't call Start_log_event_v3::write() because this would make 2
-    my_b_safe_write().
-  */
   uchar buff[Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN +
              BINLOG_CHECKSUM_ALG_DESC_LEN];
   size_t rec_size= sizeof(buff);
@@ -5717,23 +5583,25 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 1);
   }
 
-  /*
-    If this event comes from ourselves, there is no cleaning task to
-    perform, we don't call Start_log_event_v3::do_apply_event()
-    (this was just to update the log's description event).
-  */
+  /* If this event comes from ourself, there is no cleaning task to perform. */
   if (server_id != (uint32) ::server_id)
   {
-    /*
-      If the event was not requested by the slave i.e. the master sent
-      it while the slave asked for a position >4, the event will make
-      rli->group_master_log_pos advance. Say that the slave asked for
-      position 1000, and the Format_desc event's end is 96. Then in
-      the beginning of replication rli->group_master_log_pos will be
-      0, then 96, then jump to first really asked event (which is
-      >96). So this is ok.
-    */
-    ret= Start_log_event_v3::do_apply_event(rli);
+    if (created)
+    {
+      ret= close_temporary_tables(thd);
+      cleanup_load_tmpdir();
+    }
+    else
+    {
+      /*
+        Set all temporary tables thread references to the current thread
+        as they may point to the "old" SQL slave thread in case of its
+        restart.
+      */
+      TABLE *table;
+      for (table= thd->temporary_tables; table; table= table->next)
+        table->in_use= thd;
+    }
   }
 
   if (!ret)
@@ -5977,8 +5845,18 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
+    /*
+      Execution coordinate update by Rotate itself needs forced flush
+      otherwise in crash case MTS won't be able to find the starting point
+      for recovery.
+      It is safe to update the last executed coordinates because all Worker
+      assignments prior to Rotate has been already processed (as well as
+      above call to @c mts_checkpoint_routine has harvested their
+      contribution to the last executed coordinates).
+    */
     if ((error= rli->inc_group_relay_log_pos(pos,
-                                             false/*need_data_lock=false*/)))
+                                             false /* need_data_lock=false */,
+                                             true /* force flush */)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;
@@ -6369,6 +6247,21 @@ bool Xid_log_event::do_commit(THD *thd_arg)
   error |= mysql_bin_log.gtid_end_transaction(thd_arg);
 
   /*
+    The parser executing a SQLCOM_COMMIT or SQLCOM_ROLLBACK will reset the
+    tx isolation level and access mode when the statement is finishing a
+    transaction.
+
+    For replicated workload, when dealing with pure transactional workloads,
+    there will be no QUERY(COMMIT) finishing a transaction, but a
+    Xid_log_event instead.
+
+    So, if the slave applier changed the current transaction isolation level,
+    it needs to be restored to the session default value once the current
+    transaction has been committed.
+  */
+  trans_reset_one_shot_chistics(thd);
+
+  /*
     Increment the global status commit count variable
   */
   if (!error)
@@ -6751,13 +6644,13 @@ bool XA_prepare_log_event::do_commit(THD *thd)
       This is XA-prepare branch.
     */
     thd->lex->sql_command= SQLCOM_XA_PREPARE;
-    thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
+    thd->lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_xa_prepare(&xid);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
   else
   {
     thd->lex->sql_command= SQLCOM_XA_COMMIT;
-    thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
+    thd->lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
   error|= mysql_bin_log.gtid_end_transaction(thd);
@@ -11677,7 +11570,7 @@ static void get_type_name(uint type, unsigned char** meta_ptr,
       if (geometry_type < 8)
         my_snprintf(typestr, typestr_length, names[geometry_type]);
       else
-        my_snprintf(typestr, typestr_length, "INVALIDE_GEOMETRY_TYPE(%u)",
+        my_snprintf(typestr, typestr_length, "INVALID_GEOMETRY_TYPE(%u)",
                     geometry_type);
       (*meta_ptr)++;
     }
@@ -11753,6 +11646,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
     if (col_names_it != fields.m_column_name.end())
     {
       pretty_print_identifier(file, col_names_it->c_str(), col_names_it->size());
+      my_b_printf(file, " ");
       col_names_it++;
     }
 
@@ -11773,7 +11667,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
       my_b_printf(file, "INVALID_TYPE(%d)", real_type);
       continue;
     }
-    my_b_printf(file, " %s", type_name);
+    my_b_printf(file, "%s", type_name);
 
     // Print UNSIGNED for numeric column
     if (is_numeric_type(real_type) &&
@@ -11783,6 +11677,10 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
         my_b_printf(file, " UNSIGNED");
       signedness_it++;
     }
+
+    // if the column is not marked as 'null', print 'not null'
+    if (!(m_null_bits[(i / 8)] & (1 << (i % 8))))
+      my_b_printf(file, " NOT NULL");
 
     // Print column character set
     if (cs != NULL && cs->number != my_charset_bin.number && !is_default_cs)
@@ -11811,7 +11709,7 @@ void Table_map_log_event::print_columns(IO_CACHE *file,
       {
         my_b_printf(file, "%s", separator);
         pretty_print_str(file, it->c_str(), it->size());
-        separator= " ,";
+        separator= ", ";
       }
       my_b_printf(file, ")");
     }
@@ -11916,7 +11814,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 
     Set 'sql_command' as SQLCOM_INSERT after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_INSERT;
@@ -12420,7 +12318,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_DELETE;
@@ -12550,7 +12448,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
    */
   thd->lex->sql_command= SQLCOM_UPDATE;
@@ -12692,6 +12590,32 @@ int
 Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
+
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_EXECUTE)
+  {
+    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+      state= GTID_STATEMENT_CANCEL;
+  }
+
+  if (state == GTID_STATEMENT_CANCEL)
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    rli->report(ERROR_LEVEL, error,
+                "Error executing incident event: '%s'",
+                thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    DBUG_RETURN(-1);
+  }
+  else if (state == GTID_STATEMENT_SKIP)
+  {
+    /*
+      Make slave skip the Incident event through general commands of GTID
+      i.e. 'set gtid_next=<GTID>; begin; commit;'.
+    */
+    DBUG_RETURN(0);
+  }
 
   if (ignored_error_code(ER_SLAVE_INCIDENT))
   {
@@ -12902,9 +12826,11 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg,
                                ulonglong original_commit_timestamp_arg,
                                ulonglong immediate_commit_timestamp_arg)
 : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                         may_have_sbr_stmts_arg,
                          original_commit_timestamp_arg,
                          immediate_commit_timestamp_arg),
   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
@@ -12944,12 +12870,14 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg,
                                ulonglong original_commit_timestamp_arg,
                                ulonglong immediate_commit_timestamp_arg,
                                const Gtid_specification spec_arg)
  : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
-                         original_commit_timestamp_arg,
-                         immediate_commit_timestamp_arg),
+                          may_have_sbr_stmts_arg,
+                          original_commit_timestamp_arg,
+                          immediate_commit_timestamp_arg),
    Log_event(header(), footer(),
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
              Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
@@ -13022,12 +12950,32 @@ Gtid_log_event::print(FILE*, PRINT_EVENT_INFO *print_event_info)
   {
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
+                "rbr_only=%s\t"
                 "original_committed_timestamp=%llu\t"
-                "immediate_commit_timestamp=%llu\n",
+                "immediate_commit_timestamp=%llu\t"
+                "transaction_length=%llu\n",
                 get_type_code() == binary_log::GTID_LOG_EVENT ?
                 "GTID" : "Anonymous_GTID",
                 last_committed, sequence_number,
-                original_commit_timestamp, immediate_commit_timestamp);
+                may_have_sbr_stmts ? "no" : "yes",
+                original_commit_timestamp, immediate_commit_timestamp,
+                transaction_length);
+  }
+
+  /*
+    The applier thread can always use "READ COMMITTED" isolation for
+    transactions containing only RBR events (Table_map + Rows).
+
+    This would prevent some deadlock issues because InnoDB doesn't
+    acquire GAP locks in "READ COMMITTED" isolation level since
+    MySQL 5.7.18.
+  */
+  if (!may_have_sbr_stmts)
+  {
+    my_b_printf(head,
+                "/*!50718 SET TRANSACTION ISOLATION LEVEL "
+                "READ COMMITTED*/%s\n",
+                print_event_info->delimiter);
   }
 
   /*
@@ -13070,7 +13018,11 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer)
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
 
-  *ptr_buffer= 1;
+  /* Encode the GTID flags */
+  uchar gtid_flags= 0;
+  gtid_flags|= may_have_sbr_stmts ?
+               binary_log::Gtid_event::FLAG_MAY_HAVE_SBR : 0;
+  *ptr_buffer= gtid_flags;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
 #ifndef DBUG_OFF
@@ -13144,6 +13096,11 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer)
     int7store(ptr_buffer, original_commit_timestamp);
     ptr_buffer+= ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
   }
+
+  // Write the transaction length information
+  uchar *ptr_after_length= net_store_length(ptr_buffer, transaction_length);
+  ptr_buffer= ptr_after_length;
+
   DBUG_RETURN(ptr_buffer - buffer);
 }
 
@@ -13233,6 +13190,38 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
                                                        immediate_commit_timestamp,
                                                        state == GTID_STATEMENT_SKIP);
 
+  /*
+    If the current transaction contains no changes logged with SBR
+    we can assume this transaction as a pure row based replicated one.
+
+    Based on this assumption, we can set current transaction tx_isolation to
+    READ COMMITTED in order to avoid concurrent transactions to be blocked by
+    InnoDB gap locks.
+
+    The session tx_isolation will be restored:
+    - When the transaction finishes with QUERY(COMMIT|ROLLBACK),
+      as the MySQL server does for ordinary user sessions;
+    - When applying a Xid_log_event, after committing the transaction;
+    - When applying a XA_prepare_log_event, after preparing the transaction;
+    - When the applier needs to abort a transaction execution.
+
+    Notice that when a transaction is being "gtid skipped", its statements are
+    not actually executed (see mysql_execute_command()). So, the call to the
+    function that would restore the tx_isolation after finishing the transaction
+    may not happen.
+  */
+  if (DBUG_EVALUATE_IF("force_trx_as_rbr_only", true,
+                       !may_have_sbr_stmts &&
+                       thd->tx_isolation > ISO_READ_COMMITTED &&
+                       gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
+  {
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+    DBUG_ASSERT(!thd->lock);
+    DBUG_PRINT("info", ("setting tx_isolation to READ COMMITTED"));
+    set_tx_isolation(thd, ISO_READ_COMMITTED, true/*one_shot*/);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -13255,6 +13244,37 @@ Log_event::enum_skip_reason Gtid_log_event::do_shall_skip(Relay_log_info *rli)
   return Log_event::continue_group(rli);
 }
 #endif // MYSQL_SERVER
+
+void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
+                                                  bool is_checksum_enabled,
+                                                  int event_counter)
+{
+  // Transaction content length
+  transaction_length= cache_size;
+  if (is_checksum_enabled)
+    transaction_length+= event_counter * BINLOG_CHECKSUM_LEN;
+
+  // GTID length
+  transaction_length+= LOG_EVENT_HEADER_LEN;
+  transaction_length+= POST_HEADER_LENGTH;
+  transaction_length+= get_commit_timestamp_length();
+  transaction_length+= is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
+  // transaction_length will use at least TRANSACTION_LENGTH_MIN_LENGTH
+  transaction_length+= TRANSACTION_LENGTH_MIN_LENGTH;
+  if (transaction_length >= 251ULL)
+  {
+    // transaction_length will use at least 3 bytes
+    transaction_length+= 2;
+    if (transaction_length >= 65536ULL)
+    {
+      // transaction_length will use at least 4 bytes
+      transaction_length+= 1;
+      if (transaction_length >= 16777216ULL)
+      // transaction_length will use 9 bytes
+        transaction_length+= 4;
+    }
+  }
+}
 
 Previous_gtids_log_event::
 Previous_gtids_log_event(const char *buf, uint event_len,

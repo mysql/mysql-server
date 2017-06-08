@@ -147,8 +147,7 @@ int expr_to_string(String *val_conv,
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
-                                HA_CREATE_INFO *create_info,
-                                List<Create_field> *create_fields,
+                                bool print_expr,
                                 const char *current_comment_start);
 bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id);

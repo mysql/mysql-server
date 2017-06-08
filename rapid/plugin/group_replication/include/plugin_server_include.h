@@ -26,7 +26,6 @@
 #include <my_thread.h>
 #include <my_sys.h>
 #include <my_stacktrace.h>
-#include <my_atomic.h>
 
 /*
   We should have a different access to these definitions.

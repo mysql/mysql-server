@@ -3,7 +3,7 @@
 --echo #
 
 SET @binlog_format_saved = @@binlog_format;
-SET binlog_format=ROW;
+SET binlog_format='ROW';
 
 --echo #
 --echo # Test 1.

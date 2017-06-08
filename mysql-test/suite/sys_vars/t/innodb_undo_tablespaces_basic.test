@@ -22,15 +22,24 @@ let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;
 
 
 ####################################################################
-#   Check if value can be set                                      #
+# Make sure the value can be set at runtime                        #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] InnoDB: Expected to open 127 undo tablespaces but found 0. Will create the rest");
+--enable_query_log
+
 SET @@GLOBAL.innodb_undo_tablespaces=128;
---echo Expected error 'Read only variable'
+--echo # Expected warning 'Truncated incorrect innodb_undo_tablespaces value'
+
+SELECT @@GLOBAL.innodb_undo_tablespaces;
+--echo # 127 Expected
+
+--replace_result $undo_tablespaces ORIGINAL_VALUE
+--eval SET @@GLOBAL.innodb_undo_tablespaces=$undo_tablespaces;
 
 SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 
 ################################################################################
@@ -51,7 +60,7 @@ WHERE VARIABLE_NAME='innodb_undo_tablespaces';
 #  Check if accessing variable with and without GLOBAL point to same variable  #
 ################################################################################
 SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;
---echo 1 Expected
+--echo # 1 Expected
 
 
 ################################################################################
@@ -59,19 +68,19 @@ SELECT @@innodb_undo_tablespaces = @@GLOBAL.innodb_undo_tablespaces;
 ################################################################################
 
 SELECT COUNT(@@innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@local.innodb_undo_tablespaces);
---echo Expected error 'Variable is a GLOBAL variable'
+--echo # Expected error 'Variable is a GLOBAL variable'
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@SESSION.innodb_undo_tablespaces);
---echo Expected error 'Variable is a GLOBAL variable'
+--echo # Expected error 'Variable is a GLOBAL variable'
 
 SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
---echo 1 Expected
+--echo # 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_undo_tablespaces = @@SESSION.innodb_undo_tablespaces;
---echo Expected error 'Readonly variable'
+--echo # Expected error 'Unknown column'

@@ -19,11 +19,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
-
-uchar *heap_position(HP_INFO *info)
+void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos)
 {
-  return ((info->update & HA_STATE_AKTIV) ? info->current_ptr :
-	  (HEAP_PTR) 0);
+  pos->ptr= ((info->update & HA_STATE_AKTIV) ? info->current_ptr :
+               (HEAP_PTR) 0);
+  pos->record_no= info->current_record;
 }
 
 

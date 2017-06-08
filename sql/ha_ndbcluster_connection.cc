@@ -28,6 +28,7 @@
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
 #include "mysqld.h"         // server_id, connection_events_loop_aborted
+#include "mysqld_error.h"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif
@@ -720,6 +721,7 @@ struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin =
   "Map between mysql connection id and ndb transaction id",
   PLUGIN_LICENSE_GPL,
   ndb_transid_mysql_connection_map_init,
+  NULL,
   ndb_transid_mysql_connection_map_deinit,
   0x0001,
   NULL,

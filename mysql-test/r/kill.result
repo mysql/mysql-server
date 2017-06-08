@@ -123,7 +123,7 @@ f1
 1
 SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION bug27563;
-CREATE TABLE t2 (f2 INT);
+CREATE TABLE t2 (f2 INT) engine myisam;
 CREATE TRIGGER trg27563 BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLSTATE '70100' SET @a:= 'killed';
@@ -181,7 +181,7 @@ SET DEBUG_SYNC = 'RESET';
 # ALTER and other statements under LOCK TABLES).
 #
 drop tables if exists t1, t2, t3;
-create table t1 (i int primary key);
+create table t1 (i int primary key) engine myisam;
 # Test for RENAME TABLE
 # Switching to connection 'blocker'
 lock table t1 read;

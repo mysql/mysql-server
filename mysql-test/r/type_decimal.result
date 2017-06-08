@@ -14,6 +14,7 @@ backcolor int(11),
 PRIMARY KEY (id),
 UNIQUE datatype_id (datatype_id, min_value, max_value)
 );
+set names latin1;
 INSERT INTO t1 VALUES ( '1', '4', '0.0000000000', '0.0000000000', 'Ei saja', '0', '16776960');
 INSERT INTO t1 VALUES ( '2', '4', '1.0000000000', '1.0000000000', 'Sajab', '16777215', '255');
 INSERT INTO t1 VALUES ( '3', '1', '2.0000000000', '49.0000000000', '', '0', '16777215');
@@ -154,6 +155,7 @@ select * from t1 where min_value<=-1 and max_value>=-1 and datatype_id=16;
 id	datatype_id	min_value	max_value	valuename	forecolor	backcolor
 143	16	-4.9000000000	-0.1000000000		NULL	15774720
 drop table t1;
+set names utf8mb4;
 create table t1 (a decimal(10,2));
 insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
 insert into t1 values ("-.1"),("+.1"),(".1");

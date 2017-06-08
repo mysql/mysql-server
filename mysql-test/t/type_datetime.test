@@ -691,3 +691,25 @@ do st_mlinefromtext(
   31
  )
 );
+
+--echo #
+--echo # Bug#26147274 ASSERTION `ITEM->MAYBE_NULL' AT MAKE_SORTKEY_FROM_ITEM
+--echo #              IN SQL/FILESORT.CC
+--echo #
+CREATE TABLE t1 (
+  col_datetime_1_not_null datetime NOT NULL,
+  col_datetime_2_not_null datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET sql_mode=NO_ENGINE_SUBSTITUTION;
+INSERT INTO t1 VALUES ('0000-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+INSERT INTO t1 VALUES ('9999-00-00 00:00:00.0','2005-12-22 19:53:31.01');
+
+SET sql_mode=default;
+
+SELECT * FROM t1 order by col_datetime_1_not_null; 
+SELECT LEAST( '2005-06-05',
+              LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
+AS c1 FROM t1 ORDER BY c1;
+
+DROP TABLE t1;

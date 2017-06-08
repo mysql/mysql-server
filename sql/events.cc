@@ -39,7 +39,7 @@
 #include "item_create.h"
 #include "lex_string.h"
 #include "lock.h"                  // lock_object_name
-#include "log.h"                   // sql_print_error
+#include "log.h"
 #include "m_ctype.h"               // CHARSET_INFO
 #include "m_string.h"
 #include "mdl.h"
@@ -417,8 +417,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       String log_query;
       if (create_query_string(thd, &log_query))
       {
-        sql_print_error("Event Error: An error occurred while creating query string, "
-                        "before writing it into binary log.");
+        LogErr(ERROR_LEVEL, ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG);
         ret= true;
       }
       else
@@ -885,7 +884,7 @@ Events::init(bool opt_noacl_or_bootstrap)
   if (event_queue->init_queue() || load_events_from_db(thd, event_queue) ||
       (opt_event_scheduler == EVENTS_ON && scheduler->start(&err_no)))
   {
-    sql_print_error("Event Scheduler: Error while loading from disk.");
+    LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_ERROR_LOADING_FROM_DB);
     res= true; /* fatal error: request unireg_abort */
     goto end;
   }
@@ -1113,15 +1112,13 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
       Event_queue_element *et= new (std::nothrow) Event_queue_element;
       if (et == nullptr)
       {
-        sql_print_error("Event Scheduler: Error getting event object.");
+        LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_ERROR_GETTING_EVENT_OBJECT);
         DBUG_RETURN(true);
       }
 
       if (et->fill_event_info(thd, *ev_obj, schema_obj->name().c_str()))
       {
-        sql_print_error("Event Scheduler: "
-                        "Error while loading events from mysql.events."
-                        "The table probably contains bad data or is corrupted");
+        LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_GOT_BAD_DATA_FROM_TABLE);
         delete et;
         DBUG_RETURN(true);
       }
@@ -1155,19 +1152,18 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
     if (lock_object_name(thd, MDL_key::EVENT, event_info.first->name().c_str(),
                          event_info.second->name().c_str()))
     {
-      sql_print_warning("Unable to obtain lock for ");
-      sql_print_warning("dropping event %s from schema %s ",
-                        event_info.second->name().c_str(),
-                        event_info.first->name().c_str());
+      LogErr(WARNING_LEVEL, ER_EVENT_CANT_GET_LOCK_FOR_DROPPING_EVENT,
+             event_info.second->name().c_str(),
+             event_info.first->name().c_str());
       continue;
     }
 
     if (thd->dd_client()->drop(event_info.second))
     {
       error= true;
-      sql_print_warning("Unable to drop event %s from schema %s",
-                        event_info.second->name().c_str(),
-                        event_info.first->name().c_str());
+      LogErr(WARNING_LEVEL, ER_EVENT_UNABLE_TO_DROP_EVENT,
+             event_info.second->name().c_str(),
+             event_info.first->name().c_str());
       break;
     }
   }

@@ -22,6 +22,8 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <memory>
+#include <unordered_map>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
@@ -45,9 +47,10 @@
 #include "item_subselect.h"
 #include "key.h"
 #include "lock.h"                     // mysql_lock_remove
-#include "log.h"                      // sql_print_error
+#include "log.h"
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
+#include "map_helpers.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
 #include "mutex_lock.h"
 #include "my_bitmap.h"
@@ -93,6 +96,7 @@
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_hset.h"                 // Hash_set
 #include "sql_lex.h"
+#include "window.h"                   // Window
 #include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
 #include "sql_plugin_ref.h"
@@ -103,6 +107,7 @@
 #include "sql_sort.h"
 #include "sql_string.h"
 #include "sql_table.h"                // build_table_filename
+#include "sql_update.h"               // records_are_comparable
 #include "sql_tmp_table.h"            // free_tmp_table
 #include "sql_view.h"                 // mysql_make_view
 #include "system_variables.h"
@@ -116,6 +121,13 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "transaction_info.h"
 #include "xa.h"
+
+using std::equal_to;
+using std::hash;
+using std::pair;
+using std::string;
+using std::unique_ptr;
+using std::unordered_map;
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
@@ -273,9 +285,10 @@ static void init_tdc_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-HASH table_def_cache;
+malloc_unordered_map<
+  std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
+    *table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
-static bool table_def_inited= false;
 static bool table_def_shutdown_in_progress= false;
 
 static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
@@ -382,18 +395,9 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
   Functions to handle table definition cach (TABLE_SHARE)
 *****************************************************************************/
 
-static const uchar *table_def_key(const uchar *record, size_t *length)
+void Table_share_deleter::operator() (TABLE_SHARE *share) const
 {
-  TABLE_SHARE *entry=(TABLE_SHARE*) record;
-  *length= entry->table_cache_key.length;
-  return (uchar*) entry->table_cache_key.str;
-}
-
-
-static void table_def_free_entry(void *arg)
-{
-  DBUG_ENTER("table_def_free_entry");
-  TABLE_SHARE *share= pointer_cast<TABLE_SHARE*>(arg);
+  DBUG_ENTER("Table_share_deleter::operator()");
   mysql_mutex_assert_owner(&LOCK_open);
   if (share->prev)
   {
@@ -423,16 +427,10 @@ bool table_def_init(void)
     return true;
   }
 
-  /*
-    It is safe to destroy zero-initialized HASH even if its
-    initialization has failed.
-  */
-  table_def_inited= true;
-
-  return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
-                      0, table_def_key,
-                      table_def_free_entry, 0,
-                      key_memory_table_share) != 0;
+  table_def_cache= new malloc_unordered_map<
+    std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>(
+      key_memory_table_share);
+  return false;
 }
 
 
@@ -444,7 +442,7 @@ bool table_def_init(void)
 
 void table_def_start_shutdown(void)
 {
-  if (table_def_inited)
+  if (table_def_cache != nullptr)
   {
     table_cache_manager.lock_all_and_tdc();
     /*
@@ -464,11 +462,11 @@ void table_def_start_shutdown(void)
 void table_def_free(void)
 {
   DBUG_ENTER("table_def_free");
-  if (table_def_inited)
+  if (table_def_cache != nullptr)
   {
-    table_def_inited= false;
     /* Free table definitions. */
-    my_hash_free(&table_def_cache);
+    delete table_def_cache;
+    table_def_cache= nullptr;
     table_cache_manager.destroy();
     mysql_cond_destroy(&COND_open);
     mysql_mutex_destroy(&LOCK_open);
@@ -479,7 +477,7 @@ void table_def_free(void)
 
 uint cached_table_definitions(void)
 {
-  return table_def_cache.records;
+  return table_def_cache->size();
 }
 
 
@@ -529,9 +527,9 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
   }
 
    /* Free cache if too big */
-  while (table_def_cache.records > table_def_size &&
+  while (table_def_cache->size() > table_def_size &&
          oldest_unused_share->next)
-    my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+    table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
 
   DBUG_PRINT("exit", ("share: %p ref_count: %u",
                       share, share->ref_count));
@@ -570,7 +568,6 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
   @param key                table cache key
   @param key_length         length of key
   @param open_view          allow open of view
-  @param hash_value         hash value to use for lookup in THD
 
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
@@ -578,7 +575,7 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
 TABLE_SHARE *get_table_share(THD *thd, const char *db,
                              const char *table_name,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value)
+                             bool open_view)
 {
   TABLE_SHARE *share;
   bool open_table_err= false;
@@ -601,12 +598,12 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
     open fails, so after cond_wait, we must repeat searching the
     hash table.
   */
-  while ((share= reinterpret_cast<TABLE_SHARE*>(
-                     my_hash_search_using_hash_value(
-                       &table_def_cache, hash_value,
-                       reinterpret_cast<uchar*>(const_cast<char*>(key)),
-                       key_length))))
+  for ( ;; )
   {
+    auto it= table_def_cache->find(string(key, key_length));
+    if (it == table_def_cache->end()) break;
+
+    share= it->second.get();
     if (!share->m_open_in_progress)
       DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
@@ -638,15 +635,9 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   */
   assign_new_table_id(share);
 
-  /*
-    If hash insert fails, there is no need to broadcast COND_open,
-    since the share is not present in the cache yet.
-  */
-  if (my_hash_insert(&table_def_cache, (uchar*) share))
-  {
-    free_table_share(share);
-    DBUG_RETURN(NULL);				// return error
-  }
+  table_def_cache->emplace(
+    to_string(share->table_cache_key),
+    unique_ptr<TABLE_SHARE, Table_share_deleter>(share));
 
   /*
     We must increase ref_count prior to releasing LOCK_open
@@ -743,7 +734,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   {
     share->error= true; // Allow waiters to detect the error
     share->ref_count--;
-    (void) my_hash_delete(&table_def_cache, (uchar*) share);
+    table_def_cache->erase(to_string(share->table_cache_key));
 #if defined(ENABLED_DEBUG_SYNC)
     if (!thd->is_attachable_ro_transaction_active())
       DEBUG_SYNC(thd, "get_share_after_destroy");
@@ -763,9 +754,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 
   /* If debug, assert that the share is actually present in the cache */
 #ifndef DBUG_OFF
-  DBUG_ASSERT(my_hash_search(&table_def_cache,
-                             reinterpret_cast<uchar*>(const_cast<char*>(key)),
-                             key_length));
+  DBUG_ASSERT(table_def_cache->count(string(key, key_length)) != 0);
 #endif
   DBUG_RETURN(share);
 }
@@ -780,7 +769,7 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 static TABLE_SHARE *
 get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
                               const char *key, size_t key_length,
-                              int *error, my_hash_value_type hash_value)
+                              int *error)
 
 {
   TABLE_SHARE *share;
@@ -788,7 +777,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("get_table_share_with_create");
 
   share= get_table_share(thd, table_list->db, table_list->table_name,
-                         key, key_length, true, hash_value);
+                         key, key_length, true);
   /*
     If share is not NULL, we found an existing share.
 
@@ -888,7 +877,7 @@ void release_table_share(TABLE_SHARE *share)
   if (!--share->ref_count)
   {
     if (share->has_old_version() || table_def_shutdown_in_progress)
-      my_hash_delete(&table_def_cache, (uchar*) share);
+      table_def_cache->erase(to_string(share->table_cache_key));
     else
     {
       /* Link share last in used_table_share list */
@@ -900,10 +889,10 @@ void release_table_share(TABLE_SHARE *share)
       end_of_unused_share.prev= &share->next;
       share->next= &end_of_unused_share;
 
-      if (table_def_cache.records > table_def_size)
+      if (table_def_cache->size() > table_def_size)
       {
         /* Delete the least used share to preserve LRU order. */
-        my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+        table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
       }
     }
   }
@@ -936,10 +925,7 @@ TABLE_SHARE *get_cached_table_share(const char *db,
   mysql_mutex_assert_owner(&LOCK_open);
 
   key_length= create_table_def_key((THD*) 0, key, db, table_name, 0);
-  return reinterpret_cast<TABLE_SHARE*>(
-           my_hash_search(&table_def_cache,
-                          reinterpret_cast<uchar*>(const_cast<char*>(key)),
-                          key_length));
+  return find_or_nullptr(*table_def_cache, string(key, key_length));
 }
 
 
@@ -963,7 +949,6 @@ TABLE_SHARE *get_cached_table_share(const char *db,
 
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 {
-  int result = 0;
   OPEN_TABLE_LIST **start_list, *open_list, *start, *prev;
   TABLE_LIST table_list;
   DBUG_ENTER("list_open_tables");
@@ -981,9 +966,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 
   table_cache_manager.lock_all_and_tdc();
 
-  for (uint idx=0 ; result == 0 && idx < table_def_cache.records; idx++)
+  for (const auto &key_and_value : *table_def_cache)
   {
-    TABLE_SHARE *share= (TABLE_SHARE *)my_hash_element(&table_def_cache, idx);
+    TABLE_SHARE *share= key_and_value.second.get();
 
     /* Skip shares that are being opened */
     if (share->m_open_in_progress)
@@ -1056,7 +1041,7 @@ void intern_close_table(TABLE *table)
                         table));
 
   free_io_cache(table);
-  delete table->triggers;
+  destroy(table->triggers);
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
   my_free(table);
@@ -1130,7 +1115,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     table_cache_manager.free_all_unused_tables();
     /* Free table shares which were not freed implicitly by loop above. */
     while (oldest_unused_share->next)
-      (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
+      table_def_cache->erase(to_string(oldest_unused_share->table_cache_key));
   }
   else
   {
@@ -1214,9 +1199,9 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
 
     if (!tables)
     {
-      for (uint idx=0 ; idx < table_def_cache.records ; idx++)
+      for (const auto &key_and_value : *table_def_cache)
       {
-        share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
+        share= key_and_value.second.get();
         if (share->has_old_version())
         {
           found= TRUE;
@@ -1295,6 +1280,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     {
       mark_tmp_table_for_reuse(table);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 }
@@ -1913,7 +1899,7 @@ bool close_temporary_tables(THD *thd)
 
   /* We always quote db,table names though it is slight overkill */
   if (found_user_tables &&
-      !(was_quote_show= MY_TEST(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
+      !(was_quote_show= (thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE)))
   {
     thd->variables.option_bits |= OPTION_QUOTE_SHOW_CREATE;
   }
@@ -2011,8 +1997,7 @@ bool close_temporary_tables(THD *thd)
             thread only calls close_temporary_tables while applying old
             Start_log_event_v3 events.)
           */
-          sql_print_error("Failed to write the DROP statement for "
-                        "temporary tables to binary log");
+          LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES);
         }
         thd->get_stmt_da()->set_overwrite_status(false);
       }
@@ -2043,8 +2028,7 @@ bool close_temporary_tables(THD *thd)
             thread only calls close_temporary_tables while applying old
             Start_log_event_v3 events.)
           */
-          sql_print_error("Failed to write the DROP statement for "
-                        "temporary tables to binary log");
+          LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES);
         }
         thd->get_stmt_da()->set_overwrite_status(false);
       }
@@ -2894,10 +2878,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   size_t key_length;
   const char *alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
-  MDL_ticket *mdl_ticket;
+  MDL_ticket *mdl_ticket= nullptr;
   int error= 0;
   TABLE_SHARE *share;
-  my_hash_value_type hash_value;
 
   DBUG_ENTER("open_table");
 
@@ -3185,9 +3168,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     mdl_ticket= table_list->mdl_request.ticket;
   }
 
-  hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
-
-
   if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
       table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
   {
@@ -3196,6 +3176,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     if (check_if_table_exists(thd, table_list, &exists))
       DBUG_RETURN(TRUE);
 
+    /*
+      If the table does not exist then upgrade the lock to the EXCLUSIVE MDL
+      lock.
+    */
     if (!exists)
     {
       if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&
@@ -3238,7 +3222,7 @@ retry_share:
       Try to get unused TABLE object or at least pointer to
       TABLE_SHARE from the table cache.
     */
-    table= tc->get_table(thd, hash_value, key, key_length, &share);
+    table= tc->get_table(thd, key, key_length, &share);
 
     if (table)
     {
@@ -3318,8 +3302,7 @@ retry_share:
 
   if (!(share= get_table_share_with_discover(thd, table_list, key,
                                              key_length,
-                                             &error,
-                                             hash_value)))
+                                             &error)))
   {
     mysql_mutex_unlock(&LOCK_open);
     /*
@@ -4246,16 +4229,13 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 static bool tdc_open_view(THD *thd, TABLE_LIST *table_list,
                           const char *cache_key, size_t cache_key_length)
 {
-  my_hash_value_type hash_value;
   TABLE_SHARE *share;
 
-  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
-                           cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
                                cache_key, cache_key_length,
-                               true, hash_value)))
+                               true)))
   {
     mysql_mutex_unlock(&LOCK_open);
     return true;
@@ -4311,7 +4291,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
 
     if (!d || d->check_n_load(thd, *table))
     {
-      delete d;
+      destroy(d);
       return true;
     }
 
@@ -4344,10 +4324,10 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
           DBA on top of warning the client (which will automatically be done
           because of MYF(MY_WME) in my_malloc() above).
         */
-        sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM `%s`.`%s`' to the binary log",
-                        share->db.str, share->table_name.str);
-        delete entry->triggers;
+        LogErr(ERROR_LEVEL,
+               ER_BINLOG_OOM_WRITING_DELETE_WHILE_OPENING_HEAP_TABLE,
+               share->db.str, share->table_name.str);
+        destroy(entry->triggers);
         return TRUE;
       }
     }
@@ -4367,19 +4347,16 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   TABLE_SHARE *share;
   TABLE *entry;
   bool result= TRUE;
-  my_hash_value_type hash_value;
 
   cache_key_length= get_table_def_key(table_list, &cache_key);
 
   thd->clear_error();
 
-  hash_value= my_calc_hash(&table_def_cache, (uchar*) cache_key,
-                           cache_key_length);
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share(thd, table_list->db, table_list->table_name,
                                cache_key, cache_key_length,
-                               true, hash_value)))
+                               true)))
     goto end_unlock;
 
   if (share->is_view)
@@ -4408,8 +4385,8 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
     /* Give right error message */
     thd->clear_error();
     my_error(ER_NOT_KEYFILE, MYF(0), share->table_name.str);
-    sql_print_error("Couldn't repair table: %s.%s", share->db.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_REPAIR_TABLE,
+           share->db.str, share->table_name.str);
     if (entry->file)
       closefrm(entry, 0);
   }
@@ -4464,10 +4441,6 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
   size_t cache_key_length= get_table_def_key(table_list,
                                              &cache_key);
 
-  my_hash_value_type hash_value= my_calc_hash(&table_def_cache,
-                                              (uchar*) cache_key,
-                                              cache_key_length);
-
   thd->clear_error();
 
   TABLE_SHARE *share;
@@ -4483,7 +4456,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     thd->push_internal_handler(&no_such_table_handler);
 
     share= get_table_share(thd, table_list->db, table_list->table_name,
-                           cache_key, cache_key_length, true, hash_value);
+                           cache_key, cache_key_length, true);
 
     thd->pop_internal_handler();
 
@@ -4555,7 +4528,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
     {
       row_type correct_row_type= file->get_real_row_type(&create_info);
       bool result= dd::fix_row_type(thd, table_def, correct_row_type);
-      delete file;
+      destroy(file);
 
       if (result)
       {
@@ -5367,9 +5340,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
       goto end;
   }
 
-  /* Copy grant information from TABLE_LIST instance to TABLE one. */
-  tables->table->grant= tables->grant;
-
   /* Check and update metadata version of a base table. */
   error= check_and_update_table_version(thd, tables, tables->table->s);
 
@@ -5825,7 +5795,7 @@ restart:
     the current session (i.e. to avoid having a DDL blocked by HANDLERs
     opened for a long time).
   */
-  if (thd->handler_tables_hash.records)
+  if (!thd->handler_tables_hash.empty())
     mysql_ha_flush(thd);
 
   has_prelocking_list= thd->lex->requires_prelocking();
@@ -6591,7 +6561,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     }
 
     table_list->set_lock({lock_type, THR_DEFAULT});
-    table->grant= table_list->grant;
     if (thd->locked_tables_mode)
     {
       if (check_lock_and_start_stmt(thd, thd->lex, table_list))
@@ -7084,8 +7053,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   if (open_in_engine)
   {
     mysql_mutex_lock(&LOCK_open);
-    DBUG_ASSERT(!my_hash_search(&table_def_cache, (uchar*) cache_key,
-                                key_length));
+    DBUG_ASSERT(table_def_cache->count(string(cache_key, key_length)) == 0);
     mysql_mutex_unlock(&LOCK_open);
   }
 #endif
@@ -7186,10 +7154,9 @@ bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
   if (file && file->ha_delete_table(path, table_def))
   {
     error=1;
-    sql_print_warning("Could not remove temporary table: '%s', error: %d",
-                      path, my_errno());
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_REMOVE_TEMP_TABLE, path, my_errno());
   }
-  delete file;
+  destroy(file);
   DBUG_RETURN(error);
 }
 
@@ -7591,7 +7558,7 @@ Field *
 find_field_in_table(TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr)
 {
-  Field **field_ptr, *field;
+  Field **field_ptr= nullptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
   DBUG_ENTER("find_field_in_table");
   DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias, name));
@@ -7601,17 +7568,16 @@ find_field_in_table(TABLE *table, const char *name, size_t length,
       !my_strcasecmp(system_charset_info,
                      table->field[cached_field_index]->field_name, name))
     field_ptr= table->field + cached_field_index;
-  else if (table->s->name_hash.records)
+  else if (table->s->name_hash != nullptr)
   {
-    field_ptr= (Field**) my_hash_search(&table->s->name_hash, (uchar*) name,
-                                        length);
-    if (field_ptr)
+    const auto it= table->s->name_hash->find(std::string(name, length));
+    if (it != table->s->name_hash->end())
     {
       /*
         field_ptr points to field in TABLE_SHARE. Convert it to the matching
         field in table
       */
-      field_ptr= (table->field + (field_ptr - table->s->field));
+      field_ptr= (table->field + (it->second - table->s->field));
     }
   }
   else
@@ -7852,18 +7818,17 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 
 Field *find_field_in_table_sef(TABLE *table, const char *name)
 {
-  Field **field_ptr;
-  if (table->s->name_hash.records)
+  Field **field_ptr= nullptr;
+  if (table->s->name_hash != nullptr)
   {
-    field_ptr= (Field**)my_hash_search(&table->s->name_hash,(uchar*) name,
-                                       strlen(name));
-    if (field_ptr)
+    const auto it= table->s->name_hash->find(name);
+    if (it != table->s->name_hash->end())
     {
       /*
         field_ptr points to field in TABLE_SHARE. Convert it to the matching
         field in table
       */
-      field_ptr= (table->field + (field_ptr - table->s->field));
+      field_ptr= (table->field + (it->second - table->s->field));
     }
   }
   else
@@ -8706,8 +8671,8 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (!(non_join_columns= new List<Natural_join_column>) ||
-      !(natural_using_join->join_columns= new List<Natural_join_column>))
+  if (!(non_join_columns= new (*THR_MALLOC) List<Natural_join_column>) ||
+      !(natural_using_join->join_columns= new (*THR_MALLOC) List<Natural_join_column>))
     DBUG_RETURN(true);
 
   /* Append the columns of the first join operand. */
@@ -9192,10 +9157,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
     }
-    if (item->has_aggregation() &&
-        item->type() != Item::SUM_FUNC_ITEM &&
-        sum_func_list)
-      item->split_sum_func(thd, ref_item_array, *sum_func_list);
+
+    if (sum_func_list)
+    {
+      if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
+           !item->m_is_window_function)) ||
+          item->has_wf())
+        item->split_sum_func(thd, ref_item_array, *sum_func_list);
+    }
+
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
   }
@@ -9278,36 +9248,15 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
        - If any_privileges is true, skip the check.
 
-       - If the SELECT privilege has been found as fulfilled already for both
-         the TABLE and TABLE_LIST objects (and both of these exist, of
-         course), the check is skipped.
-
-       - If the SELECT privilege has been found fulfilled for the TABLE object
-         and the TABLE_LIST represents a derived table other than a view (see
-         below), the check is skipped.
-
-       - If the TABLE_LIST object represents a view, we may skip checking if
-         the SELECT privilege has been found fulfilled for it, regardless of
-         the TABLE object.
-
-       - If there is no TABLE object, the test is skipped if either 
-         * the TABLE_LIST does not represent a view, or
-         * the SELECT privilege has been found fulfilled.         
-
-       A TABLE_LIST that is not a view may be a subquery, an
-       information_schema table, or a nested table reference. See the comment
-       for TABLE_LIST.
+       - If the SELECT privilege has been found as fulfilled already,
+         the check is skipped.
 
        NOTE: This check is not sufficient: If a user has SELECT_ACL privileges
        for a view, it does not mean having the same privileges for the
        underlying tables/view. Thus, we have to perform individual column
        privilege checks below (or recurse down to all underlying tables here).
     */
-    if (!((table && !tables->is_view_or_derived() &&
-           (table->grant.privilege & SELECT_ACL)) ||
-          (tables->is_view_or_derived() &&
-           (tables->grant.privilege & SELECT_ACL))) &&
-        !any_privileges)
+    if (!any_privileges && !(tables->grant.privilege & SELECT_ACL))
     {
       field_iterator.set(tables);
       if (check_grant_all_columns(thd, SELECT_ACL, &field_iterator))
@@ -9668,6 +9617,7 @@ inline bool call_before_insert_triggers(THD *thd,
   before triggers.
 
   @param thd           thread context
+  @param optype_info   COPY_INFO structure used for default values handling
   @param fields        Item_fields list to be filled
   @param values        values to fill with
   @param table         TABLE-object holding list of triggers to be invoked
@@ -9684,7 +9634,8 @@ inline bool call_before_insert_triggers(THD *thd,
 */
 
 bool
-fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
+                                     List<Item> &fields,
                                      List<Item> &values, TABLE *table,
                                      enum enum_trigger_event_type event,
                                      int num_fields)
@@ -9708,6 +9659,14 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
+      /*
+        Evaluate DEFAULT functions like CURRENT_TIMESTAMP.
+        COPY_INFO::set_function_defaults() causes store_timestamp to be called
+        on the columns that are not on the list of assigned_columns.
+      */
+      if (optype_info->function_defaults_apply_on_columns(table->write_set))
+        optype_info->set_function_defaults(table);
+
       rc= fill_record(thd, table, fields, values, NULL,
                       &insert_into_fields_bitmap);
 
@@ -9719,9 +9678,33 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     }
     else
     {
-      rc= fill_record(thd, table, fields, values, NULL, NULL) ||
-          table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
-                                            true);
+      rc= fill_record(thd, table, fields, values, NULL, NULL);
+
+      if (!rc)
+      {
+        /*
+          Unlike INSERT and LOAD, UPDATE operation requires comparison of old
+          and new records to determine whether function defaults have to be
+          evaluated.
+        */
+        if (optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION)
+        {
+          /*
+            Evaluate function defaults for columns with ON UPDATE clause only
+            if any other column of the row is updated.
+          */
+          if ((!records_are_comparable(table) || compare_records(table)) &&
+              (optype_info->
+               function_defaults_apply_on_columns(table->write_set)))
+            optype_info->set_function_defaults(table);
+        }
+        else if(optype_info->
+                function_defaults_apply_on_columns(table->write_set))
+          optype_info->set_function_defaults(table);
+
+        rc= table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE,
+                                              true);
+      }
     }
     /* 
       Re-calculate generated fields to cater for cases when base columns are 
@@ -10051,7 +10034,6 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 {
   char key[MAX_DBKEY_LENGTH];
   size_t key_length;
-  TABLE_SHARE *share;
 
   if (! has_lock)
     table_cache_manager.lock_all_and_tdc();
@@ -10064,9 +10046,10 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 
   key_length= create_table_def_key(thd, key, db, table_name, false);
 
-  if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
-                                            key_length)))
+  auto it= table_def_cache->find(string(key, key_length));
+  if (it != table_def_cache->end())
   {
+    TABLE_SHARE *share= it->second.get();
     /*
       Since share->ref_count is incremented when a table share is opened
       in get_table_share(), before LOCK_open is temporarily released, it
@@ -10097,7 +10080,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
     else
     {
       DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE);
-      (void) my_hash_delete(&table_def_cache, (uchar*) share);
+      table_def_cache->erase(to_string(share->table_cache_key));
     }
   }
 
@@ -10233,8 +10216,8 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
     // however. It will be make more strict in the future.
 
     if (!t->table->file->has_transactions())
-      sql_print_warning("System table '%.*s' is expected to be transactional.",
-                        static_cast<int>(t->table_name_length), t->table_name);
+      LogErr(WARNING_LEVEL, ER_SYSTEM_TABLE_NOT_TRANSACTIONAL,
+             static_cast<int>(t->table_name_length), t->table_name);
   }
 
   // Lock the tables.

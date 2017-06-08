@@ -50,7 +50,7 @@ bool flag_statements_digest = true;
   Current index in Stat array where new record is to be inserted.
   index 0 is reserved for "all else" case when entire array is full.
 */
-static PFS_ALIGNED PFS_cacheline_uint32 digest_monotonic_index;
+static PFS_ALIGNED PFS_cacheline_atomic_uint32 digest_monotonic_index;
 bool digest_full = false;
 
 LF_HASH digest_hash;
@@ -69,7 +69,7 @@ init_digest(const PFS_global_param *param)
   */
   digest_max = param->m_digest_sizing;
   digest_lost = 0;
-  PFS_atomic::store_u32(&digest_monotonic_index.m_u32, 1);
+  digest_monotonic_index.m_u32.store(1);
   digest_full = false;
 
   if (digest_max == 0)
@@ -285,8 +285,7 @@ search:
 
   while (++attempts <= digest_max)
   {
-    safe_index =
-      PFS_atomic::add_u32(&digest_monotonic_index.m_u32, 1) % digest_max;
+    safe_index = digest_monotonic_index.m_u32++ % digest_max;
     if (safe_index == 0)
     {
       /* Record [0] is reserved. */
@@ -433,7 +432,7 @@ reset_esms_by_digest()
     Reset index which indicates where the next calculated digest information
     to be inserted in statements_digest_stat_array.
   */
-  PFS_atomic::store_u32(&digest_monotonic_index.m_u32, 1);
+  digest_monotonic_index.m_u32.store(1);
   digest_full = false;
 }
 

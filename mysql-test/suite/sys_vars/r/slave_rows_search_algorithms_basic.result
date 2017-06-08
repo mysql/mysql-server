@@ -1,11 +1,11 @@
 set @saved_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-TABLE_SCAN,INDEX_SCAN
+INDEX_SCAN,HASH_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=DEFAULT;
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-TABLE_SCAN,INDEX_SCAN
+INDEX_SCAN,HASH_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN';
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
@@ -57,4 +57,4 @@ INDEX_SCAN,HASH_SCAN
 set global slave_rows_search_algorithms = @saved_slave_rows_search_algorithms;
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-TABLE_SCAN,INDEX_SCAN
+INDEX_SCAN,HASH_SCAN

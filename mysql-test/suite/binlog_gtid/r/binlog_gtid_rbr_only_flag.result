@@ -1,0 +1,55 @@
+CREATE TABLE log (
+c1 INT AUTO_INCREMENT PRIMARY KEY,
+c2 TEXT,
+c3 INT NOT NULL DEFAULT 0);
+RESET MASTER;
+# 1 - Empty transaction
+SET GTID_NEXT='SERVER_UUID:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+# 2 and 3 - XA SBR + XA COMMIT
+XA START 'a';
+INSERT INTO log (c2) VALUES ('XA COMMIT');
+XA END 'a';
+XA PREPARE 'a';
+XA COMMIT 'a';
+# 4 and 5 - XA SBR + XA ROLLBACK
+XA START 'b';
+INSERT INTO log (c2) VALUES ('XA ROLLBACK');
+XA END 'b';
+XA PREPARE 'b';
+XA ROLLBACK 'b';
+# 6 - Atomic DDL
+CREATE TABLE t1 (c1 INT);
+# 7 - non-atomic DDL
+CREATE TABLE t2 (c1 INT);
+# 8 - SBR only DML transaction
+BEGIN;
+INSERT INTO log (c2) VALUES ('SBR only DML transaction');
+COMMIT;
+# 9 - SBR and RBR DML transaction
+BEGIN;
+INSERT INTO log (c2) VALUES ('SBR and RBR DML transaction');
+INSERT INTO log (c2, c3) VALUES ('SBR and RBR DML transaction', RAND()*100);
+COMMIT;
+# 10 - RBR only DML transaction
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction', RAND()*100);
+COMMIT;
+# 11 - RBR only DML transaction with SAVEPOINT
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+SAVEPOINT `a`;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+SAVEPOINT `b`;
+INSERT INTO log (c2, c3) VALUES ('RBR only DML transaction with SAVEPOINT', RAND()*100);
+COMMIT;
+# 12 - RBR only DML with rows query info
+SET @@SESSION.binlog_rows_query_log_events = ON;
+BEGIN;
+INSERT INTO log (c2, c3) VALUES ('DML with rows query info', RAND()*100);
+COMMIT;
+SET @@SESSION.binlog_rows_query_log_events = OFF;
+include/include/assert_rbr_only_flags.inc [no,yes,no,yes,no,no,no,no,no,yes,yes,yes]
+DROP TABLE t1, t2, log;

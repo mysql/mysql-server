@@ -466,9 +466,9 @@ void my_message_local_stderr(enum loglevel ll,
 
   This goes through local_message_hook, i.e. by default, it calls
   my_message_local_stderr() which prepends an Error/Warning/Note
-  label to the string, then prints it to stderr.  More advanced
-  programs can use their own printers; mysqld for instance uses
-  its own error log facilities which prepend an ISO 8601 / RFC 3339
+  label to the string, then prints it to stderr using my_message_stderr().
+  More advanced programs can use their own printers; mysqld for instance
+  uses its own error log facilities which prepend an ISO 8601 / RFC 3339
   compliant timestamp etc.
 
   @param ll      log level: (ERROR|WARNING|INFORMATION)_LEVEL

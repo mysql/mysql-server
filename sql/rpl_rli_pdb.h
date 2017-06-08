@@ -21,6 +21,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <atomic>
+
 #include "binlog_event.h"
 #include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
@@ -99,6 +101,63 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 
 typedef struct st_slave_job_group
 {
+  st_slave_job_group() {}
+
+  /*
+    We need a custom copy constructor and assign operator because std::atomic<T>
+    is not copy-constructible.
+  */
+  st_slave_job_group(const st_slave_job_group &other)
+    : group_master_log_name(other.group_master_log_name),
+      group_master_log_pos(other.group_master_log_pos),
+      group_relay_log_name(other.group_relay_log_name),
+      group_relay_log_pos(other.group_relay_log_pos),
+      worker_id(other.worker_id),
+      worker(other.worker),
+      total_seqno(other.total_seqno),
+      master_log_pos(other.master_log_pos),
+      checkpoint_seqno(other.checkpoint_seqno),
+      checkpoint_log_pos(other.checkpoint_log_pos),
+      checkpoint_log_name(other.checkpoint_log_name),
+      checkpoint_relay_log_pos(other.checkpoint_relay_log_pos),
+      checkpoint_relay_log_name(other.checkpoint_relay_log_name),
+      done(other.done.load()),
+      shifted(other.shifted),
+      ts(other.ts),
+#ifndef DBUG_OFF
+      notified(other.notified),
+#endif
+      last_committed(other.last_committed),
+      sequence_number(other.sequence_number),
+      new_fd_event(other.new_fd_event) {}
+
+  st_slave_job_group &operator=(const st_slave_job_group &other)
+  {
+    group_master_log_name= other.group_master_log_name;
+    group_master_log_pos= other.group_master_log_pos;
+    group_relay_log_name= other.group_relay_log_name;
+    group_relay_log_pos= other.group_relay_log_pos;
+    worker_id= other.worker_id;
+    worker= other.worker;
+    total_seqno= other.total_seqno;
+    master_log_pos= other.master_log_pos;
+    checkpoint_seqno= other.checkpoint_seqno;
+    checkpoint_log_pos= other.checkpoint_log_pos;
+    checkpoint_log_name= other.checkpoint_log_name;
+    checkpoint_relay_log_pos= other.checkpoint_relay_log_pos;
+    checkpoint_relay_log_name= other.checkpoint_relay_log_name;
+    done.store(other.done.load());
+    shifted= other.shifted;
+    ts= other.ts;
+#ifndef DBUG_OFF
+    notified= other.notified;
+#endif
+    last_committed= other.last_committed;
+    sequence_number= other.sequence_number;
+    new_fd_event= other.new_fd_event;
+    return *this;
+  }
+
   char *group_master_log_name;   // (actually redundant)
   /*
     T-event lop_pos filled by Worker for CheckPoint (CP)
@@ -127,11 +186,11 @@ typedef struct st_slave_job_group
   char*    checkpoint_log_name;
   my_off_t checkpoint_relay_log_pos; // T-event lop_pos filled by W for CheckPoint
   char*    checkpoint_relay_log_name;
-  int32    done;  // Flag raised by W,  read and reset by Coordinator
+  std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
 #ifndef DBUG_OFF
-  bool     notified;    // to debug group_master_log_name change notification
+  bool     notified{false};  // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
   longlong last_committed; // commit parent timestamp
@@ -319,6 +378,18 @@ public:
       circular_buffer_queue<Slave_job_group>::en_queue(item);
   }
 
+  /**
+    Dequeue from head.
+
+    @param [out] item A pointer to the being dequeued item.
+    @return The queue's array index that the de-queued item located at,
+            or an error encoded in beyond the index legacy range.
+  */
+  ulong de_queue(Slave_job_group *item)
+  {
+    return circular_buffer_queue<Slave_job_group>::de_queue(item);
+  }
+
   ulong find_lwm(Slave_job_group**, ulong);
 };
 
@@ -361,6 +432,45 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
   return ret;
 }
 
+
+/**
+  Dequeue from head.
+
+  @param [out] val A pointer to the being dequeued item.
+  @return the queue's array index that the de-queued item
+          located at, or an error as an int outside the legacy
+          [0, size) (value `size' is excluded) range.
+*/
+template <typename Element_type>
+ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
+{
+  ulong ret;
+  if (entry == size)
+  {
+    DBUG_ASSERT(len == 0);
+    return (ulong) -1;
+  }
+
+  ret= entry;
+  *val= m_Q[entry];
+  len--;
+
+  // pre boundary cond
+  if (avail == size)
+    avail= entry;
+  entry= (entry + 1) % size;
+
+  // post boundary cond
+  if (avail == entry)
+    entry= size;
+
+  DBUG_ASSERT(entry == size ||
+              (len == (avail >= entry)? (avail - entry) :
+               (size + avail - entry)));
+  DBUG_ASSERT(avail != entry);
+
+  return ret;
+}
 
 
 class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item>
@@ -487,8 +597,7 @@ public:
   */
   void copy_values_for_PFS(ulong worker_id, en_running_state running_status,
                            THD *worker_thd, const Error &last_error,
-                           trx_monitoring_info *processing_trx_arg,
-                           trx_monitoring_info *last_processed_trx_arg);
+                           Gtid_monitoring_info *monitoring_info_arg);
 
   /*
     The running status is guarded by jobs_lock mutex that a writer

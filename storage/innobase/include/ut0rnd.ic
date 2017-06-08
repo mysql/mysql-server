@@ -42,17 +42,6 @@ Created 5/30/1994 Heikki Tuuri
 extern thread_local ulint ut_rnd_ulint_counter;
 
 /********************************************************//**
-This is used to set the random number seed. */
-UNIV_INLINE
-void
-ut_rnd_set_seed(
-/*============*/
-	ulint	 seed)		 /*!< in: seed */
-{
-	ut_rnd_ulint_counter = seed;
-}
-
-/********************************************************//**
 The following function generates a series of 'random' ulint integers.
 This function is now based on thread local variables.
 @return the next 'random' number */

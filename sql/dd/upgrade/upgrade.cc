@@ -35,6 +35,7 @@
 #include "dd/impl/sdi.h"                      // sdi::store()
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
+#include "dd/sdi_file.h"                      // dd::sdi_file::EXT
 #include "error_handler.h"                    // Dummy_error_handler
 #include "log.h"                              // sql_print_warning
 #include "my_inttypes.h"
@@ -339,9 +340,7 @@ bool check_for_dd_tables()
 
     if (!my_access(path, F_OK))
     {
-      sql_print_error("Found %s file in mysql schema. DD will create .ibd "
-                       "file with same name. Please rename table and start "
-                       "upgrade process again.", path);
+      LogErr(ERROR_LEVEL, ER_FILE_EXISTS_DURING_UPGRADE, path);
       return true;
     }
   }
@@ -405,8 +404,8 @@ static void drop_sdi_files()
 
   if (!(a = my_dir(path.c_str(), MYF(MY_WANT_STAT))))
   {
-    sql_print_error("Unable to open the data directory %s during "
-                     "clean up after upgrade failed", path.c_str());
+    LogErr(ERROR_LEVEL,
+           ER_CANT_OPEN_DATADIR_AFTER_UPGRADE_FAILURE, path.c_str());
     return;
   }
 
@@ -426,13 +425,13 @@ static void drop_sdi_files()
        if (fn_format(dir_path, file.c_str(), path.c_str(), "",
                      MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
        {
-         sql_print_error("Failed to set path %s", file.c_str());
+         LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
          continue;
        }
 
       if (!(b = my_dir(dir_path, MYF(MY_WANT_STAT))))
       {
-        sql_print_error("Failed to open to dir %s", dir_path);
+        LogErr(ERROR_LEVEL, ER_CANT_OPEN_DIR, dir_path);
         continue;
       }
 
@@ -447,13 +446,13 @@ static void drop_sdi_files()
 
         String_type file_ext;
         file_ext.assign(file2.c_str() + file2.size() - 4);
-        if (file_ext.compare(0, 4, SDI_EXT) == 0)
+        if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0)
         {
           char to_path[FN_REFLEN];
           if (fn_format(to_path, file2.c_str(), dir_path, "",
                         MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
           {
-            sql_print_error("Failed to set path %s.", file2.c_str());
+            LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file2.c_str());
             continue;
           }
 
@@ -470,13 +469,13 @@ static void drop_sdi_files()
         continue;
       file_ext.assign(file.c_str() + file.size() - 4);
       // Get the name without the file extension.
-      if (file_ext.compare(0, 4, SDI_EXT) == 0)
+      if (file_ext.compare(0, 4, dd::sdi_file::EXT) == 0)
       {
         char to_path[FN_REFLEN];
         if (fn_format(to_path, file.c_str(), path.c_str(), "",
                       MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
         {
-          sql_print_error("Failed to set path %s.", file.c_str());
+          LogErr(ERROR_LEVEL, ER_CANT_SET_PATH_FOR, file.c_str());
           continue;
         }
         (void) mysql_file_delete(key_file_sdi, to_path, MYF(MY_WME));
@@ -992,7 +991,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
     if (bootstrap::DDSE_dict_init(thd, DICT_INIT_CHECK_FILES,
                                   d->get_target_dd_version()))
     {
-      sql_print_error("Failed to initialize DD Storage Engine");
+      LogErr(ERROR_LEVEL, ER_DD_SE_INIT_FAILED);
       return true;
     }
   }
@@ -1062,9 +1061,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
 
         Error out, delete mysql.ibd, downgrade innodb undo and redo logs.
       */
-      sql_print_error("Found partially upgraded DD. Aborting upgrade and "
-                      "deleting all DD tables. Start the upgrade process "
-                      "again.");
+      LogErr(ERROR_LEVEL, ER_DD_ABORTING_PARTIAL_UPGRADE);
       terminate(thd);
       return true;
     }
@@ -1155,8 +1152,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
 
   if (check_for_dd_tables())
   {
-    sql_print_error("Found .frm file with same name as one of the "
-                    " Dictionary Tables.");
+    LogErr(ERROR_LEVEL, ER_DD_FRM_EXISTS_FOR_TABLE);
     return true;
   }
 
@@ -1183,7 +1179,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
 
   thd->pop_internal_handler();
 
-  sql_print_information("Created Data Dictionary for upgrade");
+  LogErr(INFORMATION_LEVEL, ER_DD_CREATED_FOR_UPGRADE);
 
   // Rename .ibd files for innodb stats tables
   rename_stats_tables();

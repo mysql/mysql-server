@@ -40,6 +40,13 @@
 #include "sql_thd_internal_api.h"
 #include <set>
 
+/*
+  Print to the MySQL error log -- ultimately, this should possibly
+  become a service calling another service.
+*/
+#include "log.h"
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -130,11 +137,6 @@ void thd_set_not_killable(THD *thd);
 ulong  thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
 int thd_store_globals(THD* thd);
-
-/* Print to the MySQL error log */
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
 
 /* Store a table record */
 bool schema_table_store_record(THD *thd, TABLE *table);

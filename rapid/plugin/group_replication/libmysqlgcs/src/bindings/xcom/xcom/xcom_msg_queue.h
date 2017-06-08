@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ extern "C" {
 /* Helper struct used for putting messages in a queue */
 struct msg_link {
   linkage l;
-  pax_msg * p;
+  pax_msg *p;
   node_no to;
 };
 typedef struct msg_link msg_link;
@@ -41,4 +41,3 @@ void msg_link_delete(msg_link **link_p);
 #endif
 
 #endif
-

@@ -1,0 +1,41 @@
+--source include/master-slave.inc
+
+--echo # Verify that column statistics are replicated according to the
+--echo # "NO_WRITE_TO_BINLOG"-flag.
+CREATE TABLE not_replicated (col1 INT);
+CREATE TABLE replicated (col1 INT);
+INSERT INTO not_replicated VALUES (1), (2);
+INSERT INTO replicated VALUES (1), (2);
+--echo # Create histograms on 'not_replicated' without writing to binlog
+ANALYZE NO_WRITE_TO_BINLOG TABLE not_replicated
+UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+
+--echo # Create histograms on 'replicated' (should be written to the binlog)
+ANALYZE TABLE replicated UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+
+--echo # Both tables should be present on the master
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Sync slave with master, and verify that we only have column statistics
+--echo # for table 'replicated' on the slave
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+--connection master
+DROP TABLE replicated, not_replicated;
+
+--echo #
+--echo # Bug#26041269 WL8943(RPL):ASSERTION `HEAD->VARIABLES.GTID_NEXT.TYPE !=
+--echo #              UNDEFINED_GROUP' FAILED
+--echo #
+
+CREATE TABLE foo (col1 INT);
+ANALYZE TABLE foo UPDATE HISTOGRAM ON meh WITH 10 BUCKETS;
+DROP TABLE foo;
+
+--source include/rpl_end.inc

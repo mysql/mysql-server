@@ -221,9 +221,12 @@ rw_lock_create_func(
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
-#if defined(UNIV_DEBUG) && !defined(UNIV_PFS_RWLOCK)
+#if defined(UNIV_DEBUG)
+# if !defined(UNIV_PFS_RWLOCK)
 	/* It should have been created in pfs_rw_lock_create_func() */
 	new(lock) rw_lock_t();
+# endif /* UNIV_DEBUG */
+	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
 #endif /* UNIV_DEBUG */
 
 	/* If this is the very first time a synchronization object is

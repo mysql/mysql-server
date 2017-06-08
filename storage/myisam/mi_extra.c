@@ -64,7 +64,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,0,
 		      (bool) (info->lock_type != F_UNLCK),
-		      (bool) MY_TEST(info->update & HA_STATE_ROW_CHANGED)
+		      (bool) (info->update & HA_STATE_ROW_CHANGED)
 		      );
     }
     info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
@@ -125,7 +125,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,info->nextpos,
 		      (bool) (info->lock_type != F_UNLCK),
-		      (bool) MY_TEST(info->update & HA_STATE_ROW_CHANGED));
+		      (bool) (info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
       if (share->concurrent_insert)
 	info->rec_cache.end_of_file=info->state->data_file_length;

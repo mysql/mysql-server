@@ -168,9 +168,20 @@ struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;
 };
-enum Item_result {INVALID_RESULT=-1,
-                  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
+#include <mysql/udf_registration_types.h>
+typedef char my_bool;
+typedef unsigned char uchar;
+typedef long long int longlong;
+typedef unsigned long ulong;
+enum Item_result
+{
+  INVALID_RESULT=-1,
+  STRING_RESULT=0,
+  REAL_RESULT,
+  INT_RESULT,
+  ROW_RESULT,
+  DECIMAL_RESULT
+};
 typedef struct st_udf_args
 {
   unsigned int arg_count;
@@ -184,13 +195,28 @@ typedef struct st_udf_args
 } UDF_ARGS;
 typedef struct st_udf_init
 {
-  bool maybe_null;
+  my_bool maybe_null;
   unsigned int decimals;
   unsigned long max_length;
   char *ptr;
-  bool const_item;
+  my_bool const_item;
   void *extension;
 } UDF_INIT;
+enum Item_udftype
+{
+  UDFTYPE_FUNCTION=1,
+  UDFTYPE_AGGREGATE
+};
+typedef void(*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
+typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
+typedef void(*Udf_func_deinit)(UDF_INIT*);
+typedef my_bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
+typedef void(*Udf_func_any)();
+typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
+typedef longlong(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
+                                     uchar *);
+typedef char * (*Udf_func_string)(UDF_INIT *, UDF_ARGS *, char *,
+                                  ulong *, uchar *, uchar *);
 void randominit(struct rand_struct *, unsigned long seed1,
                 unsigned long seed2);
 double my_rnd(struct rand_struct *);

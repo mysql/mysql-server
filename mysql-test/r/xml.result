@@ -634,12 +634,14 @@ Jack
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]');
 extractvalue('<a>Jack</a>','/a[contains(../a,"j")]')
 Jack
+set names latin1;
 select extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin);
 extractvalue('<a>Jack</a>','/a[contains(../a,"j")]' collate latin1_bin)
 
 select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]')
 
+set names utf8mb4;
 select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
 ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1')
 test

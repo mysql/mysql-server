@@ -159,5 +159,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --transaction_wr
 --let $restart_parameters=
 --let $error_log=
 --remove_file $MYSQLTEST_VARDIR/tmp/binlog_transaction_dependency_tracking.err
---eval SET GLOBAL binlog_transaction_dependency_tracking= $saved_binlog_transaction_dependency_tracking
+--eval SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER
+--replace_result $saved_transaction_write_set_extraction SAVED_TWSE
 --eval SET GLOBAL transaction_write_set_extraction= $saved_transaction_write_set_extraction
+--eval SET GLOBAL binlog_transaction_dependency_tracking= $saved_binlog_transaction_dependency_tracking

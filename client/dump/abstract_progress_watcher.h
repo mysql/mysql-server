@@ -18,11 +18,11 @@
 #ifndef ABSTRACT_PROGRESS_WATCHER_INCLUDED
 #define ABSTRACT_PROGRESS_WATCHER_INCLUDED
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 
 #include "abstract_chain_element.h"
-#include "base/atomic.h"
 #include "i_progress_watcher.h"
 #include "my_inttypes.h"
 
@@ -68,9 +68,9 @@ protected:
     Progress_data(const Progress_data& to_copy);
     Progress_data& operator=(const Progress_data& to_copy);
     Progress_data operator-(const Progress_data& to_subtract);
-    my_boost::atomic_uint64_t m_table_count;
-    my_boost::atomic_uint64_t m_row_data;
-    my_boost::atomic_uint64_t m_row_count;
+    std::atomic<uint64_t> m_table_count;
+    std::atomic<uint64_t> m_row_data;
+    std::atomic<uint64_t> m_row_count;
   };
 
   virtual void process_progress_step(Progress_data& change)= 0;
@@ -96,8 +96,8 @@ private:
   static const int REPORT_DELAY_MS= 1000;
 
   std::chrono::system_clock::time_point m_last_stage_time;
-  my_boost::atomic_int64_t m_step_countdown;
-  my_boost::atomic_int64_t m_stage_countdown;
+  std::atomic<int64_t> m_step_countdown;
+  std::atomic<int64_t> m_stage_countdown;
   int64 m_last_step_countdown;
 };
 

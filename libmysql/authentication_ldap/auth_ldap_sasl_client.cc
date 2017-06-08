@@ -1,4 +1,17 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved. */
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "auth_ldap_sasl_client.h"
 #include <string.h>
@@ -276,16 +289,7 @@ EXIT:
   return rc_auth;
 }
 
-/**
-  Client plugin declaration. This is added to mysql_client_builtins[]
-  in sql-common/client.c
-*/
-
-//extern "C"
-st_mysql_client_plugin_AUTHENTICATION ldap_auth_client_plugin=
-{
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+mysql_declare_client_plugin(AUTHENTICATION)
   "authentication_ldap_sasl_client",
   "Yashwant Sahu",
   "LDAP SASL Client Authentication Plugin",
@@ -296,4 +300,4 @@ st_mysql_client_plugin_AUTHENTICATION ldap_auth_client_plugin=
   NULL,
   NULL,
   sasl_authenticate
-};
+mysql_end_client_plugin;

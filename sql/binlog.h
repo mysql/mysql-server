@@ -24,7 +24,6 @@
 
 #include "binlog_event.h"              // enum_binlog_checksum_alg
 #include "m_string.h"                  // llstr
-#include "my_atomic.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -55,6 +54,7 @@ class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
 class user_var_entry;
+class Gtid_monitoring_info;
 struct Gtid;
 
 typedef int64 query_id_t;
@@ -123,7 +123,7 @@ public:
 
     inline int32 get_size()
     {
-      return my_atomic_load32(&m_size);
+      return m_size.load();
     }
 
   private:
@@ -145,7 +145,7 @@ public:
     THD **m_last;
 
     /** size of the queue */
-    int32 m_size;
+    std::atomic<int32> m_size;
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
@@ -470,12 +470,14 @@ class MYSQL_BIN_LOG: public TC_LOG
     return *sync_period_ptr;
   }
 
+public:
   /*
     This is used to start writing to a new log file. The difference from
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
   int new_file_without_locking(Format_description_log_event *extra_description_event);
+private:
   int new_file_impl(bool need_lock, Format_description_log_event *extra_description_event);
 
   /** Manage the stages in ordered_commit. */
@@ -636,7 +638,7 @@ public:
                       bool verify_checksum,
                       bool need_lock,
                       Transaction_boundary_parser *trx_parser,
-                      trx_monitoring_info *partial_trx,
+                      Gtid_monitoring_info *partial_trx,
                       bool is_server_starting= false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
@@ -705,6 +707,7 @@ public:
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all);
+  bool truncate_relaylog_file(Master_info *mi, my_off_t valid_pos);
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
@@ -838,7 +841,8 @@ public:
   bool write_incident(THD *thd, bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
-  bool write_incident(Incident_log_event *ev, bool need_lock_log,
+  bool write_incident(Incident_log_event *ev, THD *thd,
+                      bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
 
@@ -943,6 +947,11 @@ public:
       @retval !=0    Error
   */
   int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
+
+  /*
+    True while rotating binlog, which is caused by logging Incident_log_event.
+  */
+  bool is_rotating_caused_by_incident;
 };
 
 typedef struct st_load_file_info

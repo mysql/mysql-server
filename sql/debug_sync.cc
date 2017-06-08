@@ -246,10 +246,10 @@
 
   mysql_mutex_lock(&mutex);
   thd->enter_cond(&condition_variable, &mutex, new_message);
-  #if defined(ENABLE_DEBUG_SYNC)
+  # if defined(ENABLE_DEBUG_SYNC)
   if (!thd->killed && !end_of_wait_condition)
      DEBUG_SYNC(thd, "sync_point_name");
-  #endif
+  # endif
   while (!thd->killed && !end_of_wait_condition)
     mysql_cond_wait(&condition_variable, &mutex);
   mysql_mutex_unlock(&mutex);
@@ -337,8 +337,11 @@
   For complete syntax tests, functional tests, and examples see the test
   case debug_sync.test.
 
+
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
+
+#define LOG_SUBSYSTEM_TAG "debug_sync"
 
 #include "sql/debug_sync.h"
 
@@ -460,7 +463,6 @@ extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
 */
 C_MODE_START
 static void debug_sync_C_callback(const char *, size_t);
-static int debug_sync_qsort_cmp(const void *, const void *);
 C_MODE_END
 
 /**
@@ -620,12 +622,12 @@ void debug_sync_end(void)
     /* Print statistics. */
     {
       char llbuff[22];
-      sql_print_information("Debug sync points hit:                   %22s",
-                            llstr(debug_sync_global.dsp_hits, llbuff));
-      sql_print_information("Debug sync points executed:              %22s",
-                            llstr(debug_sync_global.dsp_executed, llbuff));
-      sql_print_information("Debug sync points max active per thread: %22s",
-                            llstr(debug_sync_global.dsp_max_active, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_HIT,
+             llstr(debug_sync_global.dsp_hits, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_EXECUTED,
+             llstr(debug_sync_global.dsp_executed, llbuff));
+      LogErr(INFORMATION_LEVEL, ER_DEBUG_SYNC_THREAD_MAX,
+             llstr(debug_sync_global.dsp_max_active, llbuff));
     }
   }
 
@@ -651,7 +653,7 @@ static void debug_sync_emergency_disable(void)
 
   DBUG_PRINT("debug_sync",
              ("Debug Sync Facility disabled due to lack of memory."));
-  sql_print_error("Debug Sync Facility disabled due to lack of memory.");
+  LogErr(ERROR_LEVEL, ER_DEBUG_SYNC_OOM);
 
   DBUG_VOID_RETURN;
 }
@@ -882,34 +884,6 @@ static void debug_sync_print_actions(THD *thd)
 }
 
 #endif /* !defined(DBUG_OFF) */
-
-
-/**
-  Compare two actions by sync point name length, string.
-
-  @param[in]    arg1            reference to action1
-  @param[in]    arg2            reference to action2
-
-  @return       difference
-    @retval     == 0            length1/string1 is same as length2/string2
-    @retval     < 0             length1/string1 is smaller
-    @retval     > 0             length1/string1 is bigger
-*/
-
-static int debug_sync_qsort_cmp(const void* arg1, const void* arg2)
-{
-  st_debug_sync_action *action1= (st_debug_sync_action*) arg1;
-  st_debug_sync_action *action2= (st_debug_sync_action*) arg2;
-  int diff;
-  DBUG_ASSERT(action1);
-  DBUG_ASSERT(action2);
-
-  if (!(diff= static_cast<int>(action1->sync_point.length() - action2->sync_point.length())))
-    diff= memcmp(action1->sync_point.ptr(), action2->sync_point.ptr(),
-                 action1->sync_point.length());
-
-  return diff;
-}
 
 
 /**
@@ -1231,8 +1205,15 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action)
     {
       action->need_sort= FALSE;
       /* Sort actions by (name_len, name). */
-      my_qsort(ds_control->ds_action, ds_control->ds_active,
-               sizeof(st_debug_sync_action), debug_sync_qsort_cmp);
+      std::sort(
+        ds_control->ds_action, ds_control->ds_action + ds_control->ds_active,
+        [](const st_debug_sync_action &a, const st_debug_sync_action &b)
+        {
+          if (a.sync_point.length() != b.sync_point.length())
+            return a.sync_point.length() < b.sync_point.length();
+          return memcmp(a.sync_point.ptr(), b.sync_point.ptr(),
+                        a.sync_point.length()) < 0;
+        });
     }
   }
   DBUG_EXECUTE("debug_sync_list", debug_sync_print_actions(thd););

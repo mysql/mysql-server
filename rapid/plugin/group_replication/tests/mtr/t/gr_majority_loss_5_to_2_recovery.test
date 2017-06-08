@@ -96,6 +96,8 @@ call mtr.add_suppression("There was an error when connecting to the donor server
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: Access denied for user 'recovery_user'.*");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
 call mtr.add_suppression("Slave I/O thread couldn't register on master");
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
 SET SESSION sql_log_bin= 1;
 
 SET @group_replication_recovery_reconnect_interval_saved= @@GLOBAL.group_replication_recovery_reconnect_interval;
@@ -263,7 +265,7 @@ SET @@GLOBAL.group_replication_recovery_reconnect_interval= @group_replication_r
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$server_uuid"] = 1
 --source include/assert.inc
 
---let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats, view_id, 1)
+--let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), view_id, 1)
 --let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
 --let $assert_text= The value of view_id must be random:6
 --let $assert_cond= $view_id >= 6
@@ -281,7 +283,7 @@ SET @@GLOBAL.group_replication_recovery_reconnect_interval= @group_replication_r
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$server_uuid"] = 1
 --source include/assert.inc
 
---let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats, view_id, 1)
+--let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), view_id, 1)
 --let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
 --let $assert_text= The value of view_id must be random:6
 --let $assert_cond= $view_id >= 6
@@ -341,7 +343,14 @@ FLUSH PRIVILEGES;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
 DROP TABLE t1;
 --eval DROP USER "$recovery_user"
 FLUSH PRIVILEGES;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+SET SESSION sql_log_bin= 1;
+
 --source ../inc/group_replication_end.inc

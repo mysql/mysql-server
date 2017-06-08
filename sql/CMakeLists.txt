@@ -102,6 +102,7 @@ SET(DD_SOURCES
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
+  dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
@@ -120,6 +121,7 @@ SET(DD_SOURCES
   dd/impl/tables/character_sets.cc
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
+  dd/impl/tables/column_statistics.cc
   dd/impl/tables/column_type_elements.cc
   dd/impl/tables/dd_properties.cc
   dd/impl/tables/events.cc
@@ -148,6 +150,7 @@ SET(DD_SOURCES
   dd/impl/types/charset_impl.cc
   dd/impl/types/collation_impl.cc
   dd/impl/types/column_impl.cc
+  dd/impl/types/column_statistics_impl.cc
   dd/impl/types/column_type_element_impl.cc
   dd/impl/types/entity_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
@@ -180,6 +183,8 @@ SET(DD_SOURCES
   dd/info_schema/show_query_builder.cc
   dd/info_schema/stats.cc
 
+  dd/performance_schema/init.cc
+
   dd/upgrade/event.cc
   dd/upgrade/global.cc
   dd/upgrade/routine.cc
@@ -190,12 +195,24 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/covered_by.cc
+  gis/crosses.cc
+  gis/difference.cc
+  gis/disjoint.cc
   gis/distance.cc
+  gis/equals.cc
+  gis/gc_utils.cc
   gis/geometries.cc
-  gis/ring_direction.cc
+  gis/intersects.cc
+  gis/mbr_utils.cc
+  gis/overlaps.cc
+  gis/ring_flip_visitor.cc
   gis/rtree_support.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/touches.cc
+  gis/union.cc
+  gis/within.cc
   gis/wkb_parser.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
@@ -208,6 +225,7 @@ SET(SQL_GIS_SOURCES
 SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
+  server_component/component_sys_var_service.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -250,6 +268,7 @@ SET(SQL_SHARED_SOURCES
   histograms/equi_height_bucket.cc
   histograms/histogram.cc
   histograms/singleton.cc
+  histograms/value_map.cc
   hostname.cc
   init.cc
   item.cc
@@ -262,11 +281,13 @@ SET(SQL_SHARED_SOURCES
   item_strfunc.cc
   item_subselect.cc
   item_sum.cc
+  window.cc
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
-  json_dom.cc
   json_binary.cc
+  json_diff.cc
+  json_dom.cc
   json_path.cc
   key.cc
   key_spec.cc
@@ -292,7 +313,6 @@ SET(SQL_SHARED_SOURCES
   opt_trace.cc
   opt_trace2server.cc
   options_parser.cc
-  parse_error.cc
   parse_file.cc
   parse_tree_helpers.cc
   parse_tree_hints.cc
@@ -372,6 +392,7 @@ SET(SQL_SHARED_SOURCES
   sql_partition_admin.cc
   sql_planner.cc
   sql_plugin.cc
+  sql_plugin_var.cc
   sql_prepare.cc
   sql_profile.cc
   sql_query_rewrite.cc
@@ -427,6 +448,13 @@ FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/sql/*.h"
   "${CMAKE_SOURCE_DIR}/storage/*.h"
 )
+
+# Needed so that IDEs (e.g. Xcode) can see all sources when searching 
+FILE(GLOB_RECURSE SQL_HEADERS
+  "${CMAKE_SOURCE_DIR}/include/*.h"
+  "${CMAKE_SOURCE_DIR}/sql/*.h"
+  "${CMAKE_SOURCE_DIR}/storage/*.h"
+) 
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
@@ -491,6 +519,7 @@ SET(SQL_BOOST_SOURCES
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc
+  window.cc
   sql_exception_handler.cc
 )
 SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
@@ -547,6 +576,9 @@ ADD_COMPILE_FLAGS(
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
   ADD_COMPILE_FLAGS(
+    gis/difference.cc
+    gis/touches.cc
+    gis/within.cc
     item_geofunc.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")

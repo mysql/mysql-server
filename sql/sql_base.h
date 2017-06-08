@@ -19,9 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <memory>
+#include <string>
+#include <unordered_map>
+
 #include "hash.h"                   // my_hash_value_type
 #include "lex_string.h"
 #include "m_string.h"
+#include "malloc_allocator.h"
+#include "map_helpers.h"
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
@@ -29,7 +35,9 @@
 #include "sql_array.h"              // Bounds_checked_array
 #include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
+#include "sql_const.h"              // enum_resolution_type
 
+class COPY_INFO;
 class Field;
 class Item;
 class Item_ident;
@@ -93,26 +101,6 @@ class Table;
 #define OPEN_NO_DD_TABLE       OPTIMIZE_I_S_TABLE*2
 
 
-/*
-  This enumeration type is used only by the function find_item_in_list
-  to return the info on how an item has been resolved against a list
-  of possibly aliased items.
-  The item can be resolved:
-   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
-   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
-   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
-   - ignoring the alias name in cases when SQL requires to ignore aliases
-     (e.g. when the resolved field reference contains a table name or
-     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)
-*/
-enum enum_resolution_type {
-  NOT_RESOLVED=0,
-  RESOLVED_IGNORING_ALIAS,
-  RESOLVED_BEHIND_ALIAS,
-  RESOLVED_WITH_NO_ALIAS,
-  RESOLVED_AGAINST_ALIAS
-};
-
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
                                   IGNORE_EXCEPT_NON_UNIQUE};
@@ -130,7 +118,7 @@ uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value);
+                             bool open_view);
 void release_table_share(TABLE_SHARE *share);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -219,7 +207,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
-bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
+bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
+                                          List<Item> &fields,
                                           List<Item> &values,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
@@ -333,7 +322,13 @@ void mark_tmp_table_for_reuse(TABLE *table);
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
-extern HASH table_def_cache;
+
+struct Table_share_deleter {
+  void operator() (TABLE_SHARE *share) const;
+};
+extern malloc_unordered_map<
+  std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
+    *table_def_cache;
 
 TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
                                       const char *db_name,

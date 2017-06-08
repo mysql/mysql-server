@@ -110,7 +110,7 @@ FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 
 --disable_warnings
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict charset utf8mb4;
+CREATE DATABASE db_datadict;
 
 --error 0,ER_CANNOT_USER
 DROP   USER 'testuser1'@'localhost';
@@ -201,7 +201,7 @@ DROP DATABASE IF EXISTS db_datadict;
 DROP TABLE IF EXISTS test.t1_my_table;
 DROP DATABASE IF EXISTS db_datadict;
 --enable_warnings
-CREATE DATABASE db_datadict charset utf8mb4;
+CREATE DATABASE db_datadict;
 
 SELECT table_name FROM information_schema.columns
 WHERE table_name LIKE 't1_my_table%';
@@ -367,6 +367,7 @@ FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 #
 # Check a VIEW
+set names latin1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE VIEW test.t1_my_tablex
 AS SELECT 1 AS "col1", 'A' collate latin1_german1_ci AS "col2";
@@ -379,6 +380,7 @@ DROP VIEW test.t1_my_tablex;
 SELECT table_name FROM information_schema.columns
 WHERE table_name = 't1_my_tablex';
 SET sql_mode = default;
+set names utf8mb4;
 #
 # Check impact of DROP SCHEMA
 --replace_result $engine_type <engine_type>
@@ -417,7 +419,7 @@ WHERE table_name = 't1_my_tablex';
 DROP DATABASE IF EXISTS db_datadict;
 DROP TABLE IF EXISTS test.t1;
 --enable_warnings
-CREATE DATABASE db_datadict charset utf8mb4;
+CREATE DATABASE db_datadict;
 CREATE TABLE test.t1 (f1 BIGINT);
 
 --error ER_DBACCESS_DENIED_ERROR

@@ -268,6 +268,7 @@ mysql_declare_plugin(ftexample)
   "Simple Full-Text Parser",  /* description                     */
   PLUGIN_LICENSE_GPL,
   simple_parser_plugin_init,  /* init function (when loaded)     */
+  NULL,                       /* check uninstall function        */
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */
   simple_status,              /* status variables                */

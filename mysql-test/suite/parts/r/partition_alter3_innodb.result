@@ -82,7 +82,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date)) */
+/*!50100 PARTITION BY HASH (year(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -102,7 +102,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (DAYOFYEAR(f_date)) */
+/*!50100 PARTITION BY HASH (dayofyear(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -120,7 +120,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date)) */
+/*!50100 PARTITION BY HASH (year(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -144,7 +144,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
@@ -171,7 +171,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -197,7 +197,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -243,7 +243,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -274,7 +274,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -303,7 +303,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -330,7 +330,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
@@ -355,7 +355,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
@@ -378,7 +378,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB) */
 t1#P#p0.ibd
@@ -399,7 +399,7 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(f_date))
+/*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB) */
 t1#P#p0.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';

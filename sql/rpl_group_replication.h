@@ -42,6 +42,7 @@ public:
       unsigned int index,
       const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
   bool get_group_member_stats_info(
+      unsigned int index,
       const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
   unsigned int get_members_number_info();
 
@@ -70,6 +71,7 @@ bool get_group_replication_group_members_info(
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 bool get_group_replication_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 unsigned int get_group_replication_members_number_info();
 

@@ -38,15 +38,15 @@ set session sql_log_bin = 1;
 
 connection root;
 --echo [root]
-set global binlog_format = row;
-set session binlog_format = row;
+set global binlog_format = 'row';
+set session binlog_format = 'row';
 
 connection plain;
 --echo [plain]
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-set global binlog_format = row;
+set global binlog_format = 'row';
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-set session binlog_format = row;
+set session binlog_format = 'row';
 
 --echo **** Clean up ****
 disconnect plain;

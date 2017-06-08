@@ -1,0 +1,31 @@
+-- source include/load_sysvars.inc
+
+SELECT @@global.internal_tmp_mem_storage_engine;
+SELECT @@session.internal_tmp_mem_storage_engine;
+
+SET @@global.internal_tmp_mem_storage_engine = 'memory';
+SELECT @@global.internal_tmp_mem_storage_engine;
+
+SET @@global.internal_tmp_mem_storage_engine = 'temptable';
+SELECT @@global.internal_tmp_mem_storage_engine;
+
+SET @@session.internal_tmp_mem_storage_engine = 'memory';
+SELECT @@session.internal_tmp_mem_storage_engine;
+
+SET @@session.internal_tmp_mem_storage_engine = 'temptable';
+SELECT @@session.internal_tmp_mem_storage_engine;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.internal_tmp_mem_storage_engine = 123;
+SELECT @@global.internal_tmp_mem_storage_engine;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.internal_tmp_mem_storage_engine = NULL;
+SELECT @@global.internal_tmp_mem_storage_engine;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET @@global.internal_tmp_mem_storage_engine = 'foo';
+SELECT @@global.internal_tmp_mem_storage_engine;
+
+SET @@global.internal_tmp_mem_storage_engine = default;
+SET @@session.internal_tmp_mem_storage_engine = default;

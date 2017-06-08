@@ -50,8 +50,17 @@ while ($case < 3)
 
   if ($expire_logs_seconds > 30)
   {
-    --let $modified_time= `SELECT $expire_logs_seconds + 60`
-    --exec touch -r "$MYSQLD_DATADIR/$first_binlog_file" -d '-$modified_time second' "$MYSQLD_DATADIR/$first_binlog_file"
+    --let _EXPIRE_TIME= `SELECT $expire_logs_seconds + 60`
+    --let _FIRST_BINLOG_FILE= $MYSQLD_DATADIR/$first_binlog_file
+--perl
+    use strict;
+    use warnings;
+    my $expire_time = $ENV{'_EXPIRE_TIME'};
+    my $first_binlog_file = $ENV{'_FIRST_BINLOG_FILE'};
+    my $epoch = (stat($first_binlog_file))[9];
+    my $mtime = $epoch - $expire_time;
+    utime $mtime, $mtime, $first_binlog_file;
+  EOF
   }
 
   # Checking this ensures that nothing is purged so far.

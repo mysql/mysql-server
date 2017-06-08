@@ -1,0 +1,83 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#### I. Initialize ####
+[connection slave]
+include/stop_slave.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+set @@global.innodb_lock_wait_timeout=5 + 1000;
+include/start_slave.inc
+[connection master]
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+CREATE TABLE d2.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+#### II. Prepare test scenario ####
+include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d2.t VALUES (2, 'Slave local');
+INSERT INTO d1.t VALUES (3, 'Slave local');
+[connection master]
+INSERT INTO d1.t VALUES (1, 'T1');
+INSERT INTO d2.t VALUES (1, 'T2');
+INSERT INTO d2.t VALUES (2, 'T3');
+INSERT INTO d2.t VALUES (3, 'T4');
+INSERT INTO d1.t VALUES (2, 'T5');
+[connection slave1]
+# Now d1.t has two rows and d2.t has one row.
+[connection slave]
+CALL mtr.add_suppression("Recovery from master pos");
+# Kill the server
+include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1]
+After restart gaps should be filled.
+include/assert.inc [Table d1.t should contain 2 rows.]
+include/assert.inc [Table d2.t should contain 3 rows.]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:d1.t, slave:d1.t]
+include/diff_tables.inc [master:d2.t, slave:d2.t]
+[connection master]
+DROP DATABASE d1;
+DROP DATABASE d2;
+#### I. Initialize ####
+[connection slave]
+include/stop_slave.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+set @@global.innodb_lock_wait_timeout=5 + 1000;
+include/start_slave.inc
+[connection master]
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+CREATE TABLE d2.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+#### II. Prepare test scenario ####
+include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d2.t VALUES (2, 'Slave local');
+INSERT INTO d1.t VALUES (3, 'Slave local');
+[connection master]
+INSERT INTO d1.t VALUES (1, 'T1');
+INSERT INTO d2.t VALUES (1, 'T2');
+INSERT INTO d2.t VALUES (2, 'T3');
+INSERT INTO d2.t VALUES (3, 'T4');
+INSERT INTO d1.t VALUES (2, 'T5');
+[connection slave1]
+# Now d1.t has two rows and d2.t has one row.
+[connection slave]
+CALL mtr.add_suppression("Recovery from master pos");
+# Kill the server
+include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1]
+After restart gaps should be filled.
+include/assert.inc [Table d1.t should contain 2 rows.]
+include/assert.inc [Table d2.t should contain 3 rows.]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:d1.t, slave:d1.t]
+include/diff_tables.inc [master:d2.t, slave:d2.t]
+[connection master]
+DROP DATABASE d1;
+DROP DATABASE d2;
+include/rpl_end.inc

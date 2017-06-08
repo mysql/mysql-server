@@ -33,7 +33,7 @@ create table mysqltest.t1 (i int not null) engine=myisam;
 --exec ln -s $MYSQLD_DATADIR/mysqltest/t1.MYD $MYSQL_TMP_DIR/mysqld.1/#sqlzzzz.MYD
 
 --echo # Check files created for them.
---replace_regex /#sql.*\./#sqlXXXX./ /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /#sql.*\./#sqlXXXX./ /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQL_TMP_DIR/mysqld.1/
 
 --echo # Crash server:
@@ -51,7 +51,7 @@ commit;
 --source include/wait_until_disconnected.inc
 
 --echo # Check that temporary table files are still around.
---replace_regex /#sql.*\./#sqlXXXX./ /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /#sql.*\./#sqlXXXX./ /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQL_TMP_DIR/mysqld.1/
 
 --echo # Reconnect.
@@ -66,7 +66,7 @@ commit;
 
 --echo # But files in data-directory to which these symlinks were pointing
 --echo # should still be around.
---replace_regex /_[0-9]+\.SDI/_XXX.SDI/
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/mysqltest/
 drop database mysqltest;
 

@@ -77,6 +77,7 @@ mysql_pfs_key_t	purge_sys_pq_mutex_key;
 mysql_pfs_key_t	recv_sys_mutex_key;
 mysql_pfs_key_t	recv_writer_mutex_key;
 mysql_pfs_key_t	temp_space_rseg_mutex_key;
+mysql_pfs_key_t	undo_space_rseg_mutex_key;
 mysql_pfs_key_t	trx_sys_rseg_mutex_key;
 mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_DEBUG
@@ -127,6 +128,8 @@ mysql_pfs_key_t	buf_block_lock_key;
 mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
 mysql_pfs_key_t	checkpoint_lock_key;
+mysql_pfs_key_t	undo_spaces_lock_key;
+mysql_pfs_key_t	rsegs_lock_key;
 mysql_pfs_key_t	dict_operation_lock_key;
 mysql_pfs_key_t	dict_persist_checkpoint_key;
 mysql_pfs_key_t	dict_table_stats_key;

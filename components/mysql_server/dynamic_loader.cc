@@ -1134,9 +1134,9 @@ bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
     }
   }
 
-  return mysql_dynamic_loader_imp::unload_do_unload_dependencies(
-      components_to_unload, scheme_services)
-    || deinit_result;
+  return deinit_result ||
+    mysql_dynamic_loader_imp::unload_do_unload_dependencies(
+      components_to_unload, scheme_services);
 }
 
 /**

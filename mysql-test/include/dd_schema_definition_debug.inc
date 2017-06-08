@@ -32,6 +32,7 @@ let $dd_table_ids=
                'tables',
                'view_table_usage',
                'columns',
+               'column_statistics',
                'indexes',
                'index_column_usage',
                'column_type_elements',

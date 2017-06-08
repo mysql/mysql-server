@@ -51,11 +51,26 @@ typedef struct st_order ORDER;
  */
 enum enum_internal_tmp_disk_storage_engine { TMP_TABLE_MYISAM, TMP_TABLE_INNODB };
 
+/**
+  Determines the behavior of JOIN::create_intermediate_table/create_tmp_file.
+  If the tmp file step belongs to a window function, or TMP_WIN_UNCONDITIONAL is
+  given, evaluate it in this phase, else not yet or it already happened in a
+  preceding step, in which case it is now a (result) field anyway.
+*/
+enum enum_tmpfile_windowing_action {
+  TMP_WIN_NONE,
+  TMP_WIN_CONDITIONAL,
+  TMP_WIN_UNCONDITIONAL,
+  TMP_WIN_FRAME_BUFFER};
+
+enum enum_internal_tmp_mem_storage_engine { TMP_TABLE_MEMORY, TMP_TABLE_TEMPTABLE };
+
 TABLE *
 create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                  ORDER *group, bool distinct, bool save_sum_fields,
                  ulonglong select_options, ha_rows rows_limit,
-                 const char *table_alias);
+                 const char *table_alias,
+                 enum_tmpfile_windowing_action windowing);
 bool open_tmp_table(TABLE *table);
 TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
@@ -76,15 +91,21 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                         Field **default_field,
                         bool group, bool modify_item,
                         bool table_cant_handle_bit_fields,
-                        bool make_copy_field);
+                        bool make_copy_field,
+                        bool copy_result_field= false);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item);
 
+/**
+  Get the minimum of max_key_length and max_key_part_length between
+  HEAP engine and internal_tmp_disk_storage_engine.
+*/
 void get_max_key_and_part_length(uint *max_key_length,
                                  uint *max_key_part_length,
                                  uint *max_key_parts);
 void init_cache_tmp_engine_properties();
+void encode_innodb_position(uchar *rowid_bytes, uint length, ha_rows row_num);
 bool reposition_innodb_cursor(TABLE *table, ha_rows row_num);
 #endif /* SQL_TMP_TABLE_INCLUDED */
 

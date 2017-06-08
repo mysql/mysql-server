@@ -99,6 +99,7 @@ mysql_declare_plugin(audit_log)
   " to lower case",               /* description                   */
   PLUGIN_LICENSE_GPL,             /* license                       */
   plugin_init,                    /* plugin initializer            */
+  NULL,                           /* plugin check uninstall        */
   NULL,                           /* plugin deinitializer          */
   0x0002,                         /* version                       */
   NULL,                           /* status variables              */

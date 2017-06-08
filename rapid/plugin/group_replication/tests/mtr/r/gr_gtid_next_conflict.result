@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+set sql_log_bin=0;
+call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
+set sql_log_bin=1;
+
+#############################################################
+# 1. Establish another connection to server, to execute
+# transactions in parallel.
+[connection server1]
+set sql_log_bin=0;
+call mtr.add_suppression("The requested GTID .* was already used, the transaction will rollback");
+set sql_log_bin=1;
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+#############################################################
+# 2. Create a table and set a manual gtid_next equal to next
+# automatic gtid. Start a transaction.
+include/assert.inc [GTID_EXECUTED should contain three GTIDs.]
+set GTID_NEXT='c3b5927f-2a51-11e7-94b3-0010e0734796:4';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+#############################################################
+# 3. Using the other connection execute a transaction.
+[connection server_1]
+INSERT INTO t1 VALUES (2);
+
+#############################################################
+# 4. Connect to first session and commit pending transaction.
+# Server will  rollback it due to already used gtid.
+[connection server1]
+COMMIT;
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
+set GTID_NEXT='automatic';
+include/assert_grep.inc [The GR plug-in reported an error stating that a transaction will rollback]
+
+#############################################################
+# 5. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

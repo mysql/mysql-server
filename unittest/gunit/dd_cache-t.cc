@@ -32,6 +32,7 @@
 #include "dd/impl/cache/storage_adapter.h"
 #include "dd/impl/types/charset_impl.h"
 #include "dd/impl/types/collation_impl.h"
+#include "dd/impl/types/column_statistics_impl.h"
 #include "dd/impl/types/event_impl.h"
 #include "dd/impl/types/procedure_impl.h"
 #include "dd/impl/types/schema_impl.h"
@@ -211,6 +212,7 @@ typedef ::testing::Types
 <
   dd::Charset_impl,
   dd::Collation_impl,
+  dd::Column_statistics_impl,
   dd::Schema_impl,
   dd::Table_impl,
   dd::Tablespace_impl,
@@ -442,6 +444,21 @@ TEST_F(CacheStorageTest, BasicStoreAndGetCollation)
   test_basic_store_and_get<dd::Collation, dd::Collation_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, BasicStoreAndGetColumnStatistics)
+{
+  test_basic_store_and_get<dd::Column_statistics,
+                           dd::Column_statistics_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, BasicStoreAndGetColumnStatisticWithCloneFail)
+{
+  // Verify that we don't crash even if cloning of the histogram fails.
+  DBUG_SET("+d,fail_histogram_clone");
+  test_basic_store_and_get<dd::Column_statistics,
+                           dd::Column_statistics_impl>(this, thd());
+  DBUG_SET("-d,fail_histogram_clone");
+}
+
 TEST_F(CacheStorageTest, BasicStoreAndGetSchema)
 {
   test_basic_store_and_get<dd::Schema, dd::Schema_impl>(this, thd());
@@ -561,6 +578,12 @@ TEST_F(CacheStorageTest, AquireForModificationCharset)
 TEST_F(CacheStorageTest, AquireForModificationCollation)
 {
   test_acquire_for_modification<dd::Collation, dd::Collation_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, AquireForModificationColumnStatistic)
+{
+  test_acquire_for_modification<dd::Column_statistics,
+                                dd::Column_statistics_impl>(this, thd());
 }
 
 TEST_F(CacheStorageTest, AquireForModificationSchema)
@@ -700,6 +723,12 @@ TEST_F(CacheStorageTest, AquireAndRenameCharset)
 TEST_F(CacheStorageTest, AquireAndRenameCollation)
 {
   test_acquire_and_rename<dd::Collation, dd::Collation_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, AquireAndRenameColumnStatistic)
+{
+  test_acquire_and_rename<dd::Column_statistics,
+                          dd::Column_statistics_impl>(this, thd());
 }
 
 TEST_F(CacheStorageTest, AquireAndRenameSchema)
@@ -919,6 +948,12 @@ TEST_F(CacheStorageTest, AquireAndDropCharset)
 TEST_F(CacheStorageTest, AquireAndDropCollation)
 {
   test_acquire_and_drop<dd::Collation, dd::Collation_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, AquireAndDropColumnStatistic)
+{
+  test_acquire_and_drop<dd::Column_statistics,
+                        dd::Column_statistics_impl>(this, thd());
 }
 
 TEST_F(CacheStorageTest, AquireAndDropSchema)

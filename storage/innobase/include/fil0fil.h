@@ -464,9 +464,10 @@ typedef	uint16_t	page_type_t;
 #define FIL_PAGE_SDI_BLOB	18	/*!< Uncompressed SDI BLOB page */
 #define FIL_PAGE_SDI_ZBLOB	19	/*!< Commpressed SDI BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB3	20	/*!< Independently compressed LOB page*/
+#define FIL_PAGE_TYPE_RSEG_ARRAY 21	/*!< Rollback Segment Array page */
 
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB3
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_RSEG_ARRAY
 					/*!< Last page type */
 /* @} */
 
@@ -790,19 +791,19 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);
 
 #ifndef UNIV_HOTBACKUP
-/** Check if an undo tablespace was opened during crash recovery.
-@param[in]	file_name	undo tablespace file name
-@param[in]	undo_name	undo tablespace name
+/* Convert the paths into absolute paths and compare them.
+@param[in]	lhs		Filename to compare
+@param[in]	rhs		Filename to compare
+@return true if they are the same */
+bool
+fil_paths_equal(const char* lhs, const char* rhs);
+
+/** Fetch the file name opened for a space_id during recovery
+from the file map.
 @param[in]	space_id	undo tablespace id
-@retval DB_SUCCESS		if it was already opened
-@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
-@retval DB_ERROR		if the data is inconsistent */
-dberr_t
-fil_space_undo_check_if_opened(
-	const char*	file_name,
-	const char*	undo_name,
-	space_id_t	space_id)
-	MY_ATTRIBUTE((warn_unused_result));
+@return file name that was opened */
+std::string
+fil_system_open_fetch(space_id_t space_id);
 
 /** Truncate the tablespace to needed size.
 @param[in]	space_id	id of tablespace to truncate
@@ -1467,4 +1468,7 @@ fil_tablespace_open_for_recovery(space_id_t space_id);
 void
 fil_tablespace_open_clear();
 
+/** Create tablespaces.open.* files */
+void
+fil_tablespace_open_create();
 #endif /* fil0fil_h */

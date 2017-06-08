@@ -111,7 +111,7 @@ get_ipv4_local_addresses(std::map<std::string, int>& addr_to_cidr_bits,
                          bool filter_out_inactive)
 {
   std::string localhost= "127.0.0.1";
-  struct addrinfo *addr= caching_getaddrinfo(localhost.c_str());
+  struct addrinfo *addr= xcom_caching_getaddrinfo(localhost.c_str());
   bool no_addresses_collected= true;
 
   while (addr)

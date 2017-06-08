@@ -42,8 +42,10 @@
 #include "hash.h"
 #include "item.h"
 #include "item_cmpfunc.h"                // and_conds
+#include "json_diff.h"                   // Json_diff_vector
+#include "json_dom.h"                    // Json_wrapper
 #include "key.h"                         // find_ref_key
-#include "log.h"                         // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -240,12 +242,11 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
   if (invalid_creation_ctx)
   {
-    sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
-                      "names (client: '%s'; connection: '%s').",
-                      view->db,
-                      view->table_name,
-                      view->view_client_cs_name.str,
-                      view->view_connection_cl_name.str);
+    LogErr(WARNING_LEVEL, ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION,
+           view->db,
+           view->table_name,
+           view->view_client_cs_name.str,
+           view->view_connection_cl_name.str);
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
@@ -267,16 +268,6 @@ GRANT_INFO::GRANT_INFO()
 #ifndef DBUG_OFF
   want_privilege= 0;
 #endif
-}
-
-
-/* Get column name from column hash */
-
-const uchar *get_field_name(const uchar *arg, size_t *length)
-{
-  const Field * const * buff= reinterpret_cast<const Field * const *>(arg);
-  *length= strlen((*buff)->field_name);
-  return (uchar*) (*buff)->field_name;
 }
 
 
@@ -457,7 +448,7 @@ TABLE_SHARE *alloc_table_share(const char *db,
            table_cache_instances * sizeof(*cache_element_array));
     share->cache_element= cache_element_array;
 
-    memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
+    share->mem_root= std::move(mem_root);
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
                      &share->LOCK_ha_data, MY_MUTEX_INIT_FAST);
   }
@@ -549,13 +540,14 @@ void TABLE_SHARE::destroy()
   }
   if (m_part_info)
   {
-    delete m_part_info;
+    ::destroy(m_part_info);
     m_part_info= NULL;
   }
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE)
     mysql_mutex_destroy(&LOCK_ha_data);
-  my_hash_free(&name_hash);
+  delete name_hash;
+  name_hash= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -1331,7 +1323,7 @@ static int make_field_from_frm(THD *thd,
                         1 - field is physically stored
         byte 5-...  = generated column expression (text data)
       */
-      gcol_info= new Generated_column();
+      gcol_info= new (*THR_MALLOC) Generated_column();
       if ((uint)(*gcol_screen_pos)[0] != 1)
         return 4;
 
@@ -1399,15 +1391,13 @@ static int make_field_from_frm(THD *thd,
     field_length= my_decimal_precision_to_length(field_length,
                                                  decimals,
                                                  f_is_dec(pack_flag) == 0);
-    sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
-                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                    frm_context->fieldnames.type_names[field_idx],
-                    share->table_name.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD,
+           frm_context->fieldnames.type_names[field_idx],
+           share->table_name.str,
+           share->table_name.str);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_CRASHED_ON_USAGE,
-                        "Found incompatible DECIMAL field '%s' in %s; "
-                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        ER_THD(thd, ER_TABLE_INCOMPATIBLE_DECIMAL_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str,
                         share->table_name.str);
@@ -1416,15 +1406,13 @@ static int make_field_from_frm(THD *thd,
 
   if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
   {
-    sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
-                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                    frm_context->fieldnames.type_names[field_idx],
-                    share->table_name.str,
-                    share->table_name.str);
+    LogErr(ERROR_LEVEL, ER_TABLE_INCOMPATIBLE_YEAR_FIELD,
+           frm_context->fieldnames.type_names[field_idx],
+           share->table_name.str,
+           share->table_name.str);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_CRASHED_ON_USAGE,
-                        "Found incompatible YEAR(x) field '%s' in %s; "
-                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        ER_THD(thd, ER_TABLE_INCOMPATIBLE_YEAR_FIELD),
                         frm_context->fieldnames.type_names[field_idx],
                         share->table_name.str,
                         share->table_name.str);
@@ -1495,15 +1483,10 @@ static int make_field_from_frm(THD *thd,
     share->found_next_number_field= share->field + field_idx;
 
   if (use_hash)
-    if (my_hash_insert(&share->name_hash, (uchar*)(share->field + field_idx)))
-    {
-      /*
-        Set return code 8 here to indicate that an error has
-        occurred but that the error message already has been
-        sent (OOM).
-      */
-      return 8;
-    }
+  {
+    Field **field= share->field + field_idx;
+    share->name_hash->emplace((*field)->field_name, field);
+  }
 
   if (format_section_fields)
   {
@@ -1639,16 +1622,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     if (use_mb(default_charset_info))
     {
       /* Warn that we may be changing the size of character columns */
-      sql_print_warning("'%s' had no or invalid character set, "
-                        "and default character set is multi-byte, "
-                        "so character column sizes may have changed",
-                        share->path.str);
+      LogErr(WARNING_LEVEL, ER_INVALID_CHARSET_AND_DEFAULT_IS_MB,
+             share->path.str);
     }
     share->table_charset= default_charset_info;
   }
   share->db_record_offset= 1;
   /* Set temporarily a good value for db_low_byte_first */
-  share->db_low_byte_first= MY_TEST(legacy_db_type != DB_TYPE_ISAM);
+  share->db_low_byte_first= (legacy_db_type != DB_TYPE_ISAM);
   error=4;
   share->max_rows= uint4korr(head+18);
   share->min_rows= uint4korr(head+22);
@@ -2168,11 +2149,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
   use_hash= share->fields >= MAX_FIELDS_BEFORE_HASH;
   if (use_hash)
-    use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info,
-                            0,0,
-                            (hash_get_key_function) get_field_name,0,0,
-                            PSI_INSTRUMENT_ME);
+    share->name_hash= new collation_unordered_map<std::string, Field**>(
+      system_charset_info, PSI_INSTRUMENT_ME);
 
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
   {
@@ -2398,10 +2376,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
             key_part->store_length-= (uint16)(key_part->length -
                                               field->key_length());
             key_part->length= (uint16)field->key_length();
-            sql_print_error("Found wrong key definition in %s; "
-                            "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
-                            share->table_name.str,
-                            share->table_name.str);
+            LogErr(ERROR_LEVEL, ER_TABLE_WRONG_KEY_DEFINITION,
+                   share->table_name.str, share->table_name.str);
             push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
@@ -2522,19 +2498,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_init(&share->all_set, bitmaps, share->fields, FALSE);
   bitmap_set_all(&share->all_set);
 
-  delete handler_file;
-#ifndef DBUG_OFF
-  if (use_hash)
-    (void) my_hash_check(&share->name_hash);
-#endif
+  destroy(handler_file);
   my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
  err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
-  delete handler_file;
-  my_hash_free(&share->name_hash);
+  destroy(handler_file);
+  delete share->name_hash;
+  share->name_hash= nullptr;
 
   open_table_error(thd, share, error, my_errno());
   DBUG_RETURN(error);
@@ -2661,9 +2634,21 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
 
-  /* Fix fields referenced to by the generated column function */
+  bool charset_switched= false;
+  const CHARSET_INFO *saved_collation_connection= func_expr->default_charset();
+  if (saved_collation_connection != table->s->table_charset)
+  {
+   thd->variables.collation_connection= table->s->table_charset;
+   charset_switched= true;
+  }
+
   Item *new_func= func_expr;
   error= func_expr->fix_fields(thd, &new_func);
+
+  /* Restore the current connection character set and collation. */
+  if (charset_switched)
+    thd->variables.collation_connection=  saved_collation_connection;
+
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
@@ -2740,12 +2725,10 @@ void Generated_column::dup_expr_str(MEM_ROOT *root, const char *src,
 void Generated_column::print_expr(THD *thd, String *out)
 {
   out->length(0);
-  sql_mode_t sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
+  Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags= enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
   expr_item->print(out, flags);
-  thd->variables.sql_mode= sql_mode;
 }
 
 
@@ -2825,6 +2808,7 @@ bool unpack_gcol_info(THD *thd,
   // Subquery is not allowed in generated expression
   const bool save_allow_subselects= thd->lex->expr_allows_subselect;
   thd->lex->expr_allows_subselect= false;
+  // allow_sum_func is also 0, banning group aggregates and window functions.
 
   /*
     Step 3: Use the parser to build an Item object from.
@@ -2893,6 +2877,8 @@ bool unpack_gcol_info(THD *thd,
   DBUG_RETURN(FALSE);
 
 parse_err:
+  // Any created window is eliminated as not allowed:
+  thd->lex->current_select()->m_windows.empty();
   thd->free_items();
   lex_end(thd->lex);
   thd->lex= old_lex;
@@ -3393,9 +3379,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   else if (outparam->file)
   {
     handler::Table_flags flags= outparam->file->ha_table_flags();
-    outparam->no_replicate= ! MY_TEST(flags & (HA_BINLOG_STMT_CAPABLE
-                                               | HA_BINLOG_ROW_CAPABLE))
-                            || MY_TEST(flags & HA_HAS_OWN_BINLOGGING);
+    outparam->no_replicate=
+      !(flags & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE))
+      || (flags & HA_HAS_OWN_BINLOGGING);
   }
   else
   {
@@ -3411,7 +3397,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
  err:
   if (! error_reported)
     open_table_error(thd, share, error, my_errno());
-  delete outparam->file;
+  destroy(outparam->file);
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
   if (outparam->vfield)
@@ -3451,11 +3437,11 @@ int closefrm(TABLE *table, bool free_share)
     {
       if ((*ptr)->gcol_info)
         free_items((*ptr)->gcol_info->item_free_list);
-      delete *ptr;
+      destroy(*ptr);
     }
     table->field= 0;
   }
-  delete table->file;
+  destroy(table->file);
   table->file= 0;				/* For easier errorchecking */
   if (table->part_info)
   {
@@ -3498,7 +3484,7 @@ void free_blobs(TABLE *table)
 
 /**
   Reclaims temporary blob storage which is bigger than a threshold.
-  Resets blob pointer.
+  Resets blob pointer. Unsets m_keep_old_value.
 
   @param table A handle to the TABLE object containing blob fields
   @param size The threshold value.
@@ -3515,6 +3501,9 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
     if (blob->get_field_buffer_size() > size)
       blob->mem_free();
     blob->reset();
+
+    if (blob->is_virtual_gcol())
+      blob->set_keep_old_value(false);
   }
 }
 
@@ -3572,7 +3561,7 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
     strxmov(buff, share->normalized_path.str, datext, NullS);
     my_error(err_no,errortype, buff,
              db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
-    delete file;
+    destroy(file);
     break;
   }
   default:				/* Better wrong error than none */
@@ -5046,8 +5035,6 @@ void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
   want_privilege&= ~SHOW_VIEW_ACL;
 
   grant.want_privilege= want_privilege & ~grant.privilege;
-  if (table)
-    table->grant.want_privilege= want_privilege & ~table->grant.privilege;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
     tbl->set_want_privilege(want_privilege);
 #endif
@@ -5193,8 +5180,6 @@ bool TABLE_LIST::prepare_security(THD *thd)
     }
     fill_effective_table_privileges(thd, &tbl->grant, local_db,
                                     local_table_name);
-    if (tbl->table)
-      tbl->table->grant= grant;
   }
   thd->set_security_context(save_security_ctx);
   DBUG_RETURN(FALSE);
@@ -5293,9 +5278,7 @@ const char *Natural_join_column::db_name()
 
 GRANT_INFO *Natural_join_column::grant()
 {
-  if (view_field)
-    return &(table_ref->grant);
-  return &(table_ref->table->grant);
+  return &table_ref->grant;
 }
 
 
@@ -5539,11 +5522,10 @@ const char *Field_iterator_table_ref::get_db_name()
 
 GRANT_INFO *Field_iterator_table_ref::grant()
 {
-  if (table_ref->is_view())
-    return &(table_ref->grant);
-  else if (table_ref->is_natural_join)
+  if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->grant();
-  return &(table_ref->table->grant);
+  else
+    return &table_ref->grant;
 }
 
 
@@ -5598,14 +5580,14 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
       new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item)
       return NULL;
-    nj_col= new Natural_join_column(tmp_item, table_ref);
+    nj_col= new (*THR_MALLOC) Natural_join_column(tmp_item, table_ref);
     field_count= table_ref->table->s->fields;
   }
   else if (field_it == &view_field_it)
   {
     /* The field belongs to a merge view or information schema table. */
     Field_translator *translated_field= view_field_it.field_translator();
-    nj_col= new Natural_join_column(translated_field, table_ref);
+    nj_col= new (*THR_MALLOC) Natural_join_column(translated_field, table_ref);
     field_count= table_ref->field_translation_end -
                  table_ref->field_translation;
   }
@@ -5636,7 +5618,7 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
     if (!add_table_ref->join_columns)
     {
       /* Create a list of natural join columns on demand. */
-      if (!(add_table_ref->join_columns= new List<Natural_join_column>))
+      if (!(add_table_ref->join_columns= new (*THR_MALLOC) List<Natural_join_column>))
         return NULL;
       add_table_ref->is_join_columns_complete= FALSE;
     }
@@ -6278,16 +6260,6 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
   cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
-  if (modify_share)
-  {
-    /*
-      For cleanness, we copy to the TABLE_SHARE before allocating any
-      TABLE-specific memory (rec_per_key etc), as the TABLE_SHARE isn't
-      supposed to access rec_per_key etc.
-    */
-    s->key_info[keyno]= *cur_key;
-  }
-
   /*
     Allocate storage for the key part array and the two rec_per_key arrays in
     the tables' mem_root.
@@ -6310,7 +6282,6 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->set_rec_per_key_array(rec_per_key, rec_per_key_float);
   cur_key->table= this;
-
 
   /* Initialize rec_per_key and rec_per_key_float */
   for (uint kp= 0; kp < key_part_count; ++kp)
@@ -6341,6 +6312,23 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name,
     key_part_info->init_from_field(*reg_field);
     key_part_info++;
   }
+
+  if (modify_share)
+  {
+    /*
+      We copy the TABLE's key_info to the TABLE_SHARE's key_info. Some of the
+      copied info is constant over all instances of TABLE,
+      e.g. s->key_info[keyno].key_part[i].key_part_flag, so can be
+      legally accessed from the share. On the other hand, TABLE-specific
+      members (rec_per_key, field, etc) of the TABLE's key_info shouldn't be
+      accessed from the share.
+    */
+    KEY &sk= s->key_info[keyno];
+    sk= *cur_key;
+    sk.table= nullptr; // catch any illegal access
+    sk.set_rec_per_key_array(nullptr, nullptr);
+  }
+
   return false;
 }
 
@@ -7533,7 +7521,10 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
         bitmap_is_set(table->read_set, vfield->field_index))
     {
       if (vfield->type() == MYSQL_TYPE_BLOB)
-        (down_cast<Field_blob*>(vfield))->need_to_keep_old_value();
+      {
+        (down_cast<Field_blob*>(vfield))->keep_old_value();
+        (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
+      }
 
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
@@ -7609,7 +7600,10 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
         storage engine during updates.
       */
       if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
+        (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
+      }
 
       /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
@@ -7741,40 +7735,101 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 */
 struct Partial_update_info : public Sql_alloc
 {
-  Partial_update_info(const TABLE *table, const MY_BITMAP *columns)
-    : m_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr)
+  Partial_update_info(const TABLE *table, const MY_BITMAP *columns,
+                      bool logical_diffs)
+    : m_binary_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr),
+      m_logical_diff_vectors(table->in_use->mem_root,
+                             logical_diffs ? table->s->fields : 0,
+                             nullptr)
   {
-    auto buffer= static_cast<my_bitmap_map*>(
-                   table->in_use->alloc(table->s->column_bitmap_size));
+    MEM_ROOT *const mem_root= table->in_use->mem_root;
+    const size_t bitmap_size= table->s->column_bitmap_size;
+
+    auto buffer= static_cast<my_bitmap_map*>(alloc_root(mem_root, bitmap_size));
     if (buffer != nullptr)
-      bitmap_init(&m_disabled_columns, buffer, table->s->fields, false);
+    {
+      bitmap_init(&m_enabled_binary_diff_columns,
+                  buffer, table->s->fields, false);
+      bitmap_copy(&m_enabled_binary_diff_columns, columns);
+    }
+
+    buffer= static_cast<my_bitmap_map*>(alloc_root(mem_root, bitmap_size));
+    if (buffer != nullptr)
+    {
+      bitmap_init(&m_enabled_logical_diff_columns,
+                  buffer, table->s->fields, false);
+      if (logical_diffs)
+        bitmap_copy(&m_enabled_logical_diff_columns, columns);
+      else
+        bitmap_clear_all(&m_enabled_logical_diff_columns);
+    }
 
     for (uint i= bitmap_get_first_set(columns);
          i != MY_BIT_NONE;
          i= bitmap_get_next_set(columns, i))
     {
-      void *mem= table->in_use->alloc(sizeof(Binary_diff_vector));
-      if (mem == nullptr)
-        return;
-      m_diff_vectors[i]= new (mem) Binary_diff_vector(table->in_use->mem_root);
+      m_binary_diff_vectors[i]= new (mem_root) Binary_diff_vector(mem_root);
+
+      if (logical_diffs)
+      {
+        Json_diff_vector::allocator_type alloc(mem_root);
+        m_logical_diff_vectors[i]= new (mem_root) Json_diff_vector(alloc);
+      }
     }
   }
 
+  ~Partial_update_info()
+  {
+    for (auto v : m_logical_diff_vectors)
+      destroy(v);
+  }
+
   /**
-    The columns for which partial update has been disabled in the current row.
+    The columns for which partial update using binary diffs is enabled
+    in the current row.
   */
-  MY_BITMAP m_disabled_columns;
+  MY_BITMAP m_enabled_binary_diff_columns;
+
+  /**
+    The columns for which partial update using logical JSON diffs is
+    enabled in the current row.
+  */
+  MY_BITMAP m_enabled_logical_diff_columns;
 
   /**
     The binary diffs that have been collected for the current row.
+
+    The Binary_diff_vector objects live entirely in a MEM_ROOT, so
+    there is no need to destroy them when this object is destroyed.
   */
-  Mem_root_array<Binary_diff_vector*> m_diff_vectors;
+  Mem_root_array<Binary_diff_vector*> m_binary_diff_vectors;
+
+  /**
+    The logical diffs that have been collected for JSON operations in
+    the current row.
+
+    Whereas the Json_diff_vector objects live in a MEM_ROOT and their
+    memory will be reclaimed automatically, the Json_diff objects
+    within them can own memory allocated on the heap, so they will
+    have to be destroyed when this object is destroyed.
+  */
+  Mem_root_array<Json_diff_vector*> m_logical_diff_vectors;
 
   /**
     A buffer that can be used to hold the partially updated column value while
     performing the update in memory.
   */
   String m_buffer;
+
+  /// Should logical JSON diffs be collected in addition to binary diffs?
+  bool collect_logical_diffs() const
+  {
+    /*
+      We only allocate logical diff vectors when we want logical diffs
+      to be collected, so check if we have any.
+    */
+    return !m_logical_diff_vectors.empty();
+  }
 };
 
 
@@ -7783,8 +7838,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
   DBUG_ASSERT(field->table == this);
   if (m_partial_update_columns == nullptr)
   {
-    auto map= static_cast<MY_BITMAP*>(alloc_root(&mem_root, sizeof(MY_BITMAP)));
-    auto buf=
+    MY_BITMAP *map= new (&mem_root) MY_BITMAP;
+    my_bitmap_map *buf=
       static_cast<my_bitmap_map*>(alloc_root(&mem_root, s->column_bitmap_size));
     if (map == nullptr ||
         buf == nullptr ||
@@ -7798,43 +7853,37 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
 }
 
 
-void TABLE::disable_partial_update_for_current_row(const Field *field)
+void TABLE::disable_binary_diffs_for_current_row(const Field *field)
 {
-  DBUG_ASSERT(field->table == this &&
-              m_partial_update_columns != nullptr &&
-              m_partial_update_info != nullptr &&
-              bitmap_is_set(m_partial_update_columns, field->field_index));
+  DBUG_ASSERT(field->table == this && is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
 
   // Mark the column as disabled.
-  bitmap_set_bit(&m_partial_update_info->m_disabled_columns,
-                 field->field_index);
-}
-
-
-bool TABLE::is_partial_update_column(const Field *field) const
-{
-  DBUG_ASSERT(field->table == this);
-  return
-    m_partial_update_info != nullptr &&
-    bitmap_is_set(m_partial_update_columns, field->field_index) &&
-    !bitmap_is_set(&m_partial_update_info->m_disabled_columns,
+  bitmap_clear_bit(&m_partial_update_info->m_enabled_binary_diff_columns,
                    field->field_index);
 }
 
 
-bool TABLE::has_partial_update_columns() const
+bool TABLE::is_marked_for_partial_update(const Field *field) const
 {
+  DBUG_ASSERT(field->table == this);
   return
-    m_partial_update_info != nullptr &&
-    bitmap_bits_set(&m_partial_update_info->m_disabled_columns)
-    < bitmap_bits_set(m_partial_update_columns);
+    m_partial_update_columns != nullptr &&
+    bitmap_is_set(m_partial_update_columns, field->field_index);
 }
 
 
-bool TABLE::setup_partial_update()
+bool TABLE::has_binary_diff_columns() const
+{
+  return
+    m_partial_update_info != nullptr &&
+    !bitmap_is_clear_all(&m_partial_update_info->m_enabled_binary_diff_columns);
+}
+
+
+bool TABLE::setup_partial_update(bool logical_diffs)
 {
   DBUG_ASSERT(m_partial_update_info == nullptr);
 
@@ -7857,21 +7906,14 @@ bool TABLE::setup_partial_update()
   }
 
   m_partial_update_info=
-    new Partial_update_info(this, m_partial_update_columns);
+    new (in_use->mem_root) Partial_update_info(this, m_partial_update_columns,
+                                               logical_diffs);
   return in_use->is_error();
 }
 
 
 bool TABLE::has_columns_marked_for_partial_update() const
 {
-  /*
-    If m_partial_update_columns is not nullptr, it means that the function is
-    called during execution. During execution, it makes more sense to call
-    has_partial_update_columns(), which additionally checks if partial update
-    has been disabled for this table or all its columns.
-  */
-  DBUG_ASSERT(m_partial_update_info == nullptr);
-
   /*
     Do we have any columns that satisfy the syntactical requirements for
     partial update?
@@ -7884,7 +7926,7 @@ bool TABLE::has_columns_marked_for_partial_update() const
 
 void TABLE::cleanup_partial_update()
 {
-  delete m_partial_update_info;
+  destroy(m_partial_update_info);
   m_partial_update_info= nullptr;
 }
 
@@ -7896,33 +7938,44 @@ String *TABLE::get_partial_update_buffer()
 }
 
 
-void TABLE::clear_binary_diffs()
+void TABLE::clear_partial_update_diffs()
 {
   if (m_partial_update_info != nullptr)
   {
-    for (auto v : m_partial_update_info->m_diff_vectors)
+    for (auto v : m_partial_update_info->m_binary_diff_vectors)
       if (v != nullptr)
         v->clear();
 
-    bitmap_clear_all(&m_partial_update_info->m_disabled_columns);
+    bitmap_copy(&m_partial_update_info->m_enabled_binary_diff_columns,
+                m_partial_update_columns);
+
+    if (m_partial_update_info->collect_logical_diffs())
+    {
+      for (auto v : m_partial_update_info->m_logical_diff_vectors)
+        if (v != nullptr)
+          v->clear();
+
+      bitmap_copy(&m_partial_update_info->m_enabled_logical_diff_columns,
+                  m_partial_update_columns);
+    }
   }
 }
 
 
 const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const
 {
-  if (!is_partial_update_column(field))
+  if (!is_binary_diff_enabled(field))
     return nullptr;
-  return m_partial_update_info->m_diff_vectors[field->field_index];
+  return m_partial_update_info->m_binary_diff_vectors[field->field_index];
 }
 
 
 bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length)
 {
-  DBUG_ASSERT(is_partial_update_column(field));
+  DBUG_ASSERT(is_binary_diff_enabled(field));
 
   Binary_diff_vector *diffs=
-    m_partial_update_info->m_diff_vectors[field->field_index];
+    m_partial_update_info->m_binary_diff_vectors[field->field_index];
 
   /*
     Find the first diff that does not end before the diff we want to insert.
@@ -7991,6 +8044,57 @@ const char *Binary_diff::new_data(Field *field) const
 }
 
 
+void TABLE::add_logical_diff(const Field_json *field,
+                             const Json_seekable_path &path,
+                             enum_json_diff_operation operation,
+                             const Json_wrapper *new_value)
+{
+  DBUG_ASSERT(is_logical_diff_enabled(field));
+  Json_diff_vector *diffs=
+    m_partial_update_info->m_logical_diff_vectors[field->field_index];
+  diffs->emplace_back(path, operation,
+                      new_value == nullptr ? nullptr :
+                      new_value->clone_dom(field->table->in_use));
+}
+
+
+const Json_diff_vector *TABLE::get_logical_diffs(const Field_json *field) const
+{
+  if (!is_logical_diff_enabled(field))
+    return nullptr;
+  return m_partial_update_info->m_logical_diff_vectors[field->field_index];
+}
+
+
+bool TABLE::is_binary_diff_enabled(const Field *field) const
+{
+  return m_partial_update_info != nullptr &&
+         bitmap_is_set(&m_partial_update_info->m_enabled_binary_diff_columns,
+                       field->field_index);
+}
+
+
+bool TABLE::is_logical_diff_enabled(const Field *field) const
+{
+  return m_partial_update_info != nullptr &&
+         bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                       field->field_index);
+}
+
+
+void TABLE::disable_logical_diffs_for_current_row(const Field *field) const
+{
+  DBUG_ASSERT(field->table == this && is_logical_diff_enabled(field));
+
+  // Remove the diffs collected for the column.
+  m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();
+
+  // Mark the column as disabled.
+  bitmap_clear_bit(&m_partial_update_info->m_enabled_logical_diff_columns,
+                   field->field_index);
+}
+
+
 //////////////////////////////////////////////////////////////////////////
 
 /*
@@ -8038,13 +8142,13 @@ static bool read_frm_file(THD *thd,
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY, MYF(0))) < 0)
   {
-    sql_print_error("Unable to open file %s\n", path);
+    LogErr(ERROR_LEVEL, ER_CANT_OPEN_FRM_FILE, path);
     return true;
   }
 
   if (mysql_file_read(file, head, 64, MYF(MY_NABP)))
   {
-    sql_print_error("Error in reading file %s\n", path);
+    LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
     goto err;
   }
 
@@ -8077,14 +8181,14 @@ static bool read_frm_file(THD *thd,
        *root_ptr= old_root;
        if (error)
        {
-         sql_print_error("Error in reading file %s\n", path);
+         LogErr(ERROR_LEVEL, ER_CANT_READ_FRM_FILE, path);
          goto err;
        }
     }
     else
     {
-      sql_print_error("Table '%s' was created with a different version "
-                      "of MySQL and cannot be read", table.c_str());
+      LogErr(ERROR_LEVEL, ER_TABLE_CREATED_WITH_DIFFERENT_VERSION,
+             table.c_str());
       goto err;
     }
   }
@@ -8102,19 +8206,19 @@ static bool read_frm_file(THD *thd,
       frm_context->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
       if (!frm_context->view_def)
       {
-        sql_print_error("Unable to read view %s \n", pathstr.str);
+        LogErr(ERROR_LEVEL, ER_VIEW_UNPARSABLE, pathstr.str);
         goto err;
       }
     }
     else
     {
-      sql_print_error("File %s has unknown type in its header.", pathstr.str);
+      LogErr(ERROR_LEVEL, ER_FILE_TYPE_UNKNOWN, pathstr.str);
       goto err;
     }
   }
   else
   {
-    sql_print_error("Incorrect information in file %s", pathstr.str);
+    LogErr(ERROR_LEVEL, ER_INVALID_INFO_IN_FRM, pathstr.str);
     goto err;
   }
 
@@ -8156,4 +8260,16 @@ bool create_table_share_for_upgrade(THD *thd,
   DBUG_RETURN(FALSE);
 }
 
+void TABLE::blobs_need_not_keep_old_value()
+{
+  for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *vfield= *vfield_ptr;
+    /*
+      Set this flag so that all blob columns can keep the old value.
+    */
+    if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      (down_cast<Field_blob*>(vfield))->set_keep_old_value(false);
+  }
+}
 //////////////////////////////////////////////////////////////////////////

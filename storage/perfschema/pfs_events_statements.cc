@@ -20,12 +20,13 @@
 
 #include "storage/perfschema/pfs_events_statements.h"
 
+#include <atomic>
+
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "pfs_account.h"
-#include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_global.h"
@@ -46,7 +47,7 @@ PFS_ALIGNED bool flag_events_statements_history_long = false;
 /** True if EVENTS_STATEMENTS_HISTORY_LONG circular buffer is full. */
 PFS_ALIGNED bool events_statements_history_long_full = false;
 /** Index in EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
-PFS_ALIGNED PFS_cacheline_uint32 events_statements_history_long_index;
+PFS_ALIGNED PFS_cacheline_atomic_uint32 events_statements_history_long_index;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_ALIGNED PFS_events_statements *events_statements_history_long_array = NULL;
 static unsigned char *h_long_stmts_digest_token_array = NULL;
@@ -62,7 +63,7 @@ init_events_statements_history_long(
 {
   events_statements_history_long_size = events_statements_history_long_sizing;
   events_statements_history_long_full = false;
-  PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
+  events_statements_history_long_index.m_u32.store(0);
 
   if (events_statements_history_long_size == 0)
   {
@@ -235,8 +236,7 @@ insert_events_statements_history_long(PFS_events_statements *statement)
 
   DBUG_ASSERT(events_statements_history_long_array != NULL);
 
-  uint index =
-    PFS_atomic::add_u32(&events_statements_history_long_index.m_u32, 1);
+  uint index = events_statements_history_long_index.m_u32++;
 
   index = index % events_statements_history_long_size;
   if (index == 0)
@@ -293,7 +293,7 @@ reset_events_statements_history(void)
 void
 reset_events_statements_history_long(void)
 {
-  PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
+  events_statements_history_long_index.m_u32.store(0);
   events_statements_history_long_full = false;
 
   PFS_events_statements *pfs = events_statements_history_long_array;

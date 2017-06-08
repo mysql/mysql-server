@@ -25,45 +25,44 @@ extern "C" {
 
 #define is_cached(x) (hash_get(x) != NULL)
 
-struct lru_machine ;
+struct lru_machine;
 typedef struct lru_machine lru_machine;
 
-struct pax_machine ;
+struct pax_machine;
 typedef struct pax_machine pax_machine;
 
 /* Definition of a Paxos instance */
 struct pax_machine {
-	linkage hash_link;
-	lru_machine * lru;
-	synode_no synode;
-	double	last_modified;            /* Start time */
-	linkage rv;           /* Tasks may sleep on this until something interesting happens */
+  linkage hash_link;
+  lru_machine *lru;
+  synode_no synode;
+  double last_modified; /* Start time */
+  linkage rv; /* Tasks may sleep on this until something interesting happens */
 
-	struct {
-		ballot bal;          /* The current ballot we are working on */
-		bit_set * prep_nodeset; /* Nodes which have answered my prepare */
-		ballot sent_prop;
-		bit_set * prop_nodeset; /* Nodes which have answered my propose */
-		pax_msg * msg;         /* The value we are trying to push */
-		ballot sent_learn;
-	} proposer;
+  struct {
+    ballot bal;            /* The current ballot we are working on */
+    bit_set *prep_nodeset; /* Nodes which have answered my prepare */
+    ballot sent_prop;
+    bit_set *prop_nodeset; /* Nodes which have answered my propose */
+    pax_msg *msg;          /* The value we are trying to push */
+    ballot sent_learn;
+  } proposer;
 
-	struct {
-		ballot promise;      /* Promise to not accept any proposals less than this */
-		pax_msg * msg;         /* The value we have accepted */
-	} acceptor;
+  struct {
+    ballot promise; /* Promise to not accept any proposals less than this */
+    pax_msg *msg;   /* The value we have accepted */
+  } acceptor;
 
-	struct {
-		pax_msg *msg;         /* The value we have learned */
-	} learner;
-	int	lock;               /* Busy ? */
-	pax_op op;
-	int force_delivery;
+  struct {
+    pax_msg *msg; /* The value we have learned */
+  } learner;
+  int lock; /* Busy ? */
+  pax_op op;
+  int force_delivery;
 };
 
-
-int	is_busy_machine(pax_machine *p);
-int	lock_pax_machine(pax_machine *p);
+int is_busy_machine(pax_machine *p);
+int lock_pax_machine(pax_machine *p);
 pax_machine *get_cache(synode_no synode);
 pax_machine *hash_get(synode_no synode);
 char *dbg_machine_nodeset(pax_machine *p, u_int nodes);
@@ -80,11 +79,10 @@ size_t add_cache_size(size_t x);
 size_t sub_cache_size(size_t x);
 int above_cache_limit();
 size_t set_max_cache_size(size_t x);
-int	was_removed_from_cache(synode_no x);
+int was_removed_from_cache(synode_no x);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

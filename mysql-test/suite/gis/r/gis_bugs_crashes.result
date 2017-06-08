@@ -273,7 +273,7 @@ POINT(11 102)
 # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 ######################################################################################################
 SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
-ERROR HY000: Binary geometry function mbrcovers given two geometries of different srids: 0 and 100, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 100.
 ######################################################################################################
 # BUG#19552241 : MBRTOUCHES() FUNCTION RETURNS INCORRECT RESULT
 ######################################################################################################
@@ -752,13 +752,13 @@ ST_CROSSES(ST_GEOMFROMTEXT('MULTIPOINT(5 0,10 10,20 20)'), ST_GEOMFROMTEXT('POLY
 ######################################################################################################
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLlECTION(POINT(0 0))'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))'))
-0
+NULL
 ######################################################################################################
 # BUG#20187460 : OVERLAPPING GEOMETRY COMPONENTS OF SAME TYPE ARE NOT GETTING MERGED PROPERLY
 ######################################################################################################
@@ -858,37 +858,37 @@ ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2))'), ST_GEOMFR
 ######################################################################################################
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_DISJOINT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-1
+NULL
 SELECT ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_INTERSECTS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
 0
 SELECT ST_WITHIN(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_WITHIN(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_TOUCHES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CROSSES(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_OVERLAPS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),GEOMETRYCOLLECTION())'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), ST_GEOMFROMTEXT('POINT(0 0)'));
 ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'), ST_GEOMFROMTEXT('POINT(0 0)'))
-0
+NULL
 ######################################################################################################
 # BUG#20309003 : ST_CONTAINS(GEOMETRYCOLLECTION(POLY,POLY), MULTIPOINT) RETURNS WRONG RESULT
 ######################################################################################################
@@ -1121,21 +1121,7 @@ ST_GEOMFROMTEXT(
 'MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
 ST_UNION(ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),
 ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                  
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_INTERSECTS(ST_SYMDIFFERENCE(
 ST_GEOMFROMTEXT(
 'MULTIPOINT(1 0,8.5 0,5 1,8.3 4,7 -5.0)'),
@@ -1171,7 +1157,7 @@ ST_GEOMFROMTEXT(
                                   '(5 7,2 7,9 6,9 9,2 0,3 7,+.7 1,2.232432 9,8 +.3,5 7),'
                                   '(0 6,5 9,-.0 0,7 4,2 -3,2 7,9 2,0 6))'),
 ST_GEOMF
-0
+NULL
 SELECT MBRCONTAINS(ST_UNION(
 ST_GEOMFROMTEXT(
 'GEOMETRYCOLLECTION('
@@ -1182,21 +1168,7 @@ ST_GEOMFROMTEXT('MULTIPOINT(7.0 5,2 -9.2,9 8,6 -0,3 5,1 7,3 7)',10)),
 ST_UNION(
 ST_GEOMFROMWKB(
 ST_ASWKB(ST_GEOMFROMTEXT('POINT(0 2.232432)')),10),ST_GEOMFROMTEXT('POINT(4 +.5)',10)));
-MBRCONTAINS(ST_UNION(
-ST_GEOMFROMTEXT(
-'GEOMETRYCOLLECTION('
-                               'POLYGON((1 7,4 5,7 -.1,7 2,5 4,2 2,4 +.7,-1.9 2,4 1,1 7)),'
-                               'MULTIPOINT(+.6 +.0,6 -1,6 -1032.34324,0 -2.9,6 0),'
-                  
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_union will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function mbrcontains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_CONTAINS(ST_UNION(
 ST_GEOMFROMWKB(ST_ASWKB(
 GEOMETRYCOLLECTION(
@@ -1272,19 +1244,7 @@ ST_GEOMFROMTEXT(
 ST_INTERSECTION(
 ST_GEOMFROMTEXT('MULTIPOINT(+.8 4,5 -2,6 10.0002,4 9,1 3)'),
 ST_GEOMFROMWKB(ST_ASWKB(MULTIPOINT(POINT(8,5),POINT(9,4),POINT(-0.5,-.9))))));
-MBRWITHIN(ST_SYMDIFFERENCE(
-ST_GEOMFROMWKB(ST_ASWKB(POINT(3,8)),10),
-ST_GEOMFROMWKB(
-ST_ASWKB(
-ST_GEOMFROMTEXT(
-'MULTILINESTRING((10.0002 6,6 9,1 2,2 -6),(-2 -1032.34324,6 189.7654,6 -.6,-.0 -.6,5 0),(0.6 1,5 0,1 -6,6 1))')),10)),
-ST_INTERSECTION(
-ST_GEOM
-NULL
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 10. Calculations in function st_symdifference will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 10.
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(
 'MULTIPOINT(189.7654 2)'),
 ST_GEOMFROMWKB(ST_ASWKB(
@@ -6621,7 +6581,7 @@ ERROR 22023: Invalid GIS data provided to function polygon.
 ######################################################################################################
 CREATE TABLE t(a INTEGER);
 SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 DROP TABLE t;
 ######################################################################################################
 # BUG#21397107: ASSERTION FAILED: K < STATIC_CAST<SIZE_T>(GET_DIMENSION())

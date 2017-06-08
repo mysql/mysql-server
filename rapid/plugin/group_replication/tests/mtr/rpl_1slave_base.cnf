@@ -12,8 +12,6 @@ binlog-checksum=            NONE
 log-slave-updates
 enforce-gtid-consistency
 gtid-mode=                  on
-master-info-repository=     TABLE
-relay-log-info-repository=  TABLE
 transaction-write-set-extraction=XXHASH64
 
 report-host=                127.0.0.1

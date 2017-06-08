@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -469,6 +469,7 @@ public:
     Q_LC_TIME_NAMES_CODE,
     Q_CHARSET_DATABASE_CODE,
     Q_TABLE_MAP_FOR_UPDATE_CODE,
+    /* It is just a placeholder after 8.0.2*/
     Q_MASTER_DATA_WRITTEN_CODE,
     Q_INVOKER,
     /*
@@ -588,16 +589,6 @@ public:
     statement, for other query statements, this will be zero.
   */
   uint64_t table_map_for_update;
-  /*
-    Holds the original length of a Query_event that comes from a
-    master of version < 5.0 (i.e., binlog_version < 4). When the IO
-    thread writes the relay log, it augments the Query_event with a
-    Q_MASTER_DATA_WRITTEN_CODE status_var that holds the original event
-    length. This field is initialized to non-zero in the SQL thread when
-    it reads this augmented event. SQL thread does not write
-    Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
-  */
-  size_t master_data_written;
   /*
     The following member gets set to OFF or ON value when the
     Query-log-event is marked as dependent on

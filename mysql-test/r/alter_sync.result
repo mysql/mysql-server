@@ -46,6 +46,13 @@ COUNT(TABLE_NAME)
 SHOW TABLES FROM test_i_s;
 Tables_in_test_i_s
 t1
+# Check that there exists a hidden table created by ALTER and
+# I_S.TABLES had not listed above. The SHOW EXTENDED syntax was
+# added as part of Bug#24786075.
+SHOW EXTENDED TABLES FROM test_i_s;
+Tables_in_test_i_s
+#sql-xxxxx
+t1
 # Make sure mysqldump/mysqlpump ignores the #sql... tables.
 # mysqldump fails to acquire the lock without the fix.
 # Allow ALTER to continue.

@@ -84,6 +84,10 @@ struct row_threads
   enum_vio_type m_connection_type;
   /** Column THREAD_OS_ID. */
   my_thread_os_id_t m_thread_os_id;
+  /** Column RESOURCE_GROUP. */
+  char m_groupname[NAME_LEN];
+  /** Length in bytes of @c m_groupname. */
+  uint m_groupname_length;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads
@@ -196,6 +200,24 @@ private:
   PFS_key_thread_os_id m_key;
 };
 
+class PFS_index_threads_by_resource_group : public PFS_index_threads
+{
+public:
+  PFS_index_threads_by_resource_group()
+    : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP")
+  {
+  }
+
+  ~PFS_index_threads_by_resource_group()
+  {
+  }
+
+  virtual bool match(PFS_thread *pfs);
+
+private:
+  PFS_key_group_name m_key;
+};
+
 /** Table PERFORMANCE_SCHEMA.THREADS. */
 class table_threads : public cursor_by_thread
 {
@@ -230,8 +252,8 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
 
   /** Current row. */
   row_threads m_row;

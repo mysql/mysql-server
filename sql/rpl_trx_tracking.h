@@ -17,6 +17,8 @@
 #define RPL_TRX_TRACKING_INCLUDED
 
 #include <my_inttypes.h>
+
+#include <atomic>
 #include <map>
 
 #include "my_dbug.h"
@@ -33,7 +35,7 @@
 class  Logical_clock
 {
 private:
-  int64 state;
+  std::atomic<int64> state;
   /*
     Offset is subtracted from the actual "absolute time" value at
     logging a replication event. That is the event holds logical
@@ -44,6 +46,9 @@ private:
   int64 offset;
 public:
   Logical_clock();
+  Logical_clock(const Logical_clock& other)
+    : state(other.state.load()), offset(other.offset) {}
+
   int64 step();
   int64 set_if_greater(int64 new_val);
   int64 get_timestamp();

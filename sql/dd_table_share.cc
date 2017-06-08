@@ -44,7 +44,7 @@
 #include "hash.h"
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
@@ -281,18 +281,13 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   if (use_hash)
   {
     Field **field_ptr= share->field;
-    use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info, share->fields, 0,
-                            get_field_name, nullptr, 0,
-                            PSI_INSTRUMENT_ME);
+    share->name_hash= new collation_unordered_map<std::string, Field**>(
+      system_charset_info, PSI_INSTRUMENT_ME);
+    share->name_hash->reserve(share->fields);
 
     for (uint i=0 ; i < share->fields; i++, field_ptr++)
     {
-        if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
-        {
-          // OOM error message already reported
-          return true; /* purecov: inspected */
-        }
+      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
     }
   }
 
@@ -450,10 +445,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
                       key_part->store_length-= (uint16)(key_part->length -
                               field->key_length());
                       key_part->length= (uint16)field->key_length();
-                      sql_print_error("Found wrong key definition in %s; "
-                              "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
-                              share->table_name.str,
-                              share->table_name.str);
+                      LogErr(ERROR_LEVEL, ER_TABLE_WRONG_KEY_DEFINITION,
+                             share->table_name.str,
+                             share->table_name.str);
                       push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CRASHED_ON_USAGE,
                               "Found wrong key definition in %s; "
@@ -530,7 +524,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   }
   else
       share->primary_key= MAX_KEY;
-  delete handler_file;
+  destroy(handler_file);
 
   if (share->found_next_number_field)
   {
@@ -719,10 +713,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     if (use_mb(default_charset_info))
     {
       /* Warn that we may be changing the size of character columns */
-      sql_print_warning("'%s' had no or invalid character set, "
-                        "and default character set is multi-byte, "
-                        "so character column sizes may have changed",
-                        share->path.str);
+      LogErr(WARNING_LEVEL,
+             ER_INVALID_CHARSET_AND_DEFAULT_IS_MB, share->path.str);
     }
     share->table_charset= default_charset_info;
   }
@@ -2228,13 +2220,17 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   char *buf;
   uint buf_len;
 
+  // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+  // generated partitioning clause.
+  Sql_mode_parse_guard parse_guard(thd);
+
   buf= generate_partition_syntax(part_info,
                                  &buf_len,
                                  true,
                                  true,
-                                 NULL,
-                                 NULL,
+                                 false,
                                  NULL);
+
   if (!buf)
     return true;
 

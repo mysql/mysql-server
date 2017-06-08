@@ -27,6 +27,8 @@
 #include "ndb_tdc.h"
 #include "sql_table.h"
 
+#include <algorithm>
+
 #define ERR_RETURN(err)                  \
 {                                        \
   const NdbError& tmp= err;              \
@@ -1323,7 +1325,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
-  for (const Key_spec *key : thd->lex->alter_info.key_list)
+  for (const Key_spec *key : thd->lex->alter_info->key_list)
   {
     if (key->type != KEYTYPE_FOREIGN)
       continue;
@@ -2123,24 +2125,27 @@ ha_ndbcluster::get_parent_foreign_key_list(THD *thd,
   DBUG_RETURN(res);
 }
 
-static
-int
-cmp_fk_name(const void * _e0, const void * _e1)
-{
-  const NDBDICT::List::Element * e0 = (NDBDICT::List::Element*)_e0;
-  const NDBDICT::List::Element * e1 = (NDBDICT::List::Element*)_e1;
-  int res;
-  if ((res= strcmp(e0->name, e1->name)) != 0)
-    return res;
+namespace {
 
-  if ((res= strcmp(e0->database, e1->database)) != 0)
-    return res;
+struct cmp_fk_name {
+  bool operator() (const NDBDICT::List::Element &e0,
+                   const NDBDICT::List::Element &e1) const
+  {
+    int res;
+    if ((res= strcmp(e0.name, e1.name)) != 0)
+      return res < 0;
 
-  if ((res= strcmp(e0->schema, e1->schema)) != 0)
-    return res;
+    if ((res= strcmp(e0.database, e1.database)) != 0)
+      return res < 0;
 
-  return e0->id - e1->id;
-}
+    if ((res= strcmp(e0.schema, e1.schema)) != 0)
+      return res < 0;
+
+    return e0.id < e1.id;
+  }
+};
+
+}  // namespace
 
 char*
 ha_ndbcluster::get_foreign_key_create_info()
@@ -2182,8 +2187,8 @@ ha_ndbcluster::get_foreign_key_create_info()
    *
    * sort them to make MTR and similar happy
    */
-  my_qsort(obj_list.elements, obj_list.count, sizeof(obj_list.elements[0]),
-           cmp_fk_name);
+  std::sort(obj_list.elements, obj_list.elements + obj_list.count,
+            cmp_fk_name());
   String fk_string;
   for (unsigned i = 0; i < obj_list.count; i++)
   {
@@ -2422,7 +2427,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   // check if fk to drop exists
   {
-    for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+    for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
     {
       if (drop_item->type != Alter_drop::FOREIGN_KEY)
         continue;
@@ -2477,7 +2482,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
         bool found= false;
-        for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+        for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
@@ -2691,7 +2696,7 @@ ha_ndbcluster::inplace__drop_fks(THD * thd, Ndb* ndb, NDBDICT * dict,
     ERR_RETURN(dict->getNdbError());
   }
 
-  for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+  for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
   {
     if (drop_item->type != Alter_drop::FOREIGN_KEY)
       continue;

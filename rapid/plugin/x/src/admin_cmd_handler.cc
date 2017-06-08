@@ -1115,18 +1115,21 @@ ngs::Error_code is_schema_selected_and_exists(ngs::Sql_session_interface &da, co
 }
 
 
-const char* const COUNT_DOC = "COUNT(CASE WHEN (column_name = 'doc' "
-                              "AND data_type = 'json') THEN 1 ELSE NULL END)";
-const char* const COUNT_ID = "COUNT(CASE WHEN (column_name = '_id' "
-                             "AND generation_expression RLIKE "
-                             "'json_unquote[[.(.]]json_extract[[.(.]]`doc`,"
-                             "(_[[:alnum:]]+)?" // Character set introducer.
-                             "[[.\\\\.]]''[[.$.]][[...]]_id[[.\\\\.]]''[[.).]][[.).]]') "
-                             "THEN 1 ELSE NULL END)";
-const char* const COUNT_GEN = "COUNT(CASE WHEN (column_name != '_id' "
-                              "AND generation_expression RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,"
-                              "(_[[:alnum:]]+)?" // Character set introducer.
-                              "[[.\\\\.]]''[[.$.]]([[...]][^[:space:][...]]+)+[[.\\\\.]]''[[.).]]{1,2}$') THEN 1 ELSE NULL END)";
+#define JSON_EXTRACT_REGEX(member) \
+  "json_extract\\\\(`doc`,(_[[:alnum:]]+)?\\\\\\\\''\\\\$" member \
+  "\\\\\\\\''\\\\)"
+#define COUNT_WHEN(expresion) \
+  "COUNT(CASE WHEN (" expresion ") THEN 1 ELSE NULL END)"
+
+const char *const COUNT_DOC =
+    COUNT_WHEN("column_name = 'doc' AND data_type = 'json'");
+const char *const COUNT_ID =
+    COUNT_WHEN("column_name = '_id' AND generation_expression "
+    "RLIKE '^json_unquote\\\\(" JSON_EXTRACT_REGEX("\\\\._id") "\\\\)$'");
+const char *const COUNT_GEN =
+    COUNT_WHEN("column_name != '_id' AND column_name != 'doc' "
+    "AND generation_expression RLIKE '^(json_unquote\\\\()?"
+    JSON_EXTRACT_REGEX("(\\\\.[[:alnum:]_]+)+") "{1,2}$'");
 } // namespace
 
 

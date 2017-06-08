@@ -42,7 +42,14 @@ STOP GROUP_REPLICATION;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+--error 0, ER_OPTION_PREVENTS_STATEMENT
 --reap
+
+SET @@GLOBAL.read_only= 0;
+# The previous UNINSTALL attempt may have failed due to SUPER_READ_ONLY=1, as
+# such we uninstall the plugin again.
+--error 0, ER_SP_DOES_NOT_EXIST
+UNINSTALL PLUGIN group_replication;
 
 --replace_result $GROUP_REPLICATION GROUP_REPLICATION
 --eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'

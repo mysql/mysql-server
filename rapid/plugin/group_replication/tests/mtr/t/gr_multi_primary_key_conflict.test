@@ -113,12 +113,12 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1)
 --let $assert_text= The value of Count_Transactions_Checked should be 4 after starting group replication
 --let $assert_cond= "$certified_transactions" = 4
 --source include/assert.inc
 
---let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1)
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc
@@ -198,12 +198,12 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "3"
 --source include/assert.inc
 
---let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1)
+--let $certified_transactions= query_get_value(SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1)
 --let $assert_text= The value of Count_Transactions_Checked should be 6 after starting group replication
 --let $assert_cond= "$certified_transactions" = 6
 --source include/assert.inc
 
---let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1)
+--let $negatively_certified= query_get_value(SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1)
 --let $assert_text= The value of Count_Conflicts_Detected should be 1 after starting group replication
 --let $assert_cond= "$negatively_certified" = 1
 --source include/assert.inc

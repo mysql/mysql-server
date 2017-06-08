@@ -46,6 +46,7 @@ struct st_mysql_plugin
   const char *descr;
   int license;
   int (*init)(MYSQL_PLUGIN);
+  int (*check_uninstall)(MYSQL_PLUGIN);
   int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
   struct st_mysql_show_var *status_vars;

@@ -16,7 +16,7 @@
 #include "dd/upgrade/schema.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd_schema.h"                     // Schema_MDL_locker
-#include "log.h"                              // sql_print_warning
+#include "log.h"                              // LogErr()
 #include "mysqld.h"                           // key_file_dbopt
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
 #include "sql_class.h"                        // THD
@@ -49,15 +49,14 @@ static bool load_db_schema_collation(THD *thd,
   if ((file= mysql_file_open(key_file_dbopt, db_opt_path->str,
                              O_RDONLY, MYF(0))) < 0)
   {
-    sql_print_warning("Unable to open db.opt file %s. "
-                      "Using default Character set.", db_opt_path->str);
+    LogErr(WARNING_LEVEL, ER_CANT_OPEN_DB_OPT_USING_DEFAULT_CHARSET,
+           db_opt_path->str);
     return false;
   }
 
   if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
   {
-    sql_print_error("Unable to intialize IO cache to open db.opt file %s. ",
-                     db_opt_path->str);
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_CACHE_FOR_DB_OPT, db_opt_path->str);
     goto err;
   }
 
@@ -83,8 +82,8 @@ static bool load_db_schema_collation(THD *thd,
                                                     MY_CS_PRIMARY, MYF(0))) &&
             !(*schema_charset= get_charset_by_name(pos + 1, MYF(0))))
         {
-          sql_print_warning("Unable to identify the charset in %s. "
-                            "Using default character set.", db_opt_path->str);
+          LogErr(WARNING_LEVEL, ER_CANT_IDENTIFY_CHARSET_USING_DEFAULT,
+                 db_opt_path->str);
 
           *schema_charset= thd->variables.collation_server;
         }
@@ -93,8 +92,8 @@ static bool load_db_schema_collation(THD *thd,
       {
         if (!(*schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
         {
-          sql_print_warning("Unable to identify the charset in %s. "
-                            "Using default character set.", db_opt_path->str);
+          LogErr(WARNING_LEVEL, ER_CANT_IDENTIFY_CHARSET_USING_DEFAULT,
+                 db_opt_path->str);
           *schema_charset= thd->variables.collation_server;
         }
       }
@@ -138,8 +137,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname)
   }
   else
   {
-    sql_print_warning("db.opt file not found for %s database. "
-                      "Using default Character set.", dbname);
+    LogErr(WARNING_LEVEL, ER_DB_OPT_NOT_FOUND_USING_DEFAULT_CHARSET, dbname);
   }
 
   // Disable autocommit option

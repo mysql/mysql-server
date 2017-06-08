@@ -488,7 +488,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 a1	a2
 1 - 01	2 - 01
@@ -499,7 +499,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = convert('1 - 01' using utf8mb4)) and (<cache>(`test`.`t1`.`a2`) = convert('2 - 01' using utf8mb4)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select '1 - 01','2 - 01' having ((<cache>(`test`.`t1`.`a1`) = '1 - 01') and (<cache>(`test`.`t1`.`a2`) = '2 - 01'))))
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01' from dual);
 a1	a2
 1 - 01	2 - 01
@@ -920,7 +920,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'j'
-Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where 0 having <in_optimizer>('m','m' in ( <materialize> (/* select#2 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where 0 having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
 # 2) Test that subquery materialization is setup for query with
@@ -946,7 +946,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` where (`test`.`t2`.`pk` > 10) having <in_optimizer>('m','m' in ( <materialize> (/* select#2 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` where (`test`.`t2`.`pk` > 10) having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
 # 3) Test that subquery materialization is setup for query with
@@ -972,7 +972,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(pk)` from `test`.`t1` where (`test`.`t1`.`pk` = NULL) having <in_optimizer>('m','m' in ( <materialize> (/* select#2 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(pk)` from `test`.`t1` where (`test`.`t1`.`pk` = NULL) having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
 # 4) Test that subquery materialization is setup for query with
@@ -997,7 +997,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having <in_optimizer>('m','m' in ( <materialize> (/* select#3 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having <in_optimizer>('m',<exists>(/* select#3 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
 # 5) Test that subquery materialization is setup for query with
@@ -1025,7 +1025,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,`test`.`t1`.`pk` in ( <materialize> (/* select#2 */ select 1 from dual where ('1' > 10) ), <primary_index_lookup>(`test`.`t1`.`pk` in <temporary table> on <auto_key> where ((`test`.`t1`.`pk` = `materialized-subquery`.`1`))))) having <in_optimizer>('m','m' in ( <materialize> (/* select#3 */ select `test`.`t2`.`v` from `test`.`t2` where (`test`.`t2`.`v` = <cache>('m')) ), <primary_index_lookup>('m' in <temporary table> on <auto_key> where (('m' = `materialized-subquery`.`v`)))))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,`test`.`t1`.`pk` in ( <materialize> (/* select#2 */ select 1 from dual where ('1' > 10) ), <primary_index_lookup>(`test`.`t1`.`pk` in <temporary table> on <auto_key> where ((`test`.`t1`.`pk` = `materialized-subquery`.`1`))))) having <in_optimizer>('m',<exists>(/* select#3 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 #
 # Cleanup for BUG#46680
 #

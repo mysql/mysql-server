@@ -41,6 +41,9 @@ struct st_plugin_int;
   respective deinitialization.
 */
 
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
+extern PSI_statement_info stmt_info_new_packet;
+#endif
 
 class Srv_session
 {

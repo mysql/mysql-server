@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,21 +403,6 @@ typedef pax_msg_1_2 pax_msg;
 extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif
 
-typedef char *file_name;
-
-typedef struct {
-	u_int file_name_array_len;
-	file_name *file_name_array_val;
-} file_name_array;
-
-struct file_copy_data {
-	char *clustername;
-	char *copydir;
-	char *server;
-	int32_t copy_port;
-};
-typedef struct file_copy_data file_copy_data;
-
 /* the xdr functions */
 
 #if defined(__STDC__) || defined(__cplusplus)
@@ -463,9 +448,6 @@ extern  bool_t xdr_gcs_snapshot (XDR *, gcs_snapshot*);
 extern  bool_t xdr_client_reply_code (XDR *, client_reply_code*);
 extern  bool_t xdr_pax_msg_1_1 (XDR *, pax_msg_1_1*);
 extern  bool_t xdr_pax_msg_1_2 (XDR *, pax_msg_1_2*);
-extern  bool_t xdr_file_name (XDR *, file_name*);
-extern  bool_t xdr_file_name_array (XDR *, file_name_array*);
-extern  bool_t xdr_file_copy_data (XDR *, file_copy_data*);
 
 #else /* K&R C */
 extern bool_t xdr_xcom_proto ();
@@ -510,9 +492,6 @@ extern bool_t xdr_gcs_snapshot ();
 extern bool_t xdr_client_reply_code ();
 extern bool_t xdr_pax_msg_1_1 ();
 extern bool_t xdr_pax_msg_1_2 ();
-extern bool_t xdr_file_name ();
-extern bool_t xdr_file_name_array ();
-extern bool_t xdr_file_copy_data ();
 
 #endif /* K&R C */
 

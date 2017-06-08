@@ -70,9 +70,9 @@ Key_column_usage::Key_column_usage()
   first_select->add_from("JOIN mysql.columns col ON icu.column_id=col.id"
                          " AND idx.type IN ('PRIMARY', 'UNIQUE')");
 
-  first_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name,"
+  first_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
+  first_select->add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
                           "col.hidden OR idx.hidden OR icu.hidden)");
-  first_select->add_where("AND tbl.hidden = 'Visible'");
 
 
   // Second SELECT for UNION
@@ -114,9 +114,9 @@ Key_column_usage::Key_column_usage()
   second_select->add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
   second_select->add_from("JOIN mysql.columns col ON fkcu.column_id=col.id");
 
-  second_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name,"
-                           "col.name, col.hidden)");
-  second_select->add_where("AND tbl.hidden = 'Visible'");
+  second_select->add_where("CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)");
+  second_select->add_where("AND IS_VISIBLE_DD_OBJECT("
+                           "tbl.hidden, col.hidden)");
 
 }
 

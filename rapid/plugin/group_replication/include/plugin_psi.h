@@ -75,6 +75,8 @@ extern PSI_mutex_key
               key_GR_LOCK_channel_observation_list,
               key_GR_LOCK_delayed_init_run,
               key_GR_LOCK_delayed_init_server_ready,
+              key_GR_LOCK_group_part_handler_run,
+              key_GR_LOCK_group_part_handler_abort,
               key_GR_LOCK_view_modification_wait,
               key_GR_LOCK_group_info_manager,
               key_GR_LOCK_pipeline_continuation,
@@ -90,7 +92,8 @@ extern PSI_mutex_key
               key_GR_LOCK_plugin_running,
               key_GR_LOCK_force_members_running,
               key_GR_LOCK_write_lock_protection,
-              key_GR_LOCK_pipeline_stats_flow_control;
+              key_GR_LOCK_pipeline_stats_flow_control,
+              key_GR_LOCK_trx_unlocking;
 
 extern PSI_cond_key
               key_GR_COND_applier_module_run,
@@ -100,6 +103,8 @@ extern PSI_cond_key
               key_GR_COND_cert_broadcast_dispatcher_run,
               key_GR_COND_delayed_init_run,
               key_GR_COND_delayed_init_server_ready,
+              key_GR_COND_group_part_handler_run,
+              key_GR_COND_group_part_handler_abort,
               key_GR_COND_view_modification_wait,
               key_GR_COND_pipeline_continuation,
               key_GR_COND_synchronized_queue,

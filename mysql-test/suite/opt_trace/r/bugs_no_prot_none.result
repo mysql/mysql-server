@@ -861,6 +861,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t4`"
@@ -869,6 +873,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 "table": "`t1` `sq1_alias2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1628,11 +1636,19 @@ ON table2 .col_int_key = table1 .col_int_key
                                   } /* attaching_conditions_to_tables */
                                 },
                                 {
+                                  "optimizing_distinct_group_by_order_by": {
+                                  } /* optimizing_distinct_group_by_order_by */
+                                },
+                                {
                                   "refine_plan": [
                                     {
                                       "table": "`t1`"
                                     }
                                   ] /* refine_plan */
+                                },
+                                {
+                                  "considering_tmp_tables": [
+                                  ] /* considering_tmp_tables */
                                 }
                               ] /* steps */
                             } /* join_optimization */
@@ -1949,11 +1965,19 @@ ON table2 .col_int_key = table1 .col_int_key
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -2743,17 +2767,18 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1` desc",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1` desc"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1` desc",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1` desc"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "reconsidering_access_paths_for_index_ordering": {
@@ -2774,6 +2799,10 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */

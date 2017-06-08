@@ -4,7 +4,7 @@
  */
 
 #include "xcom_vp.h"
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -731,40 +731,3 @@ xdr_pax_msg_1_2 (XDR *xdrs, pax_msg_1_2 *objp)
 typedef pax_msg_1_2 pax_msg;
 extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif
-
-bool_t
-xdr_file_name (XDR *xdrs, file_name *objp)
-{
-	register int32_t *buf;
-
-	 if (!xdr_string (xdrs, objp, 1024))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_file_name_array (XDR *xdrs, file_name_array *objp)
-{
-	register int32_t *buf;
-
-	 if (!xdr_array (xdrs, (char **)&objp->file_name_array_val, (u_int *) &objp->file_name_array_len, 1024,
-		sizeof (file_name), (xdrproc_t) xdr_file_name))
-		 return FALSE;
-	return TRUE;
-}
-
-bool_t
-xdr_file_copy_data (XDR *xdrs, file_copy_data *objp)
-{
-	register int32_t *buf;
-
-	 if (!xdr_string (xdrs, &objp->clustername, 1024))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->copydir, 1024))
-		 return FALSE;
-	 if (!xdr_string (xdrs, &objp->server, 1024))
-		 return FALSE;
-	 if (!xdr_int32_t (xdrs, &objp->copy_port))
-		 return FALSE;
-	return TRUE;
-}

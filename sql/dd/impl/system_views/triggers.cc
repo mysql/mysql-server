@@ -81,7 +81,7 @@ Triggers::Triggers()
 
   m_target_def.add_where("tbl.type != 'VIEW'");
   m_target_def.add_where("AND CAN_ACCESS_TRIGGER(sch.name, tbl.name)");
-  m_target_def.add_where("AND tbl.hidden = 'Visible'");
+  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
 }
 
 }

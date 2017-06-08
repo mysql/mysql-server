@@ -23,18 +23,24 @@
 #include "bootstrap.h"                     // bootstrap::bootstrap_functor
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/dd.h"                         // enum_dd_init_type
+#include "dd/dd_table.h"                   // dd::drop_table
+#include "dd/dd_schema.h"                  // dd::Schema_MDL_locker
+#include "dd_sql_view.h"                   // update_referencing_views_metadata
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
 #include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
 #include "dd/upgrade/upgrade.h"            // dd::upgrade
+#include "dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_dbug.h"
 #include "mysql/thread_type.h"
 #include "opt_costconstantcache.h"         // init_optimizer_cost_module
 #include "sql_class.h"                     // THD
+#include "sql_base.h"                      // close_thread_tables
 #include "system_variables.h"
+#include "transaction.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -190,6 +196,24 @@ uint Dictionary_impl::set_I_S_version(THD *thd, uint version)
 {
   return const_cast<tables::DD_properties&>(
            tables::DD_properties::instance()).set_I_S_version(thd, version);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_target_P_S_version()
+{ return tables::DD_properties::get_target_P_S_version(); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_P_S_version(THD *thd)
+{ return tables::DD_properties::instance().get_actual_P_S_version(thd); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::set_P_S_version(THD *thd, uint version)
+{
+  return const_cast<tables::DD_properties&>(
+           tables::DD_properties::instance()).set_P_S_version(thd, version);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -449,5 +473,127 @@ void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 cache::Dictionary_client *get_dd_client(THD *thd)
 { return thd->dd_client(); }
 /* purecov: end */
+
+
+bool create_native_table(THD *thd, const Plugin_table *pt)
+{
+  if (dd::get_dictionary()->is_dd_table_name(pt->get_schema_name(),
+                                             pt->get_name()))
+  {
+    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+             ER_THD(thd, dd::get_dictionary()->table_type_error_code(
+                               pt->get_schema_name(), pt->get_name())),
+             pt->get_schema_name(), pt->get_name());
+
+    return true;
+  }
+
+  Plugin_table_impl pti(pt->get_schema_name(),
+                        pt->get_name(),
+                        pt->get_table_definition(),
+                        pt->get_table_options(),
+                        Dictionary_impl::get_target_dd_version(),
+                        pt->get_tablespace_name());
+
+  const Object_table_definition *native_table_def= pti.table_definition(thd);
+  DBUG_ASSERT (native_table_def != nullptr);
+
+  // Acquire MDL on new native table that we would create.
+  bool error= false;
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE,
+                   pti.schema().c_str(),
+                   pti.name().c_str(),
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  dd::Schema_MDL_locker mdl_locker(thd);
+  if (mdl_locker.ensure_locked(pti.schema().c_str()) ||
+      thd->mdl_context.acquire_lock(&mdl_request,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  /*
+    1. Mark that we are executing a special DDL during
+    plugin initialization. This will enable DDL to not be
+    committed. The called of this API would commit the transaction.
+
+    2. Remove metadata of native table if already exists. This could
+    happen if server was crashed and restarted.
+
+    3. Create native table.
+
+    4. Undo 1.
+  */
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  const dd::Table *table_def= NULL;
+  if (client->acquire(pt->get_schema_name(), pt->get_name(), &table_def))
+    return true;
+
+  thd->mark_plugin_fake_ddl(true);
+  ulong master_access= thd->security_context()->master_access();
+  thd->security_context()->set_master_access(~(ulong)0);
+
+  // Drop the table and related dynamic statistics too.
+  if (table_def)
+  {
+    error= client->drop(table_def) ||
+           client->remove_table_dynamic_statistics(pt->get_schema_name(),
+                                                   pt->get_name());
+  }
+
+  if (!error)
+    error= execute_query(thd, native_table_def->build_ddl_create_table());
+
+  thd->security_context()->set_master_access(master_access);
+  thd->mark_plugin_fake_ddl(false);
+
+  return error;
+}
+
+
+// Remove metadata of native table from DD tables.
+bool drop_native_table(THD *thd, const char *schema_name, const char *table_name)
+{
+  if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name))
+  {
+    my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
+             ER_THD(thd, dd::get_dictionary()->table_type_error_code(
+                                                 schema_name,
+                                                 table_name)),
+             schema_name, table_name);
+
+    return true;
+  }
+
+  // Acquire MDL on schema and table.
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLE,
+                   schema_name,
+                   table_name,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  dd::Schema_MDL_locker mdl_locker(thd);
+  if (mdl_locker.ensure_locked(schema_name) ||
+      thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    return true;
+
+  dd::cache::Dictionary_client *client= thd->dd_client();
+  const dd::Table *table_def= NULL;
+  if (client->acquire(schema_name, table_name, &table_def))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  // Not error is reported if table is not present.
+  if (!table_def)
+    return false;
+
+  // Drop the table and related dynamic statistics too.
+  return client->drop(table_def) ||
+         client->remove_table_dynamic_statistics(schema_name,
+                                                 table_name);
+}
 
 }

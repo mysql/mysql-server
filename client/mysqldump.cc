@@ -131,7 +131,7 @@ static bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
              opt_events= 0, opt_comments_used= 0,
              opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
              opt_secure_auth= TRUE, opt_network_timeout= 0,
-             stats_tables_included= 0;
+             stats_tables_included= 0, column_statistics= false;
 static bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -269,6 +269,10 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"column-statistics", 0,
+   "Add a ANALYZE TABLE-statement for any existing column statistics.",
+   &column_statistics, &column_statistics, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
    &opt_comments, &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
@@ -1039,6 +1043,9 @@ static int get_options(int *argc, char ***argv)
   if (my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.apply_status", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
+                                        "mysql.gtid_executed", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.schema", MYF(MY_WME))) ||
@@ -3664,6 +3671,101 @@ done:
   DBUG_RETURN(ret);
 }
 
+static bool dump_column_statistics_for_table(char *table_name, char *db_name)
+{
+  char       name_buff[NAME_LEN*4+3];
+  char       column_buffer[NAME_LEN*4+3];
+  char       query_buff[QUERY_LENGTH];
+  uint       old_opt_compatible_mode= opt_compatible_mode;
+  char       *quoted_table;
+  MYSQL_RES  *column_statistics_rs;
+  MYSQL_ROW  row;
+  FILE       *sql_file= md_result_file;
+
+  bool        ret= true;
+
+  DBUG_ENTER("dump_column_statistics_for_table");
+  DBUG_PRINT("enter", ("db: %s, table_name: %s", db_name, table_name));
+
+  if (path && !(sql_file= open_sql_file_for_table(table_name,
+                                                  O_WRONLY | O_APPEND)))
+    DBUG_RETURN(true); /* purecov: deadcode */
+
+  if (switch_character_set_results(mysql, "binary"))
+    goto done; /* purecov: deadcode */
+
+
+  char escaped_db[NAME_LEN*4+3];
+  char escaped_table[NAME_LEN*4+3];
+  mysql_real_escape_string_quote(mysql, escaped_table, table_name,
+                                 static_cast<ulong>(strlen(table_name)), '\'');
+  mysql_real_escape_string_quote(mysql, escaped_db, db_name,
+                                 static_cast<ulong>(strlen(db_name)), '\'');
+
+  /* Get list of columns with statistics. */
+  my_snprintf(query_buff, sizeof(query_buff),
+              "SELECT COLUMN_NAME, \
+                      JSON_EXTRACT(HISTOGRAM, '$.\"number-of-buckets-specified\"') \
+               FROM information_schema.COLUMN_STATISTICS \
+               WHERE SCHEMA_NAME = '%s' AND TABLE_NAME = '%s';",
+              escaped_db, escaped_table);
+
+  if (mysql_query_with_error_report(mysql, &column_statistics_rs, query_buff))
+    goto done; /* purecov: deadcode */
+
+  /* Dump column statistics. */
+  if (! mysql_num_rows(column_statistics_rs))
+    goto skip;
+
+  if (opt_xml)
+    print_xml_tag(sql_file, "\t", "\n", "column_statistics", "table_name=",
+                  table_name, nullptr);
+
+  quoted_table= quote_name(table_name, name_buff, false);
+  while ((row= mysql_fetch_row(column_statistics_rs)))
+  {
+    char *quoted_column= quote_name(row[0], column_buffer, false);
+    if (opt_xml)
+    {
+      print_xml_tag(sql_file, "\t\t", "", "field", "name=",
+                    row[0], "num_buckets=", row[1], nullptr);
+      fputs("</field>\n", sql_file);
+    }
+    else
+    {
+      fprintf(sql_file, "/*!80002 ANALYZE TABLE %s UPDATE HISTOGRAM ON %s "
+                        "WITH %s BUCKETS; */;\n",
+              quoted_table, quoted_column, row[1]);
+    }
+  }
+
+  if (opt_xml)
+  {
+    fputs("\t</column_statistics>\n", sql_file);
+    check_io(sql_file);
+  }
+
+skip:
+  mysql_free_result(column_statistics_rs);
+
+  if (switch_character_set_results(mysql, default_charset))
+    goto done; /* purecov: deadcode */
+
+  /*
+    make sure to set back opt_compatible mode to
+    original value
+  */
+  opt_compatible_mode=old_opt_compatible_mode;
+
+  ret= false;
+
+done:
+  if (path)
+    my_fclose(sql_file, MYF(0));
+
+  DBUG_RETURN(ret);
+}
+
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value)
 {
@@ -4852,6 +4954,16 @@ static int dump_all_tables_in_db(char *database)
         }
       }
 
+      if (column_statistics &&
+          dump_column_statistics_for_table(table, database))
+      {
+        /* purecov: begin inspected */
+        if (path)
+          my_fclose(md_result_file, MYF(MY_WME));
+        maybe_exit(EX_MYSQLERR);
+        /* purecov: end */
+      }
+
       /**
         ROLLBACK TO SAVEPOINT in --single-transaction mode to release metadata
         lock on table which was already dumped. This allows to avoid blocking
@@ -5166,6 +5278,15 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
           my_fclose(md_result_file, MYF(MY_WME));
         maybe_exit(EX_MYSQLERR);
       }
+    }
+
+    if (column_statistics && dump_column_statistics_for_table(*pos, db))
+    {
+      /* purecov: begin inspected */
+      if (path)
+        my_fclose(md_result_file, MYF(MY_WME));
+      maybe_exit(EX_MYSQLERR);
+      /* purecov: end */
     }
 
     /**

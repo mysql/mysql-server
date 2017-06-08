@@ -30,6 +30,7 @@
 #include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
+#include "dd/impl/tables/column_statistics.h"// create_name_key()
 #include "dd/impl/tables/events.h"           // create_name_key()
 #include "dd/impl/tables/foreign_keys.h"
 #include "dd/impl/tables/index_stats.h"      // dd::Index_stats
@@ -50,6 +51,7 @@
 #include "dd/types/abstract_table.h"         // Abstract_table
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
+#include "dd/types/column_statistics.h"      // Column_statistics
 #include "dd/types/event.h"                  // Event
 #include "dd/types/function.h"               // Function
 #include "dd/types/index_stat.h"             // Index_stat
@@ -66,7 +68,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "handler.h"
 #include "lex_string.h"
-#include "log.h"                             // sql_print_warning()
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
@@ -341,6 +343,33 @@ private:
   }
 
 
+
+
+  /**
+    Private helper function for asserting MDL for column statistics.
+
+    @param   thd              Thread context.
+    @param   s Column statistic object.
+    @param   lock_type        Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd,
+                        const dd::Column_statistics *column_statistics,
+                        enum_mdl_type lock_type)
+  {
+    if (!column_statistics)
+      return true;  /* purecov: deadcode */
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+                              MDL_key::COLUMN_STATISTICS,
+                              "",
+                              column_statistics->create_mdl_key().c_str(),
+                              lock_type);
+  }
+
+
   /**
     Private helper function for asserting MDL for tablespaces.
 
@@ -413,6 +442,33 @@ public:
   // in the same way as for reading.
   static bool is_release_locked(THD *thd, const dd::Spatial_reference_system *srs)
   { return is_read_locked(thd, srs); }
+
+
+  // Reading a column_statistics object should be governed by MDL_SHARED.
+  static bool is_read_locked(THD *thd,
+                             const dd::Column_statistics *column_statistics)
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, column_statistics, MDL_SHARED);
+  }
+
+  // Writing a column_statistics  object should be governed by
+  // MDL_EXCLUSIVE.
+  static bool is_write_locked(THD *thd,
+                              const dd::Column_statistics *column_statistics)
+  {
+    return !mysqld_server_started ||
+           is_locked(thd, column_statistics, MDL_EXCLUSIVE);
+  }
+
+  // Releasing a column_statistics object should be covered
+  // in the same way as for reading.
+  static bool is_release_locked(THD *thd,
+                                const dd::Column_statistics *column_statistics)
+  {
+    return is_read_locked(thd, column_statistics);
+  }
+
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -617,6 +673,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Tablespace>(&m_release_registry);
   m_client->release<Charset>(&m_release_registry);
   m_client->release<Collation>(&m_release_registry);
+  m_client->release<Column_statistics>(&m_release_registry);
   m_client->release<Event>(&m_release_registry);
   m_client->release<Routine>(&m_release_registry);
   m_client->release<Spatial_reference_system>(&m_release_registry);
@@ -868,7 +925,8 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Collation>(registry) +
           release<Event>(registry) +
           release<Routine>(registry) +
-          release<Spatial_reference_system>(registry);
+          release<Spatial_reference_system>(registry) +
+          release<Column_statistics>(registry);
 }
 
 
@@ -892,7 +950,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects used but not released.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS);
   }
 
   // Delete the additional releasers (should be none).
@@ -900,7 +958,7 @@ Dictionary_client::~Dictionary_client()
          m_current_releaser != &m_default_releaser)
   {
     /* purecov: begin deadcode */
-    sql_print_warning("Dictionary object auto releaser not deleted");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_RELEASER_REMAINS);
     DBUG_ASSERT(false);
     delete m_current_releaser;
     /* purecov: end */
@@ -912,7 +970,7 @@ Dictionary_client::~Dictionary_client()
   DBUG_ASSERT(num_released == 0);
   if (num_released > 0)
   {
-    sql_print_warning("Dictionary objects left in default releaser.");
+    LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS_IN_RELEASER);
   }
 }
 
@@ -2534,6 +2592,7 @@ void Dictionary_client::rollback_modified_objects()
   remove_uncommitted_objects<Tablespace>(false);
   remove_uncommitted_objects<Charset>(false);
   remove_uncommitted_objects<Collation>(false);
+  remove_uncommitted_objects<Column_statistics>(false);
   remove_uncommitted_objects<Event>(false);
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
@@ -2547,6 +2606,7 @@ void Dictionary_client::commit_modified_objects()
   remove_uncommitted_objects<Tablespace>(true);
   remove_uncommitted_objects<Charset>(true);
   remove_uncommitted_objects<Collation>(true);
+  remove_uncommitted_objects<Column_statistics>(true);
   remove_uncommitted_objects<Event>(true);
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
@@ -2716,6 +2776,22 @@ template bool Dictionary_client::drop(const Spatial_reference_system*);
 template bool Dictionary_client::store(Spatial_reference_system*);
 template bool Dictionary_client::update(Spatial_reference_system*);
 template void Dictionary_client::dump<Spatial_reference_system>() const;
+
+
+template bool Dictionary_client::acquire(const String_type &,
+                                         const Column_statistics**);
+template bool Dictionary_client::acquire(Object_id, const Column_statistics**);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          Column_statistics**);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          Column_statistics**);
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  Column_statistics**);
+template bool Dictionary_client::drop(const Column_statistics*);
+template bool Dictionary_client::store(Column_statistics*);
+template bool Dictionary_client::update(Column_statistics*);
+template void Dictionary_client::dump<Column_statistics>() const;
+
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   Table**);

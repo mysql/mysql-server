@@ -179,6 +179,7 @@ public:
    */
   void adjust_next_record_pointer(uint val)
   {
+    DBUG_ASSERT(m_record_length >= val);
     m_next_rec_ptr-= (m_record_length - val);
   }
 

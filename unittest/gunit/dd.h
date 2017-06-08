@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "dd/types/charset.h"
 #include "dd/types/collation.h"
 #include "dd/types/column.h"
+#include "dd/types/column_statistics.h"
 #include "dd/types/column_type_element.h"
 #include "dd/types/foreign_key.h"
 #include "dd/types/foreign_key_element.h"
@@ -48,6 +49,9 @@
 #include "dd/types/parameter.h"
 #include "dd/types/trigger.h"
 
+#include "histograms/histogram.h"
+
+class Json_wrapper;
 
 namespace dd_unittest {
 
@@ -182,18 +186,19 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton)
   Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
 
   // Add fields
-  m_field_list.push_back(new Mock_dd_field_longlong());  // id
-  m_field_list.push_back(new Mock_dd_field_longlong());  // catalog_id
-  m_field_list.push_back(new Mock_dd_field_varstring(64, &dummy_share)); // name
-  m_field_list.push_back(new Mock_dd_field_longlong());  // collation_id
-  m_field_list.push_back(new Mock_dd_field_longlong());  // created
-  m_field_list.push_back(new Mock_dd_field_longlong());  // last_altered
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // catalog_id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_varstring(64, &dummy_share)); // name
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // collation_id
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // created
+  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // last_altered
 
   // Create table object (and table share implicitly).
   table= new Fake_TABLE(m_field_list);
 
   // Create a strict mock handler for the share.
-  StrictMock<Mock_dd_HANDLER> *ha= new StrictMock<Mock_dd_HANDLER>(hton, table->s);
+  StrictMock<Mock_dd_HANDLER> *ha=
+    new (*THR_MALLOC) StrictMock<Mock_dd_HANDLER>(hton, table->s);
 
   // Set current open table.
   ha->change_table_ptr(table, table->s);
@@ -422,6 +427,33 @@ inline void set_attributes(dd::Collation *obj, const dd::String_type &name)
 {
   obj->set_name(name);
   obj->set_charset_id(42);
+}
+
+inline void set_attributes(dd::Column_statistics *obj,
+                           const dd::String_type &name)
+{
+  obj->set_name(name);
+  obj->set_schema_name("schema");
+  obj->set_table_name("table");
+  obj->set_column_name("column");
+
+  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  value_map.add_values(100, 10);
+  value_map.add_values(-1, 10);
+  value_map.add_values(1, 10);
+
+  MEM_ROOT mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+
+  /*
+    The Column_statistics object will take over the histogram data and free the
+    MEM_ROOT contents.
+  */
+  histograms::Histogram *histogram=
+    histograms::build_histogram(&mem_root, value_map, 10, "schema", "table",
+                                "column");
+
+  obj->set_histogram(histogram);
 }
 
 template <typename T>

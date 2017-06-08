@@ -17,39 +17,63 @@
 #define XCOM_COMMON_H
 
 #include <limits.h>
-#include <stdint.h>
 
+#ifndef XCOM_STANDALONE
 #include <xcom/xcom.h>
 #include "my_compiler.h"
+#else
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef uint16_t xcom_port;
-#define number_is_valid_port(n) ((n) > 0 && (n) <= UINT16_MAX)
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <inttypes.h>
 
-typedef void *gpointer;
-typedef char	gchar;
-typedef int	gboolean;
-typedef struct timeval GTimeVal;
+#ifndef XCOM_STANDALONE
+typedef unsigned short xcom_port;
+#else
+#ifdef HAVE_STDINT_H
+typedef uint16_t xcom_port;
+#else
+typedef unsigned short xcom_port;
+#endif
+#endif
+
+#define number_is_valid_port(n) ((n) > 0 && (n) <= (int)UINT16_MAX)
 
 #ifndef MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 #endif
 #ifndef MIN
-#define MIN(x,y) ((x) < (y) ? (x) : (y))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
-#define idx_check_ret(x,limit, ret) if(x < 0 || x >= limit){g_critical("index out of range " #x " < 0  || " #x " >= " #limit" %s:%d", __FILE__, __LINE__); return ret; }else
-#define idx_check_fail(x,limit) if(x < 0 || x >= limit){g_critical("index out of range " #x " < 0  || " #x " >= " #limit" %s:%d", __FILE__, __LINE__);abort();}else
+#ifndef idx_check_ret
+#define idx_check_ret(x, limit, ret)                                           \
+  if (x < 0 || x >= limit) {                                                   \
+    g_critical("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
+               __FILE__, __LINE__);                                            \
+    return ret;                                                                \
+  } else
+#define idx_check_fail(x, limit)                                               \
+  if (x < 0 || x >= limit) {                                                   \
+    g_critical("index out of range " #x " < 0  || " #x " >= " #limit " %s:%d", \
+               __FILE__, __LINE__);                                            \
+    abort();                                                                   \
+  } else
+#endif
 
 #define BSD_COMP
-
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

@@ -26,6 +26,10 @@
 #include "plugin.h"
 #include "plugin_log.h"
 
+#ifndef DBUG_OFF
+#include "services/notification/impl/gms_listener_test.h"
+#endif
+
 using std::string;
 
 /* Plugin generic fields */
@@ -39,6 +43,8 @@ static bool group_replication_running;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
+static bool plugin_is_waiting_to_set_server_read_mode= false;
+static bool plugin_is_being_uninstalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -47,16 +53,22 @@ Applier_module *applier_module= NULL;
 Recovery_module *recovery_module= NULL;
 //The plugin group communication module
 Gcs_operations *gcs_module= NULL;
+// The registry module
+Registry_module_interface *registry_module= NULL;
 //The channel observation module
 Channel_observation_manager *channel_observation_manager= NULL;
+//The Single primary channel observation module
+Asynchronous_channels_state_observer *asynchronous_channels_state_observer= NULL;
 //Lock to check if the plugin is running or not.
 Checkable_rwlock *plugin_stop_lock;
 //Class to coordinate access to the plugin stop lock
 Shared_writelock *shared_plugin_stop_lock;
-//Read mode handler
-Read_mode_handler *read_mode_handler= NULL;
 //Initialization thread for server starts
 Delayed_initialization_thread *delayed_initialization_thread= NULL;
+//The transaction handler for network partitions
+Group_partition_handling *group_partition_handler= NULL;
+//The handler for transaction killing when an error or partition happens
+Blocked_transaction_handler *blocked_transaction_handler= NULL;
 
 /* Group communication options */
 char *local_address_var= NULL;
@@ -150,6 +162,9 @@ int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
 
+/* The timeout before going to error when majority becomes unreachable */
+ulong timeout_on_unreachable_var= 0;
+
 /**
   The default value for auto_increment_increment is choosen taking into
   account the maximum usable values for each possible auto_increment_increment
@@ -177,14 +192,27 @@ ulong flow_control_mode_var= FCM_QUOTA;
 #define DEFAULT_FLOW_CONTROL_THRESHOLD 25000
 #define MAX_FLOW_CONTROL_THRESHOLD INT_MAX32
 #define MIN_FLOW_CONTROL_THRESHOLD 0
-int flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
-int flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
+long flow_control_certifier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
+long flow_control_applier_threshold_var= DEFAULT_FLOW_CONTROL_THRESHOLD;
+long flow_control_min_quota_var= 0;
+long flow_control_min_recovery_quota_var= 0;
+long flow_control_max_quota_var= 0;
+int flow_control_member_quota_percent_var= 0;
+int flow_control_period_var= 1;
+int flow_control_hold_percent_var= 10;
+int flow_control_release_percent_var= 50;
 
 /* Transaction size limits */
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
 ulong transaction_size_limit_var= DEFAULT_TRANSACTION_SIZE_LIMIT;
+
+/* Member Weight limits */
+#define DEFAULT_MEMBER_WEIGHT 50
+#define MAX_MEMBER_WEIGHT 100
+#define MIN_MEMBER_WEIGHT 0
+uint member_weight_var= DEFAULT_MEMBER_WEIGHT;
 
 /* Downgrade options */
 bool allow_local_lower_version_join_var= 0;
@@ -209,6 +237,10 @@ static int check_if_server_properly_configured();
 static bool init_group_sidno();
 
 static void initialize_ssl_option_map();
+
+static bool initialize_registry_module();
+
+static bool finalize_registry_module();
 
 /*
   Auxiliary public functions.
@@ -237,6 +269,25 @@ int log_message(enum plugin_log_level level, const char *format, ...)
   my_vsnprintf(buff, sizeof(buff), format, args);
   va_end(args);
   return my_plugin_log_message(&plugin_info_ptr, level, "%s", buff);
+}
+
+static bool initialize_registry_module()
+{
+  return
+    (!(registry_module= new Registry_module()) ||
+     registry_module->initialize());
+}
+
+static bool finalize_registry_module()
+{
+  int res= false;
+  if (registry_module)
+  {
+    res= registry_module->finalize();
+    delete registry_module;
+    registry_module= NULL;
+  }
+  return res;
 }
 
 /*
@@ -283,11 +334,12 @@ uint plugin_get_group_members_number()
 
 bool
 plugin_get_group_member_stats(
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   char* channel_name= applier_module_channel_name;
 
-  return get_group_member_stats(callbacks, group_member_mgr, applier_module,
+  return get_group_member_stats(index, callbacks, group_member_mgr,
+                                applier_module,
                                 gcs_module, channel_name);
 }
 
@@ -298,6 +350,8 @@ int plugin_group_replication_start()
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
   int error= 0;
+  bool enabled_super_read_only= false;
+  bool read_only_mode= false, super_read_only_mode=false;
   st_server_ssl_variables server_ssl_variables=
     {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
 
@@ -339,13 +393,21 @@ int plugin_group_replication_start()
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
+  DBUG_EXECUTE_IF("register_gms_listener_example",
+  {
+    register_listener_service_gr_example();
+  });
+
   /*
     Instantiate certification latch.
   */
   certification_latch= new Wait_ticket<my_thread_id>();
-  read_mode_handler= new Read_mode_handler();
   Sql_service_command_interface *sql_command_interface=
       new Sql_service_command_interface();
+
+  // Registry module.
+  if ((error= initialize_registry_module()))
+    goto err; /* purecov: inspected */
 
   // GCS interface.
   if ((error= gcs_module->initialize()))
@@ -394,6 +456,27 @@ int plugin_group_replication_start()
   if ((error= configure_group_member_manager(hostname, uuid, port,
                                              server_version)))
     goto err; /* purecov: inspected */
+
+  /* To stop group replication to start on secondary member with single primary-
+     mode, when any async channels are running, we verify whether member is not
+     bootstrapping. As only when the member is bootstrapping, it can be the
+     primary leader on a single primary member context.
+
+   */
+  if (single_primary_mode_var && !bootstrap_group_var)
+  {
+    if (is_any_slave_channel_running(
+        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
+    {
+      error= 1;
+      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                  " member with single primary-mode while"
+                                  " asynchronous replication channels are"
+                                  " running.");
+      goto err; /* purecov: inspected */
+    }
+  }
+
   configure_compatibility_manager();
   DBUG_EXECUTE_IF("group_replication_compatibility_rule_error",
                   {
@@ -421,6 +504,9 @@ int plugin_group_replication_start()
                     compatibility_mgr->set_local_version(current_version);
                   };);
 
+  get_read_mode_state(sql_command_interface, &read_only_mode,
+                      &super_read_only_mode);
+
   /*
    At this point in the code, set the super_read_only mode here on the
    server to protect recovery and version module of the Group Replication.
@@ -428,7 +514,7 @@ int plugin_group_replication_start()
    deadlock issues.
   */
   if (!plugin_is_auto_starting &&
-      read_mode_handler->set_super_read_only_mode(sql_command_interface))
+      enable_super_read_only_mode(sql_command_interface))
   {
     /* purecov: begin inspected */
     error =1;
@@ -438,6 +524,10 @@ int plugin_group_replication_start()
     goto err;
     /* purecov: end */
   }
+  enabled_super_read_only= true;
+
+  // need to be initialized before applier, is called on kill_pending_transactions
+  blocked_transaction_handler= new Blocked_transaction_handler();
 
   if ((error= initialize_recovery_module()))
     goto err; /* purecov: inspected */
@@ -449,8 +539,8 @@ int plugin_group_replication_start()
     goto err;
   }
 
-  DBUG_EXECUTE_IF("group_replication_read_mode_error",
-                  { read_mode_handler->set_to_fail(); };);
+  initialize_asynchronous_channels_observer();
+  initialize_group_partition_handler();
 
   if ((error= start_group_communication()))
   {
@@ -473,18 +563,26 @@ int plugin_group_replication_start()
   group_replication_running= true;
 
 err:
-  delete sql_command_interface;
 
   if (error)
   {
     leave_group();
     terminate_plugin_modules();
+
+    if (!server_shutdown_status && server_engine_initialized()
+        && enabled_super_read_only)
+    {
+      set_read_mode_state(sql_command_interface, read_only_mode,
+                          super_read_only_mode);
+    }
     if (certification_latch != NULL)
     {
       delete certification_latch; /* purecov: inspected */
       certification_latch= NULL;  /* purecov: inspected */
     }
   }
+
+  delete sql_command_interface;
   plugin_is_auto_starting= false;
 
   DBUG_RETURN(error);
@@ -527,6 +625,7 @@ int configure_group_member_manager(char *hostname, char *uuid,
                   };);
   Member_version local_member_plugin_version(local_version);
   delete local_member_info;
+
   local_member_info= new Group_member_info(hostname,
                                            port,
                                            uuid,
@@ -537,7 +636,8 @@ int configure_group_member_manager(char *hostname, char *uuid,
                                            gtid_assignment_block_size_var,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
-                                           enforce_update_everywhere_checks_var);
+                                           enforce_update_everywhere_checks_var,
+                                           member_weight_var);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
@@ -672,13 +772,15 @@ int plugin_group_replication_stop()
     DBUG_RETURN(0);
   }
 
+  plugin_is_waiting_to_set_server_read_mode= true;
+
   // wait for all transactions waiting for certification
   bool timeout=
       certification_latch->block_until_empty(TRANSACTION_KILL_TIMEOUT);
   if (timeout)
   {
     //if they are blocked, kill them
-    unblock_waiting_transactions();
+    blocked_transaction_handler->unblock_waiting_transactions();
   }
 
   /* first leave all joined groups (currently one) */
@@ -687,7 +789,28 @@ int plugin_group_replication_stop()
   int error= terminate_plugin_modules();
 
   group_replication_running= false;
+
+  DBUG_EXECUTE_IF("register_gms_listener_example",
+  {
+    unregister_listener_service_gr_example();
+  });
+
   shared_plugin_stop_lock->release_write_lock();
+
+  // Enable super_read_only.
+  if (!server_shutdown_status &&
+      !plugin_is_being_uninstalled &&
+      server_engine_initialized())
+  {
+    if (enable_server_read_mode(PSESSION_DEDICATED_THREAD))
+    {
+      log_message(MY_ERROR_LEVEL,
+                  "On plugin shutdown it was not possible to enable the "
+                  "server read only mode. Local transactions will be accepted "
+                  "and committed."); /* purecov: inspected */
+    }
+    plugin_is_waiting_to_set_server_read_mode= false;
+  }
 
   DBUG_RETURN(error);
 }
@@ -721,25 +844,13 @@ int terminate_plugin_modules()
                 " applier termination.");
   }
 
-  if (!server_shutdown_status && server_engine_initialized())
-  {
-    Sql_service_command_interface *sql_command_interface=
-        new Sql_service_command_interface();
-    if (sql_command_interface->
-            establish_session_connection(PSESSION_DEDICATED_THREAD,
-                                         plugin_info_ptr) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-        read_mode_handler->reset_super_read_only_mode(sql_command_interface))
-    {
-      //Do not throw an error as the user can reset the read mode
-      log_message(MY_WARNING_LEVEL,
-                  "On plugin shutdown it was not possible to reset the server"
-                  " read mode settings. Try to reset it manually."); /* purecov: inspected */
-    }
-    delete sql_command_interface;
-  }
+  terminate_asynchronous_channels_observer();
 
-  delete read_mode_handler;
+  delete group_partition_handler;
+  group_partition_handler= NULL;
+
+  delete blocked_transaction_handler;
+  blocked_transaction_handler= NULL;
 
   /*
     Destroy certification latch.
@@ -757,8 +868,21 @@ int terminate_plugin_modules()
 
   if (group_member_mgr != NULL && local_member_info != NULL)
   {
+    Notification_context ctx;
     group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                           Group_member_info::MEMBER_OFFLINE);
+                                           Group_member_info::MEMBER_OFFLINE,
+                                           ctx);
+    notify_and_reset_ctx(ctx);
+  }
+
+  if (finalize_registry_module())
+  {
+    /* purecov: begin inspected */
+    log_message(MY_ERROR_LEVEL,
+                "Unexpected failure while shutting down registry module!");
+    if (!error)
+      error= 1;
+    /* purecov: end */
   }
 
   return error;
@@ -872,6 +996,7 @@ int plugin_group_replication_deinit(void *p)
   if (plugin_info_ptr == NULL)
     return 0;
 
+  plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
   //plugin_group_replication_stop will be called from this method stack
@@ -1060,6 +1185,13 @@ int configure_and_start_applier_module()
   DBUG_RETURN(error);
 }
 
+void initialize_group_partition_handler()
+{
+  group_partition_handler=
+      new Group_partition_handling(shared_plugin_stop_lock,
+                                   timeout_on_unreachable_var);
+}
+
 int terminate_applier_module()
 {
 
@@ -1243,8 +1375,7 @@ int start_group_communication()
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
                                                 view_change_notifier,
-                                                compatibility_mgr,
-                                                read_mode_handler);
+                                                compatibility_mgr);
 
   view_change_notifier->start_view_modification();
 
@@ -1252,6 +1383,26 @@ int start_group_communication()
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);
+}
+
+void initialize_asynchronous_channels_observer()
+{
+  if (single_primary_mode_var)
+  {
+    asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
+    channel_observation_manager
+        ->register_channel_observer(asynchronous_channels_state_observer);
+  }
+}
+
+void terminate_asynchronous_channels_observer()
+{
+  if (asynchronous_channels_state_observer != NULL)
+  {
+    channel_observation_manager->unregister_channel_observer(asynchronous_channels_state_observer);
+    delete asynchronous_channels_state_observer;
+    asynchronous_channels_state_observer= NULL;
+  }
 }
 
 int initialize_recovery_module()
@@ -1317,6 +1468,12 @@ ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
   DBUG_RETURN(transaction_size_limit_var);
+}
+
+bool is_plugin_waiting_to_set_server_read_mode()
+{
+  DBUG_ENTER("is_plugin_waiting_to_set_server_read_mode");
+  DBUG_RETURN(plugin_is_waiting_to_set_server_read_mode);
 }
 
 /*
@@ -1408,7 +1565,7 @@ static int check_if_server_properly_configured()
     {
       log_message(MY_ERROR_LEVEL,
                   "In order to use parallel applier on Group Replication, parameter "
-                  "slave-parallel-workers must be set to 'LOGICAL_CLOCK'.");
+                  "slave-parallel-type must be set to 'LOGICAL_CLOCK'.");
       DBUG_RETURN(1);
     }
 
@@ -1505,7 +1662,83 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   DBUG_RETURN(0);
 }
 
-//Recovery module's module variable update/validate methods
+static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR*, void* save,
+                                        struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_flow_control_min_quota");
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_flow_control_min_quota cannot be larger than "
+                "group_replication_flow_control_max_quota");
+    DBUG_RETURN(1);
+  }
+
+  *(longlong*)save= (in_val < 0) ? 0 :
+                    (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
+                    MAX_FLOW_CONTROL_THRESHOLD;
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_min_recovery_quota(MYSQL_THD, SYS_VAR*, void* save,
+                                                 struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_flow_control_min_recovery_quota");
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_flow_control_min_recovery_quota cannot be "
+                "larger than group_replication_flow_control_max_quota");
+    DBUG_RETURN(1);
+  }
+
+  *(longlong*)save= (in_val < 0) ? 0 :
+                    (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
+                    MAX_FLOW_CONTROL_THRESHOLD;
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR*, void* save,
+                                        struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_flow_control_max_quota");
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  if (in_val > 0
+      && ((in_val < flow_control_min_quota_var
+           && flow_control_min_quota_var != 0)
+         || (in_val < flow_control_min_recovery_quota_var
+           && flow_control_min_recovery_quota_var != 0)))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_flow_control_max_quota cannot be smaller "
+                "than group_replication_flow_control_min_quota or "
+                "group_replication_flow_control_min_recovery_quota");
+    DBUG_RETURN(1);
+  }
+
+  *(longlong*)save= (in_val < 0) ? 0 :
+                    (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
+                    MAX_FLOW_CONTROL_THRESHOLD;
+
+  DBUG_RETURN(0);
+}
+
+/*
+ Recovery module's module variable update/validate methods
+*/
 
 static void update_recovery_retry_count(MYSQL_THD, SYS_VAR*,
                                         void *var_ptr, const void *save)
@@ -2027,6 +2260,39 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
   DBUG_RETURN(0);
 }
 
+static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
+                                       void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_unreachable_timeout");
+
+  ulong in_val= *static_cast<const ulong*>(save);
+  (*(ulong*) var_ptr)= (*(ulong*) save);
+
+  if (group_partition_handler != NULL)
+  {
+    group_partition_handler->update_timeout_on_unreachable(in_val);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+static void
+update_member_weight(MYSQL_THD, SYS_VAR*,
+                     void *var_ptr, const void *save)
+{
+  DBUG_ENTER("update_member_weight");
+
+  (*(uint*) var_ptr)= (*(uint*) save);
+  uint in_val= *static_cast<const uint*>(save);
+
+  if (local_member_info != NULL)
+  {
+    local_member_info->set_member_weight(in_val);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 //Base plugin variables
 
 static MYSQL_SYSVAR_STR(
@@ -2424,7 +2690,7 @@ static MYSQL_SYSVAR_ENUM(
   &flow_control_mode_typelib_t       /* type lib */
 );
 
-static MYSQL_SYSVAR_INT(
+static MYSQL_SYSVAR_LONG(
   flow_control_certifier_threshold,     /* name */
   flow_control_certifier_threshold_var, /* var */
   PLUGIN_VAR_OPCMDARG,                  /* optional var */
@@ -2438,7 +2704,7 @@ static MYSQL_SYSVAR_INT(
   0                                     /* block */
 );
 
-static MYSQL_SYSVAR_INT(
+static MYSQL_SYSVAR_LONG(
   flow_control_applier_threshold,      /* name */
   flow_control_applier_threshold_var,  /* var */
   PLUGIN_VAR_OPCMDARG,                 /* optional var */
@@ -2463,6 +2729,132 @@ static MYSQL_SYSVAR_ULONG(
   MIN_TRANSACTION_SIZE_LIMIT,          /* min */
   MAX_TRANSACTION_SIZE_LIMIT,          /* max */
   0                                    /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+  unreachable_majority_timeout,                    /* name */
+  timeout_on_unreachable_var,                      /* var */
+  PLUGIN_VAR_OPCMDARG,                             /* optional var */
+  "The number of seconds before going into error when a majority of members is unreachable."
+  "If 0 there is no action taken.",
+  NULL,                                            /* check func. */
+  update_unreachable_timeout,                      /* update func. */
+  0,                                               /* default */
+  0,                                               /* min */
+  LONG_TIMEOUT,                                    /* max */
+  0                                                /* block */
+);
+
+static MYSQL_SYSVAR_UINT(
+  member_weight,                       /* name */
+  member_weight_var,                   /* var */
+  PLUGIN_VAR_OPCMDARG,                 /* optional var */
+  "Member weight will determine the member role in the group on"
+  " future primary elections",
+  NULL,                                /* check func. */
+  update_member_weight,                /* update func. */
+  DEFAULT_MEMBER_WEIGHT,               /* default */
+  MIN_MEMBER_WEIGHT,                   /* min */
+  MAX_MEMBER_WEIGHT,                   /* max */
+  0                                    /* block */
+);
+
+static MYSQL_SYSVAR_LONG(
+  flow_control_min_quota,                /* name */
+  flow_control_min_quota_var,            /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the minimum flow-control quota that can be assigned to a node."
+  "Default: 0 (5% of thresholds)",
+  check_flow_control_min_quota,         /* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_LONG(
+  flow_control_min_recovery_quota,      /* name */
+  flow_control_min_recovery_quota_var,  /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the minimum flow-control quota that can be assigned to a node,"
+  "if flow control was needed due to a recovering node. Default: 0 (disabled)",
+  check_flow_control_min_recovery_quota,/* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_LONG(
+  flow_control_max_quota,               /* name */
+  flow_control_max_quota_var,           /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the maximum cluster commit rate allowed when flow-control is active."
+  "Default: 0 (disabled)",
+  check_flow_control_max_quota,         /* check func. */
+  NULL,                                 /* update func. */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* default */
+  MIN_FLOW_CONTROL_THRESHOLD,           /* min */
+  MAX_FLOW_CONTROL_THRESHOLD,           /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_member_quota_percent,    /* name */
+  flow_control_member_quota_percent_var,/* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the proportion of the quota that is assigned to this member."
+  "Default: 0% (disabled)",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  0,                                    /* default */
+  0,                                    /* min */
+  100,                                  /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_period,                  /* name */
+  flow_control_period_var,              /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies how many seconds to wait between flow-control iterations."
+  "Default: 1",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  1,                                    /* default */
+  1,                                    /* min */
+  60,                                   /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_hold_percent,            /* name */
+  flow_control_hold_percent_var,        /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the percentage of the quota that is reserved for catch-up."
+  "Default: 10%, 0 disables",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  10,                                   /* default */
+  0,                                    /* min */
+  100,                                  /* max */
+  0                                     /* block */
+);
+
+static MYSQL_SYSVAR_INT(
+  flow_control_release_percent,         /* name */
+  flow_control_release_percent_var,     /* var */
+  PLUGIN_VAR_OPCMDARG,                  /* optional var */
+  "Specifies the percentage of the quota the can increase per iteration"
+  "when flow-control is released. Default: 50%, 0 disables",
+  NULL,                                 /* check func. */
+  NULL,                                 /* update func. */
+  50,                                   /* default */
+  0,                                    /* min */
+  1000,                                 /* max */
+  0                                     /* block */
 );
 
 static SYS_VAR* group_replication_system_vars[]= {
@@ -2499,6 +2891,15 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(unreachable_majority_timeout),
+  MYSQL_SYSVAR(member_weight),
+  MYSQL_SYSVAR(flow_control_min_quota),
+  MYSQL_SYSVAR(flow_control_min_recovery_quota),
+  MYSQL_SYSVAR(flow_control_max_quota),
+  MYSQL_SYSVAR(flow_control_member_quota_percent),
+  MYSQL_SYSVAR(flow_control_period),
+  MYSQL_SYSVAR(flow_control_hold_percent),
+  MYSQL_SYSVAR(flow_control_release_percent),
   NULL,
 };
 
@@ -2511,28 +2912,8 @@ static int show_primary_member(MYSQL_THD, SHOW_VAR *var, char *buff)
   if (group_member_mgr && single_primary_mode_var &&
       plugin_is_group_replication_running())
   {
-    std::vector<Group_member_info*>* members=
-      group_member_mgr->get_all_members();
-    std::vector<Group_member_info*>::iterator it;
-    std::string primary_member_uuid;
-
-    for (it= members->begin(); it != members->end(); it++)
-    {
-      Group_member_info* info= *it;
-      if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
-      {
-        DBUG_ASSERT(primary_member_uuid.empty());
-        primary_member_uuid =info->get_uuid();
-      }
-
-      // always delete the copies that were in the vector
-      delete info;
-    }
-    if (primary_member_uuid.empty() ||
-        Group_member_info::MEMBER_ERROR == local_member_info->get_recovery_status())
-      primary_member_uuid= "UNDEFINED";
-
-    delete members;
+    string primary_member_uuid;
+    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
 
     strncpy(buff, primary_member_uuid.c_str(), SHOW_VAR_FUNC_BUFF_SIZE);
     buff[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
@@ -2561,6 +2942,7 @@ mysql_declare_plugin(group_replication_plugin)
   "Group Replication (1.0.0)",      /* Plugin name with full version*/
   PLUGIN_LICENSE_GPL,
   plugin_group_replication_init,    /* Plugin Init */
+  NULL,                             /* Plugin Check uninstall */
   plugin_group_replication_deinit,  /* Plugin Deinit */
   0x0100,                           /* Plugin Version: major.minor */
   group_replication_status_vars,    /* status variables */

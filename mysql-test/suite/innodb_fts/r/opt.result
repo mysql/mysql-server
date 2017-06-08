@@ -1062,72 +1062,72 @@ SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN B
 FTS_DOC_ID
 11
 EXPLAIN
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) order by `rank` limit 3
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 3;
 FTS_DOC_ID	rank
 1	0.15835624933242798
 9	0.15835624933242798
 12	0.15835624933242798
 EXPLAIN
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, limit = 3; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) order by `rank` desc limit 3
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 FTS_DOC_ID	rank
 11	1.5415468215942383
 5	0.47506874799728394
 8	0.31671249866485596
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	NULL	ft_idx	262	NULL	15	100.00	Ft_hints: sorted, limit = 3; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` order by `rank` desc limit 3
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 FTS_DOC_ID	rank
 5	0.47506874799728394
 8	0.31671249866485596
 1	0.15835624933242798
-EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	NULL	ft_idx	262	NULL	15	100.00	Ft_hints: sorted, limit = 3; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` order by `rank` desc limit 3
-SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as rank
+SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 FTS_DOC_ID	rank
 11	1.5415468215942383
 5	0.47506874799728394
 8	0.31671249866485596
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
@@ -1135,7 +1135,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, limit = 3; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) desc limit 3
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
@@ -1143,7 +1143,7 @@ FTS_DOC_ID	rank
 5	0.47506874799728394
 8	0.31671249866485596
 1	0.15835624933242798
-EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
@@ -1151,7 +1151,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	PRIMARY,FTS_DOC_ID_INDEX,ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) and (`test`.`t1`.`FTS_DOC_ID` > 1)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) desc limit 3
-SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) and FTS_DOC_ID > 1
 ORDER BY MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE)  DESC
 LIMIT 3;
@@ -1160,37 +1160,37 @@ FTS_DOC_ID	rank
 8	0.31671249866485596
 9	0.15835624933242798
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) order by `rank` limit 1
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank
+ORDER BY `rank`
 LIMIT 1;
 FTS_DOC_ID	rank
 3	0.009391550906002522
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, limit = 1; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) order by `rank` desc limit 1
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 1;
 FTS_DOC_ID	rank
 11	15.345823287963867
 EXPLAIN
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 ORDER BY  MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 LIMIT 1;
@@ -1198,7 +1198,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) order by (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+very +fast' with query expansion)) limit 1
-SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as rank
+SELECT FTS_DOC_ID,MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) as `rank`
 FROM t1 WHERE MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) 
 ORDER BY  MATCH(title, text) AGAINST ('+very +fast' WITH QUERY EXPANSION) DESC
 LIMIT 1;
@@ -1349,17 +1349,17 @@ FTS_DOC_ID
 5
 8
 # FTS index access
-SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 FTS_DOC_ID	rank
 5	0.47506874799728394
 8	0.31671249866485596
 1	0.15835624933242798
-EXPLAIN SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as rank
+EXPLAIN SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY rank DESC
+ORDER BY `rank` DESC
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	fulltext	NULL	ft_idx	262	NULL	15	100.00	Ft_hints: sorted, limit = 3; Using index

@@ -45,14 +45,15 @@ DEFAULT_COLLATION_NAME	varchar(64)	NO		NULL
 SQL_PATH	binary(0)	YES		NULL	
 SELECT catalog_name, schema_name, sql_path
 FROM information_schema.schemata
-WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL;
+WHERE catalog_name IS NOT NULL or sql_path IS NOT NULL
+ORDER BY schema_name;
 CATALOG_NAME	SCHEMA_NAME	SQL_PATH
-def	mysql	NULL
 def	information_schema	NULL
-def	sys	NULL
-def	performance_schema	NULL
-def	test	NULL
 def	mtr	NULL
+def	mysql	NULL
+def	performance_schema	NULL
+def	sys	NULL
+def	test	NULL
 ###############################################################################
 # Testcases 3.2.9.2+3.2.9.3: INFORMATION_SCHEMA.SCHEMATA accessible information
 ###############################################################################

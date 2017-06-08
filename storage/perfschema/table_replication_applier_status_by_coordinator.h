@@ -58,7 +58,7 @@ struct st_row_coordinator
 {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
-  ulonglong thread_id;
+  ulonglong thread_id{0};
   bool thread_id_is_null;
   enum_rpl_yes_no service_state;
   uint last_error_number;
@@ -139,8 +139,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_coordinator m_row;
   /** Current position. */

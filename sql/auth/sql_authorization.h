@@ -38,4 +38,12 @@ bool has_any_table_acl(THD *thd, Security_context *sctx,
                        const LEX_CSTRING &str);
 bool has_any_routine_acl(THD *thd, Security_context *sctx,
                          const LEX_CSTRING &db);
+std::pair<std::string, std::string >
+  get_authid_from_quoted_string(std::string str);
+void iterate_comma_separated_quoated_string(std::string str,
+                             const std::function<bool (const std::string )> &f);
+void get_granted_roles(Role_vertex_descriptor &v,
+                       std::function<void(const Role_id &, bool)> f);
+/* For for get_mandatory_roles and Sys_mandatory_roles */
+extern mysql_mutex_t LOCK_mandatory_roles;
 #endif /* SQL_AUTHORIZATION_INCLUDED */

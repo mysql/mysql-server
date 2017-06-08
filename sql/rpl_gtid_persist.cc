@@ -32,7 +32,7 @@
 #include "field.h"
 #include "handler.h"
 #include "key.h"
-#include "log.h"              // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -312,10 +312,8 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
     if (error == HA_ERR_FOUND_DUPP_KEY)
     {
       /* Ignore the duplicate key error, log a warning for it. */
-      sql_print_warning("The transaction owned GTID is already in "
-                        "the %s table, which is caused by an "
-                        "explicit modifying from user client.",
-                        Gtid_table_access_context::TABLE_NAME.str);
+      LogErr(WARNING_LEVEL, ER_GTID_ALREADY_ADDED_BY_USER,
+             Gtid_table_access_context::TABLE_NAME.str);
     }
     else
     {
@@ -842,8 +840,8 @@ int Gtid_table_persistor::delete_all(TABLE *table)
                          (err= -1), err))
     {
       table->file->print_error(err, MYF(0));
-      sql_print_error("Failed to delete the row: '%s' from the gtid_executed "
-                      "table.", encode_gtid_text(table).c_str());
+      LogErr(ERROR_LEVEL, ER_FAILED_TO_DELETE_FROM_GTID_EXECUTED_TABLE,
+             encode_gtid_text(table).c_str());
       break;
     }
   }
@@ -897,7 +895,7 @@ static void *compress_gtid_table(void *p_thd)
     /* Compressing the gtid_executed table. */
     if (gtid_state->compress(thd))
     {
-      sql_print_warning("Failed to compress the gtid_executed table.");
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_COMPRESS_GTID_EXECUTED_TABLE);
       /* Clear the error for going to wait for next compression signal. */
       thd->clear_error();
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
@@ -930,8 +928,7 @@ void create_compress_gtid_table_thread()
   THD *thd;
   if (!(thd= new THD))
   {
-    sql_print_error("Failed to compress the gtid_executed table, because "
-                    "it is failed to allocate the THD.");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_COMPRESS_GTID_EXECUTED_TABLE_OOM);
     return;
   }
 
@@ -941,8 +938,8 @@ void create_compress_gtid_table_thread()
 
   if (my_thread_attr_init(&attr))
   {
-    sql_print_error("Failed to initialize thread attribute "
-                    "when creating compression thread.");
+    LogErr(ERROR_LEVEL,
+           ER_FAILED_TO_INIT_THREAD_ATTR_FOR_GTID_TABLE_COMPRESSION);
     delete thd;
     return;
   }
@@ -956,8 +953,8 @@ void create_compress_gtid_table_thread()
                                   &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
   {
-    sql_print_error("Can not create thread to compress gtid_executed table "
-                    "(errno= %d)", error);
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_CREATE_GTID_TABLE_COMPRESSION_THREAD,
+           error);
     /* Delete the created THD after failed to create a compression thread. */
     delete thd;
   }
@@ -987,9 +984,8 @@ void terminate_compress_gtid_table_thread()
   }
 
   if (error != 0)
-    sql_print_warning("Could not join gtid_executed table compression thread. "
-                      "error:%d", error);
+    LogErr(WARNING_LEVEL, ER_FAILED_TO_JOIN_GTID_TABLE_COMPRESSION_THREAD,
+           error);
 
   DBUG_VOID_RETURN;
 }
-

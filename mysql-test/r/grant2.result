@@ -588,6 +588,8 @@ CREATE DEFINER = mysqltest_u3@localhost PROCEDURE mysqltest_db1.p3()
 SELECT * FROM t4 ORDER BY x;
 # We need separate key cache to test CACHE INDEX and LOAD INDEX.
 SET GLOBAL keycache1.key_buffer_size = 128 * 1024;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 CREATE TABLE mysqltest_db2.t2_1(a INT);
 ###########################################################################
 # Check that CREATE_TMP_ACL is enough to issue almost any supported
@@ -904,6 +906,8 @@ DROP TEMPORARY TABLE t9;
 # -- disconnect con3
 # -- disconnect con4
 SET GLOBAL keycache1.key_buffer_size = 0;
+Warnings:
+Warning	1287	keycache1.key_buffer_size syntax is deprecated and will be removed in a future release
 DROP DATABASE mysqltest_db1;
 DROP DATABASE mysqltest_db2;
 DROP USER mysqltest_u1@localhost;

@@ -113,6 +113,8 @@ enum enum_serialization_result
 static enum_serialization_result
 serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
                      String *dest, size_t depth, bool small_parent);
+static void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
+static uint8 offset_size(bool large);
 
 bool serialize(const THD *thd, const Json_dom *dom, String *dest)
 {
@@ -193,17 +195,26 @@ static bool append_offset_or_size(String *dest, size_t offset_or_size,
 static void insert_offset_or_size(String *dest, size_t pos,
                                   size_t offset_or_size, bool large)
 {
-  char *to= const_cast<char*>(dest->ptr()) + pos;
+  DBUG_ASSERT(pos + offset_size(large) <= dest->alloced_length());
+  write_offset_or_size(const_cast<char*>(dest->ptr()) + pos,
+                       offset_or_size, large);
+}
+
+
+/**
+  Write an offset or a size to a char array. The char array is assumed to be
+  large enough to hold an offset or size value.
+
+  @param dest            the array to write to
+  @param offset_or_size  the offset or size to write
+  @param large           if true, use the large storage format
+*/
+static void write_offset_or_size(char *dest, size_t offset_or_size, bool large)
+{
   if (large)
-  {
-    DBUG_ASSERT(pos + LARGE_OFFSET_SIZE <= dest->alloced_length());
-    int4store(to, static_cast<uint32>(offset_or_size));
-  }
+    int4store(dest, static_cast<uint32>(offset_or_size));
   else
-  {
-    DBUG_ASSERT(pos + SMALL_OFFSET_SIZE <= dest->alloced_length());
-    int2store(to, static_cast<uint16>(offset_or_size));
-  }
+    int2store(dest, static_cast<uint16>(offset_or_size));
 }
 
 
@@ -916,7 +927,7 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
     break;
   default:
     /* purecov: begin deadcode */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), "JSON serialization failed");
     return FAILURE;
     /* purecov: end */
@@ -1374,7 +1385,7 @@ Value Value::key(size_t pos) const
   const auto value_entry_size= json_binary::value_entry_size(m_large);
 
   // The key entries are located after two length fields of size offset_size.
-  const size_t entry_offset= 2 * offset_size + key_entry_size * pos;
+  const size_t entry_offset= key_entry_offset(pos);
 
   // The offset of the key is the first part of the key entry.
   const uint32 key_offset= read_offset_or_size(m_data + entry_offset, m_large);
@@ -1426,8 +1437,7 @@ size_t Value::lookup_index(const std::string &key) const
   const auto offset_size= json_binary::offset_size(m_large);
   const auto entry_size= key_entry_size(m_large);
 
-  // The first key entry is located right after the two length fields.
-  const size_t first_entry_offset= 2 * offset_size;
+  const size_t first_entry_offset= key_entry_offset(0);
 
   size_t lo= 0U;                // lower bound for binary search (inclusive)
   size_t hi= m_element_count;   // upper bound for binary search (exclusive)
@@ -1558,7 +1568,7 @@ bool Value::raw_binary(const THD *thd, String *buf) const
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   return true;
   /* purecov: end */
 }
@@ -1783,6 +1793,21 @@ bool Value::has_space(size_t pos, size_t needed, size_t *offset) const
 
 
 /**
+  Get the offset of the key entry that describes the key of the member at a
+  given position in this object.
+
+  @param pos   the position of the member
+  @return the offset of the key entry, relative to the start of the object
+*/
+inline size_t Value::key_entry_offset(size_t pos) const
+{
+  DBUG_ASSERT(m_type == OBJECT);
+  // The first key entry is located right after the two length fields.
+  return 2 * offset_size(m_large) + key_entry_size(m_large) * pos;
+}
+
+
+/**
   Get the offset of the value entry that describes the element at a
   given position in this array or object.
 
@@ -1854,7 +1879,6 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
   All changes made to the binary value are recorded as binary diffs using
   TABLE::add_binary_diff().
 
-  @param thd           THD handle
   @param field         the column that is updated
   @param pos           the element to update
   @param new_value     the new value of the element
@@ -1997,7 +2021,7 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
   The change is represented as one binary diff that changes the value entry
   (type and inlined value).
 */
-bool Value::update_in_shadow(const THD *thd, const Field_json *field,
+bool Value::update_in_shadow(const Field_json *field,
                              size_t pos, Json_wrapper *new_value,
                              size_t data_offset, size_t data_length,
                              const char *original, char *destination) const
@@ -2005,7 +2029,6 @@ bool Value::update_in_shadow(const THD *thd, const Field_json *field,
   DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
 
   const bool inlined= (data_length == 0);
-  DBUG_ASSERT(inlined == (data_offset == 0));
 
   /*
     Create a buffer large enough to hold the new value entry. (Plus one since
@@ -2016,7 +2039,7 @@ bool Value::update_in_shadow(const THD *thd, const Field_json *field,
   if (inlined)
   {
     new_entry.length(value_entry_size(m_large));
-    Json_dom *dom= new_value->to_dom(thd);
+    Json_dom *dom= new_value->to_dom(field->table->in_use);
     if (dom == nullptr)
       return true;                              /* purecov: inspected */
     attempt_inline_value(dom, &new_entry, 0, m_large);
@@ -2031,7 +2054,7 @@ bool Value::update_in_shadow(const THD *thd, const Field_json *field,
     char *value_dest= destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(thd, &buffer))
+    if (new_value->to_binary(field->table->in_use, &buffer))
       return true;                              /* purecov: inspected */
 
     DBUG_ASSERT(buffer.length() > 1);
@@ -2073,6 +2096,172 @@ bool Value::update_in_shadow(const THD *thd, const Field_json *field,
 
 
 /**
+  Remove a value from an array or object. The updated JSON document is written
+  to a shadow copy. The original document is left unchanged, unless the shadow
+  copy is actually a pointer to the array backing this Value object. It is
+  assumed that the shadow copy is at least as big as the original document, and
+  that there is enough space at the given position to hold the new value.
+
+  Typically, if a document is modified multiple times in a single update
+  statement, the first invocation of remove_in_shadow() will have a Value
+  object that points into the binary data in the Field, and write to a separate
+  destination buffer. Subsequent updates of the document will have a Value
+  object that points to the partially updated value in the destination buffer,
+  and write the new modifications to the same buffer.
+
+  All changes made to the binary value are recorded as binary diffs using
+  TABLE::add_binary_diff().
+
+  @param field         the column that is updated
+  @param pos           the element to remove
+  @param original      pointer to the start of the JSON document
+  @param destination   pointer to the shadow copy of the JSON document
+                       (it could be the same as @a original, in which case the
+                       original document will be modified)
+  @return false on success, true if an error occurred
+
+  @par Example of partial update
+
+  Take the JSON document { "a": "x", "b": "y", "c": "z" }, whose serialized
+  representation looks like the following:
+
+              0x00 - type: JSONB_TYPE_SMALL_OBJECT
+              0x03 - number of elements (low byte)
+              0x00 - number of elements (high byte)
+              0x22 - number of bytes (low byte)
+              0x00 - number of bytes (high byte)
+              0x19 - offset of key "a" (high byte)
+              0x00 - offset of key "a" (low byte)
+              0x01 - length of key "a" (high byte)
+              0x00 - length of key "a" (low byte)
+              0x1a - offset of key "b" (high byte)
+              0x00 - offset of key "b" (low byte)
+              0x01 - length of key "b" (high byte)
+              0x00 - length of key "b" (low byte)
+              0x1b - offset of key "c" (high byte)
+              0x00 - offset of key "c" (low byte)
+              0x01 - length of key "c" (high byte)
+              0x00 - length of key "c" (low byte)
+              0x0c - type of value "a": JSONB_TYPE_STRING
+              0x1c - offset of value "a" (high byte)
+              0x00 - offset of value "a" (low byte)
+              0x0c - type of value "b": JSONB_TYPE_STRING
+              0x1e - offset of value "b" (high byte)
+              0x00 - offset of value "b" (low byte)
+              0x0c - type of value "c": JSONB_TYPE_STRING
+              0x20 - offset of value "c" (high byte)
+              0x00 - offset of value "c" (low byte)
+              0x61 - first key  ('a')
+              0x62 - second key ('b')
+              0x63 - third key  ('c')
+              0x01 - length of value "a"
+              0x78 - contents of value "a" ('x')
+              0x01 - length of value "b"
+              0x79 - contents of value "b" ('y')
+              0x01 - length of value "c"
+              0x7a - contents of value "c" ('z')
+
+  We remove the member with name 'b' from the document, using a statement such
+  as:
+
+      UPDATE t SET j = JSON_REMOVE(j, '$.b')
+
+  This function will then remove the element by moving the key entries and
+  value entries that follow the removed member so that they overwrite the
+  existing entries, and the element count is decremented.
+
+  The resulting binary document will look like this:
+
+              0x00 - type: JSONB_TYPE_SMALL_OBJECT
+      CHANGED 0x02 - number of elements (low byte)
+              0x00 - number of elements (high byte)
+              0x22 - number of bytes (low byte)
+              0x00 - number of bytes (high byte)
+              0x19 - offset of key "a" (high byte)
+              0x00 - offset of key "a" (low byte)
+              0x01 - length of key "a" (high byte)
+              0x00 - length of key "a" (low byte)
+      CHANGED 0x1b - offset of key "c" (high byte)
+      CHANGED 0x00 - offset of key "c" (low byte)
+      CHANGED 0x01 - length of key "c" (high byte)
+      CHANGED 0x00 - length of key "c" (low byte)
+      CHANGED 0x0c - type of value "a": JSONB_TYPE_STRING
+      CHANGED 0x1c - offset of value "a" (high byte)
+      CHANGED 0x00 - offset of value "a" (low byte)
+      CHANGED 0x0c - type of value "c": JSONB_TYPE_STRING
+      CHANGED 0x20 - offset of value "c" (high byte)
+      CHANGED 0x00 - offset of value "c" (low byte)
+      (free)  0x00
+      (free)  0x0c
+      (free)  0x1e
+      (free)  0x00
+      (free)  0x0c
+      (free)  0x20
+      (free)  0x00
+              0x61 - first key  ('a')
+      (free)  0x62
+              0x63 - third key  ('c')
+              0x01 - length of value "a"
+              0x78 - contents of value "a" ('x')
+      (free)  0x01
+      (free)  0x79
+              0x01 - length of value "c"
+              0x7a - contents of value "c" ('z')
+
+  Two binary diffs will be created. One diff changes the element count, and one
+  diff changes the key and value entries.
+*/
+bool Value::remove_in_shadow(const Field_json *field, size_t pos,
+                             const char *original, char *destination) const
+{
+  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+
+  const char *value_entry= m_data + value_entry_offset(pos);
+  const char *next_value_entry= value_entry + value_entry_size(m_large);
+
+  /*
+    If it's an object, we first remove the key entry by shifting all subsequent
+    key entries to the left, and also all value entries up to the one that's
+    being removed.
+  */
+  if (m_type == OBJECT)
+  {
+    const char *key_entry= m_data + key_entry_offset(pos);
+    const char *next_key_entry= key_entry + key_entry_size(m_large);
+    size_t len= value_entry - next_key_entry;
+    memmove(destination + (key_entry - original), next_key_entry, len);
+    if (field->table->add_binary_diff(field, key_entry - original, len))
+      return true;                              /* purecov: inspected */
+
+    /*
+      Adjust the destination of the value entry to account for the removed key
+      entry.
+    */
+    value_entry-= key_entry_size(m_large);
+  }
+
+  /*
+    Next, remove the value entry by shifting all subsequent value entries to
+    the left.
+  */
+  const char *value_entry_end= m_data + value_entry_offset(m_element_count);
+  size_t len= value_entry_end - next_value_entry;
+  memmove(destination + (value_entry - original), next_value_entry, len);
+  if (field->table->add_binary_diff(field, value_entry - original, len))
+    return true;                                /* purecov: inspected */
+
+  /*
+    Finally, update the element count.
+  */
+  write_offset_or_size(destination + (m_data - original),
+                       m_element_count - 1, m_large);
+  return field->table->add_binary_diff(field,
+                                       m_data - original,
+                                       offset_size(m_large));
+}
+
+
+/**
   Get the amount of unused space in the binary representation of this value.
 
   @param      thd    THD handle
@@ -2091,6 +2280,25 @@ bool Value::get_free_space(const THD *thd, size_t *space) const
   default:
     // Scalars don't have any holes, so return immediately.
     return false;
+  }
+
+  if (m_type == OBJECT)
+  {
+    // The first key should come right after the last value entry.
+    const char *next_key= m_data + value_entry_offset(m_element_count);
+
+    // Sum up all unused space between keys.
+    for (size_t i= 0; i < m_element_count; ++i)
+    {
+      Value key= this->key(i);
+      if (key.type() == ERROR)
+      {
+        my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+        return true;
+      }
+      *space+= key.get_data() - next_key;
+      next_key= key.get_data() + key.get_data_length();
+    }
   }
 
   size_t next_value_offset;

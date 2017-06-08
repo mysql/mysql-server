@@ -186,9 +186,9 @@ only_mts_slave_parallel_type_logical_clock.inc
 only_mts_slave_parallel_type_database.inc
 not_mts_slave_parallel_workers.inc
 # 14.2 rpl misc files
-not_master_info_table.inc
-not_relay_log_info_table.inc
-have_slave_repository_type_file.inc
+have_slave_repository_type_table.inc
+not_relay_log_info_file.inc
+not_master_info_file.inc
 
 # 15.0 With QC enabled additional code paths are activated which will change
 # performance schema output.

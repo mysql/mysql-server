@@ -1415,7 +1415,7 @@ longlong Item_func_weekday::val_int()
 
   return (longlong) calc_weekday(calc_daynr(ltime.year, ltime.month,
                                             ltime.day),
-                                 odbc_type) + MY_TEST(odbc_type);
+                                 odbc_type) + odbc_type;
 }
 
 bool Item_func_dayname::resolve_type(THD *thd)
@@ -2509,7 +2509,7 @@ bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
    See item_timefunc.h
  */
 
-static const char *interval_names[]=
+const char *interval_names[]=
 {
   "year", "quarter", "month", "week", "day",  
   "hour", "minute", "second", "microsecond",
