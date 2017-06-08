@@ -129,14 +129,14 @@ class Abstract_table;
   @page AUTHORIZATION_PAGE Authorization IDs, roles and users
 
   @section AUTHORIZATION_ID Authentication ID
-  @subsection DEFINITION Definition
+  @subsection AUTH_ID_DEFINITION Definition
  Each row in the mysql.user table is identified by a user and host tuple. This
  tuple is the authorization ID.
  A client can authenticate with an authorization ID and a password. The ID is
  then referred to as a user or user name.
 
   @section AUTHORIZATION_PRIVILEGES Privileges ID
-  @subsection DEFINITION Definition
+  @subsection AUTH_PRIV_DEFINITION Definition
  A privilege ID is a named token which can be granted to an authorization ID.
 
  A privilege can either be effective or not effective. An effective privilege is
@@ -145,7 +145,7 @@ class Abstract_table;
  privileges are effective.
 
   @section AUTHORIZATION_ROLES Roles
-  @subsection DEFINITION Definition
+  @subsection AUTH_ROLES_DEFINITION Definition
  A role is an authorization ID which can be granted to another authorization ID
  by forming an directed edge between them in the role graph where every vertex
  is a unique authorization ID. When the effective privilege is calculated, all
