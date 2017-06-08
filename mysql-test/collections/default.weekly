@@ -77,9 +77,6 @@ perl mysql-test-run.pl --debug-server --timer --force --big-test --testcase-time
 # Run innodb suite with innodb-page-size=8k
 perl mysql-test-run.pl --debug-server --timer --force  --parallel=auto --comment=innodb-page-size-8k --vardir=var-innodb-page-size-8k --experimental=collections/default.experimental  --mysqld=--innodb-page-size=8k --suite=innodb --no-skip
 
-# Run innodb_undo suite with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --debug-server --timer --force   --parallel=auto --comment=innodb_undo-2 --vardir=var-innodb-undo-2 --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=innodb_undo-3-64k --vardir=var-innodb-undo-3-64k --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_rollback_segments=35 --big-test
 ####END OF SECTION4(EXTENDED INNODB) ####################
 ####### END OF SECTION - REPEAT DAILY###############################
 
