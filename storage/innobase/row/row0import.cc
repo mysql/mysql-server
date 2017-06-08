@@ -3932,6 +3932,9 @@ row_import_for_mysql(
 	DBUG_EXECUTE_IF("ib_import_internal_error",
 			trx->error_state = DB_ERROR;
 			err = DB_ERROR;
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_INTERNAL_ERROR,
+				"While importing table %s", table->name.m_name);
 			return(row_import_error(prebuilt, trx, err)););
 
 	table->ibd_file_missing = false;
