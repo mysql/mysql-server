@@ -664,22 +664,21 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       {
         binlog_stmt= true;
         binlog_is_trans= table_ref->table->file->has_transactions();
-        /*
-          Call to handler_truncate() might have updated table definition
-          in the data-dictionary, let us remove TABLE_SHARE from the TDC.
-        */
-        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
       else
       {
         binlog_stmt= false;
         binlog_is_trans= false; // Safety.
 
-        /* FIXME: Runtime need to check if following close table is Ok */
-	if (table_ref->table)
-        {
-          close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
-        }
+      }
+
+      /*
+        Call to handler_truncate() might have updated table definition
+        in the data-dictionary, let us remove TABLE_SHARE from the TDC.
+      */
+      if (table_ref->table)
+      {
+        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
     }
 
