@@ -15533,7 +15533,7 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
     ndbrequire(fragptr.p->activeTcCounter == 0);
     if (!DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
         fragptr.p->lcpFlag == Fragrecord::LCP_STATE_TRUE &&
-        (c_backup->is_partial_lcp_enabled() || true) &&
+        (c_backup->is_partial_lcp_enabled()) &&
         !c_full_local_lcp_started)
     {
       jam();
