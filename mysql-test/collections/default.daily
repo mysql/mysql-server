@@ -21,8 +21,6 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --para
 # Run default suites with ps protocol
 perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps  --ps-protocol
 
-#Run with Query Cache Enabled
-perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental  --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M --no-skip
 ############END OF SECTION1(DEFAULT SUITES) ######################
 
 
