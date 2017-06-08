@@ -23,7 +23,7 @@
 
 #define JAM_FILE_ID 426
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -37,14 +37,14 @@
 #define DEB_PGMAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_EXTENT_BITS 1
+//#define DEBUG_EXTENT_BITS 1
 #ifdef DEBUG_EXTENT_BITS
 #define DEB_EXTENT_BITS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_EXTENT_BITS(arglist) do { } while (0)
 #endif
 
-#define DEBUG_EXTENT_BITS_HASH 1
+//#define DEBUG_EXTENT_BITS_HASH 1
 #ifdef DEBUG_EXTENT_BITS_HASH
 #define DEB_EXTENT_BITS_HASH(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

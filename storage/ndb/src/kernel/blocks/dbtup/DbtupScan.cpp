@@ -42,7 +42,7 @@
 #define DEB_NR_SCAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x

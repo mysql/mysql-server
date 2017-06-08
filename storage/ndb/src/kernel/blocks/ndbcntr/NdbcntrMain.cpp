@@ -77,21 +77,21 @@
 
 extern EventLogger * g_eventLogger;
 
-#define DEBUG_LOCAL_SYSFILE 1
+//#define DEBUG_LOCAL_SYSFILE 1
 #ifdef DEBUG_LOCAL_SYSFILE
 #define DEB_LOCAL_SYSFILE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LOCAL_SYSFILE(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_UNDO 1
+//#define DEBUG_UNDO 1
 #ifdef DEBUG_UNDO
 #define DEB_UNDO(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

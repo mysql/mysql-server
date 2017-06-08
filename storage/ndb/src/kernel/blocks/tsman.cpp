@@ -47,14 +47,14 @@ static bool g_use_old_format = false;
 #define DEB_TSMAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_TSMAN_NUM_EXTENTS 1
+//#define DEBUG_TSMAN_NUM_EXTENTS 1
 #ifdef DEBUG_TSMAN_NUM_EXTENTS
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_TSMAN_NUM_EXTENTS(arglist) do { } while (0)
 #endif
 
-#define DEBUG_TSMAN_RESTART 1
+//#define DEBUG_TSMAN_RESTART 1
 #ifdef DEBUG_TSMAN_RESTART
 #define DEB_TSMAN_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2193,9 +2193,11 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
     Uint32 *ext_table_id = page->get_table_id(val.m_extent_no,
                                               val.m_extent_size,
                                               v2);
+#ifdef DEBUG_TSMAN_NUM_EXTENTS
     Uint32 *ext_fragment_id = page->get_fragment_id(val.m_extent_no,
                                                     val.m_extent_size,
                                                     v2);
+#endif
     Uint32 *ext_next_free_extent = page->get_next_free_extent(
                                               val.m_extent_no,
                                               val.m_extent_size,

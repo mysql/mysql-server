@@ -27,7 +27,7 @@
 
 extern EventLogger * g_eventLogger;
 
-#define DEBUG_TUP_RESTART_ 1
+//#define DEBUG_TUP_RESTART_ 1
 #ifdef DEBUG_TUP_RESTART
 #define DEB_TUP_RESTART(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else

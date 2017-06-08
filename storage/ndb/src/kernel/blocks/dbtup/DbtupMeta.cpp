@@ -51,7 +51,7 @@
 
 extern EventLogger * g_eventLogger;
 
-#define DEBUG_TUP_META
+//#define DEBUG_TUP_META
 #ifdef DEBUG_TUP_META
 #define DEB_TUP_META(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -2218,7 +2218,10 @@ Dbtup::drop_table_log_buffer_callback(Signal* signal, Uint32 tablePtrI,
     Logfile_client lgman(this, c_lgman, logfile_group_id);
   
     Logfile_client::Change c[1] = {{ &drop, sizeof(drop) >> 2 } };
-    Uint64 lsn = lgman.add_entry_simple(c, 1, sz);
+#ifdef DEBUG_TUP_META
+    Uint64 lsn =
+#endif
+      lgman.add_entry_simple(c, 1, sz);
     jamEntry();
 
     DEB_TUP_META(("Add UNDO_TUP_DROP in lsn: %llu for tab: %u",
