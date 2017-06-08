@@ -1306,14 +1306,12 @@ fi
 %endif # cluster
 
 %changelog
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 release
+
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
 - Add keyring_aws plugin and UDF components
-
-* Wed May 24 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.2-0.1
-- Add component_test_sys_var_service_int.so
-- Add component_test_sys_var_service.so
-- Add component_test_sys_var_service_same.so
-- Add component_test_sys_var_service_str.so
+- Add component_test_sys_var_service plugins
 
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin
