@@ -2,6 +2,7 @@
 # WL#6965: Truncate UNDO logs.
 #
 
+--source include/not_valgrind.inc
 --source include/big_test.inc
 
 #-----------------------------------------------------------------------------
