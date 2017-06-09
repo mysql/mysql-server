@@ -528,7 +528,7 @@ public:
                  TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , m_first_fragment(false), prepare_table(tp), tables(tp), triggers(trp), files(bp)
-      , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
+      , ctlFilePtr(RNIL), logFilePtr(RNIL)
       , masterData(b), backup(b)
 
       {
@@ -545,6 +545,11 @@ public:
         m_informDropTabTableId = Uint32(~0);
         m_informDropTabReference = Uint32(~0);
         currentDeleteLcpFile = RNIL;
+        for (Uint32 i = 0; i < BackupFormat::NDB_MAX_FILES_PER_LCP; i++)
+        {
+          dataFilePtr[i] = RNIL;
+          prepareDataFilePtr[i] = RNIL;
+        }
       }
     
     /* prev time backup status was reported */
@@ -573,13 +578,11 @@ public:
     Uint32 prepareDeleteCtlFileNumber;
     Uint32 prepareMaxGciWritten;
     PrepareState prepareState;
-    Uint32 prepareDataFileNumber;
+    Uint32 prepareFirstDataFileNumber;
     Uint32 preparePrevLcpId;
     Uint32 preparePrevLocalLcpId;
     Uint32 prepareErrorCode;
     Table_fifo prepare_table;
-    Uint32 prepareCtlFilePtr[2];  // Ptr.i to ctl-file for LCP prepare
-    Uint32 prepareDataFilePtr; // Ptr.i for data-file prepare LCP
     Uint32 m_prepare_scan_change_gci;
     Uint32 m_prepare_first_start_part_in_lcp;
     Uint32 m_prepare_num_parts_in_lcp;
@@ -608,7 +611,6 @@ public:
     Uint32 m_first_start_part_in_lcp;
     Uint32 m_num_parts_in_lcp;
     Uint32 m_max_parts_in_lcp;
-    Uint32 m_lcp_rounds;
     Uint32 m_lcp_current_page_scanned;
     Uint32 m_lcp_max_page_cnt;
     Uint32 m_scan_change_gci;
@@ -693,7 +695,10 @@ public:
     BackupFile_list files;
     Uint32 ctlFilePtr;  // Ptr.i to ctl-file (LCP and Backup)
     Uint32 logFilePtr;  // Ptr.i to log-file (Only backup)
-    Uint32 dataFilePtr; // Ptr.i to first data-file (LCP and Backup)
+    Uint32 dataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP];
+      // Ptr.i to first data-file (LCP and Backup)
+    Uint32 prepareDataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP]; // Only LCP
+    Uint32 prepareCtlFilePtr[2];  // Ptr.i to ctl-file for LCP prepare
     
     Uint32 backupDataLen;  // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
@@ -1191,7 +1196,6 @@ public:
   static bool g_is_backup_running;
 
   void get_page_info(BackupRecordPtr,
-                     Uint32 current_lcp_round,
                      Uint32 part_id,
                      Uint32 & scanGCI,
                      bool & skip_flag,
