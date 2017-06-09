@@ -1551,6 +1551,25 @@ void update_variable_source(const char* opt_name, const char* value)
     if (ret.second == false)
       variables_hash[var_name]= source;
   }
+  else if (!no_defaults)
+  {
+    /* if path is not present add it to the defaults path hash */
+    if (my_defaults_file)
+    {
+      default_paths[path]= enum_variable_source::EXPLICIT;
+      update_variable_source(opt_name, value);
+    }
+    else if (my_defaults_extra_file)
+    {
+      default_paths[path]= enum_variable_source::EXTRA;
+      update_variable_source(opt_name, value);
+    }
+    else if (my_login_path)
+    {
+      default_paths[path]= enum_variable_source::LOGIN;
+      update_variable_source(opt_name, value);
+    }
+  }
 }
 
 /**
