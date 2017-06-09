@@ -52,4 +52,5 @@ SELECT @@test_component.int_sys_var;
 SELECT @@test_component.str_sys_var;
 @@test_component.str_sys_var
 NULL
+RESET PERSIST;
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
