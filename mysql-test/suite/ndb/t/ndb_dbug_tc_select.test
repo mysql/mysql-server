@@ -5,10 +5,6 @@
 
 --source suite/ndb/include/turn_off_ndb_read_backup.inc
 
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
-
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
 # make ndb nodes die if correct tc is not selected
@@ -17,8 +13,18 @@ drop table if exists t1,t2;
 --echo # Test tc select with 2-way joins with unique lookups
 --echo #
 
-create table t1 (a int key, b int) engine ndb;
-create table t2 (a int, b int, c int, d int, primary key(a,b), unique(d)) engine ndb partition by key(a);
+create table t1 (
+  a int key,
+  b int
+) charset latin1 engine ndb;
+create table t2 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b),
+  unique(d)
+) charset latin1 engine ndb partition by key(a);
 --disable_query_log
 --disable_result_log
 let $i= 100;
@@ -76,8 +82,17 @@ drop table t1,t2;
 --echo # Test tc select with 2-way joins with scan followed by unique lookup
 --echo #
 
-create table t1 (a int, b int, primary key(a,b)) engine ndb partition by key (a);
-create table t2 (a int, b int, c int, primary key(a,b)) engine ndb partition by key (a);
+create table t1 (
+  a int,
+  b int,
+  primary key(a,b)
+) charset latin1 engine ndb partition by key (a);
+create table t2 (
+  a int,
+  b int,
+  c int,
+  primary key(a,b)
+) charset latin1 engine ndb partition by key (a);
 
 --disable_query_log
 --disable_result_log
