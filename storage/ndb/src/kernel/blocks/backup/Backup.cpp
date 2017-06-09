@@ -4434,7 +4434,10 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
           break;
       }
       Page32Ptr pagePtr;
-      g_eventLogger->info("LCP: instance: %u, i: %u, seize %u pages", instance(), i, noOfPagesLcp);
+      DEB_LCP(("LCP: instance: %u, i: %u, seize %u pages",
+               instance(),
+               i,
+               noOfPagesLcp));
       ndbrequire(files[i].p->pages.seize(noOfPagesLcp));
       files[i].p->pages.getPtr(pagePtr, 0);
       const char * msg = files[i].p->
@@ -6294,28 +6297,35 @@ Backup::hash_lcp_part(Uint32 page_id) const
 {
   /**
    * To ensure proper operation also with small number of pages
-   * we make a complete bit reorder of the 9 least significant
+   * we make a complete bit reorder of the 11 least significant
    * bits of the page id and returns this as the part id to use.
    * This means that for e.g. 8 pages we get the following parts
    * used:
-   * 0: 0, 1: 256, 2: 128, 3: 384, 4: 64, 5: 318, 6: 192, 7: 448
+   * 0: 0, 1: 1024, 2: 512, 3: 1536, 4: 256, 5: 1280, 6: 768, 7: 1792
    *
    * This provides a fairly good spread also of small number of
    * pages into the various parts.
    *
-   * We implement this bit reorder by handling 3 sets of 3 bits.
-   * Each 3 bit set is reversed using a simple statis lookup
-   * table and then the result of those 3 lookups is put back
+   * We implement this bit reorder by handling 4 sets of 3 bits,
+   * except for the highest bits where we only use 2 bits.
+   * Each 3 bit set is reversed using a simple static lookup
+   * table and then the result of those 4 lookups is put back
    * into the hash value in reverse order.
+   *
+   * As a final step we remove bit 0 which is always 0 since we
+   * only use 11 bits and not 12 bits.
    */
   static Uint32 reverse_3bits_array[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
-  const Uint32 low_3bits_page_id = page_id & 7;
-  const Uint32 mid_3bits_page_id = (page_id >> 3) & 7;
+  const Uint32 lowest_3bits_page_id = page_id & 7;
+  const Uint32 low_3bits_page_id = (page_id >> 3) & 7;
   const Uint32 high_3bits_page_id = (page_id >> 6) & 7;
+  const Uint32 highest_3bits_page_id = (page_id >> 9) & 3;
   Uint32 part_id =
-    reverse_3bits_array[high_3bits_page_id] +
-    (reverse_3bits_array[mid_3bits_page_id] << 3) +
-    (reverse_3bits_array[low_3bits_page_id] << 6);
+    reverse_3bits_array[highest_3bits_page_id] +
+    (reverse_3bits_array[high_3bits_page_id] << 3) +
+    (reverse_3bits_array[low_3bits_page_id] << 6) +
+    (reverse_3bits_array[lowest_3bits_page_id] << 9);
+  part_id >>= 1;
   return part_id;
 }
 
@@ -8430,8 +8440,8 @@ Backup::execFSREMOVECONF(Signal* signal)
  * be recorded in the LCP as a changed row.
  *
  * At start of a partial LCP we decide the number of parts to checkpoint
- * fully, currently we have divided the page id range into 512 different
- * parts. We can checkpoint anything between 1 to 512 parts in one
+ * fully, currently we have divided the page id range into 2048 different
+ * parts. We can checkpoint anything between 1 to 2048 parts in one
  * partial LCP, this is driven by data size of fragment and change percentage.
  *
  * Definition: The set of rows where we record all rows are called ALL ROWS.
@@ -8447,12 +8457,12 @@ Backup::execFSREMOVECONF(Signal* signal)
  * and DELETE BY ROWID and DELETE BY PAGEID (DELETE by ROWID for all rows in a
  * page) operations which must be applied.
  *
- * For partial LCP we divide up the range of pages into 512 parts using a hash
+ * For partial LCP we divide up the range of pages into 2048 parts using a hash
  * function on page id. For a specific LCP we will have one set of parts that
  * are checkpointed in the ALL ROWS part and the rest is checkpointed in the
  * CHANGE ROWS part.
  *
- * To restore we need to perform the following for each of the 512 parts.
+ * To restore we need to perform the following for each of the 2048 parts.
  * 1) Find the last LCP where this part belonged to the ALL ROWS part.
  * 2) Restore this part from this LCP.
  * 3) For each of the LCP after that up to the LCP we are restoring we will
@@ -9104,7 +9114,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  *
  * What we do here is that we divide the LCP of each fragment into several
  * files. We will write each of those files in sequential order. Assume that
- * we have 512 parts and that this LCP is to record 256 of those parts starting
+ * we have 2048 parts and that this LCP is to record 256 of those parts starting
  * at part 100. Assume that we divide this LCP into 4 files.
  *
  * The first file will record all rows from part 100-163, the second will
@@ -11366,16 +11376,16 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *    overhead in files will give diminishing return for partial LCPs.
    *    So e.g. if a fragment has 768 kBytes of data in it, this means
    *    that we will never split it up into more than 6 parts, so with
-   *    a maximum of 512 parts we will always write at least 85 parts
+   *    a maximum of 2048 parts we will always write at least 340 parts
    *    in an LCP which isn't empty.
    *
    *    So rule 3 will select number of parts to be
-   *    number of parts = 512 * 128 kByte / Size.
+   *    number of parts = 2048 * 128 kByte / Size.
    *    So e.g. if Size = 1 MByte we will select minimum parts to be
    *    32.
    *
    *  4) First LCP on  fragment must always be a full LCP.
-   *     Rule 4 is 512 parts when first LCP, otherwise it is 0.
+   *     Rule 4 is 2048 parts when first LCP, otherwise it is 0.
    *
    * In conclusion we will select the rule that returns the highest number
    * of parts.

@@ -6397,12 +6397,12 @@ void Ndbcntr::sendLCP_ALL_COMPLETE_CONF(Signal *signal)
   DEB_LCP(("Send LCP_ALL_COMPLETE_CONF"));
   signal->theData[0] = m_distributed_lcp_id;
   send_to_all_lqh(signal, GSN_LCP_ALL_COMPLETE_CONF, 1);
-  g_eventLogger->info("Distributed LCP id %u complete in this node,"
-                      " max GCI in LCP = %u, also cut UNDO log tail"
-                      " and REDO log tail to keepGCI = %u",
-                      m_distributed_lcp_id,
-                      m_max_gci_in_lcp,
-                      m_max_keep_gci);
+  g_eventLogger->debug("Distributed LCP id %u complete in this node,"
+                       " max GCI in LCP = %u, also cut UNDO log tail"
+                       " and REDO log tail to keepGCI = %u",
+                       m_distributed_lcp_id,
+                       m_max_gci_in_lcp,
+                       m_max_keep_gci);
   m_distributed_lcp_started = false;
   m_distributed_lcp_id = 0;
   m_max_gci_in_lcp = 0;
