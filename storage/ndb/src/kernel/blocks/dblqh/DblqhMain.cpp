@@ -14340,7 +14340,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
    */
   seizeTcrec();
   tcConnectptr.p->clientBlockref = userRef;
-
   
   /**
    * Remove implicit cast/usage of CopyFragReq
@@ -16856,7 +16855,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
                  m_curr_local_lcp_id));
         ndbrequire(c_lcpId == m_curr_lcp_id);
       }
-      g_eventLogger->info("(%u)Starting distributed LCP(%u,%u)",
+      g_eventLogger->debug("(%u)Starting distributed LCP(%u,%u)",
                           instance(),
                           m_curr_lcp_id,
                           m_curr_local_lcp_id);

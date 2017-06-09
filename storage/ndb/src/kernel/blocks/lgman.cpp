@@ -3451,7 +3451,7 @@ Lgman::level_report_thread(Signal *signal, Ptr<Logfile_group> lg_ptr)
     {
       jam();
       lg_ptr.p->m_count_since_last_report = 0;
-      g_eventLogger->info("UNDO log level reached %u percent",
+      g_eventLogger->debug("UNDO log level reached %u percent",
                           Uint32(free_level));
       lg_ptr.p->m_last_log_level_reported = Uint32(free_level);
       UndoLogLevelRep *rep = (UndoLogLevelRep*)signal->getDataPtrSend();

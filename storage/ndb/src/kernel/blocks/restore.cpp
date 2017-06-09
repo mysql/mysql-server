@@ -1348,12 +1348,12 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
       lcpCtlFilePtr->MaxPageCount == 0)
   {
     jam();
-    g_eventLogger->info("Found empty LCP control file, "
-                        "must have been created by earlier restart,"
-                        " tab(%u,%u), CTL file: %u",
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        file_ptr.p->m_ctl_file_no);
+    g_eventLogger->debug("Found empty LCP control file, "
+                         "must have been created by earlier restart,"
+                         " tab(%u,%u), CTL file: %u",
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         file_ptr.p->m_ctl_file_no);
 
     /**
      * An empty initialised LCP control file was found, this must have
@@ -1375,11 +1375,11 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
       (lcpCtlFilePtr->FragmentId != file_ptr.p->m_fragment_id))
   {
     jam();
-    g_eventLogger->info("LCP Control file inconsistency, tab(%u,%u)"
-                        ", CTL file: %u",
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        file_ptr.p->m_ctl_file_no);
+    g_eventLogger->debug("LCP Control file inconsistency, tab(%u,%u)"
+                         ", CTL file: %u",
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         file_ptr.p->m_ctl_file_no);
     ndbrequire(!file_ptr.p->m_found_not_restorable);
     close_file(signal, file_ptr, true);
     return;
@@ -1412,20 +1412,20 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
       c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id))
   {
     jam();
-    g_eventLogger->info("(%u)Found LCP control file from old table"
-                        ", drop table haven't cleaned up properly"
-                        ", tab(%u,%u).%u (now %u), createGci:%u,"
-                        " maxGciCompleted: %u"
-                        ", maxGciWritten: %u, restored createGci: %u",
-                        instance(),
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        createTableVersion,
-                        c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id),
-                        createGci,
-                        maxGciCompleted,
-                        maxGciWritten,
-                        file_ptr.p->m_create_gci);
+    g_eventLogger->debug("(%u)Found LCP control file from old table"
+                         ", drop table haven't cleaned up properly"
+                         ", tab(%u,%u).%u (now %u), createGci:%u,"
+                         " maxGciCompleted: %u"
+                         ", maxGciWritten: %u, restored createGci: %u",
+                         instance(),
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         createTableVersion,
+                         c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id),
+                         createGci,
+                         maxGciCompleted,
+                         maxGciWritten,
+                         file_ptr.p->m_create_gci);
     file_ptr.p->m_status = File::DROP_OLD_FILES;
     file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no == 0 ? 1 : 0;
     file_ptr.p->m_remove_data_file_no = 0;
@@ -1459,16 +1459,16 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
      * but not yet had time to sync the LSN for the LCP. This is flagged
      * by the validFlag not being set in the LCP control file.
      */
-    g_eventLogger->info("(%u)LCP Control file ok, but not recoverable,"
-                        " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
-                        ", CTL file: %u, validFlag: %u",
-                        instance(),
-                        file_ptr.p->m_table_id,
-                        file_ptr.p->m_fragment_id,
-                        maxGciWritten,
-                        file_ptr.p->m_restored_gcp_id,
-                        file_ptr.p->m_ctl_file_no,
-                        validFlag);
+    g_eventLogger->debug("(%u)LCP Control file ok, but not recoverable,"
+                         " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
+                         ", CTL file: %u, validFlag: %u",
+                         instance(),
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         maxGciWritten,
+                         file_ptr.p->m_restored_gcp_id,
+                         file_ptr.p->m_ctl_file_no,
+                         validFlag);
     ndbrequire(file_ptr.p->m_ctl_file_no == 0 ||
                file_ptr.p->m_used_ctl_file_no != Uint32(~0));
     ndbrequire(!file_ptr.p->m_found_not_restorable);
