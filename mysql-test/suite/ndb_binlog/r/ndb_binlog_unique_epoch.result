@@ -1,14 +1,14 @@
 alter table mysql.ndb_binlog_index drop primary key;
 use test;
 create table t1 (a int) engine=ndb;
-create procedure ins (rows int)
+create procedure ins (`rows` int)
 begin
 set @x = 0;
 repeat
 insert into t1 values (1);
 set @x = @x + 1;
-until @x = rows
-end repeat;
+until @x = `rows`
+  end repeat;
 end%
 call ins(10000);
 Duplicate epochs according to mysql.ndb_binlog_index

@@ -48,7 +48,7 @@ while (`select count(*) from table_names`)
                        where TABLE_NAME = @test_table and
                              TABLE_SCHEMA='ndbinfo' and
                              ORDINAL_POSITION = $c`;
-    eval select $col_name from $test_table;
+    eval select `$col_name` from $test_table;
 
     dec $c;
   }

@@ -43,7 +43,7 @@ START SLAVE;
 --disable_result_log
 
 create temporary table error_log (
-  row int auto_increment primary key,
+  `row` int auto_increment primary key,
   suspicious int default 1,
   file_name varchar(255),
   line varchar(1024) default null
