@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> mysql-5.6-cluster-7.4
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -245,19 +249,6 @@ namespace AQP
     DBUG_ENTER("Table_access::compute_type_and_index");
     const QEP_TAB* const qep_tab= get_qep_tab();
     JOIN* const join= qep_tab->join();
-
-    /**
-     * OLEJA: I think this restriction can be removed
-     * now as WL5558 and other changes has cleaned up the 
-     * ORDER/GROUP BY optimize + execute path.
-     */
-    if (join->group_list && !join->tmp_table_param.quick_group)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "GROUP BY cannot be done using index on grouped columns.";
-      DBUG_VOID_RETURN;
-    }
 
     /* Tables below 'const_tables' has been const'ified, or entirely
      * optimized away due to 'impossible WHERE/ON'

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,6 +104,7 @@ then
 	$mysql -uroot -e "create database ${pre}_innodb ${charset_spec}; create database ${pre}_ndb ${charset_spec}"
 	${gendata} --dsn=$dsn ${data}
 cat > /tmp/sproc.$$ <<EOF
+
 DROP PROCEDURE IF EXISTS copydb;
 delimiter |;
 CREATE PROCEDURE copydb(dstdb varchar(64), srcdb varchar(64),
@@ -295,6 +296,7 @@ BEGIN
 END
 \G
 
+DROP PROCEDURE IF EXISTS analyzedb\G
 CREATE PROCEDURE analyzedb(db varchar(64))
 BEGIN
 
@@ -453,7 +455,7 @@ do
 	echo "--eval set ndb_join_pushdown='\$NDB_JOIN_PUSHDOWN';"
 	echo "$ecp"
 	${gensql} --seed=$us --queries=$queries --dsn=$dsn --grammar=$grammar|
-        awk '{ print "--sorted_result"; print "--error 0,233,1242,4006"; print; }'
+        awk '{ print "--sorted_result"; print "--error 0,233,1055,1242,4006"; print; }'
 	echo "--exit"
     ) > ${opre}_test.sql
 
