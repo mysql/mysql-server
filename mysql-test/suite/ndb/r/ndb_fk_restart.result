@@ -1,5 +1,5 @@
-create table rows(a int primary key) engine=ndb;
-select count(a) from rows;
+create table `rows`(a int primary key) engine=ndb;
+select count(a) from `rows`;
 count(a)
 1000
 create table p1 (name varchar(255),
@@ -32,7 +32,7 @@ constraint c2_fk1 foreign key (id) references p1 (id),
 constraint c2_fk2 foreign key (parent_rc1, parent_rc2) references p1(parent_c1, parent_c2),
 constraint c2_fk3 foreign key (parent_rc3) references c1(id)
 ) engine=ndb;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 select count(1) from test.p1;
 count(1)
 1000
@@ -44,7 +44,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -58,7 +58,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -72,7 +72,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -86,7 +86,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -100,7 +100,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -117,7 +117,7 @@ set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0;
 insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
@@ -125,4 +125,4 @@ delete from test.p1;
 drop table test.c2;
 drop table test.c1;
 drop table test.p1;
-drop table test.rows;
+drop table test.`rows`;
