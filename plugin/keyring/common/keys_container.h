@@ -25,6 +25,7 @@
 #include "keyring_key.h"
 #include "keyring_memory.h"
 #include "logger.h"
+#include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
 
@@ -47,7 +48,7 @@ public:
 
   ulong get_number_of_keys()
   {
-    return keys_hash->records;
+    return keys_hash->size();
   };
 protected:
   Keys_container(const Keys_container &);
@@ -64,7 +65,8 @@ protected:
   virtual bool flush_to_backup();
   virtual bool flush_to_storage(IKey *key, Key_operation operation);
 
-  HASH *keys_hash;
+  using Key_hash= collation_unordered_map<std::string, std::unique_ptr<IKey>>;
+  std::unique_ptr<Key_hash> keys_hash;
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;
