@@ -14977,7 +14977,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   */
   // As share is now NSS_DROPPED, it should not be in the open_tables list
   DBUG_ASSERT(share->state == NSS_DROPPED);
-  DBUG_ASSERT(my_hash_delete(&ndbcluster_open_tables, (uchar*)share) != 0);
+  assert(ndbcluster_open_tables->erase(share->key_string()) != 0);
 
   // Remove entry with existing 'key' from dropped_tables list
   bool found= ndbcluster_dropped_tables->erase(share->key_string()) != 0;
@@ -15013,7 +15013,8 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
   DBUG_ENTER("ndbcluster_rename_share");
   mysql_mutex_lock(&ndbcluster_mutex);
   DBUG_PRINT("enter", ("share->key: '%s'", share->key_string()));
-  DBUG_PRINT("enter", ("new_key: '%s'", NDB_SHARE::key_get_key(new_key)));
+  DBUG_PRINT("enter", ("new_key: '%s'",
+                       NDB_SHARE::key_get_key(new_key).c_str()));
 
   // Handle the case where NDB_SHARE with new_key already exists
   {
@@ -15294,11 +15295,11 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
   if ((*share)->state == NSS_DROPPED)
   {
     // A DROPPED share should not be in the open_tables list
-    DBUG_ASSERT(ndbcluster_open_tables->erase(share->key_string()) != 0);
+    assert(ndbcluster_open_tables->erase((*share)->key_string()) != 0);
     return;
   }
   // A non-DROPPED share should not be in dropped_tables list yet.
-  DBUG_ASSERT(ndbcluster_dropped_tables->erase(share->key_string()) == 0);
+  assert(ndbcluster_dropped_tables->erase((*share)->key_string()) == 0);
 
   (*share)->state= NSS_DROPPED;
   (*share)->use_count--;
@@ -20606,25 +20607,25 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
   ndb_log_info("dbug_check_shares open:");
   for (const auto &key_and_value : *ndbcluster_open_tables)
   {
-    NDB_SHARE *share= key_and_value->second;
+    const NDB_SHARE *share= key_and_value.second;
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
                  get_share_state_string(share->state),
                  (unsigned)share->state,
                  share->use_count);
-    DBUG_ASSERT(share->state != NSS_DROPPED);
+    assert(share->state != NSS_DROPPED);
   }
 
   ndb_log_info("dbug_check_shares dropped:");
   for (const auto &key_and_value : *ndbcluster_dropped_tables)
   {
-    NDB_SHARE *share= key_and_value.second;
+    const NDB_SHARE *share= key_and_value.second;
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
                  get_share_state_string(share->state),
                  (unsigned)share->state,
                  share->use_count);
-    DBUG_ASSERT(share->state == NSS_DROPPED);
+    assert(share->state == NSS_DROPPED);
   }
 
   /**
@@ -20632,8 +20633,8 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
    */
   for (const auto &key_and_value : *ndbcluster_open_tables)
   {
-    NDB_SHARE *share= key_and_value->second;
-    DBUG_ASSERT(strcmp(share->db, "mysql") == 0);
+    const NDB_SHARE *share= key_and_value.second;
+    assert(strcmp(share->db, "mysql") == 0);
   }
 
   /**
@@ -20641,8 +20642,8 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
    */
   for (const auto &key_and_value : *ndbcluster_dropped_tables)
   {
-    NDB_SHARE *share= key_and_value.second;
-    DBUG_ASSERT(strcmp(share->db, "mysql") == 0);
+    const NDB_SHARE *share= key_and_value.second;
+    assert(strcmp(share->db, "mysql") == 0);
   }
 }
 
