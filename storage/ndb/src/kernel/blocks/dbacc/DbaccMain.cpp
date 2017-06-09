@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -640,6 +640,27 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
   verifyFragCorrect(regFragPtr);
+
+  if (regFragPtr.p->expandOrShrinkQueued)
+  {
+    regFragPtr.p->level.clear();
+
+    // slack > 0 ensures EXPANDCHECK2 will do nothing.
+    regFragPtr.p->slack = 1;
+
+    // slack <= slackCheck ensures SHRINKCHECK2 will do nothing.
+    regFragPtr.p->slackCheck = regFragPtr.p->slack;
+
+    /**
+     * Wait out pending expand or shrink.
+     * They need a valid Fragmentrec.
+     */
+    signal->theData[0] = ZREL_FRAG;
+    signal->theData[1] = regFragPtr.i;
+    sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
+    return;
+  }
+
   if (!regFragPtr.p->directory.isEmpty()) {
     jam();
     DynArr256::ReleaseIterator iter;
@@ -5537,6 +5558,15 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     }
     return;
   }//if
+  if (fragrecptr.p->level.isFull())
+  {
+    jam();
+    /*
+     * The level structure does not allow more buckets.
+     * Do not expand.
+     */
+    return;
+  }
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
@@ -5560,16 +5590,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-
-  if (fragrecptr.p->level.isFull())
-  {
-    jam();
-    /*
-     * The level structure does not allow more buckets.
-     * Do not expand.
-     */
-    return;
-  }
 
   Uint32 splitBucket;
   Uint32 receiveBucket;
@@ -6282,6 +6302,12 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
+  if (fragrecptr.p->level.isEmpty())
+  {
+    jam();
+    /* no need to shrink empty hash table */
+    return;
+  }
   if (fragrecptr.p->sparsepages.isEmpty())
   {
     jam();
@@ -6299,13 +6325,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /* PAGES. THIS MEANS THAT WE COULD BE FORCED TO CRASH SINCE WE  */
     /* CANNOT COMPLETE THE SHRINK. TO AVOID THE CRASH WE EXIT HERE. */
     /*--------------------------------------------------------------*/
-    return;
-  }//if
-
-  if (fragrecptr.p->level.isEmpty())
-  {
-    jam();
-    /* no need to shrink empty hash table */
     return;
   }
 
