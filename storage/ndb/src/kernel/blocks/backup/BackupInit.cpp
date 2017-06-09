@@ -223,7 +223,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
 
-  m_enable_partial_lcp = 0; /* Default to disabled */
+  m_enable_partial_lcp = 1; /* Default to enabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
 
@@ -256,7 +256,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    */
   c_nodePool.setSize(MAX_NDB_NODES);
   c_backupPool.setSize(noBackups + 1);
-  c_backupFilePool.setSize(3 * noBackups + 6);
+  c_backupFilePool.setSize(3 * noBackups +
+                           4 + (2*BackupFormat::NDB_MAX_FILES_PER_LCP));
   c_tablePool.setSize(noBackups * noTables + 2);
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 2);
@@ -275,7 +276,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
   const Uint32 DEFAULT_MAX_WRITE_SIZE = (1024 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (2 * 1024 * 1024);
+  const Uint32 DEFAULT_BUFFER_SIZE = (1 * 1024 * 1024);
 
   Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
@@ -339,7 +340,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   /**
    * We allocate szDataBuf + szLogBuf pages for Backups and
-   * szDataBuf * 2 pages for LCPs.
+   * szDataBuf * 16 pages for LCPs.
    * We also need pages for 3 CTL files for LCP and one file for
    * delete LCP process (2 per file),
    * for backups the meta data file uses NO_OF_PAGES_META_FILE.
@@ -349,7 +350,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noPages =
     (szDataBuf + sizeof(Page32) - 1) / sizeof(Page32) +
     (szLogBuf + sizeof(Page32) - 1) / sizeof(Page32) +
-    (2 * ((c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) /
+    ((2 * BackupFormat::NDB_MAX_FILES_PER_LCP) * 
+      ((c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) /
            sizeof(Page32)));
 
   Uint32 seizeNumPages = noPages + (1*NO_OF_PAGES_META_FILE)+ 9;
