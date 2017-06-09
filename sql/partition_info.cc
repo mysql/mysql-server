@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <string>
 
 #include "auth_acls.h"
 #include "auth_common.h"                      // *_ACL
@@ -32,6 +33,7 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -61,6 +63,8 @@
 #include "trigger_chain.h"                    // Trigger_chain
 #include "trigger_def.h"
 #include "varlen_sort.h"
+
+using std::string;
 
 
 // TODO: Create ::get_copy() for getting a deep copy.
@@ -169,19 +173,16 @@ partition_info *partition_info::get_full_clone(THD *thd)
 bool partition_info::add_named_partition(const char *part_name,
                                          size_t length)
 {
-  HASH *part_name_hash;
   PART_NAME_DEF *part_def;
   Partition_share *part_share;
   DBUG_ENTER("partition_info::add_named_partition");
   DBUG_ASSERT(table && table->s && table->s->ha_share);
   part_share= static_cast<Partition_share*>((table->s->ha_share));
-  DBUG_ASSERT(part_share->partition_name_hash_initialized);
-  part_name_hash= &part_share->partition_name_hash;
-  DBUG_ASSERT(part_name_hash->records);
+  DBUG_ASSERT(part_share->partition_name_hash != nullptr);
+  auto part_name_hash= part_share->partition_name_hash.get();
+  DBUG_ASSERT(!part_name_hash->empty());
 
-  part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
-                                            (const uchar*) part_name,
-                                            length);
+  part_def= find_or_nullptr(*part_name_hash, string(part_name, length));
   if (!part_def)
   {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), part_name, table->alias);
@@ -1023,16 +1024,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
 }
 
 
-/**
-  Helper function to find_duplicate_name.
-*/
-
-static const uchar *get_part_name_from_elem(const uchar *name, size_t *length)
-{
-  *length= strlen(pointer_cast<const char*>(name));
-  return name;
-}
-
 /*
   A support function to check partition names for duplication in a
   partitioned table
@@ -1049,11 +1040,11 @@ static const uchar *get_part_name_from_elem(const uchar *name, size_t *length)
     duplicated names.
 */
 
-char *partition_info::find_duplicate_name()
+const char *partition_info::find_duplicate_name()
 {
-  HASH partition_names;
+  collation_unordered_set<string> partition_names
+    {system_charset_info, PSI_INSTRUMENT_ME};
   uint max_names;
-  const uchar *curr_name= NULL;
   List_iterator<partition_element> parts_it(partitions);
   partition_element *p_elem;
 
@@ -1068,19 +1059,11 @@ char *partition_info::find_duplicate_name()
   max_names= num_parts;
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
-  if (my_hash_init(&partition_names, system_charset_info, max_names, 0,
-                   get_part_name_from_elem, nullptr, HASH_UNIQUE,
-                   PSI_INSTRUMENT_ME))
-  {
-    DBUG_ASSERT(0);
-    curr_name= (const uchar*) "Internal failure";
-    goto error;
-  }
   while ((p_elem= (parts_it++)))
   {
-    curr_name= (const uchar*) p_elem->partition_name;
-    if (my_hash_insert(&partition_names, curr_name))
-      goto error;
+    const char *partition_name= p_elem->partition_name;
+    if (!partition_names.insert(partition_name).second)
+      DBUG_RETURN(partition_name);
 
     if (!p_elem->subpartitions.is_empty())
     {
@@ -1088,17 +1071,13 @@ char *partition_info::find_duplicate_name()
       partition_element *subp_elem;
       while ((subp_elem= (subparts_it++)))
       {
-        curr_name= (const uchar*) subp_elem->partition_name;
-        if (my_hash_insert(&partition_names, curr_name))
-          goto error;
+        const char *subpartition_name= subp_elem->partition_name;
+        if (!partition_names.insert(subpartition_name).second)
+          DBUG_RETURN(subpartition_name);
       }
     }
   }
-  my_hash_free(&partition_names);
-  DBUG_RETURN(NULL);
-error:
-  my_hash_free(&partition_names);
-  DBUG_RETURN((char*) curr_name);
+  DBUG_RETURN(nullptr);
 }
 
 
@@ -1650,7 +1629,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   handlerton *table_engine= default_engine_type;
   uint i, tot_partitions;
   bool result= TRUE, table_engine_set;
-  char *same_name;
+  const char *same_name;
   DBUG_ENTER("partition_info::check_partition_info");
 
   DBUG_PRINT("info", ("default table_engine = %s",
