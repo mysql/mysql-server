@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-alter_crash        : WL#9536 2015-05-11 jhauglid Uses functionality removed by WL#8186. To be enabled when WL#9536 is impemented
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
