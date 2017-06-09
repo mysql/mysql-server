@@ -132,7 +132,7 @@ Uint32 ndbGetOwnVersion();
 #define NDBD_MT_LQH_VERSION MAKE_VERSION(6,4,0)
 
 #define NDBD_SCHEMA_TRANS_VERSION NDB_MAKE_VERSION(6,4,0)
-#define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,2)
+#define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
 static
 inline
@@ -1076,7 +1076,7 @@ ndbd_support_fully_replicated(Uint32 x)
 /**
  * Uses new Partial LCP format for LCPs
  */
-#define NDBD_USE_PARTIAL_LCP NDB_MAKE_VERSION(7,5,3)
+#define NDBD_USE_PARTIAL_LCP NDB_MAKE_VERSION(7,6,3)
 
 static
 inline
