@@ -779,7 +779,6 @@ void Dblqh::execSTTOR(Signal* signal)
     c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
     c_lgman = (Lgman*)globalData.getBlock(LGMAN);
     ndbrequire(c_tup != 0 && c_tux != 0 && c_acc != 0 && c_lgman != 0);
-    send_read_local_sysfile(signal);
     
 #ifdef NDBD_TRACENR
 #ifdef VM_TRACE
@@ -805,8 +804,12 @@ void Dblqh::execSTTOR(Signal* signal)
       }
     }
 #endif
+    sendsttorryLab(signal);
     return;
-    break;
+  case 3:
+    jam();
+    send_read_local_sysfile(signal);
+    return;
   case 4:
     jam();
     define_backup(signal);
@@ -1403,13 +1406,14 @@ void Dblqh::sendsttorryLab(Signal* signal)
   signal->theData[1] = 3;          /* BLOCK CATEGORY */
   signal->theData[2] = 2;          /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSTART_PHASE1;
-  signal->theData[4] = 4;
-  signal->theData[5] = 6;
-  signal->theData[6] = 49;
-  signal->theData[7] = 50;
-  signal->theData[8] = 255;
+  signal->theData[4] = 3;
+  signal->theData[5] = 4;
+  signal->theData[6] = 6;
+  signal->theData[7] = 49;
+  signal->theData[8] = 50;
+  signal->theData[9] = 255;
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBLQH_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 9, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 10, JBB);
   return;
 }//Dblqh::sendsttorryLab()
 

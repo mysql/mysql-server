@@ -70,6 +70,8 @@
 #include <signaldata/DropNodegroupImpl.hpp>
 #include <signaldata/CreateFilegroup.hpp>
 
+#include "../backup/BackupFormat.hpp"
+
 #include <EventLogger.hpp>
 
 #define JAM_FILE_ID 458
@@ -1536,7 +1538,14 @@ void Ndbcntr::execSTTOR(Signal* signal)
       clearFilesystem(signal);
       return;
     }
-    sendSttorry(signal);
+    g_eventLogger->info("Not initial start");
+    /**
+     * State in Local sysfile is prioritized before the
+     * state in DIH. So we first check this, if this is
+     * set to initial start of some kind, then it means
+     * that we need to clear the file system.
+     */
+    sendReadLocalSysfile(signal);
     break;
   case ZSTART_PHASE_1:
     jam();
@@ -1716,7 +1725,7 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
                DihRestartReq::SignalLength, JBB);
   }
   return;
-}//Ndbcntr::startPhase2Lab()
+}
 
 /*******************************/
 /*  DIH_RESTARTCONF            */
@@ -1729,7 +1738,9 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
                                               signal->getDataPtrSend());
   c_start.m_lastGci = conf->latest_gci;
 
-  sendReadLocalSysfile(signal);
+  cdihStartType = ctypeOfStart;
+  ph2ALab(signal);
+  return;
 }
 
 void
@@ -1804,14 +1815,17 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
      */
     c_start.m_lastGci = 0;
     ctypeOfStart = NodeState::ST_INITIAL_START;
+    ndbrequire(!m_ctx.m_config.getInitialStart());
+    g_eventLogger->info("Clearing filesystem in initial restart");
+    c_fsRemoveCount = 0;
+    clearFilesystem(signal);
+    return;
   }
   else
   {
     ndbrequire(false);
   }
-  cdihStartType = ctypeOfStart;
-  ph2ALab(signal);
-  return;
+  sendSttorry(signal);
 }
 
 /*******************************/
@@ -1822,8 +1836,8 @@ void Ndbcntr::execDIH_RESTARTREF(Signal* signal)
   jamEntry();
   ctypeOfStart = NodeState::ST_INITIAL_START;
   cdihStartType = ctypeOfStart;
+  c_local_sysfile.m_initial_read_done = true;
   sendWriteLocalSysfile_initial(signal);
-  send_restorable_gci_rep_to_backup(signal, 1);
 }
 
 void
@@ -1834,7 +1848,7 @@ Ndbcntr::sendWriteLocalSysfile_initial(Signal *signal)
   req->userPointer = 0;
   req->nodeRestorableOnItsOwn =
     ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART;
-  req->maxGCIRestorable = 0;
+  req->maxGCIRestorable = 1;
   req->lastWrite = 0;
   sendSignal(NDBCNTR_REF,
              GSN_WRITE_LOCAL_SYSFILE_REQ,
@@ -4983,8 +4997,8 @@ void Ndbcntr::execSTART_ORD(Signal* signal)
   c_missra.execSTART_ORD(signal);
 }
 
-#define CLEAR_DX 13
-#define CLEAR_LCP 3
+#define CLEAR_DX (8 + 1 + NDB_MAX_LOG_PARTS)
+#define CLEAR_LCP (BackupFormat::NDB_MAX_LCP_FILES)
 #define CLEAR_DD 2
 // FileSystemPathDataFiles FileSystemPathUndoFiles
 
@@ -5038,14 +5052,17 @@ void
 Ndbcntr::execFSREMOVECONF(Signal* signal)
 {
   jamEntry();
-  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD){
+  if (c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD)
+  {
     jam();
     sendSttorry(signal);
-  } else {
+  }
+  else
+  {
     jam();
     ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP + CLEAR_DD);
     clearFilesystem(signal);
-  }//if
+  }
 }
 
 void Ndbcntr::Missra::execSTART_ORD(Signal* signal){
@@ -5511,6 +5528,7 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
      * same thing at the same time.
      */
     jam();
+    ndbrequire(false);
     sendSignalWithDelay(reference(),
                         GSN_READ_LOCAL_SYSFILE_REQ,
                         signal,
@@ -5527,10 +5545,16 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
    * Initialise data for response when no local sysfile is around.
    * In this case we report that the node is restorable. The rest
    * of the data is then of no specific value.
+   *
+   * This should never happen other than in an upgrade. Given that
+   * upgrade from non-local sysfile version to versions containing
+   * local sysfile requires initial restarts this should only happen
+   * in non-supported cases and in this case we cannot remove the
+   * file system just like that.
    */
   c_local_sysfile.m_restorable_flag =
     ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN;
-  c_local_sysfile.m_max_restorable_gci = 0;
+  c_local_sysfile.m_max_restorable_gci = 1;
 
   open_local_sysfile(signal, 0, true);
 }
@@ -5590,7 +5614,24 @@ Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
   c_local_sysfile.m_sender_data = req.userPointer;
   c_local_sysfile.m_sender_ref = req.userReference;
 
-  c_local_sysfile.m_restorable_flag = req.nodeRestorableOnItsOwn;
+  if ((c_local_sysfile.m_restorable_flag !=
+       ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART) ||
+      (req.nodeRestorableOnItsOwn !=
+       ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN))
+  {
+    jam();
+    c_local_sysfile.m_restorable_flag = req.nodeRestorableOnItsOwn;
+  }
+  else
+  {
+    jam();
+    /**
+     * When we want to say that node is not restorable on its own and
+     * it was previously set to requiring initial restart we will keep
+     * it set to requiring initial restart. This flag is only removed
+     * by setting the flag to node restorable on its own.
+     */
+  }
   if (req.lastWrite == 1)
   {
     jam();
@@ -5915,8 +5956,10 @@ Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
              WriteLocalSysfileConf::SignalLength,
              JBB);
   init_local_sysfile_vars();
-  if (c_local_sysfile.m_restorable_flag ==
-      ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
+  if ((c_local_sysfile.m_restorable_flag ==
+       ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN) ||
+      (c_local_sysfile.m_restorable_flag ==
+       ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART))
   {
     jam();
     /**
@@ -5934,8 +5977,12 @@ Ndbcntr::sendWriteLocalSysfileConf(Signal *signal)
      */
     Uint32 restorable_gci = c_local_sysfile.m_max_restorable_gci;
     send_restorable_gci_rep_to_backup(signal, restorable_gci);
-    signal->theData[0] = restorable_gci;
-    execRESTORABLE_GCI_REP(signal);
+    if (restorable_gci != 1)
+    {
+      jam();
+      signal->theData[0] = restorable_gci;
+      execRESTORABLE_GCI_REP(signal);
+    }
   }
 }
 
