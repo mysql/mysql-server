@@ -490,6 +490,7 @@ private:
   void send_restorable_gci_rep_to_backup(Signal*, Uint32);
 
   bool m_received_wait_all;
+  bool m_any_lcp_started;
   bool m_initial_local_lcp_started;
   bool m_local_lcp_started;
   bool m_local_lcp_completed;
@@ -518,7 +519,7 @@ private:
   void sendSTART_FULL_LOCAL_LCP_ORD(Signal*);
   void sendSTART_LOCAL_LCP_ORD(Signal*);
   void sendSET_LOCAL_LCP_ID_CONF(Signal*);
-  void sendWriteLocalSysfile_startLcp(Signal*);
+  void sendWriteLocalSysfile_startLcp(Signal*,Uint32);
   void write_local_sysfile_start_lcp_done(Signal*);
   const char* get_restorable_flag_string(Uint32);
 

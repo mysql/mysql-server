@@ -3750,6 +3750,13 @@ public:
   Uint32 c_current_local_lcp_table_id;
 
   /**
+   * Set flag that indicates that first distributed LCP is started.
+   * This means that we should distribute the signal
+   * RESTORABLE_GCI_REP to the backup block even if first LCP isn't
+   * done yet.
+   */
+  bool m_first_distributed_lcp_started;
+  /**
    * 0/1 toggled for each local LCP executed to keep track of which
    * fragments have been started as part of this local LCP and which
    * haven't.

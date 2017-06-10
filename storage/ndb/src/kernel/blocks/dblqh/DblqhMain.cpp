@@ -16859,6 +16859,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
                           instance(),
                           m_curr_lcp_id,
                           m_curr_local_lcp_id);
+      m_first_distributed_lcp_started = true;
       signal->theData[0] = c_lcpId;
       sendSignal(NDBCNTR_REF, GSN_START_DISTRIBUTED_LCP_ORD, signal, 1, JBB);
     }
@@ -18308,7 +18309,8 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     c_local_sysfile.m_dihPtr = dihPtr;
     c_local_sysfile.m_dihRef = dihBlockRef;
     c_send_gcp_saveref_needed = true;
-    if (m_node_restart_first_local_lcp_started &&
+    if ((m_node_restart_first_local_lcp_started ||
+         m_first_distributed_lcp_started) &&
         is_first_instance())
     {
       jam();
