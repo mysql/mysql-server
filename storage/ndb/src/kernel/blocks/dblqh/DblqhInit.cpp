@@ -40,6 +40,7 @@ void Dblqh::initData()
   c_start_phase_49_waiting = false;
   c_outstanding_write_local_sysfile = false;
   c_send_gcp_saveref_needed = false;
+  m_first_distributed_lcp_started = false;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;

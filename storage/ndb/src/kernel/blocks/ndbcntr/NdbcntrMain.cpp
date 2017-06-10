@@ -1818,14 +1818,29 @@ Ndbcntr::sendWriteLocalSysfile_initial(Signal *signal)
 void
 Ndbcntr::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
 {
+  WriteLocalSysfileConf *conf =
+    (WriteLocalSysfileConf*)signal->getDataPtrSend();
   jamEntry();
-  if (m_local_lcp_started)
+  if (conf->userPointer == 0)
   {
     jam();
-    write_local_sysfile_start_lcp_done(signal);
-    return;
+    if (m_local_lcp_started)
+    {
+      jam();
+      write_local_sysfile_start_lcp_done(signal);
+      return;
+    }
+    ph2ALab(signal);
   }
-  ph2ALab(signal);
+  else if (conf->userPointer == 1)
+  {
+    jam();
+    send_to_all_lqh(signal, GSN_COPY_FRAG_NOT_IN_PROGRESS_REP, 1);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
   return;
 }
 
@@ -5515,6 +5530,11 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_REQ(Signal *signal)
  *    need to send a new write with a new GCP that we
  *    have seen completed.
  *    Sent by DBLQH
+ *
+ * 5) Before activating REDO logs we will write that we
+ *    start an LCP since the first distributed LCP will
+ *    make us unable to restart on our own. This can
+ *    also happen in parallel with 4).
  */
 void
 Ndbcntr::execWRITE_LOCAL_SYSFILE_REQ(Signal *signal)
@@ -5936,7 +5956,7 @@ Ndbcntr::execFSCLOSECONF(Signal *signal)
 }
 
 void
-Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal)
+Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal, Uint32 type)
 {
   Uint32 gci = m_max_completed_gci;
   if (m_max_completed_gci < c_local_sysfile.m_max_restorable_gci)
@@ -5945,9 +5965,10 @@ Ndbcntr::sendWriteLocalSysfile_startLcp(Signal *signal)
     gci = c_local_sysfile.m_max_restorable_gci;
     m_max_completed_gci = gci;
   }
+  m_any_lcp_started = true;
   WriteLocalSysfileReq *req = (WriteLocalSysfileReq*)signal->getDataPtrSend();
   req->userReference = reference();
-  req->userPointer = 0;
+  req->userPointer = type;
   req->nodeRestorableOnItsOwn =
     ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN;
   req->maxGCIRestorable = gci;
@@ -6009,9 +6030,15 @@ void Ndbcntr::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
    * are sure that no new local LCPs are started when we
    * are in the process of waiting for the last one to complete.
    */
-  send_to_all_lqh(signal, GSN_COPY_FRAG_NOT_IN_PROGRESS_REP, 1);
   m_copy_fragment_in_progress = false;
   DEB_LCP(("m_copy_fragment_in_progress: %u", m_copy_fragment_in_progress));
+  if (!m_any_lcp_started)
+  {
+    jam();
+    sendWriteLocalSysfile_startLcp(signal, 1);
+    return;
+  }
+  send_to_all_lqh(signal, GSN_COPY_FRAG_NOT_IN_PROGRESS_REP, 1);
 
 }
 
@@ -6065,7 +6092,7 @@ void Ndbcntr::execUNDO_LOG_LEVEL_REP(Signal *signal)
       m_full_local_lcp_started = true;
       ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
       c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-      sendWriteLocalSysfile_startLcp(signal);
+      sendWriteLocalSysfile_startLcp(signal, 0);
       return;
     }
     if (!m_local_lcp_started)
@@ -6112,7 +6139,7 @@ void Ndbcntr::execSTART_LOCAL_LCP_ORD(Signal *signal)
   ndbrequire(!m_initial_local_lcp_started);
   ndbrequire(!c_local_sysfile.m_initial_write_local_sysfile_ongoing);
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = true;
-  sendWriteLocalSysfile_startLcp(signal);
+  sendWriteLocalSysfile_startLcp(signal, 0);
 }
 
 void Ndbcntr::execSET_LOCAL_LCP_ID_REQ(Signal *signal)

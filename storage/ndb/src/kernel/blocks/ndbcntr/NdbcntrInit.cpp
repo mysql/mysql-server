@@ -40,6 +40,7 @@ void Ndbcntr::initData()
   c_schemaTransKey = 0;
   init_local_sysfile();
 
+  m_any_lcp_started = false;
   m_distributed_lcp_id = 0;
   m_outstanding_wait_lcp = 0;
   m_outstanding_wait_cut_redo_log_tail = 0;
