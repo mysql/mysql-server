@@ -1286,6 +1286,10 @@ trx_start_low(
 	}
 #endif /* UNIV_DEBUG */
 
+	if (trx->mysql_thd != NULL && !trx->ddl_operation) {
+		trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
+	}
+
 	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */
 
@@ -1312,7 +1316,8 @@ trx_start_low(
 	read only can write to temporary tables, we put those on the RO
 	list too. */
 
-	if (!trx->read_only && (trx->mysql_thd == 0 || read_write)) {
+	if (!trx->read_only
+	    && (trx->mysql_thd == 0 || read_write || trx->ddl_operation)) {
 
 		trx_assign_rseg_durable(trx);
 
@@ -1381,9 +1386,6 @@ trx_start_low(
 
 	if (trx->mysql_thd != NULL) {
 		trx->start_time = thd_start_time_in_secs(trx->mysql_thd);
-
-		ut_ad(!trx->ddl_operation);
-		trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
 	} else {
 		trx->start_time = ut_time();
 	}

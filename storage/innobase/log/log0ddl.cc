@@ -1313,9 +1313,14 @@ LogDDL::postDDL(THD*	thd)
 		return(DB_SUCCESS);
 	}
 
-
-	if (srv_read_only_mode || srv_force_recovery > 0) {
+	if (srv_read_only_mode
+	    || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		return(DB_SUCCESS);
+	}
+
+	if (srv_force_recovery > 0) {
+		/* In this mode, DROP TABLE is allowed, so here only
+		DELETE and DROP log can be replayed. */
 	}
 
 	ulint	thread_id = thd_get_thread_id(thd);
@@ -1326,6 +1331,7 @@ LogDDL::postDDL(THD*	thd)
 	trx_t*	trx;
 	trx = trx_allocate_for_background();
 	trx->isolation_level = TRX_ISO_READ_COMMITTED;
+	trx->ddl_operation = true;
 	/* In order to get correct value of lock_wait_timeout */
 	trx->mysql_thd = thd;
 

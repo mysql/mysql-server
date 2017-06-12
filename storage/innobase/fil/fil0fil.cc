@@ -4084,8 +4084,7 @@ fil_ibd_create(
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			ib::error() << "The file '" << path << "'"
 				" already exists though the"
-				" corresponding table did not exist"
-				" in the InnoDB data dictionary."
+				" corresponding table did not exist."
 				" Have you moved InnoDB .ibd files"
 				" around without using the SQL commands"
 				" DISCARD TABLESPACE and IMPORT TABLESPACE,"
