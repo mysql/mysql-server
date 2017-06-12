@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4574,6 +4574,39 @@ prepare_inplace_alter_table_dict(
 
 		if (Compression::validate(compression) != DB_SUCCESS) {
 			compression = NULL;
+		}
+
+		const char* encrypt;
+		encrypt	= ha_alter_info->create_info->encrypt_type.str;
+
+		if (!(ctx->new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE)
+		    && ha_alter_info->create_info->encrypt_type.length > 0
+		    && !Encryption::is_none(encrypt)) {
+
+			dict_mem_table_free( ctx->new_table);
+			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+			goto new_clustered_failed;
+		} else if (!Encryption::is_none(encrypt)) {
+			/* Set the encryption flag. */
+			byte*			master_key = NULL;
+			ulint			master_key_id;
+			Encryption::Version	version;
+
+			/* Check if keyring is ready. */
+			Encryption::get_master_key(&master_key_id,
+						   &master_key,
+						   &version);
+
+			if (master_key == NULL) {
+				dict_mem_table_free(ctx->new_table);
+				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
+					 MYF(0));
+				goto new_clustered_failed;
+			} else {
+				my_free(master_key);
+				DICT_TF2_FLAG_SET(ctx->new_table,
+						  DICT_TF2_ENCRYPTION);
+			}
 		}
 
 		error = row_create_table_for_mysql(
