@@ -2018,7 +2018,6 @@ static void clean_up(bool print_message)
   deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  sys_var_end();
   Global_THD_manager::destroy_instance();
 
   my_free(const_cast<char*>(log_bin_basename));
@@ -2039,6 +2038,14 @@ static void clean_up(bool print_message)
   unregister_pfs_resource_group_service();
 #endif
   component_infrastructure_deinit();
+  /*
+    component unregister_variable() api depends on system_variable_hash.
+    component_infrastructure_deinit() interns calls the deinit funtion
+    of components which are loaded, and the deinit functions can have
+    the component system unregister_ variable()  api's, hence we need
+    to call the sys_var_end() after component_infrastructure_deinit()
+  */
+  sys_var_end();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
@@ -9299,7 +9306,7 @@ static void create_pid_file()
     mysql_file_close(file, MYF(0));
   }
   LogErr(ERROR_LEVEL, ER_CANT_CREATE_PID_FILE, strerror(errno));
-  exit(MYSQLD_ABORT_EXIT);
+  unireg_abort(MYSQLD_ABORT_EXIT);
 }
 
 
