@@ -252,5 +252,20 @@ CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 ERROR HY000: This tablespace can't be encrypted.
+DROP TABLE t1;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY, val varchar(20) NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 (val) VALUES ('Sydney'), ('Melbourne'), ('Brisbane'), ('Perth'), ('Adelaide');
+ALTER TABLE t1 ENCRYPTION = 'Y';
+ALTER TABLE t1 ADD COLUMN is_capital char(1) NOT NULL DEFAULT 'N' AFTER val;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `val` varchar(20) NOT NULL,
+  `is_capital` char(1) NOT NULL DEFAULT 'N',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+Pattern "Sydney" not found
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;
