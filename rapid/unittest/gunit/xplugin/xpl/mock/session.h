@@ -23,6 +23,7 @@
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/server_interface.h"
 #include "ngs/interface/sql_session_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/scheduler.h"
 #include "sql_data_context.h"
 #include "xpl_resultset.h"
@@ -132,6 +133,63 @@ class Mock_sql_data_context : public ngs::Sql_session_interface {
   MOCK_METHOD3(execute,
                Error_code(const char *, std::size_t, Resultset_interface *));
 };
+
+class Mock_protocol_encoder : public ngs::Protocol_encoder_interface {
+ public:
+  MOCK_METHOD1(send_result, bool(const Error_code &));
+  MOCK_METHOD0(send_ok, bool());
+  MOCK_METHOD1(send_ok,  bool(const std::string &));
+  MOCK_METHOD1(send_init_error, bool(const Error_code &));
+  MOCK_METHOD4(send_notice, void(const Frame_type, const Frame_scope,
+                                 const std::string &, const bool));
+  MOCK_METHOD1(send_rows_affected, void(uint64_t value));
+  MOCK_METHOD2(send_local_warning, void(const std::string &, bool));
+  MOCK_METHOD1(send_auth_ok, void(const std::string &));
+  MOCK_METHOD1(send_auth_continue, void(const std::string &));
+  MOCK_METHOD0(send_exec_ok, bool());
+  MOCK_METHOD0(send_result_fetch_done, bool());
+  MOCK_METHOD0(send_result_fetch_done_more_results, bool());
+
+  bool send_column_metadata(const std::string &, const std::string &,
+                            const std::string &, const std::string &,
+                            const std::string &, const std::string &, uint64_t,
+                            int, int, uint32_t, uint32_t, uint32_t) override {
+    throw "Method 'send_column_metadata' has 12 parameters - unable to mock";
+    return false;
+  }
+
+  MOCK_METHOD6(send_column_metadata,
+               bool(uint64_t, int, int, uint32_t, uint32_t, uint32_t));
+  MOCK_METHOD0(row_builder, Row_builder &());
+  MOCK_METHOD0(start_row, void());
+  MOCK_METHOD0(abort_row, void());
+  MOCK_METHOD0(send_row, bool());
+  MOCK_METHOD0(get_buffer, Output_buffer *());
+  MOCK_METHOD3(send_message, bool(int8_t, const Message &, bool));
+  MOCK_METHOD1(on_error, void(int error));
+  MOCK_METHOD0(get_protocol_monitor, Protocol_monitor_interface &());
+};
+
+class Mock_session : public Session_interface
+{
+public:
+  MOCK_CONST_METHOD0(session_id, Session_id ());
+  MOCK_METHOD0(init, Error_code ());
+  MOCK_METHOD1(on_close, void (const bool));
+  MOCK_METHOD0(on_kill, void ());
+  MOCK_METHOD1(on_auth_success, void (const Authentication_interface::Response &));
+  MOCK_METHOD1(on_auth_failure, void (const Authentication_interface::Response &));
+  MOCK_METHOD1(handle_message, bool (Request &));
+  MOCK_CONST_METHOD0(state, State ());
+  MOCK_CONST_METHOD0(state_before_close, State ());
+  MOCK_METHOD0(client, Client_interface &());
+  MOCK_METHOD0(mark_as_tls_session, void ());
+  MOCK_CONST_METHOD1(is_handled_by, bool (const void *));
+  MOCK_METHOD0(data_context, Sql_session_interface &());
+  MOCK_METHOD0(proto, Protocol_encoder_interface &());
+};
+
+
 }  // namespace test
 }  // namespace ngs
 
@@ -221,18 +279,6 @@ public:
     reset_accept_time_void();
   }
 };
-
-class Mock_session : public xpl::Session
-{
-public:
-  Mock_session(ngs::Client_interface* client)
-  : xpl::Session(*client, NULL, 0)
-  {
-  }
-
-  MOCK_METHOD0(data_context, ngs::Sql_session_interface&());
-};
-
 
 class Mock_account_verification_handler
     : public xpl::Account_verification_handler {

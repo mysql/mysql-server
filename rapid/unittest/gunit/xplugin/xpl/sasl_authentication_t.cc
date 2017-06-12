@@ -38,15 +38,12 @@ template<typename Auth_type>
 class AuthenticationTestSuite : public Test
 {
 public:
-  static void dont_delete_ptr(ngs::IOptions_session *) {
-
-  }
+  static void dont_delete_ptr(ngs::IOptions_session *) {}
 
   void SetUp()
   {
-    mock_session.reset(new StrictMock<Mock_session>(&mock_client));
     mock_options_session.reset(new StrictMock<ngs::test::Mock_options_session>());
-    sut = Auth_type::create(mock_session.get());
+    sut = Auth_type::create(&mock_session);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _)).WillByDefault(Return(default_error));
     EXPECT_CALL(mock_connection,
@@ -54,7 +51,8 @@ public:
                                                                            &dont_delete_ptr)));
     EXPECT_CALL(mock_connection, connection_type()).WillRepeatedly(Return(ngs::Connection_tls));
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
-    EXPECT_CALL(*mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));
+    EXPECT_CALL(mock_session, data_context()).WillRepeatedly(ReturnRef(mock_data_context));
+    EXPECT_CALL(mock_session, client()).WillRepeatedly(ReturnRef(mock_client));
   }
 
   void assert_responce(const ngs::Authentication_interface::Response &result,
@@ -72,7 +70,7 @@ public:
   StrictMock<ngs::test::Mock_sql_data_context> mock_data_context;
   StrictMock<xpl::test::Mock_client> mock_client;
   StrictMock<ngs::test::Mock_connection> mock_connection;
-  ngs::unique_ptr<Mock_session> mock_session;
+  StrictMock<ngs::test::Mock_session> mock_session;
   ngs::shared_ptr<ngs::test::Mock_options_session> mock_options_session;
   ngs::Authentication_interface_ptr sut;
 };
@@ -160,7 +158,6 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite, handleStart_autenticateAndRetu
 {
   const std::string empty_password = "";
   std::string sasl_login_string = get_sasl_message(expected_login, empty_password);
-
   EXPECT_CALL(mock_client, client_address()).WillOnce(Return(expected_host));
   EXPECT_CALL(mock_client, supports_expired_passwords()).WillOnce(Return(false));
   EXPECT_CALL(mock_client, client_hostname()).WillOnce(Return(expected_hostname.c_str()));
