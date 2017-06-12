@@ -9078,12 +9078,16 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
       nodePtr.i = startingNode;
       ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
       NGPtr.i = nodePtr.p->nodeGroup;
-      ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
-
-      ndbrequire(NGPtr.p->activeTakeOver != startingNode);
-      if (NGPtr.p->activeTakeOver == 0)
+      if (NGPtr.i != ZNIL)
       {
-        ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+        jam();
+        ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+
+        ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+        if (NGPtr.p->activeTakeOver == 0)
+        {
+          ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+        }
       }
     }
     c_masterActiveTakeOverList.remove(takeOverPtr);
