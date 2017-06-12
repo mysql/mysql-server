@@ -19,8 +19,8 @@
 
 #include "sql_class.h"
 #include "mdl.h"
-#include "dd/dd_trigger.h"  // dd::table_has_triggersccmake .
-#include "sql_trigger.h"  // reload_triggers_for_table
+#include "dd/dd_trigger.h"  // dd::table_has_triggers
+#include "sql_trigger.h"    // drop_all_triggers
 
 #include "ndb_dd.h"
 #include "ndb_log.h"
@@ -173,6 +173,9 @@ Ndb_local_schema::Table::remove_table(void) const
 
   if (m_has_triggers)
   {
+    // NOTE! Should not call drop_all_triggers() here but rather
+    // implement functionality to remove the triggers from DD
+    // using DD API
     if (drop_all_triggers(m_thd, m_db, m_name))
     {
       log_warning("Failed to drop all triggers");
@@ -242,24 +245,5 @@ Ndb_local_schema::Table::rename_table(const char* new_db,
   {
     log_warning("Failed to rename table in DD");
     return;
-  }
-
-  if (m_has_triggers)
-  {
-    if (!have_mdl_lock())
-    {
-      // change_trigger_table_name() requires an EXLUSIVE mdl lock
-      // so if the mdl lock was not aquired, skip this part
-      log_warning("Can't rename triggers, no mdl lock");
-    }
-    else
-    {
-      if (reload_triggers_for_table(m_thd,
-                                    m_db, m_name, m_name,
-                                    new_db, new_name))
-      {
-        log_warning("Failed to rename all triggers");
-      }
-    }
   }
 }
