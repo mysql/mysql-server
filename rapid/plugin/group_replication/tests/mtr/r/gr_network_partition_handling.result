@@ -1,0 +1,77 @@
+#
+# 1. Create a group with 3 members
+#    Extract each server uuid
+#    Create a table on it.
+#
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+[connection server2]
+[connection server3]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+#
+# 2. Check group_replication_unreachable_majority_timeout boundaries
+#
+[connection server1]
+# 2.1. Set group_replication_unreachable_majority_timeout below min value
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= -1;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_unreachable_ma value: '-1'
+# 2.1. Check min value of group_replication_unreachable_majority_timeout
+include/assert.inc [Minimum group_replication_unreachable_majority_timeout is 0]
+# 2.2. Set group_replication_unreachable_majority_timeout above max value.
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= 31536001;
+Warnings:
+Warning	1292	Truncated incorrect group_replication_unreachable_ma value: '31536001'
+# 2.2. Check max value of group_replication_unreachable_majority_timeout.
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
+#
+# 3. Crash server 2 and server 3
+# Check they are marked as unreachable
+#
+[connection server2]
+[connection server3]
+[connection server1]
+include/gr_wait_for_member_state.inc
+include/gr_wait_for_member_state.inc
+#
+# 4. Execute a query that will block
+#
+INSERT INTO t1 VALUES (2);
+#
+# 5. After some seconds the member should go into error mode.
+#    It should enable super read only mode and kill pending transactions.
+#
+[connection server_1]
+include/gr_wait_for_member_state.inc
+[connection server1]
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+# The server's read_only mode should be enabled
+include/assert.inc [The super_read_only mode should be 1.]
+#
+# 6. Clean up.
+#
+include/stop_group_replication.inc
+[connection server1]
+DROP TABLE t1;
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("'This member could not reach a majority of the members for more than.*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+set session sql_log_bin=1;
+[connection server_2]
+include/rpl_reconnect.inc
+DROP TABLE t1;
+[connection server_3]
+include/rpl_reconnect.inc
+DROP TABLE t1;
+include/group_replication_end.inc

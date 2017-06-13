@@ -3025,3 +3025,41 @@ select "a" as a;
 
 --replace_regex /a$/R/
 select "a" as a;
+
+--echo #
+--echo # Bug#23280117: 5.7 BUG XXXXX TEST REPLACE NUMBER ROUND+GIS PRECISION
+--echo # DIFFERENCES (CONTRIBUTION)
+--echo #
+
+--echo # Insert values to be tested into a table
+CREATE TABLE t1(f FLOAT, k DOUBLE);
+INSERT INTO t1 VALUES(124.7892,1.23456e200);
+INSERT INTO t1 VALUES(6.9999999,1.000000000);
+INSERT INTO t1 VALUES(12900.019,37489e-12);
+
+--replace_numeric_round 2
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Verify that the function rounds numeric values when they
+--echo # are padded with characters
+--replace_numeric_round 5
+SELECT 'aaaa(12.123484502750487)';
+
+--echo # Test case with precision 0. Value should be rounded off
+--echo # to nearest whole number.
+--replace_numeric_round 0
+SELECT 19.955934879;
+
+--echo # An error is thrown if parameter count is 0
+--error 1
+--exec echo "replace_numeric_round;" | $MYSQL_TEST 2>&1
+
+--echo # The maximum value which can be passed is 16
+--error 1
+--exec echo "replace_numeric_round 170;" | $MYSQL_TEST 2>&1
+
+--echo # The minimum value which can be passed is 0
+--error 1
+--exec echo "replace_numeric_round -1;" | $MYSQL_TEST 2>&1

@@ -20,6 +20,12 @@ INSERT INTO gis_point VALUES
 (108, ST_POINTFROMWKB(POINT(0,10))),
 (109, ST_POINTFROMWKB(POINT(-10,0))),
 (110, ST_POINTFROMWKB(POINT(0,-10)));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_point VALUES
 (111, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1 1)')))),
 (112, ST_POINTFROMWKB(ST_ASWKB(ST_POINTFROMTEXT('POINT(1e308 1e308)')))),
@@ -39,10 +45,18 @@ INSERT INTO gis_linestring VALUES
 (207, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(5,5)))),
 (208, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(-5,-5), POINT(-10,10)))),
 (209, ST_LINEFROMWKB(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6), POINT(8,8))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_linestring VALUES
 (210, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(5,5)))),
 (211, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(-50,-50), POINT(10,-10)))),
 (212, ST_LINESTRINGFROMWKB(LINESTRING(POINT(0,0), POINT(1e308,1e308), POINT(1e308,-1e308))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_linestring VALUES
 (213, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1e308 1e308,1e308 -1e308)')))),
 (214, ST_LINEFROMWKB(ST_ASWKB(ST_LINEFROMTEXT('LINESTRING(1 1,2 2,3 3,4 4,5 5,6 6,7 7,8 8,9 9)')))),
@@ -61,11 +75,19 @@ INSERT INTO gis_polygon VALUES
 (308, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,15), POINT(15,15), POINT(15,0), POINT(0,0))))),
 (309, ST_POLYFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_polygon VALUES
 (310, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(0,0), POINT(0,5), POINT(5,5), POINT(0,0))))),
 (311, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,15), POINT(15,15), POINT(15,10), POINT(10,10))))),
 (312, ST_POLYGONFROMWKB(POLYGON(LINESTRING(POINT(10,10), POINT(10,20), POINT(20,20), POINT(20,10), POINT(10,10)),
 LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14)))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_polygon VALUES
 (313, ST_POLYFROMWKB(ST_ASWKB(ST_POLYFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0,5 5,0 0))')))),
 (314, ST_POLYFROMWKB(ST_ASWKB(ST_POLYGONFROMTEXT('POLYGON((10 0,10 10,0 10,-10 10,-10 0,-10 -10,0 10,10 -10,10 0))')))),
@@ -83,10 +105,18 @@ INSERT INTO gis_multi_point VALUES
 (407, ST_GEOMFROMWKB(MULTIPOINT(POINT(0,0)))),
 (408, ST_GEOMFROMWKB(MULTIPOINT(POINT(0,0), POINT(10,10)))),
 (409, ST_GEOMFROMWKB(MULTIPOINT(POINT(0,0), POINT(2,2), POINT(4,4), POINT(6,6))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_point VALUES
 (410, ST_GEOMFROMWKB(MULTIPOINT(POINT(0,0)))),
 (411, ST_GEOMFROMWKB(MULTIPOINT(POINT(0,0), POINT(1e308,1e308)))),
 (412, ST_GEOMFROMWKB(MULTIPOINT(POINT(1e308,1e308), POINT(-1e308,1e308), POINT(1e308,-1e308), POINT(-1e308,-1e308))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_point VALUES
 (413, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOINT(0 0)')))),
 (414, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOINT(0 0,1e308 1e308,-1e308 -1e308)')))),
@@ -105,11 +135,19 @@ INSERT INTO gis_multi_linestring VALUES
 (508, ST_GEOMFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24))))),
 (509, ST_GEOMFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4)),
 LINESTRING(POINT(6,6), POINT(8,8), POINT(10,10)))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_linestring VALUES
 (510, ST_GEOMFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(2,2), POINT(4,4))))),
 (511, ST_GEOMFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(1,1), POINT(2,2))))),
 (512, ST_GEOMFROMWKB(MULTILINESTRING(LINESTRING(POINT(0,0), POINT(12,12), POINT(24,24)),
 LINESTRING(POINT(36,36), POINT(48,48), POINT(50,50)))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_linestring VALUES
 (513, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10),(0 10,10 0))')))),
 (514, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,10 10,-10 10,0 0),(0 0,-10 -10,10 -10,0 0))')))),
@@ -129,6 +167,10 @@ INSERT INTO gis_multi_polygon VALUES
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4)))))),
 (609, ST_GEOMFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(5,0), POINT(5,5), POINT(0,5), POINT(0,0))),
 POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_polygon VALUES
 (610, ST_GEOMFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0)))))),
 (611, ST_GEOMFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(10,10), POINT(20,10), POINT(20,20), POINT(10,20), POINT(10,10)),
@@ -136,6 +178,10 @@ LINESTRING(POINT(14,14), POINT(14,16), POINT(16,16), POINT(16,14), POINT(14,14))
 (612, ST_GEOMFROMWKB(MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
 POLYGON(LINESTRING(POINT(0,0), POINT(-5,0), POINT(-5,-5), POINT(0,-5), POINT(0,0))))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_multi_polygon VALUES
 (613, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,5 -5,0 0)),((0 0,-5 5,-5 -5,0 0)))')))),
 (614, ST_GEOMFROMWKB(ST_ASWKB(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,-10 10,0 0)),((0 0,-10 -10,10 -10,0 0)))')))),
@@ -166,6 +212,10 @@ LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
 POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0)))))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_geometrycollection VALUES
 (710, ST_GEOMETRYCOLLECTIONFROMWKB(GEOMETRYCOLLECTION(POINT(0,0),
 LINESTRING(POINT(0,0), POINT(100,100))))),
@@ -179,6 +229,10 @@ LINESTRING(POINT(10,10), POINT(5,5), POINT(0,10))),
 MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0), POINT(0,10), POINT(10,10), POINT(10,0), POINT(0,0)),
 LINESTRING(POINT(4,4), POINT(4,6), POINT(6,6), POINT(6,4), POINT(4,4))),
 POLYGON(LINESTRING(POINT(0,0), POINT(-10,0), POINT(-10,-10), POINT(0,0)))))));
+Warnings:
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 INSERT INTO gis_geometrycollection VALUES
 (713, ST_GEOMCOLLFROMWKB(ST_ASWKB(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION('
                                                                 'POINT(0 0),'

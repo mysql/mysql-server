@@ -1,0 +1,29 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+
+# 1. Create and start new channel ch2_1: server1(slave), server2(master)
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_2_PORT for channel 'ch2_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+# 2. Start GR on server1
+include/start_and_bootstrap_group_replication.inc
+
+# 3. Verify server1 is primary.
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [The server1 is primary]
+
+# 4. verify GR on server1 is online
+include/assert.inc [Verify server1 MEMBER_STATE is ONLINE]
+
+# 5. Clean up
+include/stop_slave.inc
+RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+include/group_replication_end.inc

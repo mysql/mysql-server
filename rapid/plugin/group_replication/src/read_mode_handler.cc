@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "read_mode_handler.h"
-#include "plugin_utils.h"
+#include "plugin.h"
 
 Read_mode_handler::Read_mode_handler()
   : read_mode_active(false),
@@ -32,7 +32,7 @@ Read_mode_handler::~Read_mode_handler()
 }
 
 long Read_mode_handler::
-set_super_read_only_mode(Sql_service_command *command_interface)
+set_super_read_only_mode(Sql_service_command_interface *command_interface)
 {
   DBUG_ENTER("set_super_read_only_mode");
   long error =0;
@@ -86,7 +86,8 @@ set_super_read_only_mode(Sql_service_command *command_interface)
 }
 
 long Read_mode_handler::
-reset_super_read_only_mode(Sql_service_command *command_interface, bool force_reset)
+reset_super_read_only_mode(Sql_service_command_interface *command_interface,
+                           bool force_reset)
 {
   DBUG_ENTER("reset_super_read_mode");
   long error =0;
@@ -103,23 +104,62 @@ reset_super_read_only_mode(Sql_service_command *command_interface, bool force_re
     DBUG_RETURN(error);
   }
 
-  if (!read_mode_active)
-    DBUG_RETURN(error);
+  longlong server_read_only_query=
+      command_interface->get_server_read_only();
+  longlong server_super_read_only_query=
+      command_interface->get_server_super_read_only();
+  if (!read_mode_active &&
+     (server_read_only_query == 1 || server_super_read_only_query == 1))
+     DBUG_RETURN(error);
 
   /*
     If the server had no read mode active we set the read_only to 0,
     this resets both read_only and super_read_only.
     If the server had the read mode active we reset the super_read_only to 0.
-    If super_read_only was active, nothing happens.
+    We also set read mode to 1, in case it was disabled when ONLINE
+    If the server was in super read only mode before start and the ONLINE query
+    disable it, restore it to 1.
   */
   if (server_read_only == 0 && server_super_read_only == 0)
     error = command_interface->reset_read_only();
   else if (server_read_only == 1 && server_super_read_only == 0)
+  {
     error = command_interface->reset_super_read_only();
+    if (server_read_only_query == 0)
+      error = command_interface->set_read_only();
+  }
+  else if (server_read_only == 1 && server_super_read_only == 1)
+    error = command_interface->set_super_read_only();
 
   read_mode_active= false;
   server_read_only= 0;
   server_super_read_only= 0;
 
   DBUG_RETURN(error);
+}
+
+int set_server_read_mode(enum_plugin_con_isolation session_isolation)
+{
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
+  int error=
+    sql_command_interface->
+      establish_session_connection(session_isolation, get_plugin_pointer()) ||
+    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+    read_mode_handler->set_super_read_only_mode(sql_command_interface);
+  delete sql_command_interface;
+  return error;
+}
+
+int reset_server_read_mode(enum_plugin_con_isolation session_isolation)
+{
+  Sql_service_command_interface *sql_command_interface=
+      new Sql_service_command_interface();
+  int error=
+    sql_command_interface->
+      establish_session_connection(session_isolation, get_plugin_pointer()) ||
+    sql_command_interface->set_interface_user(GROUPREPL_USER) ||
+    read_mode_handler->reset_super_read_only_mode(sql_command_interface, true);
+  delete sql_command_interface;
+  return error;
 }

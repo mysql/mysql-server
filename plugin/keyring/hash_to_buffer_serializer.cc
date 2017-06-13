@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,7 +50,9 @@ namespace keyring
                       break;
       case REMOVE_KEY: memory_needed_for_buffer_after_operation -= key->get_key_pod_size();
                        break;
-      case NONE: break;
+      case NONE:
+      case ROTATE:
+        break;
     }
 
     Buffer *buffer= new Buffer(memory_needed_for_buffer_after_operation);

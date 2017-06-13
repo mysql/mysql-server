@@ -317,6 +317,6 @@ int injector::record_incident(THD *thd,
                               LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
-  return mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
+  return mysql_bin_log.write_incident(&ev, thd, true/*need_lock_log=true*/,
                                       message.str);
 }

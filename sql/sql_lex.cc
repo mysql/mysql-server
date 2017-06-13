@@ -529,7 +529,6 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
-  lex->clear_values_map();
 
   DBUG_VOID_RETURN;
 }

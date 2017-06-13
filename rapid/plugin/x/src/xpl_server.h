@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -96,12 +96,9 @@ public:
 
 private:
   static Client_ptr      get_client_by_thd(Server_ref &server, THD *thd);
-  static void            create_mysqlx_user(Sql_data_context &context);
-  static ngs::Error_code let_mysqlx_user_verify_itself(Sql_data_context &context);
   static void            verify_mysqlx_user_grants(Sql_data_context &context);
 
   bool on_net_startup();
-  void on_net_shutdown();
 
   void net_thread();
 

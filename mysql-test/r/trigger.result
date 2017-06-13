@@ -2643,4 +2643,154 @@ user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_ha
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP TRIGGER test.silly_trigger;
 DROP TABLE test.silly_one;
+#
+# Bug#25209512:  CURRENT_TIMESTAMP PRODUCES ZEROS IN TRIGGER
+#
+
+# Case 1: With BEFORE INSERT triggers
+# Scenario 1.1: Normal INSERT
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-05-15 07:07:07");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
+CREATE TRIGGER trigger_for_normal_insert BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1() VALUES();
+SELECT * FROM t1;
+a
+2017-05-15 07:07:07
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-05-15 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.2: INSERT INTO... SELECT
+CREATE TABLE t1(a DATETIME NOT NULL DEFAULT NOW(), b INT);
+CREATE TRIGGER trigger_for_insert_select BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1(b) SELECT 1;
+SELECT * FROM t1;
+a	b
+2017-05-15 07:07:07	1
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-05-15 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.3: Normal REPLACE
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP );
+CREATE TRIGGER trigger_for_normal_replace BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+REPLACE INTO t1() VALUES();
+SELECT * FROM t1;
+a
+2017-05-15 07:07:07
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-05-15 07:07:07
+DROP TABLE t1;
+
+# Scenario 1.4: REPLACE INTO... SELECT
+CREATE TABLE t1(a DATETIME NOT NULL DEFAULT NOW(), b INT);
+CREATE TRIGGER trigger_for_replace_select BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+REPLACE INTO t1(b) SELECT 1;
+SELECT * FROM t1;
+a	b
+2017-05-15 07:07:07	1
+# Without the patch, x contained zero timestamp.
+SELECT @x;
+@x
+2017-05-15 07:07:07
+DROP TABLE t1;
+
+# Case 2: With BEFORE UPDATE triggers
+# Scenario 2.1: Normal UPDATE with ON UPDATE NOW() clause for
+#               the timestamp field.
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-11 09:09:09");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE NOW(), b INT DEFAULT 1 );
+CREATE TRIGGER trigger_before_update BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+a	b
+2017-04-11 09:09:09	1
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-12 10:10:10");
+UPDATE t1 SET b= 2;
+SELECT * FROM t1;
+a	b
+2017-04-12 10:10:10	2
+# Without the patch, x contained the old timestamp.
+SELECT @x;
+@x
+2017-04-12 10:10:10
+DROP TABLE t1;
+
+# Scenario 2.2: Normal UPDATE without ON UPDATE NOW() clause for
+#               the timestamp field.
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-13 08:08:08");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+b INT DEFAULT 1 );
+CREATE TRIGGER trigger_before_update BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+a	b
+2017-04-13 08:08:08	1
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-05-04 05:05:05");
+UPDATE t1 SET b= 2;
+SELECT * FROM t1;
+a	b
+2017-04-13 08:08:08	2
+# x contains the old timestamp because of the absence of
+# ON UPDATE clause for the timestamp field.
+SELECT @x;
+@x
+2017-04-13 08:08:08
+DROP TABLE t1;
+
+# Scenario 2.3: UPDATE with join
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-25 11:11:11");
+CREATE TABLE t1( a DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+ON UPDATE CURRENT_TIMESTAMP, b INT);
+CREATE TABLE t2( d INT);
+INSERT INTO t1(b) VALUES(1);
+INSERT INTO t2 VALUES(2);
+SELECT * FROM t1;
+a	b
+2017-04-25 11:11:11	1
+SELECT * FROM t2;
+d
+2
+CREATE TRIGGER trigger_before_update_with_join BEFORE UPDATE ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-25 01:01:01");
+UPDATE t1, t2 SET t1.b= t2.d;
+SELECT * FROM t1;
+a	b
+2017-04-25 01:01:01	2
+# Without the patch, x contained old timestamp
+SELECT @x;
+@x
+2017-04-25 01:01:01
+DROP TABLE t1, t2;
+
+# Case 3: LOAD DATA INFILE... with BEFORE INSERT triggers
+SET TIMESTAMP= UNIX_TIMESTAMP("2017-04-17 06:06:06");
+CREATE TABLE t1( a TIMESTAMP NOT NULL DEFAULT NOW(), b INT );
+CREATE TRIGGER trigger_for_load_infile BEFORE INSERT ON t1 FOR EACH ROW
+SET @x:= NEW.a;
+SELECT 1 INTO OUTFILE 't1.dat' FROM dual;
+LOAD DATA INFILE 't1.dat' INTO TABLE t1(b);
+SELECT * FROM t1;
+a	b
+2017-04-17 06:06:06	1
+# Without the patch, x contained zero timestamp
+SELECT @x;
+@x
+2017-04-17 06:06:06
+DROP TABLE t1;
+SET TIMESTAMP= DEFAULT;
 End of 5.7 tests.

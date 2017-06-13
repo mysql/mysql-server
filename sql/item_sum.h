@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -356,6 +356,7 @@ public:
   int8 max_arg_level;     /* max level of unbound column references          */
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
+  st_select_lex *base_select; ///< query block where function is placed
 
 protected:  
   uint arg_count;
@@ -1433,7 +1434,8 @@ class Item_func_group_concat : public Item_sum
   bool warning_for_row;
   bool always_null;
   bool force_copy_fields;
-  bool no_appended;
+  /** True if result has been written to output buffer. */
+  bool m_result_finalized;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)

@@ -84,6 +84,10 @@ DROP TABLE t1;
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
+--let $grep_pattern=replication_observers_example_plugin:binlog_relay_applier_start
+--source include/grep_pattern.inc
+
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin_io.err
 --let $grep_pattern=replication_observers_example_plugin:binlog_relay_applier_stop
 --source include/grep_pattern.inc
 

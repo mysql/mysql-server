@@ -14,10 +14,10 @@ PLUGIN_NAME	keyring_file
 PLUGIN_VERSION	1.0
 PLUGIN_STATUS	ACTIVE
 
-SET @@global.keyring_file_data= 'MYSQL_TMP_DIR/keyring';
+SET @@global.keyring_file_data='keyring_file';
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQL_TMP_DIR/keyring
+keyring_file
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SET @@global.keyring_file_data= 'MYSQL_TMP_DIR/new_keyring_file_data';
 SELECT @@global.keyring_file_data;
@@ -25,8 +25,6 @@ SELECT @@global.keyring_file_data;
 MYSQL_TMP_DIR/new_keyring_file_data
 SET @@global.keyring_file_data='';
 ERROR 42000: Variable 'keyring_file_data' can't be set to the value of ''
-SET @@global.keyring_file_data='#^$^@E&(';
-ERROR 42000: Variable 'keyring_file_data' can't be set to the value of '#^$^@E&('
 SET @@global.keyring_file_data=1;
 ERROR 42000: Incorrect argument type to variable 'keyring_file_data'
 SET @@global.keyring_file_data='/';

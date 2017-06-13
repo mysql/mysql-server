@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -2501,7 +2501,6 @@ int Partition_helper::ph_index_read_map(uchar *buf,
                                      enum ha_rkey_function find_flag)
 {
   DBUG_ENTER("Partition_handler::ph_index_read_map");
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;
@@ -2617,7 +2616,6 @@ int Partition_helper::ph_index_first(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_first");
 
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_FIRST;
   m_reverse_order= false;
   DBUG_RETURN(common_first_last(buf));
@@ -2699,7 +2697,6 @@ int Partition_helper::ph_index_read_last_map(uchar *buf,
   DBUG_ENTER("Partition_helper::ph_index_read_last_map");
 
   m_ordered= true;                              // Safety measure
-  m_handler->end_range= NULL;
   m_index_scan_type= PARTITION_INDEX_READ_LAST;
   m_start_key.key= key;
   m_start_key.keypart_map= keypart_map;

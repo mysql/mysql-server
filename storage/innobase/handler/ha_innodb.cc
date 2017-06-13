@@ -8470,7 +8470,9 @@ ha_innobase::index_end(void)
 {
 	DBUG_ENTER("index_end");
 
-	m_prebuilt->index->last_sel_cur->release();
+	if(m_prebuilt->index->last_sel_cur) {
+		m_prebuilt->index->last_sel_cur->release();
+	}
 
 	active_index = MAX_KEY;
 
@@ -12442,8 +12444,11 @@ ha_innobase::delete_table(
 
 	if (handler != NULL) {
 		for (dict_index_t* index = UT_LIST_GET_FIRST(handler->indexes);
-		     index != NULL;
+		     index != NULL && index->last_ins_cur;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			/* last_ins_cur and last_sel_cur are allocated
+			together ,therfore checking only last_ins_cur
+			before releasing mtr */
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
@@ -14837,10 +14842,14 @@ get_foreign_key_info(
 
 		if (ref_table == NULL) {
 
-			ib::info() << "Foreign Key referenced table "
-				   << foreign->referenced_table_name
-				   << " not found for foreign table "
-				   << foreign->foreign_table_name;
+			if (!thd_test_options(
+				thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+				ib::info()
+					<< "Foreign Key referenced table "
+					<< foreign->referenced_table_name
+					<< " not found for foreign table "
+					<< foreign->foreign_table_name;
+			}
 		} else {
 
 			dict_table_close(ref_table, TRUE, FALSE);
@@ -17584,6 +17593,27 @@ innodb_large_prefix_update(
 	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
 }
 
+/** If the setting innodb_undo_logs is updated, write and return a
+deprecation warning message.
+@param[in,out]	thd	MySQL client connection
+@param[out]	var_ptr	current value
+@param[in]	save	to-be-assigned value */
+static
+void
+innodb_undo_logs_update(
+	THD*		thd,
+	st_mysql_sys_var*,
+	void*		var_ptr,
+	const void*	save)
+{
+	ib::warn() << deprecated_undo_logs;
+
+	push_warning(thd, Sql_condition::SL_WARNING,
+		     HA_ERR_WRONG_COMMAND, deprecated_undo_logs);
+
+	*static_cast<ulong*>(var_ptr) = *static_cast<const ulong*>(save);
+}
+
 /*************************************************************//**
 Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -19874,8 +19904,8 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
 
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
-  NULL, NULL,
+  "Number of rollback segments to use for storing undo logs. (deprecated)",
+  NULL, innodb_undo_logs_update,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
@@ -19902,9 +19932,9 @@ static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
   NULL, NULL, FALSE);
 
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
-static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
+static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use (deprecated).",
+  "Number of rollback segments to use for storing undo logs.",
   NULL, NULL,
   TRX_SYS_N_RSEGS,	/* Default setting */
   1,			/* Minimum value */

@@ -291,9 +291,29 @@ public:
   static std::string get_configuration_flags_string(const uint32 configuation_flags);
 
   /**
-    @return Compare two members using "operator <"
+    @return Compare two members using member version
    */
-  static bool comparator_group_member_info(Group_member_info *m1, Group_member_info *m2);
+  static bool comparator_group_member_version(Group_member_info *m1, Group_member_info *m2);
+
+  /**
+    @return Compare two members using server uuid
+   */
+  static bool comparator_group_member_uuid(Group_member_info *m1, Group_member_info *m2);
+
+  /**
+    Return true if member version is higher than other member version
+   */
+  bool has_greater_version(Group_member_info *other);
+
+  /**
+    Return true if server uuid is lower than other member server uuid
+   */
+  bool has_lower_uuid(Group_member_info *other);
+
+  /**
+    Return true if server uuid is equal than other member server uuid
+   */
+  bool has_equal_uuid(Group_member_info *other);
 
   /**
    Redefinition of operate == and <. They operate upon the uuid
@@ -472,6 +492,8 @@ public:
   @return true if at least one member has  conflict detection enabled
   */
   virtual bool is_conflict_detection_enabled()= 0;
+
+  virtual void get_primary_member_uuid(std::string &primary_member_uuid)= 0;
 };
 
 
@@ -519,6 +541,8 @@ public:
                                           uint64 length);
 
   bool is_conflict_detection_enabled();
+
+  void get_primary_member_uuid(std::string &primary_member_uuid);
 
 private:
   void clear_members();
