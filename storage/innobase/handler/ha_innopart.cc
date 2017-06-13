@@ -3282,6 +3282,7 @@ ha_innopart::records_in_range(
 			{
 
 				n_rows = HA_POS_ERROR;
+				mem_heap_free(heap);
 				goto func_exit;
 			}
 			int64_t n = btr_estimate_n_rows_in_range(index,
