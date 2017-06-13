@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_share.h"
+
 #include "ha_ndbcluster_tables.h"
 #include "m_string.h"
 #include "my_sys.h"
@@ -23,7 +25,6 @@
 #include "ndb_dist_priv_util.h"
 #include "ndb_event_data.h"
 #include "ndb_name_util.h"
-#include "ndb_share.h"
 #include "ndb_table_map.h"
 #include "table.h"
 #include "field.h"

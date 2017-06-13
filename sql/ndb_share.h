@@ -19,6 +19,7 @@
 #define NDB_SHARE_H
 
 #include <stdio.h>           // FILE, stderr
+#include <string>
 
 #include "my_alloc.h"        // MEM_ROOT
 #include "my_bitmap.h"       // MY_BITMAP
