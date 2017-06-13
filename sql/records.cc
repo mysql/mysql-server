@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -617,10 +617,9 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
   rec_cache_size= info->cache_records*info->reclength;
   info->rec_cache_size= info->cache_records*info->ref_length;
 
-  // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
       !(info->cache=(uchar*) my_malloc_lock(rec_cache_size+info->cache_records*
-					   info->struct_length+1,
+					   info->struct_length,
 					   MYF(0))))
   {
     *info= info_copy;

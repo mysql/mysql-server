@@ -1088,14 +1088,18 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
     (lex->sql_command == SQLCOM_CREATE_TABLE) &&
     (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
 
+  const my_bool create_real_tables=
+    (lex->sql_command == SQLCOM_CREATE_TABLE) &&
+    !(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
+
   const my_bool drop_temp_tables= 
     (lex->sql_command == SQLCOM_DROP_TABLE) &&
     lex->drop_temporary;
 
   const my_bool update_real_tables=
-    some_non_temp_table_to_be_updated(thd, all_tables) &&
-    !(create_temp_tables || drop_temp_tables);
-
+    ((create_real_tables ||
+      some_non_temp_table_to_be_updated(thd, all_tables)) &&
+     !(create_temp_tables || drop_temp_tables));
 
   const my_bool create_or_drop_databases=
     (lex->sql_command == SQLCOM_CREATE_DB) ||

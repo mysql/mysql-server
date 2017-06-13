@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -845,6 +845,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   char *log_file_name = linfo.log_file_name;
   char search_file_name[FN_REFLEN], *name;
 
+  bool is_index_file_reopened_on_binlog_disable= false;
   ulong ev_offset;
   bool using_gtid_protocol= slave_gtid_executed != NULL;
   bool searching_first_gtid= using_gtid_protocol;
@@ -1900,18 +1901,65 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
     if (goto_next_binlog)
     {
+      DBUG_EXECUTE_IF("waiting_for_disable_binlog",
+                      {
+                      const char act[]= "now "
+                      "signal dump_thread_reached_wait_point "
+                      "wait_for continue_dump_thread no_clear_event";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                      };);
+
       // clear flag because we open a new binlog
       binlog_has_previous_gtids_log_event= false;
 
       THD_STAGE_INFO(thd, stage_finished_reading_one_binlog_switching_to_next_binlog);
-      switch (mysql_bin_log.find_next_log(&linfo, 1)) {
-      case 0:
-        break;
-      default:
+      /*
+        When moving to next binlog, always check if binlog is enabled or not.
+        There can be critical errors like for example out of memory scenarios
+        which prevent mysqld server from writing to binlog. In those cases
+        server refers to binlog_error_action variable and takes the appropriate
+        action. If users choose to ignore the error then binary log will be
+        disabled and server will continue to do its work. In such cases dump
+        thread which is trying to move to the next log will fail as binlog index
+        file and binlog file are already closed and their corresponding caches
+        are also cleared.
+
+        Hence first check if binary log is enabled or not. If enabled look for
+        the next binary log in the index file. If it is disabled open the index
+        file once again and check if there any more binary logs that needs to be
+        sent. Keep reading binary log files until find_next_log returns empty.
+        If there is an error during open index file or we sent all binary logs
+        then ER_MASTER_FATAL_ERROR_READING_BINLOG is raised.
+      */
+      mysql_bin_log.lock_index();
+      if (!mysql_bin_log.is_open())
+      {
+        if (mysql_bin_log.open_index_file(mysql_bin_log.get_index_fname(),
+                                          linfo.log_file_name,FALSE))
+        {
+          errmsg = "Binary log is not open and failed to open index file to "
+            "retrieve next file.";
+          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+          mysql_bin_log.unlock_index();
+          GOTO_ERR;
+        }
+        is_index_file_reopened_on_binlog_disable= true;
+      }
+      if (mysql_bin_log.find_next_log(&linfo, 0))
+      {
+        DBUG_EXECUTE_IF("waiting_for_disable_binlog",
+                        {
+                        const char act[]= "now signal consumed_binlog";
+                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                           STRING_WITH_LEN(act)));
+                        };);
         errmsg = "could not find next log";
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+        mysql_bin_log.unlock_index();
         GOTO_ERR;
       }
+      mysql_bin_log.unlock_index();
 
       end_io_cache(&log);
       mysql_file_close(file, MYF(MY_WME));
@@ -2002,6 +2050,9 @@ err:
     error_text[sizeof(error_text) - 1]= '\0';
   }
   end_io_cache(&log);
+  if (is_index_file_reopened_on_binlog_disable)
+    mysql_bin_log.close(LOG_CLOSE_INDEX, true/*need_lock_log=true*/,
+			true/*need_lock_index=true*/);
   if (has_transmit_started)
     (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, flags));
   /*

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -289,6 +289,7 @@ sub collect_one_suite($)
       $suitedir= my_find_dir($::basedir,
 			     ["share/mysql-test/suite",
 			      "mysql-test/suite",
+                              "lib/mysql-test/suite",
 			      "internal/mysql-test/suite",
 			      "mysql-test",
 			      # Look in storage engine specific suite dirs

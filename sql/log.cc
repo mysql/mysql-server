@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3065,14 +3065,20 @@ void exec_binlog_error_action_abort(const char* err_string)
     Hence we clear the previous errors and push one critical error message to
     clients.
    */
-  thd->clear_error();
-  /*
-    Adding ME_NOREFRESH flag will ensure that the error is sent to both
-    client and to the server error log as well.
-   */
-  my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_NOREFRESH + ME_FATALERROR),
-           err_string);
-  thd->protocol->end_statement();
+  if (thd)
+  {
+    if (thd->is_error())
+      thd->clear_error();
+    /*
+      Adding ME_NOREFRESH flag will ensure that the error is sent to both
+      client and to the server error log as well.
+     */
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_NOREFRESH + ME_FATALERROR),
+             err_string);
+    thd->protocol->end_statement();
+  }
+  else
+    sql_print_error("%s",err_string);
   abort();
 }
 
