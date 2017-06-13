@@ -6426,22 +6426,25 @@ rollback_inplace_alter_table(
 	row_mysql_lock_data_dictionary(ctx->trx);
 
 	if (ctx->need_rebuild()) {
-		dberr_t	err = DB_SUCCESS;
-		ulint	flags	= ctx->new_table->flags;
+		/* The table could have been closed in commit phase */
+		if (ctx->new_table != nullptr) {
+			dberr_t	err = DB_SUCCESS;
+			ulint	flags	= ctx->new_table->flags;
 
-		/* DML threads can access ctx->new_table via the
-		online rebuild log. Free it first. */
-		innobase_online_rebuild_log_free(prebuilt->table);
+			/* DML threads can access ctx->new_table via the
+			online rebuild log. Free it first. */
+			innobase_online_rebuild_log_free(prebuilt->table);
 
-		dict_table_close(ctx->new_table, TRUE, FALSE);
+			dict_table_close(ctx->new_table, TRUE, FALSE);
 
-		switch (err) {
-		case DB_SUCCESS:
-			break;
-		default:
-			my_error_innodb(err, table->s->table_name.str,
-					flags);
-			fail = true;
+			switch (err) {
+			case DB_SUCCESS:
+				break;
+			default:
+				my_error_innodb(err, table->s->table_name.str,
+						flags);
+				fail = true;
+			}
 		}
 	} else {
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
@@ -9212,6 +9215,7 @@ public:
 
 		if (m_new != nullptr) {
 			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+			m_new = nullptr;
 		}
 
 		return(error);
@@ -9224,6 +9228,7 @@ public:
 		rolled back. */
 		if (m_new != nullptr) {
 			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+			m_new = nullptr;
 		}
 	}
 
@@ -9435,6 +9440,7 @@ public:
 		rolled back. */
 		if (m_new != nullptr) {
 			dd_table_close(m_new, m_trx->mysql_thd, nullptr, false);
+			m_new = nullptr;
 		}
 	}
 
@@ -9539,6 +9545,7 @@ alter_part_change::try_commit(
 
 	if (m_new != nullptr) {
 		dd_table_close(m_new, thd, nullptr, false);
+		m_new = nullptr;
 	}
 
 	return(error);
