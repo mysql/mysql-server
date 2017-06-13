@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2164,9 +2164,11 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
-          enum binlog_status_enum binlog_status_arg)
+          enum binlog_status_enum binlog_status_arg,
+          on_check_function on_check_func=0
+          )
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
-                  values, def_val, lock, binlog_status_arg, NULL)
+                  values, def_val, lock, binlog_status_arg, on_check_func, NULL)
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };
