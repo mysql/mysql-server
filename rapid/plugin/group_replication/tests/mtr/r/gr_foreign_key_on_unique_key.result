@@ -235,19 +235,19 @@ include/rpl_sync.inc
 
 [connection server2]
 Matching lines are:
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=1	sequence_number=2
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=3
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=4
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=5
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=6
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=5	sequence_number=7
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=9
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=9	sequence_number=10
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=8	sequence_number=11
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=11	sequence_number=12
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=12	sequence_number=13
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=4	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=3	sequence_number=5	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=6	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=5	sequence_number=7	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=9	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=9	sequence_number=10	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=8	sequence_number=11	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=11	sequence_number=12	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=12	sequence_number=13	rbr_only=no
 Occurrences of 'last_committed' in the input file: 13
 
 ################################

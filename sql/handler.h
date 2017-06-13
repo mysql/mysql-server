@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -4132,5 +4132,8 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot);
 
 #endif /* HANDLER_INCLUDED */

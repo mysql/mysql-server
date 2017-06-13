@@ -65,13 +65,11 @@ case $socketfile in
 esac
 
 install_validate_password_sql_file () {
-    local dir
     local initfile
-    dir=/var/lib/mysql
-    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
-    chown mysql:mysql "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > "$initfile"
-    echo "SHUTDOWN;" >> "$initfile"
+    initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
+    chmod a+r "$initfile"
+    echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> "$initfile"
     echo "$initfile"
 }
 
@@ -108,19 +106,15 @@ start(){
 		for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
 		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
 			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-			/sbin/restorecon $dir
+			/sbin/restorecon -r $dir
 		    fi
 		done
 	    fi
 	    # Now create the database
-	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
-	    ret=$?
-	    [ $ret -ne 0 ] && return $ret
 	    initfile="$(install_validate_password_sql_file)"
-	    action $"Installing validate password plugin: " /usr/sbin/mysqld --datadir="$datadir" --user=mysql --init-file="$initfile"
+	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql --init-file="$initfile"
 	    ret=$?
 	    rm -f "$initfile"
-	    chown -R mysql:mysql "$datadir"
 	    [ $ret -ne 0 ] && return $ret
 	    # Generate certs if needed
 	    if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then

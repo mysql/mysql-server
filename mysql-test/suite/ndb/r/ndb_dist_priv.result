@@ -15,12 +15,14 @@ CREATE USER 'user2'@'localhost' IDENTIFIED by 'mypass';
 GRANT SELECT ON test.t1 TO 'user2'@'localhost';
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
 user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user2	Select
@@ -28,12 +30,14 @@ CREATE USER 'user'@'localhost';
 grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user2	Select
 GRANT SELECT ON test.t1 TO 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user	Select
@@ -41,6 +45,7 @@ user2	Select
 FLUSH PRIVILEGES;
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user	Select
@@ -48,12 +53,14 @@ user2	Select
 REVOKE SELECT ON test.t1 FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user2	Select
 CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass';
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
@@ -62,6 +69,7 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 newuser	Update
 user2	Select
@@ -69,6 +77,7 @@ REVOKE UPDATE ON t1 FROM 'newuser'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 user2	Select
 GRANT SELECT (a) ON test.t1 TO 'user'@'localhost';
@@ -78,6 +87,7 @@ user	t1	a
 FLUSH PRIVILEGES;
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
@@ -86,6 +96,7 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 user	
 user2	Select
@@ -95,10 +106,12 @@ user	t1	a
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost';
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 user	
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
+mysql.session	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 mysql.sys	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 newuser	*1E9649BB3F345563008E37641B407AFF50E5835C
 root	
@@ -107,6 +120,7 @@ user2	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 user3	*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4
 select User,Table_priv from mysql.tables_priv ORDER BY User;
 User	Table_priv
+mysql.session	Select
 mysql.sys	Select
 user	
 connect(127.0.0.1,magnus,,test,MASTER_PORT,MASTER_SOCKET);

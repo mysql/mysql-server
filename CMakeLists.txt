@@ -212,6 +212,7 @@ INCLUDE(plugin)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
+INCLUDE(curl)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
@@ -360,6 +361,36 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
     "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
 ENDIF()
 
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
+ENDIF()
+IF(REPRODUCIBLE_BUILD)
+  SET(DEBUG_PREFIX_FLAGS
+    "-fdebug-prefix-map=${CMAKE_SOURCE_DIR}/=./ -fdebug-prefix-map=${CMAKE_CURRENT_BINARY_DIR}=./obj")
+
+  # See if -fdebug-prefix= commands are included in the debug output,
+  # making the build unreproducible with switches recorded.
+  # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=69821.
+  EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -g3 -x c -S -fdebug-prefix-map=foo=bar -o - -
+    INPUT_FILE /dev/null OUTPUT_VARIABLE DEBUG_PREFIX_MAP_RESULT)
+  IF(DEBUG_PREFIX_MAP_RESULT MATCHES "foo=bar")
+    SET(DEBUG_PREFIX_FLAGS "${DEBUG_PREFIX_FLAGS} -gno-record-gcc-switches")
+  ENDIF()
+
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+    "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
+  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
+
+  SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
+  SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
+
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE
+    "${CMAKE_SOURCE_DIR}/scripts/invoke-with-relative-paths.pl")
+ENDIF()
+
 OPTION(ENABLED_LOCAL_INFILE
  "If we should enable LOAD DATA LOCAL by default" ${IF_WIN})
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
@@ -494,6 +525,8 @@ MYSQL_CHECK_LZ4()
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
 ENDIF()
+# Try and set CURL_LIBRARY
+MYSQL_CHECK_CURL()
 
 # Check for SYS_thread_selfid system call
 CHECK_C_SOURCE_COMPILES("

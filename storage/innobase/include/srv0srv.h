@@ -246,7 +246,12 @@ any of the rollback-segment based on configuration used. */
 extern ulint	srv_undo_tablespaces_active;
 
 /** The number of undo segments to use */
+extern ulong	srv_rollback_segments;
+
+/* Used for the deprecated setting innodb_undo_logs. This will get put into
+srv_rollback_segments if it is set to non=default */
 extern ulong	srv_undo_logs;
+extern const char* deprecated_undo_logs;
 
 /** Maximum size of undo tablespace. */
 extern unsigned long long	srv_max_undo_log_size;

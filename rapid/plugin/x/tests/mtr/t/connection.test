@@ -11,8 +11,8 @@ call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attem
 call mtr.add_suppression("Plugin mysqlx reported: '16.1: Unsuccessful login attempt: Account is locked.'");
 call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt: Invalid user or password'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Server works in offline mode.'");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysqlxsys'");
-call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysqlxsys'");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
@@ -246,10 +246,10 @@ show status like 'Mysqlx_connection_accept_errors';
 ###  Bug #21782329
 show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 
-###try login with user whose account is created by install mysqlx plugin and expect account is locked error
+###try login with internal user account and expect account is locked error
 --let $expected_error_msg= Invalid user or password \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u mysqlxsys --password='' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u'mysql.session' --password='' --sql "SELECT CURRENT_USER()"
 --sleep 1
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
@@ -375,32 +375,6 @@ let $restart_parameters = restart:  --skip-disconnect-on-expired-password --plug
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --exec $MYSQLXTEST -u xplugin --password='xplugin' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
-
-##drop mysqlxsys@localhost user created by default with mysqlxplugin and try connect using xprotocol,expect error
-drop user mysqlxsys@localhost;
---let $expected_error_msg= Unable to switch context to user mysqlxsys \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
-
-##restart server and try connecting using xprotocol,expect connection success as mysqlxsys user would be created during server restart as plugin gets loaded again
-let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN ;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --sleep 1
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';

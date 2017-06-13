@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,14 +197,19 @@ get_ipv4_local_private_addresses(std::map<std::string, int>& out,
   {
     std::string ip= it->first;
     int cidr= it->second;
-    if ((ip.compare(0, 8, "192.168.") == 0 && cidr >= 16) ||
-        (ip.compare(0, 7, "172.16.") == 0 && cidr >= 12) ||
-        (ip.compare(0, 3, "10.") == 0 && cidr >= 8) ||
-        (ip.compare("127.0.0.1") == 0 ))
+
+    int part1, part2, part3, part4;
+    sscanf(ip.c_str(), "%d.%d.%d.%d", &part1, &part2, &part3, &part4);
+
+    if ((part1 == 192 && part2 == 168 && cidr >= 16) ||
+        (part1 == 172 && part2 >= 16 && part2 <= 31 && cidr >= 12) ||
+        (part1 == 10 && cidr >= 8) ||
+        (part1 == 127 && part2 == 0 && part3 == 0 && part4 == 1 ))
     {
       out.insert(std::make_pair(ip, cidr));
     }
   }
+
   return false;
 }
 

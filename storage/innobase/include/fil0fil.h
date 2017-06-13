@@ -956,12 +956,12 @@ fil_prepare_for_truncate(
 
 /** Reinitialize the original tablespace header with the same space id
 for single tablespace
-@param[in]	id		space id of the tablespace
+@param[in]	table		table belongs to the tablespace
 @param[in]	size            size in blocks
 @param[in]	trx		Transaction covering truncate */
 void
-fil_reinit_space_header(
-	ulint		id,
+fil_reinit_space_header_for_table(
+	dict_table_t*	table,
 	ulint		size,
 	trx_t*		trx);
 

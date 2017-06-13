@@ -45,7 +45,7 @@ if ($binlog_position)
 
 # Check for match.
 --let $assert_select= last_committed=.*sequence_number=.*
---let $assert_match= `SELECT CONCAT('^[^\n]*last_committed=', REPLACE(REPLACE('$logical_timestamps', ';', '\n[^\n]*last_committed='), ' ', '\tsequence_number='), CHAR(36))`
+--let $assert_match= `SELECT CONCAT('last_committed=', REPLACE(REPLACE('$logical_timestamps', ';', '.*\n[^\n]*last_committed='), ' ', '\tsequence_number='))`
 --let $assert_text= assert_logical_timestamps: $logical_timestamps
 --let $extra_debug_info= Expected logical timestamps: $logical_timestamps
 --source include/assert_grep.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,9 @@
 
 #include "my_global.h"
 #include <vector>
+#include <map>
+#include <list>
+#include <string>
 
 /**
   Server side support to provide a service to plugins to report if
@@ -50,8 +53,57 @@ public:
   */
   void clear_write_set();
 
+  /**
+    Function to add a new SAVEPOINT identifier in the savepoint map in the
+    transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void add_savepoint(char* name);
+
+  /**
+    Function to delete a SAVEPOINT identifier in the savepoint map in the
+    transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void del_savepoint(char* name);
+
+  /**
+    Function to delete all data added to write set and savepoint since
+    SAVEPOINT identifier was added to savepoinbt in the transaction_ctx object.
+
+    @param[in] name - the identifier name of the SAVEPOINT.
+  */
+  void rollback_to_savepoint(char* name);
+
+  /**
+    Function to push savepoint data to a list and clear the savepoint map in
+    order to create another identifier context, needed on functions ant trigger.
+  */
+  void reset_savepoint_list();
+
+  /**
+    Restore previous savepoint map context, called after executed trigger or
+    function.
+  */
+  void restore_savepoint_list();
+
 private:
   std::vector<uint64> write_set;
+
+  /**
+    Contains information related to SAVEPOINTs. The key on map is the
+    identifier and the value is the size of write set when command was
+    executed.
+  */
+  std::map<std::string, size_t> savepoint;
+
+  /**
+    Create a savepoint context hierarchy to support encapsulation of
+    identifier name when function or trigger are executed.
+  */
+  std::list<std::map<std::string, size_t> > savepoint_list;
 };
 
 #endif	/* RPL_TRANSACTION_WRITE_SET_CTX_H */

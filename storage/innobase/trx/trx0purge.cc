@@ -905,7 +905,7 @@ trx_purge_mark_undo_for_truncate(
 	b. At-least 2 UNDO redo rseg/undo logs (besides the default rseg-0)
 	b. At-least 1 UNDO tablespace size > threshold. */
 	if (srv_undo_tablespaces_active < 2
-	    || (srv_undo_logs < (1 + srv_tmp_undo_logs + 2))) {
+	    || (srv_rollback_segments < (1 + srv_tmp_undo_logs + 2))) {
 		return;
 	}
 

@@ -246,8 +246,7 @@ int channel_create(const char* channel,
   /* create a new channel if doesn't exist */
   if (!mi)
   {
-    if ((error= add_new_channel(&mi, channel,
-                                channel_info->type)))
+    if ((error= add_new_channel(&mi, channel)))
         goto err;
   }
 
@@ -970,5 +969,15 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel)
   mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
+}
+
+bool is_any_slave_channel_running(int thread_mask)
+{
+  bool status;
+  DBUG_ENTER("is_any_slave_channel_running");
+  channel_map.rdlock();
+  status= is_any_slave_channel_running(thread_mask, NULL);
+  channel_map.unlock();
+  DBUG_RETURN(status);
 }
 #endif /* HAVE_REPLICATION */

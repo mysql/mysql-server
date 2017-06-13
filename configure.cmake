@@ -207,7 +207,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   ENDIF()
 ENDIF()
 
-
+# TODO: consider to INSTALL this library
+# /opt/developerstudio12.5/lib/compilers/atomic/sparcv9/libstatomic.so
+# see: https://docs.oracle.com/cd/E60778_01/html/E60746/gqhbq.html
 # We assume that developer studio runtime libraries are installed.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
    CMAKE_CXX_COMPILER_ID STREQUAL "SunPro" AND
@@ -242,6 +244,8 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     "${CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
   SET(QUOTED_CMAKE_CXX_LINK_FLAGS
     "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
+  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
+    "${QUOTED_CMAKE_CXX_LINK_FLAGS} -L/usr/lib -latomic ")
 ENDIF()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND

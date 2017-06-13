@@ -39,16 +39,16 @@ include/rpl_sync.inc
 #
 [connection server4]
 Matching lines are:
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=6	sequence_number=7
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=8
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=8	sequence_number=9
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=9	sequence_number=10
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=no
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=7	sequence_number=8	rbr_only=no
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=8	sequence_number=9	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=9	sequence_number=10	rbr_only=no
 Occurrences of 'last_committed' in the input file: 10
 include/include/assert_logical_timestamps.inc [0 0;0 0;0 0;0 0;4 5;5 6;6 7;7 8;8 9;9 10]
 
