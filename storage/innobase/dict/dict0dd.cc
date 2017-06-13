@@ -2532,26 +2532,27 @@ dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
 @param[in,out]	client		data dictionary client
 @param[in]	dd_space_id	dd tablespace id
 @param[out]	implicit	whether the tablespace is implicit tablespace
+@param[out]	dd_space	DD space object
 @retval false	on success
 @retval true	on failure */
 bool
 dd_tablespace_is_implicit(
 	dd::cache::Dictionary_client*	client,
 	dd::Object_id			dd_space_id,
-	bool*				implicit)
+	bool*				implicit,
+	dd::Tablespace**		dd_space)
 {
-	dd::Tablespace*		dd_space = nullptr;
 	uint32			id = 0;
 
 	const bool	fail
 		= client->acquire_uncached_uncommitted<dd::Tablespace>(
-			dd_space_id, &dd_space)
-		|| dd_space == nullptr
-		|| dd_space->se_private_data().get_uint32(
+			dd_space_id, dd_space)
+		|| (*dd_space) == nullptr
+		|| (*dd_space)->se_private_data().get_uint32(
 			dd_space_key_strings[DD_SPACE_ID], &id);
 
 	if (!fail) {
-		*implicit = dd_tablespace_is_implicit(dd_space, id);
+		*implicit = dd_tablespace_is_implicit(*dd_space, id);
 	}
 
 	return(fail);
@@ -3279,14 +3280,15 @@ dd_open_table_one(
 {
 	ut_ad(dd_table != nullptr);
 
-	bool	implicit;
+	bool		implicit;
+	dd::Tablespace*	dd_space = nullptr;
 
 	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
 		/* DD tables are in shared DD tablespace */
 		implicit = false;
 	} else if (dd_tablespace_is_implicit(
 		client, dd_first_index(dd_table)->tablespace_id(),
-		&implicit)) {
+		&implicit, &dd_space)) {
 		/* Tablespace no longer exist, it could be already dropped */
 		return(nullptr);
 	}
@@ -3314,6 +3316,14 @@ dd_open_table_one(
 
 	if (ret != 0) {
 		return(nullptr);
+	}
+
+	if (dd_space && !implicit) {
+		const char*     name = dd_space->name().c_str();
+		if (name) {
+			m_table->tablespace = mem_heap_strdupl(
+				m_table->heap, name, strlen(name));
+		}
 	}
 
 	if (Field** autoinc_col = table->s->found_next_number_field) {
