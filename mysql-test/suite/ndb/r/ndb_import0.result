@@ -119,5 +119,16 @@ t7.csv
 t7.map
 t7.rej
 t7.res
+# test NUL byte
+create table t8 (
+a int primary key,
+b varbinary(20)
+) engine=ndb;
+create table t8ver like t8;
+select count(*) from t8 x, t8ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+count(*)
+1000
 drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
-t6, t6ver, t7, t7ver;
+t6, t6ver, t7, t7ver, t8, t8ver;

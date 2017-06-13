@@ -622,7 +622,15 @@ NdbImportCsv::Parse::do_init()
   log1("do_init");
   const Spec& spec = m_input.m_spec;
   for (int s = 0; s < g_statecnt; s++)
-    m_trans[s][0] = 0;  // EOF
+  {
+    /*
+     * NUL byte 0x00 can be represented as NUL, \NUL, or \0
+     * where the first two contain a literal NUL byte 0x00.
+     * The T_NUL token is used to avoid branching in the normal
+     * case where the third printable format is used.
+     */
+    m_trans[s][0] = T_NUL;
+  }
   for (uint u = 1; u < g_bytecnt; u++)
   {
     m_trans[State_plain][u] = T_DATA;
@@ -739,7 +747,7 @@ NdbImportCsv::Parse::do_parse()
     else
     {
       uint64 abspos = m_input.m_startpos;
-      uint64 abslineno = m_input.m_startlineno;
+      uint64 abslineno = 1 + m_input.m_startlineno;
       m_util.set_error_data(m_error, __LINE__, 0,
                             "parse error at line=%llu: pos=%llu:"
                             " CSV page contains no complete record"
@@ -832,7 +840,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     pop_state();
     break;
-  case 0:
+  case T_NUL:
+    if (buf.m_pos == buf.m_len)
+    {
+      token = 0;
+      break;
+    }
+    if (m_state[m_stacktop] != State_escape)
+      token = T_DATA;
+    else
+    {
+      token = T_BYTE;
+      pop_state();
+    }
+    len = 1;
+    end += len;
     break;
   }
   Chunk chunk;
