@@ -334,13 +334,12 @@ for my $i (1..1000) {
   if (int(rand(5)) == 0) {
     $s = "\\N";
   } else {
-    my $n = 1 + int(rand(20));
+    my $n = int(rand(20+1));
     for (1..$n) {
       my $c;
       my $k = int(rand(256));
       if ($k == 0) {
-        # NUL byte not handled currently
-        $c = "\\0";
+        $c = int(rand(2)) ? chr($k) : int(rand(2)) ? "\\".chr($k) : "\\0";
       } elsif ($k == 0x09) {
         # TAB is field separator
         $c = "\\t";
@@ -412,5 +411,70 @@ select count(*) from t7;
 
 --list_files $MYSQLTEST_VARDIR/tmp/imp0
 
+--echo # test NUL byte
+
+perl;
+use strict;
+use Symbol;
+my $vardir = $ENV{MYSQLTEST_VARDIR}
+  or die "need MYSQLTEST_VARDIR";
+my $file = "$vardir/tmp/t8.csv";
+my $fh = gensym();
+open($fh, ">:raw", $file)
+  or die "$file: open for write failed: $!";
+for my $i (1..1000) {
+  my $s;
+  if (int(rand(5)) == 0) {
+    $s = "\\N";
+  } else {
+    my $n = int(rand(20+1));
+    for (1..$n) {
+      my $c;
+      my $k = int(rand(256));
+      if ($k == 0) {
+        $c = int(rand(2)) ? chr($k) : int(rand(2)) ? "\\".chr($k) : "\\0";
+      } elsif ($k == 0x09) {
+        # TAB is field separator
+        $c == "\\t";
+      } elsif ($k == 0x0a) {
+        # newline is line terminator
+        $c = "\\n";
+      } elsif ($k == 0x5c) {
+        # backslash is escape
+        $c = "\\\\";
+      } else {
+        $c = chr($k);
+      }
+      $s .= $c;
+    }
+  }
+  print $fh $i, "\t", $s, "\n";
+}
+close($fh)
+  or die "$file: close after write failed: $!";
+exit(0)
+EOF
+
+create table t8 (
+  a int primary key,
+  b varbinary(20)
+) engine=ndb;
+
+create table t8ver like t8;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t8.csv'
+into table t8ver
+lines terminated by '\n';
+--enable_query_log
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --csvopt=d --keep-state
+     test $MYSQLTEST_VARDIR/tmp/t8.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+select count(*) from t8 x, t8ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null));
+
 drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
-           t6, t6ver, t7, t7ver;
+           t6, t6ver, t7, t7ver, t8, t8ver;

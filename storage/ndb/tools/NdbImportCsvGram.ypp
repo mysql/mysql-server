@@ -61,6 +61,7 @@ NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg);
 %token T_LINEEND
 %token T_DATA
 %token T_BYTE
+%token T_NUL            /* NUL byte 0x00 */
 
 %%
 
