@@ -109,6 +109,12 @@ IF(UNIX)
       ENDIF()
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
+      # Link with the libatomic library in /usr/lib
+      # This prevents dependencies on libstatomic
+      # This was introduced with developerstudio12.5
+      IF(CC_MINOR_VERSION GREATER 13)
+        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -xatomic=gcc")
+      ENDIF()
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
       ENDIF()

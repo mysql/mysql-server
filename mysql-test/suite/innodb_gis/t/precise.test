@@ -80,14 +80,14 @@ select ST_astext(ST_symdifference(ST_geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 
 # Buffer() tests
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/
+--replace_numeric_round 4
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection)engine=innodb;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
---replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/
+--replace_numeric_round 4
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 

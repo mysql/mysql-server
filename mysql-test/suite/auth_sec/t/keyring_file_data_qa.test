@@ -21,9 +21,7 @@ eval INSTALL PLUGIN keyring_file SONAME '$KEYRING_PLUGIN';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 --echo
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/keyring';
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SET @@global.keyring_file_data='keyring_file';
 SELECT @@global.keyring_file_data;
 # Creating table with encryption.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -38,8 +36,6 @@ SELECT @@global.keyring_file_data;
 # Invalid values
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@global.keyring_file_data='';
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.keyring_file_data='#^$^@E&(';
 --error ER_WRONG_TYPE_FOR_VAR
 SET @@global.keyring_file_data=1;
 --error ER_WRONG_VALUE_FOR_VAR

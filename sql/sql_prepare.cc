@@ -3318,6 +3318,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
   /* The order is important */
   lex->unit->cleanup(true);
+  lex->clear_values_map();
 
   /* No need to commit statement transaction, it's not started. */
   DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));

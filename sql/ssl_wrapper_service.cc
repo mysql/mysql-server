@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -46,6 +46,8 @@ extern "C"
 static char *
 my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
 {
+  if (!time)
+      return NULL;
   return yaSSL_ASN1_TIME_to_string(time, buf, len);
 }
 

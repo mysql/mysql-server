@@ -1,0 +1,55 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap start GR on server1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Verify server1 is primary and so server2 will be secondary
+include/gr_find_a_primary.inc
+[connection server1]
+include/assert.inc [The server1 is primary]
+
+# 3. Create new channel ch3_2: server2(slave), server3(master).
+[connection server2]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 4.1 start slave and start GR and verify for
+#     ER_GROUP_REPLICATION_CONFIGURATION error
+include/start_slave.inc
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/stop_slave.inc
+
+# 4.2 start slave io and start GR and verify for
+#     ER_GROUP_REPLICATION_CONFIGURATION error
+include/start_slave_io.inc
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/stop_slave_io.inc
+
+# 4.3 start slave sql and start GR and verify for
+#     ER_GROUP_REPLICATION_CONFIGURATION error
+include/start_slave_sql.inc
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+include/stop_slave_sql.inc
+
+# 5. Verify occurrence of error message
+Occurrences of 'Can't start group replication on secondary member with single primary-mode while asynchronous replication channels are running' in the input file: 3
+
+# 6. Verify GR on server2 is OFFLINE
+include/assert.inc [Verify server2 MEMBER_STATE is OFFLINE]
+
+# 7. Start Group Replication on server2 and after
+#    resetting slave, verify it is running.
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+include/start_group_replication.inc
+include/assert.inc [Verify server2 MEMBER_STATE is ONLINE]
+include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -852,6 +852,22 @@ public:
   {
     return common_header->type_code;
   }
+
+  /**
+    Return true if the event has to be logged using SBR for DMLs.
+  */
+  virtual bool is_sbr_logging_format() const
+  {
+    return false;
+  }
+  /**
+    Return true if the event has to be logged using RBR for DMLs.
+  */
+  virtual bool is_rbr_logging_format() const
+  {
+    return false;
+  }
+
   /*
    is_valid is event specific sanity checks to determine that the
     object is correctly initialized.
@@ -1166,6 +1182,16 @@ public:
   int apply_event(Relay_log_info *rli);
 
   /**
+     Apply the GTID event in curr_group_data to the database.
+
+     @param rli Pointer to coordinato's relay log info.
+
+     @retval 0 success
+     @retval 1 error
+  */
+  inline int apply_gtid_event(Relay_log_info *rli);
+
+  /**
      Update the relay log position.
 
      This function represents the public interface for "stepping over"
@@ -1445,7 +1471,7 @@ public:        /* !!! Public in this patch to allow old usage */
     If true, the event always be applied by slave SQL thread or be printed by
     mysqlbinlog
    */
-  bool is_trans_keyword()
+  bool is_trans_keyword() const
   {
     /*
       Before the patch for bug#50407, The 'SAVEPOINT and ROLLBACK TO'
@@ -1461,7 +1487,26 @@ public:        /* !!! Public in this patch to allow old usage */
     return !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, "COMMIT", q_len) ||
       !native_strncasecmp(query, "SAVEPOINT", 9) ||
-      !native_strncasecmp(query, "ROLLBACK", 8);
+      !native_strncasecmp(query, "ROLLBACK", 8) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA START")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA END")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA PREPARE")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA COMMIT")) ||
+      !native_strncasecmp(query, STRING_WITH_LEN("XA ROLLBACK"));
+  }
+
+  /**
+    When a query log event contains a non-transaction control statement, we
+    assume that it is changing database content (DML) and was logged using
+    binlog_format=statement.
+
+    @return True the event represents a statement that was logged using SBR
+            that can change database content.
+            False for transaction control statements.
+  */
+  bool is_sbr_logging_format() const
+  {
+    return !is_trans_keyword();
   }
 
   /**
@@ -1826,6 +1871,10 @@ public:
   bool write(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -1889,6 +1938,10 @@ class Rand_log_event: public binary_log::Rand_event, public Log_event
   bool write(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2100,6 +2153,10 @@ public:
   void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2346,6 +2403,10 @@ public:
   const char* get_db() { return db; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2406,6 +2467,10 @@ public:
   const char* get_db() { return db; }
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2614,6 +2679,10 @@ public:
   bool write_post_header_for_derived(IO_CACHE* file);
 #endif
 
+  bool is_sbr_logging_format() const
+  {
+    return true;
+  }
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2785,6 +2854,10 @@ public:
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
 #endif
 
+  bool is_rbr_logging_format() const
+  {
+    return true;
+  }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -3111,6 +3184,10 @@ private:
   }
 #endif
 
+  bool is_rbr_logging_format() const
+  {
+    return true;
+  }
 private:
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -3668,6 +3745,8 @@ public:
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + message_length;
   }
 
+  virtual bool ends_group() { return true; }
+
 private:
   const char *description() const;
 };
@@ -3883,7 +3962,8 @@ public:
     Create a new event using the GTID owned by the given thread.
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 int64 last_committed_arg, int64 sequence_number_arg);
+                 int64 last_committed_arg, int64 sequence_number_arg,
+                 bool may_have_sbr_stmts_arg);
 
   /**
     Create a new event using the GTID from the given Gtid_specification
@@ -3891,6 +3971,7 @@ public:
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
+                 bool may_have_sbr_stmts_arg,
                  const Gtid_specification spec_arg);
 #endif
 

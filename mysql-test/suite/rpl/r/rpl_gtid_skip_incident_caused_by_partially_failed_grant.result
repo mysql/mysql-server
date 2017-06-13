@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
+CREATE TABLE t1(a INT, b INT);
+CREATE USER u1@h;
+#
+# Verify that u1 is added into mysql.user.
+#
+SELECT user FROM mysql.user WHERE user='u1';
+user
+u1
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+ERROR 42000: Can't find any matching row in the user table
+INSERT INTO t1 VALUES (1,1);
+#
+# Verify that the partially failed GRANT statement causes to log an
+# incident event with an unique gtid.
+#
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
+master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
+[connection slave]
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master. Message: REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. Error_code: 1590");
+[connection master]
+include/sync_slave_io_with_master.inc
+#
+# Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+# event on slave and then stop the slave sql thread.
+#
+include/wait_for_slave_sql_error.inc [errno=1590]
+#
+# Prepare the slave to skip the incident event by its GTID.
+#
+SET GTID_NEXT='MASTER_GTID:4';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+include/start_slave_sql.inc
+[connection master]
+DROP USER u1@h;
+DROP TABLE t1;
+include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ public:
     , backup_exists(FALSE)
     , memory_needed_for_buffer(0)
     , file_io(logger)
+    , keyring_file(-1)
   {
     memset(&saved_keyring_stat, 0, sizeof(MY_STAT));
   }
@@ -77,6 +78,7 @@ private:
   Hash_to_buffer_serializer hash_to_buffer_serializer;
   size_t memory_needed_for_buffer;
   File_io file_io;
+  File keyring_file;
 };
 
 }//namespace keyring

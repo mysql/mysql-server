@@ -1,0 +1,143 @@
+###############################################################################
+# This test validates that a new level is created when a stored function or
+# a trigger is called. The savepoint on previous level become unavailable
+# and thus do not cause conflict with savepoints on new level. When function
+# or trigger terminates, any savepoints it created are released and the previous
+# level is restored.
+#
+# Test:
+#   0. Create four tables (t1, t2, t3, t4) to insert data
+#   1. Create a trigger t1_tr1, will create a SAVEPOINT S1 and insert values on t2
+#   2. Create a function f1, will insert on t2, create a SAVEPOINT S1, insert on
+#   t1 and execute ROLLBACK TO S1
+#   3. Create a transaction, define a SAVEPOINT S1 insert values on T1 and execute
+#   a rollback to S1
+#   4. Call twice the function f1
+#   5. Create trigger t3_tr1 with exit handler which will rollback to savepoint
+#   created inside the trigger.
+#   6. Print contents of tables
+#   7. Execute asserts to confirm table data
+#   8. Clean up
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+SET @save_session_debug= @@SESSION.debug;
+
+# transaction_write_set_savepoint_level guarantees that when a SAVEPOINT is
+# created the level is empty
+SET @@SESSION.debug = "+d,transaction_write_set_savepoint_level";
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t4 (c1 INT NOT NULL PRIMARY KEY);
+
+DELIMITER |;
+
+#
+# When executing a trigger is created a new empty savepoint level
+#
+CREATE TRIGGER t1_tr1 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SAVEPOINT S1;
+  INSERT INTO t2 VALUES (NEW.c1);
+END|
+
+#
+# When executing a function is created a new empty savepoint level
+#
+CREATE FUNCTION f1(x INT) RETURNS INT
+BEGIN
+  INSERT INTO t2 VALUES (x);
+  SAVEPOINT S1;
+  INSERT INTO t1 VALUES (100);
+  ROLLBACK TO S1;
+
+  RETURN (1);
+END|
+
+DELIMITER ;|
+
+BEGIN;
+
+# S1 is the only savepoint on this level
+SAVEPOINT S1;
+INSERT INTO t1 VALUES (1);
+# This will trigger t1_tr1 that will create a new empty savepoint level and
+# there it will add a SAVEPOINT
+ROLLBACK TO S1;
+
+# The call to f1 will create a new empty savepoint level and there will add a
+# SAVEPOINT
+SELECT f1(102);
+
+# Validate that when executing a rollback, it will be executed in the context
+# of the function, the write set have size 2
+SET @@SESSION.debug = "+d,transaction_write_set_size_2";
+
+# This call to f1 will create a new empty savepoint level and there will add
+# a SAVEPOINT
+SELECT f1(101);
+
+COMMIT;
+
+SET @@SESSION.debug= @save_session_debug;
+
+# Create trigger t3_tr1 with exit handler which will rollback to a savepoint
+# created within the trigger.
+
+DELIMITER |;
+CREATE TRIGGER t3_tr1 AFTER INSERT ON t3 FOR EACH ROW
+BEGIN
+        DECLARE EXIT HANDLER FOR SQLEXCEPTION
+                BEGIN
+                        ROLLBACK TO SAVEPOINT inside_trigger;
+                        INSERT INTO t4 VALUES (NEW.c1*20);
+                END;
+
+        SAVEPOINT inside_trigger;
+
+        INSERT INTO t4 VALUES (NEW.c1);
+
+        RELEASE SAVEPOINT inside_trigger;
+
+END|
+DELIMITER ;|
+
+# Invoke t3_tr1 such that it will not invoke exit handler.
+INSERT INTO t3 values (1);
+
+# Invoke t3_tr1 such that it will invoke exit handler.
+INSERT INTO t4 values (2);
+INSERT INTO t3 values (2);
+
+--query_vertical SELECT * FROM t1
+--query_vertical SELECT * FROM t2
+--query_vertical SELECT * FROM t3
+--query_vertical SELECT * FROM t4
+
+--let $assert_text= 'There are no values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 values in table t2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 values in table t3'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t3, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There are 3 values in table t4'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t4, count, 1] = 3
+--source include/assert.inc
+
+# Cleanup
+DROP FUNCTION f1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;

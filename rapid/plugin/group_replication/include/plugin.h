@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@
 #include "read_mode_handler.h"
 #include "delayed_plugin_initialization.h"
 #include "gcs_operations.h"
+#include "asynchronous_channels_state_observer.h"
+#include "group_partition_handling.h"
 
 #include "plugin_constants.h"
 #include "plugin_server_include.h"
@@ -49,7 +51,6 @@ extern const char *group_replication_plugin_name;
 extern char *group_name_var;
 extern rpl_sidno group_sidno;
 extern bool wait_on_engine_initialization;
-extern bool delay_gr_user_creation;
 extern bool server_shutdown_status;
 extern const char *available_bindings_names[];
 //Flag to register server rest master command invocations
@@ -63,6 +64,8 @@ extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
+extern Asynchronous_channels_state_observer
+        *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
@@ -74,24 +77,31 @@ extern Plugin_gcs_events_handler* events_handler;
 extern Plugin_gcs_view_modification_notifier* view_change_notifier;
 extern Group_member_info* local_member_info;
 extern Compatibility_module* compatibility_mgr;
+extern Group_partition_handling* group_partition_handler;
+extern Blocked_transaction_handler* blocked_transaction_handler;
 
 //Plugin global methods
 bool server_engine_initialized();
 void *get_plugin_pointer();
 int configure_and_start_applier_module();
-int configure_group_member_manager();
+int configure_group_member_manager(char *hostname, char *uuid,
+                                   uint port, unsigned int server_version);
 int configure_compatibility_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
+void initialize_group_partition_handler();
 int terminate_recovery_module();
-int configure_group_communication(Sql_service_interface *sql_interface);
+int configure_group_communication(st_server_ssl_variables *ssl_variables);
 int start_group_communication();
 void declare_plugin_running();
 void register_server_reset_master();
 int leave_group();
-int terminate_plugin_modules();
+int terminate_plugin_modules(bool read_mode_set);
 bool get_allow_local_lower_version_join();
 bool get_allow_local_disjoint_gtids_join();
+ulong get_transaction_size_limit();
+void initialize_asynchronous_channels_observer();
+void terminate_asynchronous_channels_observer();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

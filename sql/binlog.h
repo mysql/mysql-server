@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -840,7 +840,8 @@ public:
   bool write_incident(THD *thd, bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
-  bool write_incident(Incident_log_event *ev, bool need_lock_log,
+  bool write_incident(Incident_log_event *ev, THD *thd,
+                      bool need_lock_log,
                       const char* err_msg,
                       bool do_flush_and_sync= true);
 
@@ -899,7 +900,7 @@ public:
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);
   bool reset_logs(THD* thd, bool delete_only= false);
-  void close(uint exiting);
+  void close(uint exiting, bool need_lock_log, bool need_lock_index);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
@@ -951,6 +952,11 @@ public:
       @retval !=0    Error
   */
   int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
+
+  /*
+    True while rotating binlog, which is caused by logging Incident_log_event.
+  */
+  bool is_rotating_caused_by_incident;
 };
 
 typedef struct st_load_file_info

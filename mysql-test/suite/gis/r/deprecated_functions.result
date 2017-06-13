@@ -691,11 +691,13 @@ ST_AsText(GeomCollFromWKB(ST_GeomFromText(@geometrycollection)))
 GEOMETRYCOLLECTION()
 Warnings:
 Warning	1287	'GEOMCOLLFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMCOLLFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(GeomCollFromWKB(ST_GeomFromText(@geometrycollection), 4326));
 ST_AsText(GeomCollFromWKB(ST_GeomFromText(@geometrycollection), 4326))
 GEOMETRYCOLLECTION()
 Warnings:
 Warning	1287	'GEOMCOLLFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMCOLLFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(GeometryCollectionFromText(@geometrycollection));
 ST_AsText(GeometryCollectionFromText(@geometrycollection))
 GEOMETRYCOLLECTION()
@@ -711,11 +713,13 @@ ST_AsText(GeometryCollectionFromWKB(ST_GeomFromText(@geometrycollection)))
 GEOMETRYCOLLECTION()
 Warnings:
 Warning	1287	'GEOMETRYCOLLECTIONFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMETRYCOLLECTIONFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(GeometryCollectionFromWKB(ST_GeomFromText(@geometrycollection), 4326));
 ST_AsText(GeometryCollectionFromWKB(ST_GeomFromText(@geometrycollection), 4326))
 GEOMETRYCOLLECTION()
 Warnings:
 Warning	1287	'GEOMETRYCOLLECTIONFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMETRYCOLLECTIONFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(GeometryFromText(@point_1));
 ST_AsText(GeometryFromText(@point_1))
 POINT(11 14)
@@ -731,11 +735,13 @@ ST_AsText(GeometryFromWKB(ST_GeomFromText(@point_1)))
 POINT(11 14)
 Warnings:
 Warning	1287	'GEOMETRYFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(GeometryFromWKB(ST_GeomFromText(@point_1), 4326));
 ST_AsText(GeometryFromWKB(ST_GeomFromText(@point_1), 4326))
 POINT(11 14)
 Warnings:
 Warning	1287	'GEOMETRYFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(GeomFromText(@point_1));
 ST_AsText(GeomFromText(@point_1))
 POINT(11 14)
@@ -751,11 +757,13 @@ ST_AsText(GeomFromWKB(ST_GeomFromText(@point_1)))
 POINT(11 14)
 Warnings:
 Warning	1287	'GEOMFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(GeomFromWKB(ST_GeomFromText(@point_1), 4326));
 ST_AsText(GeomFromWKB(ST_GeomFromText(@point_1), 4326))
 POINT(11 14)
 Warnings:
 Warning	1287	'GEOMFROMWKB' is deprecated and will be removed in a future release. Please use ST_GEOMFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(LineFromText(@linestring));
 ST_AsText(LineFromText(@linestring))
 LINESTRING(30 10,10 30,40 40)
@@ -771,11 +779,13 @@ ST_AsText(LineFromWKB(ST_GeomFromText(@linestring)))
 LINESTRING(30 10,10 30,40 40)
 Warnings:
 Warning	1287	'LINEFROMWKB' is deprecated and will be removed in a future release. Please use ST_LINEFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(LineFromWKB(ST_GeomFromText(@linestring), 4326));
 ST_AsText(LineFromWKB(ST_GeomFromText(@linestring), 4326))
 LINESTRING(30 10,10 30,40 40)
 Warnings:
 Warning	1287	'LINEFROMWKB' is deprecated and will be removed in a future release. Please use ST_LINEFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(LineStringFromText(@linestring));
 ST_AsText(LineStringFromText(@linestring))
 LINESTRING(30 10,10 30,40 40)
@@ -791,11 +801,13 @@ ST_AsText(LineStringFromWKB(ST_GeomFromText(@linestring)))
 LINESTRING(30 10,10 30,40 40)
 Warnings:
 Warning	1287	'LINESTRINGFROMWKB' is deprecated and will be removed in a future release. Please use ST_LINESTRINGFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(LineStringFromWKB(ST_GeomFromText(@linestring), 4326));
 ST_AsText(LineStringFromWKB(ST_GeomFromText(@linestring), 4326))
 LINESTRING(30 10,10 30,40 40)
 Warnings:
 Warning	1287	'LINESTRINGFROMWKB' is deprecated and will be removed in a future release. Please use ST_LINESTRINGFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MLineFromText(@multilinestring));
 ST_AsText(MLineFromText(@multilinestring))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
@@ -811,11 +823,13 @@ ST_AsText(MLineFromWKB(ST_GeomFromText(@multilinestring)))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
 Warnings:
 Warning	1287	'MLINEFROMWKB' is deprecated and will be removed in a future release. Please use ST_MLINEFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MLineFromWKB(ST_GeomFromText(@multilinestring), 4326));
 ST_AsText(MLineFromWKB(ST_GeomFromText(@multilinestring), 4326))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
 Warnings:
 Warning	1287	'MLINEFROMWKB' is deprecated and will be removed in a future release. Please use ST_MLINEFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MPointFromText(@multipoint));
 ST_AsText(MPointFromText(@multipoint))
 MULTIPOINT((10 10),(12 12))
@@ -831,11 +845,13 @@ ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint)))
 MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint), 4326));
 ST_AsText(MPointFromWKB(ST_GeomFromText(@multipoint), 4326))
 MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOINTFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MPolyFromText(@multipolygon));
 ST_AsText(MPolyFromText(@multipolygon))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
@@ -851,11 +867,13 @@ ST_AsText(MPolyFromWKB(ST_GeomFromText(@multipolygon)))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
 Warnings:
 Warning	1287	'MPOLYFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOLYFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MPolyFromWKB(ST_GeomFromText(@multipolygon), 4326));
 ST_AsText(MPolyFromWKB(ST_GeomFromText(@multipolygon), 4326))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
 Warnings:
 Warning	1287	'MPOLYFROMWKB' is deprecated and will be removed in a future release. Please use ST_MPOLYFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MultiLineStringFromText(@multilinestring));
 ST_AsText(MultiLineStringFromText(@multilinestring))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
@@ -871,11 +889,13 @@ ST_AsText(MultiLineStringFromWKB(ST_GeomFromText(@multilinestring)))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
 Warnings:
 Warning	1287	'MULTILINESTRINGFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTILINESTRINGFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MultiLineStringFromWKB(ST_GeomFromText(@multilinestring), 4326));
 ST_AsText(MultiLineStringFromWKB(ST_GeomFromText(@multilinestring), 4326))
 MULTILINESTRING((10 10,11 11),(12 12,13 13))
 Warnings:
 Warning	1287	'MULTILINESTRINGFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTILINESTRINGFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MultiPointFromText(@multipoint));
 ST_AsText(MultiPointFromText(@multipoint))
 MULTIPOINT((10 10),(12 12))
@@ -891,11 +911,13 @@ ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint)))
 MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint), 4326));
 ST_AsText(MultiPointFromWKB(ST_GeomFromText(@multipoint), 4326))
 MULTIPOINT((10 10),(12 12))
 Warnings:
 Warning	1287	'MULTIPOINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOINTFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(MultiPolygonFromText(@multipolygon));
 ST_AsText(MultiPolygonFromText(@multipolygon))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
@@ -911,11 +933,13 @@ ST_AsText(MultiPolygonFromWKB(ST_GeomFromText(@multipolygon)))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
 Warnings:
 Warning	1287	'MULTIPOLYGONFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOLYGONFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(MultiPolygonFromWKB(ST_GeomFromText(@multipolygon), 4326));
 ST_AsText(MultiPolygonFromWKB(ST_GeomFromText(@multipolygon), 4326))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35),(30 20,20 15,20 25,30 20)))
 Warnings:
 Warning	1287	'MULTIPOLYGONFROMWKB' is deprecated and will be removed in a future release. Please use ST_MULTIPOLYGONFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(PointFromText(@point_1));
 ST_AsText(PointFromText(@point_1))
 POINT(11 14)
@@ -931,11 +955,13 @@ ST_AsText(PointFromWKB(ST_GeomFromText(@point_1)))
 POINT(11 14)
 Warnings:
 Warning	1287	'POINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_POINTFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(PointFromWKB(ST_GeomFromText(@point_1), 4326));
 ST_AsText(PointFromWKB(ST_GeomFromText(@point_1), 4326))
 POINT(11 14)
 Warnings:
 Warning	1287	'POINTFROMWKB' is deprecated and will be removed in a future release. Please use ST_POINTFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(PolyFromText(@polygon));
 ST_AsText(PolyFromText(@polygon))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
@@ -951,11 +977,13 @@ ST_AsText(PolyFromWKB(ST_GeomFromText(@polygon)))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
 Warnings:
 Warning	1287	'POLYFROMWKB' is deprecated and will be removed in a future release. Please use ST_POLYFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(PolyFromWKB(ST_GeomFromText(@polygon), 4326));
 ST_AsText(PolyFromWKB(ST_GeomFromText(@polygon), 4326))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
 Warnings:
 Warning	1287	'POLYFROMWKB' is deprecated and will be removed in a future release. Please use ST_POLYFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT ST_AsText(PolygonFromText(@polygon));
 ST_AsText(PolygonFromText(@polygon))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
@@ -971,11 +999,13 @@ ST_AsText(PolygonFromWKB(ST_GeomFromText(@polygon)))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
 Warnings:
 Warning	1287	'POLYGONFROMWKB' is deprecated and will be removed in a future release. Please use ST_POLYGONFROMWKB instead
+Warning	3195	st_geometryfromwkb(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), 0) instead.
 SELECT ST_AsText(PolygonFromWKB(ST_GeomFromText(@polygon), 4326));
 ST_AsText(PolygonFromWKB(ST_GeomFromText(@polygon), 4326))
 POLYGON((35 10,45 45,15 40,10 20,35 10),(20 30,35 35,30 20,20 30))
 Warnings:
 Warning	1287	'POLYGONFROMWKB' is deprecated and will be removed in a future release. Please use ST_POLYGONFROMWKB instead
+Warning	3196	st_geometryfromwkb(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use st_geometryfromwkb(st_aswkb(geometry), srid) instead.
 SELECT MBREqual(ST_GeomFromText(@polygon), ST_GeomFromText(@polygon));
 MBREqual(ST_GeomFromText(@polygon), ST_GeomFromText(@polygon))
 1
