@@ -9083,10 +9083,15 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
         jam();
         ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
 
-        ndbrequire(NGPtr.p->activeTakeOver != startingNode);
         if (NGPtr.p->activeTakeOver == 0)
         {
           ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+        }
+        else
+        {
+          ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+          NGPtr.p->activeTakeOver = 0;
+          NGPtr.p->activeTakeOverCount = 0;
         }
       }
     }
