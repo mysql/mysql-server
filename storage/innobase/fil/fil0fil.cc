@@ -6856,18 +6856,16 @@ fil_node_next(
 	return(node);
 }
 
-/** Generate redo log for swapping two .ibd files
+/** Check if swapping two .ibd files can be done without failure 
 @param[in]	old_table	old table
 @param[in]	new_table	new table
 @param[in]	tmp_name	temporary table name
-@param[in,out]	mtr		mini-transaction
 @return innodb error code */
 dberr_t
-fil_mtr_rename_log(
+fil_rename_precheck(
 	const dict_table_t*	old_table,
 	const dict_table_t*	new_table,
-	const char*		tmp_name,
-	mtr_t*			mtr)
+	const char*		tmp_name)
 {
 	dberr_t	err;
 
@@ -6911,9 +6909,6 @@ fil_mtr_rename_log(
 			return(err);
 		}
 
-		fil_name_write_rename(
-			old_table->space, 0, old_path, tmp_path, mtr);
-
 		ut_free(tmp_path);
 	}
 
@@ -6941,9 +6936,6 @@ fil_mtr_rename_log(
 				return(err);
 			}
 		}
-
-		fil_name_write_rename(
-			new_table->space, 0, new_path, old_path, mtr);
 
 		ut_free(new_path);
 	}

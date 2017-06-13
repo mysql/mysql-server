@@ -7743,10 +7743,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (!fail && new_clustered) {
-		mtr_t	mtr;
-
-		mtr_start(&mtr);
-
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
 		     *pctx; pctx++) {
 			ha_innobase_inplace_ctx*	ctx
@@ -7755,11 +7751,10 @@ ha_innobase::commit_inplace_alter_table_impl(
 			DBUG_ASSERT(ctx->need_rebuild());
 			/* Check for any possible problems for any
 			file operations that will be performed in
-			commit_cache_rebuild(), and if none, generate
-			the redo log for these operations. */
-			error = fil_mtr_rename_log(ctx->old_table,
-						   ctx->new_table,
-						   ctx->tmp_name, &mtr);
+			commit_cache_rebuild(). */
+			error = fil_rename_precheck(ctx->old_table,
+						    ctx->new_table,
+						    ctx->tmp_name);
 			if (error != DB_SUCCESS) {
 				/* Out of memory or a problem will occur
 				when renaming files. */
@@ -7772,33 +7767,13 @@ ha_innobase::commit_inplace_alter_table_impl(
 					  crash_inject_count++);
 		}
 
-		/* Test what happens on crash if the redo logs
-		are flushed to disk here. The log records
-		about the rename should not be committed, and
-		the data dictionary transaction should be
+		/* Test what happens on crash here.
+		The data dictionary transaction should be
 		rolled back, restoring the old table. */
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
 		ut_ad(!trx->fts_trx);
-
-		if (fail) {
-			mtr.set_log_mode(MTR_LOG_NO_REDO);
-			mtr_commit(&mtr);
-		} else {
-			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
-#ifdef INNODB_NO_NEW_DD
-			ut_ad(trx_is_rseg_updated(trx));
-#endif /* INNODB_NO_NEW_DD */
-
-			/* The following call commits the
-			mini-transaction, The rename becomes
-			'durable' by the time when
-			log_buffer_flush_to_disk() returns. In the
-			logical sense the commit in the file-based
-			data structures happens here. */
-			mtr_commit(&mtr);
-		}
 
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
 				log_make_checkpoint_at(LSN_MAX, TRUE);
