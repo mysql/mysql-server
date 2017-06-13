@@ -1,17 +1,15 @@
 ################################################################################
-# This test checks the basics about the lifetime of the group replication user.
+# This test checks the server default user for the SQL session server is not
+# affected by GR, and GR fails when it is not there.
 #
 # Test:
 # 0. The test requires one server.
 #  - Install plugin at startup.
-# 1. On server assert check the GR user '_gr_user' exists after install.
-# 2. Bootstrap start a group. Assert check the GR user '_gr_user' exists.
-# 3. Uninstall GR plugin. Assert check the GR user '_gr_user' is removed.
-# 4. Install GR plugin. Assert check the GR user '_gr_user' exists.
-# 5. Drop the user. Bootstrap start GR and check that user gets created again.
-#    Check that a warning is logged.
-# 6. Install and uninstall plugin and verify that user don't exist
-# 7. Cleanup
+# 1. On server assert check the GR user 'mysql.session' exists after install.
+# 2. Bootstrap start a group. Assert check the GR user 'mysql.session' exists.
+# 3. Drop the user. Bootstrap start GR and check the start fails
+# 4. Uninstall the plugin and verify that user is still there
+# 5. Cleanup
 ################################################################################
 
 --let $rpl_skip_group_replication_start= 1
@@ -27,85 +25,58 @@ call mtr.add_suppression(".*The group replication user is not present in the ser
 SET SESSION sql_log_bin= 1;
 
 --echo #
---echo # Assert the user exist after install
+--echo # Assert the user exist from the start
 --echo #
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
 --let $assert_text= The group replication user should exist in this member
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
 --source include/assert.inc
 
 --echo #
---echo # Start and check all is OK
+--echo # Start group replication and check all is OK
 --echo #
 
 --source ../inc/start_and_bootstrap_group_replication.inc
 
 --let $assert_text= The group replication user should exist in this member
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
 --source include/assert.inc
 
 --echo #
---echo # Assert the user disappears on uninstall
+--echo # Delete the user and watch GR  fail at start
 --echo #
 
-#Backup the Xcom address vars
-SET @local_address= @@GLOBAL.group_replication_local_address;
-SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+--source include/stop_group_replication.inc
 
-UNINSTALL PLUGIN group_replication;
+let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
+let $date_to_restore_priv=`SELECT timestamp from mysql.tables_priv where user='mysql.session'`;
+DROP USER "mysql.session"@"localhost";
 
---let $assert_text= The group replication user should have been removed
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 0;
---source include/assert.inc
-
---echo #
---echo # Check after install
---echo #
-
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
-
---let $assert_text= The group replication user should exist in this member
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
---source include/assert.inc
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
 
 --echo #
---echo # Delete the user and watch GR create it again at start.
---echo # Check that a warning is logged.
+--echo # Recreate the user with an upgrade and see that GR works
 --echo #
 
-DROP USER "_gr_user"@"localhost";
-
-SET GLOBAL group_replication_local_address= @local_address;
-SET GLOBAL group_replication_group_seeds= @group_seeds;
+-- source include/mysql_upgrade_preparation.inc
+--echo Run mysql_upgrade
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--source include/mysql_upgrade_cleanup.inc
 
 --source ../inc/start_and_bootstrap_group_replication.inc
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
---let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_user.err
---let $grep_pattern=The group replication user is not present in the server. The user will be recreated
---source include/grep_pattern.inc
-
 --echo #
---echo # Without start install and uninstall plugin and verify that user don't exist
+--echo # Uninstall plugin and verify that user is still there
 --echo #
 
 UNINSTALL PLUGIN group_replication;
-
---replace_result $GROUP_REPLICATION GROUP_REPLICATION
---eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
 
 --let $assert_text= The group replication user should exist after install
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 1;
---source include/assert.inc
-
-UNINSTALL PLUGIN group_replication;
-
---let $assert_text= The group replication user shouldn't exist after uninstall
---let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="_gr_user"] = 0;
+--let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
 --source include/assert.inc
 
 --echo #
@@ -114,5 +85,15 @@ UNINSTALL PLUGIN group_replication;
 
 --replace_result $GROUP_REPLICATION GROUP_REPLICATION
 --eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when trying to access the server with user: mysql.session. Make*");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+SET SESSION sql_log_bin= 1;
+
+--disable_query_log ONCE
+--eval UPDATE mysql.tables_priv SET timestamp ='$date_to_restore_priv' WHERE USER= 'mysql.session'
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore' WHERE USER= 'mysql.session'
 
 --source ../inc/group_replication_end.inc

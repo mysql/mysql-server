@@ -1915,6 +1915,9 @@ SET @orig_sql_mode= @@sql_mode;
 SET sql_mode= (SELECT replace(@@sql_mode,'NO_ZERO_DATE',''));
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DELETE FROM mysql.tables_priv WHERE user='mysql.session';
+DELETE FROM mysql.user WHERE user='mysql.session';
+DELETE FROM mysql.db WHERE user='mysql.session';
 ALTER TABLE mysql.tables_priv
 MODIFY User char(16) NOT NULL default '',
 MODIFY Grantor char(77) DEFAULT '' NOT NULL;

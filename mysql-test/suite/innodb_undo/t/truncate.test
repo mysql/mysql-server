@@ -10,7 +10,7 @@
 --source include/big_test.inc
 
 
---let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_undo_logs=35"
+--let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=35"
 --source include/restart_mysqld.inc
 
 ################################################################################

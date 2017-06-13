@@ -83,6 +83,7 @@ drop function keyring_key_remove;
 
 --echo # Test cases for keyring_udf and keyring_file plugins loaded
 --source include/keyring_udf_keyring_plugin_loaded.inc
+--source include/keyring_udf_keyring_plugin_loaded_store_operations.inc
 
 # Cases only possible for keyring_file
 # Generate AES_512

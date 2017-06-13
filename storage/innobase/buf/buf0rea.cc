@@ -293,8 +293,6 @@ buf_read_ahead_random(
 				size += os_file_get_size(node->handle)
 					/ page_size.physical();
 			}
-
-			ut_ad(size == space->size);
 		}
 #endif /* UNIV_DEBUG */
 

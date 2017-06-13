@@ -138,7 +138,7 @@ SHOW STATUS LIKE 'locked_connects';
 Variable_name	Value
 Locked_connects	2
 FLUSH STATUS;
-SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%';
+SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%' AND GRANTEE NOT IN ("'mysql.session'@'localhost'");
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'user2'@'localhost'	def	CREATE USER	NO
 'user8'@'localhost'	def	USAGE	NO

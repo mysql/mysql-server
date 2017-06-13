@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,22 @@
 
 #include "plugin_utils.h"
 #include "plugin.h"
-#include "sql_service_gr_user.h"
 
 using std::vector;
 
-void unblock_waiting_transactions()
+Blocked_transaction_handler::Blocked_transaction_handler()
 {
+  mysql_mutex_init(key_GR_LOCK_trx_unlocking, &unblocking_process_lock, MY_MUTEX_INIT_FAST);
+}
+
+Blocked_transaction_handler::~Blocked_transaction_handler()
+{
+  mysql_mutex_destroy(&unblocking_process_lock);
+}
+
+void Blocked_transaction_handler::unblock_waiting_transactions()
+{
+  mysql_mutex_lock(&unblocking_process_lock);
   vector<my_thread_id> waiting_threads;
   certification_latch->get_all_waiting_keys(waiting_threads);
 
@@ -52,28 +62,6 @@ void unblock_waiting_transactions()
                  " Check for consistency errors when restarting the service"); /* purecov: inspected */
     }
   }
+  mysql_mutex_unlock(&unblocking_process_lock);
 }
 
-int set_server_read_mode(bool threaded)
-{
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  int error=
-      sql_command_interface->
-          establish_session_connection(threaded, get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-      read_mode_handler->set_super_read_only_mode(sql_command_interface);
-  delete sql_command_interface;
-  return error;
-}
-
-int reset_server_read_mode(bool threaded)
-{
-  Sql_service_command *sql_command_interface= new Sql_service_command();
-  int error=
-      sql_command_interface->
-          establish_session_connection(threaded, get_plugin_pointer()) ||
-      sql_command_interface->set_interface_user(GROUPREPL_USER) ||
-      read_mode_handler->reset_super_read_only_mode(sql_command_interface);
-  delete sql_command_interface;
-  return error;
-}

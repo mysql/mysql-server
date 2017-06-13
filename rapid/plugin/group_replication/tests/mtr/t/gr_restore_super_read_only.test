@@ -1,6 +1,6 @@
 ################################################################################
 # This test verfies that a server started with SUPER_READ_ONLY or READ_ONLY ON
-# will automatically be restored back to its normal state after recovery.
+# will automatically be restored back to its previous state after stop.
 # During recovery it is always in the super_read_only mode.
 #
 # Test:
@@ -9,14 +9,19 @@
 # 2. Case I: On M2, set super_read_only=1.
 #    Check that super_read_only=1 and read_only=1.
 # 3. Start GR on M2.
+#    Check that super_read_only=0 and read_only=0.
+# 4. Stop GR on M2.
 #    Check that super_read_only=1 and read_only=1.
-# 4. Case II: Stop GR on M2. Set read_only=1.
+# 5. Case II: Stop GR on M2. Set read_only=1.
 #    Check that super_read_only=0 and read_only=1.
-# 5. Start GR on M2.
+# 6. Start GR on M2.
+#    Check that super_read_only=0 and read_only=0.
+# 7. Stop GR on M2.
 #    Check that super_read_only=0 and read_only=1.
-# 6. Clean up.
+# 8. Clean up.
 ################################################################################
 
+--source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc
@@ -48,6 +53,19 @@ SET GLOBAL super_read_only= 1;
 --let $group_replication_member_state= ONLINE
 --source ../inc/gr_wait_for_member_state.inc
 
+--echo # The server's super_read_only mode should be 0 here.
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--echo # The server's read_only mode should be 0 here.
+--let $assert_text= The read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+SET GLOBAL read_only= 0;
+
+--source include/stop_group_replication.inc
+
 --echo # The server's super_read_only mode should be 1 here.
 --let $assert_text= The super_read_only mode should be 1 here.
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
@@ -55,14 +73,12 @@ SET GLOBAL super_read_only= 1;
 
 --echo # The server's read_only mode should be 1 here.
 --let $assert_text= The read_only mode should be 1 here.
---let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
 --source include/assert.inc
-SET GLOBAL read_only= 0;
-
---source include/stop_group_replication.inc
 
 --echo # Case II - SUPER_READ_ONLY is OFF and READ_ONLY is ON
 
+SET GLOBAL super_read_only= 0;
 SET GLOBAL read_only= 1;
 
 --echo # The server's read_only mode should be 1 here.
@@ -80,6 +96,18 @@ SET GLOBAL read_only= 1;
 --let $group_replication_member_state= ONLINE
 --source ../inc/gr_wait_for_member_state.inc
 
+--echo # The server's read_only mode should be 0 here.
+--let $assert_text= The read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--echo # The server's super_read_only mode should be 0 here.
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
 --echo # The server's read_only mode should be 1 here.
 --let $assert_text= The read_only mode should be 1 here.
 --let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1;
@@ -90,8 +118,12 @@ SET GLOBAL read_only= 1;
 --let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
 --source include/assert.inc
 
+--echo # Clean up.
+
 SET GLOBAL read_only= 0;
 
---echo # Clean up.
+--source include/start_group_replication.inc
+
 DROP TABLE t1;
+
 --source ../inc/group_replication_end.inc

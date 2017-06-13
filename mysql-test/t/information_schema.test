@@ -282,7 +282,7 @@ create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema != 'sys';
 grant select (a) on test.t1 to joe@localhost with grant option;
 select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema NOT IN ('sys','mysql');
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -642,10 +642,10 @@ connection con4;
 select * from information_schema.column_privileges where grantee like '%user%'
 order by grantee;
 select * from information_schema.table_privileges where grantee like '%user%'
-order by grantee;
+and table_schema !='mysql' order by grantee;
 select * from information_schema.schema_privileges where grantee like '%user%'
-order by grantee;
-select * from information_schema.user_privileges where grantee like '%user%'
+and table_schema !='performance_schema' order by grantee;
+select * from information_schema.user_privileges where grantee like '%user%' and grantee not like '%session%'
 order by grantee;
 show grants;
 connection default;

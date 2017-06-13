@@ -997,7 +997,7 @@ show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
 GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_8'@'%'	def	test	t1	UPDATE	NO
 'mysqltest_8'@''	def	test	t1	UPDATE	NO
@@ -1011,7 +1011,7 @@ GRANT USAGE ON *.* TO 'mysqltest_8'@''
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 flush privileges;
 show grants for mysqltest_8@'';

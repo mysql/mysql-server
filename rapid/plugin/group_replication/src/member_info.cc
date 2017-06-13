@@ -393,12 +393,6 @@ bool Group_member_info::is_conflict_detection_enabled()
 }
 
 bool
-Group_member_info::operator <(Group_member_info& other)
-{
-  return this->get_uuid().compare(other.get_uuid()) < 0;
-}
-
-bool
 Group_member_info::operator ==(Group_member_info& other)
 {
   return this->get_uuid().compare(other.get_uuid()) == 0;
@@ -466,12 +460,34 @@ Group_member_info::get_configuration_flags_string(const uint32 configuation_flag
 }
 
 bool
-Group_member_info::comparator_group_member_info(Group_member_info *m1,
-                                                Group_member_info *m2)
+Group_member_info::comparator_group_member_version(Group_member_info *m1,
+                                                   Group_member_info *m2)
 {
-  return *m1 < *m2;
+  return m2->has_greater_version(m1);
 }
 
+bool
+Group_member_info::comparator_group_member_uuid(Group_member_info *m1,
+                                                Group_member_info *m2)
+{
+  return m1->has_lower_uuid(m2);
+}
+
+bool
+Group_member_info::has_greater_version(Group_member_info *other)
+{
+  if (this->member_version->get_major_version() >
+        other->member_version->get_major_version())
+    return true;
+
+  return false;
+}
+
+bool
+Group_member_info::has_lower_uuid(Group_member_info *other)
+{
+  return this->get_uuid().compare(other->get_uuid()) < 0;
+}
 
 Group_member_info_manager::
 Group_member_info_manager(Group_member_info* local_member_info)
@@ -747,6 +763,27 @@ Group_member_info_manager::decode(const uchar* to_decode, uint64 length)
   return decoded_members;
 }
 
+void
+Group_member_info_manager::
+get_primary_member_uuid(std::string &primary_member_uuid)
+{
+  map<string, Group_member_info*>::iterator it= members->begin();
+
+  for (it= members->begin(); it != members->end(); it++)
+  {
+    Group_member_info* info= (*it).second;
+    if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
+    {
+      DBUG_ASSERT(primary_member_uuid.empty());
+      primary_member_uuid =info->get_uuid();
+    }
+  }
+
+  if (primary_member_uuid.empty() ||
+      Group_member_info::MEMBER_ERROR ==
+        local_member_info->get_recovery_status())
+    primary_member_uuid= "UNDEFINED";
+}
 
 Group_member_info_manager_message::Group_member_info_manager_message()
   : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE)

@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression('transaction isolation level was updated to READ_COMMITTED');
+# Testing without XA transactions
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+# Adding debug point 'force_trx_as_rbr_only' to @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 (c1) VALUES (FLOOR((RAND() * 10)));
+INSERT INTO t1 (c1) VALUES (11);
+INSERT INTO t1 (c1) VALUES (FLOOR((RAND() * 10)));
+COMMIT;
+include/sync_slave_io_with_master.inc
+include/wait_for_slave_sql_error.inc [errno=1593]
+# Removing debug point 'force_trx_as_rbr_only' from @@GLOBAL.debug
+include/assert_grep.inc [Found the expected warning line in the error log.]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

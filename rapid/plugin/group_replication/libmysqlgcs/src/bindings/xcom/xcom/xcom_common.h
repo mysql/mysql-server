@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 typedef uint16_t xcom_port;
-#define number_is_valid_port(n) ((n) > 0 && (n) <= UINT16_MAX)
+#define number_is_valid_port(n) ((n) > 0 && (n) <= (int) UINT16_MAX)
 
 typedef void *gpointer;
 typedef char	gchar;
