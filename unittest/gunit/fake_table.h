@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ class Fake_TABLE: public TABLE
     write_set= &write_set_struct;
     read_set= NULL;
     next_number_field= NULL; // No autoinc column
-
+    pos_in_table_list= NULL;
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
 
     static const char *table_name= "Fake";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -325,6 +325,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
   enum_sql_command sql_command= thd->lex->sql_command;
   if (sql_command == SQLCOM_COMMIT || sql_command == SQLCOM_BEGIN ||
       sql_command == SQLCOM_ROLLBACK ||
+      sql_command == SQLCOM_CHANGE_DB ||
       ((sql_command == SQLCOM_SELECT ||
         (sql_command == SQLCOM_SET_OPTION && !thd->lex->is_set_password_sql)) &&
        !thd->lex->uses_stored_routines()))
