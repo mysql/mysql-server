@@ -5269,8 +5269,6 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool revoked;
   int result= 0;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
-    *hash= is_proc ? proc_priv_hash.get() : func_priv_hash.get();
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
@@ -5296,6 +5294,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   /* Remove procedure access */
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+    *hash= is_proc ? proc_priv_hash.get() : func_priv_hash.get();
   do
   {
     revoked= false;
