@@ -72,6 +72,7 @@ int initialize_channel_service_interface()
 
 static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
+  mysql_mutex_lock(mi->rli->relay_log.get_log_lock());
   mysql_mutex_lock(&mi->data_lock);
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
@@ -103,9 +104,10 @@ static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info
     (channel_info->channel_mts_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT) ?
     opt_mts_checkpoint_group : channel_info->channel_mts_checkpoint_group;
 
-  mi->set_mi_description_event(new Format_description_log_event(BINLOG_VERSION));
+  mi->set_mi_description_event(new Format_description_log_event());
 
   mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
 }
 
 static bool init_thread_context()

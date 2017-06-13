@@ -84,6 +84,7 @@ Database: information_schema
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
+| COLUMN_STATISTICS                     |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
@@ -147,6 +148,7 @@ Database: INFORMATION_SCHEMA
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
 | COLUMN_PRIVILEGES                     |
+| COLUMN_STATISTICS                     |
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |

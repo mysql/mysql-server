@@ -1325,7 +1325,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
-  for (const Key_spec *key : thd->lex->alter_info.key_list)
+  for (const Key_spec *key : thd->lex->alter_info->key_list)
   {
     if (key->type != KEYTYPE_FOREIGN)
       continue;
@@ -2427,7 +2427,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   // check if fk to drop exists
   {
-    for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+    for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
     {
       if (drop_item->type != Alter_drop::FOREIGN_KEY)
         continue;
@@ -2482,7 +2482,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
         bool found= false;
-        for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+        for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
@@ -2696,7 +2696,7 @@ ha_ndbcluster::inplace__drop_fks(THD * thd, Ndb* ndb, NDBDICT * dict,
     ERR_RETURN(dict->getNdbError());
   }
 
-  for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
+  for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list)
   {
     if (drop_item->type != Alter_drop::FOREIGN_KEY)
       continue;

@@ -456,6 +456,7 @@ public:
 
   const Gtid_set *get_gtid_set() const { return gtid_set; }
 
+  bool reinit_sql_thread_io_cache(const char* log, bool need_data_lock);
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,

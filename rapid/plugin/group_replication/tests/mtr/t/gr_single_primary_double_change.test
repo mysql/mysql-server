@@ -149,19 +149,19 @@ INSERT INTO t1 VALUES(1,2);
 --let $wait_condition= SELECT COUNT(*)=1 FROM t1
 --source include/wait_condition.inc
 
---let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
 --let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
 --let $assert_cond= $negatively_certified = 1
 --source include/assert.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats
+--let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats
+--let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --echo

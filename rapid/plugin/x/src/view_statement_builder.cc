@@ -133,7 +133,7 @@ void View_statement_builder::add_columns(const Column_list &columns) const {
 }
 
 void View_statement_builder::add_stmt(const Find &find) const {
-  Expression_generator gen(m_builder.m_qb, find.args(),
+  Expression_generator gen(&m_builder.m_qb, find.args(),
                            find.collection().schema(),
                            is_table_data_model(find));
   Find_statement_builder(gen).build(find);

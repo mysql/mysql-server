@@ -284,8 +284,28 @@ EXPLAIN
               ]
             }
           }
-        ]
-      }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 35,
+            "filtered": "100.00",
+            "using_join_buffer": "Block Nested Loop",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "3.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "1K"
+            },
+            "used_columns": [
+              "a",
+              "b"
+            ]
+          }
+        }
+      ]
     }
   }
 }
@@ -328,8 +348,65 @@ EXPLAIN
     "grouping_operation": {
       "using_temporary_table": true,
       "using_filesort": false,
-      "buffer_result": {
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 5,
+            "rows_produced_per_join": 5,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "160"
+            },
+            "used_columns": [
+              "b"
+            ]
+          }
+        },
+        {
+          "table": {
+            "table_name": "t2",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 7,
+            "rows_produced_per_join": 35,
+            "filtered": "100.00",
+            "using_join_buffer": "Block Nested Loop",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "3.50",
+              "prefix_cost": "4.50",
+              "data_read_per_join": "1K"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`b`
+select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b order by 1;
+b
+a
+b
+c
+explain format=json select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.50"
+    },
+    "duplicates_removal": {
+      "using_filesort": false,
+      "grouping_operation": {
         "using_temporary_table": true,
+        "using_filesort": false,
         "nested_loop": [
           {
             "table": {
@@ -345,6 +422,7 @@ EXPLAIN
                 "data_read_per_join": "440"
               },
               "used_columns": [
+                "a",
                 "b"
               ]
             }
@@ -356,6 +434,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 35,
               "filtered": "100.00",
+              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "0.25",
@@ -574,7 +653,6 @@ EXPLAIN
       "query_cost": "0.75"
     },
     "duplicates_removal": {
-      "using_temporary_table": true,
       "using_filesort": false,
       "grouping_operation": {
         "using_temporary_table": true,
@@ -637,7 +715,6 @@ EXPLAIN
       "query_cost": "154.85"
     },
     "duplicates_removal": {
-      "using_temporary_table": true,
       "using_filesort": false,
       "grouping_operation": {
         "using_temporary_table": true,
@@ -1403,7 +1480,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "18.70"
+              "query_cost": "49.45"
             },
             "nested_loop": [
               {
@@ -1449,9 +1526,9 @@ EXPLAIN
                   "rows_produced_per_join": 41,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "10.25",
+                    "read_cost": "41.00",
                     "eval_cost": "4.10",
-                    "prefix_cost": "18.70",
+                    "prefix_cost": "49.45",
                     "data_read_per_join": "9K"
                   },
                   "used_columns": [
@@ -1784,7 +1861,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select distinct concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4)) AS `cc` from `test`.`t2`
+Note	1003	/* select#1 */ select distinct concat(`test`.`t2`.`c1`,repeat('xx',250)) AS `cc` from `test`.`t2`
 select distinct concat(c1, repeat('xx', 250)) as cc from t2 order by 1;
 cc
 aabbccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -1821,7 +1898,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4)) AS `cc` from `test`.`t2` group by `cc`
+Note	1003	/* select#1 */ select concat(`test`.`t2`.`c1`,repeat('xx',250)) AS `cc` from `test`.`t2` group by `cc`
 select concat(c1, repeat('xx', 250)) as cc from t2 group by cc order by 1;
 cc
 aabbccxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -1854,7 +1931,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select count(distinct concat(`test`.`t2`.`c1`,convert(repeat('xx',250) using utf8mb4))) AS `cc` from `test`.`t2`
+Note	1003	/* select#1 */ select count(distinct concat(`test`.`t2`.`c1`,repeat('xx',250))) AS `cc` from `test`.`t2`
 select count(distinct concat(c1, repeat('xx', 250))) as cc from t2 order by 1;
 cc
 3

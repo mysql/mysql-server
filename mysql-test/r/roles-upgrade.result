@@ -1,5 +1,4 @@
 Run mysql_upgrade once
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -53,7 +52,6 @@ ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 GRANT SELECT ON *.* TO u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 # Run mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

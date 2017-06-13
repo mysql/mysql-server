@@ -471,7 +471,11 @@ public:
   void inc_current_row_for_condition()
   { m_current_row_for_condition++; }
 
-  /** Reset the current row counter. Start counting from the first row. */
+  /** Set the current row counter to point to the given row number. */
+  void set_current_row_for_condition(ulong rowno)
+  { m_current_row_for_condition= rowno; }
+
+  /** Reset the current row counter. Start counting from 1. */
   void reset_current_row_for_condition()
   { m_current_row_for_condition= 1; }
 

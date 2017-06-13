@@ -35,6 +35,8 @@
 THR_LOCK table_table_handles::m_table_lock;
 
 Plugin_table table_table_handles::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "table_handles",
   /* Definition */

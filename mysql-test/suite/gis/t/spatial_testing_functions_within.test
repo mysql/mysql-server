@@ -964,12 +964,16 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT('POINT(20 20)'),ST_GEOMFROMTEXT('MULTIPOLYGON((
 --echo #====================================================================================
 --echo # point,geometrycollection
 --echo #====================================================================================
+--echo # Invalid geometry in input.
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_elems));
 
+--echo # Invalid geometry in input.
 SELECT ST_WITHIN(ST_GEOMFROMTEXT('POINT(-0.01 0)'),ST_GEOMFROMTEXT(@star_collection_elems));
 
+--echo # Invalid geometry in input.
 SELECT ST_WITHIN(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 
+--echo # Invalid geometry in input.
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
 SELECT ST_WITHIN(ST_GEOMFROMTEXT('POINT(5 5)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
@@ -1514,14 +1518,19 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_c
 --echo #====================================================================================
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
 --error ER_DATA_OUT_OF_RANGE
@@ -1538,14 +1547,19 @@ SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --echo #====================================================================================
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
 
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
 --error ER_DATA_OUT_OF_RANGE
@@ -1567,7 +1581,7 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_GIS_DIFFERENT_SRIDS
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_WITHIN(NULL,ST_GEOMFROMTEXT(@star_top));
@@ -1640,7 +1654,7 @@ SELECT ST_WITHIN(,ST_GEOMFROMTEXT(@star_top));
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_GIS_DIFFERENT_SRIDS
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT MBRWITHIN(NULL,ST_GEOMFROMTEXT(@star_top));
@@ -1793,8 +1807,15 @@ INSERT INTO t1 VALUES (
     POINT(1,10), POINT(1,1)), LINESTRING(POINT(4,4),POINT(6,4),POINT(6,6),
     POINT(4,6),POINT(4,4))))));
 
+# We don't care about the result. We just want to put all parameter type
+# combinations through the function.
+--disable_result_log
 SELECT ST_WITHIN(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
 SELECT MBRWITHIN(a.g, b.g) FROM t1 AS a JOIN t1 AS b;
+
+SELECT ST_WITHIN(ST_SRID(a.g, 4326), ST_SRID(b.g, 4326))
+FROM t1 AS a JOIN t1 AS b;
+--enable_result_log
 
 --echo # clean up
 DROP TABLE t1;
@@ -1835,12 +1856,14 @@ SELECT MBRWITHIN(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
 
---echo # Undefined SRS (should pass with warning)
+--echo # Undefined SRS (should fail)
 # Assume SRID 25000000 is undefined
+--error ER_SRS_NOT_FOUND
 SELECT ST_WITHIN(
   ST_GEOMFROMTEXT('POINT(0 0)', 25000000),
   ST_GEOMFROMTEXT('POINT(0 0)', 25000000)
 );
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(
   ST_GEOMFROMTEXT('POINT(0 0)', 25000000),
   ST_GEOMFROMTEXT('POINT(0 0)', 25000000)

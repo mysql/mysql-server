@@ -36,6 +36,8 @@
 THR_LOCK table_mutex_instances::m_table_lock;
 
 Plugin_table table_mutex_instances::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "mutex_instances",
   /* Definition */
@@ -295,6 +297,8 @@ table_mutex_instances::read_row_values(TABLE *table,
 THR_LOCK table_rwlock_instances::m_table_lock;
 
 Plugin_table table_rwlock_instances::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "rwlock_instances",
   /* Definition */
@@ -561,6 +565,8 @@ table_rwlock_instances::read_row_values(TABLE *table,
 THR_LOCK table_cond_instances::m_table_lock;
 
 Plugin_table table_cond_instances::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "cond_instances",
   /* Definition */

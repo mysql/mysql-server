@@ -1,34 +1,6 @@
-call mtr.add_suppression("Plugin * after shutdown");
-call mtr.add_suppression(".* Native table .* has the wrong structure");
-call mtr.add_suppression("Resizing redo log from");
-call mtr.add_suppression("Starting to delete and rewrite log files");
-call mtr.add_suppression("New log files created");
-call mtr.add_suppression("Info table is not ready to be used.");
-call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
-call mtr.add_suppression("after shutdown");
-call mtr.add_suppression("will be forced to shutdown");
-call mtr.add_suppression("Table 'mysql.component' doesn't exist");
-call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
-call mtr.add_suppression("table is missing or has an incorrect definition");
-call mtr.add_suppression("is expected to be transactional");
-call mtr.add_suppression("Upgrading redo log");
-call mtr.add_suppression("information_schema");
-call mtr.add_suppression("doesn't exist");
-call mtr.add_suppression("references invalid");
-call mtr.add_suppression("Creating routine without parsing routine body");
-call mtr.add_suppression(".*The privilege system failed to initialize correctly.*");
-call mtr.add_suppression("Resolving dependency for the view");
-call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-call mtr.add_suppression("Unknown system variable 'show_compatibility_56'");
-call mtr.add_suppression("Column count of mysql.* is wrong");
-call mtr.add_suppression("InnoDB: Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
-call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
-call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
-call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_worker is wrong. Expected 16, found 8.");
-call mtr.add_suppression("Column count of performance_schema.replication_applier_status_by_coordinator is wrong. Expected 15, found 6.");
-call mtr.add_suppression("Column count of performance_schema.replication_connection_status is wrong. Expected 20, found 11.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table.*");
+# This test scripts covers upgrade of tables, views, tablespaces,
+# events, stored routines and triggers from 5.7 to 8.0.
+# Set different paths for --datadir
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
@@ -38,9 +10,15 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary ta
 #
 # Create a trigger without 'created' line. Without patch,
 # the server exits during upgrade of trigger.
+# Create a table as same as mysql.proc to repeat Bug#24805140
+# We need to add an entry in mysql.proc table of the zipped
+# data data directory before upgrade starts.
+# Without fix, data population for dictionary tables fail and
+# upgrade aborts.
 SET sql_mode='';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+# CREATE statement is same as mysql.proc in mysql-5.7.
 CREATE TABLE test.proc (db char(64) collate utf8_bin DEFAULT '' NOT NULL,
 name char(64) DEFAULT '' NOT NULL,
 type enum('FUNCTION','PROCEDURE') NOT NULL,
@@ -87,6 +65,9 @@ PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8
 comment='Stored Procedures';
 Warnings:
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'returns' can't have a default value
+# Remove data and index files manually.
+# Copy data and index files from zipped data directory.
+# Insert data
 INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL',
 'CONTAINS_SQL','NO','DEFINER','out a int','',
 'begin select requesting_trx_id from '
@@ -109,6 +90,8 @@ INSERT INTO test.proc VALUES ('sp','bug24805140','PROCEDURE','bug24805140','SQL'
                               'NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION','',
 'utf8','utf8_general_ci','latin1_swedish_ci',
 'begin select   @@show_compatibility_56 into b; end');
+# Data for Bug#25633041 : SHOW CREATE PROC/FUNCTION RESULT
+#                         AFTER LIVEUPGR IS DIFFERENT TO DUMPUPGR
 INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
 'downgrade_alter_proc',
 'SQL','CONTAINS_SQL','NO','INVOKER','','',
@@ -129,10 +112,18 @@ INSERT INTO `proc` VALUES ('test','downgrade_alter_proc','PROCEDURE',
                            'ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,'
                            'NO_ENGINE_SUBSTITUTION','','latin1','latin1_swedish_ci',
 'latin1_swedish_ci','BEGIN\n  RETURN \'Ã¥\';\nEND');
+# Remove  the original zipped data and index files.
+# Copy data and index files to zipped data directory.
+# Delete the table for cleanup
 DROP TABLE test.proc;
 # Stop DB server which was created by MTR default
+# These files are added to test error scenario, delete from for upgrade testing.
+# Remove myisam partitioned tables. There are used for negative testing.
+# Copy table and view files as test case for Bug#24580586
+# Test case for Bug #25139901 : DB COLLATION CHANGED TO SERVER DEFAULT AFTER UPGRADE
+# Create a folder and db.opt file. Write a character set in db.opt file which is not default.
 # 1.1 Create db.opt file.
-#Files in 'test' dir
+# Files in 'test' dir
 auto.cnf
 aview
 db_charset_koi8r
@@ -154,9 +145,14 @@ test_tablespace_2.ibd
 test_tablespace_3.ibd
 triggers
 view_with_column_names
+# Create a bootstrap file in temp location
 MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
-#Look for error.
+# Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
+#                         AT SERVER START AT LIVE UPGRADE
+# Check for errors from sys schema.
+# These errors should not be there.
+# Look for error.
 # Sys Schema routine parsing warning found : 0 times.
 # Sys Schema routine parsing error found : 0 times.
 # Sys Schema view parsing warning found : 0 times.
@@ -170,7 +166,6 @@ a
 1
 DROP SCHEMA test123;
 # Execute mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -294,6 +289,7 @@ test
 test_mismatch
 triggers
 view_with_column_names
+# Check table structures
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
@@ -345,7 +341,7 @@ user	CREATE TABLE `user` (
   `Create_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   PRIMARY KEY (`Host`,`User`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
 Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
@@ -481,11 +477,14 @@ test	t_myisam_compressed2	BASE TABLE	MyISAM	10	Compressed
 test	t_myisam_compressed3	BASE TABLE	MyISAM	10	Compressed
 test	t_sc~!@#$%^&*(	BASE TABLE	InnoDB	10	Dynamic
 test	vt2	BASE TABLE	InnoDB	10	Dynamic
+# Check for views
+# Invalid view
 SHOW CREATE VIEW aview.view_invalid;
 View	Create View	character_set_client	collation_connection
 view_invalid	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_invalid` AS select `aview`.`t`.`a` AS `column1`,`aview`.`t`.`b` AS `column2` from `aview`.`t`	utf8	utf8_general_ci
 Warnings:
 Warning	1356	View 'aview.view_invalid' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# Valid views
 SHOW CREATE VIEW aview.view_2;
 View	Create View	character_set_client	collation_connection
 view_2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_2` AS select `aview`.`t1`.`a` AS `column1`,`aview`.`t1`.`b` AS `column2`,`aview`.`t1`.`c` AS `column3`,`aview`.`t2`.`a` AS `column4` from (`aview`.`t1` join `aview`.`t2`)	utf8	utf8_general_ci
@@ -507,18 +506,22 @@ mixed_view2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFIN
 SELECT * FROM aview.mixed_view2;
 column3	column4	hello('FUNC')
 EFGH	100	Hello, FUNC!
+# View with different definer
 SHOW CREATE VIEW aview.view_user;
 View	Create View	character_set_client	collation_connection
 view_user	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_user` AS select 1 AS `1`	utf8	utf8_general_ci
 SHOW CREATE VIEW aview.view_user2;
 View	Create View	character_set_client	collation_connection
 view_user2	CREATE ALGORITHM=UNDEFINED DEFINER=`abcd`@`localhost` SQL SECURITY INVOKER VIEW `aview`.`view_user2` AS select 1 AS `1`	utf8	utf8_general_ci
+# View with different character_set and connection collation
 SHOW CREATE VIEW aview.view_character_set;
 View	Create View	character_set_client	collation_connection
 view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_character_set` AS select 1 AS `1`	latin1	latin1_swedish_ci
+# Data check after upgrade for Bug#25139901
 SHOW CREATE DATABASE db_charset_koi8r;
 Database	Create Database
 db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */
+# Test case for Bug#24580586
 SET names utf8;
 DESC `test`.`initial_vü`;
 Field	Type	Null	Key	Default	Extra
@@ -527,6 +530,7 @@ SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_ty
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
 SET names default;
+# Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 simpleproc	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `simpleproc`(OUT param1 INT)
@@ -547,6 +551,7 @@ proc_456	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
     DETERMINISTIC
     COMMENT 'Procedure to test Upgrade 2'
 BEGIN   SELECT COUNT(*) INTO param1 FROM t; END	utf8	utf8_general_ci	latin1_swedish_ci
+# Without fix, server start on 5.7 data directory above will fail.
 SHOW CREATE PROCEDURE sp.bug24805140;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug24805140	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bug24805140`(out a int)
@@ -562,9 +567,11 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 hello	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `hello`(s CHAR(20)) RETURNS char(50) CHARSET latin1
     DETERMINISTIC
 RETURN CONCAT('Hello, ',s,'!')	utf8	utf8_general_ci	latin1_swedish_ci
+# Check for events
 SHOW CREATE EVENT events.e_totals;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_totals` ON SCHEDULE AT '2017-02-10 21:29:00' ON COMPLETION NOT PRESERVE ENABLE DO INSERT INTO events.event_table_2 VALUES (NOW())	utf8	utf8_general_ci	latin1_swedish_ci
+# Check for fulltext index
 SHOW CREATE TABLE test.opening_lines;
 Table	Create Table
 opening_lines	CREATE TABLE `opening_lines` (
@@ -575,6 +582,7 @@ opening_lines	CREATE TABLE `opening_lines` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx` (`opening_line`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Check data for Bug#25633041
 SHOW CREATE PROCEDURE test.downgrade_alter_proc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 downgrade_alter_proc	NO_ZERO_DATE	CREATE DEFINER=`root`@`localhost` PROCEDURE `downgrade_alter_proc`()
@@ -594,6 +602,7 @@ DATABASE_COLLATION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test'
 ROUTINE_NAME	CHARACTER_SET_NAME	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 downgrade_alter_proc	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 my_test_func	latin1	latin1	latin1_swedish_ci	latin1_swedish_ci
+# Check for General tablespace
 SHOW CREATE TABLE tablespace.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -616,23 +625,27 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Check for table with blackhole engine
 SHOW CREATE TABLE test.t_blackhole;
 Table	Create Table
 t_blackhole	CREATE TABLE `t_blackhole` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
+# Check for table with special character in name
 SHOW CREATE TABLE `test`.`t_sc~!@#$%^&*(`;
 Table	Create Table
 t_sc~!@#$%^&*(	CREATE TABLE `t_sc~!@#$%^&*(` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Check for JSON types
 SHOW CREATE TABLE test.t_json;
 Table	Create Table
 t_json	CREATE TABLE `t_json` (
   `jdoc` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Check for geometry data types
 SHOW CREATE TABLE test.geom;
 Table	Create Table
 geom	CREATE TABLE `geom` (
@@ -642,6 +655,7 @@ geom	CREATE TABLE `geom` (
   `multi` multilinestring NOT NULL,
   SPATIAL KEY `pt` (`pt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+# Check for Triggers. Operations on t1 inserts data in t2.
 INSERT INTO triggers.t1 VALUES(1);
 UPDATE triggers.t1 SET a=2 WHERE a=1;
 SELECT * FROM triggers.t2;
@@ -679,6 +693,7 @@ t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_
 SHOW CREATE TRIGGER test.tr1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 tr1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `vt2` FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	#
+# I_S query to check Foreign_keys
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS WHERE
 CONSTRAINT_SCHEMA='foreign_keys' ORDER BY CONSTRAINT_SCHEMA,CONSTRAINT_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	TABLE_NAME	REFERENCED_TABLE_NAME
@@ -688,6 +703,7 @@ def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
 def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
 def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
 def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+# Check that views with column names are correct
 SHOW CREATE VIEW view_with_column_names.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_with_column_names`.`v1` AS select `view_with_column_names`.`t1`.`x` AS `a`,`view_with_column_names`.`t1`.`y` AS `b` from `view_with_column_names`.`t1` where (`view_with_column_names`.`t1`.`y` = 5)	utf8	utf8_general_ci
@@ -717,7 +733,9 @@ def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int
 def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
 def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-# restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=MYSQLD_DATADIR1
+# Restart on the upgraded data dir
+# restart: --loose-skip-log-bin --datadir=MYSQLD_DATADIR1
+# Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)
 1000
@@ -733,5 +751,6 @@ optimize table sakila.film_text;
 Table	Op	Msg_type	Msg_text
 sakila.film_text	optimize	status	OK
 # Stop the server
+# Remove copied files
 # Restart the server with default options.
 # restart

@@ -96,6 +96,8 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS] = {
 THR_LOCK table_setup_consumers::m_table_lock;
 
 Plugin_table table_setup_consumers::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "setup_consumers",
   /* Definition */

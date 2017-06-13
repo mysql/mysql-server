@@ -37,6 +37,8 @@
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
 Plugin_table table_tiws_by_index_usage::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "table_io_waits_summary_by_index_usage",
   /* Definition */

@@ -216,7 +216,7 @@ static PFS_socket_class *socket_class_array = NULL;
 static std::atomic<uint32> memory_class_dirty_count{0};
 static std::atomic<uint32> memory_class_allocated_count{0};
 
-static PFS_memory_class *memory_class_array = NULL;
+static std::atomic<PFS_memory_class *> memory_class_array{nullptr};
 
 uint mutex_class_start = 0;
 uint rwlock_class_start = 0;
@@ -668,7 +668,8 @@ PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share,
   new_pfs->m_owner = this;
 
   /* (3) Atomic CAS */
-  if (atomic_compare_exchange_strong(&this->m_race_index_stat[index], &pfs, new_pfs))
+  if (atomic_compare_exchange_strong(
+        &this->m_race_index_stat[index], &pfs, new_pfs))
   {
     /* Ok. */
     return new_pfs;
@@ -1053,14 +1054,14 @@ init_memory_class(uint memory_class_sizing)
                                           sizeof(PFS_memory_class),
                                           PFS_memory_class,
                                           MYF(MY_ZEROFILL));
-    if (unlikely(memory_class_array == NULL))
+    if (unlikely(memory_class_array.load() == nullptr))
     {
       return 1;
     }
   }
   else
   {
-    memory_class_array = NULL;
+    memory_class_array = nullptr;
   }
 
   return result;
@@ -1411,9 +1412,7 @@ sanitize_cond_class(PFS_cond_class *unsafe)
   @return a thread instrumentation key
 */
 PFS_thread_key
-register_thread_class(const char *name,
-                      uint name_length,
-                      PSI_thread_info *info MY_ATTRIBUTE((unused)))
+register_thread_class(const char *name, uint name_length, PSI_thread_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1439,6 +1438,8 @@ register_thread_class(const char *name,
     strncpy(entry->m_name, name, name_length);
     entry->m_name_length = name_length;
     entry->m_enabled = true;
+    DBUG_ASSERT(info != NULL);
+    entry->m_flags = info->m_flags;
     ++thread_class_allocated_count;
     return (index + 1);
   }
@@ -1773,7 +1774,7 @@ PFS_memory_class *
 sanitize_memory_class(PFS_memory_class *unsafe)
 {
   SANITIZE_ARRAY_BODY(
-    PFS_memory_class, memory_class_array, memory_class_max, unsafe);
+    PFS_memory_class, memory_class_array.load(), memory_class_max, unsafe);
 }
 
 PFS_instr_class *

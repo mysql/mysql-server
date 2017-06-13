@@ -1471,6 +1471,7 @@ public:
   bool get_time(MYSQL_TIME *ltime) override;
 };
 
+extern const char *interval_names[];
 
 class Item_date_add_interval final : public Item_temporal_hybrid_func
 {
@@ -1486,6 +1487,13 @@ public:
   Item_date_add_interval(const POS &pos,
                          Item *a, Item *b, interval_type type_arg, bool neg_arg)
     :Item_temporal_hybrid_func(pos, a, b),
+     int_type(type_arg), date_sub_interval(neg_arg) {}
+  /**
+     POS-less ctor for post-parse construction with implicit addition to THD's
+     free_list (see Item::Item() no-argument ctor).
+  */
+  Item_date_add_interval(Item *a, Item *b, interval_type type_arg, bool neg_arg)
+    :Item_temporal_hybrid_func(a, b),
      int_type(type_arg), date_sub_interval(neg_arg) {}
   const char *func_name() const override { return "date_add_interval"; }
   bool resolve_type(THD *) override;

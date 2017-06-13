@@ -571,7 +571,7 @@ bool sync_meta_data(THD *thd)
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   // Commit and flush tables to force re-opening using the refreshed meta data.
-  if (end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES"))
+  if (dd::end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES"))
     return true;
 
   // Reset the DDSE local dictionary cache.
@@ -825,6 +825,7 @@ bool DDSE_dict_init(THD *thd,
   while ((table= table_it++))
   {
     Plugin_table_impl *plugin_table= new (std::nothrow) Plugin_table_impl(
+            table->get_schema_name(),
             table->get_name(),
             table->get_table_definition(),
             table->get_table_options(),

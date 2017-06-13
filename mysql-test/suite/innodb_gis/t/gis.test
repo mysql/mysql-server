@@ -1319,18 +1319,21 @@ WHERE fid = 120;
 
 --echo # Conformance Item T37
 # TODO: ST_PolyFromText() alias
+--error ER_SRS_NOT_FOUND
 SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
 
 --echo # Conformance Item T38
+--error ER_SRS_NOT_FOUND
 SELECT ST_Disjoint(centerlines, boundary)
 FROM divided_routes, named_places
 WHERE divided_routes.name = 'Route 75'
 AND named_places.name = 'Ashton';
 
 --echo # Conformance Item T39
+--error ER_SRS_NOT_FOUND
 SELECT ST_Touches(centerline, shore)
 FROM streams, lakes
 WHERE streams.name = 'Cam Stream'
@@ -1352,18 +1355,21 @@ AND lakes.name = 'Blue Lake';
 
 --echo # Conformance Item T42
 # FIXME: TODO: ST_Crosses() alias
+--error ER_SRS_NOT_FOUND
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes
 WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75';
 
 --echo # Conformance Item T43
+--error ER_SRS_NOT_FOUND
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes
 WHERE road_segments.fid = 102
 AND divided_routes.name = 'Route 75';
 
 --echo # Conformance Item T44
+--error ER_SRS_NOT_FOUND
 SELECT ST_Contains(forests.boundary, named_places.boundary)
 FROM forests, named_places
 WHERE forests.name = 'Green Forest'
@@ -1409,6 +1415,7 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton';
 
 --echo # Conformance Item T51
+--error ER_SRS_NOT_FOUND
 SELECT count(*)
 FROM buildings, bridges
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;

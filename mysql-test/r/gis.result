@@ -794,7 +794,7 @@ show create function fn3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 fn3	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn3`() RETURNS point
     DETERMINISTIC
-return ST_GeomFromText("point(1 1)")	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+return ST_GeomFromText("point(1 1)")	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select ST_astext(fn3());
 ST_astext(fn3())
 POINT(1 1)
@@ -1003,7 +1003,7 @@ drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
-ERROR HY000: Incorrect arguments to min(
+ERROR HY000: Incorrect arguments to min
 drop table t1;
 #
 # Bug #47780: crash when comparing GIS items from subquery
@@ -1518,62 +1518,42 @@ SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
-ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
-1
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 101. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_equals will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 SELECT ST_Equals(boundary,
 ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
 FROM named_places
 WHERE name = 'Goose Island';
-ERROR HY000: Binary geometry function st_equals given two geometries of different srids: 101 and 1, which should have been identical.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 
 WHERE divided_routes.name = 'Route 75' 
 AND named_places.name = 'Ashton';
-ST_Disjoint(centerlines, boundary)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_disjoint will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T39 
 SELECT ST_Touches(centerline, shore) 
 FROM streams, lakes 
 WHERE streams.name = 'Cam Stream' 
 AND lakes.name = 'Blue Lake';
-ST_Touches(centerline, shore)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_touches will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T42
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ST_Crosses(road_segments.centerline, divided_routes.centerlines)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_crosses will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T43 
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75';
-ST_Intersects(road_segments.centerline, divided_routes.centerlines)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_intersects will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T44 
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
 AND named_places.name = 'Ashton';
-ST_Contains(forests.boundary, named_places.boundary)
-0
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 # Conformance Item T46 
 SELECT ST_Distance(position, boundary) 
 FROM bridges, named_places 
@@ -1613,12 +1593,7 @@ Warning	3565	There's no spatial reference system with SRID 101. The axis order i
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
-count(*)
-1
-Warnings:
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_buffer will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
-Warning	3519	There's no spatial reference system with SRID 101. Calculations in function st_contains will be done in SRID 0.
+ERROR SR001: There's no spatial reference system with SRID 101.
 DROP DATABASE gis_ogs;
 #
 # Bug#13362660 ASSERTION `FIELD_POS < FIELD_COUNT' FAILED. IN PROTOCOL_TEXT::STORE

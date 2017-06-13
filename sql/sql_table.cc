@@ -42,6 +42,7 @@
 #include "dd/types/foreign_key.h"         // dd::Foreign_key
 #include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
 #include "dd/types/index.h"               // dd::Index
+#include "dd/types/index_element.h"       // dd::Index_element
 #include "dd/types/table.h"               // dd::Table
 #include "dd_sql_view.h"              // update_referencing_views_metadata
 #include "dd_table_share.h"           // open_table_def
@@ -116,6 +117,7 @@
 #include "sql_tablespace.h"           // validate_tablespace_name
 #include "sql_time.h"                 // make_truncated_value_warning
 #include "sql_trigger.h"              // change_trigger_table_name
+#include "sql/histograms/histogram.h"
 #include "strfunc.h"                  // find_type2
 #include "system_variables.h"
 #include "table.h"
@@ -962,7 +964,8 @@ static bool rea_create_base_table(THD *thd, const char *path,
                                 fk_keys,
                                 file);
 
-  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
+  if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      !thd->is_plugin_fake_ddl())
     result= trans_intermediate_ddl_commit(thd, result);
 
   if (result)
@@ -1045,7 +1048,8 @@ static bool rea_create_base_table(THD *thd, const char *path,
         return 'true' failure below.
       */
       bool result= dd::drop_table(thd, db, table_name, *table_def);
-      (void)trans_intermediate_ddl_commit(thd, result);
+      if (!thd->is_plugin_fake_ddl())
+        (void)trans_intermediate_ddl_commit(thd, result);
     }
     DBUG_RETURN(true);
   }
@@ -1774,7 +1778,8 @@ rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
       if (dd::table_storage_engine(thd, table_def, &hton))
         return true;
 
-      if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
+      if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL ||
+          thd->is_plugin_fake_ddl())
         drop_ctx->base_atomic_tables.push_back(table);
       else
         drop_ctx->base_non_atomic_tables.push_back(table);
@@ -2161,6 +2166,26 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     return true;
   }
 
+  histograms::results_map results;
+  bool histogram_error= histograms::drop_all_histograms(thd, *table, results);
+
+  DBUG_EXECUTE_IF("fail_after_drop_histograms",
+                  {
+                    my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0),
+                             "dummy_column", table->db, table->table_name);
+                    histogram_error= true;
+                  });
+
+  if (histogram_error)
+  {
+    /*
+      Do a rollback request, so that we avoid commit from being called at a
+      later stage.
+    */
+    thd->transaction_rollback_request= true;
+    return true;
+  }
+
   if (thd->locked_tables_mode)
   {
     /*
@@ -2184,6 +2209,15 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                      false);
   }
+
+  /*
+    If the table being dropped is a internal temporary table that was
+    created by ALTER TABLE, we need to mark it as internal tmp table.
+    This will enable us to build the filename as we build during ALTER
+    TABLE.
+  */
+  if (table_def->hidden() == dd::Abstract_table::HT_HIDDEN_DDL)
+    table->internal_tmp_table= true;
 
   (void) build_table_filename(path, sizeof(path) - 1, table->db,
                               table->table_name, "",
@@ -4116,7 +4150,7 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
 */
 
-static bool count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+static bool count_keys(const Mem_root_array<const Key_spec*> &key_list,
                        uint *key_count, uint *key_parts,
                        uint *fk_key_count,
                        Mem_root_array<bool> *redundant_keys,
@@ -4769,29 +4803,20 @@ static bool prepare_foreign_key(THD *thd,
 
   fk_info->key_parts= fk_key->columns.size();
 
-  if (fk_key->ref_db.str)
+  /*
+    In --lower-case-table-names=2 mode we are to use lowercased versions of
+    parent db and table names for acquiring MDL and lookup, but still need
+    to store their original versions in the data-dictionary.
+  */
+  if (lower_case_table_names == 2)
   {
-    fk_info->ref_db= fk_key->ref_db;
-    if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
-    {
-      char buff[NAME_LEN + 1];
-      my_stpncpy(buff, fk_info->ref_db.str, NAME_LEN);
-      my_casedn_str(system_charset_info, buff);
-      fk_info->ref_db.str= sql_strdup(buff);
-      fk_info->ref_db.length= strlen(fk_info->ref_db.str);
-    }
+    fk_info->ref_db= fk_key->orig_ref_db;
+    fk_info->ref_table= fk_key->orig_ref_table;
   }
   else
-    fk_info->ref_db= thd->db(); // No schema given, use current schema
-
-  fk_info->ref_table= fk_key->ref_table;
-  if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
   {
-    char buff[NAME_LEN + 1];
-    my_stpncpy(buff, fk_info->ref_table.str, NAME_LEN);
-    my_casedn_str(system_charset_info, buff);
-    fk_info->ref_table.str= sql_strdup(buff);
-    fk_info->ref_table.length= strlen(fk_info->ref_table.str);
+    fk_info->ref_db= fk_key->ref_db;
+    fk_info->ref_table= fk_key->ref_table;
   }
 
   fk_info->delete_opt= fk_key->delete_opt;
@@ -6160,6 +6185,9 @@ bool mysql_create_table_no_lock(THD *thd,
     return true;
   }
 
+  if (thd->is_plugin_fake_ddl())
+    no_ha_table= true;
+
   return create_table_impl(thd, *schema, db, table_name, table_name,
                            path, create_info, alter_info,
                            false, select_field_count, no_ha_table, is_trans,
@@ -6267,7 +6295,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       changes to the data-dictionary, SE and binary log and possibly run
       handlerton's post-DDL hook.
     */
-    if (!result)
+    if (!result && !thd->is_plugin_fake_ddl())
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
@@ -6276,7 +6304,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                                                 nullptr);
 #endif
 
-    if (result)
+    if (result && !thd->is_plugin_fake_ddl())
     {
       trans_rollback_stmt(thd);
       /*
@@ -6360,6 +6388,155 @@ public:
 /****************************************************************************
 ** Alter a table definition
 ****************************************************************************/
+
+
+/**
+  Rename histograms from an old table name to a new table name.
+
+  @param thd             Thread handle
+  @param old_schema_name The old schema name
+  @param old_table_name  The old table name
+  @param new_schema_name The new schema name
+  @param new_table_name  The new table name
+
+  @return false on success, true on error
+*/
+static bool
+rename_histograms(THD *thd, const char *old_schema_name,
+                  const char *old_table_name, const char *new_schema_name,
+                  const char *new_table_name)
+{
+  histograms::results_map results;
+  bool res= histograms::rename_histograms(thd, old_schema_name, old_table_name,
+                                          new_schema_name, new_table_name,
+                                          results);
+
+  DBUG_EXECUTE_IF("fail_after_rename_histograms",
+                  {
+                    my_error(ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS, MYF(0),
+                             "dummy_column", old_schema_name, old_table_name);
+                    res= true;
+                  });
+  return res;
+}
+
+
+/**
+  Drop histograms from a given table.
+
+  This function will check if an ALTER TABLE statement will make a histogram
+  invalid:
+  - Removing columns
+  - Changing columns (data type, collation and such)
+  - Adding UNIQUE index
+
+  If such change is found, remove any existing histogram for these columns.
+
+  @param thd thread handler
+  @param table the table given in ALTER TABLE
+  @param alter_info the alter changes to be carried out by ALTER TABLE
+  @param create_info the alter changes to be carried out by ALTER TABLE
+  @param columns a list of columns to be changed or dropped
+  @param table_def the altered table (the new table definition, post altering)
+
+  @return false on success, true on error
+*/
+static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
+                                        Alter_info *alter_info,
+                                        HA_CREATE_INFO *create_info,
+                                        histograms::columns_set &columns,
+                                        const dd::Table *table_def)
+{
+  bool alter_drop_column=
+    (alter_info->flags & (Alter_info::ALTER_DROP_COLUMN |
+                         Alter_info::ALTER_CHANGE_COLUMN));
+  bool convert_character_set=
+    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+    (create_info->used_fields & HA_CREATE_USED_CHARSET);
+
+  bool encryption_enabled=
+    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+    (create_info->encrypt_type.length > 0 &&
+     my_strcasecmp(system_charset_info, "n",
+                   create_info->encrypt_type.str) != 0);
+
+  bool single_part_unique_index= false;
+  /*
+    Check if we are adding a single-part unique index for a column. If we are,
+    remove any existing histogram for that column.
+  */
+  if (alter_info->flags & Alter_info::ALTER_ADD_INDEX)
+  {
+    for (const auto key : table_def->indexes())
+    {
+      /*
+        A key may have multiple elements, such as (DB_ROW_ID, column). So, check
+        if we only have a single visible element in the unique/primary key.
+      */
+      auto not_hidden= [] (const dd::Index_element *element)
+                       { return !element->is_hidden(); };
+      if ((key->type() == dd::Index::IT_PRIMARY ||
+           key->type() == dd::Index::IT_UNIQUE) &&
+          std::count_if(key->elements().begin(), key->elements().end(),
+                        not_hidden) == 1)
+      {
+        single_part_unique_index= true;
+        const dd::Index_element *element= *std::find_if(key->elements().begin(),
+                                                        key->elements().end(),
+                                                        not_hidden);
+        columns.emplace(element->column().name().c_str());
+      }
+    }
+  }
+
+  /*
+    If we are changing the character set, find all character columns. TEXT and
+    similary types will be reportet as a BLOB/LONG_BLOB etc. but with a
+    non-binary character set.
+  */
+  if (convert_character_set)
+  {
+    for (const auto column : table_def->columns())
+    {
+      switch (column->type())
+      {
+        case dd::enum_column_types::STRING:
+        case dd::enum_column_types::VAR_STRING:
+        case dd::enum_column_types::VARCHAR:
+        case dd::enum_column_types::TINY_BLOB:
+        case dd::enum_column_types::MEDIUM_BLOB:
+        case dd::enum_column_types::LONG_BLOB:
+        case dd::enum_column_types::BLOB:
+          if (column->collation_id() != my_charset_bin.number)
+            columns.emplace(column->name().c_str());
+          break;
+        default:
+         continue;
+      }
+    }
+  }
+
+  if (alter_drop_column || convert_character_set || encryption_enabled ||
+      single_part_unique_index)
+  {
+    histograms::results_map results;
+    bool res;
+    if (encryption_enabled)
+      res= histograms::drop_all_histograms(thd, *table, results);
+    else
+      res= histograms::drop_histograms(thd, *table, columns, results);
+
+    DBUG_EXECUTE_IF("fail_after_drop_histograms",
+                    {
+                      my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0),
+                               "dummy_column", table->db, table->table_name);
+                      res= true;
+                    });
+    return res;
+  }
+
+  return false;
+}
 
 
 /**
@@ -6525,6 +6702,20 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   */
   bool result= dd::rename_foreign_keys(old_name, to_table_def) ||
                thd->dd_client()->update(to_table_def);
+
+  /*
+    Only rename histograms when this isn't a rename for temporary names
+    (we will never have a histogram for a temporary name).
+
+    Note that this won't catch "ALTER TABLE ... ALGORITHM=COPY" since the COPY
+    algorithm will first rename to a temporary name, and then to the final name.
+    That case is handled in the function mysql_alter_table.
+  */
+  if (!result && !((flags & FN_TO_IS_TMP) || (flags & FN_FROM_IS_TMP)))
+  {
+    result= rename_histograms(thd, old_db, old_name, new_db, new_name);
+  }
+
   if (!(flags & NO_DD_COMMIT))
     result= trans_intermediate_ddl_commit(thd, result);
 
@@ -6583,7 +6774,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
                              HA_CREATE_INFO *create_info)
 {
   HA_CREATE_INFO local_create_info;
-  Alter_info local_alter_info;
+  Alter_info local_alter_info(thd->mem_root);
   Alter_table_ctx local_alter_ctx; // Not used
   bool is_trans= FALSE;
   uint not_used;
@@ -6908,8 +7099,10 @@ err:
   DBUG_RETURN(true);
 }
 
+
 /* table_list should contain just one table */
-bool mysql_discard_or_import_tablespace(THD *thd,
+bool
+Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(THD *thd,
                                         TABLE_LIST *table_list)
 {
   Alter_table_prelocking_strategy alter_prelocking_strategy;
@@ -6924,7 +7117,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
    /*
      DISCARD/IMPORT TABLESPACE do not respect ALGORITHM and LOCK clauses.
    */
-  if (thd->lex->alter_info.requested_lock !=
+  if (m_alter_info->requested_lock !=
       Alter_info::ALTER_TABLE_LOCK_DEFAULT)
   {
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
@@ -6932,7 +7125,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
              "LOCK=DEFAULT");
     DBUG_RETURN(true);
   }
-  else if (thd->lex->alter_info.requested_algorithm !=
+  else if (m_alter_info->requested_algorithm !=
            Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
   {
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
@@ -6965,10 +7158,10 @@ bool mysql_discard_or_import_tablespace(THD *thd,
       If not ALL is mentioned and there is at least one specified
       [sub]partition name, use the specified [sub]partitions only.
     */
-    if (thd->lex->alter_info.partition_names.elements > 0 &&
-        !(thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION))
+    if (m_alter_info->partition_names.elements > 0 &&
+        !(m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION))
     {
-      table_list->partition_names= &thd->lex->alter_info.partition_names;
+      table_list->partition_names= &m_alter_info->partition_names;
       /* Set all [named] partitions as used. */
       if (table_list->table->part_info->set_partition_bitmaps(table_list))
         DBUG_RETURN(true);
@@ -6976,8 +7169,8 @@ bool mysql_discard_or_import_tablespace(THD *thd,
   }
   else
   {
-    if (thd->lex->alter_info.partition_names.elements > 0 ||
-        thd->lex->alter_info.flags & Alter_info::ALTER_ALL_PARTITION)
+    if (m_alter_info->partition_names.elements > 0 ||
+        m_alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     {
       /* Don't allow DISCARD/IMPORT PARTITION on a nonpartitioned table */
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
@@ -7026,7 +7219,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
   }
 
   /*
-    The parser sets a flag in the thd->lex->alter_info struct to indicate
+    The parser sets a flag in the Alter_info struct to indicate
     whether this is DISCARD or IMPORT. The flag is used for two purposes:
 
     1. To submit the appropriate parameter to the SE to indicate which
@@ -7038,7 +7231,7 @@ bool mysql_discard_or_import_tablespace(THD *thd,
        missing tablespace.
   */
 
-  bool discard= (thd->lex->alter_info.flags &
+  bool discard= (m_alter_info->flags &
                  Alter_info::ALTER_DISCARD_TABLESPACE);
   error= table_list->table->file->ha_discard_or_import_tablespace(
                                                discard, table_def);
@@ -8326,6 +8519,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
   @param inplace_supported  Enum describing the locking requirements.
   @param target_mdl_request Metadata request/lock on the target table name.
   @param alter_ctx          ALTER TABLE runtime context.
+  @param columns            A list of columns to be modified. This is needed
+                            for removal/renaming of histogram statistics.
 
   @retval   true              Error
   @retval   false             Success
@@ -8353,7 +8548,8 @@ static bool mysql_inplace_alter_table(THD *thd,
                                       Alter_inplace_info *ha_alter_info,
                                       enum_alter_inplace_result inplace_supported,
                                       MDL_request *target_mdl_request,
-                                      Alter_table_ctx *alter_ctx)
+                                      Alter_table_ctx *alter_ctx,
+                                      histograms::columns_set &columns)
 {
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
@@ -8550,6 +8746,17 @@ static bool mysql_inplace_alter_table(THD *thd,
     {
       goto rollback;
     }
+
+    /*
+      Check if this is an ALTER command that will cause histogram statistics to
+      become invalid. If that is the case; remove the histogram statistics.
+
+      This will take care of scenarios when INPLACE alter is used, but not COPY.
+    */
+    if (alter_table_drop_histograms(thd, table_list, ha_alter_info->alter_info,
+                                    ha_alter_info->create_info, columns,
+                                    altered_table_def))
+      goto rollback;
 
     // Upgrade to EXCLUSIVE before commit.
     if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
@@ -9283,7 +9490,9 @@ bool prepare_fields_and_keys(THD *thd,
     its copy.
   */
   Prealloced_array<const Alter_rename_key*, 1>
-    rename_key_list(alter_info->alter_rename_key_list);
+    rename_key_list(PSI_INSTRUMENT_ME,
+                    alter_info->alter_rename_key_list.cbegin(),
+                    alter_info->alter_rename_key_list.cend());
 
   /*
     This is how we check that all indexes to be altered are name-resolved: We
@@ -9293,7 +9502,9 @@ bool prepare_fields_and_keys(THD *thd,
     indexes.
   */
   Prealloced_array<const Alter_index_visibility*, 1>
-    index_visibility_list(alter_info->alter_index_visibility_list);
+    index_visibility_list(PSI_INSTRUMENT_ME,
+                          alter_info->alter_index_visibility_list.cbegin(),
+                          alter_info->alter_index_visibility_list.cend());
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
@@ -10932,6 +11143,27 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
+  /*
+    Store all columns that are going to be dropped, since we need this list
+    when removing column statistics later. The reason we need to store it here,
+    is that 'mysql_prepare_alter_table' may remove some of the columns from
+    the drop_list.
+  */
+  histograms::columns_set columns;
+  for (const auto column : alter_info->drop_list)
+  {
+    if (column->type == Alter_drop::COLUMN)
+      columns.emplace(column->name);
+  }
+
+  Create_field *create_field;
+  List_iterator<Create_field> list_it(alter_info->create_list);
+  while ((create_field= list_it++))
+  {
+    if (create_field->change != nullptr)
+      columns.emplace(create_field->change);
+  }
+
   if (mysql_prepare_alter_table(thd, table_obj, table, create_info, alter_info,
                                 &alter_ctx))
   {
@@ -11339,7 +11571,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     table_def, table_list, table,
                                     altered_table, &ha_alter_info,
                                     inplace_supported, &target_mdl_request,
-                                    &alter_ctx))
+                                    &alter_ctx, columns))
       {
         DBUG_RETURN(true);
       }
@@ -11562,6 +11794,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   new_table= NULL;
 
   DEBUG_SYNC(thd, "alter_table_before_rename_result_table");
+  DBUG_EXECUTE_IF("exit_after_alter_table_before_rename",
+                  {
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(true);
+                  });
 
   /*
     Data is copied. Now we:
@@ -11788,6 +12025,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_with_mdl;
     DBUG_ASSERT(backup_table != nullptr && new_table != nullptr);
 
+    /*
+      Check if this is an ALTER command that will cause histogram statistics to
+      become invalid. If that is the case; remove the histogram statistics.
+
+      This will take care of scenarios when COPY alter is used, but not INPLACE.
+      Do this before the commit for non-transactional tables, because the
+      new_table is invalidated on commit.
+    */
+    if (alter_table_drop_histograms(thd, table_list, alter_info, create_info,
+                                    columns, new_table))
+      goto err_with_mdl; /* purecov: deadcode */
+
     if (backup_table->has_trigger())
     {
       new_table->copy_triggers(backup_table);
@@ -11802,6 +12051,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         goto err_with_mdl;
     }
   }
+
+
+  // If the ALTER command was a rename, rename any existing histograms.
+  if (alter_ctx.is_table_renamed() &&
+      rename_histograms(thd, table_list->db, table_list->table_name, new_db,
+                        new_name))
+  {
+    goto err_with_mdl; /* purecov: deadcode */
+  }
+
 
   // ALTER TABLE succeeded, delete the backup of the old table.
   if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name,
@@ -12404,7 +12663,7 @@ copy_data_between_tables(THD * thd,
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
 {
   HA_CREATE_INFO create_info;
-  Alter_info alter_info;
+  Alter_info alter_info(thd->mem_root);
 
   DBUG_ENTER("mysql_recreate_table");
   DBUG_ASSERT(!table_list->next_global);

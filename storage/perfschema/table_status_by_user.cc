@@ -39,6 +39,8 @@
 THR_LOCK table_status_by_user::m_table_lock;
 
 Plugin_table table_status_by_user::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "status_by_user",
   /* Definition */

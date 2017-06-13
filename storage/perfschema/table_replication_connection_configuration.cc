@@ -37,6 +37,8 @@
 THR_LOCK table_replication_connection_configuration::m_table_lock;
 
 Plugin_table table_replication_connection_configuration::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "replication_connection_configuration",
   /* Definition */

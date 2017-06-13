@@ -27,6 +27,8 @@
 THR_LOCK table_session_account_connect_attrs::m_table_lock;
 
 Plugin_table table_session_account_connect_attrs::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "session_account_connect_attrs",
   /* Definition */

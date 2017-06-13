@@ -355,16 +355,10 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
     Mutex_lock lock(&component_id_by_urn_mutex);
 
-    TABLE* component_table;
-    if (open_component_table(thd, TL_WRITE, &component_table, INSERT_ACL))
-    {
-      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
-      return true;
-    }
-
     /* We don't replicate INSTALL COMPONENT */
     Disable_binlog_guard binlog_guard(thd);
 
+    TABLE* component_table;
     auto guard_close_tables= create_scope_guard(
       [&thd, &component_table]
     {
@@ -374,6 +368,12 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
     if (mysql_dynamic_loader_imp::load(urns, component_count))
     {
+      return true;
+    }
+
+    if (open_component_table(thd, TL_WRITE, &component_table, INSERT_ACL))
+    {
+      my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 
@@ -424,7 +424,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     guard.commit();
     guard_close_tables.commit();
     trans_commit_stmt(thd);
-    close_mysql_tables(thd);
     return false;
   }
   catch (...)
@@ -552,7 +551,6 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
 
     guard_close_tables.commit();
     trans_commit_stmt(thd);
-    close_mysql_tables(thd);
 
     return false;
   }

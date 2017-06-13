@@ -112,6 +112,8 @@ template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> 
 #define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
+#define NON_PERSIST sys_var::NOTPERSIST+
+
 /*
   Sys_var_bit meaning is reversed, like in
   @@foreign_key_checks <-> OPTION_NO_FOREIGN_KEY_CHECKS
@@ -1124,6 +1126,14 @@ public:
     LEX_STRING *base_name= &var->base;
     KEY_CACHE *key_cache;
 
+    if (base_name != NULL && base_name->str)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          "%s.%s syntax "
+                          "is deprecated and will be removed in a "
+                          "future release",
+                          base_name->str, name.str);
+
     /* If no basename, assume it's for the key cache named 'default' */
     if (!base_name->length)
       base_name= &default_key_cache_base;
@@ -1148,8 +1158,16 @@ public:
 
     return keycache_update(thd, key_cache, offset, new_value);
   }
-  uchar *global_value_ptr(THD*, LEX_STRING *base)
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
+    if (base != NULL && base->str)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          "@@global.%s.%s syntax "
+                          "is deprecated and will be removed in a "
+                          "future release",
+                          base->str, name.str);
+
     KEY_CACHE *key_cache= get_key_cache(base);
     if (!key_cache)
       key_cache= &zero_key_cache;
@@ -1237,7 +1255,8 @@ private:
   uint test_flag_mask;
 public:
   Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
-  : Sys_var_bool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
+  : Sys_var_bool(name_arg, comment, READ_ONLY NON_PERSIST
+          GLOBAL_VAR(test_flag_value),
           NO_CMD_LINE, DEFAULT(FALSE))
   {
     test_flag_mask= mask;

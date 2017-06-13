@@ -217,6 +217,11 @@ public:
   Group_member_role get_role();
 
   /**
+    @return the member role type code in string
+   */
+  const char* get_member_role_string();
+
+  /**
     @return the member plugin version
    */
   const Member_version& get_member_version();

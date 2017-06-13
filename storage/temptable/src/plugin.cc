@@ -54,6 +54,8 @@ mysql_declare_plugin(temptable) {
   "InnoDB temporary storage engine",
   PLUGIN_LICENSE_GPL,
   init,
+  /* check uninstall */
+  nullptr,
   /* destroy */
   nullptr,
   /* 1.0 */

@@ -39,6 +39,7 @@
 #include "pfs_host.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
+#include "pfs_plugin_table.h"
 #include "pfs_prepared_stmt.h"
 #include "pfs_program.h"
 #include "pfs_setup_actor.h"
@@ -232,6 +233,9 @@ initialize_performance_schema(PFS_global_param* param,
     *data_lock_bootstrap = &pfs_data_lock_bootstrap;
   }
 
+  /* Initialize plugin table services */
+  init_pfs_plugin_table();
+
   return 0;
 }
 
@@ -289,6 +293,7 @@ cleanup_performance_schema(void)
     find_XXX_class(key)
     will return PSI_NOT_INSTRUMENTED
   */
+  cleanup_pfs_plugin_table();
   cleanup_error();
   cleanup_program();
   cleanup_prepared_stmt();

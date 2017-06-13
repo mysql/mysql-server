@@ -262,6 +262,7 @@ public:
   table_map used_tables;              ///< Accumulated used tables data
 };
 
+
 /*************************************************************************/
 
 /**
@@ -728,7 +729,7 @@ public:
     WALK_POSTFIX=  0x02,
     WALK_SUBQUERY= 0x04,
     WALK_SUBQUERY_PREFIX= 0x05,   // Combine prefix and subquery traversal
-    WALK_SUBQUERY_POSTFIX= 0x06   // Combine postfix and subquery traversal
+    WALK_SUBQUERY_POSTFIX= 0x06,   // Combine postfix and subquery traversal
   };
 
   /**
@@ -1754,7 +1755,11 @@ public:
   type_conversion_status save_date_in_field(Field *field);
   type_conversion_status save_str_value_in_field(Field *field, String *result);
 
-  virtual Field *get_tmp_table_field() { return 0; }
+  virtual Field *get_tmp_table_field()
+  {
+    DBUG_ENTER("Item::get_tmp_table_field");
+    DBUG_RETURN(0);
+  }
   /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE*) { return 0; }
   virtual const char *full_name() const
@@ -1768,7 +1773,7 @@ public:
     result field, it return val(). This methods set null_value flag in same
     way as *val* methods do it.
   */
-  virtual double  val_result() { return val_real(); }
+  virtual double  val_real_result() { return val_real(); }
   virtual longlong val_int_result() { return val_int(); }
   /**
     Get time value in packed longlong format. NULL is converted to 0.
@@ -1834,6 +1839,7 @@ public:
       return can_be_evaluated_now();
     return false;
   }
+
   /* 
     Returns true if this is constant but its value may be not known yet.
     (Can be used for parameters of prep. stmts or of stored procedures.)
@@ -1912,6 +1918,8 @@ public:
   /*
     set field of temporary table for Item which can be switched on temporary
     table during query processing (grouping and so on)
+    @todo we need a clear comment about what result_field is, and cross-ref it
+    with Item_result_field, val*result...
   */
   virtual void set_result_field(Field*) {}
   virtual bool is_result_field() const { return false; }
@@ -1931,7 +1939,12 @@ public:
     return  runtime_item ? real_item() : this;
   }
   virtual void set_runtime_created() { runtime_item= true; }
-  virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
+  virtual Item *get_tmp_table_item(THD *thd)
+  {
+    DBUG_ENTER("Item::get_tmp_table_item");
+    Item *result= copy_or_same(thd);
+    DBUG_RETURN(result);
+  }
 
   static const CHARSET_INFO *default_charset();
   virtual const CHARSET_INFO *compare_collation() const { return nullptr; }
@@ -2125,6 +2138,15 @@ protected:
     return false;
   }
 public:
+  /**
+    Reset execution state for such window function types
+    as determined by arg
+
+    @param arg   pointing to a bool which, if true, states reset state
+                 for framing window function, else for non-framing
+  */
+  virtual bool reset_wf_state(uchar *arg MY_ATTRIBUTE((unused))) { return false; }
+
   /**
     Return used table information for the specified query block (level).
     For a field that is resolved from this query block, return the table number.
@@ -2460,6 +2482,13 @@ public:
   /// Reset the "has aggregation" property
   void reset_aggregation() { m_accum_properties&= ~PROP_AGGREGATION; }
 
+  /// @return true if this item or any of its decendents is a window func.
+  bool has_wf() const
+  { return m_accum_properties & PROP_WINDOW_FUNCTION; }
+
+  /// Set the "has window function" property
+  void set_wf() { m_accum_properties|= PROP_WINDOW_FUNCTION; }
+
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
 
@@ -2499,6 +2528,8 @@ public:
   */
   virtual bool repoint_const_outer_ref(uchar *arg MY_ATTRIBUTE((unused)))
   { return false; }
+  virtual Field *get_orig_field() { return NULL; }
+  virtual void set_orig_field(Field *) {};
 private:
   virtual bool subq_opt_away_processor(uchar*) { return false; }
 
@@ -2586,7 +2617,7 @@ public:
   bool maybe_null;
   bool null_value;              ///< True if item is null
   bool unsigned_flag;
-
+  bool m_is_window_function;    ///< True if item represents window func
 private:
   /**
     True if this is an expression from the select list of a derived table
@@ -2605,6 +2636,7 @@ protected:
   static constexpr uint8 PROP_SUBQUERY       = 0x01;
   static constexpr uint8 PROP_STORED_PROGRAM = 0x02;
   static constexpr uint8 PROP_AGGREGATION    = 0x04;
+  static constexpr uint8 PROP_WINDOW_FUNCTION= 0x08;
 
   uint8 m_accum_properties;
 
@@ -2620,17 +2652,19 @@ protected:
 
 public:
   /**
-    Mark this expression as used in partial update, if it is on the right
-    form. For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
+    Check if this expression can be used for partial update of a given
+    JSON column.
+
+    For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
     can be used to partially update the column `foo`.
 
-    @param field   the target column of the update
-    @retval false  if successfully marked for partial update
-    @retval true   if this expression cannot be used for partial update
-                   of @a field
+    @param field  the JSON column that is being updated
+    @return true if this expression can be used for partial update,
+      false otherwise
   */
-  virtual bool mark_for_partial_update(Field *field MY_ATTRIBUTE((unused)))
-  { return true; }
+  virtual bool supports_partial_update(const Field_json *field
+                                       MY_ATTRIBUTE((unused))) const
+  { return false; }
 };
 
 
@@ -3166,7 +3200,14 @@ public:
     uses of table_ref is not needed.
   */
   TABLE_LIST *table_ref;
+  /// Source field
   Field *field;
+  /**
+    Item's original field. Used to compare fields in Item_field::eq() in order
+    to get proper result when field is transformed by tmp table.
+  */
+  Field *orig_field;
+  /// Result field
   Field *result_field;
   Item_equal *item_equal;
   bool no_const_subst;
@@ -3177,7 +3218,6 @@ public:
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
-
   Item_field(Name_resolution_context *context_arg,
              const char *db_arg,const char *table_name_arg,
              const char *field_name_arg);
@@ -3213,7 +3253,7 @@ public:
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
   bool val_json(Json_wrapper *result) override;
-  double val_result() override;
+  double val_real_result() override;
   longlong val_int_result() override;
   longlong val_time_temporal_result() override;
   longlong val_date_temporal_result() override;
@@ -3260,7 +3300,11 @@ public:
   bool check_gcol_func_processor(uchar *int_arg) override;
   bool mark_field_in_map(uchar *arg) override
   {
-    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+    auto mark_field= pointer_cast<Mark_field *>(arg);
+    bool rc= Item::mark_field_in_map(mark_field, field);
+    if (result_field && result_field != field)
+      rc|= Item::mark_field_in_map(mark_field, result_field);
+    return rc;
   }
   bool used_tables_for_level(uchar *arg) override;
   bool check_column_privileges(uchar *arg) override;
@@ -3356,6 +3400,12 @@ public:
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
+  Field *get_orig_field() override { return orig_field; }
+  void set_orig_field(Field *orig_field_arg) override
+  {
+    if (orig_field_arg)
+      orig_field= orig_field_arg;
+  }
 };
 
 class Item_null : public Item_basic_constant
@@ -4385,27 +4435,51 @@ public:
   bool is_result_field() const override { return true; }
   void save_in_result_field(bool no_conversions) override
   {
+    DBUG_ENTER("Item_result_field::save_in_result_field");
     save_in_field(result_field, no_conversions);
+    DBUG_VOID_RETURN;
   }
+  virtual double  val_real_result() override;
+  virtual longlong val_int_result() override;
+  /**
+    Get time value in packed longlong format. NULL is converted to 0.
+  */
+  virtual longlong val_time_temporal_result() override;
+  /**
+    Get date value in packed longlong format. NULL is converted to 0.
+  */
+  virtual longlong val_date_temporal_result() override;
+  virtual String *str_result(String* tmp) override;
+  virtual my_decimal *val_decimal_result(my_decimal *val) override;
+  virtual bool val_bool_result() override;
+  virtual bool is_null_result() override;
+
   void cleanup() override;
   /*
     This method is used for debug purposes to print the name of an
     item to the debug log. The second use of this method is as
     a helper function of print() and error messages, where it is
     applicable. To suit both goals it should return a meaningful,
-    distinguishable and sintactically correct string. This method
+    distinguishable and syntactically correct string. This method
     should not be used for runtime type identification, use enum
     {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
     instead.
-    Added here, to the parent class of both Item_func and Item_sum_func.
-
-    NOTE: for Items inherited from Item_sum, func_name() return part of
-    function name till first argument (including '(') to make difference in
-    names for functions with 'distinct' clause and without 'distinct' and
-    also to make printing of items inherited from Item_sum uniform.
+    Added here, to the parent class of both Item_func and Item_sum.
   */
   virtual const char *func_name() const= 0;
   bool check_gcol_func_processor(uchar *) override { return false; }
+  void count_only_length(Item **item, uint nitems);
+  void count_datetime_length(Item **item, uint nitems);
+  bool count_string_result_length(enum_field_types field_type,
+                                  Item **item, uint nitems);
+  bool mark_field_in_map(uchar *arg) override
+  {
+    bool rc= Item::mark_field_in_map(arg);
+    if (result_field)
+      rc|= Item::mark_field_in_map(pointer_cast<Mark_field *>(arg),
+                                   result_field);
+    return rc;
+  }
 };
 
 
@@ -4481,7 +4555,7 @@ public:
   bool val_json(Json_wrapper *result) override;
   bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  double val_result() override;
+  double val_real_result() override;
   longlong val_int_result() override;
   String *str_result(String *tmp) override;
   my_decimal *val_decimal_result(my_decimal *) override;
@@ -4637,6 +4711,7 @@ public:
   bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   Ref_Type ref_type() const override { return DIRECT_REF; }
+  type_conversion_status save_in_field_inner(Field *to, bool no_conversions) override;
 };
 
 /**
@@ -4683,9 +4758,10 @@ public:
   bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
+    DBUG_ENTER("Item_direct_view_ref::get_tmp_table_item");
     Item *item= Item_ref::get_tmp_table_item(thd);
     item->item_name= item_name;
-    return item;
+    DBUG_RETURN(item);
   }
   Ref_Type ref_type() const override { return VIEW_REF; }
 
@@ -4696,13 +4772,13 @@ public:
       If this referenced column is marked as used, flag underlying
       selected item from a derived table/view as used.
     */
-    Mark_field *mark_field= (Mark_field *)arg;
+    auto mark_field= (Mark_field *)arg;
     if (mark_field->mark != MARK_COLUMNS_NONE)
       // Set the same flag for all the objects that *ref depends on.
       (*ref)->walk(&Item::propagate_set_derived_used,
                    Item::WALK_SUBQUERY_POSTFIX, NULL);
-
-    return false;
+    return result_field ?
+      Item::mark_field_in_map(mark_field, result_field) : false;
   }
   longlong val_int() override;
   double val_real() override;
@@ -5213,31 +5289,49 @@ public:
 };
 
 
+class Item_cache;
+/**
+  This is used for segregating rows in groups (e.g. GROUP BY, windows), to
+  detect boundaries of groups.
+  It caches a value, which is representative of the group, and can compare it
+  to another row, and update its value when entering a new group.
+*/
 class Cached_item :public Sql_alloc
 {
+protected:
+  Item *item;              ///< The item whose value to cache.
 public:
   bool null_value;
-  Cached_item() :null_value(0) {}
+  Cached_item(Item *i) : item(i), null_value(0) {}
+  /**
+    If cached value is different from item's, returns true and updates
+    cached value with item's.
+  */
   virtual bool cmp()= 0;
   virtual ~Cached_item(); /*line -e1509 */
+  Item *get_item() { return item; }
+  virtual void copy_to_Item_cache(Item_cache *i_c MY_ATTRIBUTE((unused)))
+  {
+    DBUG_ASSERT(false);                         /* purecov: inspected */
+  }
 };
 
-class Cached_item_str final : public Cached_item
+
+class Cached_item_str : public Cached_item
 {
-  Item *item;
   uint32 value_max_length;
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);
   bool cmp() override;
   ~Cached_item_str();                           // Deallocate String:s
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 
 /// Cached_item subclass for JSON values.
-class Cached_item_json final : public Cached_item
+class Cached_item_json : public Cached_item
 {
-  Item *m_item;              ///< The item whose value to cache.
   Json_wrapper *m_value;     ///< The cached JSON value.
 public:
   explicit Cached_item_json(Item *item);
@@ -5246,72 +5340,46 @@ public:
 };
 
 
-class Cached_item_real final : public Cached_item
+class Cached_item_real : public Cached_item
 {
-  Item *item;
   double value;
 public:
-  Cached_item_real(Item *item_par) :item(item_par),value(0.0) {}
+  Cached_item_real(Item *item_par) :
+  Cached_item(item_par),value(0.0) {}
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
-class Cached_item_int final : public Cached_item
+class Cached_item_int : public Cached_item
 {
-  Item *item;
   longlong value;
 public:
-  Cached_item_int(Item *item_par) :item(item_par),value(0) {}
+  Cached_item_int(Item *item_par) :
+  Cached_item(item_par),value(0) {}
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
-class Cached_item_temporal final : public Cached_item
+class Cached_item_temporal : public Cached_item
 {
-  Item *item;
   longlong value;
 public:
-  Cached_item_temporal(Item *item_par) :item(item_par), value(0) {}
+  Cached_item_temporal(Item *item_par) :
+  Cached_item(item_par), value(0) {}
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 
-class Cached_item_decimal final : public Cached_item
+class Cached_item_decimal : public Cached_item
 {
-  Item *item;
   my_decimal value;
 public:
   Cached_item_decimal(Item *item_par);
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
-class Cached_item_field final : public Cached_item
-{
-  uchar *buff;
-  Field *field;
-  uint length;
-
-public:
-#ifndef DBUG_OFF
-  void dbug_print() const
-  {
-    uchar *org_ptr;
-    org_ptr= field->ptr;
-    fprintf(DBUG_FILE, "new: ");
-    field->dbug_print();
-    field->ptr= buff;
-    fprintf(DBUG_FILE, ", old: ");
-    field->dbug_print();
-    field->ptr= org_ptr;
-    fprintf(DBUG_FILE, "\n");
-  }
-#endif
-  Cached_item_field(Field *arg_field) : field(arg_field)
-  {
-    field= arg_field;
-    /* TODO: take the memory allocation below out of the constructor. */
-    buff= (uchar*) sql_calloc(length=field->pack_length());
-  }
-  bool cmp() override;
-};
 
 class Item_default_value final : public Item_field
 {
@@ -5619,6 +5687,7 @@ public:
   }
 
   virtual bool cache_value()= 0;
+  bool store_and_cache(Item *item) { store(item); return cache_value(); }
   bool basic_const_item() const override
   { return (example != nullptr && example->basic_const_item());}
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
@@ -5647,8 +5716,11 @@ public:
     Item_cache(field_type_arg), value(0)
   {}
 
-  void store(Item *item) override { Item_cache::store(item); }
-  void store(Item *item, longlong val_arg);
+  /**
+    Unlike store(), this stores an explicitly provided value, not the one of
+    'item'; however, NULLness is still taken from 'item'.
+  */
+  void store_value(Item *item, longlong val_arg);
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override { return val_int(); }
@@ -5689,6 +5761,7 @@ public:
   }
   enum Item_result result_type() const override { return REAL_RESULT; }
   bool cache_value() override;
+  void store_value(Item *expr, double value);
 };
 
 
@@ -5714,6 +5787,7 @@ public:
   }
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
   bool cache_value() override;
+  void store_value(Item *expr, my_decimal *d);
 };
 
 
@@ -5751,6 +5825,7 @@ public:
   enum Item_result result_type() const override { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
   bool cache_value() override;
+  void store_value(Item *expr, String &s);
 };
 
 class Item_cache_row final : public Item_cache
@@ -5845,7 +5920,7 @@ public:
     cmp_context= STRING_RESULT;
   }
 
-  void store(Item *item, longlong val_arg);
+  void store_value(Item *item, longlong val_arg);
   void store(Item *item) override;
   double val_real() override;
   longlong val_int() override;
@@ -5940,8 +6015,7 @@ public:
 };
 
 
-extern Cached_item *new_Cached_item(THD *thd, Item *item,
-                                    bool use_result_field);
+extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern bool resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);

@@ -31,7 +31,8 @@ include/assert.inc [Verify channel ch3_1 IO_THREAD is ON]
 include/assert.inc [Verify channel ch3_1 SQL_THREAD is ON]
 
 # 5. Verify data is replicated to server1 & 2
-include/sync_slave_sql_with_master.inc [FOR CHANNEL ch3_1]
+[connection server3]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'ch3_1']
 include/rpl_sync.inc
 [connection server2]
 include/assert.inc [Verify two tables (t1 & t2) are present in test database]

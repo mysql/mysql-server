@@ -470,12 +470,14 @@ class MYSQL_BIN_LOG: public TC_LOG
     return *sync_period_ptr;
   }
 
+public:
   /*
     This is used to start writing to a new log file. The difference from
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
   int new_file_without_locking(Format_description_log_event *extra_description_event);
+private:
   int new_file_impl(bool need_lock, Format_description_log_event *extra_description_event);
 
   /** Manage the stages in ordered_commit. */
@@ -705,6 +707,7 @@ public:
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all);
+  bool truncate_relaylog_file(Master_info *mi, my_off_t valid_pos);
   int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);

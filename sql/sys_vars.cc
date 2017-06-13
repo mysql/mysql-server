@@ -724,6 +724,13 @@ static Sys_var_ulong Sys_auto_increment_offset(
        VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG);
 
+static Sys_var_bool Sys_windowing_use_high_precision(
+       "windowing_use_high_precision",
+       "For SQL window functions, determines whether to enable inversion "
+       "optimization for moving window frames also for floating values.",
+       SESSION_VAR(windowing_use_high_precision),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
 static Sys_var_bool Sys_automatic_sp_privileges(
        "automatic_sp_privileges",
        "Creating and dropping stored procedures alters ACLs",
@@ -740,13 +747,14 @@ static Sys_var_ulong Sys_back_log(
 static Sys_var_charptr Sys_basedir(
        "basedir", "Path to installation directory. All paths are "
        "usually resolved relative to this",
-       READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_home_ptr),
+       CMD_LINE(REQUIRED_ARG, 'b'),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_default_authentication_plugin(
        "default_authentication_plugin", "The default authentication plugin "
        "used by the server to hash the password.",
-       READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT("mysql_native_password"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
@@ -760,7 +768,7 @@ static Sys_var_uint Sys_default_password_lifetime(
 
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
-       READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
 static bool fix_binlog_cache_size(sys_var*, THD *thd, enum_var_type)
@@ -951,7 +959,7 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
     return false;
 
   /*
@@ -1005,7 +1013,7 @@ static bool fix_binlog_format_after_update(sys_var*, THD *thd,
 static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD*,
                                                     set_var *var )
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
   {
     my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
     return true;
@@ -1059,7 +1067,7 @@ static Sys_var_enum Sys_binlog_row_image(
        "(Default: FULL).",
        SESSION_VAR(binlog_row_image), CMD_LINE(REQUIRED_ARG),
        binlog_row_image_names, DEFAULT(BINLOG_ROW_IMAGE_FULL),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_has_super),
        ON_UPDATE(NULL));
 
 static const char *binlog_row_metadata_names[]= {"MINIMAL", "FULL", NullS};
@@ -1096,7 +1104,7 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return true;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
     return false;
 
    /*
@@ -1276,7 +1284,8 @@ static Sys_var_bool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
        "Allow writing of Rows_query_log events into binary log.",
        SESSION_VAR(binlog_rows_query_log_events),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_has_super));
 
 static Sys_var_bool Sys_binlog_order_commits(
        "binlog_order_commits",
@@ -1293,7 +1302,7 @@ static Sys_var_ulong Sys_bulk_insert_buff_size(
 
 static Sys_var_charptr Sys_character_sets_dir(
        "character_sets_dir", "Directory where character sets are",
-       READ_ONLY GLOBAL_VAR(charsets_dir), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(charsets_dir), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static bool check_not_null(sys_var*, THD*, set_var *var)
@@ -1420,7 +1429,7 @@ struct Get_csname
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
        "character_set_system", "The character set used by the server "
        "for storing identifiers",
-       READ_ONLY GLOBAL_VAR(system_charset_info), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(system_charset_info), NO_CMD_LINE,
        DEFAULT(0));
 
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
@@ -1586,7 +1595,7 @@ static Sys_var_ulong Sys_connect_timeout(
 
 static Sys_var_charptr Sys_datadir(
        "datadir", "Path to the database root directory",
-       READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_real_data_home_ptr),
        CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
 #ifndef DBUG_OFF
@@ -1721,7 +1730,7 @@ static Sys_var_ulong Sys_expire_logs_days(
        " seconds if binlog_expire_logs_seconds has a non zero value; "
        "possible purges happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(30), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
@@ -1789,7 +1798,8 @@ static Sys_var_ulong Sys_ft_query_expansion_limit(
 static Sys_var_charptr Sys_ft_stopword_file(
        "ft_stopword_file",
        "Use stopwords from this file instead of built-in list",
-       READ_ONLY GLOBAL_VAR(ft_stopword_file), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(ft_stopword_file),
+       CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_bool Sys_ignore_builtin_innodb(
@@ -1818,7 +1828,7 @@ static Sys_var_lexstring Sys_init_connect(
 
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
-       READ_ONLY GLOBAL_VAR(opt_init_file),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_init_file),
        CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
@@ -1887,13 +1897,13 @@ static Sys_var_keycache Sys_key_cache_age_threshold(
 static Sys_var_bool Sys_large_files_support(
        "large_files_support",
        "Whether mysqld was compiled with options for large file support",
-       READ_ONLY GLOBAL_VAR(opt_large_files),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_large_files),
        NO_CMD_LINE, DEFAULT(sizeof(my_off_t) > 4));
 
 static Sys_var_uint Sys_large_page_size(
        "large_page_size",
        "If large page support is enabled, this shows the size of memory pages",
-       READ_ONLY GLOBAL_VAR(opt_large_page_size), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_large_page_size), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_large_pages(
@@ -1903,13 +1913,13 @@ static Sys_var_bool Sys_large_pages(
 
 static Sys_var_charptr Sys_language(
        "lc_messages_dir", "Directory where error messages are",
-       READ_ONLY GLOBAL_VAR(lc_messages_dir_ptr), 
+       READ_ONLY NON_PERSIST GLOBAL_VAR(lc_messages_dir_ptr), 
        CMD_LINE(REQUIRED_ARG, OPT_LC_MESSAGES_DIRECTORY),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_bool Sys_local_infile(
        "local_infile", "Enable LOAD DATA LOCAL INFILE",
-       GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+       GLOBAL_VAR(opt_local_infile), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_lock_wait_timeout(
        "lock_wait_timeout",
@@ -1921,13 +1931,15 @@ static Sys_var_ulong Sys_lock_wait_timeout(
 static Sys_var_bool Sys_locked_in_memory(
        "locked_in_memory",
        "Whether mysqld was locked in memory with --memlock",
-       READ_ONLY GLOBAL_VAR(locked_in_memory), NO_CMD_LINE, DEFAULT(FALSE));
+       READ_ONLY NON_PERSIST GLOBAL_VAR(locked_in_memory), NO_CMD_LINE,
+       DEFAULT(FALSE));
 #endif
 
 /* this says NO_CMD_LINE, as command-line option takes a string, not a bool */
 static Sys_var_bool Sys_log_bin(
        "log_bin", "Whether the binary log is enabled",
-       READ_ONLY GLOBAL_VAR(opt_bin_log), NO_CMD_LINE, DEFAULT(FALSE));
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_bin_log), NO_CMD_LINE,
+       DEFAULT(FALSE));
 
 static bool transaction_write_set_check(sys_var*, THD *thd, set_var *var)
 {
@@ -1940,7 +1952,7 @@ static bool transaction_write_set_check(sys_var*, THD *thd, set_var *var)
     return true;
   }
 
-  if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&
+  if ((var->is_global_persist()) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW)
   {
     my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
@@ -2059,12 +2071,12 @@ static Sys_var_bool Sys_use_v1_row_events(
        "binary log.  If equal to 0, then the latest version of events are "
        "written.  "
        "This option is useful during some upgrades.",
-       GLOBAL_VAR(log_bin_use_v1_row_events),
+       NON_PERSIST GLOBAL_VAR(log_bin_use_v1_row_events),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
-       READ_ONLY GLOBAL_VAR(log_error_dest),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(log_error_dest),
        CMD_LINE(OPT_ARG, OPT_LOG_ERROR),
        IN_FS_CHARSET, DEFAULT(disabled_my_option), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
@@ -2389,7 +2401,7 @@ static Sys_var_bool Sys_lower_case_file_system(
        "lower_case_file_system",
        "Case sensitivity of file names on the file system where the "
        "data directory is located",
-       READ_ONLY GLOBAL_VAR(lower_case_file_system), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(lower_case_file_system), NO_CMD_LINE,
        DEFAULT(FALSE));
 
 static Sys_var_uint Sys_lower_case_table_names(
@@ -2409,7 +2421,7 @@ static Sys_var_uint Sys_lower_case_table_names(
 
 static bool session_readonly(sys_var *self, THD*, set_var *var)
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
     return false;
   my_error(ER_VARIABLE_IS_READONLY, MYF(0), "SESSION",
            self->name.str, "GLOBAL");
@@ -2534,7 +2546,7 @@ static Sys_var_long Sys_max_digest_length(
 
 static bool check_max_delayed_threads(sys_var*, THD*, set_var *var)
 {
-  return (var->type != OPT_GLOBAL && var->type != OPT_PERSIST) &&
+  return (!var->is_global_persist()) &&
          var->save_result.ulonglong_value != 0 &&
          var->save_result.ulonglong_value !=
                            global_system_variables.max_insert_delayed_threads;
@@ -2601,9 +2613,9 @@ static Sys_var_uint Sys_pseudo_thread_id(
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
-static bool fix_max_join_size(sys_var*, THD *thd, enum_var_type type)
+static bool fix_max_join_size(sys_var* self, THD *thd, enum_var_type type)
 {
-  System_variables *sv= (type == OPT_GLOBAL || type == OPT_PERSIST)
+  System_variables *sv= (self->is_global_persist(type))
        ? &global_system_variables : &thd->variables;
   if (sv->max_join_size == HA_POS_ERROR)
     sv->option_bits|= OPTION_BIG_SELECTS;
@@ -2722,7 +2734,7 @@ static Sys_var_ulong Sys_min_examined_row_limit(
 #ifdef _WIN32
 static Sys_var_bool Sys_named_pipe(
        "named_pipe", "Enable the named pipe (NT)",
-       READ_ONLY GLOBAL_VAR(opt_enable_named_pipe), CMD_LINE(OPT_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_enable_named_pipe), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 #endif
 
@@ -2751,9 +2763,9 @@ static Sys_var_ulong Sys_net_buffer_length(
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
-static bool fix_net_read_timeout(sys_var*, THD *thd, enum_var_type type)
+static bool fix_net_read_timeout(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
   {
     // net_buffer_length is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2775,9 +2787,9 @@ static Sys_var_ulong Sys_net_read_timeout(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_read_timeout));
 
-static bool fix_net_write_timeout(sys_var*, THD *thd, enum_var_type type)
+static bool fix_net_write_timeout(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
   {
     // net_read_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2799,9 +2811,9 @@ static Sys_var_ulong Sys_net_write_timeout(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_write_timeout));
 
-static bool fix_net_retry_count(sys_var*, THD *thd, enum_var_type type)
+static bool fix_net_retry_count(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
   {
     // net_write_timeout is a specific property for the classic protocols
     if (!thd->is_classic_protocol())
@@ -2902,7 +2914,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
 
 static bool limit_parser_max_mem_size(sys_var*, THD *thd, set_var *var)
 {
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
     return false;
   ulonglong val= var->save_result.ulonglong_value;
   if (val > global_system_variables.parser_max_mem_size)
@@ -2920,6 +2932,19 @@ static bool limit_parser_max_mem_size(sys_var*, THD *thd, set_var *var)
 }
 
 constexpr size_t max_mem_sz= std::numeric_limits<size_t>::max();
+
+static Sys_var_ulonglong Sys_histogram_generation_max_mem_size(
+      "histogram_generation_max_mem_size",
+      "Maximum amount of memory available for generating histograms",
+      SESSION_VAR(histogram_generation_max_mem_size),
+      CMD_LINE(REQUIRED_ARG),
+      VALID_RANGE(1000000, max_mem_sz),
+      DEFAULT(20000000),
+      BLOCK_SIZE(1),
+      NO_MUTEX_GUARD, NOT_IN_BINLOG,
+      ON_CHECK(check_has_super),
+      ON_UPDATE(NULL));
+
 
 /*
   Need at least 400Kb to get through bootstrap.
@@ -3052,12 +3077,14 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
 
 static Sys_var_charptr Sys_pid_file(
        "pid_file", "Pid file used by safe_mysqld",
-       READ_ONLY GLOBAL_VAR(pidfile_name_ptr), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(pidfile_name_ptr),
+       CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_plugin_dir(
        "plugin_dir", "Directory for plugins",
-       READ_ONLY GLOBAL_VAR(opt_plugin_dir_ptr), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_plugin_dir_ptr),
+       CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_uint Sys_port(
@@ -3068,7 +3095,7 @@ static Sys_var_uint Sys_port(
        "/etc/services, "
 #endif
        "built-in default (" STRINGIFY_ARG(MYSQL_PORT) "), whatever comes first",
-       READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
        VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_preload_buff_size(
@@ -3080,7 +3107,7 @@ static Sys_var_ulong Sys_preload_buff_size(
 static Sys_var_uint Sys_protocol_version(
        "protocol_version",
        "The version of the client/server protocol used by the MySQL server",
-       READ_ONLY GLOBAL_VAR(protocol_version), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(protocol_version), NO_CMD_LINE,
        VALID_RANGE(0, ~0), DEFAULT(PROTOCOL_VERSION), BLOCK_SIZE(1));
 
 static Sys_var_proxy_user Sys_proxy_user(
@@ -3353,9 +3380,9 @@ static Sys_var_ulong Sys_multi_range_count(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static bool fix_thd_mem_root(sys_var*, THD *thd, enum_var_type type)
+static bool fix_thd_mem_root(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
     reset_root_defaults(thd->mem_root,
                         thd->variables.query_alloc_block_size,
                         thd->variables.query_prealloc_size);
@@ -3381,23 +3408,26 @@ static Sys_var_ulong Sys_query_prealloc_size(
 #if defined (_WIN32)
 static Sys_var_bool Sys_shared_memory(
        "shared_memory", "Enable the shared memory",
-       READ_ONLY GLOBAL_VAR(opt_enable_shared_memory), CMD_LINE(OPT_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_enable_shared_memory),
+       CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_shared_memory_base_name(
        "shared_memory_base_name", "Base name of shared memory",
-       READ_ONLY GLOBAL_VAR(shared_memory_base_name), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(shared_memory_base_name),
+       CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 #endif
 
 // this has to be NO_CMD_LINE as the command-line option has a different name
 static Sys_var_bool Sys_skip_external_locking(
        "skip_external_locking", "Don't use system (external) locking",
-       READ_ONLY GLOBAL_VAR(my_disable_locking), NO_CMD_LINE, DEFAULT(TRUE));
+       READ_ONLY NON_PERSIST GLOBAL_VAR(my_disable_locking), NO_CMD_LINE,
+       DEFAULT(TRUE));
 
 static Sys_var_bool Sys_skip_networking(
        "skip_networking", "Don't allow connection with TCP/IP",
-       READ_ONLY GLOBAL_VAR(opt_disable_networking), CMD_LINE(OPT_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_disable_networking), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 static Sys_var_bool Sys_skip_name_resolve(
@@ -3414,7 +3444,7 @@ static Sys_var_bool Sys_skip_show_database(
 
 static Sys_var_charptr Sys_socket(
        "socket", "Socket file to use for connection",
-       READ_ONLY GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(mysqld_unix_port), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_ulong Sys_thread_stack(
@@ -3432,12 +3462,13 @@ static Sys_var_charptr Sys_tmpdir(
        "colon (:)"
 #endif
        ", in this case they are used in a round-robin fashion",
-       READ_ONLY GLOBAL_VAR(opt_mysql_tmpdir), CMD_LINE(REQUIRED_ARG, 't'),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_mysql_tmpdir),
+       CMD_LINE(REQUIRED_ARG, 't'),
        IN_FS_CHARSET, DEFAULT(0));
 
-static bool fix_trans_mem_root(sys_var*, THD *thd, enum_var_type type)
+static bool fix_trans_mem_root(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
     thd->get_transaction()->init_mem_root_defaults(
         thd->variables.trans_alloc_block_size,
         thd->variables.trans_prealloc_size);
@@ -3565,7 +3596,7 @@ static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
        "within specified directory",
-       READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_secure_file_priv),
        CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
 
 static bool fix_server_id(sys_var*, THD *thd, enum_var_type)
@@ -3587,7 +3618,7 @@ static Sys_var_ulong Sys_server_id(
 static Sys_var_charptr Sys_server_uuid(
        "server_uuid",
        "Uniquely identifies the server instance in the universe",
-       READ_ONLY GLOBAL_VAR(server_uuid_ptr),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
 static Sys_var_uint Sys_server_id_bits(
@@ -3954,7 +3985,12 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
     goto end;
 
   // Can only change one step at a time.
-  if (abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
+  /*
+   Change gtid_mode value without checking for one step change during
+   server startup.
+  */
+  if (mysqld_server_started &&
+      abs((int)new_gtid_mode - (int)old_gtid_mode) > 1)
   {
     my_error(ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME, MYF(0));
     goto err;
@@ -4325,9 +4361,9 @@ static bool check_sql_mode(sys_var*, THD *thd, set_var *var)
 
   return false;
 }
-static bool fix_sql_mode(sys_var*, THD *thd, enum_var_type type)
+static bool fix_sql_mode(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type != OPT_GLOBAL && type != OPT_PERSIST)
+  if (!self->is_global_persist(type))
   {
     /* Update thd->server_status */
     if (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
@@ -4400,13 +4436,13 @@ static Sys_var_ulong Sys_max_execution_time(
 static Sys_var_charptr Sys_ssl_ca(
        "ssl_ca",
        "CA file in PEM format (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_ca), SSL_OPT(OPT_SSL_CA),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_ca), SSL_OPT(OPT_SSL_CA),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_capath(
        "ssl_capath",
        "CA directory (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_tls_version(
@@ -4421,7 +4457,7 @@ static Sys_var_charptr Sys_tls_version(
 
 static Sys_var_charptr Sys_ssl_cert(
        "ssl_cert", "X509 cert in PEM format (implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_cipher(
@@ -4431,19 +4467,19 @@ static Sys_var_charptr Sys_ssl_cipher(
 
 static Sys_var_charptr Sys_ssl_key(
        "ssl_key", "X509 key in PEM format (implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_crl(
        "ssl_crl",
        "CRL file in PEM format (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_crl), SSL_OPT(OPT_SSL_CRL),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crl), SSL_OPT(OPT_SSL_CRL),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_ssl_crlpath(
        "ssl_crlpath",
        "CRL directory (check OpenSSL docs, implies --ssl)",
-       READ_ONLY GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
        IN_FS_CHARSET, DEFAULT(0));
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
@@ -4452,7 +4488,7 @@ static Sys_var_bool Sys_auto_generate_certs(
        "Auto generate SSL certificates at server startup if --ssl is set to "
        "ON and none of the other SSL system variables are specified and "
        "certificate/key files are not present in data directory.",
-       READ_ONLY GLOBAL_VAR(opt_auto_generate_certs),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_auto_generate_certs),
        CMD_LINE(OPT_ARG),
        DEFAULT(TRUE),
        NO_MUTEX_GUARD,
@@ -4477,7 +4513,7 @@ static Sys_var_enum Sys_updatable_views_with_limit(
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
        "system_time_zone", "The server system time zone",
-       READ_ONLY GLOBAL_VAR(system_time_zone_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(system_time_zone_ptr), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(system_time_zone));
 
 static Sys_var_ulong Sys_table_def_size(
@@ -4703,25 +4739,26 @@ static Sys_var_ulonglong Sys_tmp_table_size(
 static char *server_version_ptr;
 static Sys_var_version Sys_version(
        "version", "Server version",
-       READ_ONLY GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(server_version));
 
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
        "version_comment", "version_comment",
-       READ_ONLY GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT));
 
 static char *server_version_compile_machine_ptr;
 static Sys_var_charptr Sys_version_compile_machine(
        "version_compile_machine", "version_compile_machine",
-       READ_ONLY GLOBAL_VAR(server_version_compile_machine_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_machine_ptr),
+       NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(MACHINE_TYPE));
 
 static char *server_version_compile_os_ptr;
 static Sys_var_charptr Sys_version_compile_os(
        "version_compile_os", "version_compile_os",
-       READ_ONLY GLOBAL_VAR(server_version_compile_os_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_compile_os_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(SYSTEM_TYPE));
 
 static Sys_var_ulong Sys_net_wait_timeout(
@@ -4821,9 +4858,9 @@ static Sys_var_charptr Sys_time_format(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static bool fix_autocommit(sys_var*, THD *thd, enum_var_type type)
+static bool fix_autocommit(sys_var* self, THD *thd, enum_var_type type)
 {
-  if (type == OPT_GLOBAL || type == OPT_PERSIST)
+  if (self->is_global_persist(type))
   {
     if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
       global_system_variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
@@ -4934,7 +4971,7 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   if (check_has_super(self, thd, var))
     return TRUE;
 
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST)
+  if (var->is_global_persist())
     return TRUE;
 
   /* If in a stored function/trigger, it's too late to change sql_log_bin. */
@@ -5230,7 +5267,7 @@ static Sys_var_ulong Sys_group_concat_max_len(
 static char *glob_hostname_ptr;
 static Sys_var_charptr Sys_hostname(
        "hostname", "Server host name",
-       READ_ONLY GLOBAL_VAR(glob_hostname_ptr), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(glob_hostname_ptr), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(glob_hostname));
 
 static Sys_var_charptr Sys_repl_report_host(
@@ -5277,7 +5314,7 @@ static Sys_var_bool Sys_keep_files_on_create(
 static char *license;
 static Sys_var_charptr Sys_license(
        "license", "The type of license the server has",
-       READ_ONLY GLOBAL_VAR(license), NO_CMD_LINE, IN_SYSTEM_CHARSET,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(license), NO_CMD_LINE, IN_SYSTEM_CHARSET,
        DEFAULT(STRINGIFY_ARG(LICENSE)));
 
 static bool check_log_path(sys_var *self, THD*, set_var *var)
@@ -5401,48 +5438,48 @@ static Sys_var_charptr Sys_slow_log_path(
 
 static Sys_var_have Sys_have_compress(
        "have_compress", "have_compress",
-       READ_ONLY GLOBAL_VAR(have_compress), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_compress), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_crypt(
        "have_crypt", "have_crypt",
-       READ_ONLY GLOBAL_VAR(have_crypt), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_crypt), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_dlopen(
        "have_dynamic_loading", "have_dynamic_loading",
-       READ_ONLY GLOBAL_VAR(have_dlopen), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_dlopen), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_geometry(
        "have_geometry", "have_geometry",
-       READ_ONLY GLOBAL_VAR(have_geometry), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_openssl(
        "have_openssl", "have_openssl",
-       READ_ONLY GLOBAL_VAR(have_ssl), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_ssl), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_profiling(
        "have_profiling", "have_profiling",
-       READ_ONLY GLOBAL_VAR(have_profiling), NO_CMD_LINE, NO_MUTEX_GUARD,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_profiling), NO_CMD_LINE, NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
        "have_query_cache", "have_query_cache",
-       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
-       READ_ONLY GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_ssl(
        "have_ssl", "have_ssl",
-       READ_ONLY GLOBAL_VAR(have_ssl), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_ssl), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
-       READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
 static Sys_var_have Sys_have_statement_timeout(
        "have_statement_timeout", "have_statement_timeout",
-       READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
 static bool fix_general_log_state(sys_var*, THD *thd, enum_var_type)
 {
@@ -5533,7 +5570,7 @@ static Sys_var_bool Sys_log_slave_updates(
 
 static Sys_var_charptr Sys_relay_log(
        "relay_log", "The location and name to use for relay logs",
-       READ_ONLY GLOBAL_VAR(opt_relay_logname), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(opt_relay_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 /*
@@ -5544,7 +5581,7 @@ static Sys_var_charptr Sys_relay_log(
 static Sys_var_charptr Sys_relay_log_index(
        "relay_log_index", "The location and name to use for the file "
        "that keeps a list of the last relay logs",
-       READ_ONLY GLOBAL_VAR(relay_log_index), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(relay_log_index), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
 /*
@@ -5554,25 +5591,25 @@ static Sys_var_charptr Sys_relay_log_index(
 */
 static Sys_var_charptr Sys_binlog_index(
        "log_bin_index", "File that holds the names for last binary log files.",
-       READ_ONLY GLOBAL_VAR(log_bin_index), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(log_bin_index), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_relay_log_basename(
        "relay_log_basename",
        "The full path of the relay log file names, excluding the extension.",
-       READ_ONLY GLOBAL_VAR(relay_log_basename), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(relay_log_basename), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_log_bin_basename(
        "log_bin_basename",
        "The full path of the binary log file names, excluding the extension.",
-       READ_ONLY GLOBAL_VAR(log_bin_basename), NO_CMD_LINE,
+       READ_ONLY NON_PERSIST GLOBAL_VAR(log_bin_basename), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_relay_log_info_file(
        "relay_log_info_file", "The location and name of the file that "
        "remembers where the SQL replication thread is in the relay logs",
-       READ_ONLY GLOBAL_VAR(relay_log_info_file), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(relay_log_info_file), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_bool Sys_relay_log_purge(
@@ -5595,7 +5632,7 @@ static Sys_var_bool Sys_slave_allow_batching(
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
        "its temporary files when replicating a LOAD DATA INFILE command",
-       READ_ONLY GLOBAL_VAR(slave_load_tmpdir), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(slave_load_tmpdir), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static bool fix_slave_net_timeout(sys_var*, THD *thd, enum_var_type)
@@ -6325,8 +6362,45 @@ static Sys_var_bool Sys_persisted_globals_load(
        "persisted_globals_load",
        "When this option is enabled, config file mysqld-auto.cnf is read "
        "and applied to server, else this file is ignored even if present.",
-       READ_ONLY GLOBAL_VAR(persisted_globals_load),
+       READ_ONLY NON_PERSIST GLOBAL_VAR(persisted_globals_load),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(0));
+
+static bool check_authid_string(sys_var*, THD*, set_var *var)
+{
+  if (var->save_result.string_value.str == 0)
+  {
+    var->save_result.string_value.str= const_cast<char*>("");
+    var->save_result.string_value.length= 0;
+  }
+  return false;
+}
+
+static bool sysvar_update_mandatory_roles(sys_var*, THD*, enum_var_type)
+{
+  update_mandatory_roles();
+  return false;
+}
+
+static PolyLock_mutex PLock_sys_mandatory_roles(&LOCK_mandatory_roles);
+static Sys_var_lexstring Sys_mandatory_roles(
+  "mandatory_roles",
+  "All the specified roles are always considered granted to every user and they"
+  " can't be revoked. Mandatory roles still require activation unless they are made into "
+  "default roles. The granted roles will not be visible in the mysql.role_edges"
+  " table.", GLOBAL_VAR(opt_mandatory_roles), CMD_LINE(REQUIRED_ARG),
+  IN_SYSTEM_CHARSET, DEFAULT(""), &PLock_sys_mandatory_roles, NOT_IN_BINLOG,
+  ON_CHECK(check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
+
+static Sys_var_bool Sys_always_activate_granted_roles(
+       "activate_all_roles_on_login",
+       "Automatically set all granted roles as active after the user has "
+       "authenticated successfully.",
+       GLOBAL_VAR(opt_always_activate_granted_roles),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG,
        ON_CHECK(0),

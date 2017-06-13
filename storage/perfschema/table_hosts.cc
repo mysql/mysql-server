@@ -36,6 +36,8 @@
 THR_LOCK table_hosts::m_table_lock;
 
 Plugin_table table_hosts::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "hosts",
   /* Definition */

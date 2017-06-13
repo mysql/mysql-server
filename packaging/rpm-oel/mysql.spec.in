@@ -17,7 +17,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    dmr
+%global milestone    rc
 
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
@@ -58,7 +58,7 @@
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.31
+%global compatver             5.6.37
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -1130,6 +1130,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
@@ -1140,6 +1144,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_int_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1180,6 +1188,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
@@ -1190,6 +1202,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_int_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_unreg_real_func.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
@@ -1290,24 +1306,12 @@ fi
 %endif # cluster
 
 %changelog
-* Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 5.7.19-1
-- Add keyring_aws.so plugin to commercial server subpackage
+* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
+- Updated for 8.0.3 release
 
-* Wed May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
-- Add component_udf_unreg_int_func.so
-- Add component_udf_unreg_real_func.so
-
-* Wed May 10 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1
-- Add component_udf_reg_3_func.so
-- Add component_udf_reg_avg_func.so
-- Add component_udf_reg_int_func.so
-- Add component_udf_reg_int_same_func.so
-- Add component_udf_reg_only_3_func.so
-- Add component_udf_reg_real_func.so
-- Add component_udf_unreg_3_func.so
-
-* Wed Mar 22 2017 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.2-0.1
-- Add component_test_udf_registration
+* Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1
+- Add keyring_aws plugin and UDF components
+- Add component_test_sys_var_service plugins
 
 * Tue Sep 13 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.1-0.1
 - Add test_services_plugin_registry.so plugin

@@ -362,6 +362,7 @@ ENDFOREACH()
 SET(SERVER_TESTS
   copy_info
   create_field
+  dd_column_statistics
   dd_info_schema_native_func
   dd_properties
   dd_sdi
@@ -375,6 +376,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_geometries
+  gis_relops
   gis_wkb_parser
   handler
   histograms
@@ -385,6 +387,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_json_func
   item_like
   item_timefunc
   join_syntax
@@ -417,6 +420,7 @@ SET(SERVER_TESTS
   thd_manager
   union_syntax
   unique
+  value_map
   wild_case_compare
 )
 

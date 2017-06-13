@@ -35,6 +35,8 @@
 THR_LOCK table_os_global_by_type::m_table_lock;
 
 Plugin_table table_os_global_by_type::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "objects_summary_global_by_type",
   /* Definition */

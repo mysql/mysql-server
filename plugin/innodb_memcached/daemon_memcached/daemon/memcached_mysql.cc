@@ -49,16 +49,19 @@ static unsigned int mci_w_batch_size = 32;
 static bool	mci_enable_binlog = false;
 
 static MYSQL_SYSVAR_STR(engine_lib_name, mci_engine_library,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached engine library name", NULL, NULL,
 			"innodb_engine.so");
 
 static MYSQL_SYSVAR_STR(engine_lib_path, mci_eng_lib_path,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached engine library path", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(option, mci_memcached_option,
-			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+			PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC |
+                        PLUGIN_VAR_NOPERSIST,
 			"memcached option string", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_UINT(r_batch_size, mci_r_batch_size,
@@ -196,6 +199,7 @@ mysql_declare_plugin(daemon_memcached)
 	"Memcached Daemon",
 	PLUGIN_LICENSE_GPL,
 	daemon_memcached_plugin_init,	/* Plugin Init */
+	NULL,	                        /* Plugin Check uninstall */
 	daemon_memcached_plugin_deinit,	/* Plugin Deinit */
 	0x0100 /* 1.0 */,
 	NULL,				/* status variables */

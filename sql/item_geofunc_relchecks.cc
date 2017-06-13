@@ -26,7 +26,13 @@
 #include <vector>
 
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h"
+#include "dd/types/spatial_reference_system.h"
 #include "derror.h"                            // ER_THD
+#include "gis/geometries.h"
+#include "gis/relops.h"
+#include "gis/srid.h"
+#include "gis/wkb_parser.h"
 #include "item.h"
 #include "item_cmpfunc.h"
 #include "item_func.h"
@@ -39,6 +45,7 @@
 #include "mysqld_error.h"
 #include "parse_tree_node_base.h"
 #include "spatial.h"
+#include "sql_class.h"  // THD
 #include "sql_error.h"
 #include "sql_string.h"
 
@@ -1352,4 +1359,220 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
   }
 
   return result;
+}
+
+
+longlong Item_func_spatial_relation::val_int()
+{
+  DBUG_ENTER("Item_func_spatial_relation::val_int");
+  DBUG_ASSERT(fixed);
+
+  String tmp_value1;
+  String tmp_value2;
+  String *res1= args[0]->val_str(&tmp_value1);
+  String *res2= args[1]->val_str(&tmp_value2);
+
+  if ((null_value= (!res1 || args[0]->null_value ||
+                    !res2 || args[1]->null_value)))
+  {
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0);
+  }
+
+  if (res1 == nullptr || res2 == nullptr)
+  {
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(error_int());
+  }
+
+  const dd::Spatial_reference_system *srs1= nullptr;
+  const dd::Spatial_reference_system *srs2= nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+  // Set force_cartesian to false in call to gis::parse_geometry to enable
+  // geography.
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1, true) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2, true))
+  {
+    DBUG_RETURN(error_int());
+  }
+
+  gis::srid_t srid1= srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2= srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2)
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    DBUG_RETURN(error_int());
+  }
+
+  bool result;
+  // Replace nullptr with srs1 to enable geography.
+  bool error= eval(nullptr, g1.get(), g2.get(), &result, &null_value);
+
+  if (error)
+    DBUG_RETURN(error_int());
+
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0);
+  }
+
+  DBUG_RETURN(result);
+}
+
+
+bool Item_func_st_contains::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::within(srs, g2, g1, func_name(), result, null);
+}
+
+
+bool Item_func_st_crosses::eval(const dd::Spatial_reference_system *srs,
+                                const gis::Geometry *g1,
+                                const gis::Geometry *g2,
+                                bool *result, bool *null)
+{
+  return gis::crosses(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_disjoint::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::disjoint(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_equals::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::equals(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_intersects::eval(const dd::Spatial_reference_system *srs,
+                                   const gis::Geometry *g1,
+                                   const gis::Geometry *g2,
+                                   bool *result, bool *null)
+{
+  return gis::intersects(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrcontains::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::mbr_within(srs, g2, g1, func_name(), result, null);
+}
+
+
+bool Item_func_mbrcoveredby::eval(const dd::Spatial_reference_system *srs,
+                                  const gis::Geometry *g1,
+                                  const gis::Geometry *g2,
+                                  bool *result, bool *null)
+{
+  return gis::mbr_covered_by(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrcovers::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::mbr_covered_by(srs, g2, g1, func_name(), result, null);
+}
+
+
+bool Item_func_mbrdisjoint::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::mbr_disjoint(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrequals::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::mbr_equals(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrintersects::eval(const dd::Spatial_reference_system *srs,
+                                   const gis::Geometry *g1,
+                                   const gis::Geometry *g2,
+                                   bool *result, bool *null)
+{
+  return gis::mbr_intersects(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbroverlaps::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::mbr_overlaps(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrtouches::eval(const dd::Spatial_reference_system *srs,
+                                const gis::Geometry *g1,
+                                const gis::Geometry *g2,
+                                bool *result, bool *null)
+{
+  return gis::mbr_touches(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_mbrwithin::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::mbr_within(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_overlaps::eval(const dd::Spatial_reference_system *srs,
+                                 const gis::Geometry *g1,
+                                 const gis::Geometry *g2,
+                                 bool *result, bool *null)
+{
+  return gis::overlaps(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_touches::eval(const dd::Spatial_reference_system *srs,
+                                const gis::Geometry *g1,
+                                const gis::Geometry *g2,
+                                bool *result, bool *null)
+{
+  return gis::touches(srs, g1, g2, func_name(), result, null);
+}
+
+
+bool Item_func_st_within::eval(const dd::Spatial_reference_system *srs,
+                               const gis::Geometry *g1,
+                               const gis::Geometry *g2,
+                               bool *result, bool *null)
+{
+  return gis::within(srs, g1, g2, func_name(), result, null);
 }

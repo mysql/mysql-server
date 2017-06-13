@@ -34,6 +34,8 @@
 THR_LOCK table_setup_actors::m_table_lock;
 
 Plugin_table table_setup_actors::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "setup_actors",
   /* Definition */
@@ -97,7 +99,10 @@ table_setup_actors::create(PFS_engine_table_share *)
 }
 
 int
-table_setup_actors::write_row(TABLE *table, unsigned char *, Field **fields)
+table_setup_actors::write_row(PFS_engine_table *,
+                              TABLE *table,
+                              unsigned char *,
+                              Field **fields)
 {
   Field *f;
   String user_data("%", 1, &my_charset_utf8_bin);

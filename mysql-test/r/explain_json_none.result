@@ -2559,7 +2559,6 @@ EXPLAIN
     "ordering_operation": {
       "using_filesort": true,
       "duplicates_removal": {
-        "using_temporary_table": true,
         "using_filesort": false,
         "grouping_operation": {
           "using_temporary_table": true,
@@ -2617,54 +2616,51 @@ EXPLAIN
       "duplicates_removal": {
         "using_temporary_table": true,
         "using_filesort": false,
-        "buffer_result": {
-          "using_temporary_table": true,
-          "nested_loop": [
-            {
-              "table": {
-                "table_name": "t1",
-                "access_type": "system",
-                "rows_examined_per_scan": 1,
-                "rows_produced_per_join": 1,
-                "filtered": "100.00",
-                "cost_info": {
-                  "read_cost": "0.00",
-                  "eval_cost": "0.10",
-                  "prefix_cost": "0.00",
-                  "data_read_per_join": "8"
-                } /* cost_info */,
-                "used_columns": [
-                  "a"
-                ] /* used_columns */
-              } /* table */
-            },
-            {
-              "table": {
-                "table_name": "t2",
-                "access_type": "index",
-                "key": "PRIMARY",
-                "used_key_parts": [
-                  "a"
-                ] /* used_key_parts */,
-                "key_length": "4",
-                "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
-                "filtered": "100.00",
-                "using_index": true,
-                "distinct": true,
-                "cost_info": {
-                  "read_cost": "0.50",
-                  "eval_cost": "0.20",
-                  "prefix_cost": "0.70",
-                  "data_read_per_join": "16"
-                } /* cost_info */,
-                "used_columns": [
-                  "a"
-                ] /* used_columns */
-              } /* table */
-            }
-          ] /* nested_loop */
-        } /* buffer_result */
+        "nested_loop": [
+          {
+            "table": {
+              "table_name": "t1",
+              "access_type": "system",
+              "rows_examined_per_scan": 1,
+              "rows_produced_per_join": 1,
+              "filtered": "100.00",
+              "cost_info": {
+                "read_cost": "0.00",
+                "eval_cost": "0.10",
+                "prefix_cost": "0.00",
+                "data_read_per_join": "8"
+              } /* cost_info */,
+              "used_columns": [
+                "a"
+              ] /* used_columns */
+            } /* table */
+          },
+          {
+            "table": {
+              "table_name": "t2",
+              "access_type": "index",
+              "key": "PRIMARY",
+              "used_key_parts": [
+                "a"
+              ] /* used_key_parts */,
+              "key_length": "4",
+              "rows_examined_per_scan": 2,
+              "rows_produced_per_join": 2,
+              "filtered": "100.00",
+              "using_index": true,
+              "distinct": true,
+              "cost_info": {
+                "read_cost": "0.50",
+                "eval_cost": "0.20",
+                "prefix_cost": "0.70",
+                "data_read_per_join": "16"
+              } /* cost_info */,
+              "used_columns": [
+                "a"
+              ] /* used_columns */
+            } /* table */
+          }
+        ] /* nested_loop */
       } /* duplicates_removal */
     } /* ordering_operation */
   } /* query_block */

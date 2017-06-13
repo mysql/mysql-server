@@ -70,7 +70,6 @@ extern Asynchronous_channels_state_observer *asynchronous_channels_state_observe
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
-extern Read_mode_handler *read_mode_handler;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 
 //Auxiliary Functionality
@@ -103,6 +102,7 @@ bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
 void initialize_asynchronous_channels_observer();
 void terminate_asynchronous_channels_observer();
+bool is_plugin_waiting_to_set_server_read_mode();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
@@ -115,7 +115,7 @@ bool plugin_get_connection_status(
 bool plugin_get_group_members(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 bool plugin_get_group_member_stats(
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+    uint index, const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 uint plugin_get_group_members_number();
 /**
   Method to set retrieved certification info from a recovery channel extracted

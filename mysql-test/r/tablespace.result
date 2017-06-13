@@ -252,7 +252,7 @@ CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' ENGINE=InnoDB;
 ALTER TABLESPACE ts ADD DATAFILE 'TOO_LONG_PATH';
 ERROR HY000: The path specified for DATAFILE is too long.
 ALTER TABLESPACE ts DROP DATAFILE 'no_such_file.ibd';
-ERROR HY000: Incorrect File Name 'no_such_file.ibd'.
+ERROR HY000: Tablespace 'ts' does not have a file named 'no_such_file.ibd'
 DROP TABLESPACE ts;
 #
 # Validate tablespace names in the SE.

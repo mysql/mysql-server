@@ -36,6 +36,8 @@
 THR_LOCK table_tlws_by_table::m_table_lock;
 
 Plugin_table table_tlws_by_table::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "table_lock_waits_summary_by_table",
   /* Definition */

@@ -47,6 +47,8 @@ PFS_index_persisted_variables::match(const System_variable *pfs)
 THR_LOCK table_persisted_variables::m_table_lock;
 
 Plugin_table table_persisted_variables::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "persisted_variables",
   /* Definition */

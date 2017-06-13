@@ -37,6 +37,8 @@
 THR_LOCK table_events_transactions_current::m_table_lock;
 
 Plugin_table table_events_transactions_current::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_transactions_current",
   /* Definition */
@@ -85,6 +87,8 @@ PFS_engine_table_share table_events_transactions_current::m_share = {
 THR_LOCK table_events_transactions_history::m_table_lock;
 
 Plugin_table table_events_transactions_history::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_transactions_history",
   /* Definition */
@@ -133,6 +137,8 @@ PFS_engine_table_share table_events_transactions_history::m_share = {
 THR_LOCK table_events_transactions_history_long::m_table_lock;
 
 Plugin_table table_events_transactions_history_long::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_transactions_history_long",
   /* Definition */

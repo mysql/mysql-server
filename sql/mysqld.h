@@ -624,6 +624,7 @@ extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
+extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;
@@ -652,6 +653,9 @@ extern sigset_t mysqld_signal_mask;
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
 
+int *get_remaining_argc();
+char ***get_remaining_argv();
+
 /* increment query_id and return it.  */
 inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 {
@@ -673,4 +677,7 @@ static inline void set_connection_events_loop_aborted(bool value)
   connection_events_loop_aborted_flag.store(value);
 }
 
+extern LEX_STRING opt_mandatory_roles;
+extern bool opt_mandatory_roles_cache;
+extern bool opt_always_activate_granted_roles;
 #endif /* MYSQLD_INCLUDED */

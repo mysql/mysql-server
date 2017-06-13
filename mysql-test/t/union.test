@@ -365,15 +365,15 @@ explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t
 --replace_column 10 # 11 #
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 drop table t1,t2;
-create table groups (id int not null auto_increment, primary key (id) ,user_name text );
+create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
 create table users (id int not null auto_increment, primary key (id) ,group_name text );
-create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references groups(id) );
-insert into groups (user_name) values ('Tester');
+create table t3 (id int not null auto_increment, primary key (id),user_id int,index user_idx (user_id),foreign key (user_id) references users(id),group_id int,index group_idx (group_id),foreign key (group_id) references `groups`(id) );
+insert into `groups` (user_name) values ('Tester');
 insert into users (group_name) values ('Group A');
 insert into users (group_name) values ('Group B');
 insert into t3 (user_id, group_id) values (1,1);
-select 1 'is_in_group', a.user_name, c.group_name, b.id from groups a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from groups a, users c;
-drop table t3, users, groups;
+select 1 'is_in_group', a.user_name, c.group_name, b.id from `groups` a, t3 b, users c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from `groups` a, users c;
+drop table t3, users, `groups`;
 
 #
 # fix_fields problem
@@ -653,6 +653,8 @@ select a as a from t4 union select a from t3;
 select a as a from t1 union select a from t4;
 drop table t1,t2,t3,t4;
 
+--character_set latin1
+set names latin1;
 #
 # Bug #6139 UNION doesn't understand collate in the column of second select
 #

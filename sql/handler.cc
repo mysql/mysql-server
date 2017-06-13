@@ -3225,7 +3225,7 @@ int handler::ha_sample_next(uchar *buf)
 
 int handler::sample_init()
 {
-  return rnd_init(false);
+  return rnd_init(true);
 }
 
 

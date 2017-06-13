@@ -77,6 +77,7 @@
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start
 #include "parse_location.h"
+#include "parse_tree_helpers.h" // is_identifier
 #include "parse_tree_node_base.h"
 #include "persisted_variable.h"
 #include "parse_tree_nodes.h"
@@ -98,7 +99,7 @@
 #include "sp.h"               // sp_create_routine
 #include "sp_cache.h"         // sp_cache_enforce_limit
 #include "sp_head.h"          // sp_head
-#include "sql_admin.h"        // mysql_assign_to_keycache
+#include "sql_admin.h"        // assign_to_keycache
 #include "sql_alter.h"
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
@@ -289,7 +290,8 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
   bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
 
-  if (!(sql_command_flags[lex->sql_command] & mask))
+  if (!(sql_command_flags[lex->sql_command] & mask) ||
+      thd->is_plugin_fake_ddl())
     DBUG_RETURN(FALSE);
 
   switch (lex->sql_command) {
@@ -1491,8 +1493,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     else
     {
       /* we've authenticated new user */
+      PSI_THREAD_CALL(notify_session_change_user)(thd->get_psi());
+
       if (save_user_connect)
-	decrease_user_connections(save_user_connect);
+        decrease_user_connections(save_user_connect);
       mysql_mutex_lock(&thd->LOCK_thd_data);
       my_free(const_cast<char*>(save_db.str));
       save_db= NULL_CSTR;
@@ -2733,8 +2737,9 @@ mysql_execute_command(THD *thd, bool first_level)
     committing InnoDB transaction each time data-dictionary tables are
     closed after being updated.
   */
-  Disable_autocommit_guard autocommit_guard(sqlcom_needs_autocommit_off(lex)?
-                                            thd : NULL);
+  Disable_autocommit_guard
+    autocommit_guard(sqlcom_needs_autocommit_off(lex) &&
+                     !thd->is_plugin_fake_ddl() ? thd : NULL);
 
   /*
     Check if we are in a read-only transaction and we're trying to
@@ -2818,7 +2823,6 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_DATABASES:
-  case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TRIGGERS:
   case SQLCOM_SHOW_TABLE_STATUS:
   case SQLCOM_SHOW_OPEN_TABLES:
@@ -2964,28 +2968,6 @@ mysql_execute_command(THD *thd, bool first_level)
     res = mysql_show_binlog_events(thd);
     break;
   }
-  case SQLCOM_ASSIGN_TO_KEYCACHE:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_access(thd, INDEX_ACL, first_table->db,
-                     &first_table->grant.privilege,
-                     &first_table->grant.m_internal,
-                     0, 0))
-      goto error;
-    res= mysql_assign_to_keycache(thd, first_table, &lex->ident);
-    break;
-  }
-  case SQLCOM_PRELOAD_KEYS:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_access(thd, INDEX_ACL, first_table->db,
-                     &first_table->grant.privilege,
-                     &first_table->grant.m_internal,
-                     0, 0))
-      goto error;
-    res = mysql_preload_keys(thd, first_table);
-    break;
-  }
   case SQLCOM_CHANGE_MASTER:
   {
     Security_context *sctx= thd->security_context();
@@ -3028,51 +3010,6 @@ mysql_execute_command(THD *thd, bool first_level)
       res = ha_show_status(thd, lex->create_info->db_type, HA_ENGINE_MUTEX);
       break;
     }
-  case SQLCOM_CREATE_INDEX:
-    /* Fall through */
-  case SQLCOM_DROP_INDEX:
-  /*
-    CREATE INDEX and DROP INDEX are implemented by calling ALTER
-    TABLE with proper arguments.
-
-    In the future ALTER TABLE will notice that the request is to
-    only add indexes and create these one by one for the existing
-    table without having to do a full rebuild.
-  */
-  {
-    /* Prepare stack copies to be re-execution safe */
-    HA_CREATE_INFO create_info;
-    Alter_info alter_info(lex->alter_info, thd->mem_root);
-
-    if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-      goto error;
-
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_one_table_access(thd, INDEX_ACL, all_tables))
-      goto error; /* purecov: inspected */
-    /*
-      Currently CREATE INDEX or DROP INDEX cause a full table rebuild
-      and thus classify as slow administrative statements just like
-      ALTER TABLE.
-    */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
-
-    create_info.db_type= 0;
-    create_info.row_type= ROW_TYPE_NOT_USED;
-    create_info.default_table_charset= thd->variables.collation_database;
-
-    /* Push Strict_error_handler */
-    Strict_error_handler strict_handler;
-    if (thd->is_strict_mode())
-      thd->push_internal_handler(&strict_handler);
-    DBUG_ASSERT(!select_lex->order_list.elements);
-    res= mysql_alter_table(thd, first_table->db, first_table->table_name,
-                           &create_info, first_table, &alter_info);
-    /* Pop Strict_error_handler */
-    if (thd->is_strict_mode())
-      thd->pop_internal_handler();
-    break;
-  }
   case SQLCOM_START_GROUP_REPLICATION:
   {
     Security_context *sctx= thd->security_context();
@@ -3321,6 +3258,10 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_UPDATE:
   case SQLCOM_UPDATE_MULTI:
   case SQLCOM_CREATE_TABLE:
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
+  case SQLCOM_PRELOAD_KEYS:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
@@ -4522,6 +4463,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_TABLES:
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -5114,6 +5056,10 @@ void THD::reset_for_next_command()
     a grant/revoke or flush.
   */
   thd->security_context()->checkout_access_maps();
+#ifndef DBUG_OFF
+  thd->set_tmp_table_seq_id(1);
+#endif
+
   DBUG_VOID_RETURN;
 }
 
@@ -5413,6 +5359,23 @@ bool mysql_test_parse_for_slave(THD *thd)
 /**
   Store field definition for create.
 
+  @param thd                    The thread handler.
+  @param field_name             The field name.
+  @param type                   The type of the field.
+  @param length                 The length of the field or NULL.
+  @param decimals               The length of a decimal part or NULL.
+  @param type_modifier          Type modifiers & constraint flags of the field.
+  @param default_value          The default value or NULL.
+  @param on_update_value        The ON UPDATE expression or NULL.
+  @param comment                The comment.
+  @param change                 The old column name (if renaming) or NULL.
+  @param interval_list          The list of ENUM/SET values or NULL.
+  @param cs                     The character set of the field.
+  @param uint_geom_type         The GIS type of the field.
+  @param gcol_info              The generated column data or NULL.
+  @param opt_after              The name of the field to add after or
+                                the @see first_keyword pointer to insert first.
+
   @return
     Return 0 if ok
 */
@@ -5431,7 +5394,6 @@ bool Alter_info::add_field(THD *thd,
                            const char *opt_after)
 {
   Create_field *new_field;
-  LEX  *lex= thd->lex;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
@@ -5454,7 +5416,7 @@ bool Alter_info::add_field(THD *thd,
                                               NULL_CSTR,
                                               &default_key_create_info,
                                               false, true, key_parts);
-    if (key == NULL || lex->alter_info.key_list.push_back(key))
+    if (key == NULL || key_list.push_back(key))
       DBUG_RETURN(true);
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
@@ -5468,7 +5430,7 @@ bool Alter_info::add_field(THD *thd,
                                               NULL_CSTR,
                                               &default_key_create_info,
                                               false, true, key_parts);
-    if (key == NULL || lex->alter_info.key_list.push_back(key))
+    if (key == NULL || key_list.push_back(key))
       DBUG_RETURN(true);
   }
 
@@ -5521,10 +5483,10 @@ bool Alter_info::add_field(THD *thd,
                       interval_list, cs, uint_geom_type, gcol_info))
     DBUG_RETURN(1);
 
-  lex->alter_info.create_list.push_back(new_field);
+  create_list.push_back(new_field);
   if (opt_after != NULL)
   {
-    lex->alter_info.flags |= Alter_info::ALTER_COLUMN_ORDER;
+    flags |= Alter_info::ALTER_COLUMN_ORDER;
     new_field->after=(char*) (opt_after);
   }
   DBUG_RETURN(0);
@@ -5983,17 +5945,15 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
         if (thd->variables.information_schema_stats ==
             static_cast<ulong>(dd::info_schema::enum_stats::LATEST))
         {
-          if(!my_strcasecmp(system_charset_info, ptr->table_name, "TABLES"))
+          if(is_identifier(ptr->table_name, "TABLES"))
           {
             ptr->table_name= thd->mem_strdup("TABLES_DYNAMIC");
           }
-          else if(!my_strcasecmp(system_charset_info,
-                                 ptr->table_name, "STATISTICS"))
+          else if (is_identifier(ptr->table_name, "STATISTICS"))
           {
             ptr->table_name= thd->mem_strdup("STATISTICS_DYNAMIC");
           }
-          else if(!my_strcasecmp(system_charset_info,
-                                 ptr->table_name, "SHOW_STATISTICS"))
+          else if (is_identifier(ptr->table_name, "SHOW_STATISTICS"))
           {
             ptr->table_name= thd->mem_strdup("SHOW_STATISTICS_DYNAMIC");
           }

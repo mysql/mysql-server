@@ -949,6 +949,7 @@ mysql_declare_plugin(test_daemon)
   "Test SQL stored procedures/functions",
   PLUGIN_LICENSE_GPL,
   test_sql_service_plugin_init,   /* Plugin Init      */
+  NULL, /* Plugin check uninstall    */
   test_sql_service_plugin_deinit, /* Plugin Deinit    */
   0x0100,                         /* 1.0              */
   NULL,                           /* status variables */

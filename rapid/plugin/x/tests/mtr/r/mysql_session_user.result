@@ -19,7 +19,6 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 # Recreate the user with an upgrade and see that X plugin works
 #
 Run mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

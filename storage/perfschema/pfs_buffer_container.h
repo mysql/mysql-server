@@ -650,7 +650,7 @@ public:
       /* Peek for pages added by collaborating threads */
 
       /* (2-a) Atomic Load, array= m_pages[current_page_count] */
-      array= m_pages[current_page_count].load();
+      array = m_pages[current_page_count].load();
 
       if (array == NULL)
       {
@@ -687,7 +687,7 @@ public:
 
         /* (2-b) Atomic Load, array= m_pages[current_page_count] */
 
-        array= m_pages[current_page_count].load();
+        array = m_pages[current_page_count].load();
 
         if (array == NULL)
         {

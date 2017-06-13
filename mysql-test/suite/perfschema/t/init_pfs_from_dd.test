@@ -3,6 +3,7 @@
 --echo #           virtual P_S tables
 --echo #
 
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 
 CALL mtr.add_suppression("Native table .* has the wrong structure");

@@ -33,6 +33,8 @@
 THR_LOCK table_threads::m_table_lock;
 
 Plugin_table table_threads::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "threads",
   /* Definition */
@@ -53,13 +55,15 @@ Plugin_table table_threads::m_table_def(
   "  HISTORY ENUM ('YES', 'NO') not null,\n"
   "  CONNECTION_TYPE VARCHAR(16),\n"
   "  THREAD_OS_ID BIGINT unsigned,\n"
+  "  RESOURCE_GROUP VARCHAR(64),\n"
   "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
   "  KEY (PROCESSLIST_ID) USING HASH,\n"
   "  KEY (THREAD_OS_ID) USING HASH,\n"
   "  KEY (NAME) USING HASH,\n"
   "  KEY `PROCESSLIST_ACCOUNT` (PROCESSLIST_USER,\n"
   "                             PROCESSLIST_HOST) USING HASH,\n"
-  "  KEY (PROCESSLIST_HOST) USING HASH\n",
+  "  KEY (PROCESSLIST_HOST) USING HASH,\n"
+  "  KEY (RESOURCE_GROUP) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
   /* Tablespace */
@@ -179,6 +183,20 @@ PFS_index_threads_by_thread_os_id::match(PFS_thread *pfs)
   return true;
 }
 
+bool
+PFS_index_threads_by_resource_group::match(PFS_thread *pfs)
+{
+  if (m_fields >= 1)
+  {
+    if (!m_key.match(pfs))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 int
 table_threads::index_init(uint idx, bool)
 {
@@ -203,6 +221,9 @@ table_threads::index_init(uint idx, bool)
     break;
   case 5:
     result = PFS_NEW(PFS_index_threads_by_host);
+    break;
+  case 6:
+    result = PFS_NEW(PFS_index_threads_by_resource_group);
     break;
   default:
     DBUG_ASSERT(false);
@@ -261,6 +282,17 @@ table_threads::make_row(PFS_thread *pfs)
   if (m_row.m_hostname_length != 0)
   {
     memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+  }
+
+  m_row.m_groupname_length = pfs->m_groupname_length;
+  if (unlikely(m_row.m_groupname_length > sizeof(m_row.m_groupname)))
+  {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  if (m_row.m_groupname_length != 0)
+  {
+    memcpy(m_row.m_groupname, pfs->m_groupname, m_row.m_groupname_length);
   }
 
   if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
@@ -510,6 +542,17 @@ table_threads::read_row_values(TABLE *table,
           f->set_null();
         }
         break;
+      case 17: /* RESOURCE_GROUP */
+        if (m_row.m_groupname_length > 0)
+        {
+          set_field_varchar_utf8(
+            f, m_row.m_groupname, m_row.m_groupname_length);
+        }
+        else
+        {
+          f->set_null();
+        }
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -557,6 +600,8 @@ table_threads::update_row_values(TABLE *table,
         break;
       case 15: /* CONNECTION_TYPE */
       case 16: /* THREAD_OS_ID */
+        return HA_ERR_WRONG_COMMAND;
+      case 17: /* RESOURCE_GROUP */
         return HA_ERR_WRONG_COMMAND;
       default:
         DBUG_ASSERT(false);

@@ -19,7 +19,8 @@
 #include <new>
 
 #include "dd/impl/cache/cache_element.h"
-#include "log.h"
+#include "dd/types/column_statistics.h"      // Column_statistics
+#include "log.h"                             // sql_print_warning()
 #include "my_dbug.h"
 #include "mysqld_error.h"
 
@@ -496,6 +497,38 @@ template void Shared_multi_map<Collation>::
       Cache_element<Collation> **);
 template void Shared_multi_map<Collation>::
   drop_if_present<Collation::id_key_type>(const Collation::id_key_type&);
+
+template class Shared_multi_map<Column_statistics>;
+template bool Shared_multi_map<Column_statistics>::
+  get<const Column_statistics*>
+    (const Column_statistics* const&, Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type&,
+     Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::name_key_type>
+    (const Column_statistics::name_key_type&,
+     Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::aux_key_type>
+    (const Column_statistics::aux_key_type&,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::name_key_type>
+    (const Column_statistics::name_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::aux_key_type>
+    (const Column_statistics::aux_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  drop_if_present<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type&);
 
 template class Shared_multi_map<Event>;
 template bool Shared_multi_map<Event>::

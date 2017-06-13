@@ -170,10 +170,9 @@ let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
 --remove_file $newdir/ib_buffer_pool
 
 --remove_file $SEARCH_FILE
---remove_file $newdir/ibdata1
---remove_file $newdir/ib_logfile0
---remove_file $newdir/ib_logfile1
---remove_file $newdir/tablespaces.open.1
---remove_file $newdir/tablespaces.open.2
+--remove_files_wildcard $newdir ibdata*
+--remove_files_wildcard $newdir ib_logfile*
+--remove_files_wildcard $newdir undo_00*
+--remove_files_wildcard $newdir tablespaces.open.*
 --force-rmdir  $newdir/mysql
 --rmdir $newdir

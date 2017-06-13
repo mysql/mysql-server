@@ -66,6 +66,7 @@ mysql_declare_plugin(keyring_udf)
   "Keyring UDF plugin",
   PLUGIN_LICENSE_GPL,
   keyring_udf_init,           /* Plugin Init */
+  NULL,                       /* Plugin check uninstall */
   keyring_udf_deinit,         /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

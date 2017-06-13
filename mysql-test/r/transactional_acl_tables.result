@@ -1773,7 +1773,6 @@ Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
 Checking system database.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.columns_priv_bak                             OK
 mysql.component                                    OK

@@ -228,6 +228,7 @@ mysql_declare_plugin(keyring_file)
   "store/fetch authentication data to/from a flat file",  /*   description                     */
   PLUGIN_LICENSE_GPL,
   keyring_init,                                           /*   init function (when loaded)     */
+  NULL,                                                   /*   check uninstall function        */
   keyring_deinit,                                         /*   deinit function (when unloaded) */
   0x0100,                                                 /*   version                         */
   NULL,                                                   /*   status variables                */

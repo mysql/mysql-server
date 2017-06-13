@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #include "mysqld_daemon.h"
 
 #include "my_config.h"
+#include "log.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -31,19 +32,36 @@
 #include <sys/wait.h>
 #endif
 
+namespace {
+bool is_daemon_proc= false;
+}
+
+/**
+  Prediacate to test if we're currently executing
+  in the daemon process.
+  @retval true if this is the daemon
+  @retval false otherwise
+ */
+bool mysqld::runtime::is_daemon()
+{
+  return is_daemon_proc;
+}
+
 /**
   Daemonize mysqld.
 
   This function does sysv style of daemonization of mysqld.
 
-  @return - returns write end of the pipe file descriptor
-            which is used to notify the parent to exit.
+  @return
+    @retval In daemon; file descriptor for the write end of the status pipe.
+    @retval In parent; -1 if successful.
+    @retval In parent; -2 in case of errors.
 */
 int mysqld::runtime::mysqld_daemonize()
 {
   int pipe_fd[2];
   if (pipe(pipe_fd) < 0)
-    return -1;
+    return -2;
 
   pid_t pid= fork();
   if (pid == -1)
@@ -51,7 +69,7 @@ int mysqld::runtime::mysqld_daemonize()
     // Error
     close(pipe_fd[0]);
     close(pipe_fd[1]);
-    return -1;
+    return -2;
   }
 
   if (pid != 0)
@@ -69,29 +87,33 @@ int mysqld::runtime::mysqld_daemonize()
     }
     if (rc == -1)
     {
-      fprintf(stderr, "Unable to wait for process %lld\n",
+      sql_print_error("Unable to wait for process %lld",
                       static_cast<long long>(pid));
       close(pipe_fd[0]);
       close(pipe_fd[1]);
-      return -1;
+      return -2;
     }
+    // The error log is now owned by the daemon, and anything buffered
+    // up will be dumped by it. So we just discard the buffered messages here.
+    discard_error_log_messages();
 
-    // Exit parent on signal from grand child
+    // Parent waits for pipe message from grand child
     rc= read(pipe_fd[0], &waitstatus, 1);
     close(pipe_fd[0]);
 
     if (rc != 1)
     {
-      fprintf(stderr, "Unable to determine if daemon is running: %s\n",
-                      strerror(errno));
-      exit(MYSQLD_ABORT_EXIT);
+      sql_print_error("Unable to determine if daemon is running: %s (rc=%d)",
+                      strerror(errno), rc);
+      return -2;
     }
     else if (waitstatus != 1)
     {
-      fprintf(stderr, "Initialization of mysqld failed: %d\n", waitstatus);
-      exit(MYSQLD_ABORT_EXIT);
+      return -2;
     }
-    _exit(MYSQLD_SUCCESS_EXIT);
+    // Parent should return to calling function (mysqld_main) and not
+    // call exit() directly.
+    return -1;
   }
   else
   {
@@ -113,6 +135,7 @@ int mysqld::runtime::mysqld_daemonize()
       switch (grand_child_pid)
       {
         case 0: // Grand child
+          is_daemon_proc= true;
           return pipe_fd[1];
         case -1:
           close(pipe_fd[1]);

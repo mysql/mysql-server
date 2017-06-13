@@ -1005,7 +1005,6 @@ public:
   {
     switch(get_type_code())
     {
-    case binary_log::START_EVENT_V3:
     case binary_log::STOP_EVENT:
     case binary_log::ROTATE_EVENT:
     case binary_log::SLAVE_EVENT:
@@ -1591,70 +1590,6 @@ public:        /* !!! Public in this patch to allow old usage */
 };
 
 /**
-  @class Start_log_event_v3
-
-  Start_log_event_v3 is the Start_log_event of binlog format 3 (MySQL 3.23 and
-  4.x).
-
-  @internal
-  The inheritance structure in the current design for the classes is
-  as follows:
-                  Binary_log_event
-                        ^
-                        |
-                        |
-                Start_event_v3   Log_event
-                         \       /
-               <<virtual>>\     /
-                           \   /
-                       Start_log_event_v3
-  @endinternal
-*/
-class Start_log_event_v3: public virtual binary_log::Start_event_v3, public Log_event
-{
-public:
-#ifdef MYSQL_SERVER
-  Start_log_event_v3();
-  int pack_info(Protocol* protocol);
-#else
-  Start_log_event_v3()
-  : Log_event(header(), footer())
-  {
-  }
-
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-#endif
-
-  Start_log_event_v3(const char* buf, uint event_len,
-                     const Format_description_event* description_event);
-  ~Start_log_event_v3() {}
-#ifdef MYSQL_SERVER
-  bool write(IO_CACHE* file);
-#endif
-  size_t get_data_size()
-  {
-    return Binary_log_event::START_V3_HEADER_LEN; //no variable-sized part
-  }
-
-protected:
-#if defined(MYSQL_SERVER)
-  virtual int do_apply_event(Relay_log_info const *rli);
-  virtual enum_skip_reason do_shall_skip(Relay_log_info*)
-  {
-    /*
-      Events from ourself should be skipped, but they should not
-      decrease the slave skip counter.
-     */
-    if (this->server_id == ::server_id)
-      return Log_event::EVENT_SKIP_IGNORE;
-    else
-      return Log_event::EVENT_SKIP_NOT;
-  }
-#endif
-};
-
-
-/**
   @class Format_description_log_event
 
   For binlog version 4.
@@ -1665,32 +1600,22 @@ protected:
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
-                         Binary_log_event
-                                 ^
-                                 |
-                                 |
-                                 |
-                Log_event  Start_event_v3
-                     ^            /\
-                     |           /  \
-                     |   <<vir>>/    \ <<vir>>
-                     |         /      \
-                     |        /        \
-                     |       /          \
-                Start_log_event_v3   Format_description_event
-                             \          /
-                              \        /
-                               \      /
-                                \    /
-                                 \  /
-                                  \/
-                       Format_description_log_event
+
+            Binary_log_event
+                   ^
+                   |
+                   |
+            Format_description_event  Log_event
+                               \       /
+                                \     /
+                                 \   /
+                    Format_description_log_event
   @endinternal
   @section Format_description_log_event_binary_format Binary Format
 */
 
 class Format_description_log_event: public Format_description_event,
-                                    public Start_log_event_v3
+                                    public Log_event
 {
 public:
   /*
@@ -1710,18 +1635,23 @@ public:
     decrement and increment are done by the single SQL thread.
   */
   std::atomic<int32> atomic_usage_counter{0};
-  Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
+
+  Format_description_log_event();
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
                                *description_event);
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  int pack_info(Protocol* protocol);
+#else
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
+
+
 
   bool header_is_valid() const
   {
-    return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
-                                   LOG_EVENT_MINIMAL_HEADER_LEN)) &&
+    return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
             (!post_header_len.empty()));
   }
 

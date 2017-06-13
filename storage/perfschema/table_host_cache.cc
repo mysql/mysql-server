@@ -30,6 +30,8 @@
 THR_LOCK table_host_cache::m_table_lock;
 
 Plugin_table table_host_cache::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "host_cache",
   /* Definition */

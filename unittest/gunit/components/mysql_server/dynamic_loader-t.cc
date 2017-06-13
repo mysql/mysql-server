@@ -23,10 +23,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/mysql_lex_string.h>
 #include <auth/dynamic_privileges_impl.h>
 #include <udf_registration_imp.h>
 #include <persistent_dynamic_loader.h>
+#include <component_sys_var_service.h>
 #include <scope_guard.h>
 #include <server_component.h>
 #include <stddef.h>
@@ -101,6 +103,41 @@ DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
   return true;
 }
 
+void component_sys_var_init()
+{
+}
+
+void component_sys_var_deinit()
+{
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
+  (const char *,
+   const char *,
+   int,
+   const char *,
+   mysql_sys_var_check_func,
+   mysql_sys_var_update_func,
+   void *,
+   void *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
+  (const char *,
+   const char *, void **,
+   size_t *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
+  (const char *,
+   const char *))
+{
+  return true;
+}
 
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
@@ -152,6 +189,7 @@ namespace dynamic_loader_unittest {
       {
         ASSERT_FALSE(reg->release((my_h_service)loader));
       }
+      shutdown_dynamic_loader();
       ASSERT_FALSE(mysql_services_shutdown());
     }
     SERVICE_TYPE(registry)* reg;

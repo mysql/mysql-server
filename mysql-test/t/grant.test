@@ -133,6 +133,15 @@ flush privileges;
 drop table t1;
 
 #
+# Test grants on long column names (causes std::string to allocate memory)
+#
+create table t1 (abcdefghijklmnopqrstuvwxyz int);
+GRANT select (abcdefghijklmnopqrstuvwxyz) on t1 to mysqltest_1@localhost;
+show grants for mysqltest_1@localhost;
+select table_priv,column_priv from mysql.tables_priv where user="mysqltest_1";
+drop table t1;
+
+#
 # Test some error conditions
 #
 --error ER_WRONG_USAGE
@@ -1392,6 +1401,8 @@ EXECUTE s1;
 
 --error ER_COLUMNACCESS_DENIED_ERROR
 SELECT b FROM t1;
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT SUM(b) OVER () FROM t1;
 
 --error ER_COLUMNACCESS_DENIED_ERROR
 EXECUTE s1;
@@ -2741,6 +2752,32 @@ disconnect conn_su;
 DROP USER user_name_len_22_01234@localhost;
 DROP USER user_name_len_32_012345678901234@localhost;
 DROP USER proxy_native_0123456789@localhost;
+
+--echo #
+--echo # Regression test added in WL#8657
+--echo #
+
+CREATE DATABASE db8657;
+CREATE TABLE db8657.t1 (i INT);
+
+CREATE USER 'untrusted8657'@'localhost';
+
+--echo # Connection con1
+connect (con1, localhost, untrusted8657);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CREATE INDEX ON db8657.t1 (i);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+PREPARE stmt FROM 'CREATE TABLE db8657.t2 (i INT)';
+
+disconnect con1;
+connection default;
+
+SHOW CREATE TABLE db8657.t1;
+
+DROP USER 'untrusted8657'@localhost;
+DROP DATABASE db8657;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

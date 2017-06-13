@@ -257,8 +257,8 @@ set @prev_score := NULL;
 # of a statement and use the same variable in other part of the same statement,
 # so we can get unexpected results.
 --disable_result_log
-select @rownum := @rownum + 1 as row,
- @rank := IF(@prev_score!=a, @rownum, @rank) as rank,
+select @rownum := @rownum + 1 as `row`,
+ @rank := IF(@prev_score!=a, @rownum, @rank) as `rank`,
  @prev_score := a as score
 from t1 order by score desc;
 --enable_result_log

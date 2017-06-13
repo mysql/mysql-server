@@ -36,6 +36,8 @@
 THR_LOCK table_file_summary_by_instance::m_table_lock;
 
 Plugin_table table_file_summary_by_instance::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "file_summary_by_instance",
   /* Definition */

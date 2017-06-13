@@ -32,6 +32,8 @@
 THR_LOCK table_performance_timers::m_table_lock;
 
 Plugin_table table_performance_timers::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "performance_timers",
   /* Definition */

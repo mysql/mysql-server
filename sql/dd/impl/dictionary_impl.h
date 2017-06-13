@@ -42,6 +42,10 @@ namespace my_testing {
   class DD_initializer;
 }
 
+namespace dd_column_statistics_unittest {
+  template <typename T>
+  class ColumnStatisticsTest;
+}
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -57,6 +61,8 @@ class Dictionary_impl : public Dictionary
 {
   friend class dd_schema_unittest::SchemaTest;
   friend class my_testing::DD_initializer;
+  template <typename T>
+  friend class dd_column_statistics_unittest::ColumnStatisticsTest;
 
   /////////////////////////////////////////////////////////////////////////
   // Implementation details.

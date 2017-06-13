@@ -579,6 +579,38 @@ public:
     return static_cast<T*>(current->info);
   }
 
+  void replace(uint index, T *new_value)
+  {
+    DBUG_ASSERT(index < elements);
+    list_node *current= first;
+    for (uint i= 0; i < index; ++i)
+      current= current->next;
+    current->info= new_value;
+  }
+
+  bool swap_elts(uint index1, uint index2)
+  {
+    if (index1 == index2)
+      return false;
+
+    if (index1 >= elements || index2 >= elements)
+      return true; //error
+
+    if (index2 < index1)
+      std::swap(index1, index2);
+
+    list_node *current1= first;
+    for (uint i= 0; i < index1; ++i)
+      current1= current1->next;
+
+    list_node *current2= current1;
+    for (uint i= 0; i < index2 - index1; ++i)
+      current2= current2->next;
+
+    std::swap(current1->info, current2->info);
+    
+    return false;
+  }
   using base_list::sort;
 };
 

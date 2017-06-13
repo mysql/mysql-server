@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-
 #ifndef RETRY_H
 #define RETRY_H
 
@@ -24,57 +22,45 @@ extern "C" {
 
 #ifdef XCOM_HAVE_OPENSSL
 
-	static inline int can_retry(int err)
-	{
-		if(is_ssl_err(err))
-			return from_ssl_err(err) == SSL_ERROR_WANT_WRITE ||
-				from_ssl_err(err) == SSL_ERROR_WANT_READ;
-		else
-			return from_errno(err) == SOCK_EAGAIN ||
-				from_errno(err) == SOCK_EINTR ||
-				from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry(int err) {
+  if (is_ssl_err(err))
+    return from_ssl_err(err) == SSL_ERROR_WANT_WRITE ||
+           from_ssl_err(err) == SSL_ERROR_WANT_READ;
+  else
+    return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+           from_errno(err) == SOCK_EWOULDBLOCK;
+}
 
-	static inline int can_retry_read(int err)
-	{
-		if(is_ssl_err(err))
-			return from_ssl_err(err) == SSL_ERROR_WANT_READ;
-		else
-			return from_errno(err) == SOCK_EAGAIN ||
-				from_errno(err) == SOCK_EINTR ||
-				from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry_read(int err) {
+  if (is_ssl_err(err))
+    return from_ssl_err(err) == SSL_ERROR_WANT_READ;
+  else
+    return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+           from_errno(err) == SOCK_EWOULDBLOCK;
+}
 
-	static inline int can_retry_write(int err)
-	{
-		if(is_ssl_err(err))
-			return from_ssl_err(err) == SSL_ERROR_WANT_WRITE;
-		else
-			return from_errno(err) == SOCK_EAGAIN ||
-				from_errno(err) == SOCK_EINTR ||
-				from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry_write(int err) {
+  if (is_ssl_err(err))
+    return from_ssl_err(err) == SSL_ERROR_WANT_WRITE;
+  else
+    return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+           from_errno(err) == SOCK_EWOULDBLOCK;
+}
 #else
-	static inline int can_retry(int err)
-	{
-		return from_errno(err) == SOCK_EAGAIN ||
-			from_errno(err) == SOCK_EINTR ||
-			from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry(int err) {
+  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+         from_errno(err) == SOCK_EWOULDBLOCK;
+}
 
-	static inline int can_retry_read(int err)
-	{
-		return from_errno(err) == SOCK_EAGAIN ||
-			from_errno(err) == SOCK_EINTR ||
-			from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry_read(int err) {
+  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+         from_errno(err) == SOCK_EWOULDBLOCK;
+}
 
-	static inline int can_retry_write(int err)
-	{
-		return from_errno(err) == SOCK_EAGAIN ||
-			from_errno(err) == SOCK_EINTR ||
-			from_errno(err) == SOCK_EWOULDBLOCK;
-	}
+static inline int can_retry_write(int err) {
+  return from_errno(err) == SOCK_EAGAIN || from_errno(err) == SOCK_EINTR ||
+         from_errno(err) == SOCK_EWOULDBLOCK;
+}
 #endif
 
 #ifdef __cplusplus

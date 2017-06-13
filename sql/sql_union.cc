@@ -57,6 +57,7 @@
 #include "sql_class.h"
 #include "sql_executor.h"
 #include "sql_lex.h"
+#include "window.h"                             // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"                      // JOIN
 #include "sql_select.h"
@@ -185,7 +186,8 @@ bool Query_result_union::create_result_table(THD *thd_arg,
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
-                                 options, HA_POS_ERROR, (char*) table_alias)))
+                                 options, HA_POS_ERROR, (char*) table_alias,
+                                 TMP_WIN_UNCONDITIONAL)))
     return true;
   if (create_table)
   {
@@ -723,14 +725,14 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       }
     }
 
-    if (sl->recursive_reference && sl->is_grouped())
+    if (sl->recursive_reference &&
+        (sl->is_grouped() || sl->m_windows.elements > 0))
     {
-      // Per SQL2011. Window functions are also forbidden.
+      // Per SQL2011.
       my_error(ER_CTE_RECURSIVE_FORBIDS_AGGREGATION, MYF(0),
                derived_table->alias);
       goto err;
     }
-
   }
 
   if (is_recursive())
@@ -1033,8 +1035,8 @@ private:
   ha_rows row_count;
   TABLE *table;                                 ///< Table for result of union
   handler *cached_file;                         ///< 'handler' of 'table'
-  /// Space to store a row position (InnoDB uses 6 bytes, MEMORY uses 8)
-  uchar row_ref[8];
+  /// Space to store a row position (InnoDB uses 6 bytes, MEMORY uses 16)
+  uchar row_ref[16];
 
 public:
 
@@ -1609,8 +1611,10 @@ bool SELECT_LEX::cleanup(bool full)
       join->cleanup();
   }
 
+  THD *const thd= master_unit()->thd;
+
   if (full)
-    destroy_materialized(master_unit()->thd, get_table_list());
+    destroy_materialized(thd, get_table_list());
 
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
        lex_unit= lex_unit->next_unit())
@@ -1618,6 +1622,15 @@ bool SELECT_LEX::cleanup(bool full)
     error|= lex_unit->cleanup(full);
   }
   inner_refs_list.empty();
+
+  if (full && m_windows.elements > 0)
+  {
+    List_iterator<Window> li(m_windows);
+    Window *w;
+    while ((w= li++))
+      w->cleanup(thd);
+  }
+
   DBUG_RETURN(error);
 }
 

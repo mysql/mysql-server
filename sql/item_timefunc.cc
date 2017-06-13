@@ -2509,7 +2509,7 @@ bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
    See item_timefunc.h
  */
 
-static const char *interval_names[]=
+const char *interval_names[]=
 {
   "year", "quarter", "month", "week", "day",  
   "hour", "minute", "second", "microsecond",

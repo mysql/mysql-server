@@ -70,7 +70,7 @@ struct st_row_connect_status
   uint channel_name_length;
   char source_uuid[UUID_LENGTH];
   bool source_uuid_is_null;
-  ulonglong thread_id;
+  ulonglong thread_id{0};
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;
   ulonglong count_received_heartbeats;

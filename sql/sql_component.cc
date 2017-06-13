@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "../components/mysql_server/server_component.h" // imp_*
+#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -28,6 +29,7 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "sql_class.h"         // THD
+#include "sql_plugin.h"        // end_transaction
 
 bool Sql_cmd_install_component::execute(THD *thd)
 {
@@ -40,6 +42,9 @@ bool Sql_cmd_install_component::execute(THD *thd)
     return true;
   }
 
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   std::vector<const char*> urns(m_urns.size());
   for (size_t i= 0; i < m_urns.size();  ++i)
   {
@@ -47,10 +52,11 @@ bool Sql_cmd_install_component::execute(THD *thd)
   }
   if (service_dynamic_loader->load(thd, urns.data(), m_urns.size()))
   {
-    return true;
+    return(end_transaction(thd, true));
   }
+
   my_ok(thd);
-  return false;
+  return(end_transaction(thd, false));
 }
 
 bool Sql_cmd_uninstall_component::execute(THD *thd)
@@ -64,6 +70,9 @@ bool Sql_cmd_uninstall_component::execute(THD *thd)
     return true;
   }
 
+  Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
   std::vector<const char*> urns(m_urns.size());
   for (size_t i= 0; i < m_urns.size(); ++i)
   {
@@ -71,8 +80,8 @@ bool Sql_cmd_uninstall_component::execute(THD *thd)
   }
   if (service_dynamic_loader->unload(thd, urns.data(), m_urns.size()))
   {
-    return true;
+    return(end_transaction(thd, true));
   }
   my_ok(thd);
-  return false;
+  return(end_transaction(thd, false));
 }

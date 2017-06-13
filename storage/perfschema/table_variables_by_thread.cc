@@ -65,6 +65,8 @@ PFS_index_variables_by_thread::match(const System_variable *pfs)
 THR_LOCK table_variables_by_thread::m_table_lock;
 
 Plugin_table table_variables_by_thread::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "variables_by_thread",
   /* Definition */

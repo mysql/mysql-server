@@ -23,26 +23,27 @@
 extern "C" {
 #endif
 
-
 #if 0
-#define PAX_MSG_SANITY_CHECK(p) {                       \
-    if((p) && !(p)->a && (p)->msg_type == normal){      \
-      assert((p)->op != client_msg);                    \
-      assert((p)->op != ack_prepare_op);                \
-      assert((p)->op != accept_op);                     \
-      assert((p)->op != learn_op);                      \
-    }                                                   \
+#define PAX_MSG_SANITY_CHECK(p)                      \
+  {                                                  \
+    if ((p) && !(p)->a && (p)->msg_type == normal) { \
+      assert((p)->op != client_msg);                 \
+      assert((p)->op != ack_prepare_op);             \
+      assert((p)->op != accept_op);                  \
+      assert((p)->op != learn_op);                   \
+    }                                                \
   }
 #else
 #define PAX_MSG_SANITY_CHECK(p)
 #endif
 
-#define CLONE_PAX_MSG(target, msg) replace_pax_msg((&target), clone_pax_msg_no_app(msg))
+#define CLONE_PAX_MSG(target, msg) \
+  replace_pax_msg((&target), clone_pax_msg_no_app(msg))
 
-int	eq_ballot(ballot x, ballot y);
-int	gt_ballot(ballot x, ballot y);
-int	ref_msg(pax_msg *p);
-int	unref_msg(pax_msg **pp);
+int eq_ballot(ballot x, ballot y);
+int gt_ballot(ballot x, ballot y);
+int ref_msg(pax_msg *p);
+int unref_msg(pax_msg **pp);
 pax_msg *clone_pax_msg_no_app(pax_msg *msg);
 pax_msg *clone_pax_msg(pax_msg *msg);
 ballot *init_ballot(ballot *bal, int cnt, node_no node);
@@ -54,11 +55,14 @@ void delete_pax_msg(pax_msg *p);
 /* void replace_pax_msg(pax_msg **target, pax_msg *p); */
 void unchecked_replace_pax_msg(pax_msg **target, pax_msg *p);
 
-#define replace_pax_msg(target, p) { PAX_MSG_SANITY_CHECK(p); unchecked_replace_pax_msg(target, p);}
+#define replace_pax_msg(target, p)        \
+  {                                       \
+    PAX_MSG_SANITY_CHECK(p);              \
+    unchecked_replace_pax_msg(target, p); \
+  }
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

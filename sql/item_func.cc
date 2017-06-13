@@ -43,6 +43,7 @@
 #include "dd/object_id.h"
 #include "dd/properties.h"       // dd::Properties
 #include "dd/types/index.h"      // Index::enum_index_type
+#include "dd/types/table.h"      // dd::Abstract_table::enum_hidden_type
 #include "dd_sql_view.h"         // push_view_warning_or_error
 #include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -93,6 +94,7 @@
 #include "sql_class.h"           // THD
 #include "sql_error.h"
 #include "sql_lex.h"
+#include "window.h"              // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
@@ -644,7 +646,8 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
     // Store the value in the JSON binary format.
     Field_json *f= down_cast<Field_json *>(field);
     Json_wrapper wr;
-    val_json(&wr);
+    if (val_json(&wr))
+      return TYPE_ERR_BAD_VALUE;
 
     if (null_value)
       return set_field_to_null(field);
@@ -702,45 +705,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 
 
 /**
-  Count max_length and decimals for temporal functions.
-
-  @param item    Argument array
-  @param nitems  Number of arguments in the array.
-*/
-
-void Item_func::count_datetime_length(Item **item, uint nitems)
-{
-  unsigned_flag= false;
-  decimals= 0;
-  if (data_type() != MYSQL_TYPE_DATE)
-  {
-    for (uint i= 0; i < nitems; i++)
-      set_if_bigger(decimals,
-                    data_type() == MYSQL_TYPE_TIME ?
-                    item[i]->time_precision() : item[i]->datetime_precision());
-  }
-  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
-  uint len= decimals ? (decimals + 1) : 0;
-  switch (data_type())
-  {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      len+= MAX_DATETIME_WIDTH;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-      len+= MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-      len+= MAX_TIME_WIDTH;
-      break;
-    default:
-      DBUG_ASSERT(0);
-  }
-  fix_char_length(len);
-}
-
-/**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
 
@@ -764,22 +728,6 @@ void Item_func::count_decimal_length(Item **item, uint nitems)
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
                                                                decimals,
                                                                unsigned_flag));
-}
-
-/**
-  Set char_length to the maximum number of characters required by any
-  of this function's arguments.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
-void Item_func::count_only_length(Item **item, uint nitems)
-{
-  uint32 char_length= 0;
-  for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, item[i]->max_char_length());
-  fix_char_length(char_length);
 }
 
 /**
@@ -815,31 +763,6 @@ void Item_func::count_real_length(Item **item, uint nitems)
   }
 }
 
-/**
-  Calculate max_length and decimals for STRING_RESULT functions.
-
-  @param field_type  Field type.
-  @param items       Argument array.
-  @param nitems      Number of arguments.
-
-  @retval            False on success, true on error.
-*/
-bool Item_func::count_string_result_length(enum_field_types field_type,
-                                           Item **items, uint nitems)
-{
-  if (agg_arg_charsets_for_string_result(collation, items, nitems))
-    return true;
-  if (is_temporal_type(field_type))
-    count_datetime_length(items, nitems);
-  else
-  {
-    decimals= NOT_FIXED_DEC;
-    count_only_length(items, nitems);
-  }
-  return false;
-}
-
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
@@ -862,9 +785,24 @@ void Item_func::signal_invalid_argument_for_log()
 
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
-  if (!has_aggregation() && !const_item())
-    return new Item_field(result_field);
-  return copy_or_same(thd);
+  DBUG_ENTER("Item_func::get_tmp_table_item");
+
+  /*
+    For items with aggregate functions, return the copy
+    of the function.
+    For constant items, return the same object as fields
+    are not created in temp tables for them.
+    For items with windowing functions, return the same
+    object (temp table fields are not created for windowing
+    functions if they are not evaluated at this stage).
+  */
+  if (!has_aggregation() && !const_item() && !has_wf())
+  {
+    Item *result= new Item_field(result_field);
+    DBUG_RETURN(result);
+  }
+  Item *result= copy_or_same(thd);
+  DBUG_RETURN(result);
 }
 
 const Item_field* 
@@ -6740,7 +6678,7 @@ void Item_func_set_user_var::save_item_result(Item *item)
 
   switch (cached_result_type) {
   case REAL_RESULT:
-    save_result.vreal= item->val_result();
+    save_result.vreal= item->val_real_result();
     break;
   case INT_RESULT:
     save_result.vint= item->val_int_result();
@@ -6871,7 +6809,7 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
-double Item_func_set_user_var::val_result()
+double Item_func_set_user_var::val_real_result()
 {
   DBUG_ASSERT(fixed == 1);
   check(TRUE);
@@ -9288,13 +9226,8 @@ bool check_table_and_trigger_access(Item **args,
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_TABLE is invoked from INFORMATION_SCHEMA views even for
-    the hidden database objects. For example, CAN_ACCESS_TABLE is
-    invoked from the INFORMATION_SCHEMA.STATISTICS_BASE. To skip listing
-    for hidden index and index element, parameter "skip_table" is used.
-
   Syntax:
-    int CAN_ACCCESS_TABLE(schema_name, table_name, skip_table);
+    int CAN_ACCCESS_TABLE(schema_name, table_name);
 
   @returns,
     1 - If current user has access.
@@ -9303,23 +9236,6 @@ bool check_table_and_trigger_access(Item **args,
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
-
-  /*
-    If CAN_ACCESS_TABLE is called for the hidden database objects then skip
-    listing those. For example, CAN_ACCESS_TABLE is called from the I_S query
-    STATISTICS_BASE. In this case if index or index column is hidden then
-    skip listing of it.
-    Keyword EXTENDED enables the SHOW INDEX command to list the hidden Indexes
-    and Indexes columns.
-  */
-  THD *thd= current_thd;
-  bool skip_table= args[2]->val_bool();
-  if (args[2]->null_value ||
-      (skip_table && thd->lex->m_extended_show == false))
-  {
-    null_value= args[2]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   if (check_table_and_trigger_access(args, false, &null_value))
     DBUG_RETURN(TRUE);
@@ -9488,16 +9404,10 @@ longlong Item_func_can_access_event::val_int()
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_COLUMN is invoked from INFORMATION_SCHEMA views even
-    for the hidden database objects. For example, CAN_ACCESS_COLUMN
-    is invoked from the INFORMATION_SCHEMA.COLUMNS. To skip listing
-    of hiddden columns, parameter skip_column is used.
-
   Syntax:
     int CAN_ACCCESS_COLUMN(schema_name,
                            table_name,
-                           field_name,
-                           skip_column);
+                           field_name);
 
   @returns,
     1 - If current user has access.
@@ -9506,23 +9416,6 @@ longlong Item_func_can_access_event::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
-
-  /*
-    If CAN_ACCCESS_COLUMN is called for the hidden database objects then
-    skip listing those. For example,CAN_ACCESS_COLUMN is called from the
-    I_S query COLUMNS. In this case if column is hidden then skip listing
-    of it.
-    Keyword EXTENDED enables the SHOW COLUMNS command to list the hidden
-    columns.
-  */
-  THD *thd= current_thd;
-  bool skip_column= args[3]->val_bool();
-  if (args[3]->null_value ||
-      (skip_column && thd->lex->m_extended_show == false))
-  {
-    null_value= args[3]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   // Read schema_name, table_name
   String schema_name;
@@ -9540,6 +9433,7 @@ longlong Item_func_can_access_column::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
+  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
@@ -9686,6 +9580,57 @@ longlong Item_func_can_access_view::val_int()
 
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Skip hidden tables, columns, indexes and index elements.
+  Do not skip them, when SHOW EXTENDED command are run.
+
+  Syntax:
+    longlong  IS_VISIBLE_DD_OBJECT(table_type, is_object_hidden);
+
+  @returns,
+    1 - If dd object is visible
+    0 - If not visible.
+*/
+longlong Item_func_is_visible_dd_object::val_int()
+{
+  DBUG_ENTER("Item_func_is_visible_dd_object::val_int");
+
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(args[0]->null_value == false);
+
+  if (args[0]->null_value ||
+      (arg_count == 2 && args[1]->null_value))
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  null_value= false;
+  THD *thd= current_thd;
+
+  auto table_type= static_cast<dd::Abstract_table::enum_hidden_type>(
+                                                     args[0]->val_int());
+
+  bool show_table= (table_type == dd::Abstract_table::HT_VISIBLE);
+
+  if (thd->lex->m_extended_show)
+    show_table= show_table ||
+                (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
+
+  if (arg_count == 1 || show_table == false)
+    DBUG_RETURN(MY_TEST(show_table));
+
+  bool show_non_table_objects;
+  if (thd->lex->m_extended_show)
+    show_non_table_objects= true;
+  else
+    show_non_table_objects= (args[1]->val_bool() == false);
+
+  DBUG_RETURN(MY_TEST(show_non_table_objects));
+}
+
 
 static ulonglong get_statistics_from_cache(
                    Item** args,

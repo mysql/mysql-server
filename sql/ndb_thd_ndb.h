@@ -20,6 +20,7 @@
 
 #include "hash.h"             // HASH
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
+#include "map_helpers.h"
 #include "my_base.h"          // ha_rows
 #include "ndb_share.h"
 #include "sql_list.h"         // List<>
@@ -34,6 +35,8 @@ enum THD_NDB_TRANS_OPTIONS
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
 };
+
+struct THD_NDB_SHARE;
 
 class Thd_ndb 
 {
@@ -113,7 +116,8 @@ public:
   uint32 trans_options;
   void transaction_checks(void);
   List<NDB_SHARE> changed_tables;
-  HASH open_tables;
+  malloc_unordered_map<const void *, THD_NDB_SHARE *>
+    open_tables{PSI_INSTRUMENT_ME};
   /*
     This is a memroot used to buffer rows for batched execution.
     It is reset after every execute().

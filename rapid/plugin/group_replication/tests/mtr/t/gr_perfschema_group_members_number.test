@@ -92,7 +92,7 @@
 --source ../inc/gr_wait_for_number_of_members.inc
 
 --replace_column 2 MEMBER_ID 3 MEMBER_HOST 4 MEMBER_PORT
-SELECT * FROM performance_schema.replication_group_members;
+SELECT CHANNEL_NAME, MEMBER_ID, MEMBER_HOST, MEMBER_PORT, MEMBER_STATE FROM performance_schema.replication_group_members;
 
 
 --echo

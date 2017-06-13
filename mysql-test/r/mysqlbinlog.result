@@ -531,18 +531,7 @@ include/mysqlbinlog.inc
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use `test`/*!*/;
-SET TIMESTAMP=#/*!*/;
-SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=#/*!*/;
-insert t1 values (1)
-/*!*/;
-ROLLBACK /* added by mysqlbinlog */ /*!*/;
+# [empty]
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
@@ -552,18 +541,8 @@ include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-use `test`/*!*/;
-SET TIMESTAMP=#/*!*/;
-SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
-BEGIN
-/*!*/;
-SET TIMESTAMP=#/*!*/;
-insert t1 values (1)
-/*!*/;
-ROLLBACK /* added by mysqlbinlog */ /*!*/;
+ROLLBACK/*!*/;
+# [empty]
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
@@ -814,7 +793,7 @@ shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
 set timestamp= default;
 FLUSH LOGS;
 Bug#31611 Security risk with BINLOG statement
-SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT='ROW';
 CREATE DATABASE mysqltest1;
 CREATE USER untrusted@localhost;
 GRANT SELECT ON mysqltest1.* TO untrusted@localhost;
@@ -1092,14 +1071,18 @@ mysqlbinlog: [Warning] Using a password on the command line interface can be ins
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at #
-# # server id #  end_log_pos # 	Start: binlog v #, server v # created # at startup
+# # server id #  end_log_pos # CRC32 # 	Start: binlog v #, server v # created # at startup
 ROLLBACK/*!*/;
 BINLOG '
-K5IvOwECAAAASwAAAAEAAAAAAAIANC4wLjAtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAArki87
+pj7eWA8BAAAAdwAAAHsAAAAAAAQAOC4wLjItZG1yLWRlYnVnLWxvZy1hc2FuAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACmPt5YEwANAAgAAAAABAAEAAAAXwAEGggAAAAICAgCAAAACgoKKioAEjQA
+AcqIPNQ=
 '/*!*/;
 # at #
-# # server id #  end_log_pos # 	Stop
+# # server id #  end_log_pos # CRC32 # 	Previous-GTIDs
+# [empty]
+# at #
+# # server id #  end_log_pos # CRC32 # 	Stop
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file

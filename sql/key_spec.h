@@ -159,7 +159,9 @@ class Foreign_key_spec: public Key_spec
 {
 public:
   const LEX_CSTRING ref_db;
+  const LEX_CSTRING orig_ref_db;
   const LEX_CSTRING ref_table;
+  const LEX_CSTRING orig_ref_table;
   Mem_root_array<const Key_part_spec*> ref_columns;
   const fk_option delete_opt;
   const fk_option update_opt;
@@ -169,7 +171,9 @@ public:
                    const LEX_CSTRING &name_arg,
                    List<Key_part_spec> cols,
                    const LEX_CSTRING &ref_db_arg,
+                   const LEX_CSTRING &orig_ref_db_arg,
                    const LEX_CSTRING &ref_table_arg,
+                   const LEX_CSTRING &orig_ref_table_arg,
                    List<Key_part_spec> *ref_cols,
                    fk_option delete_opt_arg,
                    fk_option update_opt_arg,
@@ -179,7 +183,9 @@ public:
               false, // We don't check for duplicate FKs.
               cols),
     ref_db(ref_db_arg),
+    orig_ref_db(orig_ref_db_arg),
     ref_table(ref_table_arg),
+    orig_ref_table(orig_ref_table_arg),
     ref_columns(mem_root),
     delete_opt(delete_opt_arg),
     update_opt(update_opt_arg),

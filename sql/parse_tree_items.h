@@ -637,18 +637,18 @@ class PTI_variable_aux_3d : public Parse_tree_item
   typedef Parse_tree_item super;
 
   enum_var_type var_type;
-  LEX_STRING var;
-  POS var_pos;
-  LEX_STRING component;
+  LEX_STRING ident1;
+  POS ident1_pos;
+  LEX_STRING ident2;
 
 public:
   PTI_variable_aux_3d(const POS &pos, enum_var_type var_type_arg,
-                      const LEX_STRING &var_arg,
-                      const POS &var_pos_arg,
-                      const LEX_STRING &component_arg)
+                      const LEX_STRING &ident1_arg,
+                      const POS &ident1_pos_arg,
+                      const LEX_STRING &ident2_arg)
   : super(pos),
-    var_type(var_type_arg), var(var_arg), var_pos(var_pos_arg),
-    component(component_arg)
+    var_type(var_type_arg), ident1(ident1_arg), ident1_pos(ident1_pos_arg),
+    ident2(ident2_arg)
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
@@ -664,15 +664,38 @@ public:
     }
 
     /* disallow "SELECT @@global.global.variable" */
-    if (var.str && component.str && check_reserved_words(&var))
+    if (ident1.str && ident2.str && check_reserved_words(&ident1))
     {
-      error(pc, var_pos);
+      error(pc, ident1_pos);
       return true;
     }
-    if (!(*res= get_system_var(pc, var_type, var, component)))
+
+    LEX_STRING *domain;
+    LEX_STRING *variable;
+    if (ident2.str &&
+        !is_key_cache_variable_suffix(ident2.str))
+    {
+      LEX_STRING component_var;
+      domain= &ident1;
+      variable= &ident2;
+      String tmp_name;
+      if (tmp_name.reserve(domain->length + 1 + variable->length + 1) ||
+          tmp_name.append(domain->str) ||
+          tmp_name.append(".") ||
+          tmp_name.append(variable->str))
+        return true; // OOM
+      component_var.str= tmp_name.c_ptr();
+      component_var.length= tmp_name.length();
+      variable->str= NullS;
+      variable->length= 0;
+      *res= get_system_var(pc, var_type, component_var, *variable);
+    }
+    else
+      *res= get_system_var(pc, var_type, ident1, ident2);
+    if (!(*res))
       return true;
-    if (!my_strcasecmp(system_charset_info, var.str, "warning_count") ||
-        !my_strcasecmp(system_charset_info, var.str, "error_count"))
+    if (is_identifier(ident1, "warning_count") ||
+        is_identifier(ident1, "error_count"))
     {
       /*
         "Diagnostics variable" used in a non-diagnostics statement.
@@ -695,7 +718,7 @@ class PTI_count_sym : public Item_sum_count
   typedef Item_sum_count super;
 
 public:
-  PTI_count_sym(const POS &pos) : super(pos, (Item*)NULL) {}
+  PTI_count_sym(const POS &pos, PT_window *w) : super(pos, (Item*)NULL, w) {}
 
   virtual bool itemize(Parse_context *pc, Item **res)
   {

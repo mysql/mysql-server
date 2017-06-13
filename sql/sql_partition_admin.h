@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,7 @@
 
 #include "my_sqlcommand.h"
 #include "sql_admin.h"                 // Sql_cmd_analyze_table
-#include "sql_alter.h"                 // Sql_cmd_alter_table
-#include "sql_truncate.h"              // Sql_cmd_truncate_table
+#include "sql_alter.h"                 // Sql_cmd_common_alter_table
 
 class THD;
 struct TABLE_LIST;
@@ -31,15 +30,7 @@ struct TABLE_LIST;
 class Sql_cmd_alter_table_exchange_partition : public Sql_cmd_common_alter_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE EXCHANGE PARTITION statement.
-  */
-  Sql_cmd_alter_table_exchange_partition()
-    : Sql_cmd_common_alter_table()
-  {}
-
-  ~Sql_cmd_alter_table_exchange_partition()
-  {}
+  using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
 
   bool execute(THD *thd);
 
@@ -51,14 +42,14 @@ private:
 /**
   Class that represents the ALTER TABLE t1 ANALYZE PARTITION p statement.
 */
-class Sql_cmd_alter_table_analyze_partition : public Sql_cmd_analyze_table
+class Sql_cmd_alter_table_analyze_partition final : public Sql_cmd_analyze_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
   */
-  Sql_cmd_alter_table_analyze_partition()
-    : Sql_cmd_analyze_table()
+  Sql_cmd_alter_table_analyze_partition(THD *thd, Alter_info *alter_info)
+    : Sql_cmd_analyze_table(thd, alter_info, Histogram_command::NONE, 0)
   {}
 
   ~Sql_cmd_alter_table_analyze_partition()
@@ -77,18 +68,10 @@ public:
 /**
   Class that represents the ALTER TABLE t1 CHECK PARTITION p statement.
 */
-class Sql_cmd_alter_table_check_partition : public Sql_cmd_check_table
+class Sql_cmd_alter_table_check_partition final : public Sql_cmd_check_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE CHECK PARTITION statement.
-  */
-  Sql_cmd_alter_table_check_partition()
-    : Sql_cmd_check_table()
-  {}
-
-  ~Sql_cmd_alter_table_check_partition()
-  {}
+  using Sql_cmd_check_table::Sql_cmd_check_table;
 
   bool execute(THD *thd);
 
@@ -103,18 +86,10 @@ public:
 /**
   Class that represents the ALTER TABLE t1 OPTIMIZE PARTITION p statement.
 */
-class Sql_cmd_alter_table_optimize_partition : public Sql_cmd_optimize_table
+class Sql_cmd_alter_table_optimize_partition final : public Sql_cmd_optimize_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE OPTIMIZE PARTITION statement.
-  */
-  Sql_cmd_alter_table_optimize_partition()
-    : Sql_cmd_optimize_table()
-  {}
-
-  ~Sql_cmd_alter_table_optimize_partition()
-  {}
+  using Sql_cmd_optimize_table::Sql_cmd_optimize_table;
 
   bool execute(THD *thd);
 
@@ -129,18 +104,10 @@ public:
 /**
   Class that represents the ALTER TABLE t1 REPAIR PARTITION p statement.
 */
-class Sql_cmd_alter_table_repair_partition : public Sql_cmd_repair_table
+class Sql_cmd_alter_table_repair_partition final : public Sql_cmd_repair_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE REPAIR PARTITION statement.
-  */
-  Sql_cmd_alter_table_repair_partition()
-    : Sql_cmd_repair_table()
-  {}
-
-  ~Sql_cmd_alter_table_repair_partition()
-  {}
+  using Sql_cmd_repair_table::Sql_cmd_repair_table;
 
   bool execute(THD *thd);
 
@@ -155,17 +122,11 @@ public:
 /**
   Class that represents the ALTER TABLE t1 TRUNCATE PARTITION p statement.
 */
-class Sql_cmd_alter_table_truncate_partition : public Sql_cmd_truncate_table
+class Sql_cmd_alter_table_truncate_partition final :
+  public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a ALTER TABLE TRUNCATE PARTITION statement.
-  */
-  Sql_cmd_alter_table_truncate_partition()
-  {}
-
-  virtual ~Sql_cmd_alter_table_truncate_partition()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 

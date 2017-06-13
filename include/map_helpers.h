@@ -68,6 +68,48 @@ static inline auto find_or_nullptr(const Container &container, const Key &key)
 }
 
 /**
+  For unordered_multimap<Key, Value>, erase the first specific element that
+  matches _both_ the given key and value.
+*/
+template<class Container>
+typename Container::iterator
+erase_specific_element(Container *container,
+                       const typename Container::key_type &key,
+                       const typename Container::value_type::second_type &value)
+{
+  auto it_range= container->equal_range(key);
+  for (auto it= it_range.first; it != it_range.second; ++it)
+  {
+    if (it->second == value)
+      return container->erase(it);
+  }
+  return container->end();
+}
+
+/**
+  Same as regular erase_specific_element(), but for the case where the
+  container holds unique_ptr elements.
+*/
+template<class Container>
+static inline auto
+erase_specific_element(Container *container,
+                       const typename Container::key_type &key,
+                       typename Container::value_type::second_type::pointer value)
+  -> typename std::enable_if<
+       std::is_pointer<typename Container::value_type::second_type::pointer>::value,
+       typename Container::iterator>::type
+{
+  auto it_range= container->equal_range(key);
+  for (auto it= it_range.first; it != it_range.second; ++it)
+  {
+    if (it->second.get() == value)
+      return container->erase(it);
+  }
+  return container->end();
+}
+
+
+/**
   std::unique_ptr, but with a custom delete function.
   Normally, it is more efficient to have a deleter class instead,
   but this allows you to have a unique_ptr to a forward-declared class,
@@ -97,36 +139,39 @@ using unique_ptr_free = std::unique_ptr<T, Free_deleter>;
 class Collation_hasher
 {
 public:
-  explicit Collation_hasher(CHARSET_INFO *cs_arg) : cs(cs_arg) {}
+  explicit Collation_hasher(const CHARSET_INFO *cs_arg)
+    : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
 
   size_t operator() (const std::string &s) const
   {
     ulong nr1= 1, nr2= 4;
-    cs->coll->hash_sort(
-      cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
+    hash_sort(cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
     return nr1;
   }
 
 private:
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
+  decltype(cs->coll->hash_sort) hash_sort;
 };
 
 /** A KeyEqual that compares std::strings according to a MySQL collation. */
 class Collation_key_equal
 {
 public:
-  explicit Collation_key_equal(CHARSET_INFO *cs_arg) : cs(cs_arg) {}
+  explicit Collation_key_equal(const CHARSET_INFO *cs_arg)
+    : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
 
   size_t operator() (const std::string &a, const std::string &b) const
   {
-    return cs->coll->strnncollsp(
+    return strnncollsp(
       cs,
       pointer_cast<const uchar *>(a.data()), a.size(),
       pointer_cast<const uchar *>(b.data()), b.size()) == 0;
   }
 
 private:
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
+  decltype(cs->coll->strnncollsp) strnncollsp;
 };
 
 /**
@@ -153,6 +198,30 @@ public:
 };
 
 /**
+  std::unordered_multimap, but with my_malloc, so that you can track the memory
+  used using PSI memory keys.
+*/
+template<class Key, class Value,
+         class Hash = std::hash<Key>,
+         class KeyEqual = std::equal_to<Key>>
+class malloc_unordered_multimap
+  : public std::unordered_multimap<Key, Value, Hash, KeyEqual,
+                                   Malloc_allocator<std::pair<const Key,
+                                                              Value>>>
+{
+public:
+  /*
+    In theory, we should be allowed to send in the allocator only, but GCC 4.8
+    is missing several unordered_multimap constructors, so let's give in everything.
+  */
+  malloc_unordered_multimap(PSI_memory_key psi_key)
+    : std::unordered_multimap<Key, Value, Hash, KeyEqual,
+                              Malloc_allocator<std::pair<const Key, Value>>>
+        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
   std::unordered_map, but with my_malloc and collation-aware comparison.
 */
 template<class Key, class Value>
@@ -161,8 +230,25 @@ class collation_unordered_map
                               Malloc_allocator<std::pair<const Key, Value>>>
 {
 public:
-  collation_unordered_map(CHARSET_INFO *cs, PSI_memory_key psi_key)
+  collation_unordered_map(const CHARSET_INFO *cs, PSI_memory_key psi_key)
     : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
+                         Malloc_allocator<std::pair<const Key, Value>>>
+        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
+         Malloc_allocator<>(psi_key)) {}
+};
+
+/**
+  std::unordered_multimap, but with my_malloc and collation-aware comparison.
+*/
+template<class Key, class Value>
+class collation_unordered_multimap
+  : public std::unordered_multimap<Key, Value, Collation_hasher,
+                                   Collation_key_equal,
+                                   Malloc_allocator<std::pair<const Key, Value>>>
+{
+public:
+  collation_unordered_multimap(CHARSET_INFO *cs, PSI_memory_key psi_key)
+    : std::unordered_multimap<Key, Value, Collation_hasher, Collation_key_equal,
                          Malloc_allocator<std::pair<const Key, Value>>>
         (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
          Malloc_allocator<>(psi_key)) {}

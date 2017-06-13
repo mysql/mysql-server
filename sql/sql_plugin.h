@@ -29,12 +29,15 @@
 #include "sql_cmd.h"                // Sql_cmd
 #include "sql_plugin_ref.h"         // plugin_ref
 #include "thr_malloc.h"
+#include "hash.h"                   // HASH
+#include "map_helpers.h"
 
 class THD;
 class i_string;
 struct my_option;
 struct st_mysql_sys_var;
 template <class T> class I_List;
+struct st_bookmark;
 
 typedef struct st_mysql_show_var SHOW_VAR;
 
@@ -160,6 +163,7 @@ extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc,
                                                  char **argv, int init_flags);
+extern bool is_builtin_and_core_se_initialized();
 extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
@@ -190,5 +194,8 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func **funcs,
                                      int type, uint state_mask, void *arg);
 int lock_plugin_data();
 int unlock_plugin_data();
+malloc_unordered_map<std::string, st_bookmark *>* get_bookmark_hash();
+
+bool end_transaction(THD *thd, bool error);
 
 #endif

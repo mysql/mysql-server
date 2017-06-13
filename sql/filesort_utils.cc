@@ -232,6 +232,7 @@ private:
 
 void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
 {
+  const bool force_stable_sort= param->m_force_stable_sort;
   m_sort_keys= get_sort_keys();
   param->m_sort_algorithm= Sort_param::FILESORT_ALG_NONE;
 
@@ -248,10 +249,19 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
 
   if (param->using_varlen_keys())
   {
-    // TODO: Make more elaborate heuristics than just always picking std::sort.
-    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
-    std::sort(m_sort_keys, m_sort_keys + count,
-              Mem_compare_varlen_key(param->local_sortorder));
+    if (force_stable_sort)
+    {
+      param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
+      std::stable_sort(m_sort_keys, m_sort_keys + count,
+                Mem_compare_varlen_key(param->local_sortorder));
+    }
+    else
+    {
+      // TODO: Make more elaborate heuristics than just always picking std::sort.
+      param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_SORT;
+      std::sort(m_sort_keys, m_sort_keys + count,
+                Mem_compare_varlen_key(param->local_sortorder));
+    }
     return;
   }
 
@@ -261,7 +271,7 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
     than quicksort seems to be somewhere around 10 to 40 records.
     So we're a bit conservative, and stay with quicksort up to 100 records.
   */
-  if (count <= 100)
+  if (count <= 100 && !force_stable_sort)
   {
     if (param->max_compare_length() < 10)
     {
@@ -276,16 +286,26 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count)
     return;
   }
 
-  // Heuristics here: avoid function overhead call for short keys.
-  if (param->max_compare_length() < 10)
+  /*
+    stable_sort algorithm will be used. Either for performance reasons, or
+    because force_stable_sort==true. In the latter case, we must exclude from
+    the sort key the ref_length last bytes which were added in
+    init_for_filesort(), so that those bytes do not cause a swapping of
+    otherwise equivalent elements.
+  */
+  uint compare_len= param->max_compare_length();
+  if (force_stable_sort && !param->using_addon_fields())
   {
-    param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
-    std::stable_sort(m_sort_keys, m_sort_keys + count,
-                     Mem_compare(param->max_compare_length()));
-    return;
+    DBUG_ASSERT(compare_len > param->ref_length &&
+                !param->using_varlen_keys());
+    compare_len-= param->ref_length; // ref was added last
   }
-
   param->m_sort_algorithm= Sort_param::FILESORT_ALG_STD_STABLE;
-  std::stable_sort(m_sort_keys, m_sort_keys + count,
-                   Mem_compare_longkey(param->max_compare_length()));
+  // Heuristics here: avoid function overhead call for short keys.
+  if (compare_len < 10)
+    std::stable_sort(m_sort_keys, m_sort_keys + count,
+                     Mem_compare(compare_len));
+  else
+    std::stable_sort(m_sort_keys, m_sort_keys + count,
+                     Mem_compare_longkey(compare_len));
 }

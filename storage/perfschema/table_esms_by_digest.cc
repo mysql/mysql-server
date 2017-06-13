@@ -38,6 +38,8 @@
 THR_LOCK table_esms_by_digest::m_table_lock;
 
 Plugin_table table_esms_by_digest::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_summary_by_digest",
   /* Definition */

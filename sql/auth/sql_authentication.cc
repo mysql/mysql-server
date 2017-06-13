@@ -2428,25 +2428,33 @@ acl_authenticate(THD *thd, enum_server_command command)
 
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
-
     /* Assign default role */
     {
       List_of_auth_id_refs default_roles;
       if (!acl_cache_lock.lock())
         DBUG_RETURN(1);
       Auth_id_ref authid= create_authid_from(acl_user);
-      get_default_roles(authid, &default_roles);
-      List_of_auth_id_refs::iterator it= default_roles.begin();
-      for(;it != default_roles.end(); ++it)
+      if (opt_always_activate_granted_roles)
       {
-        if (sctx->activate_role(it->first, it->second, true))
+        activate_all_granted_and_mandatory_roles(acl_user, sctx);
+      }
+      else
+      {
+        /* The server policy is to only activate default roles */
+        get_default_roles(authid, &default_roles);
+        List_of_auth_id_refs::iterator it= default_roles.begin();
+        for(;it != default_roles.end(); ++it)
         {
-          std::string roleidstr= create_authid_str_from(*it);
-          std::string authidstr= create_authid_str_from(acl_user);
-          LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
-                 roleidstr.c_str(), authidstr.c_str());
+          if (sctx->activate_role(it->first, it->second, true))
+          {
+            std::string roleidstr= create_authid_str_from(*it);
+            std::string authidstr= create_authid_str_from(acl_user);
+            LogErr(WARNING_LEVEL, ER_AUTH_CANT_ACTIVATE_ROLE,
+                   roleidstr.c_str(), authidstr.c_str());
+          }
         }
       }
+
       acl_cache_lock.unlock();
     }
     sctx->checkout_access_maps();
@@ -3141,15 +3149,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
 #if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
-        PLUGIN_VAR_READONLY,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
         "A fully qualified path to the private RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PRIVATE_KEY);
 static MYSQL_SYSVAR_STR(public_key_path, auth_rsa_public_key_path,
-        PLUGIN_VAR_READONLY,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
         "A fully qualified path to the public RSA key used for authentication",
         NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
-        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG,
+        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
         "Auto generate RSA keys at server startup if correpsonding "
         "system variables are not specified and key files are not present "
         "at the default location.",
@@ -4138,6 +4146,7 @@ mysql_declare_plugin(mysql_password)
   "Native MySQL authentication",                /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   NULL,                                         /* Init function    */
+  NULL,                                         /* Check uninstall  */
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
@@ -4155,6 +4164,7 @@ mysql_declare_plugin(mysql_password)
   "SHA256 password authentication",             /* Description      */
   PLUGIN_LICENSE_GPL,                           /* License          */
   &init_sha256_password_handler,                /* Init function    */
+  NULL,                                         /* Check uninstall  */
   NULL,                                         /* Deinit function  */
   0x0101,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */

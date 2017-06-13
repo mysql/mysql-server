@@ -738,7 +738,6 @@ skip_secondaries:
 			= upd_get_nth_field(node->update, i);
 
 		if (dfield_is_ext(&ufield->new_val)) {
-			trx_rseg_t*	rseg;
 			buf_block_t*	block;
 			ulint		internal_offset;
 			byte*		data_field;
@@ -746,6 +745,7 @@ skip_secondaries:
 			ibool		is_insert;
 			ulint		rseg_id;
 			page_no_t	page_no;
+			space_id_t	undo_space_id;
 			ulint		offset;
 			mtr_t		mtr;
 
@@ -769,10 +769,9 @@ skip_secondaries:
 			/* If table is temp then it can't have its undo log
 			residing in rollback segment with REDO log enabled. */
 			bool is_temp = node->table->is_temporary();
-			rseg = trx_rseg_get_on_id(rseg_id, is_temp);
 
-			ut_a(rseg != NULL);
-			ut_a(rseg->id == rseg_id);
+			undo_space_id = trx_rseg_id_to_space_id(
+				rseg_id, is_temp);
 
 			mtr_start(&mtr);
 
@@ -795,7 +794,7 @@ skip_secondaries:
 			btr_root_get(index, &mtr);
 
 			block = buf_page_get(
-				page_id_t(rseg->space_id, page_no),
+				page_id_t(undo_space_id, page_no),
 				univ_page_size, RW_X_LATCH, &mtr);
 
 			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
@@ -1195,7 +1194,8 @@ row_purge(
 			return;);
 
 	while (row_purge_parse_undo_rec(
-			node, undo_rec, &updated_extern, thd, thr, &dict_op_lock_acquired)) {
+			node, undo_rec, &updated_extern,
+			thd, thr, &dict_op_lock_acquired)) {
 
 		bool purged;
 

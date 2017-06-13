@@ -294,7 +294,8 @@ private:
 };
 
 
-void setup_tmptable_write_func(QEP_TAB *tab);
+void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
+                               Opt_trace_object *trace);
 enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool
                                         end_of_records);
 enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
@@ -311,7 +312,41 @@ evaluate_join_record(JOIN *join, QEP_TAB *qep_tab, int error);
 MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd);
 
-bool copy_funcs(Func_ptr_array*, const THD *thd);
+enum Copy_func_type
+{
+  /**
+    In non-windowing step, copies functions
+  */
+  CFT_ALL,
+  /**
+    In windowing step, copies framing window function, including
+    all grouping aggregates, e.g. SUM, AVG and FIRST_VALUE, LAST_VALUE.
+  */
+  CFT_WF_FRAMING,
+  /**
+    In windowing step, copies non framing window function, e.g.
+    ROW_NUMBER, RANK, DENSE_RANK, except those that are two_pass cf.
+    copy_two_pass_window_functions which are treated separately.
+   */
+  CFT_WF_NON_FRAMING,
+  /**
+    In windowing step, copies two-pass window functions.
+  */
+  CFT_WF_TWO_PASS,
+  /**
+    In final windowing step, copies all non-wf functions. Must be called after
+    all wfs have been evaluated. gbtodo, Really? so it's forbidden to use
+    CFT_NON_WF and then CFT_WF_something? Is it for the case of 1+WF?
+  */
+  CFT_NON_WF,
+  /**
+    Copies all window functions.
+  */
+  CFT_WF
+};
+
+bool copy_funcs(Temp_table_param *, const THD *thd,
+                Copy_func_type type= CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -402,7 +437,7 @@ public:
     filesort(NULL),
     fields(NULL),
     all_fields(NULL),
-    ref_item_slice(0),
+    ref_item_slice(REF_SLICE_SAVE),
     send_records(0),
     quick_traced_before(false),
     m_condition_optim(NULL),

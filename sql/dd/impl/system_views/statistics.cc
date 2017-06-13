@@ -91,8 +91,9 @@ Statistics_base::Statistics_base()
   m_target_def.add_from("JOIN mysql.collations coll "
                          "ON tbl.collation_id=coll.id");
 
-  m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name, idx.hidden OR icu.hidden)");
-  m_target_def.add_where("AND tbl.hidden = 'Visible'");
+  m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
+  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
+                         "idx.hidden OR icu.hidden)");
 }
 
 Statistics::Statistics()

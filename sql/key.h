@@ -125,7 +125,7 @@ public:
      not used due to some reasons(no primary key, duplicated key parts)
   */
   uint  unused_key_parts;
-  /** Should normally be = key_parts */
+  /** Should normally be = actual_key_parts */
   uint	usable_key_parts;
   uint  block_size;
   enum  ha_key_alg algorithm;

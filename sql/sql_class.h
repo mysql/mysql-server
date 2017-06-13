@@ -150,6 +150,15 @@ void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
                    const char *src_function, const char *src_file,
                    int src_line);
 
+extern "C"
+void thd_enter_stage(void *opaque_thd, const PSI_stage_info *new_stage,
+                     PSI_stage_info *old_stage,
+                     const char *src_function, const char *src_file,
+                     int src_line);
+
+extern "C"
+void thd_set_waiting_for_disk_space(void *opaque_thd, const bool waiting);
+
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -282,7 +291,7 @@ public:
   }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
-  inline char *strmake(const char *str, size_t size)
+  inline char *strmake(const char *str, size_t size) const
   { return strmake_root(mem_root,str,size); }
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
@@ -1220,7 +1229,6 @@ public:
                    const char *calling_func,
                    const char *calling_file,
                    const unsigned int calling_line);
-
   const char *get_proc_info() const
   { return proc_info; }
 
@@ -3497,7 +3505,7 @@ public:
     allocate memory for a deep copy: current database may be freed after
     a statement is parsed but before it's executed.
   */
-  bool copy_db_to(char **p_db, size_t *p_db_length)
+  bool copy_db_to(char const **p_db, size_t *p_db_length) const
   {
     if (m_db.str == NULL)
     {
@@ -3508,6 +3516,13 @@ public:
     *p_db_length= m_db.length;
     return false;
   }
+
+  bool copy_db_to(char **p_db, size_t *p_db_length) const
+  {
+    return copy_db_to(const_cast<char const **>(p_db), p_db_length);
+  }
+
+
   thd_scheduler scheduler;
 
 public:
@@ -3904,7 +3919,27 @@ public:
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;
 
-  void syntax_error_at(const YYLTYPE &location, const char *s= NULL);
+  void syntax_error()
+  {
+    syntax_error(ER_SYNTAX_ERROR);
+  }
+  void syntax_error(const char *format, ...);
+  void syntax_error(int mysql_errno, ...);
+
+  void syntax_error_at(const YYLTYPE &location)
+  {
+    syntax_error_at(location, ER_SYNTAX_ERROR);
+  }
+  void syntax_error_at(const YYLTYPE &location, const char *format, ...);
+  void syntax_error_at(const YYLTYPE &location, int mysql_errno, ...);
+
+  void vsyntax_error_at(const YYLTYPE &location,
+                        const char *format, va_list args)
+  {
+    vsyntax_error_at(location.raw.start, format, args);
+  }
+  void vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
+                        const char *format, va_list args);
 
   /**
     Send name and type of result to client.
@@ -4011,6 +4046,15 @@ public:
 
   bool is_a_srv_session() const { return is_a_srv_session_thd; }
   void mark_as_srv_session() { is_a_srv_session_thd= true; }
+#ifndef DBUG_OFF
+  uint get_tmp_table_seq_id() { return tmp_table_seq_id++; }
+  void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id= arg; }
+#endif
+
+  bool is_plugin_fake_ddl() const
+  { return m_is_plugin_fake_ddl; }
+  void mark_plugin_fake_ddl(bool flag)
+  { m_is_plugin_fake_ddl= flag; }
 private:
   /**
     Variable to mark if the object is part of a Srv_session object, which
@@ -4018,7 +4062,20 @@ private:
   */
   bool is_a_srv_session_thd;
 
+  /**
+    Creating or dropping plugin native table through a plugin service.
+    This variable enables the DDL command execution from
+    dd::create_native_table() to be executed without committing the
+    transaction.
+  */
+  bool m_is_plugin_fake_ddl;
+
 #ifndef DBUG_OFF
+  /**
+    Sequential number of internal tmp table created in the statement. Useful for
+    tracking tmp tables when number of them is involved in a query.
+  */
+  uint tmp_table_seq_id;
 public:
   /*
     The member serves to guard against duplicate use of the same xid
@@ -4026,6 +4083,35 @@ public:
   */
   XID debug_binlog_xid_last;
 #endif
+private:
+  /*
+    Flag set by my_write before waiting for disk space.
+
+    This is used by replication to decide if the I/O thread should be
+    killed or not when stopping the replication threads.
+
+    In ordinary STOP SLAVE case, the I/O thread will wait for disk space
+    or to be killed regardless of this flag value.
+
+    In server shutdown case, if this flag is true, the I/O thread will be
+    signaled with KILL_CONNECTION to abort the waiting, letting the server
+    to shutdown promptly.
+  */
+  bool waiting_for_disk_space= false;
+public:
+  /**
+    Set the waiting_for_disk_space flag.
+
+    @param waiting The value to set in the flag.
+  */
+  void set_waiting_for_disk_space(bool waiting)
+  {
+    waiting_for_disk_space= waiting;
+  }
+  /**
+    Returns the current waiting_for_disk_space flag value.
+  */
+  bool is_waiting_for_disk_space() const { return waiting_for_disk_space; }
 };
 
 

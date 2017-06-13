@@ -68,6 +68,10 @@ void Sql_formatter_options::create_options()
     "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
     "then the default (AUTO) value will be considered.")
     ->set_value(enum_gtid_purged_mode::GTID_PURGED_AUTO);
+  this->create_new_option(&m_column_statistics,
+    "column-statistics",
+    "Add a ANALYZE TABLE-statement for any existing column statistics.")
+    ->set_value(false);
 }
 
 Sql_formatter_options::Sql_formatter_options(

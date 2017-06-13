@@ -1091,7 +1091,8 @@ bool Partition_helper::print_partition_error(int error)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if ((error == HA_ERR_NO_PARTITION_FOUND) &&
-      ! (thd->lex->alter_info.flags & Alter_info::ALTER_TRUNCATE_PARTITION))
+      (thd->lex->alter_info == NULL ||
+       ! (thd->lex->alter_info->flags & Alter_info::ALTER_TRUNCATE_PARTITION)))
   {
     m_part_info->print_no_partition_found(thd, m_table);
     // print_no_partition_found() reports an error, so we can just return here.
@@ -1540,7 +1541,9 @@ int Partition_helper::ph_rnd_next_in_part(uint part_id, uchar *buf)
 
 bool Partition_helper::set_altered_partitions()
 {
-  Alter_info *alter_info= &get_thd()->lex->alter_info;
+  Alter_info * const alter_info= get_thd()->lex->alter_info;
+
+  DBUG_ASSERT(alter_info != nullptr);
 
   if ((alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION) == 0 ||
       (alter_info->flags & Alter_info::ALTER_ALL_PARTITION))

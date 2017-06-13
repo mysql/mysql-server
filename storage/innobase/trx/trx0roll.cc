@@ -996,7 +996,8 @@ trx_roll_pop_top_rec_of_trx_low(
 	is_insert = (undo == ins_undo);
 
 	*roll_ptr = trx_undo_build_roll_ptr(
-		is_insert, undo->rseg->id, undo->top_page_no, undo->top_offset);
+		is_insert, undo->rseg->space_id,
+		undo->top_page_no, undo->top_offset);
 
 	mtr_start(&mtr);
 

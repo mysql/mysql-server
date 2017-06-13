@@ -2,7 +2,7 @@
 
 --source include/have_log_bin.inc
 
-set binlog_format=row;
+set binlog_format='row';
 
 --source ../include/binlog_ok_common.inc
 

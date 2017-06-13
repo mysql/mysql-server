@@ -308,6 +308,25 @@ Group_member_info::get_role()
   return role;
 }
 
+const char*
+Group_member_info::get_member_role_string()
+{
+  /*
+   Member role is only displayed when the member belongs to the group
+   and it is reachable.
+  */
+  if (status != MEMBER_ONLINE && status != MEMBER_IN_RECOVERY)
+    return "";
+
+  if (!in_primary_mode() ||
+      role == Group_member_info::MEMBER_ROLE_PRIMARY)
+    return "PRIMARY";
+  else if (role == Group_member_info::MEMBER_ROLE_SECONDARY)
+    return "SECONDARY";
+  else
+    return "";
+}
+
 const Gcs_member_identifier&
 Group_member_info::get_gcs_member_id()
 {

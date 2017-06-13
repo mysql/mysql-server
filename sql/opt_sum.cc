@@ -347,7 +347,7 @@ int opt_sum_query(THD *thd,
 
   while ((item= it++))
   {
-    if (item->type() == Item::SUM_FUNC_ITEM)
+    if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function)
     {
       if (item->used_tables() & OUTER_REF_TABLE_BIT)
       {

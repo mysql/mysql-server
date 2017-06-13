@@ -452,6 +452,7 @@
 #include "print_version.h"
 #include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
+#include "pfs_priv_util.h"
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
 #include "rpl_gtid.h"
@@ -499,12 +500,15 @@
 #include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
 #include "sys_vars_shared.h"            // intern_find_sys_var
 #include "table_cache.h"                // table_cache_manager
+#include "transaction.h"
+#include "dd/cache/dictionary_client.h"
 #include "tc_log.h"                     // tc_log
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "tztime.h"                     // Time_zone
 #include "violite.h"
 #include "xa.h"
+#include "../storage/perfschema/pfs_services.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -683,6 +687,7 @@ static PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
+static PSI_mutex_key key_LOCK_mandatory_roles;
 static PSI_mutex_key key_LOCK_sql_rand;
 static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
@@ -767,6 +772,9 @@ LEX_STRING opt_init_connect, opt_init_slave;
 
 /* Global variables */
 
+LEX_STRING opt_mandatory_roles;
+bool opt_mandatory_roles_cache= false;
+bool opt_always_activate_granted_roles= false;
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
@@ -854,6 +862,7 @@ uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
 mysql_mutex_t LOCK_default_password_lifetime;
+mysql_mutex_t LOCK_mandatory_roles;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
@@ -1020,6 +1029,7 @@ char default_logfile_name[FN_REFLEN];
 char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
+const char *my_share_dir[FN_REFLEN];
 char glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
      lc_messages_dir[FN_REFLEN], reg_ext[FN_EXTLEN],
@@ -1169,6 +1179,87 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
+namespace
+{
+FILE *nstdout= nullptr;
+char my_progpath[FN_REFLEN];
+const char *my_orig_progname= nullptr;
+
+/**
+  Inspects the program name in argv[0] and substitutes the full path
+  of the executable.
+
+  @param argv argument vector (array) for executable.
+ */
+void substitute_progpath(char** argv)
+{
+  if (test_if_hard_path(argv[0]))
+    return;
+
+#if defined(_WIN32)
+  if (GetModuleFileName(NULL, my_progpath, sizeof(my_progpath)))
+  {
+    my_orig_progname= argv[0];
+    argv[0]= my_progpath;
+  }
+#else
+  /* If the path has a directory component, use my_realpath()
+     (implicitly relative to cwd) */
+  if (strchr(argv[0], FN_LIBCHAR) != nullptr &&
+      !my_realpath(my_progpath, argv[0], MYF(0)))
+  {
+    my_orig_progname= argv[0];
+    argv[0]= my_progpath;
+    return;
+  }
+
+  // my_realpath() cannot resolve it, it must be a bare executable
+  // name in path
+  DBUG_ASSERT(strchr(argv[0], FN_LIBCHAR) == nullptr);
+
+  const char *spbegin= getenv("PATH");
+  if (spbegin == nullptr)
+    spbegin= "";
+  const char *spend= spbegin + strlen(spbegin);
+
+  while (true)
+  {
+    const char *colonend= std::find(spbegin, spend, ':');
+    if (colonend == spend)
+    {
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    std::string cand { spbegin, colonend };
+    spbegin= colonend + 1;
+
+    cand.append(1, '/');
+    cand.append(argv[0]);
+
+    if (my_access(cand.c_str(), X_OK) == 0)
+    {
+      if (my_realpath(my_progpath, cand.c_str(), MYF(0)))
+      {
+        // Fallback to raw cand
+        DBUG_ASSERT(cand.length() < FN_REFLEN);
+        std::copy(cand.begin(), cand.end(), my_progpath);
+        my_progpath[cand.length()]= '\0';
+      }
+      my_orig_progname= argv[0];
+      argv[0]= my_progpath;
+      break;
+    }
+  } // while (true)
+#endif // defined(_WIN32)
+  if (my_orig_progname == nullptr)
+  {
+    sql_print_warning("Failed to get absolute path of program executable %s",
+                      argv[0]);
+  }
+}
+} // namespace
+
 static Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor= NULL;
 #ifdef _WIN32
 Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor= NULL;
@@ -1188,6 +1279,13 @@ void set_remaining_args(int argc, char **argv)
   remaining_argc= argc;
   remaining_argv= argv;
 }
+
+int *get_remaining_argc()
+{ return &remaining_argc; }
+
+char ***get_remaining_argv()
+{ return &remaining_argv; }
+
 /* 
   Multiple threads of execution use the random state maintained in global
   sql_rand to generate random numbers. sql_rnd_with_mutex use mutex
@@ -1297,7 +1395,7 @@ SSL *ssl_acceptor;
 
 /* Function declarations */
 
-static int mysql_init_variables(void);
+static int mysql_init_variables();
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static void add_terminator(vector<my_option> *options);
 extern "C" bool mysqld_get_one_option(int, const struct my_option *, char *);
@@ -1356,6 +1454,11 @@ static bool component_infrastructure_init()
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
+  if (pfs_init_services(&imp_mysql_server_registry_registration))
+  {
+    sql_print_error("Failed to bootstrap performance schema components infrastructure.\n");
+    return true;
+  }
   return false;
 }
 /**
@@ -1371,18 +1474,24 @@ static bool mysql_component_infrastructure_init()
 {
   /* We need a temporary THD during boot */
   Auto_THD thd;
+  Disable_autocommit_guard autocommit_guard(thd.thd);
+  dd::cache::Dictionary_client::Auto_releaser scope_releaser(thd.thd->dd_client());
   if (persistent_dynamic_loader_init(thd.thd))
   {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
+    trans_rollback_stmt(thd.thd);
+    // Full rollback in case we have THD::transaction_rollback_request.
+    trans_rollback(thd.thd);
     return true;
   }
   /*
-   * Its a dummy initialization function. Else linker, is cutting out (as
-   * library optimization) the string service code because libsql code is not
-   * calling any functions of it.
+   * Below are dummy initialization functions. Else linker, is cutting out (as
+   * library optimization) the string services and component system variables
+   * code. This is because of libsql code is not calling any functions of them.
    */
   mysql_string_services_init();
-  return false;
+  mysql_comp_sys_var_services_init();
+  return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
 /**
@@ -1397,7 +1506,13 @@ static bool mysql_component_infrastructure_init()
 static bool component_infrastructure_deinit()
 {
   persistent_dynamic_loader_deinit();
+  shutdown_dynamic_loader();
 
+  if (pfs_deinit_services(&imp_mysql_server_registry_registration))
+  {
+    sql_print_error("Failed to deinit performance schema components infrastructure.\n");
+    return true;
+  }
   if (mysql_services_shutdown())
   {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
@@ -1669,7 +1784,11 @@ static void unireg_abort(int exit_code)
 
   if (opt_help)
     usage();
-  if (exit_code)
+
+  bool daemon_launcher_quiet=
+    (IF_WIN(false, opt_daemonize) && !mysqld::runtime::is_daemon() && !opt_help);
+
+  if (!daemon_launcher_quiet && exit_code)
     LogErr(ERROR_LEVEL, ER_ABORTING);
 
   mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
@@ -1685,13 +1804,12 @@ static void unireg_abort(int exit_code)
   }
   signal_thread_id.thread= 0;
 
-  if (opt_daemonize)
+  if (mysqld::runtime::is_daemon())
   {
     mysqld::runtime::signal_parent(pipe_write_fd,0);
   }
 #endif
-
-  clean_up(!opt_help && (exit_code ||
+  clean_up(!opt_help && !daemon_launcher_quiet && (exit_code ||
            !opt_initialize)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
   mysqld_exit(exit_code);
@@ -1825,7 +1943,7 @@ static void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  if ((!opt_help) || (opt_verbose))
+  if (print_message && ((!opt_help) || (opt_verbose)))
     LogErr(INFORMATION_LEVEL, ER_BINLOG_END);
   ha_binlog_end(current_thd);
 
@@ -1900,7 +2018,6 @@ static void clean_up(bool print_message)
   deinit_errmessage(); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
 
-  sys_var_end();
   Global_THD_manager::destroy_instance();
 
   my_free(const_cast<char*>(log_bin_basename));
@@ -1916,7 +2033,19 @@ static void clean_up(bool print_message)
     where all dependencies are still ok.
   */
   log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  unregister_pfs_notification_service();
+  unregister_pfs_resource_group_service();
+#endif
   component_infrastructure_deinit();
+  /*
+    component unregister_variable() api depends on system_variable_hash.
+    component_infrastructure_deinit() interns calls the deinit funtion
+    of components which are loaded, and the deinit functions can have
+    the component system unregister_ variable()  api's, hence we need
+    to call the sys_var_end() after component_infrastructure_deinit()
+  */
+  sys_var_end();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
@@ -1956,6 +2085,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
+  mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3624,9 +3754,6 @@ int init_common_variables()
   }
   if (rpl_filter_map.build_do_and_ignore_table_hashes())
     return 1;
-  /* Once all options are handled we load persisted config file */
-  if (persisted_variables_cache.load_persist_file())
-    return 1;
 
   return 0;
 }
@@ -3661,6 +3788,8 @@ static int init_thread_environment()
                    &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_default_password_lifetime,
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_mandatory_roles,
+                   &LOCK_mandatory_roles, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -4266,15 +4395,31 @@ static int init_server_components()
     */
     log_error_dest= errorlog_filename_buff;
 
+#ifndef _WIN32
+    // Create backup stream to stdout if deamonizing and connected to tty
+    if (opt_daemonize && isatty(STDOUT_FILENO))
+    {
+      nstdout= fdopen(dup(STDOUT_FILENO), "a");
+      if (nstdout == nullptr)
+      {
+        sql_print_error("Could not open duplicate fd for stdout: %s",
+                        strerror(errno));
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+      // Display location of error log file on stdout if connected to tty
+      fprintf(nstdout, "mysqld will log errors to %s\n", errorlog_filename_buff);
+    }
+#endif /* ndef _WIN32 */
+
     if (open_error_log(errorlog_filename_buff))
     {
       LogErr(ERROR_LEVEL, ER_CANT_OPEN_ERROR_LOG,
-             log_error_dest, strerror(errno));
+              log_error_dest, strerror(errno));
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
 #ifdef _WIN32
     FreeConsole();        // Remove window
-#endif
+#endif /* _WIN32 */
   }
   else
   {
@@ -4286,6 +4431,8 @@ static int init_server_components()
 
   enter_cond_hook= thd_enter_cond;
   exit_cond_hook= thd_exit_cond;
+  enter_stage_hook= thd_enter_stage;
+  set_waiting_for_disk_space_hook= thd_set_waiting_for_disk_space;
   is_killed_hook= (int(*)(const void*))thd_killed;
 
   if (transaction_cache_init())
@@ -4605,36 +4752,6 @@ static int init_server_components()
   }
   if (tmp_str)
     my_free(tmp_str);
-  /* we do want to exit if there are any other unknown options */
-  if (remaining_argc > 1)
-  {
-    int ho_error;
-    struct my_option no_opts[]=
-    {
-      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-    };
-    /*
-      We need to eat any 'loose' arguments first before we conclude
-      that there are unprocessed options.
-    */
-    my_getopt_skip_unknown= 0;
-
-    if ((ho_error= handle_options(&remaining_argc, &remaining_argv, no_opts,
-                                  mysqld_get_one_option)))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    /* Add back the program name handle_options removes */
-    remaining_argc++;
-    remaining_argv--;
-    my_getopt_skip_unknown= TRUE;
-
-    if (remaining_argc > 1)
-    {
-      LogErr(ERROR_LEVEL, ER_EXCESS_ARGUMENTS, remaining_argv[1]);
-      LogErr(INFORMATION_LEVEL, ER_VERBOSE_HINT);
-      unireg_abort(MYSQLD_ABORT_EXIT);
-
-    }
-  }
 
   if (opt_help)
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -4900,6 +5017,8 @@ int win_main(int argc, char **argv)
 int mysqld_main(int argc, char **argv)
 #endif
 {
+  // Substitute the full path to the executable in argv[0]
+  substitute_progpath(argv);
   /*
     Perform basic thread library and malloc initialization,
     to be able to read defaults files and parse options.
@@ -4928,12 +5047,18 @@ int mysqld_main(int argc, char **argv)
     flush_error_log_messages();
     return 1;
   }
-
-  /* Initialize variables cache for persisted variables */
-  persisted_variables_cache.init();
-
-  my_getopt_use_args_separator= FALSE;
   defaults_argv= argv;
+
+  /*
+   Initialize variables cache for persisted variables, load persisted
+   config file and append read only persisted variables to command line
+   options if present.
+  */
+  if (persisted_variables_cache.init(&argc, &argv) ||
+      persisted_variables_cache.load_persist_file() ||
+      persisted_variables_cache.append_read_only_variables(&argc, &argv))
+    return 1;
+  my_getopt_use_args_separator= FALSE;
   remaining_argc= argc;
   remaining_argv= argv;
 
@@ -4956,39 +5081,6 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-#if !defined(_WIN32)
-
-  if (opt_initialize && opt_daemonize)
-  {
-    fprintf(stderr, "Initialize and daemon options are incompatible.\n");
-    exit(MYSQLD_ABORT_EXIT);
-  }
-
-  if (opt_daemonize && log_error_dest == disabled_my_option &&
-      (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
-  {
-    fprintf(stderr, "Please enable --log-error option or set appropriate "
-                    "redirections for standard output and/or standard error "
-                    "in daemon mode.\n");
-    exit(MYSQLD_ABORT_EXIT);
-  }
-
-  if (opt_daemonize)
-  {
-    if (chdir("/") < 0)
-    {
-      fprintf(stderr, "Cannot change to root director: %s\n",
-                      strerror(errno));
-      exit(MYSQLD_ABORT_EXIT);
-    }
-
-    if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < 0)
-    {
-      fprintf(stderr, "mysqld_daemonize failed \n");
-      exit(MYSQLD_ABORT_EXIT);
-    }
-  }
-#endif
 
   init_sql_statement_names();
   sys_var_init();
@@ -5221,11 +5313,19 @@ int mysqld_main(int argc, char **argv)
 
   /*
     Initialize Components core subsystem early on, once we have PSI, which it
-    use. This part doesn't use any more MySQL-specific functionalities but
+    uses. This part doesn't use any more MySQL-specific functionalities but
     error logging and PFS.
   */
   if (component_infrastructure_init())
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    Initialize Performance Schema component services.
+  */
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  register_pfs_notification_service();
+  register_pfs_resource_group_service();
+#endif
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
@@ -5302,6 +5402,52 @@ int mysqld_main(int argc, char **argv)
 #ifndef DBUG_OFF
   test_lc_time_sz();
   srand(static_cast<uint>(time(NULL)));
+#endif
+
+#if !defined(_WIN32)
+
+  if (opt_initialize && opt_daemonize)
+  {
+    fprintf(stderr, "Initialize and daemon options are incompatible.\n");
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (opt_daemonize && log_error_dest == disabled_my_option &&
+      (isatty(STDOUT_FILENO) || isatty(STDERR_FILENO)))
+  {
+    // Just use the default in this case.
+    log_error_dest="";
+  }
+
+  if (opt_daemonize)
+  {
+    if (chdir("/") < 0)
+    {
+      fprintf(stderr, "Cannot change to root directory: %s\n",
+                      strerror(errno));
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    if ((pipe_write_fd= mysqld::runtime::mysqld_daemonize()) < -1)
+    {
+      sql_print_error("Failed to start mysqld daemon. "
+                      "Check mysqld error log.");
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+
+    if (pipe_write_fd < 0)
+    {
+      // This is the launching process and the daemon appears to have
+      // started ok (Need to call unireg_abort with success here to
+      // clean up resources in the lauching process.
+      unireg_abort(MYSQLD_SUCCESS_EXIT);
+    }
+
+    // Need to update the value of current_pid so that it reflects the
+    // pid of the daemon (the previous value was set by unireg_init()
+    // while still in the launcher process.
+    current_pid= static_cast<ulong>(getpid());
+  }
 #endif
 
   /*
@@ -5564,15 +5710,47 @@ int mysqld_main(int argc, char **argv)
   if (
     /*
       Read components table to restore previously installed components. This
-      requires read access to mysql.component table. Possibly this is not
-      optimal place, if you find any earlies possible, please move it there and
-      document requirements and by what means they are provided.
+      requires read access to mysql.component table.
     */
     (!opt_initialize && mysql_component_infrastructure_init())
      || mysql_rm_tmp_tables())
   {
     abort= true;
   }
+
+  /* we do want to exit if there are any other unknown options */
+  if (remaining_argc > 1)
+  {
+    int ho_error;
+    struct my_option no_opts[]=
+    {
+      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    };
+    /*
+      We need to eat any 'loose' arguments first before we conclude
+      that there are unprocessed options.
+    */
+    my_getopt_skip_unknown= 0;
+
+    if ((ho_error= handle_options(&remaining_argc, &remaining_argv, no_opts,
+                                  mysqld_get_one_option)))
+      abort= true;
+    else
+    {
+      /* Add back the program name handle_options removes */
+      remaining_argc++;
+      remaining_argv--;
+      my_getopt_skip_unknown= TRUE;
+
+      if (remaining_argc > 1)
+      {
+        LogErr(ERROR_LEVEL, ER_EXCESS_ARGUMENTS, remaining_argv[1]);
+        LogErr(INFORMATION_LEVEL, ER_VERBOSE_HINT);
+        abort= true;
+      }
+    }
+  }
+
   if (abort || acl_init(opt_noacl))
   {
     /*
@@ -5708,6 +5886,7 @@ int mysqld_main(int argc, char **argv)
                                           SYSTEM_THREAD_SERVER_INITIALIZE);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
+
   if (opt_init_file && *opt_init_file)
   {
     if (read_init_file(opt_init_file))
@@ -5778,7 +5957,17 @@ int mysqld_main(int argc, char **argv)
   mysql_mutex_unlock(&LOCK_socket_listener_active);
 
   if (opt_daemonize)
+  {
+    if (nstdout != nullptr)
+    {
+      // Show the pid on stdout if deamonizing and connected to tty
+      fprintf(nstdout, "mysqld is running as pid %lu\n", current_pid);
+      fclose(nstdout);
+      nstdout= nullptr;
+    }
+
     mysqld::runtime::signal_parent(pipe_write_fd,1);
+  }
 
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
@@ -6254,7 +6443,7 @@ vector<my_option> all_options;
 struct my_option my_long_early_options[]=
 {
 #if !defined(_WIN32)
-  {"daemonize", 0, "Run mysqld as sysv daemon", &opt_daemonize,
+  {"daemonize", 'D', "Run mysqld as sysv daemon", &opt_daemonize,
     &opt_daemonize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,0},
 #endif
   {"skip-grant-tables", 0,
@@ -6268,7 +6457,7 @@ struct my_option my_long_early_options[]=
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"initialize", 0, "Create the default database and exit."
+  {"initialize", 'I', "Create the default database and exit."
    " Create a super user with a random expired password and store it into the log.",
    &opt_initialize, &opt_initialize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"initialize-insecure", 0, "Create the default database and exit."
@@ -7642,7 +7831,7 @@ To see what values a running MySQL server is using, type\n\
     as these are initialized by my_getopt.
 */
 
-static int mysql_init_variables(void)
+static int mysql_init_variables()
 {
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
@@ -7773,28 +7962,48 @@ static int mysql_init_variables(void)
 
 #if defined(_WIN32)
   /* Allow Win32 users to move MySQL anywhere */
+  char prg_dev[LIBLEN];
+  my_path(prg_dev, my_progname, nullptr);
+
+  // On windows the basedir will always be one level up from where
+  // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
+  // package, or <basedir=sql>/<buildconfig>/mysqld.exe for a
+  // sandbox build.
+  strcat(prg_dev,"/../");     // Remove containing directory to get base dir
+  cleanup_dirname(mysql_home, prg_dev);
+#else
+  const char *tmpenv= getenv("MY_BASEDIR_VERSION");
+  if (tmpenv != nullptr)
   {
-    char prg_dev[LIBLEN];
-    char executing_path_name[LIBLEN];
-    if (!test_if_hard_path(my_progname))
+    strmake(mysql_home, tmpenv, sizeof(mysql_home) - 1);
+  }
+  else
+  {
+    char progdir[FN_REFLEN];
+    size_t dlen= 0;
+    dirname_part(progdir, my_progname, &dlen);
+    if (!strcmp(progdir + (dlen - 5), "/sql/"))
     {
-      // we don't want to use GetModuleFileName inside of my_path since
-      // my_path is a generic path dereferencing function and here we care
-      // only about the executing binary.
-      GetModuleFileName(NULL, executing_path_name, sizeof(executing_path_name));
-      my_path(prg_dev, executing_path_name, NULL);
+      // Running in sandbox, set mysql_home to progdir (CMAKE_BINARY_DIR/sql)
+      if (!opt_help)
+      {
+        sql_print_information("Running in sandbox, basedir set to %s",
+                              progdir);
+      }
+      strmake(mysql_home, progdir, sizeof(mysql_home) - 1);
     }
     else
-      my_path(prg_dev, my_progname, "mysql/bin");
-    strcat(prg_dev,"/../");     // Remove 'bin' to get base dir
-    cleanup_dirname(mysql_home,prg_dev);
+    {
+      strcat(progdir, "/../");
+      cleanup_dirname(mysql_home, progdir);
+    }
   }
-#else
-  const char *tmpenv;
-  if (!(tmpenv = getenv("MY_BASEDIR_VERSION")))
-    tmpenv = DEFAULT_MYSQL_HOME;
-  (void) strmake(mysql_home, tmpenv, sizeof(mysql_home)-1);
 #endif
+
+  if (!opt_help)
+  {
+    sql_print_information("Basedir set to %s", mysql_home);
+  }
   return 0;
 }
 
@@ -8546,6 +8755,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);
+  opt_mandatory_roles.length= strlen(opt_mandatory_roles.str);
 
   if (global_system_variables.low_priority_updates)
     thr_upgraded_concurrent_insert_lock= TL_WRITE_LOW_PRIORITY;
@@ -9096,7 +9306,7 @@ static void create_pid_file()
     mysql_file_close(file, MYF(0));
   }
   LogErr(ERROR_LEVEL, ER_CANT_CREATE_PID_FILE, strerror(errno));
-  exit(MYSQLD_ABORT_EXIT);
+  unireg_abort(MYSQLD_ABORT_EXIT);
 }
 
 
@@ -9350,7 +9560,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_GLOBAL, 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_logger;
@@ -9471,7 +9682,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
-  { &key_thread_one_connection, "one_connection", 0},
+  { &key_thread_one_connection, "one_connection", PSI_FLAG_USER},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
@@ -9646,6 +9857,8 @@ PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
 PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 
+extern PSI_stage_info stage_waiting_for_disk_space;
+
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -9758,7 +9971,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
   & stage_starting,
-  & stage_waiting_for_no_channel_reference
+  & stage_waiting_for_no_channel_reference,
+  & stage_waiting_for_disk_space
 };
 
 PSI_socket_key key_socket_tcpip;
@@ -9869,4 +10083,89 @@ static void init_server_psi_keys(void)
   init_vio_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
+
+bool do_create_native_table_for_pfs(THD *thd, const Plugin_table *t)
+{
+  const char *schema_name = t->get_schema_name();
+  const char *table_name = t->get_name();
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request,
+                   MDL_key::TABLE,
+                   schema_name,
+                   table_name,
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                    thd->variables.lock_wait_timeout))
+  {
+    /* Error, failed to get MDL lock. */
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name, table_name, false);
+
+  if (dd::create_native_table(thd, t))
+  {
+    /* Error, failed to create DD table. */
+    return true;
+  }
+
+  return false;
+}
+
+bool create_native_table_for_pfs(const Plugin_table *t)
+{
+  /* If InnoDB is not initialized yet, return error */
+  if (!is_builtin_and_core_se_initialized())
+    return true;
+
+  THD * thd = current_thd;
+  DBUG_ASSERT(thd);
+  return do_create_native_table_for_pfs(thd, t);
+}
+
+static bool do_drop_native_table_for_pfs(THD *thd, const char *schema_name, const char *table_name)
+{
+  MDL_request table_request;
+  MDL_REQUEST_INIT(&table_request,
+                   MDL_key::TABLE,
+                   schema_name,
+                   table_name,
+                   MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  if (thd->mdl_context.acquire_lock(&table_request,
+                                       thd->variables.lock_wait_timeout))
+  {
+    /* Error, failed to get MDL lock. */
+    return true;
+  }
+
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, schema_name, table_name, false);
+
+  if (dd::drop_native_table(thd, schema_name, table_name))
+  {
+    /* Error, failed to destroy DD table. */
+    return true;
+  }
+
+  return false;
+}
+
+bool drop_native_table_for_pfs(const char *schema_name, const char *table_name)
+{
+  /* If server is shutting down, by the time control reaches here, DD would have
+   * already been shut down. Therefore return success and tables won't be 
+   * deleted and would be available at next server start.
+   */
+  if (get_server_state() == SERVER_SHUTTING_DOWN)
+  {
+    return false;
+  }
+
+  THD *thd= current_thd;
+  DBUG_ASSERT(thd);
+  return do_drop_native_table_for_pfs(thd, schema_name, table_name);
+}
 

@@ -33,7 +33,7 @@ DROP TABLE t_row;
 # In contrast, CREATE TABLE ... SELECT should trigger the following error:
 # ER_BINLOG_ROW_MODE_AND_STMT_ENGINE.
 ################################################################################
-SET binlog_format = ROW;
+SET binlog_format = 'ROW';
 CREATE TABLE t_stmt (a VARCHAR(100)) ENGINE = EXAMPLE;
 ALTER TABLE t_stmt ADD COLUMN b INT;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'

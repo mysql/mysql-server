@@ -147,6 +147,30 @@ void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
 }
 
 
+extern "C"
+void thd_enter_stage(void *opaque_thd, const PSI_stage_info *new_stage,
+                     PSI_stage_info *old_stage,
+                     const char *src_function, const char *src_file,
+                     int src_line)
+{
+  THD *thd= static_cast<THD*>(opaque_thd);
+  if (!thd)
+    thd= current_thd;
+
+  thd->enter_stage(new_stage, old_stage, src_function, src_file, src_line);
+}
+
+extern "C"
+void thd_set_waiting_for_disk_space(void *opaque_thd, const bool waiting)
+{
+  THD *thd= static_cast<THD*>(opaque_thd);
+  if (!thd)
+    thd= current_thd;
+
+  thd->set_waiting_for_disk_space(waiting);
+}
+
+
 void thd_increment_bytes_sent(size_t length)
 {
   THD *thd= current_thd;

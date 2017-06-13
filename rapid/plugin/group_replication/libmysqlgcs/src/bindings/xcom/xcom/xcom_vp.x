@@ -1,4 +1,4 @@
-%/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+%/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved. 
 %
 %   This program is free software; you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License as published by
@@ -363,14 +363,4 @@ struct pax_msg_1_2{
 %typedef pax_msg_1_2 pax_msg;
 %extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
 %#endif
-
-typedef string file_name<MAXFILENAME>;
-typedef file_name file_name_array<MAXFILENAMEARRAY>;
-
-struct file_copy_data{
-	string clustername<MAXNAME>;
-    string copydir<MAXFILENAME>;
-	string server<MAXNAME>;
-	int32_t copy_port;
-};
 

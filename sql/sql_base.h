@@ -35,6 +35,7 @@
 #include "sql_array.h"              // Bounds_checked_array
 #include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
+#include "sql_const.h"              // enum_resolution_type
 
 class COPY_INFO;
 class Field;
@@ -99,26 +100,6 @@ class Table;
 */
 #define OPEN_NO_DD_TABLE       OPTIMIZE_I_S_TABLE*2
 
-
-/*
-  This enumeration type is used only by the function find_item_in_list
-  to return the info on how an item has been resolved against a list
-  of possibly aliased items.
-  The item can be resolved:
-   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
-   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
-   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
-   - ignoring the alias name in cases when SQL requires to ignore aliases
-     (e.g. when the resolved field reference contains a table name or
-     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)
-*/
-enum enum_resolution_type {
-  NOT_RESOLVED=0,
-  RESOLVED_IGNORING_ALIAS,
-  RESOLVED_BEHIND_ALIAS,
-  RESOLVED_WITH_NO_ALIAS,
-  RESOLVED_AGAINST_ALIAS
-};
 
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,

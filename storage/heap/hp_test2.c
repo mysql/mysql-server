@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
   HP_SHARE *tmp_share;
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
-  HEAP_PTR position= 0;
+  HP_HEAP_POSITION position;
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
   bool unused;
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
     if (!error && (i-- == 0))
     {
       memmove(record3, record, reclength);
-      position=heap_position(file);
+      heap_position(file, &position);
     }
   }
   if (error)
@@ -414,7 +414,7 @@ int main(int argc, char *argv[])
   }
 
   puts("- Test of read through position");
-  if (heap_rrnd(file,record,position))
+  if (heap_rrnd(file,record,&position))
     goto err;
   if (memcmp(record3,record,reclength))
   {

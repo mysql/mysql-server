@@ -364,11 +364,11 @@ ERROR 42000: Invalid JSON path expression. The error is around character positio
 
 # wildcards not allowed in path expressions for this function
 select json_length( 'true', '$.*' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 
 # wildcards not allowed in path expressions for this function
 select json_length( 'true', '$.foo**.bar' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[0]' );
 json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[0]' )
 1
@@ -608,13 +608,13 @@ ERROR 42000: The path expression '$' is not allowed in this context.
 select json_remove( '[ 1, 2, 3 ]', '$[1]', '$' );
 ERROR 42000: The path expression '$' is not allowed in this context.
 select json_remove( '[ 1, 2, 3 ]', '$[*]' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '[ 1, 2, 3 ]', '$**[2]' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '[ 1, 2, 3 ]', '$[2]', '$[*]' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '[ 1, 2, 3 ]', '$[2]', '$**[2]' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '[ 1, 2, 3 ]', '$[0]' );
 json_remove( '[ 1, 2, 3 ]', '$[0]' )
 [2, 3]
@@ -631,12 +631,12 @@ select json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]' );
 json_remove( '[ 1, { "a": true, "b": false, "c": null }, 5 ]', '$[1]' )
 [1, 5]
 select json_remove( '[ { "a": { "a": true } } ]', '$**.a' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '[ { "a": true }, { "b": false }, { "c": null }, { "a": null } ]', '$[0].a', '$[2].c' );
 json_remove( '[ { "a": true }, { "b": false }, { "c": null }, { "a": null } ]', '$[0].a', '$[2].c' )
 [{}, {"b": false}, {}, {"a": null}]
 select json_remove( '[ { "a": true }, { "b": [ { "c": { "a": true } }  ] }, { "c": null }, { "a": null } ]', '$**.a' );
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_remove( '{"id": 123, "name": "systemQA", "array": [1, 2, 3]}', '$[0]' );
 json_remove( '{"id": 123, "name": "systemQA", "array": [1, 2, 3]}', '$[0]' )
 {"id": 123, "name": "systemQA", "array": [1, 2, 3]}
@@ -684,6 +684,9 @@ JSON_REMOVE
 '$.b[ 1 ].e'
 )
 {"a": "foo", "b": [true, {"c": 123, "d": 456}]}
+SELECT JSON_REMOVE('123', '$.a');
+JSON_REMOVE('123', '$.a')
+123
 # ----------------------------------------------------------------------
 # Test of JSON_MERGE function.
 # ----------------------------------------------------------------------
@@ -1059,7 +1062,7 @@ select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.b');
 json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.b')
 ["b", "e"]
 select json_keys('{"a": 1, "b": {"e": "foo", "b": 3}}', '$.*.b');
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 # returns [ "a", "b" ]
 SELECT JSON_KEYS('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }');
 JSON_KEYS('{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }')
@@ -1262,42 +1265,69 @@ SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 '$.d', '$.b[0]')
 [true]
+# Some examples verifying ellipsis behavior.
+# Should have the same result, apart from wrapping.
 select json_extract( '[1]', '$[0][0]' );
 json_extract( '[1]', '$[0][0]' )
 1
 select json_extract( '[1]', '$**[0]' );
 json_extract( '[1]', '$**[0]' )
 [1]
-select json_extract( '{ "a": 1 }', '$.a[0]' );
-json_extract( '{ "a": 1 }', '$.a[0]' )
+select json_extract( '[1]', '$[last][last]' );
+json_extract( '[1]', '$[last][last]' )
 1
+select json_extract( '[1]', '$**[last]' );
+json_extract( '[1]', '$**[last]' )
+[1]
+# Should have the same result.
 select json_extract( '{ "a": 1 }', '$**[0]' );
 json_extract( '{ "a": 1 }', '$**[0]' )
 [{"a": 1}, 1]
-select json_extract( '{ "a": 1 }', '$[0].a' );
-json_extract( '{ "a": 1 }', '$[0].a' )
-1
-select json_extract( '{ "a": 1 }', '$**.a' );
-json_extract( '{ "a": 1 }', '$**.a' )
-[1]
-select json_extract( '{ "a": 1 }', '$[0].a[0]' );
-json_extract( '{ "a": 1 }', '$[0].a[0]' )
-1
-select json_extract( '{ "a": 1 }', '$**[0]' );
-json_extract( '{ "a": 1 }', '$**[0]' )
+select json_extract( '{ "a": 1 }', '$[0]', '$.a[0]' );
+json_extract( '{ "a": 1 }', '$[0]', '$.a[0]' )
 [{"a": 1}, 1]
-select json_extract( '{ "a": 1 }', '$[0].a' );
-json_extract( '{ "a": 1 }', '$[0].a' )
-1
+select json_extract( '{ "a": 1 }', '$[0]', '$[0].a[0]' );
+json_extract( '{ "a": 1 }', '$[0]', '$[0].a[0]' )
+[{"a": 1}, 1]
+select json_extract( '{ "a": 1 }', '$**[last]' );
+json_extract( '{ "a": 1 }', '$**[last]' )
+[{"a": 1}, 1]
+select json_extract( '{ "a": 1 }', '$[last]', '$.a[last]' );
+json_extract( '{ "a": 1 }', '$[last]', '$.a[last]' )
+[{"a": 1}, 1]
+# Should have the same result, apart from wrapping.
 select json_extract( '{ "a": 1 }', '$**.a' );
 json_extract( '{ "a": 1 }', '$**.a' )
 [1]
+select json_extract( '{ "a": 1 }', '$[0].a' );
+json_extract( '{ "a": 1 }', '$[0].a' )
+1
+select json_extract( '{ "a": 1 }', '$[last].a' );
+json_extract( '{ "a": 1 }', '$[last].a' )
+1
+# Should have the same result, apart from wrapping.
+select json_extract( '{ "a": 1 }', '$**.a' );
+json_extract( '{ "a": 1 }', '$**.a' )
+[1]
+select json_extract( '{ "a": 1 }', '$[0].a' );
+json_extract( '{ "a": 1 }', '$[0].a' )
+1
 select json_extract( '{ "a": 1 }', '$[0][0].a' );
 json_extract( '{ "a": 1 }', '$[0][0].a' )
 1
 select json_extract( '{ "a": 1 }', '$[0][0][0].a' );
 json_extract( '{ "a": 1 }', '$[0][0][0].a' )
 1
+select json_extract( '{ "a": 1 }', '$[last].a' );
+json_extract( '{ "a": 1 }', '$[last].a' )
+1
+select json_extract( '{ "a": 1 }', '$[last][last].a' );
+json_extract( '{ "a": 1 }', '$[last][last].a' )
+1
+select json_extract( '{ "a": 1 }', '$[last][last][last].a' );
+json_extract( '{ "a": 1 }', '$[last][last][last].a' )
+1
+# Should have the same result.
 SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]', '$**.a.*');
 JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]', '$**.a.*')
 [{"c": 42}]
@@ -1306,6 +1336,24 @@ SELECT JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
 JSON_EXTRACT('[1, [[{"x": [{"a":{"b":{"c":42}}}]}]]]',
 '$[1][0][0].x[0].a.*')
 [{"c": 42}]
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[0]');
+JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[0]')
+[[0, 1], 0, 1, 2, 3, 4, 5, 6]
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[1]');
+JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[1]')
+[[2, 3], 1, 3, [5, 6], 6]
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[2]');
+JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[2]')
+[[4, [5, 6]]]
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[3]');
+JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[3]')
+NULL
+SELECT JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[*]');
+JSON_EXTRACT('[[0,1],[2,3],[4,[5,6]]]', '$**[*]')
+[[0, 1], [2, 3], [4, [5, 6]], 0, 1, 2, 3, 4, [5, 6], 5, 6]
+SELECT JSON_EXTRACT('[1,2,[3,4,[5,6,{"a":7}]]]', '$**[*]**[0]');
+JSON_EXTRACT('[1,2,[3,4,[5,6,{"a":7}]]]', '$**[*]**[0]')
+[1, 2, 3, 4, 5, 6, {"a": 7}, 7]
 SELECT JSON_EXTRACT
 (
 '{ "a" : "foo", "b" : [ true, { "c" : "123" } ] }',
@@ -1443,8 +1491,13 @@ JSON_ARRAY_APPEND(cast('1' as json), '$', 3)
 SELECT JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3);
 JSON_ARRAY_APPEND(cast('{"a": 3}' as json), '$', 3)
 [{"a": 3}, 3]
+SELECT JSON_ARRAY_APPEND('1', '$[0]', 3);
+JSON_ARRAY_APPEND('1', '$[0]', 3)
+[1, 3]
 select json_array_append(cast('{"a": {"b": [3]}}' as json), '$**[0]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_ARRAY_APPEND('1', '$[0 to 1]', 3);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 # Auto-wrapping, since because the paths identify scalars.
 # should return {"a": "foo", "b": ["bar", 4], "c": ["wibble", "grape"]}
 SELECT JSON_ARRAY_APPEND('{"a": "foo", "b": "bar", "c": "wibble"}',
@@ -1471,9 +1524,9 @@ JSON_ARRAY_APPEND('{"a" : "foo","b": [1, 2, 3], "c": ["apple", "pear"]}',
 '$.c', 'grape')
 {"a": "foo", "b": [1, 2, 3, 4], "c": ["apple", "pear", "grape"]}
 select json_array_append( '[[], [], []]', '$[*]', 3, '$[*]', 4);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_array_append( '[[], "not array", []]', '$[*]', 3, '$[*]', 4);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 SELECT JSON_ARRAY_APPEND
 (
 '{ "a" : "foo", "b" : "bar", "c" : "wibble" }',
@@ -1530,6 +1583,12 @@ select json_insert(NULL, NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_insert'
 select json_insert(NULL, NULL, NULL, NULL);
 ERROR 42000: Incorrect parameter count in the call to native function 'json_insert'
+select json_insert('[1,2,3]', '$[0]', 4);
+json_insert('[1,2,3]', '$[0]', 4)
+[1, 2, 3]
+select json_insert('[1,2,3]', '$[1]', 4);
+json_insert('[1,2,3]', '$[1]', 4)
+[1, 2, 3]
 select json_insert('[1,2,3]', '$[2]', 4);
 json_insert('[1,2,3]', '$[2]', 4)
 [1, 2, 3]
@@ -1539,6 +1598,33 @@ json_insert('[1,2,3]', '$[3]', 4)
 select json_insert('[1,2,3]', '$[10]', 4);
 json_insert('[1,2,3]', '$[10]', 4)
 [1, 2, 3, 4]
+select json_insert('[1,2,3]', '$[last]', 4);
+json_insert('[1,2,3]', '$[last]', 4)
+[1, 2, 3]
+select json_insert('[1,2,3]', '$[last-1]', 4);
+json_insert('[1,2,3]', '$[last-1]', 4)
+[1, 2, 3]
+select json_insert('[1,2,3]', '$[last-2]', 4);
+json_insert('[1,2,3]', '$[last-2]', 4)
+[1, 2, 3]
+select json_insert('[1,2,3]', '$[last-3]', 4);
+json_insert('[1,2,3]', '$[last-3]', 4)
+[4, 1, 2, 3]
+select json_insert('[1,2,3]', '$[last-10]', 4);
+json_insert('[1,2,3]', '$[last-10]', 4)
+[4, 1, 2, 3]
+select json_insert('[]', '$[0]', 1);
+json_insert('[]', '$[0]', 1)
+[1]
+select json_insert('[]', '$[1]', 1);
+json_insert('[]', '$[1]', 1)
+[1]
+select json_insert('[]', '$[last]', 1);
+json_insert('[]', '$[last]', 1)
+[1]
+select json_insert('[]', '$[last-1]', 1);
+json_insert('[]', '$[last-1]', 1)
+[1]
 select json_insert('{"c":4}', '$.c', 4);
 json_insert('{"c":4}', '$.c', 4)
 {"c": 4}
@@ -1557,42 +1643,71 @@ json_insert('1', '$[1]', 4)
 select json_insert('1', '$[10]', '4', '$[11]', 5);
 json_insert('1', '$[10]', '4', '$[11]', 5)
 [1, "4", 5]
+select json_insert('1', '$[last]', 4);
+json_insert('1', '$[last]', 4)
+1
+select json_insert('1', '$[last-1]', 4);
+json_insert('1', '$[last-1]', 4)
+[4, 1]
+select json_insert('1', '$[last-10]', '4', '$[last-11]', 5);
+json_insert('1', '$[last-10]', '4', '$[last-11]', 5)
+[5, "4", 1]
 select json_insert('[1,2,3]', '$[2][0]', 4);
 json_insert('[1,2,3]', '$[2][0]', 4)
 [1, 2, 3]
+select json_insert('[1,2,3]', '$[2][1]', 4);
+json_insert('[1,2,3]', '$[2][1]', 4)
+[1, 2, [3, 4]]
 select json_insert('[1,2,3]', '$[2][2]', 4);
 json_insert('[1,2,3]', '$[2][2]', 4)
 [1, 2, [3, 4]]
+select json_insert('[1,2,3]', '$[2][last]', 4);
+json_insert('[1,2,3]', '$[2][last]', 4)
+[1, 2, 3]
+select json_insert('[1,2,3]', '$[2][last-1]', 4);
+json_insert('[1,2,3]', '$[2][last-1]', 4)
+[1, 2, [4, 3]]
+select json_insert('[1,2,3]', '$[2][last-2]', 4);
+json_insert('[1,2,3]', '$[2][last-2]', 4)
+[1, 2, [4, 3]]
 select json_insert('{"a": 3}', '$.a[0]', 4);
 json_insert('{"a": 3}', '$.a[0]', 4)
 {"a": 3}
 select json_insert('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
 json_insert('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5')
 {"a": [3, 4, "5"]}
+select json_insert('{"a": 3}', '$.a[last]', 4);
+json_insert('{"a": 3}', '$.a[last]', 4)
+{"a": 3}
+select json_insert('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
+json_insert('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5')
+{"a": ["5", 4, 3]}
 select json_insert(cast('{"a": [1], "b": 2}' as json), '$.*[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": 1, "b": 2}' as json), '$.*[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": {"b": 3}}' as json),   '$.a.*[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": {"b": [3]}}' as json), '$.a.*[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": {"b": 3}}' as json),   '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": {"b": [3]}}' as json), '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[1]' as json), '$[*][1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[1]' as json), '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[1, [2], 3]' as json), '$[*][1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[1, [2], 3]' as json), '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[[1]]' as json), '$[*][1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('[[1]]' as json), '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+select json_insert(cast('[1, [2], 3]' as json), '$[1 to 2]', 6);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert(cast('{"a": 3}' as json), '$[1]', 6);
 json_insert(cast('{"a": 3}' as json), '$[1]', 6)
 [{"a": 3}, 6]
@@ -1718,6 +1833,12 @@ json_array_insert( '[]', '$[0]', false )
 select json_array_insert( '[]', '$[1]', false );
 json_array_insert( '[]', '$[1]', false )
 [false]
+select json_array_insert( '[]', '$[last]', false );
+json_array_insert( '[]', '$[last]', false )
+[false]
+select json_array_insert( '[]', '$[last-1]', false );
+json_array_insert( '[]', '$[last-1]', false )
+[false]
 select json_array_insert( '[true]', '$[0]', false );
 json_array_insert( '[true]', '$[0]', false )
 [false, true]
@@ -1742,6 +1863,12 @@ json_array_insert( '{ "a": [true] }', '$.a[1]', false )
 select json_array_insert( '{ "a": [true] }', '$.a[2]', false );
 json_array_insert( '{ "a": [true] }', '$.a[2]', false )
 {"a": [true, false]}
+select json_array_insert( '{ "a": [true] }', '$.a[last]', false );
+json_array_insert( '{ "a": [true] }', '$.a[last]', false )
+{"a": [false, true]}
+select json_array_insert( '{ "a": [true] }', '$.a[last-1]', false );
+json_array_insert( '{ "a": [true] }', '$.a[last-1]', false )
+{"a": [false, true]}
 select json_array_insert( '[1, 2, 3, 4]', '$[0]', false );
 json_array_insert( '[1, 2, 3, 4]', '$[0]', false )
 [false, 1, 2, 3, 4]
@@ -1760,6 +1887,21 @@ json_array_insert( '[1, 2, 3, 4]', '$[4]', false )
 select json_array_insert( '[1, 2, 3, 4]', '$[5]', false );
 json_array_insert( '[1, 2, 3, 4]', '$[5]', false )
 [1, 2, 3, 4, false]
+select json_array_insert( '[1, 2, 3, 4]', '$[last]', false );
+json_array_insert( '[1, 2, 3, 4]', '$[last]', false )
+[1, 2, 3, false, 4]
+select json_array_insert( '[1, 2, 3, 4]', '$[last-1]', false );
+json_array_insert( '[1, 2, 3, 4]', '$[last-1]', false )
+[1, 2, false, 3, 4]
+select json_array_insert( '[1, 2, 3, 4]', '$[last-2]', false );
+json_array_insert( '[1, 2, 3, 4]', '$[last-2]', false )
+[1, false, 2, 3, 4]
+select json_array_insert( '[1, 2, 3, 4]', '$[last-3]', false );
+json_array_insert( '[1, 2, 3, 4]', '$[last-3]', false )
+[false, 1, 2, 3, 4]
+select json_array_insert( '[1, 2, 3, 4]', '$[last-4]', false );
+json_array_insert( '[1, 2, 3, 4]', '$[last-4]', false )
+[false, 1, 2, 3, 4]
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[0]', false );
 json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[0]', false )
 {"a": [false, 1, 2, 3, 4]}
@@ -1778,6 +1920,15 @@ json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[4]', false )
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[5]', false );
 json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[5]', false )
 {"a": [1, 2, 3, 4, false]}
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last]', false );
+json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last]', false )
+{"a": [1, 2, 3, false, 4]}
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-1]', false );
+json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-1]', false )
+{"a": [1, 2, false, 3, 4]}
+select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-4]', false );
+json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.a[last-4]', false )
+{"a": [false, 1, 2, 3, 4]}
 select json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.b[0]', false );
 json_array_insert( '{ "a": [1, 2, 3, 4] }', '$.b[0]', false )
 {"a": [1, 2, 3, 4]}
@@ -1794,11 +1945,13 @@ select json_array_insert( '"a"', '$[1]', true );
 json_array_insert( '"a"', '$[1]', true )
 "a"
 select json_insert('[]', '$.a.*[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert('[]', '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_insert('[]', '$[*][1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+select json_insert('[]', '$[1 to 2]', 6);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 select json_array_insert( '[ 1, 2, 3 ]', '$[1]', true, '$[1]', false );
 json_array_insert( '[ 1, 2, 3 ]', '$[1]', true, '$[1]', false )
 [1, false, true, 2, 3]
@@ -1842,6 +1995,18 @@ json_set('[1,2,3]', '$[3]', 4)
 select json_set('[1,2,3]', '$[10]', 4);
 json_set('[1,2,3]', '$[10]', 4)
 [1, 2, 3, 4]
+select json_set('[]', '$[0]', 1);
+json_set('[]', '$[0]', 1)
+[1]
+select json_set('[]', '$[1]', 1);
+json_set('[]', '$[1]', 1)
+[1]
+select json_set('[]', '$[last]', 1);
+json_set('[]', '$[last]', 1)
+[1]
+select json_set('[]', '$[last-1]', 1);
+json_set('[]', '$[last-1]', 1)
+[1]
 select json_set('{"c":4}', '$.c', 5);
 json_set('{"c":4}', '$.c', 5)
 {"c": 5}
@@ -1860,20 +2025,45 @@ json_set('1', '$[1]', 4)
 select json_set('1', '$[10]', '4', '$[11]', 5);
 json_set('1', '$[10]', '4', '$[11]', 5)
 [1, "4", 5]
+select json_set('1', '$[last]', 4);
+json_set('1', '$[last]', 4)
+4
+select json_set('1', '$[last-1]', 4);
+json_set('1', '$[last-1]', 4)
+[4, 1]
+select json_set('1', '$[last-10]', '4', '$[last-11]', 5);
+json_set('1', '$[last-10]', '4', '$[last-11]', 5)
+[5, "4", 1]
 select json_set('[1,2,3]', '$[2][0]', 4);
 json_set('[1,2,3]', '$[2][0]', 4)
 [1, 2, 4]
 select json_set('[1,2,3]', '$[2][2]', 4);
 json_set('[1,2,3]', '$[2][2]', 4)
 [1, 2, [3, 4]]
+select json_set('[1,2,3]', '$[2][last]', 4);
+json_set('[1,2,3]', '$[2][last]', 4)
+[1, 2, 4]
+select json_set('[1,2,3]', '$[2][last-2]', 4);
+json_set('[1,2,3]', '$[2][last-2]', 4)
+[1, 2, [4, 3]]
 select json_set('{"a": 3}', '$.a[0]', 4);
 json_set('{"a": 3}', '$.a[0]', 4)
 {"a": 4}
 select json_set('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
 json_set('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5')
 {"a": [3, 4, "5"]}
+select json_set('{"a": 3}', '$.a[last]', 4);
+json_set('{"a": 3}', '$.a[last]', 4)
+{"a": 4}
+select json_set('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5');
+json_set('{"a": 3}', '$.a[last-1]', 4, '$.a[last-2]', '5')
+{"a": ["5", 4, 3]}
 select json_set(cast('{"a": {"b": [3]}}' as json), '$**[1]', 6);
-ERROR 42000: In this situation, path expressions may not contain the * and ** tokens.
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_SET('[1,2,3]', '$[*]', 4);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_SET('[1,2,3]', '$[1 to 2]', 4);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 SELECT JSON_SET('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
 '$.a',
 JSON_OBJECT());
@@ -2000,6 +2190,15 @@ json_replace('[1,2,3]', '$[3]', 4)
 select json_replace('[1,2,3]', '$[10]', 4);
 json_replace('[1,2,3]', '$[10]', 4)
 [1, 2, 3]
+select json_replace('[1,2,3]', '$[last]', 4);
+json_replace('[1,2,3]', '$[last]', 4)
+[1, 2, 4]
+select json_replace('[1,2,3]', '$[last-1]', 4);
+json_replace('[1,2,3]', '$[last-1]', 4)
+[1, 4, 3]
+select json_replace('[1,2,3]', '$[last-10]', 4);
+json_replace('[1,2,3]', '$[last-10]', 4)
+[1, 2, 3]
 select json_replace('{"c":4}', '$.c', 5);
 json_replace('{"c":4}', '$.c', 5)
 {"c": 5}
@@ -2030,6 +2229,12 @@ json_replace('{"a": 3}', '$.a[0]', 4)
 select json_replace('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5');
 json_replace('{"a": 3}', '$.a[1]', 4, '$.a[2]', '5')
 {"a": 3}
+SELECT JSON_REPLACE('[1,2,3]', '$**.a', 4);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_REPLACE('[1,2,3]', '$[*]', 4);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_REPLACE('[1,2,3]', '$[1 to 2]', 4);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
 SELECT JSON_REPLACE('{ "a" : "foo", "b" : [ 1, 2, 3 ] }',
 '$.c',
 true);
@@ -3363,3 +3568,190 @@ NULL
 SELECT JSON_EXTRACT(NULLIF('1', '2'), '$');
 JSON_EXTRACT(NULLIF('1', '2'), '$')
 1
+#
+# WL#9831: Ranges in JSON path expressions
+#
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 0]');
+JSON_EXTRACT('[1,2,3,4]', '$[0 to 0]')
+[1]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 1]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 1]')
+[2]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 2]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 3]')
+[2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 4]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 4]')
+[2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$[0 to 2]')
+[1, 2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$[0 to 3]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[0 to 4]');
+JSON_EXTRACT('[1,2,3,4]', '$[0 to 4]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[99 to 100]');
+JSON_EXTRACT('[1,2,3,4]', '$[99 to 100]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[100 to 100]');
+JSON_EXTRACT('[1,2,3,4]', '$[100 to 100]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[last to last]')
+[4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last-1]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last-1]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-1 to last]')
+[3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-3 to last-1]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-3 to last-1]')
+[1, 2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-4 to last]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-4 to 5]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-4 to 5]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$[last to 2]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 2]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-1 to 3]')
+[3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-99]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-99]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-100]');
+JSON_EXTRACT('[1,2,3,4]', '$[last-100 to last-100]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to last-1]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to last-1]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2 to last-2]');
+JSON_EXTRACT('[1,2,3,4]', '$[2 to last-2]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$**[1 to 2]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$**[1 to 3]')
+[2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to 4]');
+JSON_EXTRACT('[1,2,3,4]', '$**[1 to 4]')
+[2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$**[0 to 2]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$**[0 to 3]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[0 to 4]');
+JSON_EXTRACT('[1,2,3,4]', '$**[0 to 4]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[99 to 100]');
+JSON_EXTRACT('[1,2,3,4]', '$**[99 to 100]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to last]')
+[3, 4, 1, 2]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-3 to last-1]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-3 to last-1]')
+[1, 2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to last]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to 5]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-4 to 5]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last to 2]')
+[1, 2, 3, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 2]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 2]')
+[3, 1, 2, 4]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 3]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-1 to 3]')
+[3, 4, 1, 2]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[last-100 to last-99]');
+JSON_EXTRACT('[1,2,3,4]', '$**[last-100 to last-99]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[1 to last-1]');
+JSON_EXTRACT('[1,2,3,4]', '$**[1 to last-1]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$**[2 to last-2]');
+JSON_EXTRACT('[1,2,3,4]', '$**[2 to last-2]')
+NULL
+SELECT JSON_EXTRACT('[]', '$[0 to 1]');
+JSON_EXTRACT('[]', '$[0 to 1]')
+NULL
+SELECT JSON_EXTRACT('[]', '$[last-1 to last]');
+JSON_EXTRACT('[]', '$[last-1 to last]')
+NULL
+SELECT JSON_CONTAINS_PATH('[1,2]', 'one', '$[0 to 2]') AS o,
+JSON_CONTAINS_PATH('[1,2]', 'all', '$[0 to 2]') AS a,
+JSON_CONTAINS_PATH('[1,2]', 'one', '$**[0 to 2]') AS o_e,
+JSON_CONTAINS_PATH('[1,2]', 'all', '$**[0 to 2]') AS a_e;
+o	a	o_e	a_e
+1	1	1	1
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to 10]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][0 to 10]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last-2]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last-2]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][0 to last]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][1 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][1 to last]')
+NULL
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to last]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to 0]');
+JSON_EXTRACT('[1,2,3,4]', '$[2][last-2 to 0]')
+[3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][0 to 10]')
+[2, 3]
+SELECT JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]');
+JSON_EXTRACT('[1,2,3,4]', '$[1 to 2][last-10 to last]')
+[2, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last]');
+JSON_REMOVE('[1,2,3]', '$[last]')
+[1, 2]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-1]');
+JSON_REMOVE('[1,2,3]', '$[last-1]')
+[1, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-2]');
+JSON_REMOVE('[1,2,3]', '$[last-2]')
+[2, 3]
+SELECT JSON_REMOVE('[1,2,3]', '$[last-3]');
+JSON_REMOVE('[1,2,3]', '$[last-3]')
+[1, 2, 3]
+SELECT JSON_EXTRACT('true', '$[2 to 1]');
+ERROR 42000: Invalid JSON path expression. The error is around character position 8.
+SELECT JSON_EXTRACT('true', '$[last to last-1]');
+ERROR 42000: Invalid JSON path expression. The error is around character position 16.
+SELECT JSON_SET('[1,2,3]', '$[0 to 1]', 123);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT JSON_LENGTH('[1,2,3]', '$[0 to 1]');
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+SELECT j->'$[last]', j->'$[last-1]', j->'$[last-2]',
+j->'$**[last]', j->'$**[last-1]', j->'$**[last-2]'
+FROM (SELECT JSON_ARRAY(1,2) j) t;
+j->'$[last]'	j->'$[last-1]'	j->'$[last-2]'	j->'$**[last]'	j->'$**[last-1]'	j->'$**[last-2]'
+2	1	NULL	[2, 1]	[1]	NULL

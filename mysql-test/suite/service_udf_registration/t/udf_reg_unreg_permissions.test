@@ -63,8 +63,9 @@ send SELECT myfunc_int(23);
 
 # Check of UDF_USAGE_COUNT.
 connection default;
-SELECT * FROM performance_schema.user_defined_functions
-  ORDER BY udf_name;
+SELECT udf_name,udf_return_type,udf_type,udf_library,udf_usage_count>0
+       FROM performance_schema.user_defined_functions
+       ORDER BY udf_name;
 
 # execution of sent commands.
 connection c1;

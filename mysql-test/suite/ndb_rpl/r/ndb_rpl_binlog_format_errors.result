@@ -30,7 +30,7 @@ BINLOG '
 AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
 ';
 ==== Test ====
----- binlog_format=row ----
+---- binlog_format='row' ----
 * Modify tables of more than one engine, one of which is self-logging
 CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END;
 INSERT INTO t_self_logging VALUES (1);
@@ -47,7 +47,7 @@ ERROR HY000: Cannot execute statement: impossible to write to binary log since b
 SELECT * FROM t_stmt /* should be empty */;
 a
 DROP TRIGGER trig_2;
-* Stmt-only table and binlog_format=row
+* Stmt-only table and binlog_format='row'
 INSERT INTO t_stmt VALUES (1);
 ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 SELECT * FROM t_stmt /* should be empty */;

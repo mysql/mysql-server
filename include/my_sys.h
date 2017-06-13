@@ -112,7 +112,7 @@ C_MODE_START
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
-#define MY_UNUSED       64      /* Unused (was support for RAID) */
+#define MY_REPORT_WAITING_IF_FULL 64 /* my_write: set status as waiting */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
@@ -268,6 +268,18 @@ extern void (*exit_cond_hook)(void *opaque_thd,
                               const char *src_file,
                               int src_line);
 
+extern void (*enter_stage_hook)(void *opaque_thd,
+                                const PSI_stage_info *new_stage,
+                                PSI_stage_info *old_stage,
+                                const char *src_function,
+                                const char *src_file,
+                                int src_line);
+
+/*
+  Hook for setting THD waiting_for_disk_space flag.
+*/
+extern void (*set_waiting_for_disk_space_hook)(void *opaque_thd,
+                                               bool waiting);
 /*
   Hook for checking if the thread has been killed.
 */
@@ -651,6 +663,7 @@ extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
+extern int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags);
 extern void thr_set_sync_wait_callback(void (*before_sync)(void),
                                        void (*after_sync)(void));
 extern int my_sync(File fd, myf my_flags);

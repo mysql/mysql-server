@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "xcom_vp.h"
 #include "task_debug.h"
+#include "xcom_profile.h"
+#include "xcom_vp.h"
 
-bit_set *new_bit_set(uint32_t bits)
-{
+bit_set *new_bit_set(uint32_t bits) {
   bit_set *bs = malloc(sizeof(*bs));
   bs->bits.bits_len = howmany_words(bits, MASK_BITS);
   bs->bits.bits_val = malloc(bs->bits.bits_len * sizeof(*bs->bits.bits_val));
@@ -28,40 +28,39 @@ bit_set *new_bit_set(uint32_t bits)
   return bs;
 }
 
-bit_set *clone_bit_set(bit_set *orig)
-{
-  if(!orig)return orig;
+bit_set *clone_bit_set(bit_set *orig) {
+  if (!orig) return orig;
   {
     bit_set *bs = malloc(sizeof(*bs));
     bs->bits.bits_len = orig->bits.bits_len;
     bs->bits.bits_val = malloc(bs->bits.bits_len * sizeof(*bs->bits.bits_val));
-    memcpy(bs->bits.bits_val, orig->bits.bits_val, bs->bits.bits_len * sizeof(*bs->bits.bits_val));
+    memcpy(bs->bits.bits_val, orig->bits.bits_val,
+           bs->bits.bits_len * sizeof(*bs->bits.bits_val));
     return bs;
   }
 }
 
-void free_bit_set(bit_set *bs)
-{
+void free_bit_set(bit_set *bs) {
   free(bs->bits.bits_val);
   free(bs);
 }
 /* purecov: begin deadcode */
-void dbg_bit_set(bit_set *bs)
-{
+void dbg_bit_set(bit_set *bs) {
   unsigned int i = 0;
   GET_GOUT;
-  for(i = 0; i < bs->bits.bits_len * sizeof(*bs->bits.bits_val) * BITS_PER_BYTE; i++){
-    NPUT(BIT_ISSET(i,bs),d);
+  for (i = 0;
+       i < bs->bits.bits_len * sizeof(*bs->bits.bits_val) * BITS_PER_BYTE;
+       i++) {
+    NPUT(BIT_ISSET(i, bs), d);
   }
   PRINT_GOUT;
   FREE_GOUT;
 }
 
-void bit_set_or(bit_set *x, bit_set const *y)
-{
+void bit_set_or(bit_set *x, bit_set const *y) {
   unsigned int i = 0;
   assert(x->bits.bits_len == y->bits.bits_len);
-  for(i = 0; i < x->bits.bits_len ; i++){
+  for (i = 0; i < x->bits.bits_len; i++) {
     x->bits.bits_val[i] |= y->bits.bits_val[i];
   }
 }
@@ -99,18 +98,15 @@ void bit_set_not(bit_set *x)
 #endif
 
 /* Debug a bit set */
-char *dbg_bitset(bit_set const *p, u_int nodes)
-{
+char *dbg_bitset(bit_set const *p, u_int nodes) {
   u_int i = 0;
   GET_NEW_GOUT;
   if (!p) {
     STRLIT("p == 0 ");
-  }
-  else
-  {
+  } else {
     STRLIT("{");
     for (i = 0; i < nodes; i++) {
-      NPUT(BIT_ISSET(i, p),d);
+      NPUT(BIT_ISSET(i, p), d);
     }
     STRLIT("} ");
   }
@@ -118,20 +114,25 @@ char *dbg_bitset(bit_set const *p, u_int nodes)
 }
 
 #ifdef ETEST
-int main()
-{
+int main() {
   bit_set *bs = new_bit_set(64);
-  BIT_SET(16,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[0]);
+  BIT_SET(16, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[0]);
   dbg_bit_set(bs);
-  BIT_CLR(16,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[0]);
+  BIT_CLR(16, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[0]);
   dbg_bit_set(bs);
-  BIT_XOR(16,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[0]);
+  BIT_XOR(16, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[0]);
   dbg_bit_set(bs);
-  BIT_SET(33,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[1]);
+  BIT_SET(33, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[1]);
   dbg_bit_set(bs);
-  BIT_CLR(33,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[1]);
+  BIT_CLR(33, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[1]);
   dbg_bit_set(bs);
-  BIT_XOR(33,bs); XDBG("%X"NEWLINE,bs->bits.bits_val[1]);
+  BIT_XOR(33, bs);
+  XDBG("%X" NEWLINE, bs->bits.bits_val[1]);
   dbg_bit_set(bs);
   bit_set_not(bs);
   dbg_bit_set(bs);

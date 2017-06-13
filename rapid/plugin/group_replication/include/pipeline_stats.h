@@ -41,8 +41,20 @@ extern ulong flow_control_mode_var;
 /**
   Flow control queue threshold for certifier and for applier.
 */
-extern int flow_control_certifier_threshold_var;
-extern int flow_control_applier_threshold_var;
+extern long flow_control_certifier_threshold_var;
+extern long flow_control_applier_threshold_var;
+
+
+/**
+  Options to fine-tune flow-control behaviour
+*/
+extern long flow_control_min_quota_var;
+extern long flow_control_min_recovery_quota_var;
+extern long flow_control_max_quota_var;
+extern int flow_control_member_quota_percent_var;
+extern int flow_control_period_var;
+extern int flow_control_hold_percent_var;
+extern int flow_control_release_percent_var;
 
 
 /**
@@ -73,24 +85,65 @@ public:
     // Length of the payload item: 8 bytes
     PIT_TRANSACTIONS_LOCAL= 5,
 
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_NEGATIVE_CERTIFIED= 6,
+
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_ROWS_VALIDATING= 7,
+
+    // Length of the payload item: variable
+    PIT_TRANSACTIONS_COMMITTED_ALL_MEMBERS= 8,
+
+    // Length of the payload item: variable
+    PIT_TRANSACTION_LAST_CONFLICT_FREE= 9,
+
+    // Length of the payload item: 8 bytes
+    PIT_TRANSACTIONS_LOCAL_ROLLBACK= 10,
+
+    // Length of the payload item: 1 byte
+    PIT_FLOW_CONTROL_MODE= 11,
+
     // No valid type codes can appear after this one.
-    PIT_MAX= 6
+    PIT_MAX= 12
   };
 
   /**
     Message constructor
 
     @param[in] transactions_waiting_certification
+               Number of transactions pending certification
     @param[in] transactions_waiting_apply
+               Number of remote transactions waiting apply
     @param[in] transactions_certified
+               Number of transactions already certified
     @param[in] transactions_applied
+               Number of remote transactions applied
     @param[in] transactions_local
+               Number of local transactions
+    @param[in] transactions_negative_certified
+               Number of transactions that were negatively certified
+    @param[in] transactions_rows_validating
+               Number of transactions with which certification will be done against
+    @param[in] transactions_committed_all_members
+               Set of transactions committed on all members
+    @param[in] transactions_last_conflict_free
+               Latest transaction certified without conflicts
+    @param[in] transactions_local_rollback
+               Number of local transactions that were negatively certified
+    @param[in] mode
+               Flow-control mode
   */
   Pipeline_stats_member_message(int32 transactions_waiting_certification,
                                 int32 transactions_waiting_apply,
                                 int64 transactions_certified,
                                 int64 transactions_applied,
-                                int64 transactions_local);
+                                int64 transactions_local,
+                                int64 transactions_negative_certified,
+                                int64 transactions_rows_validating,
+                                const std::string& transactions_committed_all_members,
+                                const std::string& transactions_last_conflict_free,
+                                int64 transactions_local_rollback,
+                                Flow_control_mode mode);
 
   /**
     Message constructor for raw data
@@ -140,6 +193,48 @@ public:
   */
   int64 get_transactions_local();
 
+  /**
+    Get negatively certfied transaction by member.
+
+    @return the counter value
+  */
+  int64 get_transactions_negative_certified();
+
+  /**
+    Get size of conflict detection database.
+
+    @return the counter value
+  */
+  int64 get_transactions_rows_validating();
+
+  /**
+    Get set of stable group transactions.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_committed_all_members();
+
+  /**
+    Get last positive certified transaction.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_last_conflict_free();
+
+  /**
+    Get local transactions rolled back by the member.
+
+    @return the transaction identifiers.
+  */
+  int64 get_transactions_local_rollback();
+
+  /**
+    Get flow-control mode of member.
+
+    @return the mode value
+  */
+  Flow_control_mode get_flow_control_mode();
+
 protected:
   /**
     Encodes the message contents for transmission.
@@ -152,8 +247,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
+    @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char*);
+  void decode_payload(const unsigned char *buffer, const unsigned char *end);
 
 private:
   int32 m_transactions_waiting_certification;
@@ -161,6 +257,12 @@ private:
   int64 m_transactions_certified;
   int64 m_transactions_applied;
   int64 m_transactions_local;
+  int64 m_transactions_negative_certified;
+  int64 m_transactions_rows_validating;
+  std::string m_transactions_committed_all_members;
+  std::string m_transaction_last_conflict_free;
+  int64 m_transactions_local_rollback;
+  Flow_control_mode m_flow_control_mode;
 };
 
 
@@ -208,15 +310,54 @@ public:
   void increment_transactions_local();
 
   /**
+    Increment local rollback transactions counter value.
+  */
+  void increment_transactions_local_rollback();
+
+  /**
     Send member statistics to group.
   */
-  void send_stats_member_message();
+  void send_stats_member_message(Flow_control_mode mode);
 
+  /**
+    @returns transactions waiting to be applied.
+  */
+  int32 get_transactions_waiting_apply();
+
+  /**
+    @returns transactions certified.
+  */
+  int64 get_transactions_certified();
+
+  /**
+    @returns transactions applied of local member.
+  */
+  int64 get_transactions_applied();
+
+  /**
+    @returns local transactions proposed by member.
+  */
+  int64 get_transactions_local();
+
+  /**
+    @returns local transactions rollback due to Negative certification
+  */
+  int64 get_transactions_local_rollback();
+
+  /**
+    Send Transaction Identifiers or not.
+    Once Transactions identifiers are sent, variable will be reset to FALSE
+    So need to set each time Transactions identifiers needs to be transmitted
+  */
+  void set_send_transaction_identifiers();
 private:
   std::atomic<int32> m_transactions_waiting_apply;
   std::atomic<int64> m_transactions_certified;
   std::atomic<int64> m_transactions_applied;
   std::atomic<int64> m_transactions_local;
+  std::atomic<int64> m_transactions_local_rollback;
+
+  bool send_transaction_identifiers;
 };
 
 
@@ -269,6 +410,62 @@ public:
   int32 get_transactions_waiting_apply();
 
   /**
+    Get transactions certified counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_certified();
+
+  /**
+    Get transactions applied counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_applied();
+
+  /**
+    Get local member transactions proposed counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_local();
+
+  /**
+    Get transactions negatively certified.
+
+    @return the counter value
+  */
+  int64 get_transactions_negative_certified();
+
+  /**
+    Get certification database counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_rows_validating();
+
+  /**
+    Get set of stable group transactions.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_committed_all_members();
+
+  /**
+    Get last positive certified transaction.
+
+    @return the transaction identifier.
+  */
+  const std::string& get_transaction_last_conflict_free();
+
+  /**
+    Get local member transactions negatively certified.
+
+    @return the counter value
+  */
+  int64 get_transactions_local_rollback();
+
+  /**
     Get transactions certified since last stats message.
 
     @return the counter value
@@ -291,6 +488,13 @@ public:
   int64 get_delta_transactions_local();
 
   /**
+    Get flow_control_mode of a member.
+
+    @return the mode value
+  */
+  Flow_control_mode get_flow_control_mode();
+
+  /**
     Get the last stats update stamp.
 
     @return the counter value
@@ -310,6 +514,12 @@ private:
   int64 m_delta_transactions_applied;
   int64 m_transactions_local;
   int64 m_delta_transactions_local;
+  int64 m_transactions_negative_certified;
+  int64 m_transactions_rows_validating;
+  std::string m_transactions_committed_all_members;
+  std::string m_transaction_last_conflict_free;
+  int64 m_transactions_local_rollback;
+  Flow_control_mode m_flow_control_mode;
   uint64 m_stamp;
 };
 
@@ -331,8 +541,6 @@ class Flow_control_module
 {
 public:
   static const int64 MAXTPS;
-  static const double HOLD_FACTOR;
-  static const double RELEASE_FACTOR;
 
   /**
     Default constructor.
@@ -363,7 +571,17 @@ public:
     Evaluate the information received in the last flow control period
     and adjust the system parameters accordingly
   */
-  void flow_control_step();
+  void flow_control_step(Pipeline_stats_member_collector*);
+
+  /**
+    Returns copy of individual member stats information.
+    @note      Its caller responsibility to clean up allocated memory.
+
+    @param[in] member_id     GCS Type Member Id, i.e. format HOST:PORT
+    @return the reference to class Pipeline_member_stats of memberID
+    storing network(GCS Broadcasted) received information
+  */
+  Pipeline_member_stats * get_pipeline_stats(const std::string& member_id);
 
   /**
     Compute and wait the amount of time in microseconds that must
@@ -398,6 +616,11 @@ private:
     Counter incremented on every flow control step.
   */
   uint64 m_stamp;
+
+  /*
+    Remaining seconds to skip flow-control steps
+  */
+  int seconds_to_skip;
 };
 
 #endif /* PIPELINE_STATS_INCLUDED */

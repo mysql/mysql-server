@@ -117,11 +117,15 @@ SHOW CREATE TABLE t3;
 DROP TABLE t3;
 
 -- echo # Compare with hex:
+
+# Use latin1 charset till Bug#26049833 is fixed
+set names latin1;
 DELETE FROM at;
 INSERT into at(_bin,_blb) VALUES('c8eb4b15cb0948bb','c8eb4b15cb0948bb');
 CREATE TABLE t3 AS SELECT hex('c8eb4b15cb0948bb'),hex(_bin),hex(_blb) FROM at;
 SHOW CREATE TABLE t3;
 DROP TABLE t3;
+set names utf8mb4;
 
 -- echo # Output types of uuid_to_bin
 CREATE TABLE t3 AS SELECT

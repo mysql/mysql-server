@@ -96,6 +96,7 @@
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_hset.h"                 // Hash_set
 #include "sql_lex.h"
+#include "window.h"                   // Window
 #include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
 #include "sql_plugin_ref.h"
@@ -1279,6 +1280,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd)
     {
       mark_tmp_table_for_reuse(table);
       table->cleanup_gc_items();
+      table->cleanup_partial_update();
     }
   }
 }
@@ -2876,7 +2878,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   size_t key_length;
   const char *alias= table_list->alias;
   uint flags= ot_ctx->get_flags();
-  MDL_ticket *mdl_ticket;
+  MDL_ticket *mdl_ticket= nullptr;
   int error= 0;
   TABLE_SHARE *share;
 
@@ -3174,6 +3176,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     if (check_if_table_exists(thd, table_list, &exists))
       DBUG_RETURN(TRUE);
 
+    /*
+      If the table does not exist then upgrade the lock to the EXCLUSIVE MDL
+      lock.
+    */
     if (!exists)
     {
       if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE &&
@@ -9151,10 +9157,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&mf));
     }
-    if (item->has_aggregation() &&
-        item->type() != Item::SUM_FUNC_ITEM &&
-        sum_func_list)
-      item->split_sum_func(thd, ref_item_array, *sum_func_list);
+
+    if (sum_func_list)
+    {
+      if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
+           !item->m_is_window_function)) ||
+          item->has_wf())
+        item->split_sum_func(thd, ref_item_array, *sum_func_list);
+    }
+
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
   }

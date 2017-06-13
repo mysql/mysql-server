@@ -1038,6 +1038,9 @@ bool Srv_session::attach()
     */
     if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
       DBUG_RETURN(true);
+
+    PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
+
     query_logger.general_log_print(&thd, COM_CONNECT, NullS);
   }
 
@@ -1132,6 +1135,9 @@ bool Srv_session::close()
   */
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
   mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
+
+  PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
+
   thd.security_context()->logout();
   thd.m_view_ctx_list.empty();
   close_mysql_tables(&thd);

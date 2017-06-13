@@ -84,7 +84,7 @@ source include/show_binlog_events.inc;
 
 RESET MASTER;
 
-SET SESSION BINLOG_FORMAT=ROW;
+SET SESSION BINLOG_FORMAT='ROW';
 
 INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 

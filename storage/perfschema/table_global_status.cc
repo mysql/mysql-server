@@ -51,6 +51,8 @@ PFS_index_global_status::match(const Status_variable *pfs)
 THR_LOCK table_global_status::m_table_lock;
 
 Plugin_table table_global_status::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "global_status",
   /* Definition */

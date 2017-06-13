@@ -680,7 +680,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having (not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select 1,1 from `test`.`t1` having (((<cache>(convert(<cache>('v') using utf8mb4)) = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>(convert(<cache>('i') using utf8mb4)) = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`))))))) order by `test`.`t1`.`f2`
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having (not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select 1,1 from `test`.`t1` having (((<cache>('v') = `test`.`t1`.`f2`) or isnull(`test`.`t1`.`f2`)) and ((<cache>('i') = min(`test`.`t1`.`f2`)) or isnull(min(`test`.`t1`.`f2`))) and <is_not_null_test>(`test`.`t1`.`f2`) and <is_not_null_test>(min(`test`.`t1`.`f2`))))))) order by `test`.`t1`.`f2`
 SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
@@ -727,7 +727,7 @@ TRACE
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from (`t1` straight_join (`t2` join `t3` on((`t3`.`f2` = `t2`.`f2`))) on((`t3`.`f2` = `t2`.`f2`))) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
+            "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from (`t1` straight_join (`t2` join `t3` on((`t3`.`f2` = `t2`.`f2`))) on((`t3`.`f2` = `t2`.`f2`))) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
           },
           {
             "transformations_to_nested_joins": {
@@ -735,7 +735,7 @@ TRACE
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from `t1` join `t2` join `t3` where ((`t3`.`f2` = `t2`.`f2`) and (`t3`.`f2` = `t2`.`f2`)) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
+              "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from `t1` join `t2` join `t3` where ((`t3`.`f2` = `t2`.`f2`) and (`t3`.`f2` = `t2`.`f2`)) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -768,19 +768,19 @@ TRACE
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
+              "original_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
               "steps": [
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))"
+                  "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))"
+                  "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -966,17 +966,18 @@ TRACE
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`"
+              } /* simplifying_order_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -992,10 +993,21 @@ TRACE
             ] /* refine_plan */
           },
           {
-            "sort_using_internal_table": {
-              "condition_for_sort": "(not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
-              "having_after_sort": null
-            } /* sort_using_internal_table */
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 3,
+                "write_method": "write_all_rows"
+              },
+              {
+                "sort_using_internal_table": {
+                  "condition_for_sort": "(not(<in_optimizer>(<cache>(('v','i')),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
+                  "having_after_sort": null
+                } /* sort_using_internal_table */
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 3
+              } /* filesort */
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1007,15 +1019,15 @@ TRACE
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "(((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))",
+              "original_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))",
               "steps": [
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
+                  "resulting_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(((convert(<cache>('v') using utf8mb4) = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((convert(<cache>('i') using utf8mb4) = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
+                  "resulting_condition": "(((<cache>('v') = `t1`.`f2`) or isnull(`t1`.`f2`)) and ((<cache>('i') = min(`t1`.`f2`)) or isnull(min(`t1`.`f2`))) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1071,8 +1083,10 @@ TRACE
               "select#": 2,
               "from": "IN (SELECT)",
               "to": "materialization",
+              "has_nullable_expressions": true,
+              "treat_UNKNOWN_as_FALSE": false,
               "possible": false,
-              "cause": "type mismatch"
+              "cause": "cannot_handle_partial_matches"
             } /* transformation */
           },
           {
@@ -1097,11 +1111,19 @@ TRACE
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1114,14 +1136,19 @@ TRACE
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 3,
+                "columns": 1,
                 "row_length": 6,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
+            "sorting_table_in_plan_at_position": 3,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1306,17 +1333,18 @@ TRACE
                   } /* attaching_conditions_to_tables */
                 },
                 {
-                  "clause_processing": {
-                    "clause": "GROUP BY",
-                    "original_clause": "`t1`.`b`",
-                    "items": [
-                      {
-                        "item": "`t1`.`b`"
-                      }
-                    ] /* items */,
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`b`"
-                  } /* clause_processing */
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_group_by": {
+                      "original_clause": "`t1`.`b`",
+                      "items": [
+                        {
+                          "item": "`t1`.`b`"
+                        }
+                      ] /* items */,
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`b`"
+                    } /* simplifying_group_by */
+                  } /* optimizing_distinct_group_by_order_by */
                 },
                 {
                   "refine_plan": [
@@ -1324,6 +1352,14 @@ TRACE
                       "table": "`t1`"
                     }
                   ] /* refine_plan */
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_tmp_table_in_plan_at_position": 1,
+                      "write_method": "continuously_update_group_row"
+                    }
+                  ] /* considering_tmp_tables */
                 }
               ] /* steps */
             } /* join_optimization */
@@ -1388,11 +1424,19 @@ TRACE
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": " `teeone`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -1405,9 +1449,13 @@ TRACE
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `teeone`",
+                "in_plan_at_position": 0,
+                "columns": 1,
                 "row_length": 16,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
@@ -1420,9 +1468,13 @@ TRACE
                   "creating_tmp_table": {
                     "tmp_table_info": {
                       "table": "intermediate_tmp_table",
+                      "in_plan_at_position": 1,
+                      "columns": 2,
                       "row_length": 22,
                       "key_length": 5,
                       "unique_constraint": false,
+                      "makes_grouped_rows": true,
+                      "cannot_insert_duplicates": false,
                       "location": "TempTable"
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
@@ -1776,11 +1828,19 @@ SET @a=(select count(a) from t1 where a>0)	{
                   } /* attaching_conditions_to_tables */
                 },
                 {
+                  "optimizing_distinct_group_by_order_by": {
+                  } /* optimizing_distinct_group_by_order_by */
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
                     }
                   ] /* refine_plan */
+                },
+                {
+                  "considering_tmp_tables": [
+                  ] /* considering_tmp_tables */
                 }
               ] /* steps */
             } /* join_optimization */
@@ -1905,11 +1965,19 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
                   } /* attaching_conditions_to_tables */
                 },
                 {
+                  "optimizing_distinct_group_by_order_by": {
+                  } /* optimizing_distinct_group_by_order_by */
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
                     }
                   ] /* refine_plan */
+                },
+                {
+                  "considering_tmp_tables": [
+                  ] /* considering_tmp_tables */
                 }
               ] /* steps */
             } /* join_optimization */
@@ -3847,9 +3915,13 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `tmp`",
+                "in_plan_at_position": 0,
+                "columns": 2,
                 "row_length": 10,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
@@ -4659,45 +4731,43 @@ link_alias_148._field_156	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`link_alias_142`.`_field_166`,'1999-02-25 22:43:32',`link_alias_133`.`_field_72`,'0000-00-00 00:00:00',`link_alias_148`.`_field_156`",
-              "items": [
-                {
-                  "item": "`link_alias_142`.`_field_166`"
-                },
-                {
-                  "item": "'1999-02-25 22:43:32'",
-                  "uses_only_constant_tables": true
-                },
-                {
-                  "item": "`link_alias_133`.`_field_72`"
-                },
-                {
-                  "item": "'0000-00-00 00:00:00'",
-                  "uses_only_constant_tables": true
-                },
-                {
-                  "item": "`link_alias_148`.`_field_156`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`link_alias_142`.`_field_166`,`link_alias_133`.`_field_72`,`link_alias_148`.`_field_156`"
-            } /* clause_processing */
-          },
-          {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "'1'",
-              "items": [
-                {
-                  "item": "'1'",
-                  "uses_only_constant_tables": true
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": ""
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`link_alias_142`.`_field_166`,'1999-02-25 22:43:32',`link_alias_133`.`_field_72`,'0000-00-00 00:00:00',`link_alias_148`.`_field_156`",
+                "items": [
+                  {
+                    "item": "`link_alias_142`.`_field_166`"
+                  },
+                  {
+                    "item": "'1999-02-25 22:43:32'",
+                    "uses_only_constant_tables": true
+                  },
+                  {
+                    "item": "`link_alias_133`.`_field_72`"
+                  },
+                  {
+                    "item": "'0000-00-00 00:00:00'",
+                    "uses_only_constant_tables": true
+                  },
+                  {
+                    "item": "`link_alias_148`.`_field_156`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`link_alias_142`.`_field_166`,`link_alias_133`.`_field_72`,`link_alias_148`.`_field_156`"
+              } /* simplifying_order_by */,
+              "simplifying_group_by": {
+                "original_clause": "'1'",
+                "items": [
+                  {
+                    "item": "'1'",
+                    "uses_only_constant_tables": true
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": ""
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -5008,34 +5078,32 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             } /* attaching_conditions_to_tables */
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`alias1`.`col_int_key`,`alias2`.`pk`",
-              "items": [
-                {
-                  "item": "`alias1`.`col_int_key`"
-                },
-                {
-                  "item": "`alias2`.`pk`",
-                  "eq_ref_to_preceding_items": true
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`alias1`.`col_int_key`"
-            } /* clause_processing */
-          },
-          {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "`field2`",
-              "items": [
-                {
-                  "item": "`alias2`.`pk`"
-                }
-              ] /* items */,
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`field2`"
-            } /* clause_processing */
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`alias1`.`col_int_key`,`alias2`.`pk`",
+                "items": [
+                  {
+                    "item": "`alias1`.`col_int_key`"
+                  },
+                  {
+                    "item": "`alias2`.`pk`",
+                    "eq_ref_to_preceding_items": true
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`alias1`.`col_int_key`"
+              } /* simplifying_order_by */,
+              "simplifying_group_by": {
+                "original_clause": "`field2`",
+                "items": [
+                  {
+                    "item": "`alias2`.`pk`"
+                  }
+                ] /* items */,
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`field2`"
+              } /* simplifying_group_by */
+            } /* optimizing_distinct_group_by_order_by */
           },
           {
             "refine_plan": [
@@ -5046,6 +5114,17 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "table": "`t2` `alias2`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "continuously_update_group_row"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
+              } /* filesort */
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */
@@ -5058,14 +5137,19 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 3,
                 "row_length": 18,
                 "key_length": 4,
                 "unique_constraint": false,
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",

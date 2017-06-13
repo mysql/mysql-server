@@ -1,0 +1,875 @@
+--echo ##################
+--echo # UPDATE HISTOGRAM
+--echo ##################
+
+--echo #
+--echo # Verify that we can build and store a histogram for all valid data types.
+--echo #
+CREATE TABLE all_types (
+  col_bool BOOLEAN,
+  col_bit BIT(64),
+  col_tinyint TINYINT,
+  col_smallint SMALLINT,
+  col_mediumint MEDIUMINT,
+  col_integer INTEGER,
+  col_bigint BIGINT,
+  col_tinyint_unsigned TINYINT UNSIGNED,
+  col_smallint_unsigned SMALLINT UNSIGNED,
+  col_mediumint_unsigned MEDIUMINT UNSIGNED,
+  col_integer_unsigned INTEGER UNSIGNED,
+  col_bigint_unsigned BIGINT UNSIGNED,
+  col_float FLOAT,
+  col_double DOUBLE,
+  col_decimal DECIMAL(65, 2),
+  col_date DATE,
+  col_time TIME,
+  col_year YEAR,
+  col_datetime DATETIME,
+  col_timestamp TIMESTAMP NULL,
+  col_char CHAR(255),
+  col_varchar VARCHAR(255),
+  col_tinytext TINYTEXT,
+  col_text TEXT,
+  col_mediumtext MEDIUMTEXT,
+  col_longtext LONGTEXT,
+  col_binary BINARY(255),
+  col_varbinary VARBINARY(255),
+  col_tinyblob TINYBLOB,
+  col_blob BLOB,
+  col_mediumblob MEDIUMBLOB,
+  col_longblob LONGBLOB,
+  col_enum ENUM('red', 'black', 'pink', 'white', 'purple'),
+  col_set SET('one', 'two', 'three'));
+INSERT INTO all_types VALUES (
+  NULL,     # BOOLEAN
+  NULL,     # BIT
+  NULL,     # TINYINT
+  NULL,     # SMALLINT
+  NULL,     # MEDIUMINT
+  NULL,     # INTEGER
+  NULL,     # BIGINT
+  NULL,     # TINYINT_UNSIGNED
+  NULL,     # SMALLINT_UNSIGNED
+  NULL,     # MEDIUMINT_UNSIGNED
+  NULL,     # INTEGER_UNSIGNED
+  NULL,     # BIGINT_UNSIGNED
+  NULL,     # FLOAT
+  NULL,     # DOUBLE
+  NULL,     # DECIMAL(65, 2)
+  NULL,     # DATE
+  NULL,     # TIME
+  NULL,     # YEAR
+  NULL,     # DATETIME
+  NULL,     # TIMESTAMP
+  NULL,     # CHAR
+  NULL,     # VARCHAR
+  NULL,     # TINYTEXT
+  NULL,     # TEXT
+  NULL,     # MEDIUMTEXT
+  NULL,     # LONGTEXT
+  NULL,     # BINARY
+  NULL,     # VARBINARY
+  NULL,     # TINYBLOB
+  NULL,     # BLOB
+  NULL,     # MEDIUMBLOB
+  NULL,     # LONGBLOB
+  NULL,     # ENUM
+  NULL);    # SET
+
+INSERT INTO all_types VALUES (
+  FALSE,                                                               # BOOLEAN
+  b'0000000000000000000000000000000000000000000000000000000000000000', # BIT
+  -128,                                                                # TINYINT
+  -32768,                                                              # SMALLINT
+  -8388608,                                                            # MEDIUMINT
+  -2147483648,                                                         # INTEGER
+  -9223372036854775808,                                                # BIGINT
+  0,                                                                   # TINYINT_UNSIGNED
+  0,                                                                   # SMALLINT_UNSIGNED
+  0,                                                                   # MEDIUMINT_UNSIGNED
+  0,                                                                   # INTEGER_UNSIGNED
+  0,                                                                   # BIGINT_UNSIGNED
+  -3.402823466E+38,                                                    # FLOAT
+  -1.7976931348623157E+308,                                            # DOUBLE
+  -999999999999999999999999999999999999999999999999999999999999999.99, # DECIMAL(65, 2)
+  '1000-01-01',                                                        # DATE
+  '-838:59:59.000000',                                                 # TIME
+  1901,                                                                # YEAR
+  '1000-01-01 00:00:00',                                               # DATETIME
+  '1970-01-02 00:00:01',                                               # TIMESTAMP
+  '',                                                                  # CHAR
+  '',                                                                  # VARCHAR
+  '',                                                                  # TINYTEXT
+  '',                                                                  # TEXT
+  '',                                                                  # MEDIUMTEXT
+  '',                                                                  # LONGTEXT
+  '',                                                                  # BINARY
+  '',                                                                  # VARBINARY
+  '',                                                                  # TINYBLOB
+  '',                                                                  # BLOB
+  '',                                                                  # MEDIUMBLOB
+  '',                                                                  # LONGBLOB
+  'red',                                                               # ENUM
+  '');                                                                 # SET
+
+INSERT INTO all_types VALUES (
+  TRUE,                                                                # BOOLEAN
+  b'1111111111111111111111111111111111111111111111111111111111111111', # BIT
+  127,                                                                 # TINYINT
+  32767,                                                               # SMALLINT
+  8388607,                                                             # MEDIUMINT
+  2147483647,                                                          # INTEGER
+  9223372036854775807,                                                 # BIGINT
+  255,                                                                 # TINYINT_UNSIGNED
+  65535,                                                               # SMALLINT_UNSIGNED
+  16777215,                                                            # MEDIUMINT_UNSIGNED
+  4294967295,                                                          # INTEGER_UNSIGNED
+  18446744073709551615,                                                # BIGINT_UNSIGNED
+  3.402823466E+38,                                                     # FLOAT
+  1.7976931348623157E+308,                                             # DOUBLE
+  999999999999999999999999999999999999999999999999999999999999999.99,  # DECIMAL(65, 2)
+  '9999-12-31',                                                        # DATE
+  '838:59:59.000000',                                                  # TIME
+  2155,                                                                # YEAR
+  '9999-12-31 23:59:59',                                               # DATETIME
+  '2038-01-19 03:14:07',                                               # TIMESTAMP
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # CHAR
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # VARCHAR
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TINYTEXT
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TEXT
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # MEDIUMTEXT
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # LONGTEXT
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # BINARY
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # VARBINARY
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # TINYBLOB
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # BLOB
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # MEDIUMBLOB
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',                     # LONGBLOB
+  'purple',                                                            # ENUM
+  'three');                                                            # SET
+
+
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Check that ANALZYE TABLE without the "UPDATE HISTOGRAM"-clause doesn't
+--echo # have any effect on histogram statistics.
+ANALYZE TABLE all_types;
+
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE all_types UPDATE HISTOGRAM ON col_bool,
+                                            col_bit,
+                                            col_tinyint,
+                                            col_smallint,
+                                            col_mediumint,
+                                            col_integer,
+                                            col_bigint,
+                                            col_tinyint_unsigned,
+                                            col_smallint_unsigned,
+                                            col_mediumint_unsigned,
+                                            col_integer_unsigned,
+                                            col_bigint_unsigned,
+                                            col_float,
+                                            col_double,
+                                            col_decimal,
+                                            col_date,
+                                            col_time,
+                                            col_year,
+                                            col_datetime,
+                                            col_timestamp,
+                                            col_char,
+                                            col_varchar,
+                                            col_tinytext,
+                                            col_text,
+                                            col_mediumtext,
+                                            col_longtext,
+                                            col_binary,
+                                            col_varbinary,
+                                            col_tinyblob,
+                                            col_blob,
+                                            col_mediumblob,
+                                            col_longblob,
+                                            col_enum,
+                                            col_set WITH 1024 BUCKETS;
+
+--echo # Remove 'last-updated' from the histogram, since it will change on every
+--echo # run.
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # When we remove the table, all histograms that belong to this table
+--echo # should also dissapear.
+DROP TABLE all_types;
+
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Check that we don't try to build and/or store histogram statistics for
+--echo # unsupported data types.
+--echo #
+CREATE TABLE unsupported_types (col_geometry GEOMETRY,
+                                col_point POINT,
+                                col_linestring LINESTRING,
+                                col_polygon POLYGON,
+                                col_multipoint MULTIPOINT,
+                                col_multilinestring MULTILINESTRING,
+                                col_multipolygon MULTIPOLYGON,
+                                col_geometrycollection GEOMETRYCOLLECTION,
+                                col_json JSON);
+
+ANALYZE TABLE unsupported_types UPDATE HISTOGRAM ON col_geometry,
+                                                    col_point,
+                                                    col_linestring,
+                                                    col_polygon,
+                                                    col_multipoint,
+                                                    col_multilinestring,
+                                                    col_multipolygon,
+                                                    col_geometrycollection,
+                                                    col_json WITH 100 BUCKETS;
+
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE unsupported_types;
+
+CREATE TABLE t1 (col_integer INT);
+
+
+--echo #
+--echo # Non-existing column
+--echo #
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON foobar WITH 100 BUCKETS;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Non-existing table
+--echo #
+ANALYZE TABLE foobar UPDATE HISTOGRAM ON foobar WITH 100 BUCKETS;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Temporary table
+--echo #
+CREATE TEMPORARY TABLE temp_table (col1 INT);
+ANALYZE TABLE temp_table UPDATE HISTOGRAM ON col1 WITH 100 BUCKETS;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE temp_table;
+
+
+--echo #
+--echo # View
+--echo #
+CREATE VIEW my_view AS SELECT * FROM t1;
+ANALYZE TABLE my_view UPDATE HISTOGRAM ON col_integer WITH 100 BUCKETS;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+DROP VIEW my_view;
+
+
+--echo #
+--echo # Generated column
+--echo #
+ALTER TABLE t1 ADD COLUMN virtual_generated INT AS (col_integer + 10) VIRTUAL,
+               ADD COLUMN stored_generated INT AS (col_integer + 20) STORED;
+INSERT INTO t1 (col_integer) VALUES (10), (20), (30);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer,
+                                     virtual_generated,
+                                     stored_generated
+                 WITH 100 BUCKETS;
+
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 DROP COLUMN virtual_generated, DROP COLUMN stored_generated;
+
+--echo # The histogram for 'virtual_generated' and 'stored_generated' should now
+--echo # be gone
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DELETE FROM t1;
+
+
+--echo #
+--echo # Check that the server switches between singleton and equi-height when
+--echo # it should.
+--echo #
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 10 BUCKETS;
+
+SELECT schema_name, table_name, column_name,
+       JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_singleton
+FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col_integer WITH 9 BUCKETS;
+
+SELECT schema_name, table_name, column_name,
+       JSON_EXTRACT(histogram, '$."histogram-type"') AS should_be_equiheight
+FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check that invalid range for the number of buckets is rejected
+--echo # (should be in the range [1, 1024]).
+--echo #
+--error ER_DATA_OUT_OF_RANGE
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH 0 BUCKETS;
+
+--error ER_DATA_OUT_OF_RANGE
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH 1025 BUCKETS;
+
+--error ER_PARSE_ERROR
+ANALYZE TABLE foo UPDATE HISTOGRAM ON foo WITH -1 BUCKETS;
+
+
+--echo #
+--echo # Check that 'tbl.col' and 'db.tbl.col' isn't allowed.
+--echo #
+--error ER_PARSE_ERROR
+ANALYZE TABLE foo UPDATE HISTOGRAM ON tbl.col WITH 100 BUCKETS;
+
+--error ER_PARSE_ERROR
+ANALYZE TABLE foo UPDATE HISTOGRAM ON db.tbl.col WITH 100 BUCKETS;
+
+
+--echo #
+--echo # Multiple tables in ANALYZE TABLE .. UPDATE HISTOGRAM
+--echo #
+ANALYZE TABLE foo, foo2 UPDATE HISTOGRAM ON bar WITH 100 BUCKETS;
+
+
+--echo #
+--echo # Histogram statistics should not be created for columns covered by a
+--echo # single-part unique index
+--echo #
+CREATE TABLE t1 (col1 INT PRIMARY KEY,
+                 col2 INT,
+                 col3 INT,
+                 UNIQUE INDEX index_1 (col2),
+                 UNIQUE INDEX index_2 (col3, col2));
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3 WITH 100 BUCKETS;
+
+--echo # We should end up with histogram statistics for 'col3'
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # If we hide the index however, we should be able to create a histogram
+--echo # for 'col2'
+ALTER TABLE t1 ALTER INDEX index_1 INVISIBLE;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 100 BUCKETS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;
+
+--echo #
+--echo # The server should not create a histogram with more buckets than
+--echo # specified
+--echo #
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 10
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 57 BUCKETS;
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 57
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 255 BUCKETS;
+SELECT JSON_LENGTH(histogram->'$.buckets') <= 255
+FROM information_schema.COLUMN_STATISTICS
+WHERE schema_name = 'test' AND table_name = 't1' AND column_name = 'col1';
+
+
+--echo #
+--echo # If the same column is specified more than once, the server should raise
+--echo # the error ER_DUP_FIELDNAME
+--echo #
+--error ER_DUP_FIELDNAME
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
+
+DROP TABLE t1;
+
+
+--echo ################
+--echo # DROP HISTOGRAM
+--echo ################
+
+--echo # Check that we don't have any histograms here
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+CREATE TABLE t1 (col1 INT, col2 VARCHAR(255));
+INSERT INTO t1 VALUES (1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5"),
+                      (6, "6"), (7, "7"), (8, "8"), (9, "9"), (10, "10");
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+
+--echo # We should now have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ANALYZE TABLE t1 DROP HISTOGRAM ON col2;
+
+--echo # We should now have one histogram.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+--echo # All histograms should have been removed.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+
+--echo # We should now have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ANALYZE TABLE t1 DROP HISTOGRAM ON col2, col1;
+
+--echo # All histograms should have been removed.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Try to drop histogram statistics for a column that does not have any
+--echo # histogram
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 10 BUCKETS;
+
+ANALYZE TABLE t1 DROP HISTOGRAM ON col1, col2;
+
+
+--echo #
+--echo # Non-existing column
+--echo #
+ANALYZE TABLE t1 DROP HISTOGRAM ON foobar;
+
+
+--echo #
+--echo # Non-existing table
+--echo #
+ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
+
+
+--echo #
+--echo # The same column specified multiple times
+--echo #
+--error ER_DUP_FIELDNAME
+ANALYZE TABLE foo DROP HISTOGRAM ON foobar, foobar;
+
+--echo #
+--echo # Multiple tables specified in ANALYZE TABLE .. DROP HISTOGRAM should not
+--echo # be allowed.
+--echo #
+CREATE TABLE t2 (col1 INT);
+ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
+
+DROP TABLE t1, t2;
+
+
+--echo #####################################
+--echo # HISTOGRAM REMOVAL ON DDL STATEMENTS
+--echo #####################################
+
+--echo # Check that we don't have any histograms here
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # DROP TABLE
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Rename column
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 10 BUCKETS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1 CHANGE COLUMN col1 col1_renamed INT;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Change column definition
+--echo #
+ALTER TABLE t1 CHANGE COLUMN col2 col2 VARCHAR(255);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Drop column
+--echo #
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1 DROP COLUMN col2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Rename table
+--echo #
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1_renamed WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+RENAME TABLE t1 TO t1_renamed;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1_renamed RENAME TO t1;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1 RENAME TO t1_renamed, ALGORITHM = INPLACE;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1_renamed RENAME TO t1, ALGORITHM = COPY;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;
+
+--echo #
+--echo # Do RENAME TABLE on a table with string contents, since they have a more
+--echo # complicated memory handling. Test both singleton and equi-height
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(255), col2 VARCHAR(255));
+INSERT INTO t1 VALUES ('foo', 'foo'), ('bar', 'bar'), ('fo', 'fo'),
+                      ('yay', 'yay');
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col2 WITH 2 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+RENAME TABLE t1 TO t1_renamed;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1_renamed;
+
+--echo #
+--echo # Drop database
+--echo #
+CREATE DATABASE histogram_db;
+CREATE TABLE histogram_db.t1 (col1 INT);
+ANALYZE TABLE histogram_db.t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP DATABASE histogram_db;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Change character set
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(255), col2 CHAR(10), col3 TEXT, col4 INT,
+                 col5 BLOB) CHARACTER SET latin1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
+                 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4;
+--echo # Only col4 and col5 should remain
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
+                 WITH 10 BUCKETS;
+ALTER TABLE t1 MODIFY COLUMN col1 VARCHAR(255) CHARACTER SET latin1;
+--echo # col2, col3, col4 and col5 should remain
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Adding a column should not affect existing histograms
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE t1 ADD COLUMN col2 INT;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+
+--echo #
+--echo # Dropping a column without histogram should not affect existing
+--echo # histograms
+--echo #
+ALTER TABLE t1 DROP COLUMN col2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Column names are always case insensitive, so verify that histogram
+--echo # statistics respect this.
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON COL1, col2 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 DROP COLUMN COL1;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Using ANALYZE TABLE in a prepared statement
+--echo #
+CREATE TABLE t(x INT);
+PREPARE ps FROM 'ANALYZE TABLE t UPDATE HISTOGRAM ON x WITH 10 BUCKETS';
+EXECUTE ps;
+EXECUTE ps;
+DROP TABLE t;
+
+--echo #
+--echo # Check that any existing histogram is removed if we add a single-part
+--echo # unique index to a column
+--echo #
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, col4 INT, col5 INT, col6 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5, col6
+                 WITH 4 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 ADD UNIQUE INDEX (col1);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 ADD UNIQUE INDEX (col2), ALGORITHM = INPLACE;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 ADD UNIQUE INDEX (col3), ALGORITHM = COPY;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 ADD PRIMARY KEY (col4);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Adding a multi-part unique index should NOT remove histograms
+ALTER TABLE t1 ADD UNIQUE INDEX (col5, col6);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+CREATE UNIQUE INDEX index_col5 ON t1 (col5);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Adding a non-unique single part index should NOT remove histograms
+CREATE INDEX index_col6 ON t1 (col6);
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ALTER TABLE t1 MODIFY COLUMN col6 INT UNIQUE;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Set the server in read-only mode, and verify that a histogram cannot
+--echo # be created.
+SET GLOBAL read_only = 1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+SET GLOBAL read_only = 0;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25841057 WL8943: ASSERTION `!TABLE || (!TABLE->READ_SET ||
+--echo #              BITMAP_IS_SET(TABLE->READ_SET,
+--echo #
+CREATE TABLE t1 (
+c1 int(11) DEFAULT NULL,
+c2 int(11) GENERATED ALWAYS AS ((c1 * 2)) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+INSERT into t1(c1) VALUES (1);
+ALTER TABLE t1 ADD UNIQUE INDEX i (c2);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+ALTER TABLE t1 DROP KEY i;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#25929588 WL8943:ASSERTION `STORED_OBJECT == NULLPTR' FAILED.
+--echo #
+CREATE TABLE t1 (col1 INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP COLUMN foobar, CHANGE COLUMN col1 col2 INT;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#25950613 WL8943:ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+--echo #              BITMAP_IS_SET(TABLE->WRITE_SET
+--echo #
+CREATE TABLE foo (col1 INT,
+                  col2 INT AS (col1 + 1) VIRTUAL,
+                  col3 INT AS (col2 + 1) VIRTUAL);
+INSERT INTO foo (col1) VALUES (1);
+ANALYZE TABLE foo UPDATE HISTOGRAM ON col3 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE foo;
+
+--echo #
+--echo # Bug#25985106 WL8943:ASSERTION `FLOAT_COMPARE::ALMOST_EQUAL(
+--echo #              CUMULATIVE_FREQUENCY + GET_NULL_V
+--echo #
+
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1 LIMIT 38;
+INSERT INTO t1 SELECT NULL;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 1024 BUCKETS;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26021907 WL8943:ASSERTION `M_SCAN_VALUE == 1' FAILED.
+--echo #
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+               PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2, col3 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+ALTER TABLE p PARTITION BY HASH (col1) PARTITIONS 2;
+
+--echo # Histogram statistics should still be present after a re-partitioning.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Histogram statistics should remain the same now, even though the
+--echo # partitions specification is different.
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2, col3 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name,
+       JSON_REMOVE(histogram, '$."last-updated"')
+FROM information_schema.COLUMN_STATISTICS;
+DROP TABLE p;
+
+--echo #
+--echo # Bug#26026996 WL8943:ASSERTION `MDL_CHECKER::IS_WRITE_LOCKED(M_THD,
+--echo #              NEW_OBJECT)' FAILED.
+--echo #
+CREATE SCHEMA foo;
+CREATE SCHEMA bar;
+CREATE TABLE foo.tbl (col1 INT);
+ANALYZE TABLE foo.tbl UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+RENAME TABLE foo.tbl TO bar.tbl2;
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+DROP SCHEMA foo;
+DROP SCHEMA bar;
+
+--echo #
+--echo # Bug#26035995 WL8943:HISTOGRAM NOT CREATED FOR TABLE CREATED WITH
+--echo #              ENCRYPTION='N'
+--echo #
+
+--echo # Restart the server with keyring enabled
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- send_shutdown
+-- source include/wait_until_disconnected.inc
+--exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
+CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
+CREATE TABLE encrypted1 (col1 INT) ENCRYPTION='y';
+CREATE TABLE encrypted2 (col1 INT) ENCRYPTION='Y';
+
+INSERT INTO not_encrypted1 VALUES (1);
+INSERT INTO not_encrypted2 VALUES (1);
+INSERT INTO encrypted1 VALUES (1);
+INSERT INTO encrypted2 VALUES (1);
+
+ANALYZE TABLE not_encrypted1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+ANALYZE TABLE not_encrypted2 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+ANALYZE TABLE encrypted1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+ANALYZE TABLE encrypted2 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+--echo # Ensure that histogram statistics are removed if we enable encryption
+ALTER TABLE not_encrypted1 ENCRYPTION='y';
+ALTER TABLE not_encrypted2 ENCRYPTION='Y';
+
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+DROP TABLE encrypted1;
+DROP TABLE not_encrypted1;
+DROP TABLE encrypted2;
+DROP TABLE not_encrypted2;
+
+
+--echo #
+--echo # Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
+--echo #
+
+--echo # Create a non-transactional table with a trigger.
+CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=MyISAM;
+CREATE TRIGGER ai AFTER INSERT ON t1 FOR EACH ROW SET @a:= NEW.at;
+ALTER TABLE t1 ADD PRIMARY KEY (i);
+DROP TABLE t1;

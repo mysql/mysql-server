@@ -148,6 +148,8 @@
 #define FIELD_IS_DROPPED (1<< 26)       /**< Intern: Field is being dropped */
 #define EXPLICIT_NULL_FLAG (1<< 27)     /**< Field is explicitly specified as
                                            NULL by the user */
+#define FIELD_IS_MARKED    (1 << 28)    /**< Intern: field is marked,
+                                             general purpose */
 
 #define REFRESH_GRANT		1	/**< Refresh grant tables */
 #define REFRESH_LOG		2	/**< Start on new log file */

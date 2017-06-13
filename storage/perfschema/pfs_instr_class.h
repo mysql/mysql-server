@@ -254,6 +254,8 @@ struct PFS_ALIGNED PFS_thread_class
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+  /** Thread instrument flags. */
+  int m_flags;
 };
 
 /** Key identifying a table share. */

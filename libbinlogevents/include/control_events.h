@@ -161,23 +161,17 @@ public:
 
 
 /**
-  @class Start_event_v3
+  @class Format_description_event
+  For binlog version 4.
+  This event is saved by threads which read it, as they need it for future
+  use (to decode the ordinary events).
 
-  Start_event_v3 is the Start_event of binlog format 3 (MySQL 3.23 and
-  4.x).
+  @section Format_description_event_binary_format Binary Format
 
-  @section Start_event_v3_binary_format Binary Format
-
-  Format_description_event derives from Start_event_v3; it is
-  the Start_event of binlog format 4 (MySQL 5.0), that is, the
-  event that describes the other events' Common-Header/Post-Header
-  lengths. This event is sent by MySQL 5.0 whenever it starts sending
-  a new binlog if the requested position is >4 (otherwise if ==4 the
-  event will be sent naturally).
-  The Post-Header has four components:
+  The Post-Header has six components:
 
   <table>
-  <caption>Post-Header for Start_event_v3</caption>
+  <caption>Post-Header for Format_description_event</caption>
 
   <tr>
     <th>Name</th>
@@ -205,110 +199,6 @@ public:
         padded with 0x00 bytes on the right</td>
   </tr>
   <tr>
-    <td>dont_set_created</td>
-    <td>type bool</td>
-    <td>Set to 1 when you dont want to have created time in the log</td>
-  </table>
-*/
-
-class Start_event_v3: public Binary_log_event
-{
-public:
-/*
-    If this event is at the start of the first binary log since server
-    startup 'created' should be the timestamp when the event (and the
-    binary log) was created.  In the other case (i.e. this event is at
-    the start of a binary log created by FLUSH LOGS or automatic
-    rotation), 'created' should be 0.  This "trick" is used by MySQL
-    >=4.0.14 slaves to know whether they must drop stale temporary
-    tables and whether they should abort unfinished transaction.
-
-    Note that when 'created'!=0, it is always equal to the event's
-    timestamp; indeed Start_event is written only in binlog.cc where
-    the first constructor below is called, in which 'created' is set
-    to 'when'.  So in fact 'created' is a useless variable. When it is
-    0 we can read the actual value from timestamp ('when') and when it
-    is non-zero we can read the same value from timestamp
-    ('when'). Conclusion:
-     - we use timestamp to print when the binlog was created.
-     - we use 'created' only to know if this is a first binlog or not.
-     In 3.23.57 we did not pay attention to this identity, so mysqlbinlog in
-     3.23.57 does not print 'created the_date' if created was zero. This is now
-     fixed.
-  */
-  time_t created;
-  uint16_t binlog_version;
-  char server_version[ST_SERVER_VER_LEN];
-   /*
-    We set this to 1 if we don't want to have the created time in the log,
-    which is the case when we rollover to a new log.
-  */
-  bool dont_set_created;
-
-protected:
-  /**
-    Empty ctor of Start_event_v3 called when we call the
-    ctor of FDE which takes binlog_version and server_version as the parameter
-  */
-  explicit Start_event_v3(Log_event_type type_code= START_EVENT_V3);
-public:
-  /**
-    This event occurs at the beginning of v1 or v3 binary log files.
-    In MySQL 4.0 and 4.1, such events are written only to the first binary log
-    file that mysqld creates after startup. Log files created subsequently
-    (when someone issues a FLUSH LOGS statement or the current binary log file
-    becomes too large) do not contain this event.
-
-    <pre>
-    The buffer layout for fixed part is as follows:
-    +---------------------------------------------+
-    | binlog_version | server_version | timestamp |
-    +---------------------------------------------+
-    </pre>
-
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-  */
-
-  Start_event_v3(const char* buf, unsigned int event_len,
-                 const Format_description_event* description_event);
-#ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
-  //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
-#endif
-};
-
-
-/**
-  @class Format_description_event
-  For binlog version 4.
-  This event is saved by threads which read it, as they need it for future
-  use (to decode the ordinary events).
-
-  @section Format_description_event_binary_format Binary Format
-
-  The Post-Header has six components:
-
-  <table>
-  <caption>Post-Header for Format_description_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
     <td>common_header_len</td>
     <td>1 byte unsigned integer</td>
     <td>The length of the event header. This value includes the extra_headers
@@ -327,89 +217,99 @@ public:
         and splits them in three parts</td>
   </tr>
   <tr>
-    <td>event_type_permutation</td>
-    <td>const array of type 1 byte unsigned integer</td>
-    <td>Provides mapping between the event types of
-        some previous versions > 5.1 GA to current event_types</td>
-  </tr>
-    <tr>
     <td>number_of_event_types</td>
     <td>1 byte unsigned integer</td>
     <td>number of event types present in the server</td>
   </tr>
   </table>
 */
-class Format_description_event: public virtual Start_event_v3
+class Format_description_event: public Binary_log_event
 {
 public:
+/**
+   If this event is at the start of the first binary log since server
+   startup 'created' should be the timestamp when the event (and the
+   binary log) was created.  In the other case (i.e. this event is at
+   the start of a binary log created by FLUSH LOGS or automatic
+   rotation), 'created' should be 0.  This "trick" is used by MySQL
+   >=4.0.14 slaves to know whether they must drop stale temporary
+   tables and whether they should abort unfinished transaction.
+
+   Note that when 'created'!=0, it is always equal to the event's
+   timestamp; indeed Format_description_event is written only in binlog.cc where
+   the first constructor below is called, in which 'created' is set
+   to 'when'.  So in fact 'created' is a useless variable. When it is
+   0 we can read the actual value from timestamp ('when') and when it
+   is non-zero we can read the same value from timestamp
+   ('when'). Conclusion:
+   - we use timestamp to print when the binlog was created.
+   - we use 'created' only to know if this is a first binlog or not.
+*/
+  time_t created;
+  uint16_t binlog_version;
+  char server_version[ST_SERVER_VER_LEN];
+  /*
+    We set this to 1 if we don't want to have the created time in the log,
+    which is the case when we rollover to a new log.
+  */
+  bool dont_set_created;
+
   /**
-   The size of the fixed header which _all_ events have
-   (for binlogs written by this version, this is equal to
-   LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
-   (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
+     The size of the fixed header which _all_ events have
+     (for binlogs written by this version, this is equal to
+     LOG_EVENT_HEADER_LEN), except FORMAT_DESCRIPTION_EVENT and ROTATE_EVENT
+     (those have a header of size LOG_EVENT_MINIMAL_HEADER_LEN).
   */
   uint8_t common_header_len;
   /*
-   The list of post-headers' lengths followed
-   by the checksum alg decription byte
+    The list of post-headers' lengths followed
+    by the checksum alg decription byte
   */
   std::vector<uint8_t> post_header_len;
   unsigned char server_version_split[ST_SERVER_VER_SPLIT_LEN];
-  /**
-   In some previous version > 5.1 GA event types are assigned
-   different event id numbers than in the present version, so we
-   must map those id's to the our current event id's. This
-   mapping is done using event_type_permutation
-  */
-  const uint8_t *event_type_permutation;
 
   /**
-    Format_description_log_event 1st constructor.
+     Format_description_event 1st constructor.
 
-    This constructor can be used to create the event to write to the binary log
-    (when the server starts or when FLUSH LOGS), or to create artificial events
-    to parse binlogs from MySQL 3.23 or 4.x.
-    When in a client, only the 2nd use is possible.
+     This constructor can be used to create the event to write to the binary log
+     (when the server starts or when FLUSH LOGS)
 
-    @param binlog_ver             the binlog version for which we want to build
-                                  an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
-                                  x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
-                                  old 4.0 (binlog version 2) is not supported;
-                                  it should not be used for replication with
-                                  5.0.
-    @param server_ver             The MySQL server's version.
+     @param binlog_ver             the binlog version for which we want to build
+     an event. It should only be 4, old versions are not compatible anymore
+     since 8.0.2.
+     @param server_ver             The MySQL server's version.
   */
   Format_description_event(uint8_t binlog_ver,
                            const char* server_ver);
   /**
-    The layout of the event data part  in  Format_description_event
-    <pre>
-          +=====================================+
-          | event  | binlog_version   19 : 2    | = 4
-          | data   +----------------------------+
-          |        | server_version   21 : 50   |
-          |        +----------------------------+
-          |        | create_timestamp 71 : 4    |
-          |        +----------------------------+
-          |        | header_length    75 : 1    |
-          |        +----------------------------+
-          |        | post-header      76 : n    | = array of n bytes, one byte
-          |        | lengths for all            |   per event type that the
-          |        | event types                |   server knows about
-          +=====================================+
-    </pre>
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-    @note The description_event passed to this constructor was created
-          through another constructor of FDE class
+     The layout of the event data part  in  Format_description_event
+     <pre>
+     +=====================================+
+     | event  | binlog_version   19 : 2    | = 4
+     | data   +----------------------------+
+     |        | server_version   21 : 50   |
+     |        +----------------------------+
+     |        | create_timestamp 71 : 4    |
+     |        +----------------------------+
+     |        | header_length    75 : 1    |
+     |        +----------------------------+
+     |        | post-header      76 : n    | = array of n bytes, one byte
+     |        | lengths for all            |   per event type that the
+     |        | event types                |   server knows about
+     +=====================================+
+     </pre>
+     @param buf                Contains the serialized event.
+     @param event_len          Length of the serialized event.
+     @param description_event  An FDE event, used to get the
+     following information
+     -binlog_version
+     -server_version
+     -post_header_len
+     -common_header_len
+     The content of this object
+     depends on the binlog-version currently in use.
+     @note The description_event passed to this constructor was created
+     through another constructor of FDE class
   */
   Format_description_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);

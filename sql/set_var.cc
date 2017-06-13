@@ -63,6 +63,11 @@ static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
 ulonglong system_variable_hash_version= 0;
 
+HASH *get_system_variable_hash(void)
+{
+    return &system_variable_hash;
+}
+
 /**
   Return variable name and length for hashing of variables.
 */
@@ -198,7 +203,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   user[0]= '\0';
   host[0]= '\0';
 
-  source.m_path_name= 0;
+  memset(source.m_path_name, 0, FN_REFLEN);
   option.arg_source = &source;
 
   if (chain->last)
@@ -319,7 +324,7 @@ uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base)
 bool sys_var::set_default(THD *thd, set_var* var)
 {
   DBUG_ENTER("sys_var::set_default");
-  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST || scope() == GLOBAL)
+  if (var->is_global_persist() || scope() == GLOBAL)
     global_save_default(thd, var);
   else
     session_save_default(thd, var);
@@ -781,7 +786,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened)
     while((var= it++))
     {
       set_var* setvar= dynamic_cast<set_var*>(var);
-      if (setvar && setvar->type == OPT_PERSIST)
+      if (setvar && (setvar->type == OPT_PERSIST ||
+        setvar->type == OPT_PERSIST_ONLY))
       {
         pv= Persisted_variables_cache::get_instance();
         /* update in-memory copy of persistent options */
@@ -850,17 +856,26 @@ int set_var::resolve(THD *thd)
   var->do_deprecated_warning(thd);
   if (var->is_readonly())
   {
-    my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");
-    DBUG_RETURN(-1);
+    if (type != OPT_PERSIST_ONLY)
+    {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");
+      DBUG_RETURN(-1);
+    }
+    if (type == OPT_PERSIST_ONLY && var->is_non_persistent())
+    {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
+               "non persistent read only");
+      DBUG_RETURN(-1);
+    }
   }
   if (!var->check_scope(type))
   {
-    int err= (type == OPT_GLOBAL || type == OPT_PERSIST)
+    int err= (is_global_persist())
         ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL || type == OPT_PERSIST))
+  if (is_global_persist())
   {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
     Security_context *sctx= thd->security_context();
@@ -870,6 +885,17 @@ int set_var::resolve(THD *thd)
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "SUPER or SYSTEM_VARIABLES_ADMIN");
       DBUG_RETURN(1);
+    }
+    if (type == OPT_PERSIST_ONLY)
+    {
+      if (!sctx->check_access(SUPER_ACL) &&
+          !sctx->has_global_grant(
+            STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first)
+      {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                 "SUPER or PERSIST_RO_VARIABLES_ADMIN");
+        DBUG_RETURN(1);
+      }
     }
   }
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
@@ -909,7 +935,7 @@ int set_var::check(THD *thd)
   }
   int ret= var->check(thd, this) ? -1 : 0;
 
-  if (!ret && (type == OPT_GLOBAL || type == OPT_PERSIST))
+  if (!ret && (is_global_persist()))
   {
     ret= mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_SET),
                             var->name.str,
@@ -937,7 +963,7 @@ int set_var::light_check(THD *thd)
 {
   if (!var->check_scope(type))
   {
-    int err= (type == OPT_GLOBAL || type == OPT_PERSIST)
+    int err= (is_global_persist())
         ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
     return -1;
@@ -946,6 +972,11 @@ int set_var::light_check(THD *thd)
   if ((type == OPT_GLOBAL || type == OPT_PERSIST) &&
       !(sctx->check_access(SUPER_ACL) ||
         sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first))
+    return 1;
+
+  if ((type == OPT_PERSIST_ONLY) &&
+      !(sctx->check_access(SUPER_ACL) ||
+        sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first))
     return 1;
 
   if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
@@ -988,10 +1019,14 @@ void set_var::update_user_host_timestamp(THD *thd)
 int set_var::update(THD *thd)
 {
   int ret= 0;
-  if (value)
-    ret= (int)var->update(thd, this);
-  else
-    ret= (int)var->set_default(thd, this);
+  /* for persist only syntax do not update the value */
+  if (type != OPT_PERSIST_ONLY)
+  {
+    if (value)
+      ret= (int) var->update(thd, this);
+    else
+      ret= (int) var->set_default(thd, this);
+  }
   if (ret == 0)
   {
     update_user_host_timestamp(thd);
@@ -1007,12 +1042,20 @@ int set_var::update(THD *thd)
 */
 void set_var::print(THD*, String *str)
 {
-  if (type == OPT_PERSIST)
-    str->append("PERSIST ");
-  else if (type == OPT_GLOBAL)
-    str->append("GLOBAL ");
-  else
-    str->append("SESSION ");
+  switch(type)
+  {
+    case OPT_PERSIST:
+      str->append("PERSIST ");
+      break;
+    case OPT_PERSIST_ONLY:
+      str->append("PERSIST_ONLY ");
+      break;
+    case OPT_GLOBAL:
+      str->append("GLOBAL ");
+      break;
+    default:
+      str->append("SESSION ");
+  }
   if (base.length)
   {
     str->append(base.str, base.length);

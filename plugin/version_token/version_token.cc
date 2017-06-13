@@ -127,7 +127,8 @@ const int atomic_boolean::m_false= 1;
 static atomic_boolean version_tokens_hash_inited;
 
 static MYSQL_THDVAR_ULONG(session_number,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                          PLUGIN_VAR_NOPERSIST,
                           "Version number to assist with session tokens check",
                           NULL, NULL, 0L, 0, ((ulong) -1), 0);
 
@@ -715,6 +716,7 @@ mysql_declare_plugin(version_tokens)
   "version token check",             /* description                     */
   PLUGIN_LICENSE_GPL,
   version_tokens_init,               /* init function (when loaded)     */
+  NULL,                              /* cwcheck uninstall function      */
   version_tokens_deinit,             /* deinit function (when unloaded) */
   0x0101,                            /* version          */
   NULL,                              /* status variables */

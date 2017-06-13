@@ -1357,7 +1357,7 @@ fil_node_open_file(fil_node_t* node, bool extend)
 	bool		success;
 	byte*		buf2;
 	byte*		page;
-	ulint		space_id;
+	space_id_t	space_id;
 	ulint		flags;
 	ulint		min_size;
 	bool		read_only_mode;
@@ -1393,9 +1393,10 @@ fil_node_open_file(fil_node_t* node, bool extend)
 		&& srv_read_only_mode;
 
 	if (node->size == 0
-	    || (space->purpose == FIL_TYPE_TABLESPACE
+	    || (space->size_in_header == 0
+		&& space->purpose == FIL_TYPE_TABLESPACE
 		&& node == UT_LIST_GET_FIRST(space->chain)
-		&& !undo::is_under_construction(space->id)
+		&& undo::is_active(space->id)
 		&& srv_startup_is_before_trx_rollback_phase)) {
 		/* We do not know the size of the file yet. First we
 		open the file in the normal mode, no async I/O here,
@@ -3186,7 +3187,6 @@ fil_check_pending_operations(
 @param[in]	lhs		Filename to compare
 @param[in]	rhs		Filename to compare
 @return true if they are the same */
-static
 bool
 fil_paths_equal(const char* lhs, const char* rhs)
 {
@@ -3232,94 +3232,18 @@ fil_paths_equal(const char* lhs, const char* rhs)
 	return(abs_path1.compare(abs_path2) == 0);
 }
 
-/** Check if an undo tablespace was opened during crash recovery.
-@param[in]	file_name	undo tablespace file name
-@param[in]	undo_name	undo tablespace name
+/** Fetch the file name opened for a space_id during recovery
+from the file map.
 @param[in]	space_id	undo tablespace id
-@retval DB_SUCCESS		if it was already opened
-@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
-@retval DB_ERROR		if the data is inconsistent */
-dberr_t
-fil_space_undo_check_if_opened(
-	const char*	file_name,
-	const char*	undo_name,
-	space_id_t	space_id)
+@return file name that was opened */
+std::string
+fil_system_open_fetch(space_id_t space_id)
 {
-	/* At this stage we are still in single threaded mode. */
-
-	ut_a(Fil_Open::is_undo_tablespace_name(file_name, strlen(file_name)));
-
+	fil_system->m_open.enter();
 	std::string	name = fil_system->m_open.fetch(space_id);
+	fil_system->m_open.exit();
 
-	/* If we don't find the space ID to filename mapping in the
-	tablespaces.open.* files then we suppress the path checks. */
-
-	if (name.length() == 0) {
-#ifdef UNIV_DEBUG
-		/* If Fil_Open doesn't know about it then it can't be open. */
-		mutex_enter(&fil_system->mutex);
-
-		fil_space_t*    space   = fil_space_get_by_id(space_id);
-		ut_ad(space == nullptr);
-
-		mutex_exit(&fil_system->mutex);
-#endif /* UNIV_DEBUG */
-
-		return(DB_TABLESPACE_NOT_FOUND);
-	}
-
-	/* NOTE: This check should be eliminated. It prevents the user from
-	moving undo tablespaces around. It doesn't really help, instead gets
-	in the way. */
-
-	/* The file_name that we opened before must be the same as what we
-	need to open now.  If not, maybe the srv_undo_dir has changed. */
-
-	if (!fil_paths_equal(file_name, name.c_str())) {
-		/* This is a different space with different name. So
-		this undo tablespace and all following ones don't exist.
-		Just return silently because this is expceted */
-
-		return(DB_ERROR);
-	}
-
-	/* Check if the undo tablespace has been opened. */
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*    space   = fil_space_get_by_id(space_id);
-
-	if (space == nullptr) {
-
-		mutex_exit(&fil_system->mutex);
-
-		return(DB_TABLESPACE_NOT_FOUND);
-	}
-
-	if (space->flags != fsp_flags_set_page_size(0, univ_page_size)
-	    && !FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-
-		ib::error()
-			<< "Cannot load UNDO tablespace '"
-			<< file_name << "' with flags=" << space->flags;
-
-		mutex_exit(&fil_system->mutex);
-
-		return(DB_ERROR);
-	}
-
-	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(UT_LIST_GET_LEN(space->chain) == 1);
-
-	mutex_exit(&fil_system->mutex);
-
-	/* Flush and close the redo recovery handle. Also, free up the
-	memory object because it was not created as an undo tablespace. */
-
-	fil_flush(space_id);
-	fil_space_close(space_id);
-	fil_space_free(space_id, false);
-
-	return(DB_TABLESPACE_NOT_FOUND);
+	return(name);
 }
 
 /*******************************************************************//**
@@ -4627,23 +4551,21 @@ fil_ibd_open_for_recovery(
 	if (space != NULL) {
 
 		/* Compare the filename we are trying to open with the
-		filename from the first node of the tablespace we opened
-		previously. Fail if it is different if it is not system
-		tablespace. */
+		filename of all the  nodes of the tablespace we opened
+		previously. Fail if it is different. */
 
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-		fil_node_t* node1 = node;
 
 		if (0 == strcmp(filename, node->name)) {
 			return (FIL_LOAD_OK);
 		}
 
-		/* Same space id can be mapped to many ibdata* files.
+		/* The same space id can be mapped to many ibdata* files.
 		It depends on the innodb_data_file_path configuration.
 		In this case, traverse all the chain from the fil_node_t */
 		if (space_id == TRX_SYS_SPACE) {
 
-			for (; node1 != NULL;
+			for (fil_node_t* node1 = node; node1 != NULL;
 			     node1 = UT_LIST_GET_NEXT(chain, node1)) {
 
 				if (0 == strcmp(filename, node1->name)) {
@@ -5793,7 +5715,7 @@ fil_io(
 			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && req_type.is_read()
-			    && undo::is_under_construction(space->id)) {
+			    && undo::is_inactive(space->id)) {
 
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
@@ -8389,7 +8311,8 @@ Fil_Open::from_file(bool recovery)
 
 	for (const auto& space : files[i].m_spaces) {
 
-		if (space.first == TRX_SYS_SPACE){
+		if (space.first == TRX_SYS_SPACE
+		    || space.first == dict_sys_t::temp_space_id){
 
 			continue;
 		}
@@ -8619,12 +8542,13 @@ Fil_Open::is_undo_tablespace_name(const char* name, ulint len)
 	if (len >= 8) {
 
 		const char*	end_ptr = name + len;
+		size_t	u = (end_ptr[-4] == '_' ? 1 : 0);
 
-		return(end_ptr[-8] == OS_PATH_SEPARATOR
-		       && end_ptr[-7] == 'u'
-		       && end_ptr[-6] == 'n'
-		       && end_ptr[-5] == 'd'
-		       && end_ptr[-4] == 'o'
+		return(end_ptr[-8-u] == OS_PATH_SEPARATOR
+		       && end_ptr[-7-u] == 'u'
+		       && end_ptr[-6-u] == 'n'
+		       && end_ptr[-5-u] == 'd'
+		       && end_ptr[-4-u] == 'o'
 		       && isdigit(end_ptr[-3])
 		       && isdigit(end_ptr[-2])
 		       && isdigit(end_ptr[-1]));

@@ -168,10 +168,10 @@ ST_NUMPOINTS(ST_EXTERIORRING(@buff))
 DROP TABLE t1;
 select st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('point(0 0)'), ST_geomfromtext('point(1 1)'))
-0
+NULL
 select st_touches(ST_geomfromtext('point(1 1)'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('point(1 1)'), ST_geomfromtext('point(1 1)'))
-0
+NULL
 select st_touches(ST_geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), ST_geomfromtext('point(1 1)'));
 st_touches(ST_geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), ST_geomfromtext('point(1 1)'))
 1

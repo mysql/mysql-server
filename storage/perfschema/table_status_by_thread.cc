@@ -65,6 +65,8 @@ PFS_index_status_by_thread::match(const Status_variable *pfs)
 THR_LOCK table_status_by_thread::m_table_lock;
 
 Plugin_table table_status_by_thread::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "status_by_thread",
   /* Definition */

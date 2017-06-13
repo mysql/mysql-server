@@ -40,6 +40,8 @@
 THR_LOCK table_replication_applier_status_by_worker::m_table_lock;
 
 Plugin_table table_replication_applier_status_by_worker::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "replication_applier_status_by_worker",
   /* Definition */

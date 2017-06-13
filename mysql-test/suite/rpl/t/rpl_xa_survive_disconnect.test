@@ -20,6 +20,7 @@
 
 --connection master
 call mtr.add_suppression("Found 2 prepared XA transactions");
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 
 CREATE DATABASE d1;
@@ -44,7 +45,7 @@ XA PREPARE '1-stmt';
 
 connect (master_conn2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --let $conn_id=`SELECT connection_id()`
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '1-row';
 INSERT INTO d2.t VALUES (1);
 XA END '1-row';
@@ -86,7 +87,7 @@ XA PREPARE '3-stmt';
 
 connect (master2, 127.0.0.1,root,,test,$MASTER_MYPORT,);
 --connection master2
-SET @@session.binlog_format= row;
+SET @@session.binlog_format= 'row';
 XA START '3-row';
 INSERT INTO d2.t VALUES (4);
 XA END '3-row';

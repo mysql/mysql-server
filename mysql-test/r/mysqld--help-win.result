@@ -11,6 +11,9 @@ The following options may be given as the first argument:
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
+ --activate-all-roles-on-login 
+ Automatically set all granted roles as active after the
+ user has authenticated successfully.
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -333,6 +336,9 @@ The following options may be given as the first argument:
  without a GTID to be replicated and executed on all
  servers, and finally set all servers to GTID_MODE = ON.
  -?, --help          Display this help and exit.
+ --histogram-generation-max-mem-size=# 
+ Maximum amount of memory available for generating
+ histograms
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
@@ -346,7 +352,7 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
- --initialize        Create the default database and exit. Create a super user
+ -I, --initialize    Create the default database and exit. Create a super user
  with a random expired password and store it into the log.
  --initialize-insecure 
  Create the default database and exit. Create a super user
@@ -388,7 +394,6 @@ The following options may be given as the first argument:
  Set the language used for the month names and the days of
  the week.
  --local-infile      Enable LOAD DATA LOCAL INFILE
- (Defaults to on; use --skip-local-infile to disable.)
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
@@ -490,6 +495,12 @@ The following options may be given as the first argument:
  If set to 1 table names are stored in lowercase on disk
  and table names will be case-insensitive.  Should be set
  to 2 if you are using a case insensitive file system
+ --mandatory-roles=name 
+ All the specified roles are always considered granted to
+ every user and they can't be revoked. Mandatory roles
+ still require activation unless they are made into
+ default roles. The granted roles will not be visible in
+ the mysql.role_edges table.
  --master-info-file=name 
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
@@ -1271,9 +1282,15 @@ The following options may be given as the first argument:
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
+ --windowing-use-high-precision 
+ For SQL window functions, determines whether to enable
+ inversion optimization for moving window frames also for
+ floating values.
+ (Defaults to on; use --skip-windowing-use-high-precision to disable.)
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
+activate-all-roles-on-login FALSE
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
@@ -1334,7 +1351,7 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
-expire-logs-days 0
+expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
@@ -1350,6 +1367,7 @@ group-concat-max-len 1024
 gtid-executed-compression-period 1000
 gtid-mode OFF
 help TRUE
+histogram-generation-max-mem-size 20000000
 host-cache-size 279
 ignore-builtin-innodb FALSE
 information-schema-stats CACHED
@@ -1371,7 +1389,7 @@ language MYSQL_SHAREDIR/
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
-local-infile TRUE
+local-infile FALSE
 lock-wait-timeout 31536000
 log-bin (No default value)
 log-bin-index (No default value)
@@ -1401,6 +1419,7 @@ log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
+mandatory-roles 
 master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
@@ -1501,7 +1520,7 @@ performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
-performance-schema-max-mutex-classes 220
+performance-schema-max-mutex-classes 250
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
@@ -1622,6 +1641,7 @@ updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
+windowing-use-high-precision TRUE
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

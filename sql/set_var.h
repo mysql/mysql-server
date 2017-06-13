@@ -39,6 +39,7 @@
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
 #include "my_systime.h"
+#include "hash.h"             // HASH
 
 class Item;
 class Item_func_set_user_var;
@@ -74,7 +75,7 @@ int mysql_del_sys_var_chain(sys_var *chain);
 
 enum enum_var_type
 {
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL, OPT_PERSIST
+  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL, OPT_PERSIST, OPT_PERSIST_ONLY
 };
 
 /**
@@ -98,7 +99,8 @@ public:
     READONLY=     0x0400, // 1024
     ALLOCATED=    0x0800, // 2048
     INVISIBLE=    0x1000, // 4096
-    TRI_LEVEL=    0x2000  // 8192 - default is neither GLOBAL nor SESSION
+    TRI_LEVEL=    0x2000, // 8192 - default is neither GLOBAL nor SESSION
+    NOTPERSIST=   0x4000
   };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
@@ -158,20 +160,26 @@ public:
   virtual longlong get_min_value() { return option.min_value; }
   virtual ulonglong get_max_value() { return option.max_value; }
   virtual void set_arg_source(get_opt_arg_source*) {}
+  virtual void set_is_plugin(bool) {}
   enum_variable_source get_source() { return source.m_source; }
   const char* get_source_name() { return source.m_path_name; }
   void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
-  void set_source_name(const char* path) { option.arg_source->m_path_name= path; }
+  void set_source_name(const char* path)
+  {
+    strcpy(option.arg_source->m_path_name, path);
+  }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
   ulonglong get_timestamp();
   void set_user_host(THD* thd);
+  my_option* get_option() { return &option; }
   /**
     THD::query_start_timeval_trunc() is used to measure query execution time
     We dont need this as this is not about elapsed time for query, we only
     need current  timestamp, thus using this function.
   */
   void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
+  virtual bool is_non_persistent() {return flags & NOTPERSIST; }
 
   /**
      Update the system variable with the default value from either
@@ -206,11 +214,17 @@ public:
     switch (query_type)
     {
       case OPT_PERSIST:
+      case OPT_PERSIST_ONLY:
       case OPT_GLOBAL:  return scope() & (GLOBAL | SESSION);
       case OPT_SESSION: return scope() & (SESSION | ONLY_SESSION);
       case OPT_DEFAULT: return scope() & (SESSION | ONLY_SESSION);
     }
     return false;
+  }
+  bool is_global_persist(enum_var_type type)
+  {
+    return (type == OPT_GLOBAL || type == OPT_PERSIST ||
+            type == OPT_PERSIST_ONLY);
   }
 
   bool register_option(std::vector<my_option> *array, int parse_flags)
@@ -313,6 +327,11 @@ public:
   void update_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
   void print(THD*, String *str);	/* To self-print */
+  bool is_global_persist()
+  {
+    return (type == OPT_GLOBAL || type == OPT_PERSIST ||
+            type == OPT_PERSIST_ONLY);
+  }
 #ifdef OPTIMIZER_TRACE
   virtual bool is_var_optimizer_trace() const
   {
@@ -396,6 +415,7 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 */
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
+HASH *get_system_variable_hash(void);
 
 bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
@@ -416,6 +436,8 @@ extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;
 extern sys_var *Sys_gtid_next_list_ptr;
 extern sys_var *Sys_gtid_purged_ptr;
+
+extern ulonglong system_variable_hash_version;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

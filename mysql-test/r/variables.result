@@ -499,7 +499,7 @@ set join_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '100'
 set last_insert_id=1;
-set global local_infile=1;
+set global local_infile=0;
 set long_query_time=0.000001;
 select @@long_query_time;
 @@long_query_time

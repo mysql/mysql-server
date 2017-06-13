@@ -42,6 +42,8 @@
 #include "hash.h"
 #include "item.h"
 #include "item_cmpfunc.h"                // and_conds
+#include "json_diff.h"                   // Json_diff_vector
+#include "json_dom.h"                    // Json_wrapper
 #include "key.h"                         // find_ref_key
 #include "log.h"
 #include "m_string.h"
@@ -2806,6 +2808,7 @@ bool unpack_gcol_info(THD *thd,
   // Subquery is not allowed in generated expression
   const bool save_allow_subselects= thd->lex->expr_allows_subselect;
   thd->lex->expr_allows_subselect= false;
+  // allow_sum_func is also 0, banning group aggregates and window functions.
 
   /*
     Step 3: Use the parser to build an Item object from.
@@ -2874,6 +2877,8 @@ bool unpack_gcol_info(THD *thd,
   DBUG_RETURN(FALSE);
 
 parse_err:
+  // Any created window is eliminated as not allowed:
+  thd->lex->current_select()->m_windows.empty();
   thd->free_items();
   lex_end(thd->lex);
   thd->lex= old_lex;
@@ -3721,6 +3726,42 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 /**
   Check if database name is valid
+
+  @param name             Name of database
+  @param length           Length of name
+
+  @retval  Ident_name_check::OK        Identifier name is Ok (Success)
+  @retval  Ident_name_check::WRONG     Identifier name is Wrong
+                                       (ER_WRONG_TABLE_NAME)
+  @retval  Ident_name_check::TOO_LONG  Identifier name is too long if it is
+                                       greater than 64 characters
+                                       (ER_TOO_LONG_IDENT)
+
+  @note In case of Ident_name_check::WRONG and Ident_name_check::TOO_LONG, this
+        function reports an error (my_error)
+*/
+
+Ident_name_check check_db_name(const char *name, size_t length)
+{
+  Ident_name_check ident_check_status;
+
+  if (!length || length > NAME_LEN)
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+    return Ident_name_check::WRONG;
+  }
+
+  ident_check_status= check_table_name(name, length);
+  if (ident_check_status == Ident_name_check::WRONG)
+    my_error(ER_WRONG_DB_NAME, MYF(0), name);
+  else if (ident_check_status == Ident_name_check::TOO_LONG)
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name);
+  return ident_check_status;
+}
+
+
+/**
+  Check if database name is valid, and convert to lower case if necessary
 
   @param org_name             Name of database and length
   @param preserve_lettercase  Preserve lettercase if true
@@ -7730,40 +7771,101 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 */
 struct Partial_update_info : public Sql_alloc
 {
-  Partial_update_info(const TABLE *table, const MY_BITMAP *columns)
-    : m_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr)
+  Partial_update_info(const TABLE *table, const MY_BITMAP *columns,
+                      bool logical_diffs)
+    : m_binary_diff_vectors(table->in_use->mem_root, table->s->fields, nullptr),
+      m_logical_diff_vectors(table->in_use->mem_root,
+                             logical_diffs ? table->s->fields : 0,
+                             nullptr)
   {
-    auto buffer= static_cast<my_bitmap_map*>(
-                   table->in_use->alloc(table->s->column_bitmap_size));
+    MEM_ROOT *const mem_root= table->in_use->mem_root;
+    const size_t bitmap_size= table->s->column_bitmap_size;
+
+    auto buffer= static_cast<my_bitmap_map*>(alloc_root(mem_root, bitmap_size));
     if (buffer != nullptr)
-      bitmap_init(&m_disabled_columns, buffer, table->s->fields, false);
+    {
+      bitmap_init(&m_enabled_binary_diff_columns,
+                  buffer, table->s->fields, false);
+      bitmap_copy(&m_enabled_binary_diff_columns, columns);
+    }
+
+    buffer= static_cast<my_bitmap_map*>(alloc_root(mem_root, bitmap_size));
+    if (buffer != nullptr)
+    {
+      bitmap_init(&m_enabled_logical_diff_columns,
+                  buffer, table->s->fields, false);
+      if (logical_diffs)
+        bitmap_copy(&m_enabled_logical_diff_columns, columns);
+      else
+        bitmap_clear_all(&m_enabled_logical_diff_columns);
+    }
 
     for (uint i= bitmap_get_first_set(columns);
          i != MY_BIT_NONE;
          i= bitmap_get_next_set(columns, i))
     {
-      void *mem= table->in_use->alloc(sizeof(Binary_diff_vector));
-      if (mem == nullptr)
-        return;
-      m_diff_vectors[i]= new (mem) Binary_diff_vector(table->in_use->mem_root);
+      m_binary_diff_vectors[i]= new (mem_root) Binary_diff_vector(mem_root);
+
+      if (logical_diffs)
+      {
+        Json_diff_vector::allocator_type alloc(mem_root);
+        m_logical_diff_vectors[i]= new (mem_root) Json_diff_vector(alloc);
+      }
     }
   }
 
+  ~Partial_update_info()
+  {
+    for (auto v : m_logical_diff_vectors)
+      destroy(v);
+  }
+
   /**
-    The columns for which partial update has been disabled in the current row.
+    The columns for which partial update using binary diffs is enabled
+    in the current row.
   */
-  MY_BITMAP m_disabled_columns;
+  MY_BITMAP m_enabled_binary_diff_columns;
+
+  /**
+    The columns for which partial update using logical JSON diffs is
+    enabled in the current row.
+  */
+  MY_BITMAP m_enabled_logical_diff_columns;
 
   /**
     The binary diffs that have been collected for the current row.
+
+    The Binary_diff_vector objects live entirely in a MEM_ROOT, so
+    there is no need to destroy them when this object is destroyed.
   */
-  Mem_root_array<Binary_diff_vector*> m_diff_vectors;
+  Mem_root_array<Binary_diff_vector*> m_binary_diff_vectors;
+
+  /**
+    The logical diffs that have been collected for JSON operations in
+    the current row.
+
+    Whereas the Json_diff_vector objects live in a MEM_ROOT and their
+    memory will be reclaimed automatically, the Json_diff objects
+    within them can own memory allocated on the heap, so they will
+    have to be destroyed when this object is destroyed.
+  */
+  Mem_root_array<Json_diff_vector*> m_logical_diff_vectors;
 
   /**
     A buffer that can be used to hold the partially updated column value while
     performing the update in memory.
   */
   String m_buffer;
+
+  /// Should logical JSON diffs be collected in addition to binary diffs?
+  bool collect_logical_diffs() const
+  {
+    /*
+      We only allocate logical diff vectors when we want logical diffs
+      to be collected, so check if we have any.
+    */
+    return !m_logical_diff_vectors.empty();
+  }
 };
 
 
@@ -7772,8 +7874,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
   DBUG_ASSERT(field->table == this);
   if (m_partial_update_columns == nullptr)
   {
-    auto map= static_cast<MY_BITMAP*>(alloc_root(&mem_root, sizeof(MY_BITMAP)));
-    auto buf=
+    MY_BITMAP *map= new (&mem_root) MY_BITMAP;
+    my_bitmap_map *buf=
       static_cast<my_bitmap_map*>(alloc_root(&mem_root, s->column_bitmap_size));
     if (map == nullptr ||
         buf == nullptr ||
@@ -7787,43 +7889,37 @@ bool TABLE::mark_column_for_partial_update(const Field *field)
 }
 
 
-void TABLE::disable_partial_update_for_current_row(const Field *field)
+void TABLE::disable_binary_diffs_for_current_row(const Field *field)
 {
-  DBUG_ASSERT(field->table == this &&
-              m_partial_update_columns != nullptr &&
-              m_partial_update_info != nullptr &&
-              bitmap_is_set(m_partial_update_columns, field->field_index));
+  DBUG_ASSERT(field->table == this && is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
 
   // Mark the column as disabled.
-  bitmap_set_bit(&m_partial_update_info->m_disabled_columns,
-                 field->field_index);
-}
-
-
-bool TABLE::is_partial_update_column(const Field *field) const
-{
-  DBUG_ASSERT(field->table == this);
-  return
-    m_partial_update_info != nullptr &&
-    bitmap_is_set(m_partial_update_columns, field->field_index) &&
-    !bitmap_is_set(&m_partial_update_info->m_disabled_columns,
+  bitmap_clear_bit(&m_partial_update_info->m_enabled_binary_diff_columns,
                    field->field_index);
 }
 
 
-bool TABLE::has_partial_update_columns() const
+bool TABLE::is_marked_for_partial_update(const Field *field) const
 {
+  DBUG_ASSERT(field->table == this);
   return
-    m_partial_update_info != nullptr &&
-    bitmap_bits_set(&m_partial_update_info->m_disabled_columns)
-    < bitmap_bits_set(m_partial_update_columns);
+    m_partial_update_columns != nullptr &&
+    bitmap_is_set(m_partial_update_columns, field->field_index);
 }
 
 
-bool TABLE::setup_partial_update()
+bool TABLE::has_binary_diff_columns() const
+{
+  return
+    m_partial_update_info != nullptr &&
+    !bitmap_is_clear_all(&m_partial_update_info->m_enabled_binary_diff_columns);
+}
+
+
+bool TABLE::setup_partial_update(bool logical_diffs)
 {
   DBUG_ASSERT(m_partial_update_info == nullptr);
 
@@ -7846,21 +7942,14 @@ bool TABLE::setup_partial_update()
   }
 
   m_partial_update_info=
-    new (*THR_MALLOC) Partial_update_info(this, m_partial_update_columns);
+    new (in_use->mem_root) Partial_update_info(this, m_partial_update_columns,
+                                               logical_diffs);
   return in_use->is_error();
 }
 
 
 bool TABLE::has_columns_marked_for_partial_update() const
 {
-  /*
-    If m_partial_update_columns is not nullptr, it means that the function is
-    called during execution. During execution, it makes more sense to call
-    has_partial_update_columns(), which additionally checks if partial update
-    has been disabled for this table or all its columns.
-  */
-  DBUG_ASSERT(m_partial_update_info == nullptr);
-
   /*
     Do we have any columns that satisfy the syntactical requirements for
     partial update?
@@ -7885,33 +7974,44 @@ String *TABLE::get_partial_update_buffer()
 }
 
 
-void TABLE::clear_binary_diffs()
+void TABLE::clear_partial_update_diffs()
 {
   if (m_partial_update_info != nullptr)
   {
-    for (auto v : m_partial_update_info->m_diff_vectors)
+    for (auto v : m_partial_update_info->m_binary_diff_vectors)
       if (v != nullptr)
         v->clear();
 
-    bitmap_clear_all(&m_partial_update_info->m_disabled_columns);
+    bitmap_copy(&m_partial_update_info->m_enabled_binary_diff_columns,
+                m_partial_update_columns);
+
+    if (m_partial_update_info->collect_logical_diffs())
+    {
+      for (auto v : m_partial_update_info->m_logical_diff_vectors)
+        if (v != nullptr)
+          v->clear();
+
+      bitmap_copy(&m_partial_update_info->m_enabled_logical_diff_columns,
+                  m_partial_update_columns);
+    }
   }
 }
 
 
 const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const
 {
-  if (!is_partial_update_column(field))
+  if (!is_binary_diff_enabled(field))
     return nullptr;
-  return m_partial_update_info->m_diff_vectors[field->field_index];
+  return m_partial_update_info->m_binary_diff_vectors[field->field_index];
 }
 
 
 bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length)
 {
-  DBUG_ASSERT(is_partial_update_column(field));
+  DBUG_ASSERT(is_binary_diff_enabled(field));
 
   Binary_diff_vector *diffs=
-    m_partial_update_info->m_diff_vectors[field->field_index];
+    m_partial_update_info->m_binary_diff_vectors[field->field_index];
 
   /*
     Find the first diff that does not end before the diff we want to insert.
@@ -7977,6 +8077,57 @@ const char *Binary_diff::new_data(Field *field) const
   */
   auto fld= down_cast<Field_json*>(field);
   return fld->get_binary() + m_offset;
+}
+
+
+void TABLE::add_logical_diff(const Field_json *field,
+                             const Json_seekable_path &path,
+                             enum_json_diff_operation operation,
+                             const Json_wrapper *new_value)
+{
+  DBUG_ASSERT(is_logical_diff_enabled(field));
+  Json_diff_vector *diffs=
+    m_partial_update_info->m_logical_diff_vectors[field->field_index];
+  diffs->emplace_back(path, operation,
+                      new_value == nullptr ? nullptr :
+                      new_value->clone_dom(field->table->in_use));
+}
+
+
+const Json_diff_vector *TABLE::get_logical_diffs(const Field_json *field) const
+{
+  if (!is_logical_diff_enabled(field))
+    return nullptr;
+  return m_partial_update_info->m_logical_diff_vectors[field->field_index];
+}
+
+
+bool TABLE::is_binary_diff_enabled(const Field *field) const
+{
+  return m_partial_update_info != nullptr &&
+         bitmap_is_set(&m_partial_update_info->m_enabled_binary_diff_columns,
+                       field->field_index);
+}
+
+
+bool TABLE::is_logical_diff_enabled(const Field *field) const
+{
+  return m_partial_update_info != nullptr &&
+         bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
+                       field->field_index);
+}
+
+
+void TABLE::disable_logical_diffs_for_current_row(const Field *field) const
+{
+  DBUG_ASSERT(field->table == this && is_logical_diff_enabled(field));
+
+  // Remove the diffs collected for the column.
+  m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();
+
+  // Mark the column as disabled.
+  bitmap_clear_bit(&m_partial_update_info->m_enabled_logical_diff_columns,
+                   field->field_index);
 }
 
 

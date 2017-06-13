@@ -38,6 +38,7 @@ class THD;
 #include "rpl_gtid.h"                // Gtid
 #include "rpl_info.h"                // Rpl_info
 #include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
+#include "rpl_rli.h"                 // rli->get_log_lock()
 
 typedef struct st_mysql MYSQL;
 
@@ -406,7 +407,7 @@ public:
   inline ulonglong get_master_log_pos() { return master_log_pos; }
   inline void set_master_log_name(const char *log_file_name)
   {
-     strmake(master_log_name, log_file_name, sizeof(master_log_name) - 1);
+    strmake(master_log_name, log_file_name, sizeof(master_log_name) - 1);
   }
   inline void set_master_log_pos(ulonglong log_pos)
   {
@@ -464,18 +465,18 @@ private:
        log on every rotation.
 
     Locks:
-    All access is protected by Master_info::data_lock.
+    All access is protected by Relay_log::LOCK_log.
   */
   Format_description_log_event *mi_description_event;
 public:
   Format_description_log_event *get_mi_description_event()
   {
-    mysql_mutex_assert_owner(&data_lock);
+    mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
     return mi_description_event;
   }
   void set_mi_description_event(Format_description_log_event *fdle)
   {
-    mysql_mutex_assert_owner(&data_lock);
+    mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
     delete mi_description_event;
     mi_description_event= fdle;
   }

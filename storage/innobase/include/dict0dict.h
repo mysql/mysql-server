@@ -1542,14 +1542,22 @@ struct dict_sys_t{
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
 
-	/** The first reserved tablespace ID */
-	static constexpr space_id_t	reserved_space_id = log_space_first_id;
-
 	/** The data dictionary tablespace ID. */
 	static constexpr space_id_t	space_id = 0xFFFFFFFE;
 
 	/** The innodb_temporary tablespace ID. */
 	static constexpr space_id_t	temp_space_id = 0xFFFFFFFD;
+
+	/** The lowest undo tablespace ID. */
+	static constexpr space_id_t	min_undo_space_id
+		= log_space_first_id - TRX_SYS_N_RSEGS;
+
+	/** The highest undo  tablespace ID. */
+	static constexpr space_id_t	max_undo_space_id
+		= log_space_first_id - 1;
+
+	/** The first reserved tablespace ID */
+	static constexpr space_id_t	reserved_space_id = min_undo_space_id;
 
 	/** The dd::Tablespace::id of the dictionary tablespace. */
 	static constexpr dd::Object_id	dd_space_id = 1;

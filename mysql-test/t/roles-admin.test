@@ -81,7 +81,9 @@ SELECT CURRENT_USER(), CURRENT_ROLE();
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 GRANT `admin-db1t1` TO `app-middleware-db2`@`localhost`;
 connection default;
-select roles_graphml();
+--echo # only count nodes and edges as the sorting order is depending on platform
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
+SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 
 --echo ++ Now grant admin-db1t1 to app@localhost WITH ADMIN OPTION
 --echo ++ Positive test

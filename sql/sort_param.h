@@ -280,6 +280,7 @@ public:
   ha_rows num_examined_rows;  // Number of examined rows.
   TABLE *sort_form;           // For quicker make_sortkey.
   bool use_hash;              // Whether to use hash to distinguish cut JSON
+  bool m_force_stable_sort;   // Keep relative order of equal elements
 
   /**
     ORDER BY list with some precalculated info for filesort.

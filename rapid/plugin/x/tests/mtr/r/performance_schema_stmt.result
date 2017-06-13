@@ -25,6 +25,12 @@ CREATE TABLE `xtest`.`test` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON_
 Query
 INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
 0 rows affected
+######### Crud.Insert (upsert) #########
+
+1 rows affected
+Query
+INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id', JSON_EXTRACT(doc, '$._id'))
+0 rows affected
 ######### Crud.Update #########
 
 1 rows affected
@@ -56,9 +62,26 @@ DROP VIEW `xtest`.`test_view`
 ######### Crud.Find #########
 doc
 {"_id": "one", "key": "val"}
+{"_id": "two"}
 command ok
 Query
 SELECT doc FROM `xtest`.`test`
+0 rows affected
+######### Crud.Find with shared lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR SHARE
+0 rows affected
+######### Crud.Find with exclusive lock #########
+doc
+{"_id": "one", "key": "val"}
+{"_id": "two"}
+command ok
+Query
+SELECT doc FROM `xtest`.`test` FOR UPDATE
 0 rows affected
 ######### Crud.Delete #########
 

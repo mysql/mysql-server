@@ -48,7 +48,7 @@ Field (abstract)
 |  +--Field_bit_as_char
 |  
 +--Field_num (abstract)
-|  |  +--Field_real (asbstract)
+|  |  +--Field_real (abstract)
 |  |     +--Field_decimal
 |  |     +--Field_float
 |  |     +--Field_double
@@ -707,6 +707,7 @@ private:
   enum_check_fields m_check_for_truncated_fields_saved;
 
 protected:
+
   const uchar *get_null_ptr() const
   { return m_null_ptr; }
 
@@ -3290,7 +3291,7 @@ public:
 
 /*
   Field implementing TIME data type without fractional seconds.
-  We will be removed eventually.
+  It will be removed eventually.
 */
 class Field_time :public Field_time_common {
 protected:
@@ -4161,7 +4162,7 @@ public:
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override;
   type_conversion_status store_decimal(const my_decimal *) override;
-  type_conversion_status store_json(Json_wrapper *json);
+  type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg) override;
   type_conversion_status store(Field_json *field);
 
@@ -4220,7 +4221,7 @@ public:
     Get a read-only pointer to the binary representation of the JSON document
     in this field.
   */
-  const char *get_binary();
+  const char *get_binary() const;
 };
 
 
@@ -4663,7 +4664,6 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  bool *null_row;
   uint	from_bit,to_bit;
   String tmp;					// For items
 
@@ -4730,6 +4730,8 @@ public:
 
   uint to_length() const
   { return m_to_length; }
+
+  void swap_direction();
 };
 
 

@@ -2423,6 +2423,7 @@ mysql_declare_plugin(myisam)
   "MyISAM storage engine",
   PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   myisam_deinit, /* Plugin Deinit */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */

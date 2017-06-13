@@ -15,6 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_share.h"
+
 #include "ha_ndbcluster_tables.h"
 #include "m_string.h"
 #include "my_sys.h"
@@ -23,7 +25,6 @@
 #include "ndb_dist_priv_util.h"
 #include "ndb_event_data.h"
 #include "ndb_name_util.h"
-#include "ndb_share.h"
 #include "ndb_table_map.h"
 #include "table.h"
 #include "field.h"
@@ -137,17 +138,10 @@ void NDB_SHARE::free_key(NDB_SHARE_KEY* key)
 }
 
 
-const uchar* NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
+std::string NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
 {
   assert(key->m_key_length == strlen(key->m_buffer));
-  return (const uchar*)key->m_buffer;
-}
-
-
-size_t NDB_SHARE::key_get_length(NDB_SHARE_KEY* key)
-{
-  assert(key->m_key_length == strlen(key->m_buffer));
-  return key->m_key_length;
+  return key->m_buffer;
 }
 
 

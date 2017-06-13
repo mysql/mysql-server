@@ -88,7 +88,7 @@ PFS_file **file_handle_array = NULL;
 PFS_stage_stat *global_instr_class_stages_array = NULL;
 PFS_statement_stat *global_instr_class_statements_array = NULL;
 PFS_histogram global_statements_histogram;
-PFS_memory_stat *global_instr_class_memory_array = NULL;
+std::atomic<PFS_memory_stat *> global_instr_class_memory_array{nullptr};
 
 static PFS_ALIGNED PFS_cacheline_atomic_uint64 thread_internal_id_counter;
 
@@ -235,7 +235,7 @@ init_instruments(const PFS_global_param *param)
                        sizeof(PFS_memory_stat),
                        PFS_memory_stat,
                        MYF(MY_ZEROFILL));
-    if (unlikely(global_instr_class_memory_array == NULL))
+    if (unlikely(global_instr_class_memory_array.load() == nullptr))
     {
       return 1;
     }
@@ -286,7 +286,7 @@ cleanup_instruments(void)
                  memory_class_max,
                  sizeof(PFS_memory_stat),
                  global_instr_class_memory_array);
-  global_instr_class_memory_array = NULL;
+  global_instr_class_memory_array = nullptr;
 }
 
 /** Get hash table key for instrumented files. */
@@ -599,6 +599,7 @@ create_thread(PFS_thread_class *klass,
     pfs->m_parent_thread_internal_id = 0;
     pfs->m_processlist_id = static_cast<ulong>(processlist_id);
     pfs->m_thread_os_id = 0;
+    pfs->m_system_thread = !(klass->m_flags & PSI_FLAG_USER);
     pfs->m_event_id = 1;
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
@@ -631,6 +632,8 @@ create_thread(PFS_thread_class *klass,
     pfs->m_username_length = 0;
     pfs->m_hostname_length = 0;
     pfs->m_dbname_length = 0;
+    pfs->m_groupname_length = 0;
+    pfs->m_user_data = NULL;
     pfs->m_command = 0;
     pfs->m_start_time = 0;
     pfs->m_stage = 0;
@@ -668,6 +671,32 @@ create_thread(PFS_thread_class *klass,
   }
 
   return pfs;
+}
+
+/**
+  Find a PFS thread given an internal thread id or a processlist id.
+  @param thread_id internal thread id
+  @return pfs pointer if found, else NULL
+*/
+PFS_thread *
+find_thread(ulonglong thread_id)
+{
+  PFS_thread *pfs = NULL;
+  uint index = 0;
+
+  PFS_thread_iterator it = global_thread_container.iterate(index);
+
+  do
+  {
+    pfs = it.scan_next(&index);
+    if (pfs != NULL)
+    {
+      if (pfs->m_thread_internal_id == thread_id)
+        return pfs;
+    }
+  } while (pfs != NULL);
+
+  return NULL;
 }
 
 PFS_mutex *

@@ -215,25 +215,33 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -245,6 +253,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -397,25 +406,33 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -427,6 +444,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -614,25 +632,33 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -644,6 +670,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "desc",
@@ -845,25 +872,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -875,6 +910,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1066,25 +1102,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1096,6 +1140,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1242,25 +1287,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1272,6 +1325,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1396,22 +1450,30 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`foo`",
-              "items": [
-                {
-                  "item": "concat('hello ',`t1`.`f2`)"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`foo`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`foo`",
+                "items": [
+                  {
+                    "item": "concat('hello ',`t1`.`f2`)"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`foo`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1423,6 +1485,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1538,22 +1601,34 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "rand(2)",
-              "items": [
-                {
-                  "item": "rand(2)"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "rand(2)"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "rand(2)",
+                "items": [
+                  {
+                    "item": "rand(2)"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "rand(2)"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 1
               }
             ]
           }
@@ -1568,14 +1643,19 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 4,
                 "row_length": 219,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 1,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1724,25 +1804,33 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1754,6 +1842,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1941,25 +2030,33 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1971,6 +2068,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "desc",
@@ -2172,25 +2270,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -2202,6 +2308,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2393,25 +2500,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -2423,6 +2538,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2569,25 +2685,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -2599,6 +2723,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2759,25 +2884,33 @@ ORDER BY f1, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -2789,6 +2922,7 @@ ORDER BY f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2916,25 +3050,33 @@ ORDER BY f1, f0 LIMIT 0	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -2946,6 +3088,7 @@ ORDER BY f1, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3117,25 +3260,33 @@ ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -3147,6 +3298,7 @@ ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3298,25 +3450,33 @@ ORDER BY f2, f0 LIMIT 0	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -3328,6 +3488,7 @@ ORDER BY f2, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3489,25 +3650,33 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -3519,6 +3688,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3670,25 +3840,33 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -3700,6 +3878,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3957,19 +4136,20 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`tmp`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`tmp`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`tmp`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
@@ -3979,6 +4159,17 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               },
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -3993,14 +4184,19 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 5,
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4250,19 +4446,20 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`tmp`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`tmp`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`tmp`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
@@ -4272,6 +4469,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               },
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -4286,14 +4494,19 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 5,
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4548,19 +4761,20 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`tmp`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`tmp`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`tmp`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
@@ -4570,6 +4784,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               },
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -4584,14 +4809,19 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 5,
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4898,19 +5128,20 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`tmp`.`f1`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`tmp`.`f1`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`tmp`.`f1`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
+              }
             }
           },
           {
@@ -4920,6 +5151,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               },
               {
                 "table": "`tmp`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -4934,14 +5176,19 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 5,
                 "row_length": 235,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5147,25 +5394,33 @@ SELECT * FROM v1	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f1`"
-                      },
-                      {
-                        "item": "`t1`.`f0`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        },
+                        {
+                          "item": "`t1`.`f0`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -5249,9 +5504,13 @@ SELECT * FROM v1	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "in_plan_at_position": 0,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -5261,6 +5520,7 @@ SELECT * FROM v1	{
               "select#": 2,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -5439,25 +5699,33 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f1`"
-                      },
-                      {
-                        "item": "`t1`.`f0`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        },
+                        {
+                          "item": "`t1`.`f0`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -5528,25 +5796,33 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`v1`.`f2`,`v1`.`f0`",
-              "items": [
-                {
-                  "item": "`v1`.`f2`"
-                },
-                {
-                  "item": "`v1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`v1`.`f2`,`v1`.`f0`",
+                "items": [
+                  {
+                    "item": "`v1`.`f2`"
+                  },
+                  {
+                    "item": "`v1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`v1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -5561,9 +5837,13 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "in_plan_at_position": 0,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -5573,6 +5853,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -5610,6 +5891,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5812,25 +6094,33 @@ LIMIT 30	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f1`"
-                      },
-                      {
-                        "item": "`t1`.`f0`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        },
+                        {
+                          "item": "`t1`.`f0`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -5905,25 +6195,33 @@ LIMIT 30	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f2`,`t1`.`f0`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f2`"
-                      },
-                      {
-                        "item": "`t1`.`f0`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f2`"
+                        },
+                        {
+                          "item": "`t1`.`f0`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -6180,22 +6478,23 @@ LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`v1`.`f2`,`v1`.`f0`,`v2`.`f0`",
-              "items": [
-                {
-                  "item": "`v1`.`f2`"
-                },
-                {
-                  "item": "`v1`.`f0`"
-                },
-                {
-                  "item": "`v2`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`v1`.`f2`,`v1`.`f0`,`v2`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`v1`.`f2`,`v1`.`f0`,`v2`.`f0`",
+                "items": [
+                  {
+                    "item": "`v1`.`f2`"
+                  },
+                  {
+                    "item": "`v1`.`f0`"
+                  },
+                  {
+                    "item": "`v2`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`v1`.`f2`,`v1`.`f0`,`v2`.`f0`"
+              }
             }
           },
           {
@@ -6205,6 +6504,17 @@ LIMIT 30	{
               },
               {
                 "table": "`v2`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -6219,9 +6529,13 @@ LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "in_plan_at_position": 0,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -6230,9 +6544,13 @@ LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v2`",
+                "in_plan_at_position": 1,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 5,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -6242,6 +6560,7 @@ LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -6283,6 +6602,7 @@ LIMIT 30	{
               "select#": 3,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -6323,14 +6643,19 @@ LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 6,
                 "row_length": 419,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -6465,38 +6790,47 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))",
-              "items": [
-                {
-                  "item": "count(`t1`.`f2`)"
-                },
-                {
-                  "item": "floor((`t1`.`f1` / 10))"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))"
-            }
-          },
-          {
-            "clause_processing": {
-              "clause": "GROUP BY",
-              "original_clause": "floor((`t1`.`f1` / 10))",
-              "items": [
-                {
-                  "item": "floor((`t1`.`f1` / 10))"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "floor((`t1`.`f1` / 10))"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))",
+                "items": [
+                  {
+                    "item": "count(`t1`.`f2`)"
+                  },
+                  {
+                    "item": "floor((`t1`.`f1` / 10))"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "count(`t1`.`f2`),floor((`t1`.`f1` / 10))"
+              },
+              "simplifying_group_by": {
+                "original_clause": "floor((`t1`.`f1` / 10))",
+                "items": [
+                  {
+                    "item": "floor((`t1`.`f1` / 10))"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "floor((`t1`.`f1` / 10))"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "continuously_update_group_row"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 1
               }
             ]
           }
@@ -6511,14 +6845,19 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 2,
                 "row_length": 18,
                 "key_length": 9,
                 "unique_constraint": false,
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 1,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -6744,25 +7083,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -6774,6 +7121,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -6933,25 +7281,33 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -6963,6 +7319,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7123,25 +7480,33 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -7153,6 +7518,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7326,25 +7692,33 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f1`"
-                      },
-                      {
-                        "item": "`t1`.`f0`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f1`,`t1`.`f0`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        },
+                        {
+                          "item": "`t1`.`f0`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -7415,25 +7789,33 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`v1`.`f2`,`v1`.`f0`",
-              "items": [
-                {
-                  "item": "`v1`.`f2`"
-                },
-                {
-                  "item": "`v1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`v1`.`f2`,`v1`.`f0`",
+                "items": [
+                  {
+                    "item": "`v1`.`f2`"
+                  },
+                  {
+                    "item": "`v1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`v1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -7448,9 +7830,13 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "`v1`",
+                "in_plan_at_position": 0,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -7460,6 +7846,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -7497,6 +7884,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7683,22 +8071,30 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   }
                 },
                 {
-                  "clause_processing": {
-                    "clause": "ORDER BY",
-                    "original_clause": "`t1`.`f1`",
-                    "items": [
-                      {
-                        "item": "`t1`.`f1`"
-                      }
-                    ],
-                    "resulting_clause_is_simple": true,
-                    "resulting_clause": "`t1`.`f1`"
+                  "optimizing_distinct_group_by_order_by": {
+                    "simplifying_order_by": {
+                      "original_clause": "`t1`.`f1`",
+                      "items": [
+                        {
+                          "item": "`t1`.`f1`"
+                        }
+                      ],
+                      "resulting_clause_is_simple": true,
+                      "resulting_clause": "`t1`.`f1`"
+                    }
                   }
                 },
                 {
                   "refine_plan": [
                     {
                       "table": "`t1`"
+                    }
+                  ]
+                },
+                {
+                  "considering_tmp_tables": [
+                    {
+                      "adding_sort_to_table_in_plan_at_position": 0
                     }
                   ]
                 }
@@ -7860,16 +8256,17 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`d1`.`f2` desc",
-              "items": [
-                {
-                  "item": "`d1`.`f2`"
-                }
-              ],
-              "resulting_clause_is_simple": false,
-              "resulting_clause": "`d1`.`f2` desc"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`d1`.`f2` desc",
+                "items": [
+                  {
+                    "item": "`d1`.`f2`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`d1`.`f2` desc"
+              }
             }
           },
           {
@@ -7879,6 +8276,17 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               },
               {
                 "table": " `d1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_sort_to_table_in_plan_at_position": 2
               }
             ]
           }
@@ -7893,9 +8301,13 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": " `d1`",
+                "in_plan_at_position": 1,
+                "columns": 3,
                 "row_length": 210,
                 "key_length": 5,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
@@ -7905,6 +8317,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
+                  "sorting_table_in_plan_at_position": 0,
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -7940,14 +8353,19 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 2,
                 "row_length": 206,
                 "key_length": 0,
                 "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
                 "location": "TempTable"
               }
             }
           },
           {
+            "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "desc",
@@ -8183,22 +8601,30 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -8218,6 +8644,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                     "select#": 2,
                     "steps": [
                       {
+                        "sorting_table_in_plan_at_position": 0,
                         "filesort_information": [
                           {
                             "direction": "asc",
@@ -11947,22 +12374,30 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f1`",
-              "items": [
-                {
-                  "item": "`t1`.`f1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f1`",
+                "items": [
+                  {
+                    "item": "`t1`.`f1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -11982,6 +12417,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                     "select#": 2,
                     "steps": [
                       {
+                        "sorting_table_in_plan_at_position": 0,
                         "filesort_information": [
                           {
                             "direction": "asc",
@@ -12222,25 +12658,33 @@ SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`f2`,`t1`.`f0`",
-              "items": [
-                {
-                  "item": "`t1`.`f2`"
-                },
-                {
-                  "item": "`t1`.`f0`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`f2`,`t1`.`f0`",
+                "items": [
+                  {
+                    "item": "`t1`.`f2`"
+                  },
+                  {
+                    "item": "`t1`.`f0`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -12252,6 +12696,7 @@ SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -12411,25 +12856,33 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t`.`j`,`t`.`id`",
-              "items": [
-                {
-                  "item": "`t`.`j`"
-                },
-                {
-                  "item": "`t`.`id`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t`.`j`,`t`.`id`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t`.`j`,`t`.`id`",
+                "items": [
+                  {
+                    "item": "`t`.`j`"
+                  },
+                  {
+                    "item": "`t`.`id`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t`.`j`,`t`.`id`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -12441,6 +12894,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -12581,25 +13035,33 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t`.`j` desc,`t`.`id`",
-              "items": [
-                {
-                  "item": "`t`.`j`"
-                },
-                {
-                  "item": "`t`.`id`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t`.`j` desc,`t`.`id`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t`.`j` desc,`t`.`id`",
+                "items": [
+                  {
+                    "item": "`t`.`j`"
+                  },
+                  {
+                    "item": "`t`.`id`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t`.`j` desc,`t`.`id`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -12611,6 +13073,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "desc",
@@ -12753,25 +13216,33 @@ limit 2 offset 2	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`je`,`t`.`id`",
-              "items": [
-                {
-                  "item": "json_extract(`t`.`j`,'$')"
-                },
-                {
-                  "item": "`t`.`id`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`je`,`t`.`id`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`je`,`t`.`id`",
+                "items": [
+                  {
+                    "item": "json_extract(`t`.`j`,'$')"
+                  },
+                  {
+                    "item": "`t`.`id`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`je`,`t`.`id`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -12783,6 +13254,7 @@ limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",

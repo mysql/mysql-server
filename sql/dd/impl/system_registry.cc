@@ -20,6 +20,7 @@
 #include "dd/impl/system_views/character_sets.h"     // Character_sets
 #include "dd/impl/system_views/collations.h"         // Collations
 #include "dd/impl/system_views/columns.h"            // Columns
+#include "dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "dd/impl/system_views/collation_charset_applicability.h" // Collati...
 #include "dd/impl/system_views/events.h"             // Events
 #include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
@@ -41,6 +42,7 @@
 #include "dd/impl/tables/character_sets.h"           // Character_sets
 #include "dd/impl/tables/collations.h"               // Collations
 #include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
+#include "dd/impl/tables/column_statistics.h"        // Column_statistics
 #include "dd/impl/tables/columns.h"                  // Columns
 #include "dd/impl/tables/dd_properties.h"            // DD_properties
 #include "dd/impl/tables/events.h"                   // Events
@@ -132,6 +134,7 @@ void System_tables::init()
   register_table<Tablespaces>(core);
   register_table<Tablespace_files>(core);
   register_table<Catalogs>(core);
+  register_table<dd::tables::Column_statistics>(core);
   register_table<Schemata>(core);
   register_table<Spatial_reference_systems>(second);
   register_table<Tables>(core);
@@ -165,6 +168,7 @@ void System_views::init()
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
+  register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);

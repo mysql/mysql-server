@@ -15,6 +15,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -34,6 +35,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -52,6 +54,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -83,6 +86,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -106,6 +110,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -124,6 +129,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -165,6 +171,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -197,6 +204,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -237,6 +245,7 @@ root	localhost	BINLOG_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	ROLE_ADMIN	Y
 root	localhost	SET_USER_ID	Y
@@ -577,7 +586,7 @@ GRANT ALL ON *.* to u1;
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`%`
-GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+GRANT BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 GRANT `r2`@`%` TO `u1`@`%`
 # Boundary value test for privilege_id
 INSERT INTO mysql.global_grants VALUES('u1', '%',
@@ -614,6 +623,7 @@ Insert	Tables	To insert data into tables
 LENGTH_32_ABCDEFGHIJKLMNOPQRSTUX	Server Admin	
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
 NON_DOCUMENTED_PRIVILEGE	Server Admin	
+PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
 REPLICATION_SLAVE_ADMIN	Server Admin	
@@ -637,6 +647,8 @@ Usage	Server Admin	No privileges - allow connect only
 XA_RECOVER_ADMIN	Server Admin	
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
+# restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
 CREATE USER u1@localhost IDENTIFIED BY 'pwd';
@@ -649,6 +661,19 @@ START SLAVE;
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
 START SLAVE;
 ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
+#
+# Bad privilege- or auth identifiers shouldn't crash the server
+#
+REVOKE 'C' @c06 ON c02.`z1` FROM 'C' @c03;
+ERROR 42000: Illegal privilege identifier near ''C' @c06 ON c02.`z1` FROM 'C' @c03' at line 1
+GRANT '' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509;
+ERROR 42000: Illegal privilege identifier near ''' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509' at line 1
+GRANT '' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_QUERIES_PER_HOUR 0x2e3;
+ERROR 42000: Illegal privilege identifier near ''' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_Q' at line 1
+GRANT WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIRE SSL;
+ERROR 42000: Illegal privilege identifier near 'WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIR' at line 1
+GRANT '' @c03 ON c05.* TO '' @ '';
+ERROR 42000: Illegal privilege identifier near ''' @c03 ON c05.* TO '' @ ''' at line 1
 # Cleanup
 DROP USER u1@localhost, u1, r2;
 DROP TABLE test.t1;
@@ -674,6 +699,8 @@ PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
 # restart
 DROP USER u1@localhost;
+# restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
 #
 # Test for WL#7194
 # This test checks that a user who granted XA_RECOVER_ADMIN with

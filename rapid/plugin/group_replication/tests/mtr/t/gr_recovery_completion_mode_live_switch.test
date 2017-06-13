@@ -93,7 +93,7 @@ INSERT INTO t2 VALUES (1);
 --source include/rpl_connection.inc
 
  # Wait for the the 2 transaction to be in the queue
- --let $wait_condition= SELECT count_transactions_in_queue=2 FROM performance_schema.replication_group_member_stats
+ --let $wait_condition= SELECT count_transactions_in_queue=2 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
  --source include/wait_condition.inc
 
 --echo #
@@ -111,7 +111,7 @@ UNLOCK TABLES;
 --source include/rpl_connection.inc
 
 # Everything should be certified at this point.
---let $wait_condition= SELECT count_transactions_in_queue=0 FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT count_transactions_in_queue=0 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --let $group_replication_member_state= RECOVERING

@@ -46,7 +46,7 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-#define PFS_MAX_MUTEX_CLASS 220
+#define PFS_MAX_MUTEX_CLASS 250
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
 #define PFS_MAX_RWLOCK_CLASS 50
@@ -356,6 +356,18 @@ void init_pfs_instrument_array();
   Process one PFS_INSTRUMENT configuration string.
 */
 int add_pfs_instr_to_array(const char *name, const char *value);
+
+/**
+  Register/unregister notification service.
+*/
+int register_pfs_notification_service();
+int unregister_pfs_notification_service();
+
+/**
+  Register/unregister resource group service.
+*/
+int register_pfs_resource_group_service();
+int unregister_pfs_resource_group_service();
 
 /**
   Shutdown the performance schema.

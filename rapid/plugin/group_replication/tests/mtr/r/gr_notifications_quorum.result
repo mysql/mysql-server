@@ -89,10 +89,7 @@ include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:
 include/assert.inc [Assert that there are 1 notifications logged of type STATE %:%]
 include/assert.inc [Assert that there are 2 notifications logged]
 [Truncating gms_listener_example Table]
-[connection server2]
-include/stop_group_replication.inc
 [connection server1]
-include/stop_group_replication.inc
 # Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
 include/start_and_bootstrap_group_replication.inc
 [connection server2]

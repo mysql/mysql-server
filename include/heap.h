@@ -187,7 +187,14 @@ typedef struct st_heap_info
   LIST open_list;
 } HP_INFO;
 
-
+typedef uchar *HEAP_PTR;
+  
+typedef struct st_heap_position
+{
+  HEAP_PTR ptr;
+  ulong record_no; /* Number of current record in table scan order (starting at 0) */
+} HP_HEAP_POSITION;
+  
 typedef struct st_heap_create_info
 {
   HP_KEYDEF *keydef;
@@ -218,7 +225,7 @@ extern void heap_release_share(HP_SHARE *share, bool single_instance);
 extern int heap_close(HP_INFO *info);
 extern int heap_write(HP_INFO *info,const uchar *buff);
 extern int heap_update(HP_INFO *info,const uchar *old,const uchar *newdata);
-extern int heap_rrnd(HP_INFO *info,uchar *buf,uchar *pos);
+extern int heap_rrnd(HP_INFO *info,uchar *buf, HP_HEAP_POSITION *pos);
 extern int heap_scan_init(HP_INFO *info);
 extern int heap_scan(HP_INFO *info, uchar *record);
 extern int heap_delete(HP_INFO *info,const uchar *buff);
@@ -250,9 +257,8 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
               key_part_map keypart_map, enum ha_rkey_function find_flag);
 extern uchar * heap_find(HP_INFO *info,int inx,const uchar *key);
 extern int heap_check_heap(HP_INFO *info, bool print_status);
-extern uchar *heap_position(HP_INFO *info);
+extern void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos);
 
-typedef uchar *HEAP_PTR;
 
 #ifdef	__cplusplus
 }

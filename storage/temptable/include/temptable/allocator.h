@@ -738,19 +738,12 @@ inline void* Allocator<T>::mem_fetch_from_disk(size_t bytes) {
     return nullptr;
   }
 
-#ifdef HAVE_FTRUNCATE
-  if (ftruncate(f, bytes) != 0) {
-    my_close(f, MYF(MY_WME));
-    return nullptr;
-  }
-#else
   /* This will write `bytes` 0x0 bytes to the file on disk. */
-  if (my_chsize(f, bytes, 0x0, MYF(MY_WME)) != 0 ||
+  if (my_fallocator(f, bytes, 0x0, MYF(MY_WME)) != 0 ||
       my_seek(f, 0, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR) {
     my_close(f, MYF(MY_WME));
     return nullptr;
   }
-#endif
 
   void* ptr = my_mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
 

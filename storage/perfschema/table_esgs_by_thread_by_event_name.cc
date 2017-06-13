@@ -35,6 +35,8 @@
 THR_LOCK table_esgs_by_thread_by_event_name::m_table_lock;
 
 Plugin_table table_esgs_by_thread_by_event_name::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_stages_summary_by_thread_by_event_name",
   /* Definition */

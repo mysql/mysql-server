@@ -1763,6 +1763,15 @@ static const char *error_log_file= NULL;
 static bool error_log_buffering= true;
 static std::string *buffered_messages= NULL;
 
+void discard_error_log_messages()
+{
+  if (buffered_messages)
+  {
+    delete buffered_messages;
+    buffered_messages= NULL;
+  }
+  error_log_buffering= false;
+}
 
 void flush_error_log_messages()
 {
@@ -1802,9 +1811,8 @@ bool open_error_log(const char *filename)
   */
   if (my_stat(filename, &f_stat, MYF(0)))
   {
-    if (!(f_stat.st_mode & MY_S_IWRITE))
+    if (my_access(filename, W_OK))
     {
-      errno= EACCES;
       return true;
     }
   }

@@ -20,30 +20,31 @@
 extern "C" {
 #endif
 
+#include "task.h"
 #include "xcom_common.h"
 #include "xcom_limits.h"
-#include "task.h"
 
 struct srv_buf {
-	u_int start;
-	u_int n;
-	char	buf[0x10000];
+  u_int start;
+  u_int n;
+  char buf[0x10000];
 };
 typedef struct srv_buf srv_buf;
 
 /* Server definition */
 struct server {
-	int garbage;
-	int	refcnt;
-	char	*srv;        /* Server name */
-	xcom_port	port;         /* Port */
-	connection_descriptor con;           /* Descriptor for open connection */
-	double	active;     /* Last activity */
-	double	detected;     /* Last incoming */
-	channel outgoing; /* Outbound messages */
-	task_env * sender;  /* The sender task */
-	task_env * reply_handler;  /* The reply task */
-	srv_buf out_buf;
+  int garbage;
+  int refcnt;
+  char *srv;                 /* Server name */
+  xcom_port port;            /* Port */
+  connection_descriptor con; /* Descriptor for open connection */
+  double active;             /* Last activity */
+  double detected;           /* Last incoming */
+  channel outgoing;          /* Outbound messages */
+  task_env *sender;          /* The sender task */
+  task_env *reply_handler;   /* The reply task */
+  srv_buf out_buf;
+  int invalid;
 };
 
 typedef struct server server;
@@ -53,4 +54,3 @@ typedef struct server server;
 #endif
 
 #endif
-

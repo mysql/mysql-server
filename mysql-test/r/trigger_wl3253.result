@@ -2,7 +2,7 @@
 # WL#3253: multiple triggers per table
 #
 SET @binlog_format_saved = @@binlog_format;
-SET binlog_format=ROW;
+SET binlog_format='ROW';
 #
 # Test 1.
 # Check that the sequence of triggers for the same combination 

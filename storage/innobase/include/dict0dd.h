@@ -171,6 +171,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("tablespaces", 2),
 	INNODB_DD_TABLE("tablespace_files", 2),
 	INNODB_DD_TABLE("catalogs", 2),
+	INNODB_DD_TABLE("column_statistics", 3),
 	INNODB_DD_TABLE("schemata", 3),
 	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
 	INNODB_DD_TABLE("tables", 6),

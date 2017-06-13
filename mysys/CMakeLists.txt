@@ -59,6 +59,7 @@ SET(MYSYS_SOURCES
   my_delete.cc
   my_div.cc
   my_error.cc
+  my_fallocator.cc
   my_file.cc
   my_fopen.cc
   my_fstream.cc

@@ -89,6 +89,7 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
+#include <set>
 
 class Item;
 namespace dd {
@@ -111,10 +112,111 @@ class Abstract_table;
 #include <boost/smart_ptr/make_shared_object.hpp>
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/function.hpp>
 
 #include "my_sys.h"
 #include "dynamic_privilege_table.h"
 #include "sql_db.h"
+
+/**
+   @file sql_authorization.cc
+
+   AUTHORIZATION CODE
+
+*/
+
+/**
+  @page AUTHORIZATION_PAGE Authorization IDs, roles and users
+
+  @section AUTHORIZATION_ID Authentication ID
+  @subsection AUTH_ID_DEFINITION Definition
+ Each row in the mysql.user table is identified by a user and host tuple. This
+ tuple is the authorization ID.
+ A client can authenticate with an authorization ID and a password. The ID is
+ then referred to as a user or user name.
+
+  @section AUTHORIZATION_PRIVILEGES Privileges ID
+  @subsection AUTH_PRIV_DEFINITION Definition
+ A privilege ID is a named token which can be granted to an authorization ID.
+
+ A privilege can either be effective or not effective. An effective privilege is
+ a privilege which used in a session to evaluate if a particular operation is
+ allowed or not. All effective privileges are granted or inherited but not all
+ privileges are effective.
+
+  @section AUTHORIZATION_ROLES Roles
+  @subsection AUTH_ROLES_DEFINITION Definition
+ A role is an authorization ID which can be granted to another authorization ID
+ by forming an directed edge between them in the role graph where every vertex
+ is a unique authorization ID. When the effective privilege is calculated, all
+ connected roles are visited according to their edge direction and their
+ corresponding granted privileges are aggregated.
+
+  @subsection ACTIVE_ROLE Active roles
+ A role can either be active or inactive. Active roles are kept in a thread
+ local list which exists solely for the lifetime of a client session. Granted
+ roles can be made active by
+   1) a SET ROLE statement,
+   2) after authentication if the role is a default role,
+   3) after authentication if the global variable
+opt_always_activate_roles_on_login is set to true.
+ 
+  Example: To set the grated role ``team``\@``%`` as an active role, after
+    authentication, execute: SET ROLE team
+  
+  @subsection DEFAULT_ROLE Default roles
+ Each authorization ID has a list of default roles. Default roles belonging to
+ an authorization ID are made into active roles after authentication iff they
+ are granted to this ID. If the list of default roles is empty then no roles are
+ made active after authentication unless the client sets a
+ SET ROLE statement.
+
+  @subsection MANDATORY_ROLE Mandatory roles
+ A mandatory role is an authorization ID which is implicitly granted to every
+ other authorization ID which has authenticated, regardless if this role has
+ been previously granted or not. Mandatory roles are specified in a global
+ variable. It's not required that the specified list maps to any existing
+ authorization ID but if there's no previous authorization ID then no mandatory
+ role can be granted. Mandatory roles are processed sequentially as any other
+ granted role when the effective privilege of an authorization ID needs to be
+ calculated iff they are active.
+
+ @section AUTHORIZATION_CACHE The effective privilege cache
+ @subsection OVERVIEW Overview
+ To avoid recalculating the effective privilege at every step the result is
+ saved into a cache (See Acl_cache ). The key to this cache is
+ formed by concatenating authorization ID, the active roles and the version ID
+ of the cache.
+
+ The cache is a lockless hash storage and each element is assembled using
+ read-only operations on the shared role graph. 
+ @see get_privilege_access_maps
+
+ @section AUTHORIZATION_SHOW_GRANTS SHOW GRANTS
+
+ The statements @code SHOW GRANT @endcode shows all effective privileges using
+ the currently active roles for the current user.
+
+ The statement @code SHOW GRANT FOR x USING y @endcode is used for listing the
+ effective privilege for x given y as active roles. If If y isn't specified then
+ no roles are used. If x isn't specified then the current_user() is used.
+ Mandatory roles are always excluded from the list of granted roles when this
+ statement is used.
+
+ Example: To show the privilege for a role using no roles:
+ @code SHOW GRANTS FOR x. @endcode
+
+ SHOW-statements does not use the privilege cache and the effective privilege is
+ recalculated on every execution.
+ @see mysql_show_grants
+
+ To show the role graph use @code SELECT roles_graphml() @endcode
+ 
+ To investigate the role graph use the built in XML functions or the
+ mysql.role_edges table. 
+
+ */
+
 Granted_roles_graph *g_granted_roles= 0;
 Role_index_map *g_authid_to_vertex= 0;
 static char g_active_dummy_user[]= "active dummy user";
@@ -123,7 +225,6 @@ extern Default_roles *g_default_roles;
 typedef boost::graph_traits<Granted_roles_graph>::adjacency_iterator
   Role_adjacency_iterator;
 User_to_dynamic_privileges_map *g_dynamic_privileges_map= 0;
-
 const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
@@ -211,7 +312,7 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user)
   Role_vertex_descriptor user_vert;
   if (revoke_role_helper(thd, authid_role, authid_user, &user_vert))
   {
-    // TODO No such role yet.
+    // No such role yet.
     return;
   }
   /*
@@ -232,7 +333,11 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user)
 */
 void rebuild_vertex_index(THD *thd)
 {
-  DBUG_ASSERT(assert_acl_cache_read_lock(thd));
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  for (auto &acl_user : *acl_users)
+  {
+    create_role_vertex(&acl_user);
+  }
   g_authid_to_vertex->clear();
   boost::graph_traits<Granted_roles_graph>::vertex_iterator vert_it, vert_end;
   boost::tie(vert_it, vert_end)= boost::vertices(*g_granted_roles);
@@ -242,8 +347,15 @@ void rebuild_vertex_index(THD *thd)
                         [
                           boost::vertex(*vert_it, *g_granted_roles)
                         ];
-    std::string authid= create_authid_str_from(&acl_user);
-    (*g_authid_to_vertex)[authid]= *vert_it;
+    if (acl_user.user == g_active_dummy_user)
+    {
+      (*g_authid_to_vertex)["root"]= *vert_it;
+    }
+    else
+    {
+      std::string authid= create_authid_str_from(&acl_user);
+      (*g_authid_to_vertex)[authid]= *vert_it;
+    }
   }
 }
 
@@ -395,7 +507,8 @@ bool is_role_id(LEX_USER *authid)
 
   @return
 */
-void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt)
+void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
+                                bool with_admin_opt)
 {
   DBUG_ENTER("grant_role");
   bool is_added;
@@ -445,6 +558,35 @@ void grant_role(THD *thd, ACL_USER *role, ACL_USER *user, bool with_admin_opt)
                                  1 : 0));
   role->is_role= true;
   DBUG_VOID_RETURN;
+}
+
+/**
+  Helper function for create_roles_vertices. Creates a vertex in the role
+  graph and associate it with an ACL_USER. If the ACL_USER already exists in
+  the vertex-to-acl-user index then we ignore this request.
+ 
+  @param role_acl_user The acial user to be mapped to a vertex.
+*/
+void create_role_vertex(ACL_USER *role_acl_user)
+{
+  Role_vertex_descriptor role_vertex;
+  Role_index_map::iterator it;
+  std::string key= create_authid_str_from(role_acl_user);
+  if ((it= g_authid_to_vertex->find(key)) ==
+       g_authid_to_vertex->end())
+  {
+    role_vertex= boost::add_vertex(*g_granted_roles);
+    boost::property_map<Granted_roles_graph,
+                  boost::vertex_acl_user_t >::type root_prop;
+    root_prop= boost::get(boost::vertex_acl_user_t(),
+                          *g_granted_roles);
+    boost::put(root_prop, role_vertex, *role_acl_user);
+    boost::property_map<Granted_roles_graph,
+                      boost::vertex_name_t>::type role_pname;
+    role_pname= boost::get(boost::vertex_name_t(), *g_granted_roles);
+    boost::put(role_pname, role_vertex, key);
+    g_authid_to_vertex->insert(std::make_pair(key, role_vertex));
+  }
 }
 
 /**
@@ -779,15 +921,14 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role,
 bool is_granted_role_with_admin(const std::string &authid,
                                 const List_of_granted_roles &granted_roles)
 {
-  std::string granted_role_str;
   for(auto &role : granted_roles)
   {
-    if (!role.second)
-      continue;
-    granted_role_str.clear();
+    std::string granted_role_str;
     role.first.auth_str(&granted_role_str);
-    if (authid == granted_role_str)
+    if (role.second && (authid == granted_role_str))
+    {
       return true;
+    }
   }
   return false;
 }
@@ -799,19 +940,33 @@ make_with_admin_privilege_statement(THD *thd, ACL_USER *acl_user,
                                     const List_of_granted_roles &granted_roles)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(thd));
-  if (with_admin_acl.size() == 0)
+  if (granted_roles.size() == 0)
     return;
-  Grant_acl_set::const_iterator it= with_admin_acl.begin();
+  std::set<std::string> sorted_copy_of_granted_role_str;
+  for (auto &rid : granted_roles)
+  {
+    if (!rid.second)
+      continue; // this is not granted WITH ADMIN
+    std::string key;
+    rid.first.auth_str(&key);
+    sorted_copy_of_granted_role_str.insert(key);
+  }
+  for (auto &s : with_admin_acl)
+  {
+    sorted_copy_of_granted_role_str.insert(s);
+  }
+
+  if (sorted_copy_of_granted_role_str.size() == 0)
+    return;
+  std::set<std::string>::iterator it= sorted_copy_of_granted_role_str.begin();
   String global;
-	global.append(STRING_WITH_LEN("GRANT "));
+  global.append(STRING_WITH_LEN("GRANT "));
   bool found= false;
-	for (; it != with_admin_acl.end(); ++it)
-	{
-    if (is_granted_role_with_admin(*it, granted_roles))
-      continue;
-    if (it != with_admin_acl.begin())
-			global.append(',');
-		global.append(it->c_str(), it->length());
+  for (; it != sorted_copy_of_granted_role_str.end(); ++it)
+  {
+    if (it != sorted_copy_of_granted_role_str.begin())
+      global.append(',');
+    global.append(it->c_str(), it->length());
     found= true;
   }
   if (found)
@@ -875,30 +1030,65 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
 
 void make_roles_privilege_statement(THD *thd, ACL_USER *role,
                                     Protocol *protocol,
-                                    const List_of_granted_roles &granted_roles)
+                                    List_of_granted_roles &granted_roles,
+                                    bool show_mandatory_roles)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(thd));
-  if (granted_roles.size() == 0)
-    return;
-  List_of_granted_roles::const_iterator it= granted_roles.begin();
   String global;
   global.append(STRING_WITH_LEN("GRANT "));
 
   bool found= false;
-  /* First list granted roles which doesn't have WITH ADMIN */
-  for (; it != granted_roles.end(); ++it)
+  std::vector<Role_id > mandatory_roles;
+  /*
+    Because the output of SHOW GRANTS is used by tools like mysqldump we
+    cannot include mandatory roles if the FOR clause is used.
+  */
+  if (show_mandatory_roles)
   {
-    if (it->second)
-      continue;
-    if (found)
-      global.append(',');
-    append_identifier(thd, &global, it->first.user().c_str(),
-                      it->first.user().length());
-    global.append('@');
-    append_identifier(thd, &global, it->first.host().c_str(),
-                      it->first.host().length());
-    found= true;
+    get_mandatory_roles(&mandatory_roles);
   }
+  if (granted_roles.size() == 0 && mandatory_roles.size() == 0)
+    return;
+  /* First list granted roles which doesn't have WITH ADMIN */
+  std::sort(granted_roles.begin(), granted_roles.end());
+  List_of_granted_roles::iterator it= granted_roles.begin();
+  std::vector<Role_id>::iterator it2= mandatory_roles.begin();
+  bool got_more_mandatory_roles= (it2 != mandatory_roles.end());
+  bool got_more_granted_roles= (it != granted_roles.end());
+  while (got_more_mandatory_roles || got_more_granted_roles)
+  {
+    if (got_more_granted_roles && !it->second &&
+        !(got_more_mandatory_roles && *it2 < it->first))
+    {
+      if (found)
+        global.append(',');
+      append_identifier(thd, &global, it->first.user().c_str(),
+                        it->first.user().length());
+      global.append('@');
+      append_identifier(thd, &global, it->first.host().c_str(),
+                        it->first.host().length());
+      found= true;
+      if (got_more_mandatory_roles && it->first == *it2)
+        ++it2;
+      ++it;
+    }
+    else if (got_more_mandatory_roles)
+    {
+      if (found)
+        global.append(',');
+      append_identifier(thd, &global, it2->user().c_str(),
+                        it2->user().length());
+      global.append('@');
+      append_identifier(thd, &global, it2->host().c_str(),
+                        it2->host().length());
+      found= true;
+      ++it2;
+    }
+    else
+      ++it;
+    got_more_mandatory_roles= (it2 != mandatory_roles.end());
+    got_more_granted_roles= (it != granted_roles.end());
+  } // end while
   if (found)
   {
     global.append(STRING_WITH_LEN(" TO "));
@@ -910,41 +1100,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
     protocol->store(global.ptr(), global.length(), global.charset());
     protocol->end_row();
   }
-
-  String with_admin_str;
-  with_admin_str.append(STRING_WITH_LEN("GRANT "));
-  found= false;
-  it= granted_roles.begin();
-	/* List roles WITH ADMIN property */
-  for (; it != granted_roles.end(); ++it)
-  {
-    if (!it->second)
-      continue;
-    if (found)
-      with_admin_str.append(',');
-    append_identifier(thd, &with_admin_str, it->first.user().c_str(),
-                      it->first.user().length());
-    with_admin_str.append('@');
-    append_identifier(thd, &with_admin_str, it->first.host().c_str(),
-                      it->first.host().length());
-    found= true;
-  }
-  if (found)
-  {
-    with_admin_str.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &with_admin_str, role->user, strlen(role->user));
-    with_admin_str.append('@');
-    append_identifier(thd, &with_admin_str, role->host.get_host(),
-                      role->host.get_host_len());
-    with_admin_str.append(" WITH ADMIN OPTION");
-    protocol->start_row();
-    protocol->store(with_admin_str.ptr(), with_admin_str.length(),
-                    with_admin_str.charset());
-    protocol->end_row();
-  }
-
 }
-
 
 void make_table_privilege_statement(THD *thd, ACL_USER *role,
                                     Protocol *protocol,
@@ -1033,16 +1189,17 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
   }
 }
 
-void get_sp_access_map(ACL_USER *acl_user, SP_access_map *sp_map,
-                       HASH *hash)
+void get_sp_access_map
+  (ACL_USER *acl_user, SP_access_map *sp_map,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  uint index;
   /* Add routine access */
-  for (index=0 ; index < hash->records ; index++)
+  for (const auto &key_and_value : *hash)
   {
+    GRANT_NAME *grant_proc= key_and_value.second.get();
     const char *user, *host;
-    GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, index);
     if (!(user=grant_proc->user))
       user= "";
     if (!(host= grant_proc->host.get_host()))
@@ -1077,11 +1234,10 @@ void get_table_access_map(ACL_USER *acl_user,
 {
   DBUG_ENTER("get_table_access_map");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  for (ulong index= 0 ; index < column_priv_hash.records ; ++index)
+  for (const auto &key_and_value : *column_priv_hash)
   {
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     const char *user, *host;
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash, index);
 
     if (!(user=grant_table->user))
       user= "";
@@ -1123,19 +1279,15 @@ void get_table_access_map(ACL_USER *acl_user,
         {
           DBUG_PRINT("info",("Collecting column privileges for %s@%s",
                              acl_user->user, acl_user->host.get_host()));
-          for (ulong col_idx= 0; col_idx < grant_table->hash_columns.records;
-               ++col_idx)
+          // Iterate over all column ACLs for this table.
+          for (const auto &key_and_value : grant_table->hash_columns)
           {
             String q_col_name;
-            // Iterate over all column ACLs for this table
-            GRANT_COLUMN *col=
-              (GRANT_COLUMN *)my_hash_element(&(grant_table->hash_columns),
-                                               col_idx);
+            GRANT_COLUMN *col= key_and_value.second.get();
             // TODO why can this be 0x0 ?!
             if (col)
             {
-              std::string str_column_name(col->column,
-                                          col->key_length);
+              std::string str_column_name(col->column);
               ulong col_access= agg.columns[str_column_name];
               col_access |= col->rights;
               agg.columns[str_column_name]= col_access;
@@ -1276,10 +1428,10 @@ public:
     get_table_access_map(&acl_user, m_table_map);
 
     /* Add stored procedure access */
-    get_sp_access_map(&acl_user, m_sp_map, &proc_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get());
 
     /* Add user function access */
-    get_sp_access_map(&acl_user, m_sp_map, &func_priv_hash);
+    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
@@ -1524,7 +1676,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  if (check_fk_parent_table_access(thd, lex->create_info, &lex->alter_info))
+  if (check_fk_parent_table_access(thd, lex->create_info, lex->alter_info))
     goto err;
 
   error= FALSE;
@@ -2552,12 +2704,14 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
                       DBUG_SET("-d,simulate_out_of_memory"););
 
-      if (!grant_table ||
-        my_hash_insert(&column_priv_hash,(uchar*) grant_table))
+      if (!grant_table)
       {
         result= true;                           /* purecov: deadcode */
         break;                               /* purecov: deadcode */
       }
+      column_priv_hash->emplace
+        (grant_table->hash_key,
+          unique_ptr_destroy_only<GRANT_TABLE>(grant_table));
     }
 
     /* If revoke_grant, calculate the new column privilege for tables_priv */
@@ -2578,10 +2732,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       }
       /* scan trough all columns to get new column grant */
       column_priv= 0;
-      for (uint idx=0 ; idx < grant_table->hash_columns.records ; idx++)
+      for (const auto &key_and_value : grant_table->hash_columns)
       {
-        grant_column= (GRANT_COLUMN*)
-          my_hash_element(&grant_table->hash_columns, idx);
+        grant_column= key_and_value.second.get();
         grant_column->rights&= ~rights;         // Fix other columns
         column_priv|= grant_column->rights;
       }
@@ -2593,7 +2746,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
     /* update table and columns */
 
-    if ((error= replace_table_table(thd, grant_table,
+    // Hold on to grant_table if it gets deleted, since we use it below.
+    std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>> deleted_grant_table;
+
+    if ((error= replace_table_table(thd, grant_table, &deleted_grant_table,
                                     tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
                                     *Str, db_name, table_name,
                                     rights, column_priv, revoke_grant)))
@@ -2761,13 +2917,17 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       grant_name= new (*THR_MALLOC) GRANT_NAME(Str->host.str, db_name,
                                                Str->user.str, table_name,
                                                rights, TRUE);
-      if (!grant_name ||
-        my_hash_insert(is_proc ?
-                       &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
+      if (!grant_name)
       {
         result= true;
         break;
       }
+      if (is_proc)
+        proc_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
+      else
+        func_priv_hash->emplace(grant_name->hash_key,
+                                unique_ptr_destroy_only<GRANT_NAME>(grant_name));
     }
 
     if ((error= replace_routine_table(thd, grant_name, tables[4].table, *Str,
@@ -2824,12 +2984,13 @@ bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   List_iterator<LEX_USER > users_it(const_cast<List<LEX_USER> &>(*users));
+  List_iterator<LEX_USER > roles_it(const_cast<List<LEX_USER> &>(*roles));
   bool errors= false;
   LEX_USER *lex_user;
   TABLE *table= NULL;
   int ret;
+  LEX_USER *role= 0;
   bool transactional_tables;
-
   if ((ret= open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);                          /* purecov: deadcode */
 
@@ -2841,10 +3002,26 @@ bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
-
+  std::vector<Role_id > mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  while((role= roles_it++) != 0)
+  {
+    if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
+                     [&](const Role_id &id)->bool { Role_id id2(role->user,
+                                                                role->host);
+                                                    return id == id2; }) !=
+        mandatory_roles.end())
+    {
+      Role_id authid(role->user,role->host);
+      std::string out;
+      authid.auth_str(&out);
+      my_error(ER_MANDATORY_ROLE,MYF(0), out.c_str());
+      DBUG_RETURN(true);
+    }
+  }
   while ((lex_user= users_it++) && !errors)
   {
-    List_iterator<LEX_USER > roles_it(const_cast<List<LEX_USER> &>(*roles));
+    roles_it.rewind();
     LEX_USER *role;
     if (lex_user->user.str == 0)
     {
@@ -3856,7 +4033,10 @@ err:
 }
 
 
-static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
+static bool check_grant_db_routine
+  (THD *thd, const char *db,
+   malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+     *hash)
 {
   DBUG_ENTER("check_grant_db_routine");
   Security_context *sctx= thd->security_context();
@@ -3870,9 +4050,9 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
   }
   else
   {
-    for (uint idx= 0; idx < hash->records; ++idx)
+    for (const auto &key_and_value : *hash)
     {
-      GRANT_NAME *item= (GRANT_NAME*) my_hash_element(hash, idx);
+      GRANT_NAME *item= key_and_value.second.get();
 
       if (strcmp(item->user, sctx->priv_user().str) == 0 &&
           strcmp(item->db, db) == 0 &&
@@ -3919,10 +4099,7 @@ bool check_grant_db(THD *thd,const char *db)
   DBUG_ENTER("check_table_and_sp_access");
   Security_context *sctx= thd->security_context();
   LEX_CSTRING priv_user= sctx->priv_user();
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
-  uint len;
   bool error= true;
-  size_t copy_length;
 
   if (sctx->get_active_roles()->size() > 0)
   {
@@ -3933,30 +4110,20 @@ bool check_grant_db(THD *thd,const char *db)
     DBUG_RETURN(!has_any_table_acl(sctx, {db, db_len}) &&
                 !has_any_routine_acl(sctx, {db, db_len}));
   }
-  /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
-                (db ? strlen(db) : 0)) + 1;
 
-  /*
-    Make sure that my_stpcpy() operations do not result in buffer overflow.
-  */
-  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
-    return true;
-
-  len= (uint) (my_stpcpy(my_stpcpy(helping, priv_user.str) + 1, db) -
-               helping) + 1;
+  std::string key= to_string(priv_user);
+  key.push_back('\0');
+  key.append(db);
+  key.push_back('\0');
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     return true;
 
-  for (uint idx=0 ; idx < column_priv_hash.records ; idx++)
+  for (const auto &key_and_value : *column_priv_hash)
   {
-    GRANT_TABLE *grant_table= (GRANT_TABLE*)
-      my_hash_element(&column_priv_hash,
-                      idx);
-    if (len < grant_table->key_length &&
-        !memcmp(grant_table->hash_key,helping,len) &&
+    GRANT_TABLE *grant_table= key_and_value.second.get();
+    if (grant_table->hash_key.compare(0, key.size(), key) == 0 &&
         grant_table->host.compare_hostname(sctx->host().str,
                                            sctx->ip().str))
     {
@@ -3970,8 +4137,8 @@ bool check_grant_db(THD *thd,const char *db)
   {
     DBUG_PRINT("info",("No table level acl in column_priv_hash; checking "
                        "for schema level acls"));
-    error= check_grant_db_routine(thd, db, &proc_priv_hash) &&
-           check_grant_db_routine(thd, db, &func_priv_hash);
+    error= check_grant_db_routine(thd, db, proc_priv_hash.get()) &&
+           check_grant_db_routine(thd, db, func_priv_hash.get());
   }
 
   DBUG_RETURN(error);
@@ -4250,6 +4417,141 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 }
 
 
+/**
+  Iterate a string by comma separation and apply a function on each chunk
+  separated by the commas.
+  @param str The string to be iterated
+  @param f   A function which will receive the comma separated strings.
+
+*/
+
+void iterate_comma_separated_quoated_string(std::string str,
+                                            const std::function<bool (const std::string )> &f)
+{
+  if (str.length() == 0)
+    return;
+  std::string::iterator i= str.begin();
+  std::stringstream ss;
+  bool q1= false;
+  bool q2= false;
+  bool q3= false;
+  while(i != str.end())
+  {
+    if (!q2 && !q3 && *i == '`')
+    {
+      if (q1)
+        q1 =false;
+      else
+        q1= true;
+    }
+    else if (!q1 && !q3 && *i == '\'')
+    {
+      if (q2)
+        q2 =false;
+      else
+        q2= true;
+    }
+    else if (!q1 && !q2 && *i == '\'')
+    {
+      if (q3)
+        q3 =false;
+      else
+        q3= true;
+    }
+    else if (q1 == false && q2 == false && q3 == false && *i == ',')
+    {
+      if (f(ss.str()))
+        return;
+      ss.str("");
+      ++i;
+      continue;
+    }
+    else if (q1 == false && q2 == false && q3 == false && *i == ' ')
+    {
+      ++i;
+      continue;
+    }
+    ss << *i;
+    ++i;
+  }
+  f(ss.str());
+}
+
+
+/**
+  Return the unquoted authorization id as a user,host-tuple
+  @param str The quoted or unquoted string representation of an authid
+
+  @return The unquoted authorization id as a user,host-tuple
+*/
+
+std::pair<std::string, std::string > get_authid_from_quoted_string(std::string str)
+{
+  std::string::iterator i;
+  std::stringstream user;
+  std::stringstream host;
+  int ct= 0;
+  bool q1= false;
+  bool q2= false;
+  bool q3= false;
+  for (i= str.begin(); i != str.end(); ++i)
+  {
+    if (!q2 && !q3 && *i == '`')
+    {
+      if (q1)
+        q1 =false;
+      else
+        q1= true;
+      continue;
+    }
+    else if (!q1 && !q3 && *i == '\'')
+    {
+      if (q2)
+        q2 =false;
+      else
+        q2= true;
+      continue;
+    }
+    else if (!q1 && !q2 && *i == '"')
+    {
+      if (q3)
+        q3 =false;
+      else
+        q3= true;
+      continue;
+    }
+    else if (q1 == false && q2 == false && q3 == false && *i == '@')
+    {
+      ++ct;
+      continue;
+    }
+    else if (q1 == false && q2 == false && q3 == false && *i == ' ')
+    {
+      continue;
+    }
+    if (ct == 0)
+    {
+      user << *i;
+    }
+    else
+    {
+      host << *i;
+    }
+  }
+  return std::make_pair(user.str(), host.str());
+}
+
+bool operator==(const std::pair<Role_id, bool> &rid, const Auth_id_ref &ref)
+{
+  return (rid.first.user() == std::string(ref.first.str, ref.first.length) &&
+          rid.first.host() == std::string(ref.second.str,ref.second.length));
+}
+
+bool operator==(const Auth_id_ref &ref, const std::pair<Role_id, bool> &rid)
+{
+  return operator==(rid, ref);
+}
+
 void get_privilege_access_maps(ACL_USER *acl_user,
                                const List_of_auth_id_refs *using_roles,
                                ulong *access,
@@ -4264,7 +4566,8 @@ void get_privilege_access_maps(ACL_USER *acl_user,
 {
   DBUG_ENTER("get_privilege_access_maps");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  boost::graph_traits<Granted_roles_graph>::vertex_iterator vi, vi_end;
+  List_of_auth_id_refs activated_roles_ref;
+  boost::graph_traits<Granted_roles_graph>::edge_iterator ei, ei_end;
   /* First we check the current users access control */
   // Get global access
   *access= acl_user->access;
@@ -4275,116 +4578,134 @@ void get_privilege_access_maps(ACL_USER *acl_user,
   // Get table- and column privileges
   get_table_access_map(acl_user, table_map);
   // get stored procedure privileges
-  get_sp_access_map(acl_user, sp_map, &proc_priv_hash);
+  get_sp_access_map(acl_user, sp_map, proc_priv_hash.get());
   // get user function privileges
-  get_sp_access_map(acl_user, func_map, &func_priv_hash);
+  get_sp_access_map(acl_user, func_map, func_priv_hash.get());
   // get dynamic privileges
   get_dynamic_privileges(acl_user, dynamic_acl);
 
-  /* Only check roles if there are any granted roles at all */
-  boost::tie(vi, vi_end) = boost::vertices(*g_granted_roles);
-  if (vi != vi_end)
-  {
-    // Add dummy node with the active roles
-    ACL_USER dummy_user;
-    dummy_user.access= 0;
-    dummy_user.user= &g_active_dummy_user[0];
-    dummy_user.host.update_hostname("");
-    // Only inserts if the vertex doesn't already exist
-    Role_vertex_descriptor root= boost::add_vertex(*g_granted_roles);
-    boost::property_map<Granted_roles_graph,
-                        boost::vertex_acl_user_t >::type root_prop;
-    root_prop= boost::get(boost::vertex_acl_user_t(), *g_granted_roles);
-    boost::put(root_prop, root, dummy_user);
-    // for each active role as ar
-    //   if ar in child nodes (v) as w:
-    //     add_edge(v,w).
-    int granted_active_roles = 0;
-    Role_vertex_descriptor user_vertex, active_role_vertex;
-    String ss_acl_user;
-    append_identifier(&ss_acl_user, acl_user->user,
-                      strlen(acl_user->user));
-    ss_acl_user.append('@');
-    append_identifier(&ss_acl_user, acl_user->host.get_host(),
-                      acl_user->host.get_host_len());
-    Role_index_map::iterator it=
-      g_authid_to_vertex->find(std::string(ss_acl_user.c_ptr_quick()));
-    if (it != g_authid_to_vertex->end())
-    {
-      user_vertex = it->second;
-      get_granted_roles(user_vertex, granted_roles);
-      if (using_roles->size() != 0)
-      {
-        List_of_auth_id_refs::const_iterator active_roles_iterator=
-          using_roles->begin();
-        /*
-          Find the vertex id of the user we want to investigate the outbound
-          edges of.
-        */
-        for (; active_roles_iterator != using_roles->end();
-             ++active_roles_iterator)
-        {
-          /* If active role has an out-edges equal to active_roles_iterator */
-          if (!find_if_granted_role(user_vertex, active_roles_iterator->first,
-                                    active_roles_iterator->second,
-                                    &active_role_vertex))
-          {
-            THD *thd= current_thd;
-            if (thd)
-            {
-              push_warning_printf(thd, Sql_condition::SL_WARNING,
-                                  ER_UNKNOWN_AUTHID,
-                                  "Illegal role `%s`@`%s` was ignored.",
-                                  active_roles_iterator->first.str,
-                                  active_roles_iterator->second.str);
-            }
-            continue;
-          }
+  /* We don't support role hierarchies for anonymous accounts. */
+  if (acl_user->user == 0)
+    DBUG_VOID_RETURN;
+  /*
+    Temporarily apply the mandatory roles on this user for the sake of
+    generating an Acl_map.
+  */
+  std::vector<Role_id > mandatory_roles;
+  std::vector<Role_vertex_descriptor > mandatory_roles_vertex_ids;
+  get_mandatory_roles(&mandatory_roles);
 
-          boost::add_edge(root, active_role_vertex, *g_granted_roles);
-          ++granted_active_roles;
-          // Was this edge with admin option?
-          {
-            Role_edge_descriptor edge;
-            bool found;
-            boost::tie(edge, found)=
-              boost::edge(user_vertex, active_role_vertex, *g_granted_roles);
-            if (found)
-            {
-              int with_admin_opt= boost::get(boost::edge_capacity_t(),
-                                             *g_granted_roles)
-                            [
-                             edge
-                            ];
-              std::string role_authid=
-                create_authid_str_from(active_roles_iterator->first,
-                                       active_roles_iterator->second);
-              if (with_admin_opt)
-              {
-                with_admin_acl->insert(role_authid);
-              }
-            }
-          }
-        } // end for
-      }
-    }
-    if (granted_active_roles > 0)
+  /* Only check roles if there are any granted roles at all */
+  boost::tie(ei, ei_end) = boost::edges(*g_granted_roles);
+  Role_vertex_descriptor user_vertex, active_role_vertex;
+
+  std::string user_key= create_authid_str_from(acl_user);
+  Role_index_map::iterator user_vertex_it=
+    g_authid_to_vertex->find(user_key);
+  bool has_granted_roles= (ei != ei_end);
+  std::set<Role_id > granted_active_roles;
+  std::set<Role_id > all_granted_roles;
+  std::set<Role_id > all_active_roles;
+  boost::vector_property_map<boost::default_color_type>
+    v_color(boost::num_vertices(*g_granted_roles));
+
+  Get_access_maps vis(access, db_map, db_wild_map, table_map, sp_map,
+                    func_map, with_admin_acl, dynamic_acl);
+  if (has_granted_roles || mandatory_roles.size() > 0)
+  {
+    bool acl_user_has_vertex= (user_vertex_it != g_authid_to_vertex->end());
+    if (!acl_user_has_vertex)
+      DBUG_VOID_RETURN;
+    user_vertex = user_vertex_it->second;
+    if (acl_user_has_vertex)
     {
-      Get_access_maps vis(access, db_map, db_wild_map, table_map, sp_map,
-                          func_map, with_admin_acl, dynamic_acl);
-      boost::breadth_first_search(*g_granted_roles,
-                                  root,
-                                  boost::color_map(boost::get(boost::vertex_color_t(),
-                                                              *g_granted_roles)
-                                                  ).visitor(vis)
-                                 );
-    } // end if
-    // clean up helper node
-    boost::clear_vertex(root, *g_granted_roles);
-    boost::remove_vertex(root, *g_granted_roles);
-  } // end if
+      get_granted_roles(user_vertex,
+          [&](const Role_id &rid, bool with_admin)
+          {
+            all_granted_roles.insert(rid);
+            granted_roles->push_back(std::make_pair(rid, with_admin));
+          });
+      for (auto &rid : mandatory_roles)
+      {
+        all_granted_roles.insert(rid);
+      }
+      for (auto &rid : *using_roles)
+      {
+        Role_id id(rid.first,rid.second);
+        all_active_roles.insert(id);
+      }
+
+      std::set_intersection(all_granted_roles.begin(), all_granted_roles.end(),
+                            all_active_roles.begin(), all_active_roles.end(),
+                            std::inserter(granted_active_roles,
+                                          granted_active_roles.begin()));
+      int vertex_count= 0;
+      for (auto &&rid : granted_active_roles)
+      {
+        String rolestr;
+        append_identifier(&rolestr, rid.user().c_str(),
+                          rid.user().length());
+        rolestr.append('@');
+        append_identifier(&rolestr,rid.host().c_str(),
+                          rid.host().length());
+        Role_index_map::iterator rindex=
+            g_authid_to_vertex->find(rolestr.c_ptr_quick());
+        if (rindex == g_authid_to_vertex->end())
+        {
+          THD *thd= current_thd;
+          if (thd)
+          {
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+                                ER_UNKNOWN_AUTHID,
+                                "Illegal role %s@%s was ignored.",
+                                rid.user().c_str(),
+                                rid.host().c_str());
+          }
+          continue; // next role
+        }
+        active_role_vertex= rindex->second;
+        if (vertex_count == 0)
+        {
+          /* breadth_first_search will initialize our v_color vector for us */
+          boost::breadth_first_search(*g_granted_roles,
+                                      active_role_vertex,
+                                       boost::color_map(v_color).visitor(vis)
+                                     );
+        }
+        else
+        {
+          /* breadth_first_visit will not reinitialize the v_color vector */
+          boost::breadth_first_visit(*g_granted_roles,  active_role_vertex,
+                                      boost::color_map(v_color).visitor(vis)
+                                    );
+          ++vertex_count;
+        }
+        /*
+          An active edge might have been granted WITH ADMIN; make sure
+          we update the temporary edge with this property.
+        */
+        Role_edge_descriptor edge;
+        bool found;
+        boost::tie(edge, found)=
+          boost::edge(user_vertex, active_role_vertex, *g_granted_roles);
+        if (found)
+        {
+          int with_admin_opt= boost::get(boost::edge_capacity_t(),
+                                         *g_granted_roles)
+                        [
+                         edge
+                        ];
+          if (with_admin_opt)
+          {
+            with_admin_acl->insert(std::string(rolestr.c_ptr()));
+          }
+        }
+      } // end for
+    } // if user_vertex_it != g_authid_to_vertex->end()
+  } // if has_granted_roles
   DBUG_PRINT("info",("Global access for role user %s@%s is %lu",acl_user->user,
                      acl_user->host.get_host(), *access));
+
   DBUG_VOID_RETURN;
 }
 
@@ -4394,11 +4715,13 @@ void get_privilege_access_maps(ACL_USER *acl_user,
   @param thd
   @param lex_user
   @param using_roles An forward iterable container of LEX_STRING std::pair
+  @param show_mandatory_roles true means mandatory roles are listed
 
   @return Success status
 */
 bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
-                       const List_of_auth_id_refs &using_roles)
+                       const List_of_auth_id_refs &using_roles,
+                       bool show_mandatory_roles)
 {
   int  error = 0;
   ACL_USER *acl_user= NULL;
@@ -4422,17 +4745,30 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
     DBUG_RETURN(true);
   }
 
+  std::vector<Role_id > mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
   for(auto &role_ref : using_roles)
   {
     List_of_granted_roles granted_roles;
     get_granted_roles(thd, lex_user, &granted_roles);
     std::string authid(create_authid_str_from(role_ref));
     if (find(granted_roles.begin(), granted_roles.end(), authid) ==
-        granted_roles.end())
+          granted_roles.end())
     {
-      my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_ref.first.str,
-               role_ref.second.str, lex_user->user.str, lex_user->host.str);
-      DBUG_RETURN(true);
+      if (std::find_if(mandatory_roles.begin(), mandatory_roles.end(),
+                  [&](const Role_id &id)->bool
+                    {
+                    std::string id_str,rid_str;
+                    id.auth_str(&id_str);
+                    Role_id rid(role_ref.first, role_ref.second);
+                    rid.auth_str(&rid_str);
+                      return (Role_id(role_ref.first, role_ref.second) == id);
+                    }) == mandatory_roles.end())
+      {
+        my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_ref.first.str,
+                 role_ref.second.str, lex_user->user.str, lex_user->host.str);
+        DBUG_RETURN(true);
+      }
     }
   }
 
@@ -4476,7 +4812,8 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   make_sp_privilege_statement(thd, acl_user, protocol, sp_map, 0);
   make_sp_privilege_statement(thd, acl_user, protocol, func_map, 1);
   make_proxy_privilege_statement(thd, acl_user, protocol);
-  make_roles_privilege_statement(thd, acl_user, protocol, granted_roles);
+  make_roles_privilege_statement(thd, acl_user, protocol, granted_roles,
+                                 show_mandatory_roles);
   make_with_admin_privilege_statement(thd, acl_user, protocol, with_admin_acl,
                                       granted_roles);
 
@@ -4489,7 +4826,6 @@ void roles_graphml(THD *thd, String *str)
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock())
     return;
-
   boost::dynamic_properties dp;
   dp.property("name", boost::get(boost::vertex_name_t(), *g_granted_roles));
   dp.property("color", boost::get(boost::edge_capacity_t(), *g_granted_roles));
@@ -4591,7 +4927,8 @@ static int remove_column_access_privileges(THD *thd,
                                            TABLE *columns_priv_table,
                                            const LEX_USER &lex_user)
 {
-  int revoked, result= 0;
+  bool revoked= false;
+  int result= 0;
   /*
     Remove column access.
     Because column_priv_hash shrink and may re-order as privileges are removed,
@@ -4599,12 +4936,18 @@ static int remove_column_access_privileges(THD *thd,
   */
   do
   {
-    uint counter;
-    for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
+    revoked= false;
+    for (auto it= column_priv_hash->begin(), next_it= it;
+         it != column_priv_hash->end(); it= next_it)
     {
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_table_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+
       const char *user, *host;
-      GRANT_TABLE *grant_table=
-        (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
+      GRANT_TABLE *grant_table= it->second.get();
       if (!(user= grant_table->user))
         user= "";
       if (!(host= grant_table->host.get_host()))
@@ -4613,12 +4956,16 @@ static int remove_column_access_privileges(THD *thd,
       if (!strcmp(lex_user.user.str, user) &&
           !strcmp(lex_user.host.str, host))
       {
-        int ret;
-        ret= replace_table_table(thd, grant_table, tables_priv_table,
-                                 lex_user,
-                                 grant_table->db,
-                                 grant_table->tname,
-                                 ~(ulong)0, 0, true);
+        // Hold on to grant_table if it gets deleted, since we use it below.
+        std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+          deleted_grant_table;
+
+        int ret= replace_table_table(thd, grant_table, &deleted_grant_table,
+                                     tables_priv_table,
+                                     lex_user,
+                                     grant_table->db,
+                                     grant_table->tname,
+                                     ~(ulong)0, 0, true);
         if (ret < 0)
         {
           return ret;
@@ -4659,7 +5006,6 @@ static int remove_column_access_privileges(THD *thd,
           return ret;
         }
       }
-      counter++;
     }
   }
   while (revoked);
@@ -4688,16 +5034,25 @@ static int remove_procedure_access_privileges(THD *thd,
                                               const LEX_USER &lex_user)
 {
   /* Remove procedure access */
-  int revoked, is_proc, result= 0;
-  for (is_proc=0; is_proc<2; is_proc++)
+  int result= 0;
+  bool revoked;
+  for (int is_proc=0; is_proc<2; is_proc++)
     do
     {
-      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
-      uint counter;
-      for (counter= 0, revoked= 0 ; counter < hash->records ; )
+      malloc_unordered_multimap<std::string,
+                                unique_ptr_destroy_only<GRANT_NAME>> *hash=
+        is_proc ? proc_priv_hash.get() : func_priv_hash.get();
+      revoked= false;
+      for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
       {
+        /*
+          Store an iterator pointing to the next element now, since
+          replace_routine_table could delete elements, invalidating "it".
+        */
+        next_it= next(it);
+
         const char *user,*host;
-        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+        GRANT_NAME *grant_proc= it->second.get();
         if (!(user=grant_proc->user))
           user= "";
         if (!(host=grant_proc->host.get_host()))
@@ -4729,7 +5084,6 @@ static int remove_procedure_access_privileges(THD *thd,
             */
             result= 1;
         }
-        counter++;
       }
     } while (revoked);
 
@@ -4912,10 +5266,11 @@ private:
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc)
 {
-  uint counter, revoked;
+  bool revoked;
   int result= 0;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
-  HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+  malloc_unordered_multimap<std::string, unique_ptr_destroy_only<GRANT_NAME>>
+    *hash= is_proc ? proc_priv_hash.get() : func_priv_hash.get();
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
@@ -4943,9 +5298,15 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   /* Remove procedure access */
   do
   {
-    for (counter= 0, revoked= 0 ; counter < hash->records ; )
+    revoked= false;
+    for (auto it= hash->begin(), next_it= it; it != hash->end(); it= next_it)
     {
-      GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+      /*
+        Store an iterator pointing to the next element now, since
+        replace_routine_table could delete elements, invalidating "it".
+      */
+      next_it= next(it);
+      GRANT_NAME *grant_proc= it->second.get();
       if (!my_strcasecmp(&my_charset_utf8_bin, grant_proc->db, sp_db) &&
           !my_strcasecmp(system_charset_info, grant_proc->tname, sp_name))
       {
@@ -4969,11 +5330,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         }
         else if (ret == 0)
         {
-          revoked= 1;
+          revoked= true;
           continue;
         }
       }
-      counter++;
     }
   } while (revoked);
 
@@ -5422,7 +5782,6 @@ err:
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5434,11 +5793,13 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5503,7 +5864,6 @@ err:
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   int error= 0;
-  uint index;
   char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
@@ -5515,11 +5875,13 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   if (!acl_cache_lock.lock())
     DBUG_RETURN(1);
 
-  for (index=0 ; index < column_priv_hash.records ; index++)
+  if (column_priv_hash == nullptr)
+    DBUG_RETURN(error);
+
+  for (const auto &key_and_value : *column_priv_hash)
   {
     const char *user, *host, *is_grantable= "YES";
-    GRANT_TABLE *grant_table= (GRANT_TABLE*) my_hash_element(&column_priv_hash,
-                                                          index);
+    GRANT_TABLE *grant_table= key_and_value.second.get();
     if (!(user=grant_table->user))
       user= "";
     if (!(host= grant_table->host.get_host()))
@@ -5548,18 +5910,15 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
         {
           if (test_access & j)
           {
-            for (uint col_index=0 ;
-                 col_index < grant_table->hash_columns.records ;
-                 col_index++)
+            for (const auto &key_and_value : grant_table->hash_columns)
             {
-              GRANT_COLUMN *grant_column = (GRANT_COLUMN*)
-                my_hash_element(&grant_table->hash_columns,col_index);
+              GRANT_COLUMN *grant_column = key_and_value.second.get();
               if ((grant_column->rights & j) && (table_access & j))
               {
                 if (update_schema_privilege(thd, table, buff, grant_table->db,
                                             grant_table->tname,
-                                            grant_column->column,
-                                            grant_column->key_length,
+                                            grant_column->column.data(),
+                                            grant_column->column.size(),
                                             command_array[cnt],
                                             command_lengths[cnt], is_grantable))
                 {
@@ -5746,6 +6105,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
+  DBUG_ASSERT(alter_info != nullptr);
+
   handlerton *db_type= create_info->db_type ? create_info->db_type :
                                              ha_default_handlerton(thd);
 
@@ -5758,50 +6119,11 @@ bool check_fk_parent_table_access(THD *thd,
     if (key->type == KEYTYPE_FOREIGN)
     {
       TABLE_LIST parent_table;
-      bool is_qualified_table_name;
       const Foreign_key_spec *fk_key= down_cast<const Foreign_key_spec*>(key);
-      LEX_STRING db_name;
-      LEX_STRING table_name= { (char *) fk_key->ref_table.str,
-                               fk_key->ref_table.length };
 
-      // Check if tablename is valid or not.
-      DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length) !=
-          Ident_name_check::OK)
-      {
-        my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
-        return true;
-      }
-
-      if (fk_key->ref_db.str)
-      {
-        is_qualified_table_name= true;
-        db_name.str= (char *) thd->memdup(fk_key->ref_db.str,
-                                          fk_key->ref_db.length+1);
-        db_name.length= fk_key->ref_db.length;
-
-        // Check if database name is valid or not.
-        if (fk_key->ref_db.str &&
-            (check_and_convert_db_name(&db_name, false) !=
-             Ident_name_check::OK))
-          return true;
-      }
-      else if (thd->lex->copy_db_to(&db_name.str, &db_name.length))
-        return true;
-      else
-        is_qualified_table_name= false;
-
-      // if lower_case_table_names is set then convert tablename to lower case.
-      if (lower_case_table_names)
-      {
-        table_name.str= (char *) thd->memdup(fk_key->ref_table.str,
-                                             fk_key->ref_table.length+1);
-        table_name.length= my_casedn_str(files_charset_info, table_name.str);
-      }
-
-      parent_table.init_one_table(db_name.str, db_name.length,
-                                  table_name.str, table_name.length,
-                                  table_name.str, TL_IGNORE);
+      parent_table.init_one_table(fk_key->ref_db.str, fk_key->ref_db.length,
+                    fk_key->ref_table.str, fk_key->ref_table.length,
+                    fk_key->ref_table.str, TL_IGNORE);
 
       /*
        Check if user has REFERENCES_ACL privilege at table level on
@@ -5816,22 +6138,14 @@ bool check_fk_parent_table_access(THD *thd,
            check_grant(thd, REFERENCES_ACL, &parent_table, false, 1, true)) ||
           (parent_table.grant.privilege & REFERENCES_ACL) == 0)
       {
-        if (is_qualified_table_name)
-        {
-          const size_t qualified_table_name_len= NAME_LEN + 1 + NAME_LEN + 1;
-          char *qualified_table_name=
-            (char *) thd->alloc(qualified_table_name_len);
-
-          my_snprintf(qualified_table_name, qualified_table_name_len, "%s.%s",
-                      db_name.str, table_name.str);
-          table_name.str= qualified_table_name;
-        }
-
+        char fqtn_buff[NAME_LEN + 1 + NAME_LEN + 1];
+        my_snprintf(fqtn_buff, sizeof(fqtn_buff), "%s.%s",
+                    fk_key->ref_db.str, fk_key->ref_table.str);
         my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                  "REFERENCES",
                  thd->security_context()->priv_user().str,
                  thd->security_context()->host_or_ip().str,
-                 table_name.str);
+                 fqtn_buff);
 
         return true;
       }
@@ -5859,12 +6173,25 @@ bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host,
   append_identifier(&key, host.str, host.length);
   Role_index_map::iterator it=
     g_authid_to_vertex->find(std::string(key.c_ptr_quick()));
-  if (it == g_authid_to_vertex->end())
+  if (it != g_authid_to_vertex->end())
   {
-    /* There's no such registered vertex yet; maybe no such user */
-    return false;
+     /* Check if role is part of current role graph */
+    if (find_if_granted_role(it->second, role, role_host))
+      return true;
   }
-  return find_if_granted_role(it->second, role, role_host);
+
+  /*
+     No grated role match the requested role for the current user;
+     Check if a mandatory role is granted instead.
+   */
+  std::vector<Role_id > mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  for (auto &&rid : mandatory_roles)
+  {
+    if (rid == Role_id(role, role_host))
+      return true;
+  }
+  return false;
 }
 
 /**
@@ -5909,24 +6236,11 @@ bool find_if_granted_role(Role_vertex_descriptor v,
       return true;
     }
   }
-  /* No grated role match the requested role for the current user */
   return false;
 }
 
-/**
-  Populates a list of authorization IDs that are connected to a specified
-  graph vertex in the global roles graph.
-
-  The constructed list contains references to a shared memory. The authIDs
-  are not copied!
-
-  The list of granted roles is /appended/ to the out variable.
-
-  @param v A valid vertex descriptor from the global roles graph
-  @param [out] granted_roles A list of authorization IDs
-*/
 void get_granted_roles(Role_vertex_descriptor &v,
-                       List_of_granted_roles *granted_roles)
+                       std::function<void(const Role_id &, bool)> f)
 {
   DBUG_ENTER("get_granted_roles");
   DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
@@ -5950,18 +6264,64 @@ void get_granted_roles(Role_vertex_descriptor &v,
     tmp_host.str= acl_user.host.get_host();
     tmp_host.length= acl_user.host.get_host_len();
     Role_id id(tmp_user, tmp_host);
-    granted_roles->push_back(std::make_pair(id, with_admin_opt != 0));
+    f(id, with_admin_opt != 0);
   }
   DBUG_VOID_RETURN;
 }
 
+/**
+  Populates a list of authorization IDs that are connected to a specified
+  graph vertex in the global roles graph.
+
+  The constructed list contains references to a shared memory. The authIDs
+  are not copied!
+
+  The list of granted roles is /appended/ to the out variable.
+
+  @param v A valid vertex descriptor from the global roles graph
+  @param [out] granted_roles A list of authorization IDs
+*/
+void get_granted_roles(Role_vertex_descriptor &v,
+                       List_of_granted_roles *granted_roles)
+{
+  DBUG_ENTER("get_granted_roles");
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  get_granted_roles(v, [&](const Role_id &rid, bool with_admin_opt)
+          {
+            granted_roles->push_back(std::make_pair(rid, with_admin_opt));
+          });
+  DBUG_VOID_RETURN;
+}
+
+void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
+                                              Security_context *sctx)
+{
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  std::string key= create_authid_str_from(acl_user);
+  Role_index_map::iterator it= g_authid_to_vertex->find(key);
+  if (it == g_authid_to_vertex->end())
+    return; // No user vertex founds
+  get_granted_roles(it->second, [&](const Role_id rid, bool with_admin)
+  {
+    LEX_CSTRING str_user= {rid.user().c_str(), rid.user().length()};
+    LEX_CSTRING str_host= {rid.host().c_str(), rid.host().length()};
+    sctx->activate_role(str_user, str_host, false);
+  });
+  std::vector<Role_id > mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  for (auto &rid : mandatory_roles)
+  {
+    LEX_CSTRING str_user= {rid.user().c_str(), rid.user().length()};
+    LEX_CSTRING str_host= {rid.host().c_str(), rid.host().length()};
+    sctx->activate_role(str_user, str_host, false);
+  }
+}
 
 /**
   This is a convenience function.
   @see get_granted_roles(Role_vertex_descriptor &v,
                          List_of_granted_roles *granted_roles)
-
-  @param thd The thread context
+  @param thd Thread handler
   @param user The authid to check for granted roles
   @param [out] granted_roles A list of granted authids
 */
@@ -5976,6 +6336,71 @@ void get_granted_roles(THD *thd, LEX_USER *user,
   {
     get_granted_roles(it->second, granted_roles);
   }
+}
+
+/**
+  Helper function for func_current_role used for Item_func_current_role.
+  @param thd The thread handler
+  @param roles [out] A list of Role_id granted to the current user.
+*/
+void get_active_roles(THD *thd, List_of_granted_roles *roles)
+{
+  /*
+    We need the order of the current roles to stay consistent across platforms
+    so we copy the list of active roles here and sort the list.
+    Copying is crucial as the std::sort algorithms operates on pointers and
+    not on values which cause all references to become invalid.
+  */
+  for (auto &ref : *thd->security_context()->get_active_roles())
+  {
+    roles->push_back(std::make_pair(Role_id(ref.first, ref.second),false));
+  }
+}
+
+
+/**
+  Helper function for Item_func_current_role.
+  @param thd Thread handler
+  @param str [out] Item_func string buffer
+  @param active_role [out] Comma separated list of auth ids
+
+  @returns pointer to active role
+ */
+
+String *func_current_role(THD *thd, String *str, String *active_role)
+{
+  List_of_granted_roles roles;
+  get_active_roles(thd, &roles);
+  if (roles.size() == 0)
+  {
+    active_role->set_ascii("NONE", 4);
+    str->copy(*active_role);
+    return str;
+  }
+  std::sort(roles.begin(), roles.end());
+  bool first= true;
+  for(auto &rid : roles)
+  {
+    if (!first)
+    {
+      active_role->append(',');
+    }
+    else
+    {
+      first= false;
+    }
+    append_identifier(thd, active_role, rid.first.user().c_str(),
+                      rid.first.user().length());
+    active_role->append("@");
+    append_identifier(thd, active_role, rid.first.host().c_str(),
+                      rid.first.host().length());
+  }
+  if (str != 0)
+  {
+    str->copy(*active_role);
+    return str;
+  }
+  return active_role;
 }
 
 /**
@@ -6461,6 +6886,12 @@ int mysql_set_active_role_all(THD *thd, const List<LEX_USER > *except_users)
   {
     Role_vertex_descriptor user_vertex = it->second;
     get_granted_roles(user_vertex, &granted_roles);
+    std::vector<Role_id > mandatory_roles;
+    get_mandatory_roles(&mandatory_roles);
+    for (auto &&rid : mandatory_roles)
+    {
+      granted_roles.push_back(std::make_pair(rid, false));
+    }
     List_of_granted_roles::iterator role_it= granted_roles.begin();
     for( ;role_it != granted_roles.end(); ++role_it)
     {
@@ -6781,7 +7212,7 @@ bool rename_dynamic_grant(const LEX_CSTRING &old_user,
     /*
       Grant the new authorization id the same privileges as the old and update
       the cache with the new entries.
-    */    
+    */
     while(grants_count > 0)
     {
       --grants_count;
@@ -6867,6 +7298,63 @@ bool assert_valid_privilege_id(const List<st_lex_user>* priv_list)
   }
   return true;
 }
+
+void get_mandatory_roles(std::vector< Role_id > *mandatory_roles)
+{
+  mysql_mutex_lock(&LOCK_mandatory_roles);
+  if (opt_mandatory_roles_cache)
+  {
+    /* Use pre-parsed auth ids from the cache */
+    std::copy(g_mandatory_roles->begin(), g_mandatory_roles->end(),
+              std::back_inserter(*mandatory_roles));
+    mysql_mutex_unlock(&LOCK_mandatory_roles);
+    return;
+  }
+  g_mandatory_roles->clear();
+  /*
+    We set this flag to indicate that we've already parsed the mandatory_roles
+    option SQL variable.
+  */
+  opt_mandatory_roles_cache= true;
+  std::string role_str;
+  role_str.append(opt_mandatory_roles.str, opt_mandatory_roles.length);
+  iterate_comma_separated_quoated_string(role_str,
+          [&mandatory_roles](const std::string item){
+            auto el= get_authid_from_quoted_string(item);
+            if (el.second == "")
+              el.second= "%";
+            Role_id role_id(el.first, el.second);
+            if (find_acl_user(role_id.host().c_str(), role_id.user().c_str(),
+                              true) != NULL)
+            {
+              if (std::find(g_mandatory_roles->begin(),
+                            g_mandatory_roles->end(),
+                            role_id) == g_mandatory_roles->end())
+              {
+                mandatory_roles->push_back(role_id);
+                g_mandatory_roles->push_back(role_id);
+              }
+            }
+            else
+            {
+              sql_print_warning("Can't set mandatory_role: There's no such "
+                                "authorization ID %s@%s.",
+                                role_id.user().c_str(),
+                                role_id.host().c_str());
+            }
+            return false; // continue iterating
+          });
+  std::sort(g_mandatory_roles->begin(), g_mandatory_roles->end());
+  mysql_mutex_unlock(&LOCK_mandatory_roles);
+}
+
+void update_mandatory_roles(void)
+{
+  mysql_mutex_assert_owner(&LOCK_mandatory_roles);
+  opt_mandatory_roles_cache= false;
+  get_global_acl_cache()->increase_version();
+}
+
 
 bool operator==(const Role_id &a,
                 const std::string &b)

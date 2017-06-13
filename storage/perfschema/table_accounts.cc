@@ -35,6 +35,8 @@
 THR_LOCK table_accounts::m_table_lock;
 
 Plugin_table table_accounts::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "accounts",
   /* Definition */

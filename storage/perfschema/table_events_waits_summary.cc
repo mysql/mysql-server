@@ -34,6 +34,8 @@
 THR_LOCK table_events_waits_summary_by_instance::m_table_lock;
 
 Plugin_table table_events_waits_summary_by_instance::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_waits_summary_by_instance",
   /* Definition */

@@ -722,7 +722,7 @@ private:
   Update method to store the count of the positively and negatively
   certified transaction on a particular group member.
 */
-  void update_certified_transaction_count(bool result);
+  void update_certified_transaction_count(bool result, bool local_transaction);
 };
 
 /*

@@ -91,6 +91,7 @@
 #include "table_mems_global_by_event_name.h"
 #include "table_os_global_by_type.h"
 #include "table_performance_timers.h"
+#include "table_plugin_table.h"
 #include "table_prepared_stmt_instances.h"
 #include "table_replication_applier_configuration.h"
 #include "table_replication_applier_status.h"
@@ -668,6 +669,8 @@ static PFS_engine_table_share *all_shares[] = {
 
   NULL};
 
+PFS_dynamic_table_shares pfs_external_table_shares;
+
 /** Get all the core performance schema tables. */
 void
 PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables)
@@ -711,7 +714,8 @@ PFS_engine_table_share::get_row_count(void) const
 }
 
 int
-PFS_engine_table_share::write_row(TABLE *table,
+PFS_engine_table_share::write_row(PFS_engine_table *pfs_table,
+                                  TABLE *table,
                                   unsigned char *buf,
                                   Field **fields) const
 {
@@ -724,13 +728,13 @@ PFS_engine_table_share::write_row(TABLE *table,
 
   /* We internally read from Fields to support the write interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
-  int result = m_write_row(table, buf, fields);
+  int result = m_write_row(pfs_table, table, buf, fields);
   dbug_tmp_restore_column_map(table->read_set, org_bitmap);
 
   return result;
 }
 
-static int
+int
 compare_table_names(const char *name1, const char *name2)
 {
   /*
@@ -765,7 +769,9 @@ PFS_engine_table_share *
 PFS_engine_table::find_engine_table_share(const char *name)
 {
   DBUG_ENTER("PFS_engine_table::find_table_share");
+  PFS_engine_table_share *result;
 
+  /* First try to find in native performance schema table shares */
   PFS_engine_table_share **current;
 
   for (current = &all_shares[0]; (*current) != NULL; current++)
@@ -776,7 +782,11 @@ PFS_engine_table::find_engine_table_share(const char *name)
     }
   }
 
-  DBUG_RETURN(NULL);
+  /* Now try to find in non-native performance schema tables shares */
+  result = pfs_external_table_shares.find_share(name, false);
+
+  // FIXME : here we return an object that could be destroyed, unsafe.
+  DBUG_RETURN(result);
 }
 
 /**
@@ -950,6 +960,48 @@ PFS_engine_table::index_next_same(const uchar *, uint)
   return index_next();
 }
 
+/**
+  Find a share in the list
+  @param table_name  name of the table
+  @param is_dead_too if true, consider tables marked to be deleted
+
+  @return if found table share or NULL
+*/
+PFS_engine_table_share *
+PFS_dynamic_table_shares::find_share(const char *table_name, bool is_dead_too)
+{
+  if (!opt_initialize)
+    mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+
+  for (auto it : shares_vector)
+  {
+    if ((compare_table_names(table_name, it->m_table_def->get_name()) == 0) &&
+        (it->m_in_purgatory == false || is_dead_too))
+      return it;
+  }
+  return NULL;
+}
+
+/**
+  Remove a share from the list
+  @param share  share to be removed
+*/
+void
+PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share)
+{
+  mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+
+  std::vector<PFS_engine_table_share *>::iterator it;
+
+  /* Search for the share in share list */
+  it = std::find(shares_vector.begin(), shares_vector.end(), share);
+  if (it != shares_vector.end())
+  {
+    /* Remove the share from the share list */
+    shares_vector.erase(it);
+  }
+}
+
 /** Implementation of internal ACL checks, for the performance schema. */
 class PFS_internal_schema_access : public ACL_internal_schema_access
 {
@@ -991,11 +1043,17 @@ const ACL_internal_table_access *
 PFS_internal_schema_access::lookup(const char *name) const
 {
   const PFS_engine_table_share *share;
+
+  pfs_external_table_shares.lock_share_list();
   share = PFS_engine_table::find_engine_table_share(name);
   if (share)
   {
-    return share->m_acl;
+    const ACL_internal_table_access *acl = share->m_acl;
+    pfs_external_table_shares.unlock_share_list();
+    return acl;
   }
+
+  pfs_external_table_shares.unlock_share_list();
   /*
     Do not return NULL, it would mean we are not interested
     in privilege checks for unknown tables.

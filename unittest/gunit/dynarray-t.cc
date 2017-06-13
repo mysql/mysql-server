@@ -279,6 +279,32 @@ TEST_F(MemRootTest, Erase)
   EXPECT_EQ(10U, counter);
 }
 
+TEST_F(MemRootTest, Erase2)
+{
+  using A= Mem_root_array<DestroyCounter>;
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  A array(m_mem_root_p);
+  array.resize(10, foo);
+  EXPECT_EQ(10U, array.size());
+  EXPECT_EQ(0U, counter);
+
+  A::iterator it= array.erase(5);
+  EXPECT_EQ(9U, array.size());
+  EXPECT_EQ(std::next(array.cbegin(), 5), it);
+  EXPECT_EQ(1U, counter);
+
+  it= array.erase(static_cast<size_t>(0));
+  EXPECT_EQ(8U, array.size());
+  EXPECT_EQ(array.cbegin(), it);
+  EXPECT_EQ(2U, counter);
+
+  it= array.erase(7);
+  EXPECT_EQ(7U, array.size());
+  EXPECT_EQ(array.cend(), it);
+  EXPECT_EQ(3U, counter);
+}
+
 TEST_F(MemRootTest, Insert)
 {
   using A= Mem_root_array<int>;

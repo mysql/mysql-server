@@ -469,6 +469,7 @@ mysql_declare_plugin(audit_log)
   "Connection event processing",        /* description                   */
   PLUGIN_LICENSE_GPL        ,           /* license                       */
   connection_control_init,              /* plugin initializer            */
+  NULL,                                 /* plugin check uninstall        */
   connection_control_deinit,            /* plugin deinitializer          */
   0x0100,                               /* version                       */
   connection_control_status_variables,  /* status variables              */
@@ -484,6 +485,7 @@ mysql_declare_plugin(audit_log)
    "I_S table providing a view into failed attempts statistics",
    PLUGIN_LICENSE_GPL,
    connection_control_failed_attempts_view_init,
+   NULL,
    NULL,
    0x0100,
    NULL,

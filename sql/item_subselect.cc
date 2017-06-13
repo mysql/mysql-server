@@ -508,6 +508,12 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
+  /*
+    If this subquery references window functions, per the SQL standard they
+    are aggregated in the subquery's query block, and never outside of it, so:
+  */
+  DBUG_ASSERT(!has_wf());
+
   fixed= 1;
 
 err:
@@ -823,9 +829,14 @@ bool Item_subselect::const_item() const
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 {
+  DBUG_ENTER("Item_subselect::get_tmp_table_item");
   if (!has_aggregation() && !const_item())
-    return new Item_field(result_field);
-  return copy_or_same(thd_arg);
+  {
+    Item *result= new Item_field(result_field);
+    DBUG_RETURN(result);
+  }
+  Item *result= copy_or_same(thd_arg);
+  DBUG_RETURN(result);
 }
 
 void Item_subselect::update_used_tables()
@@ -1170,6 +1181,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
       !select->table_list.elements &&
       select->item_list.elements == 1 &&
       !select->item_list.head()->has_aggregation() &&
+      !select->item_list.head()->has_wf() &&
       /*
 	We cant change name of Item_field or Item_ref, because it will
 	prevent it's correct resolving, but we should save name of
@@ -1831,7 +1843,8 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     Item *subs;
     if (!select->group_list.elements &&
         !select->having_cond() &&
-        !select->with_sum_func &&
+        // MIN/MAX(agg_or_window_func) would not be valid
+        !select->with_sum_func && select->m_windows.elements == 0 &&
         !(select->next_select()) &&
         select->table_list.elements &&
         !(substype() == ALL_SUBS && subquery_maybe_null))
@@ -2048,7 +2061,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   in2exists_info->added_to_where= false;
 
   if (select->having_cond() || select->with_sum_func ||
-      select->group_list.elements)
+      select->group_list.elements || select->m_windows.elements > 0)
   {
     bool tmp;
     Item_bool_func *item=
@@ -2758,10 +2771,7 @@ bool Item_in_subselect::init_left_expr_cache()
     return false;
   }
 
-  JOIN *outer_join;
-  bool use_result_field= FALSE;
-
-  outer_join= unit->outer_select()->join;
+  JOIN *outer_join= unit->outer_select()->join;
   /*
     An IN predicate might be evaluated in a query for which all tables have
     been optimized away.
@@ -2772,29 +2782,13 @@ bool Item_in_subselect::init_left_expr_cache()
     return FALSE;
   }
 
-  /*
-    If we use end_[send | write]_group to handle complete rows of the outer
-    query, make the cache of the left IN operand use Item_field::result_field
-    instead of Item_field::field.  We need this because normally
-    Cached_item_field uses Item::field to fetch field data, while
-    copy_ref_key() that copies the left IN operand into a lookup key uses
-    Item::result_field. In the case end_[send | write]_group result_field is
-    one row behind field.
-  */
-  QEP_TAB *const qep_tab=
-    &outer_join->qep_tab[outer_join->primary_tables - 1];
-  Next_select_func end_select= qep_tab->next_select;
-  if (end_select == end_send_group || end_select == end_write_group)
-    use_result_field= TRUE;
-
-  if (!(left_expr_cache= new (*THR_MALLOC) List<Cached_item>))
+  if (!(left_expr_cache= new  (*THR_MALLOC) List<Cached_item>))
     return TRUE;
 
   for (uint i= 0; i < left_expr->cols(); i++)
   {
     Cached_item *cur_item_cache= new_Cached_item(unit->thd,
-                                                 left_expr->element_index(i),
-                                                 use_result_field);
+                                                 left_expr->element_index(i));
     if (!cur_item_cache || left_expr_cache->push_front(cur_item_cache))
       return TRUE;
   }

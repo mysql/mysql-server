@@ -21,6 +21,7 @@
 #include "base_mock_field.h"
 #include "fake_table.h"
 #include "json_binary.h"
+#include "json_diff.h"
 #include "json_dom.h"
 #include "json_path.h"
 #include "my_decimal.h"
@@ -49,7 +50,7 @@ protected:
   }
   virtual void TearDown()
   {
-    free_root(&m_table.mem_root, MYF(0));
+    m_table.cleanup_partial_update();
     initializer.TearDown();
   }
   my_testing::Server_initializer initializer;
@@ -90,6 +91,20 @@ static std::unique_ptr<Json_dom> parse_json(const char *json_text)
                                                 &msg, &msg_offset));
   EXPECT_FALSE(dom == nullptr);
   return dom;
+}
+
+/**
+  Parse a JSON path.
+  @param json_path  the JSON path text to parse
+  @return the parsed path
+*/
+static Json_path parse_path(const char *json_path)
+{
+  Json_path path;
+  size_t bad_index;
+  EXPECT_FALSE(parse_path(false, std::strlen(json_path), json_path,
+                          &path, &bad_index)) << "bad index: " << bad_index;
+  return path;
 }
 
 TEST_F(JsonDomTest, BasicTest)
@@ -659,6 +674,7 @@ static void verify_binary_diffs(Field_json *field,
                                 const String &original,
                                 const String &updated)
 {
+  SCOPED_TRACE("verify_binary_diffs");
   EXPECT_EQ(original.length(), updated.length());
   std::unique_ptr<char[]> buffer(new char[original.length()]);
   std::memcpy(buffer.get(), original.ptr(), original.length());
@@ -683,9 +699,9 @@ static void verify_binary_diffs(Field_json *field,
 }
 
 /**
-  Tests for Json_wrapper::attempt_partial_update().
+  Tests for Json_wrapper::attempt_binary_update().
 */
-TEST_F(JsonDomTest, AttemptPartialUpdate)
+TEST_F(JsonDomTest, AttemptBinaryUpdate)
 {
   auto dom= parse_json("[\"abc\", 123, \"def\", -70000]");
 
@@ -696,19 +712,22 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     json_binary::parse_binary(buffer.ptr(), buffer.length());
 
   EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
-  EXPECT_FALSE(m_table.setup_partial_update());
+  EXPECT_FALSE(m_table.setup_partial_update(true));
 
   // Verify that the table interface for partial update works.
-  EXPECT_TRUE(m_table.has_partial_update_columns());
-  EXPECT_TRUE(m_table.is_partial_update_column(&m_field));
+  EXPECT_TRUE(m_table.has_binary_diff_columns());
+  EXPECT_TRUE(m_table.is_marked_for_partial_update(&m_field));
+  EXPECT_TRUE(m_table.is_binary_diff_enabled(&m_field));
   EXPECT_NE(nullptr, m_table.get_binary_diffs(&m_field));
-  m_table.disable_partial_update_for_current_row(&m_field);
-  EXPECT_FALSE(m_table.has_partial_update_columns());
-  EXPECT_FALSE(m_table.is_partial_update_column(&m_field));
+  m_table.disable_binary_diffs_for_current_row(&m_field);
+  EXPECT_FALSE(m_table.has_binary_diff_columns());
+  EXPECT_TRUE(m_table.is_marked_for_partial_update(&m_field));
+  EXPECT_FALSE(m_table.is_binary_diff_enabled(&m_field));
   EXPECT_EQ(nullptr, m_table.get_binary_diffs(&m_field));
-  m_table.clear_binary_diffs();
-  EXPECT_TRUE(m_table.has_partial_update_columns());
-  EXPECT_TRUE(m_table.is_partial_update_column(&m_field));
+  m_table.clear_partial_update_diffs();
+  EXPECT_TRUE(m_table.has_binary_diff_columns());
+  EXPECT_TRUE(m_table.is_marked_for_partial_update(&m_field));
+  EXPECT_TRUE(m_table.is_binary_diff_enabled(&m_field));
   EXPECT_NE(nullptr, m_table.get_binary_diffs(&m_field));
 
   const Binary_diff_vector *diffs= m_table.get_binary_diffs(&m_field);
@@ -722,13 +741,18 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     Json_wrapper doc(binary);
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     Json_wrapper jstr(new (std::nothrow) Json_string("abcd"));
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
     auto path= array_accessor(i);
     String shadow;
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field, path, &jstr, true,
-                                           &shadow));
+    bool success= true;
+    bool replaced= true;
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jstr, true,
+                                           &shadow, &success, &replaced));
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(replaced);
     EXPECT_EQ(0U, diffs->size());
     EXPECT_EQ(0, doc.compare(Json_wrapper(binary)));
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
   }
 
   // Enough space for an inlinable value anywhere in the array.
@@ -739,11 +763,15 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     EXPECT_FALSE(m_field.val_json(&doc));
     Json_wrapper jint(new (std::nothrow) Json_int(456));
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
     auto path= array_accessor(i);
     String shadow;
-    EXPECT_FALSE(doc.attempt_partial_update(thd(), &m_field, path, &jint, true,
-                                            &shadow));
+    bool success= false;
+    bool replaced= false;
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jint, true,
+                                           &shadow, &success, &replaced));
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(replaced);
     EXPECT_EQ(1U, diffs->size());
 
     auto array= down_cast<Json_array*>(dom->clone());
@@ -763,17 +791,22 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     EXPECT_FALSE(m_field.val_json(&doc));
     Json_wrapper jint(new (std::nothrow) Json_uint(80000));
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
     auto path= array_accessor(i);
     String shadow;
-    bool error= doc.attempt_partial_update(thd(), &m_field, path, &jint, true,
-                                           &shadow);
-    EXPECT_EQ(i == 1, error);
-    if (error)
+    bool success= false;
+    bool replaced= false;
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jint, true,
+                                           &shadow, &success, &replaced));
+    EXPECT_EQ(i != 1, success);
+    if (!success)
     {
+      EXPECT_FALSE(replaced);
       EXPECT_EQ(0U, diffs->size());
+      EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
       continue;
     }
+    EXPECT_TRUE(replaced);
     EXPECT_EQ(2U, diffs->size()) << i;
 
     auto array= down_cast<Json_array*>(dom->clone());
@@ -796,7 +829,7 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     EXPECT_FALSE(m_field.val_json(&doc));
     Json_wrapper jint(new (std::nothrow) Json_int(456));
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
     String shadow;
     auto path= array_accessor(100);
 
@@ -804,30 +837,40 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
       Partial update is not performed with a non-existing path when JSON_SET
       semantics are used.
     */
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field, path, &jint, false,
-                                           &shadow));
+    bool success= false;
+    bool replaced= false;
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jint, false,
+                                           &shadow, &success, &replaced));
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(replaced);
     EXPECT_EQ(0U, diffs->size());
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
 
     /*
       JSON_REPLACE is a no-op if a non-existing path is given, so expect
       partial update to be successful.
     */
-    EXPECT_FALSE(doc.attempt_partial_update(thd(), &m_field, path, &jint, true,
-                                            &shadow));
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jint, true,
+                                           &shadow, &success, &replaced));
+    EXPECT_TRUE(success);
+    EXPECT_FALSE(replaced);
     EXPECT_EQ(0U, diffs->size());
     EXPECT_EQ(0, doc.compare(Json_wrapper(binary)));
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
 
     /*
       If we replace the top-level document (empty path), we do a full update.
       Expect the attempt to do partial update to fail.
     */
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field, Json_path(),
-                                           &jint, false, &shadow));
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field, Json_path(), &jint, false,
+                                           &shadow, &success, &replaced));
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(replaced);
   }
 
   {
     SCOPED_TRACE("");
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
     Json_wrapper doc(binary);
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
     EXPECT_FALSE(m_field.val_json(&doc));
@@ -839,8 +882,12 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
     for (size_t i= 0; i < 4; ++i)
     {
       auto path= array_accessor(i);
-      EXPECT_FALSE(doc.attempt_partial_update(thd(), &m_field, path, &jstr,
-                                              false, &shadow));
+      bool success= false;
+      bool replaced= false;
+      EXPECT_FALSE(doc.attempt_binary_update(&m_field, path, &jstr, false,
+                                             &shadow, &success, &replaced));
+      EXPECT_TRUE(success);
+      EXPECT_TRUE(replaced);
       array->remove(i);
       array->insert_clone(i, jstr.to_dom(thd()));
       EXPECT_EQ(0, doc.compare(array_wrapper));
@@ -863,13 +910,13 @@ TEST_F(JsonDomTest, AttemptPartialUpdate)
 }
 
 /**
-  Test attempt_partial_update() with all types.
+  Test attempt_binary_update() with all types.
 */
-TEST_F(JsonDomTest, AttemptPartialUpdate_AllTypes)
+TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes)
 {
   // Make the table ready for partial update.
   EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
-  EXPECT_FALSE(m_table.setup_partial_update());
+  EXPECT_FALSE(m_table.setup_partial_update(true));
 
   my_decimal decimal;
   EXPECT_FALSE(double2my_decimal(0, 3.14, &decimal));
@@ -918,7 +965,7 @@ TEST_F(JsonDomTest, AttemptPartialUpdate_AllTypes)
 
   for (auto dom : doms)
   {
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
 
     std::unique_ptr<Json_dom> original_dom(
       new (std::nothrow) Json_array(new (std::nothrow) Json_string(20, 'x')));
@@ -938,28 +985,37 @@ TEST_F(JsonDomTest, AttemptPartialUpdate_AllTypes)
     Json_wrapper new_value(dom->clone());
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+    bool success= false;
+    bool replaced= false;
 
     // First try with non-existing path and replace logic. Should be a no-op.
-    EXPECT_FALSE(doc.attempt_partial_update(thd(), &m_field,
-                                            array_accessor(100),
-                                            &new_value, true,
-                                            &buffer));
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field,
+                                           array_accessor(100),
+                                           &new_value, true,
+                                           &buffer, &success, &replaced));
+    EXPECT_TRUE(success);
+    EXPECT_FALSE(replaced);
     EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
-    m_table.clear_binary_diffs();
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
+    m_table.clear_partial_update_diffs();
 
-    // Try with non-existing path and JSON_SET logic. Should fail.
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field,
+    // Try with non-existing path and JSON_SET logic. Requires full update.
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field,
                                            array_accessor(100),
                                            &new_value, false,
-                                           &buffer));
+                                           &buffer, &success, &replaced));
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(replaced);
     EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
-    m_table.clear_binary_diffs();
+    m_table.clear_partial_update_diffs();
 
     // Try with a valid path. Expect success.
-    EXPECT_FALSE(doc.attempt_partial_update(thd(), &m_field,
-                                            array_accessor(0),
-                                            &new_value, true,
-                                            &buffer));
+    EXPECT_FALSE(doc.attempt_binary_update(&m_field,
+                                           array_accessor(0),
+                                           &new_value, true,
+                                           &buffer, &success, &replaced));
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(replaced);
     EXPECT_NE(0U, m_table.get_binary_diffs(&m_field)->size());
 
     String str;
@@ -978,12 +1034,12 @@ TEST_F(JsonDomTest, AttemptPartialUpdate_AllTypes)
 }
 
 /**
-  Test attempt_partial_update() with invalid input.
+  Test attempt_binary_update() with invalid input.
 */
-TEST_F(JsonDomTest, AttemptPartialUpdate_Error)
+TEST_F(JsonDomTest, AttemptBinaryUpdate_Error)
 {
   EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
-  EXPECT_FALSE(m_table.setup_partial_update());
+  EXPECT_FALSE(m_table.setup_partial_update(true));
   Json_wrapper doc(parse_json("[1,2,3,4]").release());
   EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));
   EXPECT_FALSE(m_field.val_json(&doc));
@@ -995,23 +1051,247 @@ TEST_F(JsonDomTest, AttemptPartialUpdate_Error)
   EXPECT_TRUE(error.empty());
   EXPECT_EQ(enum_json_type::J_ERROR, error.type());
 
-  // Expect the calls to attempt_partial_update() to fail.
+  // Expect the calls to attempt_binary_update() to fail.
   const auto old_error_handler_hook= error_handler_hook;
   error_handler_hook= my_message_sql;
   String buffer;
+  bool success;
+  bool replaced;
   {
     my_testing::Mock_error_handler handler(thd(), ER_INVALID_JSON_BINARY_DATA);
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field, array_accessor(0),
-                                           &error, true, &buffer));
+    EXPECT_TRUE(doc.attempt_binary_update(&m_field, array_accessor(0),
+                                          &error, true, &buffer,
+                                          &success, &replaced));
     EXPECT_EQ(1, handler.handle_called());
   }
   {
     my_testing::Mock_error_handler handler(thd(), ER_INVALID_JSON_BINARY_DATA);
-    EXPECT_TRUE(doc.attempt_partial_update(thd(), &m_field, array_accessor(0),
-                                           &error, false, &buffer));
+    EXPECT_TRUE(doc.attempt_binary_update(&m_field, array_accessor(0),
+                                          &error, false, &buffer,
+                                          &success, &replaced));
     EXPECT_EQ(1, handler.handle_called());
   }
   error_handler_hook= old_error_handler_hook;
+}
+
+/**
+  Test that applying a set of diffs on a JSON document gives the expected
+  return status.
+*/
+void test_apply_json_diffs(Field_json *field,
+                           const Json_diff_vector &diffs,
+                           const char *orig_json,
+                           enum_json_diff_status expected_status)
+{
+  SCOPED_TRACE("test_apply_json_diffs");
+  field->table->clear_partial_update_diffs();
+  if (orig_json == nullptr)
+  {
+    EXPECT_EQ(TYPE_OK, set_field_to_null(field));
+  }
+  else
+  {
+    field->set_notnull();
+    Json_wrapper doc(parse_json(orig_json).release());
+    EXPECT_FALSE(field->store_json(&doc));
+  }
+  EXPECT_EQ(orig_json == nullptr, field->is_null());
+  EXPECT_EQ(expected_status, apply_json_diffs(field, &diffs));
+}
+
+/**
+  Test that applying a set of diffs on a JSON document is successful and gives
+  the expected results.
+*/
+void test_apply_json_diffs(Field_json *field,
+                           const Json_diff_vector &diffs,
+                           const char *orig_json,
+                           const char *new_json)
+{
+  SCOPED_TRACE("test_apply_json_diffs");
+  test_apply_json_diffs(field, diffs, orig_json,
+                        enum_json_diff_status::SUCCESS);
+  Json_wrapper doc;
+  EXPECT_FALSE(field->val_json(&doc));
+  EXPECT_EQ(0, doc.compare(Json_wrapper(parse_json(new_json).release())));
+
+  TABLE *table= field->table;
+  if (table->is_binary_diff_enabled(field))
+  {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
+    EXPECT_FALSE(json_binary::serialize(table->in_use,
+                                        parse_json(orig_json).get(),
+                                        &original));
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> updated;
+    EXPECT_FALSE(doc.to_binary(table->in_use, &updated));
+    verify_binary_diffs(field, table->get_binary_diffs(field),
+                        original, updated);
+  }
+}
+
+static void do_apply_json_diffs_tests(Field_json *field)
+{
+  Json_diff_vector
+    diffs(Json_diff_vector::allocator_type(field->table->in_use->mem_root));
+
+  const auto expect_rejected= [field, &diffs](const char *json_text)
+  {
+    SCOPED_TRACE("");
+    test_apply_json_diffs(field, diffs, json_text,
+                          enum_json_diff_status::REJECTED);
+  };
+
+  const auto expect_success= [field, &diffs](const char *orig_json,
+                                              const char *new_json)
+  {
+    SCOPED_TRACE("");
+    test_apply_json_diffs(field, diffs, orig_json, new_json);
+  };
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    expect_success("[1,2,3]", "[1,2,3]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$.a"), enum_json_diff_operation::REPLACE,
+                       new (std::nothrow) Json_int(3));
+    expect_success("{\"a\": 1, \"b\": 2}", "{\"a\": 3, \"b\": 2}");
+    expect_rejected("{\"b\": 2}");
+    expect_rejected("[1,2,3]");
+    expect_rejected("123");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$.a[1]"), enum_json_diff_operation::REPLACE,
+                       new (std::nothrow) Json_int(3));
+    expect_success("{\"a\": [1,2], \"b\": 2}", "{\"a\":[1,3], \"b\": 2}");
+    expect_rejected("{\"a\": 2}");
+    expect_rejected("{\"b\": 2}");
+    expect_rejected("{\"a\": {\"b\":2}}");
+    expect_rejected("[1,2,3]");
+    expect_rejected("123");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$.a[2]"), enum_json_diff_operation::INSERT,
+                       new (std::nothrow) Json_int(3));
+    expect_success("{\"a\":[]}", "{\"a\":[3]}");
+    expect_success("{\"a\":[1]}", "{\"a\":[1,3]}");
+    expect_success("{\"a\":[1,2]}", "{\"a\":[1,2,3]}");
+    expect_success("{\"a\":[1,2,4]}", "{\"a\":[1,2,3,4]}");
+    expect_rejected("{\"a\": 1, \"b\": 2}");
+    expect_rejected("[]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$.a.b"), enum_json_diff_operation::INSERT,
+                       new (std::nothrow) Json_int(3));
+    expect_success("{\"a\":{\"c\":1}}", "{\"a\":{\"b\":3,\"c\":1}}");
+    expect_rejected("{}");
+    expect_rejected("[]");
+    expect_rejected("{\"a\":{\"b\":1}}");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$.a.b"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    expect_success("{\"a\":{\"b\":3,\"c\":1}}", "{\"a\":{\"c\":1}}");
+    expect_rejected("{}");
+    expect_rejected("[]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$[2]"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    expect_success("[1,2,3,4]", "[1,2,4]");
+    expect_success("[1,2,3]", "[1,2]");
+    expect_rejected("[1,2]");
+    expect_rejected("[]");
+    expect_rejected("{}");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$[2]"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    diffs.emplace_back(parse_path("$[3]"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    expect_success("[1,2,3,4,5,6]", "[1,2,4,6]");
+    expect_rejected("[1,2,3,4]");
+    expect_rejected("[]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$[2][3]"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    expect_success("[1,2,[3,4,5,6,7]]", "[1,2,[3,4,5,7]]");
+    expect_rejected("[]");
+    expect_rejected("[1,2,3,4,5,6]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    diffs.clear();
+    diffs.emplace_back(parse_path("$[0][0]"),
+                       enum_json_diff_operation::REMOVE, nullptr);
+    expect_success("[[1]]", "[[]]");
+    expect_success("[[1,2,3],4,5]", "[[2,3],4,5]");
+    expect_rejected("[1]");
+    expect_rejected("{\"a\":1}");
+    expect_rejected("[{\"a\":1}]");
+    expect_rejected(nullptr);
+  }
+
+  {
+    SCOPED_TRACE("");
+    for (auto op : { enum_json_diff_operation::REPLACE,
+                     enum_json_diff_operation::INSERT,
+                     enum_json_diff_operation::REMOVE })
+    {
+      diffs.clear();
+      diffs.emplace_back(parse_path("$"), op, new (std::nothrow) Json_int(1));
+      expect_rejected("[1,2,3]");
+      expect_rejected(nullptr);
+    }
+  }
+}
+
+TEST_F(JsonDomTest, ApplyJsonDiffs)
+{
+  do_apply_json_diffs_tests(&m_field);
+}
+
+TEST_F(JsonDomTest, ApplyJsonDiffs_CollectBinaryDiffs)
+{
+  EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
+  EXPECT_FALSE(m_table.setup_partial_update(true));
+  do_apply_json_diffs_tests(&m_field);
 }
 
 }  // namespace

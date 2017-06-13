@@ -58,6 +58,7 @@
 #include "mysql/psi/psi_memory.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysqld_error.h"
+#include "psi_memory_key.h"                     // key_memory_servers
 #include "records.h"          // init_read_record, end_read_record
 #include "sql_base.h"                           // close_mysql_tables
 #include "sql_class.h"

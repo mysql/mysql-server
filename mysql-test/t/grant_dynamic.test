@@ -412,6 +412,8 @@ INSERT INTO mysql.global_grants VALUES('u1', '%',
 SHOW PRIVILEGES;
 TRUNCATE TABLE mysql.global_grants;
 FLUSH PRIVILEGES;
+--echo # restore root privileges
+GRANT ALL ON *.* to root@localhost WITH GRANT OPTION;
 
 --echo # REPLICATION_SLAVE_ADMIN test
 DROP USER u1@localhost;
@@ -430,6 +432,21 @@ START SLAVE;
 --error 1200
 START SLAVE;
 DISCONNECT con_rep_slave_test;
+--echo #
+--echo # Bad privilege- or auth identifiers shouldn't crash the server
+--echo #
+CONNECTION default;
+--error ER_PARSE_ERROR
+REVOKE 'C' @c06 ON c02.`z1` FROM 'C' @c03;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE *.* TO ''@'' IDENTIFIED WITH c06 BY '' REQUIRE X509;
+--error ER_PARSE_ERROR
+GRANT '' @c05 ON TABLE * TO CURRENT_USER()IDENTIFIED WITH c07 REQUIRE X509 WITH  MAX_QUERIES_PER_HOUR 0x2e3;
+--error ER_PARSE_ERROR
+GRANT WRAPPER @c04 ON FUNCTION c02.* TO CURRENT_USER IDENTIFIED WITH '' BY '?'  REQUIRE SSL;
+--error ER_PARSE_ERROR
+GRANT '' @c03 ON c05.* TO '' @ '';
+
 --echo # Cleanup
 CONNECTION default;
 DROP USER u1@localhost, u1, r2;
@@ -460,7 +477,8 @@ PRIMARY KEY (USER,HOST,PRIV)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
-
+--echo # restore root privileges
+GRANT ALL ON *.* TO root@localhost WITH GRANT OPTION;
 --echo #
 --echo # Test for WL#7194
 --echo # This test checks that a user who granted XA_RECOVER_ADMIN with

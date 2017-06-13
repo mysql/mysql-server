@@ -128,7 +128,7 @@ When one supplies long data for a placeholder:
 #include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
 #include "sql_cache.h"          // query_cache
-#include "sql_cmd.h"
+#include "sql_cmd_ddl_table.h"
 #include "sql_const.h"
 #include "sql_cursor.h"         // Server_side_cursor
 #include "sql_db.h"             // mysql_change_db
@@ -147,6 +147,7 @@ When one supplies long data for a placeholder:
 #include "thr_malloc.h"
 #include "transaction.h"        // trans_rollback_implicit
 #include "violite.h"
+#include "window.h"
 
 #include "mysql_com.h"
 #include <algorithm>
@@ -1057,9 +1058,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   @note Old version. Will be replaced with select_like_stmt_cmd_test() after
         the parser refactoring.
 
-  @param stmt                      prepared statement
-  @param specific_prepare          function of command specific prepare
-  @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
+  @param thd            Thread handle.
 
   @note
     This function won't directly open tables used in select. They should
@@ -1073,23 +1072,17 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
     TRUE                 error, error message is set in THD
 */
 
-static bool select_like_stmt_test(Prepared_statement *stmt,
-                                  int (*specific_prepare)(THD *thd),
-                                  ulong setup_tables_done_option)
+static bool select_like_stmt_test(THD *thd)
 {
   DBUG_ENTER("select_like_stmt_test");
-  THD *thd= stmt->thd;
-  LEX *lex= stmt->lex;
+  LEX * const lex= thd->lex;
 
   lex->select_lex->context.resolve_in_select_list= true;
-
-  if (specific_prepare && (*specific_prepare)(thd))
-    DBUG_RETURN(TRUE);
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
 
   /* Calls SELECT_LEX::prepare */
-  const bool ret= lex->unit->prepare(thd, 0, setup_tables_done_option, 0);
+  const bool ret= lex->unit->prepare(thd, 0, 0, 0);
   DBUG_RETURN(ret);
 }
 
@@ -1097,7 +1090,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 /**
   Validate and prepare for execution CREATE TABLE statement.
 
-  @param stmt               prepared statement
+  @param thd          Thread handle.
 
   @retval
     FALSE             success
@@ -1105,20 +1098,15 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
     TRUE              error, error message is set in THD
 */
 
-static bool mysql_test_create_table(Prepared_statement *stmt)
+bool Sql_cmd_create_table::prepare(THD *thd)
 {
-  THD *thd= stmt->thd;
-  LEX *lex= stmt->lex;
+  LEX * const lex= thd->lex;
   SELECT_LEX *select_lex= lex->select_lex;
-  bool res= FALSE;
-  bool link_to_local;
   TABLE_LIST *create_table= lex->query_tables;
-  TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
   DBUG_ENTER("mysql_test_create_table");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  if (create_table_precheck(thd, tables, create_table))
-    DBUG_RETURN(TRUE);
+  if (create_table_precheck(thd, query_expression_tables, create_table))
+    DBUG_RETURN(true);
 
   if (select_lex->item_list.elements)
   {
@@ -1126,17 +1114,18 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type= OT_BASE_ONLY;
 
-    if (open_tables_for_query(stmt->thd, lex->query_tables,
+    if (open_tables_for_query(thd, lex->query_tables,
                               MYSQL_OPEN_FORCE_SHARED_MDL))
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
 
     select_lex->context.resolve_in_select_list= true;
 
+    bool link_to_local;
     lex->unlink_first_table(&link_to_local);
-
-    res= select_like_stmt_test(stmt, 0, 0);
-
+    const bool res= select_like_stmt_test(thd);
     lex->link_first_table_back(create_table, link_to_local);
+    if (res)
+      DBUG_RETURN(true);
   }
   else
   {
@@ -1146,12 +1135,13 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_tables_for_query(stmt->thd, lex->query_tables,
+    if (open_tables_for_query(thd, lex->query_tables,
                               MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
   }
 
-  DBUG_RETURN(res);
+  set_prepared();
+  DBUG_RETURN(false);
 }
 
 
@@ -1192,7 +1182,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
-  res= select_like_stmt_test(stmt, 0, 0);
+  res= select_like_stmt_test(thd);
 
 err:
   /* put view back for PS rexecuting */
@@ -1285,10 +1275,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     if (mysql_test_show(stmt, tables))
       DBUG_RETURN(true);
     break;
-  case SQLCOM_CREATE_TABLE:
-    res= mysql_test_create_table(stmt);
-    break;
-
   case SQLCOM_CREATE_VIEW:
     if (lex->create_view_mode == enum_view_create_mode::VIEW_ALTER)
     {
@@ -1359,6 +1345,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_CALL:
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
+  case SQLCOM_CREATE_TABLE:
     res= lex->m_sql_cmd->prepare(thd);
     // @todo Temporary solution: Unprepare after preparation to preserve
     //       old behaviour
@@ -1891,6 +1878,13 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
       }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
+      if (sl->m_windows.elements > 0)
+      {
+        List_iterator<Window> li(sl->m_windows);
+        Window *w;
+        while ((w= li++))
+            w->reinit_before_use();
+      }
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -1934,6 +1928,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
     lex->result->set_thd(thd);
 
   lex->allow_sum_func= 0;
+  lex->m_deny_window_func= 0;
   lex->in_sum_func= NULL;
 
   if (unlikely(lex->is_broken()))

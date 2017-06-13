@@ -137,7 +137,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked,
     }
   }
 
-  ref_length= sizeof(HEAP_PTR);
+  ref_length= sizeof(HP_HEAP_POSITION);
   /*
     We cannot run update_key_stats() here because we do not have a
     lock on the table. The 'records' count might just be changed
@@ -380,16 +380,16 @@ int ha_heap::rnd_next(uchar *buf)
 int ha_heap::rnd_pos(uchar * buf, uchar *pos)
 {
   int error;
-  HEAP_PTR heap_position;
+  HP_HEAP_POSITION heap_position;
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
-  memcpy(&heap_position, pos, sizeof(HEAP_PTR));
-  error=heap_rrnd(file, buf, heap_position);
+  memcpy(&heap_position, pos, sizeof(HP_HEAP_POSITION));
+  error=heap_rrnd(file, buf, &heap_position);
   return error;
 }
 
 void ha_heap::position(const uchar*)
 {
-  *(HEAP_PTR*) ref= heap_position(file);	// Ref is aligned
+  heap_position(file, reinterpret_cast<HP_HEAP_POSITION *>(ref));	// Ref is aligned
 }
 
 int ha_heap::info(uint flag)
@@ -813,6 +813,7 @@ mysql_declare_plugin(heap)
   "Hash based, stored in memory, useful for temporary tables",
   PLUGIN_LICENSE_GPL,
   heap_init,
+  NULL,
   NULL,
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */

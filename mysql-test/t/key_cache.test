@@ -48,7 +48,7 @@ SET @@global.key_buffer_size=@save_key_buffer;
 
 --error 1064
 SELECT @@default.key_buffer_size;
---error 1272
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 SELECT @@skr.default_storage_engine="test";
 
 select @@keycache1.key_cache_block_size;

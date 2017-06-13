@@ -19,6 +19,7 @@
 #define NDB_SHARE_H
 
 #include <stdio.h>           // FILE, stderr
+#include <string>
 
 #include "my_alloc.h"        // MEM_ROOT
 #include "my_bitmap.h"       // MY_BITMAP
@@ -103,8 +104,7 @@ struct NDB_SHARE {
   static struct NDB_SHARE_KEY* create_key(const char *new_key);
   static void free_key(struct NDB_SHARE_KEY*);
 
-  static const uchar* key_get_key(struct NDB_SHARE_KEY*);
-  static size_t key_get_length(struct NDB_SHARE_KEY*);
+  static std::string key_get_key(struct NDB_SHARE_KEY*);
   static char* key_get_db_name(struct NDB_SHARE_KEY*);
   static char* key_get_table_name(struct NDB_SHARE_KEY*);
 

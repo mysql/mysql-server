@@ -745,7 +745,7 @@ skip:
   return -1;
 }
 
-String String::substr(int offset, int count)
+String String::substr(int offset, int count) const
 {
   int original_count = this->numchars();
   if (offset > original_count)

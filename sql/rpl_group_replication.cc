@@ -121,10 +121,11 @@ get_group_members_info(
 bool
 Group_replication_handler::
 get_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   if (plugin_handle)
-    return plugin_handle->get_group_member_stats_info(callbacks);
+    return plugin_handle->get_group_member_stats_info(index, callbacks);
   return true;
 }
 
@@ -305,12 +306,13 @@ bool get_group_replication_group_members_info(
 }
 
 bool get_group_replication_group_member_stats_info(
+    unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
 {
   mysql_mutex_lock(&LOCK_group_replication_handler);
   if (is_group_replication_plugin_loaded())
   {
-    bool ret= group_replication_handler->get_group_member_stats_info(callbacks);
+    bool ret= group_replication_handler->get_group_member_stats_info(index, callbacks);
     mysql_mutex_unlock(&LOCK_group_replication_handler);
     return ret;
   }

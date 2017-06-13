@@ -120,7 +120,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "User lock", 0}, /* Be compatible with old status. */
   {0, "Waiting for locking service lock", 0},
   {0, "Waiting for spatial reference system lock", 0},
-  {0, "Waiting for acl cache lock", 0}
+  {0, "Waiting for acl cache lock", 0},
+  {0, "Waiting for column statistics lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE

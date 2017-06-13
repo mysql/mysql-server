@@ -36,6 +36,8 @@
 THR_LOCK table_prepared_stmt_instances::m_table_lock;
 
 Plugin_table table_prepared_stmt_instances::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "prepared_statements_instances",
   /* Definition */
@@ -409,7 +411,7 @@ table_prepared_stmt_instances::read_row_values(TABLE *table,
       case 3: /* SQL_TEXT */
         if (m_row.m_sql_text_length > 0)
         {
-          set_field_longtext_utf8(f, m_row.m_sql_text, m_row.m_sql_text_length);
+          set_field_blob(f, m_row.m_sql_text, m_row.m_sql_text_length);
         }
         else
         {

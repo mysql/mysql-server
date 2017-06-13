@@ -2923,7 +2923,7 @@ btr_cur_ins_lock_and_undo(
 		So pretend to be freshly inserted row. */
 		if (index->table->skip_alter_undo) {
 			ut_ad(roll_ptr == 0);
-			roll_ptr = trx_undo_build_roll_ptr(1, 0, 0, 0);
+			roll_ptr = trx_undo_build_roll_ptr(TRUE, 0, 0, 0);
 			ut_ad(roll_ptr == (1ULL << 55));
 		}
 

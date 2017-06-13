@@ -154,6 +154,7 @@ struct System_variables
   ulonglong tmp_table_size;
   ulonglong long_query_time;
   bool end_markers_in_json;
+  bool windowing_use_high_precision;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
@@ -168,6 +169,7 @@ struct System_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   uint  eq_range_index_dive_limit;
+  ulonglong histogram_generation_max_mem_size;
   ulong join_buff_size;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;

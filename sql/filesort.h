@@ -50,15 +50,23 @@ public:
   st_sort_field *sortorder;
   /// true means we are using Priority Queue for order by with limit.
   bool using_pq;
+  /// true means force stable sorting
+  bool m_force_stable_sort;
   /// Addon fields descriptor
   Addon_fields *addon_fields;
 
   Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg):
+    Filesort(tab_arg, order_arg, limit_arg, false)
+  {}
+
+  Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg,
+           bool force_stable_sort):
     tab(tab_arg),
     order(order_arg),
     limit(limit_arg),
     sortorder(NULL),
     using_pq(false),
+    m_force_stable_sort(force_stable_sort), // keep relative order of equiv. elts
     addon_fields(NULL)
   {
     DBUG_ASSERT(order);

@@ -625,7 +625,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
   {
   case binary_log::GTID_LOG_EVENT:
     {
-      Format_description_log_event fd_ev(BINLOG_VERSION);
+      Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg= m_event_checksum_alg;
       Gtid_log_event gtid_ev((const char *)event_ptr, event_checksum_on() ?
                              event_len - BINLOG_CHECKSUM_LEN : event_len,

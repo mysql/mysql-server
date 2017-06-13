@@ -55,7 +55,6 @@ debian/extra/authentication_pam-plugin
 debian/extra/authentication_ldap_sasl-plugin
 debian/extra/authentication_ldap_simple-plugin
 debian/extra/firewall-plugin
-debian/extra/keyring_aws-plugin
 debian/extra/keyring_okv-plugin
 debian/extra/openssl_udf-plugin
 debian/extra/thread_pool-plugin
@@ -66,7 +65,6 @@ usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
-usr/lib/mysql/plugin/keyring_aws.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
@@ -75,14 +73,13 @@ usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
-usr/lib/mysql/plugin/debug/keyring_aws.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 ")
   IF (DEB_AWS_SDK)
-    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK}")
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
     SET (DEB_INCLUDE_BINARIES_EXTRA "${DEB_INCLUDE_BINARIES_EXTRA}
 debian/extra/keyring_aws-plugin
 ")

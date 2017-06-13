@@ -37,6 +37,8 @@
 THR_LOCK table_events_statements_current::m_table_lock;
 
 Plugin_table table_events_statements_current::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_current",
   /* Definition */
@@ -102,6 +104,8 @@ PFS_engine_table_share table_events_statements_current::m_share = {
 THR_LOCK table_events_statements_history::m_table_lock;
 
 Plugin_table table_events_statements_history::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_history",
   /* Definition */
@@ -167,6 +171,8 @@ PFS_engine_table_share table_events_statements_history::m_share = {
 THR_LOCK table_events_statements_history_long::m_table_lock;
 
 Plugin_table table_events_statements_history_long::m_table_def(
+  /* Schema name */
+  "performance_schema",
   /* Name */
   "events_statements_history_long",
   /* Definition */
@@ -542,8 +548,7 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 9: /* SQL_TEXT */
         if (m_row.m_sqltext.length())
-          set_field_longtext_utf8(
-            f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
+          set_field_blob(f, m_row.m_sqltext.ptr(), m_row.m_sqltext.length());
         else
         {
           f->set_null();
@@ -560,9 +565,9 @@ table_events_statements_common::read_row_values(TABLE *table,
         break;
       case 11: /* DIGEST_TEXT */
         if (m_row.m_digest.m_digest_text.length() > 0)
-          set_field_longtext_utf8(f,
-                                  m_row.m_digest.m_digest_text.ptr(),
-                                  m_row.m_digest.m_digest_text.length());
+          set_field_blob(f,
+                         m_row.m_digest.m_digest_text.ptr(),
+                         m_row.m_digest.m_digest_text.length());
         else
         {
           f->set_null();

@@ -69,7 +69,8 @@
 #include "xa.h"
 #include "mysqld_error.h"
 #include "dynamic_privilege_table.h"
-#include "role_tables.h"        // close_all_role_tables
+#include "role_tables.h"
+#include "sql_authorization.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -79,6 +80,9 @@
 #include <vector>
 
 using std::min;
+using std::move;
+using std::string;
+using std::unique_ptr;
 
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[]=
@@ -115,8 +119,12 @@ Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *acl_dbs= NULL;
 Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 Db_access_map acl_db_map;
 Default_roles *g_default_roles= NULL;
+std::vector<Role_id > *g_mandatory_roles= NULL;
 
-HASH column_priv_hash, proc_priv_hash, func_priv_hash;
+unique_ptr<malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE>>>
+  column_priv_hash;
+unique_ptr<malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
+  proc_priv_hash, func_priv_hash;
 HASH db_cache;
 HASH acl_check_hosts;
 
@@ -651,25 +659,9 @@ bool hostname_requires_resolving(const char *hostname)
 }
 
 
-static const uchar* get_key_column(const uchar *arg, size_t *length)
+GRANT_COLUMN::GRANT_COLUMN(String &c,  ulong y)
+  : rights(y), column(c.ptr(), c.length())
 {
-  const GRANT_COLUMN *buff= pointer_cast<const GRANT_COLUMN*>(arg);
-  *length=buff->key_length;
-  return (uchar*) buff->column;
-}
-
-
-static const uchar* get_grant_table(const uchar *arg, size_t *length)
-{
-  const GRANT_NAME *buff= pointer_cast<const GRANT_NAME*>(arg);
-  *length=buff->key_length;
-  return (uchar*) buff->hash_key;
-}
-
-
-GRANT_COLUMN::GRANT_COLUMN(String &c,  ulong y) :rights (y)
-{
-  column= (char*) memdup_root(&memex,c.ptr(), key_length=c.length());
 }
 
 
@@ -693,9 +685,13 @@ void GRANT_NAME::set_user_details(const char *h, const char *d,
     if (lower_case_table_names || is_routine)
       my_casedn_str(files_charset_info, tname);
   }
-  key_length= strlen(d) + strlen(u)+ strlen(t)+3;
-  hash_key=   (char*) alloc_root(&memex,key_length);
-  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
+
+  hash_key= user;
+  hash_key.push_back('\0');
+  hash_key.append(db);
+  hash_key.push_back('\0');
+  hash_key.append(tname);
+  hash_key.push_back('\0');
 }
 
 GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
@@ -707,11 +703,9 @@ GRANT_NAME::GRANT_NAME(const char *h, const char *d,const char *u,
 
 GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                          const char *t, ulong p, ulong c)
-  :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
+  : GRANT_NAME(h,d,u,t,p, FALSE), cols(c),
+    hash_columns(system_charset_info, key_memory_acl_memex)
 {
-  (void) my_hash_init(&hash_columns,system_charset_info,
-                      0, 0, get_key_column, nullptr, 0,
-                      key_memory_acl_memex);
 }
 
 
@@ -737,9 +731,13 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   {
     my_casedn_str(files_charset_info, tname);
   }
-  key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
-  hash_key=   (char*) alloc_root(&memex, key_length);
-  my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
+
+  hash_key= user;
+  hash_key.push_back('\0');
+  hash_key.append(db);
+  hash_key.push_back('\0');
+  hash_key.append(tname);
+  hash_key.push_back('\0');
 
   if (form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV])
   {
@@ -750,7 +748,8 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
 
 
 GRANT_TABLE::GRANT_TABLE(TABLE *form)
-  :GRANT_NAME(form, false)
+  : GRANT_NAME(form, false),
+    hash_columns(system_charset_info, key_memory_acl_memex)
 {
   if (!db || !tname)
   {
@@ -766,16 +765,11 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   }
   else
     cols= 0;
-
-  (void) my_hash_init(&hash_columns,system_charset_info,
-                      0, 0, get_key_column, nullptr, 0,
-                      key_memory_acl_memex);
 }
 
 
 GRANT_TABLE::~GRANT_TABLE()
 {
-  my_hash_free(&hash_columns);
 }
 
 
@@ -852,8 +846,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
       DBUG_EXECUTE_IF("mysql_grant_table_init_out_of_memory",
                       DBUG_SET("+d,simulate_out_of_memory"););
       if (!(mem_check= new (*THR_MALLOC)
-              GRANT_COLUMN(*res, fix_rights_for_column(priv))) ||
-            my_hash_insert(&hash_columns, (uchar *) mem_check))
+              GRANT_COLUMN(*res, fix_rights_for_column(priv))))
       {
         /* Don't use this entry */
         col_privs->file->ha_index_end();
@@ -862,6 +855,8 @@ bool GRANT_TABLE::init(TABLE *col_privs)
                         DBUG_SET("-d,simulate_out_of_memory"););
         return true;
       }
+      hash_columns.emplace(mem_check->column,
+                           unique_ptr_destroy_only<GRANT_COLUMN>(mem_check));
 
       error= col_privs->file->ha_index_next(col_privs->record[0]);
       DBUG_ASSERT(col_privs->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
@@ -1380,7 +1375,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
     sctx->set_password_expired(acl_user->password_expired);
     sctx->lock_account(acl_user->account_locked);
   } // end if
- 
+
   if (acl_user && sctx->get_active_roles()->size() > 0)
   {
     sctx->checkout_access_maps();
@@ -1991,7 +1986,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           {
             user.access |= CREATE_ROLE_ACL;
           }
-          
+
           priv= get_field(&global_acl_memory,
                           table->field[table_schema->drop_role_priv_idx()]);
 
@@ -2513,7 +2508,7 @@ bool acl_reload(THD *thd)
   tables[1].next_local= tables[1].next_global= tables + 2;
   tables[2].next_local= tables[2].next_global= tables + 3;
 
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
+  tables[0].open_type= tables[1].open_type= tables[2].open_type=
     tables[3].open_type= OT_BASE_ONLY;
   tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
@@ -2552,7 +2547,7 @@ bool acl_reload(THD *thd)
   // acl_load() overwrites global_acl_memory, so we need to free it.
   // However, we can't do that immediately, because acl_load() might fail,
   // and then we'd need to keep it.
-  old_mem= std::move(global_acl_memory);
+  old_mem= move(global_acl_memory);
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
   my_hash_free(&acl_check_hosts);
@@ -2565,7 +2560,7 @@ bool acl_reload(THD *thd)
     acl_users= old_acl_users;
     acl_dbs= old_acl_dbs;
     acl_proxy_users= old_acl_proxy_users;
-    global_acl_memory= std::move(old_mem);
+    global_acl_memory= move(old_mem);
     init_check_host();
     delete swap_dynamic_privileges_map(old_dyn_priv_map);
   }
@@ -2596,54 +2591,13 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 }
 
 
-static void free_grant_table(void *arg)
+struct Free_grant_table
 {
-  GRANT_TABLE *grant_table= pointer_cast<GRANT_TABLE*>(arg);
-  my_hash_free(&grant_table->hash_columns);
-}
-
-
-/* Search after a matching grant. Prefer exact grants before not exact ones */
-
-GRANT_NAME *name_hash_search(HASH *name_hash,
-                             const char *host,const char* ip,
-                             const char *db,
-                             const char *user, const char *tname,
-                             bool exact, bool name_tolower)
-{
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
-  uint len;
-  GRANT_NAME *grant_name,*found=0;
-  HASH_SEARCH_STATE state;
-
-  name_ptr= my_stpcpy(my_stpcpy(helping, user) + 1, db) + 1;
-  len  = (uint) (my_stpcpy(name_ptr, tname) - helping) + 1;
-  if (name_tolower)
-    my_casedn_str(files_charset_info, name_ptr);
-  for (grant_name= (GRANT_NAME*) my_hash_first(name_hash, (uchar*) helping,
-                                               len, &state);
-       grant_name ;
-       grant_name= (GRANT_NAME*) my_hash_next(name_hash,(uchar*) helping,
-                                              len, &state))
+  void operator() (GRANT_TABLE *grant_table) const
   {
-    if (exact)
-    {
-      if (!grant_name->host.get_host() ||
-          (host &&
-           !my_strcasecmp(system_charset_info, host,
-                          grant_name->host.get_host())) ||
-          (ip && !strcmp(ip, grant_name->host.get_host())))
-        return grant_name;
-    }
-    else
-    {
-      if (grant_name->host.compare_hostname(host, ip) &&
-          (!found || found->sort < grant_name->sort))
-        found=grant_name;                                       // Host ok
-    }
+    grant_table->~GRANT_TABLE();
   }
-  return found;
-}
+};
 
 
 /* Free grant array if possible */
@@ -2651,9 +2605,9 @@ GRANT_NAME *name_hash_search(HASH *name_hash,
 void  grant_free(void)
 {
   DBUG_ENTER("grant_free");
-  my_hash_free(&column_priv_hash);
-  my_hash_free(&proc_priv_hash);
-  my_hash_free(&func_priv_hash);
+  column_priv_hash.reset();
+  proc_priv_hash.reset();
+  func_priv_hash.reset();
   free_root(&memex,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2721,12 +2675,12 @@ static bool grant_load_procs_priv(TABLE *p_table)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= THR_MALLOC;
   DBUG_ENTER("grant_load_procs_priv");
-  (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
-                      0, 0, get_grant_table,
-                      nullptr, 0, key_memory_acl_memex);
-  (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
-                      0, 0, get_grant_table,
-                      nullptr, 0, key_memory_acl_memex);
+  proc_priv_hash.reset
+    (new malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>
+       (key_memory_acl_memex));
+  func_priv_hash.reset
+    (new malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>
+       (key_memory_acl_memex));
   error= p_table->file->ha_index_init(0, 1);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_1",
                   p_table->file->ha_index_end();
@@ -2760,7 +2714,8 @@ static bool grant_load_procs_priv(TABLE *p_table)
     do
     {
       GRANT_NAME *mem_check;
-      HASH *hash;
+      malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>
+        *hash;
       if (!(mem_check=new (memex_ptr) GRANT_NAME(p_table, TRUE)))
       {
         /* This could only happen if we are out memory */
@@ -2780,11 +2735,11 @@ static bool grant_load_procs_priv(TABLE *p_table)
       const enum_sp_type sp_type= to_sp_type(p_table->field[4]->val_int());
       if (sp_type == enum_sp_type::PROCEDURE)
       {
-        hash= &proc_priv_hash;
+        hash= proc_priv_hash.get();
       }
       else if (sp_type == enum_sp_type::FUNCTION)
       {
-        hash= &func_priv_hash;
+        hash= func_priv_hash.get();
       }
       else
       {
@@ -2796,11 +2751,13 @@ static bool grant_load_procs_priv(TABLE *p_table)
 
       mem_check->privs= fix_rights_for_procedure(mem_check->privs);
       if (! mem_check->ok())
-        destroy(mem_check);
-      else if (my_hash_insert(hash, (uchar*) mem_check))
       {
         destroy(mem_check);
-        goto end_unlock;
+      }
+      else
+      {
+        hash->emplace(mem_check->hash_key,
+                      unique_ptr_destroy_only<GRANT_NAME>(mem_check));
       }
       error= p_table->file->ha_index_next(p_table->record[0]);
       DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
@@ -2856,11 +2813,9 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
-  (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
-                      0, 0,
-                      get_grant_table,
-                      free_grant_table, 0,
-                      key_memory_acl_memex);
+  column_priv_hash.reset
+    (new malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE>>
+       (key_memory_acl_memex));
 
   t_table = tables[0].table;
   c_table = tables[1].table;
@@ -2924,11 +2879,14 @@ static bool grant_load(THD *thd, TABLE_LIST *tables)
       }
 
       if (! mem_check->ok())
-        destroy(mem_check);
-      else if (my_hash_insert(&column_priv_hash,(uchar*) mem_check))
       {
         destroy(mem_check);
-        goto end_unlock;
+      }
+      else
+      {
+        column_priv_hash->emplace
+          (mem_check->hash_key,
+           unique_ptr_destroy_only<GRANT_TABLE>(mem_check));
       }
       error= t_table->file->ha_index_next(t_table->record[0]);
       DBUG_ASSERT(t_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
@@ -2975,27 +2933,23 @@ end_index_init:
 
 static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
 {
-  HASH old_proc_priv_hash, old_func_priv_hash;
-  bool return_val= FALSE;
   DBUG_ENTER("grant_reload_procs_priv");
 
   /* Save a copy of the current hash if we need to undo the grant load */
-  old_proc_priv_hash= proc_priv_hash;
-  old_func_priv_hash= func_priv_hash;
+  unique_ptr<
+    malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
+      old_proc_priv_hash(move(proc_priv_hash));
+  unique_ptr<
+    malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
+      old_func_priv_hash(move(func_priv_hash));
+  bool return_val= FALSE;
 
   if ((return_val= grant_load_procs_priv(table->table)))
   {
     /* Error; Reverting to old hash */
     DBUG_PRINT("error",("Reverting to old privileges"));
-    my_hash_free(&proc_priv_hash);
-    my_hash_free(&func_priv_hash);
-    proc_priv_hash= old_proc_priv_hash;
-    func_priv_hash= old_func_priv_hash;
-  }
-  else
-  {
-    my_hash_free(&old_proc_priv_hash);
-    my_hash_free(&old_func_priv_hash);
+    proc_priv_hash= move(old_proc_priv_hash);
+    func_priv_hash= move(old_func_priv_hash);
   }
 
   DBUG_RETURN(return_val);
@@ -3020,12 +2974,11 @@ static bool grant_reload_procs_priv(THD *thd, TABLE_LIST *table)
 bool grant_reload(THD *thd)
 {
   TABLE_LIST tables[3];
-  HASH old_column_priv_hash;
   MEM_ROOT old_mem;
   bool return_val= 1;
   Acl_cache_lock_guard acl_cache_lock(thd,
                                       Acl_cache_lock_mode::WRITE_MODE);
-  
+
   DBUG_ENTER("grant_reload");
 
   /* Don't do anything if running with --skip-grant-tables */
@@ -3064,35 +3017,38 @@ bool grant_reload(THD *thd)
   if (!acl_cache_lock.lock())
     goto end;
 
-  old_column_priv_hash= column_priv_hash;
+  {
+    unique_ptr<
+      malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE>>>
+        old_column_priv_hash(move(column_priv_hash));
 
-  /*
-    Create a new memory pool but save the current memory pool to make an undo
-    opertion possible in case of failure.
-  */
-  old_mem= std::move(memex);
-  init_sql_alloc(key_memory_acl_memex,
-                 &memex, ACL_ALLOC_BLOCK_SIZE, 0);
-  /*
-    tables[2].table i.e. procs_priv can be null if we are working with
-    pre 4.1 privilage tables
-  */
-  if ((return_val= (grant_load(thd, tables) ||
-                    grant_reload_procs_priv(thd, &tables[2]))
-     ))
-  {                                             // Error. Revert to old hash
-    DBUG_PRINT("error",("Reverting to old privileges"));
-    my_hash_free(&column_priv_hash);
-    free_root(&memex,MYF(0));
-    column_priv_hash= old_column_priv_hash;     /* purecov: deadcode */
-    memex= std::move(old_mem);                  /* purecov: deadcode */
-  }
-  else
-  {                                             //Reload successful
-    my_hash_free(&old_column_priv_hash);
-    free_root(&old_mem,MYF(0));
-    grant_version++;
-    get_global_acl_cache()->increase_version();
+    /*
+      Create a new memory pool but save the current memory pool to make an undo
+      opertion possible in case of failure.
+    */
+    old_mem= move(memex);
+    init_sql_alloc(key_memory_acl_memex,
+                   &memex, ACL_ALLOC_BLOCK_SIZE, 0);
+    /*
+      tables[2].table i.e. procs_priv can be null if we are working with
+      pre 4.1 privilage tables
+    */
+    if ((return_val= (grant_load(thd, tables) ||
+                      grant_reload_procs_priv(thd, &tables[2]))
+       ))
+    {                                             // Error. Revert to old hash
+      DBUG_PRINT("error",("Reverting to old privileges"));
+      column_priv_hash= move(old_column_priv_hash);    /* purecov: deadcode */
+      free_root(&memex,MYF(0));
+      memex= move(old_mem);                  /* purecov: deadcode */
+    }
+    else
+    {                                             //Reload successful
+      old_column_priv_hash.reset();
+      free_root(&old_mem,MYF(0));
+      grant_version++;
+      get_global_acl_cache()->increase_version();
+    }
   }
 
 end:
@@ -3191,7 +3147,7 @@ void acl_update_user(const char *user, const char *host,
         }
 
         /* Update role graph  */
-        std::string authid_role= create_authid_str_from(acl_user);
+        string authid_role= create_authid_str_from(acl_user);
         Role_index_map:: iterator it= g_authid_to_vertex->find(authid_role);
         if (it !=g_authid_to_vertex->end())
         {
@@ -3210,7 +3166,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(const char *user, const char *host,
+void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -3225,7 +3181,7 @@ void acl_insert_user(const char *user, const char *host,
   DBUG_ENTER("acl_insert_user");
   ACL_USER acl_user;
 
-  DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   /*
      All accounts can authenticate per default. This will change when
      we add a new field to the user table.
@@ -3287,6 +3243,10 @@ void acl_insert_user(const char *user, const char *host,
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  /* Add vertex to role graph. ACL_USER object is copied with a shallow copy */
+  create_role_vertex(&acl_user);
+  /* reparse mandatory roles variable */
+  opt_mandatory_roles_cache= false;
   DBUG_VOID_RETURN;
 }
 
@@ -3461,13 +3421,13 @@ const uchar *hash_key(const uchar *el, size_t *length)
 /**
   Allocate a new cache key based on active roles, current user and
   global cache version
- 
+
   @param [out] out_key The resulting key
   @param [out] key_len Key length
   @param version Global Acl_cache version
   @param uid The authorization ID of the current user
   @param active_roles The active roles of the current user
- 
+
   @return Success state
     @retval true OK
     @retval false Fatal error occurred.
@@ -3500,7 +3460,7 @@ bool create_acl_cache_hash_key(uchar **out_key, unsigned *key_len,
   memcpy(*out_key + offset, reinterpret_cast<void *>(&version), sizeof(uint64));
   it= active_roles.begin();
   offset += sizeof(uint64);
-  
+
   for(; it != active_roles.end(); ++it)
   {
     memcpy(*out_key + offset, it->first.str, it->first.length);
@@ -3597,13 +3557,13 @@ Acl_map::Acl_map(const Acl_map &&map)
 
 Acl_map &Acl_map::operator=(Acl_map &&map)
 {
-  m_db_acls= std::move(map.m_db_acls);
+  m_db_acls= move(map.m_db_acls);
   m_global_acl= map.m_global_acl;
   m_reference_count= map.m_reference_count.load();
-  m_table_acls= std::move(map.m_table_acls);
-  m_sp_acls= std::move(map.m_sp_acls);
-  m_func_acls= std::move(map.m_func_acls);
-  m_with_admin_acls= std::move(map.m_with_admin_acls);
+  m_table_acls= move(map.m_table_acls);
+  m_sp_acls= move(map.m_sp_acls);
+  m_func_acls= move(map.m_func_acls);
+  m_with_admin_acls= move(map.m_with_admin_acls);
   m_version= map.m_version;
   map.m_reference_count= 0;
   return *this;
@@ -3659,7 +3619,7 @@ Acl_map::func_acls()
 Dynamic_privileges *
 Acl_map::dynamic_privileges()
 {
-  return &m_dynamic_privileges;  
+  return &m_dynamic_privileges;
 }
 
 void
@@ -3798,7 +3758,7 @@ void Acl_cache::flush_cache()
   Acl_hash_entry *entry= 0;
   mysql_mutex_lock(&m_cache_flush_mutex);
   l_cache_flusher_global_version= version();
-  do 
+  do
   {
     entry=
       static_cast<Acl_hash_entry*>(lf_hash_random_match(&m_cache,
@@ -3833,13 +3793,15 @@ void Acl_map::operator delete(void* p)
 {
   my_free(p);
 }
-        
+
 void init_acl_cache()
 {
   g_default_roles= new Default_roles;
   roles_init_graph();
   dynamic_privileges_init();
   g_acl_cache= new Acl_cache();
+  g_mandatory_roles= new std::vector<Role_id >;
+  opt_mandatory_roles_cache= false;
 }
 
 
@@ -3863,6 +3825,7 @@ void shutdown_acl_cache()
   g_default_roles= NULL;
   roles_delete_graph();
   dynamic_privileges_delete();
+  delete g_mandatory_roles;
 }
 
 
