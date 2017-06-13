@@ -2,7 +2,6 @@ source include/have_memcached_plugin.inc;
 source include/not_valgrind.inc;
 
 source include/not_windows.inc;
-source include/have_innodb.inc;
 
 --let $perlChecker=$MYSQLTEST_VARDIR/std_data/checkDBI_DBD-mysql.pl
 --let $resultFile= $MYSQL_TMP_DIR/dbidbd-mysql.txt
