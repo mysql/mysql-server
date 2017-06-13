@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ class Mock_field_timestamp : public Field_timestamp
   uchar null_byte;
   void initialize()
   {
-    table = new Fake_TABLE(this);
+    table = ::new Fake_TABLE(this);
     EXPECT_FALSE(table == NULL) << "Out of memory";
     ptr= buffer;
     memset(buffer, 0, PACK_LENGTH);
@@ -81,7 +81,7 @@ public:
     store_timestamp_called= true;
   }
 
-  ~Mock_field_timestamp() { delete table; }
+  ~Mock_field_timestamp() { ::delete static_cast<Fake_TABLE*>(table); }
 };
 
 #endif // MOCK_FIELD_TIMESTAMP_H

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -142,6 +142,10 @@ class ha_innobase: public handler
 	int index_first(uchar * buf);
 	int index_last(uchar * buf);
 
+	/* Copy a cached MySQL row. If requested, also avoids
+	overwriting non-read columns. */
+	void copy_cached_row(uchar *to_rec, const uchar *from_rec,
+				uint rec_length);
 	int rnd_init(bool scan);
 	int rnd_end();
 	int rnd_next(uchar *buf);
