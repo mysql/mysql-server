@@ -1,0 +1,21 @@
+--source include/have_innodb.inc
+
+CREATE TABLE t (id INT, a INT, b INT, KEY (a), KEY (b)) ENGINE=INNODB
+PARTITION BY HASH (id) PARTITIONS 10;
+
+insert into t values (0,4,1);
+insert into t values (6,2,5);
+insert into t values (6,7,5);
+insert into t values (2,4,6);
+insert into t values (3,5,6);
+insert into t values (1,3,9);
+insert into t values (1,3,9);
+insert into t values (3,4,6);
+insert into t values (4,4,6);
+
+EXPLAIN SELECT SQL_NO_CACHE COUNT(*) FROM t WHERE a=4 AND b=6;
+EXPLAIN SELECT SQL_NO_CACHE a,b FROM t WHERE a=4 AND b=6;
+SELECT SQL_NO_CACHE * FROM t WHERE a=4 AND b=6 ORDER BY id;
+SELECT SQL_NO_CACHE COUNT(*) FROM t WHERE a=4 AND b=6;
+
+DROP TABLE t;

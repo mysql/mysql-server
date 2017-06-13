@@ -1,6 +1,5 @@
-#!/usr/bin/perl
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
-# Use is subject to license terms.
+#!@PERL_PATH@
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
