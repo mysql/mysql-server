@@ -14148,7 +14148,8 @@ int ndbcluster_init(void* p)
     ndbcluster_binlog_init(h);
     h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
                          HTON_NO_BINLOG_ROW_OPT |
-                         HTON_SUPPORTS_FOREIGN_KEYS;
+                         HTON_SUPPORTS_FOREIGN_KEYS |
+                         HTON_SUPPORTS_ATOMIC_DDL;
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;

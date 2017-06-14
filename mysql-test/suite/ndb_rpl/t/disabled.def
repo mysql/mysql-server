@@ -36,3 +36,8 @@ ndb_rpl_dist_priv: Need WL#9185 MySQL Cluster support for new DD
 
 ndb_rpl_gap_event: Bug#26202775 FAILURE OF NDB TESTS RELATED TO BINLOG AFTER SERVER MERGE
 ndb_rpl_skip_gap_event: Bug#26202775 FAILURE OF NDB TESTS RELATED TO BINLOG AFTER SERVER MERGE
+
+# Problem with CREATE LOGFILE GROUP. When running mysqld with --bin-log,
+# hitting DBUG_ASSERT claiming no transaction open
+ndb_rpl_dd_basic: Need WL#9185 MySQL Cluster support for new DD
+ndb_rpl_dd_partitions: Need WL#9185 MySQL Cluster support for new DD

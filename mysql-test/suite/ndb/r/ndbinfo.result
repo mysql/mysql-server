@@ -1223,11 +1223,11 @@ tot_key_keyinfo_bytes	3200
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	32
+tot_frag_scans	24
 tot_scan_rows_examined	0
 tot_scan_rows_returned	0
 tot_scan_bytes_returned	0
-tot_scan_prog_bytes	96
+tot_scan_prog_bytes	64
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	0
 conc_qd_frag_scans	0
@@ -1399,11 +1399,11 @@ tot_key_keyinfo_bytes	3760
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	4220
-tot_frag_scans	64
+tot_frag_scans	56
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
 tot_scan_bytes_returned	5564
-tot_scan_prog_bytes	320
+tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305
 conc_qd_frag_scans	0
