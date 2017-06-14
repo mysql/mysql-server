@@ -7980,7 +7980,11 @@ static void test_fetch_seek()
   rc= mysql_query(mysql, "create table t1(c1 int primary key auto_increment, c2 char(10), c3 timestamp)");
   myquery(rc);
 
-  rc= mysql_query(mysql, "insert into t1(c2) values('venu'), ('mysql'), ('open'), ('source')");
+  rc= mysql_query(mysql, "insert into t1(c2, c3) values('venu', CURRENT_TIMESTAMP), \
+                                                       ('mysql', CURRENT_TIMESTAMP), \
+                                                       ('open', CURRENT_TIMESTAMP), \
+                                                       ('source', CURRENT_TIMESTAMP)");
+
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql, "select * from t1");
