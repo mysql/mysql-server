@@ -126,17 +126,6 @@ dict_create_index_tree(
 	dict_index_t*	index,
 	const trx_t*	trx);
 
-/** Drop the index tree associated with a row in SYS_INDEXES table.
-@param[in,out]	rec	SYS_INDEXES record
-@param[in,out]	pcur	persistent cursor on rec
-@param[in,out]	mtr	mini-transaction
-@return	whether freeing the B-tree was attempted */
-bool
-dict_drop_index_tree(
-	rec_t*		rec,
-	btr_pcur_t*	pcur,
-	mtr_t*		mtr);
-
 /** Drop an index tree
 @param[in]	index		dict index
 @param[in]	root_page_no	index root page number */
