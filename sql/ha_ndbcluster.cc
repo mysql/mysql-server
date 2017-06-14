@@ -1328,6 +1328,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   options(0),
+  trans_options(0),
   global_schema_lock_trans(NULL),
   global_schema_lock_count(0),
   global_schema_lock_error(0),
@@ -1344,7 +1345,6 @@ Thd_ndb::Thd_ndb(THD* thd) :
   trans= NULL;
   m_handler= NULL;
   m_error= FALSE;
-  options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0,
                       thd_ndb_share_get_key, nullptr, 0,
                       PSI_INSTRUMENT_ME);
@@ -4762,7 +4762,7 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       options->anyValue = thd_unmasked_server_id(thd);
     }
-    else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
+    else if (thd_ndb->check_trans_option(Thd_ndb::TRANS_NO_LOGGING))
     {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       ndbcluster_anyvalue_set_nologging(options->anyValue);
@@ -5824,7 +5824,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       primary_key_update ||
       need_flush)
   {
-    int res= flush_bulk_insert();
+    const int res = flush_bulk_insert();
     if (res != 0)
     {
       m_skip_auto_increment= TRUE;
@@ -7965,10 +7965,24 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
     m_disable_pushed_join= FALSE;
     break;
+  case HA_EXTRA_BEGIN_ALTER_COPY:
+    // Start of copy into intermediate table during copying alter, turn
+    // off transactions when writing into the intermediate table in order to
+    // avoid exhausting NDB transaction resources, this is safe as it would
+    // be dropped anyway if there is a failure during the alter
+    DBUG_PRINT("info", ("HA_EXTRA_BEGIN_ALTER_COPY"));
+    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_TRANSACTIONS_OFF);
+    break;
+  case HA_EXTRA_END_ALTER_COPY:
+    // End of copy into intermediate table during copying alter.
+    // Nothing to do, the transactions will automatically be enabled
+    // again for subsequent statement
+    DBUG_PRINT("info", ("HA_EXTRA_END_ALTER_COPY"));
+    break;
   default:
     break;
   }
-  
+
   DBUG_RETURN(0);
 }
 
@@ -8097,20 +8111,10 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
                       (int)m_rows_inserted));
   DBUG_ASSERT(trans);
 
-  
-  if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
-  {
-    if (!allow_batch &&
-        execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
-    {
-      no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(trans));
-    }
-  }
-  else
+  if (m_thd_ndb->check_trans_option(Thd_ndb::TRANS_TRANSACTIONS_OFF))
   {
     /*
-      signal that transaction has been broken up and hence cannot
+      signal that transaction will be broken up and hence cannot
       be rolled back
     */
     THD *thd= table->in_use;
@@ -8127,7 +8131,16 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
       DBUG_ASSERT(0);
       DBUG_RETURN(-1);
     }
+    DBUG_RETURN(0);
   }
+
+  if (!allow_batch &&
+      execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -8183,7 +8196,7 @@ int ha_ndbcluster::end_bulk_insert()
   
   if (!thd_allow_batch(thd) && thd_ndb->m_unsent_bytes)
   {
-    bool allow_batch= (thd_ndb->m_handler != 0);
+    const bool allow_batch= (thd_ndb->m_handler != 0);
     error= flush_bulk_insert(allow_batch);
     if (error != 0)
     {
@@ -8198,8 +8211,8 @@ int ha_ndbcluster::end_bulk_insert()
     }
   }
 
-  m_rows_inserted= (ha_rows) 0;
-  m_rows_to_insert= (ha_rows) 1;
+  m_rows_inserted = 0;
+  m_rows_to_insert = 1;
   DBUG_RETURN(error);
 }
 
@@ -8355,12 +8368,14 @@ Thd_ndb::transaction_checks()
 {
   THD* thd = m_thd;
 
-  if (thd->lex->sql_command == SQLCOM_LOAD)
-    trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->get_transaction()->m_flags.enabled)
-    trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!THDVAR(thd, use_transactions))
-    trans_options|= TNTO_TRANSACTIONS_OFF;
+  if (thd->lex->sql_command == SQLCOM_LOAD ||
+      !THDVAR(thd, use_transactions))
+  {
+    // Tutrn off transactionila behaviour for the duration of this
+    // statement/transaction
+    set_trans_option(TRANS_TRANSACTIONS_OFF);
+  }
+
   m_force_send= THDVAR(thd, force_send);
   if (!thd->slave_thread)
     m_batch_size= THDVAR(thd, batch_size);
@@ -8426,7 +8441,8 @@ int ha_ndbcluster::start_statement(THD *thd,
   if (!trans && table_count == 0)
   {
     DBUG_ASSERT(thd_ndb->changed_tables.is_empty() == TRUE);
-    thd_ndb->trans_options= 0;
+
+    thd_ndb->reset_trans_options();
 
     DBUG_PRINT("trans",("Possibly starting transaction"));
     const uint opti_node_select = THDVAR(thd, optimized_node_selection);
@@ -8441,7 +8457,7 @@ int ha_ndbcluster::start_statement(THD *thd,
     if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     {
-      thd_ndb->trans_options|= TNTO_NO_LOGGING;
+      thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
       thd_ndb->m_slow_path= TRUE;
     }
     else if (thd->slave_thread)
@@ -8530,7 +8546,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   if (unlikely(m_slow_path))
   {
     if (m_share == ndb_apply_status_share && thd->slave_thread)
-        m_thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
+        m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
   int ret = 0;
@@ -8909,8 +8925,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   if (unlikely(thd_ndb->m_slow_path))
   {
     if (thd->slave_thread)
-      ndbcluster_update_apply_status
-        (thd, thd_ndb->trans_options & TNTO_INJECTED_APPLY_STATUS);
+    {
+      ndbcluster_update_apply_status(thd,
+          thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
+    }
   }
 
   if (thd->slave_thread)
