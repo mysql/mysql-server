@@ -1829,7 +1829,11 @@ fil_node_close_to_free(
 			UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 		}
 
-		fil_node_close_file(node, false);
+		/* TODO: set second parameter to true, so to release
+		fil_system mutex before logging tablespace name and id.
+		To go around Bug#26271853 - POTENTIAL DEADLOCK BETWEEN
+		FIL_SYSTEM MUTEX AND LOG MUTEX */
+		fil_node_close_file(node, true);
 	}
 }
 
