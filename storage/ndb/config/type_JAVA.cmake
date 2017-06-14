@@ -149,25 +149,6 @@ MACRO(CREATE_JAR)
     ENDIF()
   ENDFOREACH()
 
-  # Enhance
-  IF(EXISTS ${ARG_ENHANCE})
-    SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
-
-    SET(OLD_MARKER ${MARKER})
-    MATH(EXPR COUNTER "${COUNTER} + 1")
-    SET(MARKER "${MARKER_BASE}.${COUNTER}")
-
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${MARKER}
-      COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
-      COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
-      
-      COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
-      DEPENDS ${OLD_MARKER}
-      COMMENT "Enhancing objects for ${TARGET}.jar"
-    )
-  ENDIF()
-
   # Unpack extra jars
   FOREACH(_J ${ARG_MERGE_JARS})
 
