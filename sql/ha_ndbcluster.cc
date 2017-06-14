@@ -10922,7 +10922,7 @@ int ha_ndbcluster::create(const char *name,
     tables since a table being altered might not be known to the
     mysqld issuing the alter statement.
    */
-  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  const bool is_alter= (thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
   if (is_alter)
   {
     DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
@@ -10943,6 +10943,22 @@ int ha_ndbcluster::create(const char *name,
               "Implicit copying alter", "ndb_allow_copying_alter_table=0",
               "ALGORITHM=COPY to force the alter");
       DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    }
+
+    /*
+      Renaming a table and at the same time doing some other change
+      is currently not supported, see Bug #16021021 ALTER ... RENAME
+      FAILS TO RENAME ON PARTICIPANT MYSQLD.
+
+      Refuse such ALTER TABLE .. RENAME already when trying to
+      create the destination table.
+    */
+    const uint flags= thd->lex->alter_info->flags;
+    if (flags & Alter_info::ALTER_RENAME &&
+        flags & ~Alter_info::ALTER_RENAME)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
+      DBUG_RETURN(ER_NOT_SUPPORTED_YET);
     }
   }
 
@@ -12388,26 +12404,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
-
-  /*
-    ALTER RENAME with some more change is currently not supported
-    by Ndb due to
-    Bug #16021021 ALTER ... RENAME FAILS TO RENAME ON PARTICIPANT MYSQLD
-
-    Check if command is not RENAME and some more alter_flag
-    except ALTER_RENAME is set.
-  */
-  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
-  {
-    Alter_info *alter_info= thd->lex->alter_info;
-    uint flags= alter_info->flags;
-
-    if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
-    {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
-      DBUG_RETURN(ER_NOT_SUPPORTED_YET);
-    }
-  }
 
   set_dbname(from, old_dbname);
   set_dbname(to, new_dbname);
