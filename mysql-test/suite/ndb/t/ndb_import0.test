@@ -335,6 +335,7 @@ for my $i (1..1000) {
     $s = "\\N";
   } else {
     my $n = int(rand(20+1));
+    my $prevk = 0;
     for (1..$n) {
       my $c;
       my $k = int(rand(256));
@@ -347,12 +348,16 @@ for my $i (1..1000) {
         # backslash is escape
         $c = "\\\\";
       } elsif ($k == 0x0d) {
-        # CR would be assumed to start CR-LF currently
-        $c = "\\r";
+        $c = chr($k);
       } else {
+        if ($prevk == 0x0d && $k == 0xa) {
+          # avoid CR-LF
+          $k = 0x61;
+        }
         $c = chr($k);
       }
       $s .= $c;
+      $prevk = $k;
     }
   }
   print $fh $i, "\t", $s, "\r", "\n";
@@ -476,5 +481,56 @@ select count(*) from t8 x, t8ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 
+--echo # test long field and line terminators
+
+perl;
+use strict;
+use Symbol;
+my $vardir = $ENV{MYSQLTEST_VARDIR}
+  or die "need MYSQLTEST_VARDIR";
+my $file = "$vardir/tmp/t9.csv";
+my $fh = gensym();
+open($fh, ">:raw", $file)
+  or die "$file: open for write failed: $!";
+my $d = '"';
+print $fh 0, "//", "123", "//", "abc", "###\n";
+print $fh 1, "//", "/456#", "//", "/foo#", "###\n";
+print $fh 2, "//", "789###", "//", "bar###", "###\n";
+print $fh 3, "//", $d."123".$d, "//", "abc", "###\n";
+print $fh 4, "//", "/456#", "//", $d."/foo#".$d, "###\n";
+print $fh 5, "//", $d."789###".$d, "//", $d."bar###".$d, "###\n";
+close($fh)
+  or die "$file: close after write failed: $!";
+exit(0);
+EOF
+
+create table t9 (
+  a int primary key,
+  b char(10),
+  c char(10)
+) engine=ndb;
+
+create table t9ver like t9;
+
+--disable_query_log
+eval load data infile '$MYSQLTEST_VARDIR/tmp/t9.csv'
+into table t9ver
+fields terminated by '//' optionally enclosed by '"'
+lines terminated by '###\n';
+--enable_query_log
+select * from t9ver order by a;
+
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --keep-state
+     --fields-terminated-by='//'
+     --fields-optionally-enclosed-by='"'
+     --lines-terminated-by='###\n'
+     test $MYSQLTEST_VARDIR/tmp/t9.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+
+select count(*) from t9 x, t9ver y
+where x.a = y.a
+and (x.b = y.b or (x.b is null and y.b is null))
+and (x.c = y.c or (x.c is null and y.c is null));
+
 drop table t1, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
-           t6, t6ver, t7, t7ver, t8, t8ver;
+           t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;

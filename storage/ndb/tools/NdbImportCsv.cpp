@@ -639,9 +639,11 @@ NdbImportCsv::Parse::do_init()
   }
   {
     const uchar* p = spec.m_fields_terminated_by;
-    require(p != 0 && p[0] != 0);
+    const uint len = spec.m_fields_terminated_by_len;
+    require(p != 0 && p[0] != 0 && len == strlen((const char*)p));
     uint u = p[0];
-    m_trans[State_plain][u] = T_FIELDSEP;
+    // avoid parse-time branch in the common case
+    m_trans[State_plain][u] = len == 1 ? T_FIELDSEP : T_FIELDSEP2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
   }
@@ -670,9 +672,11 @@ NdbImportCsv::Parse::do_init()
   }
   {
     const uchar* p = spec.m_lines_terminated_by;
-    require(p != 0 && p[0] != 0);
+    const uint len = spec.m_lines_terminated_by_len;
+    require(p != 0 && p[0] != 0 && len == strlen((const char*)p));
     uint u = p[0];
-    m_trans[State_plain][u] = T_LINEEND;
+    // avoid parse-time branch in the common case
+    m_trans[State_plain][u] = len == 1 ? T_LINEEND : T_LINEEND2;
     m_trans[State_quote][u] = T_DATA;
     m_trans[State_escape][u] = T_BYTE;
   }
@@ -794,8 +798,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
   int token = trans[u];
   switch (token) {
   case T_FIELDSEP:
-    len = spec.m_fields_terminated_by_len;
+    len = 1;
     end += len;
+    break;
+  case T_FIELDSEP2:
+    len = spec.m_fields_terminated_by_len;
+    if (len <= buf.m_len - buf.m_pos &&
+        memcmp(&bufdata[pos], spec.m_fields_terminated_by, len) == 0)
+    {
+      end += len;
+      token = T_FIELDSEP;
+      break;
+    }
+    len = 1;
+    end += len;
+    token = T_DATA;
     break;
   case T_QUOTE:
     push_state(State_quote);
@@ -824,8 +841,21 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
     end += len;
     break;
   case T_LINEEND:
-    len = spec.m_lines_terminated_by_len;
+    len = 1;
     end += len;
+    break;
+  case T_LINEEND2:
+    len = spec.m_lines_terminated_by_len;
+    if (len <= buf.m_len - buf.m_pos &&
+        memcmp(&bufdata[pos], spec.m_lines_terminated_by, len) == 0)
+    {
+      end += len;
+      token = T_LINEEND;
+      break;
+    }
+    len = 1;
+    end += len;
+    token = T_DATA;
     break;
   case T_DATA:
     do
