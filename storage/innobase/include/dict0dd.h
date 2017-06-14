@@ -88,12 +88,12 @@ enum dd_space_keys {
 enum dd_system_id_t {
 	DD_TABLESPACES = 4,
 	DD_DATAFILES = 5,
-	DD_TABLES = 9,
-	DD_COLUMNS = 12,
-	DD_INDEXES = 13,
-	DD_FOREIGN = 16,
-	DD_FOREIGN_COLS = 17,
-	DD_PARTITIONS = 18,
+	DD_TABLES = 10,
+	DD_COLUMNS = 13,
+	DD_INDEXES = 14,
+	DD_FOREIGN = 17,
+	DD_FOREIGN_COLS = 18,
+	DD_PARTITIONS = 19,
 
 	/* This must be last item. Defines the number of system tables. */
 	DD_LAST_ID

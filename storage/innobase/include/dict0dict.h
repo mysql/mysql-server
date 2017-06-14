@@ -1537,7 +1537,7 @@ struct dict_sys_t{
         }
 
 	/** Number of hard coded new dd tables */
-	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 31;
+	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 32;
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
