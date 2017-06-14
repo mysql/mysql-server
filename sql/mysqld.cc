@@ -8766,9 +8766,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
   }
 
-  if (opt_noacl)
-    opt_disable_networking= true;
-
   if (opt_disable_networking)
     mysqld_port= 0;
 
