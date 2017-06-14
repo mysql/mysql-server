@@ -55,10 +55,12 @@ NdbImportCsv_yyerror(NdbImportCsv::Parse& csvparse, const char* msg);
 %type <m_chunk> T_BYTE
 
 %token T_FIELDSEP
+%token T_FIELDSEP2      /* for lex if length > 1 */
 %token T_QUOTE
 %token T_QUOTEQUOTE     /* for lex */
 %token T_ESCAPE
 %token T_LINEEND
+%token T_LINEEND2       /* for lex if length > 1 */
 %token T_DATA
 %token T_BYTE
 %token T_NUL            /* NUL byte 0x00 */
