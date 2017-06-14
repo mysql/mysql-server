@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${JAVA_NDB_VERSION}.jar
         DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
 
 # create maven pom.xml in all subdirectories
-SET(CLUSTERJ_PROJECTS api core jdbc jpatest openjpa test tie unit)
+SET(CLUSTERJ_PROJECTS api core jpatest openjpa test tie unit)
 
 IF(WIN32)
 
