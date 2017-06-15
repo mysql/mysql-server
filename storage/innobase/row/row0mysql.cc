@@ -4433,6 +4433,8 @@ row_drop_table_for_mysql(
 	} else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
+		ut_ad(0);
+
 		ut_ad(!table->is_intrinsic());
 
 		added = row_add_table_to_background_drop_list(

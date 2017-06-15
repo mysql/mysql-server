@@ -9305,8 +9305,21 @@ public:
 			use the #tmp name, because it could be already used
 			by the corresponding new partition. */
 			mem_heap_t*	heap = mem_heap_create(FN_REFLEN);
+			char		db_buf[NAME_LEN + 1];
+			char		tbl_buf[NAME_LEN + 1];
+			MDL_ticket*	mdl_ticket = nullptr;
+
 			char*	temp_name = dict_mem_create_temporary_tablename(
 				heap, m_old->name.m_name, m_old->id);
+
+			/* Acquire mdl lock on the temporary table name. */
+			dd_parse_tbl_name(temp_name, db_buf, tbl_buf, nullptr);
+
+			if (dd::acquire_exclusive_table_mdl(
+				thd, db_buf, tbl_buf, false, &mdl_ticket)) {
+				mem_heap_free(heap);
+				return(HA_ERR_GENERIC);
+			}
 
 			error = innobase_basic_ddl::rename_impl<dd::Partition>(
 				thd, part_name, temp_name, old_part);
@@ -9493,17 +9506,28 @@ alter_part_change::try_commit(
 	ut_ad(old_part->level() == new_part->level());
 	ut_ad(old_part->name() == new_part->name());
 
+	THD*	thd = m_trx->mysql_thd;
+	char	db_buf[NAME_LEN + 1];
+	char	tbl_buf[NAME_LEN + 1];
 	char*	temp_old_name = dict_mem_create_temporary_tablename(
 		m_old->heap, m_old->name.m_name, m_old->id);
 
 	dd_table_close(m_old, nullptr, nullptr, false);
+
+	/* Acquire mdl lock on the temporary table name. */
+	dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr);
+
+	MDL_ticket*	mdl_ticket = nullptr;
+	if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf,
+					    false, &mdl_ticket)) {
+		return(HA_ERR_GENERIC);
+	}
 
 	char	old_name[FN_REFLEN];
 	char	temp_name[FN_REFLEN];
 	build_partition_name(new_part, false, old_name);
 	build_partition_name(new_part, true, temp_name);
 
-	THD*	thd = m_trx->mysql_thd;
 	int	error;
 
 	error = innobase_basic_ddl::rename_impl<dd::Partition>(
