@@ -1151,7 +1151,6 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_setup.py
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_size.pl
-%attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
@@ -1178,7 +1177,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
