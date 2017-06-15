@@ -491,3 +491,10 @@ ndb_dd_table_get_engine(THD *thd,
 
   DBUG_RETURN(true); // Table exist
 }
+
+
+void
+ndb_dd_table_set_se_private_id(dd::Table* table_def, int private_id)
+{
+  table_def->set_se_private_id(private_id);
+}

@@ -10837,7 +10837,6 @@ int ha_ndbcluster::create(const char *name,
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
   int result= 0;
-  NdbDictionary::ObjectId objId;
   Ndb_fk_list fk_list_for_truncate;
 
   DBUG_ENTER("ha_ndbcluster::create");
@@ -11578,18 +11577,25 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
-  // Create the table in NDB     
-  if (dict->createTable(tab, &objId) != 0)
+  // Create the table in NDB
+  if (dict->createTable(tab) != 0)
   {
     const NdbError err= dict->getNdbError();
     abort_error = ndb_to_mysql_error(&err);
     goto abort;
   }
 
-  DBUG_PRINT("info", ("Table %s/%s created successfully", 
-                      m_dbname, m_tabname));
+  DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
+                      m_dbname, m_tabname,
+                      tab.getObjectId(),
+                      tab.getObjectVersion()));
 
-  tab.assignObjId(objId);
+#ifdef DISABLED_UNTIL_OPEN_WITHOUT_SDI_COMPARE
+  // Update table definition with the table id of the newly created table
+  // the caller will then save this information in the DD
+  ndb_dd_table_set_se_private_id(table_def, tab.getObjectId());
+#endif
+
   m_table= &tab;
 
   // Create secondary indexes

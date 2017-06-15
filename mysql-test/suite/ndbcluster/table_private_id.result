@@ -1,0 +1,5 @@
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+DROP TABLE t1;
