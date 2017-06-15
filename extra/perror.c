@@ -297,7 +297,7 @@ int main(int argc,char *argv[])
 
         printf("Warning: using '--ndb' with 'perror' is deprecated and this "
                "functionality may not be available in the future versions, "
-               "please use 'ndb_perror' instead");
+               "please use 'ndb_perror' instead\n");
 
         if (msg)
         {
