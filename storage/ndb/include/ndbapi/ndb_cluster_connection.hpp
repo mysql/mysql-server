@@ -283,6 +283,11 @@ public:
   int set_recv_thread_cpu(Uint16 *cpuid_array,
                           Uint32 array_len,
                           Uint32 recv_thread_id = 0);
+  int set_recv_thread_cpu(Uint16 cpuid)
+  {
+    Uint16 cpuid2 = cpuid;
+    return set_recv_thread_cpu(&cpuid2, Uint32(1));
+  }
   int set_recv_thread_activation_threshold(Uint32 threshold);
   int get_recv_thread_activation_threshold() const;
 
