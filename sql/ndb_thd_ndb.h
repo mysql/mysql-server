@@ -23,7 +23,6 @@
 #include "map_helpers.h"
 #include "my_base.h"          // ha_rows
 #include "ndb_share.h"
-#include "sql_list.h"         // List<>
 
 /*
   Place holder for ha_ndbcluster thread specific data
@@ -115,7 +114,6 @@ public:
 
   uint32 trans_options;
   void transaction_checks(void);
-  List<NDB_SHARE> changed_tables;
   malloc_unordered_map<const void *, THD_NDB_SHARE *>
     open_tables{PSI_INSTRUMENT_ME};
   /*

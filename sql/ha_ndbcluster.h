@@ -698,7 +698,6 @@ private:
   ha_rows m_rows_deleted;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
-  ha_rows m_rows_changed;
   bool m_delete_cannot_batch;
   bool m_update_cannot_batch;
   uint m_bytes_per_write;
