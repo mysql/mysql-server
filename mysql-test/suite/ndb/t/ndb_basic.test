@@ -712,9 +712,8 @@ drop table t1;
 
 # As long there is no error code XXX defined by NDB
 # we should get a message "Illegal ndb error code: XXX"
---source suite/ndb/include/ndb_find_ndb_perror.inc
 --error 1
---exec $NDB_PERROR --ndb 123456 2>&1
+--exec $MY_PERROR --ndb 123456 2>&1
 
 #
 # Bug #25746 - VARCHAR UTF8 PK issue
