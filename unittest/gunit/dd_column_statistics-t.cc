@@ -147,8 +147,7 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -175,8 +174,12 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
-    EXPECT_CALL(name, store(_, _, _)).Times(1);
+    ON_CALL(catalog_id, store(_, _)).
+      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+
+    ON_CALL(name, store(_, _, _)).
+      WillByDefault(WithArgs<0>(Invoke(&name,
+                                       &Mock_dd_field_varstring::fake_store)));
 
     ON_CALL(schema_name, store(_, _, _)).
       WillByDefault(WithArgs<0>(Invoke(&schema_name,
@@ -202,6 +205,8 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
                     Invoke(&column_name,
                            &Mock_dd_field_varstring::fake_val_str)));
 
+    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
+    EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
                 store(column_statistics.schema_name().c_str(), _, _)).Times(1);
     EXPECT_CALL(table_name,
@@ -249,8 +254,6 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
       column_statistics.histogram()->get_sampling_rate(),
       column_statistics_restored.histogram()->get_sampling_rate());
   }
-
-  free_root(&mem_root, MYF(0));
 }
 
 TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
@@ -280,8 +283,7 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root;
-  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -308,8 +310,12 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
-    EXPECT_CALL(name, store(_, _, _)).Times(1);
+    ON_CALL(catalog_id, store(_, _)).
+      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+
+    ON_CALL(name, store(_, _, _)).
+      WillByDefault(WithArgs<0>(Invoke(&name,
+                                       &Mock_dd_field_varstring::fake_store)));
 
     ON_CALL(schema_name, store(_, _, _)).
       WillByDefault(WithArgs<0>(Invoke(&schema_name,
@@ -335,6 +341,8 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
                     Invoke(&column_name,
                            &Mock_dd_field_varstring::fake_val_str)));
 
+    EXPECT_CALL(catalog_id, store(_, _)).Times(1);
+    EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
                 store(column_statistics.schema_name().c_str(), _, _)).Times(1);
     EXPECT_CALL(table_name,
@@ -373,8 +381,6 @@ TYPED_TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
       column_statistics.histogram()->get_null_values_fraction(),
       column_statistics_restored.histogram()->get_null_values_fraction());
   }
-
-  free_root(&mem_root, MYF(0));
 }
 
 }
