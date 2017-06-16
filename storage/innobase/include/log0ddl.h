@@ -222,9 +222,14 @@ public:
 	~DDLLogTable();
 
 	/** Get the list of ddl records ids.
-	@return list of ddl records. */
+	@return list of ddl record ids. */
 	std::vector<ulint>
 	get_list();
+
+	/** Get the list of ddl records.
+	@return list of ddl records. */
+	std::vector<logDDLRecord*>
+	get_records_list();
 
 	/** Insert the DDL log record in the innodb_ddl_log table.
 	@param[in]	ddl_record	Record to be inserted.
@@ -341,6 +346,9 @@ private:
 	/** List of ddl record ids and it is used for
 	scan_and_deleteAll, scan_and_deleteByThread operation. */
 	std::vector<ulint>		m_ddl_record_ids;
+	/** List of ddl records and it can be used for
+	replay operation. */
+	std::vector<logDDLRecord*>	m_ddl_records;
 	/** Heap to store the m_tuple, m_thr and all
 	operation on innodb_ddl_log table. */
 	mem_heap_t*			m_heap;

@@ -332,6 +332,12 @@ DDLLogTable::get_list()
 	return(m_ddl_record_ids);
 }
 
+std::vector<logDDLRecord*>
+DDLLogTable::get_records_list()
+{
+	return(m_ddl_records);
+}
+
 dict_index_t*
 DDLLogTable::getIndex(
 	ulint	type)
@@ -571,13 +577,13 @@ DDLLogTable::fetch_id_from_sec_rec_index(
 dberr_t
 DDLLogTable::search()
 {
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-	rec_t*		rec;
-	bool		move = true;
-	ulint*		offsets;
-	dict_index_t*	index = m_table->first_index();
-	dberr_t		error = DB_SUCCESS;
+	mtr_t				mtr;
+	btr_pcur_t			pcur;
+	rec_t*				rec;
+	bool				move = true;
+	ulint*				offsets;
+	dict_index_t*			index = m_table->first_index();
+	dberr_t				error = DB_SUCCESS;
 
 	mtr_start(&mtr);
 
@@ -604,20 +610,19 @@ DDLLogTable::search()
 		}
 
 		/** Replay the ddl record operation. */
-		logDDLRecord	ddl_record;
+		logDDLRecord*	ddl_record = new logDDLRecord();
 		convert_to_ddl_record(
-			rec, offsets, ddl_record);
-		log_ddl->replay(ddl_record);
+			rec, offsets, *ddl_record);
+		m_ddl_records.push_back(ddl_record);
 
 		/** Store the ids in case of ScanALL.
 		It can be stored to clear the table. */
-		const ulint id = ddl_record.get_id();
+		const ulint id = ddl_record->get_id();
 		m_ddl_record_ids.push_back(id);
 	}
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
-
 	return(error);
 }
 
@@ -648,13 +653,13 @@ DDLLogTable::search(
 	ut_ad(type == DDLLogTable::SEARCH_THREAD_ID_OP
 	      || type == DDLLogTable::SEARCH_ID_OP);
 
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-	rec_t*		rec;
-	bool		move = true;
-	ulint*		offsets;
-	dict_index_t*	index = getIndex(type);
-	dberr_t		error = DB_SUCCESS;
+	mtr_t				mtr;
+	btr_pcur_t			pcur;
+	rec_t*				rec;
+	bool				move = true;
+	ulint*				offsets;
+	dict_index_t*			index = getIndex(type);
+	dberr_t				error = DB_SUCCESS;
 
 	mtr_start(&mtr);
 
@@ -688,10 +693,10 @@ DDLLogTable::search(
 		if (type == DDLLogTable::SEARCH_ID_OP) {
 
 			/** Replay the ddl record operation. */
-			logDDLRecord	ddl_record;
+			logDDLRecord*	ddl_record = new logDDLRecord();
 			convert_to_ddl_record(
-					rec, offsets, ddl_record);
-			log_ddl->replay(ddl_record);
+					rec, offsets, *ddl_record);
+			m_ddl_records.push_back(ddl_record);
 
 		} else {
 			/** Fetch the record id from secondary index record.
@@ -1442,10 +1447,18 @@ dberr_t
 LogDDL::replayAll(
 	std::vector<ulint>&	ids_list)
 {
-	DDLLogTable	replay_op;
-	dberr_t error = replay_op.search();
+	std::vector<logDDLRecord*>	ddl_records;
+	DDLLogTable			search_op;
+
+	dberr_t error = search_op.search();
 	ut_ad(error == DB_SUCCESS);
-	ids_list = replay_op.get_list();
+	ids_list = search_op.get_list();
+	ddl_records = search_op.get_records_list();
+
+	for (auto record : ddl_records) {
+		log_ddl->replay(*record);
+		delete(record);
+	}
 
 	return(error);
 }
@@ -1456,12 +1469,20 @@ LogDDL::replayByThreadID(
 	ulint			thread_id,
 	std::vector<ulint>&	ids_list)
 {
-	DDLLogTable	replay_op;
-	dberr_t error = replay_op.search(
+	std::vector<logDDLRecord*>	ddl_records;
+	DDLLogTable			search_op;
+
+	dberr_t error = search_op.search(
 			thread_id, DDLLogTable::SEARCH_THREAD_ID_OP);
 	ut_ad(error == DB_SUCCESS);
 
-	ids_list = replay_op.get_list();
+	ids_list = search_op.get_list();
+	ddl_records = search_op.get_records_list();
+
+	for (auto record : ddl_records) {
+		log_ddl->replay(*record);
+		delete(record);
+	}
 
 	return(error);
 }
