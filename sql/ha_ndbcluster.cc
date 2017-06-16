@@ -237,11 +237,6 @@ static MYSQL_THDVAR_ULONG(
   0                                  /* block */
 );
 
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEFAULT_NDB_INDEX_STAT_ENABLE FALSE
-#else
-#define DEFAULT_NDB_INDEX_STAT_ENABLE TRUE
-#endif
 
 static MYSQL_THDVAR_BOOL(
   index_stat_enable,                 /* name */
@@ -249,7 +244,7 @@ static MYSQL_THDVAR_BOOL(
   "Use ndb index statistics in query optimization.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  DEFAULT_NDB_INDEX_STAT_ENABLE      /* default */
+  true                               /* default */
 );
 
 
