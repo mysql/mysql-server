@@ -14187,21 +14187,6 @@ int ndbcluster_init(void* p)
   DBUG_RETURN(0); // OK
 }
 
-#ifndef DBUG_OFF
-static
-const char*
-get_share_state_string(NDB_SHARE_STATE s)
-{
-  switch(s) {
-  case NSS_INITIAL:
-    return "NSS_INITIAL";
-  case NSS_DROPPED:
-    return "NSS_DROPPED";
-  }
-  assert(false);
-  return "<unknown>";
-}
-#endif
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
@@ -14227,7 +14212,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) still open\n",
               share->key_string(), share->use_count,
-              get_share_state_string(share->state),
+              share->share_state_string(),
               (uint)share->state);
 #endif
 
@@ -14250,7 +14235,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
               share->key_string(), share->use_count,
-              get_share_state_string(share->state),
+              share->share_state_string(),
               (uint)share->state);
       /**
        * For unknown reasons...the dist-priv tables linger here
@@ -20717,7 +20702,7 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
     NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables, i);
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
-                 get_share_state_string(share->state),
+                 share->share_state_string(),
                  (unsigned)share->state,
                  share->use_count);
     DBUG_ASSERT(share->state != NSS_DROPPED);
@@ -20729,7 +20714,7 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
     NDB_SHARE *share= (NDB_SHARE*)my_hash_element(&ndbcluster_dropped_tables,i);
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
-                 get_share_state_string(share->state),
+                 share->share_state_string(),
                  (unsigned)share->state,
                  share->use_count);
     DBUG_ASSERT(share->state == NSS_DROPPED);
