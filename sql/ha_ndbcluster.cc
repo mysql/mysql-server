@@ -8063,18 +8063,6 @@ int ha_ndbcluster::reset()
   m_pushed_join_operation= -1;
   m_disable_pushed_join= FALSE;
 
-#if 0
-  // Magnus, disble this "hack" until it's possible to test if
-  // it's still needed
-  /*
-    Regular partition pruning will set the bitmap appropriately.
-    Some queries like ALTER TABLE doesn't use partition pruning and
-    thus the 'used_partitions' bitmap needs to be initialized
-  */
-  if (m_part_info)
-    bitmap_set_all(&m_part_info->used_partitions);
-#endif
-
   /* reset flags set by extra calls */
   m_read_before_write_removal_possible= FALSE;
   m_read_before_write_removal_used= FALSE;
