@@ -316,19 +316,13 @@ static MYSQL_THDVAR_BOOL(
   0                                  /* default */
 );
 
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
-#else
-#define DEFAULT_NDB_JOIN_PUSHDOWN TRUE
-#endif
-
 static MYSQL_THDVAR_BOOL(
   join_pushdown,                     /* name */
   PLUGIN_VAR_OPCMDARG,
   "Enable pushing down of join to datanodes",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  DEFAULT_NDB_JOIN_PUSHDOWN          /* default */
+  true                               /* default */
 );
 
 static MYSQL_THDVAR_BOOL(
