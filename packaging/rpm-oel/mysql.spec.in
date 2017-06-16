@@ -1140,6 +1140,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_import
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_move_data
+%attr(755, root, root) %{_bindir}/ndb_perror
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
 %attr(755, root, root) %{_bindir}/ndb_print_file
 %attr(755, root, root) %{_bindir}/ndb_print_frag_file
