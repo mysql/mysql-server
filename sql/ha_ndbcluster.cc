@@ -13211,7 +13211,7 @@ int ha_ndbcluster::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   return (error) ? error : stats_error;
 }
 
-int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
+int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay) const
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
@@ -13660,11 +13660,9 @@ int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
 
 
 /**
-  Drop a database in NDB Cluster
-
-  @note
-    add a dummy void function, since stupid handlerton is returning void instead of int...
+  Drop a database and all its tables from NDB
 */
+
 int ndbcluster_drop_database_impl(THD *thd, const char *path)
 {
   DBUG_ENTER("ndbcluster_drop_database");

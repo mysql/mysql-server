@@ -422,7 +422,6 @@ private:
                                     const uchar **key_row,
                                     const uchar *record,
                                     bool use_active_index);
-  friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
 
   void check_read_before_write_removal();
 
@@ -496,7 +495,7 @@ private:
   int end_bulk_delete();
   int ndb_delete_row(const uchar *record, bool primary_key_update);
 
-  int ndb_optimize_table(THD* thd, uint delay);
+  int ndb_optimize_table(THD* thd, uint delay) const;
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
