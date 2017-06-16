@@ -9510,20 +9510,6 @@ NDB_Modifiers::notfound() const
   return last; // last has m_found == false
 }
 
-/**
-  Define NDB column based on Field.
-
-  Not member of ha_ndbcluster because NDBCOL cannot be declared.
-
-  MySQL text types with character set "binary" are mapped to true
-  NDB binary types without a character set.
-
-  Blobs are V2 and striping from mysql level is not supported
-  due to lack of syntax and lack of support for partitioning.
-
-  @return
-    Returns 0 or mysql error code.
-*/
 
 static bool
 ndb_column_is_dynamic(THD *thd,
@@ -9608,6 +9594,22 @@ ndb_column_is_dynamic(THD *thd,
 
   DBUG_RETURN(dynamic);
 }
+
+
+/**
+  Define NDB column based on Field.
+
+  Not member of ha_ndbcluster because NDBCOL cannot be declared.
+
+  MySQL text types with character set "binary" are mapped to true
+  NDB binary types without a character set.
+
+  Blobs are V2 and striping from mysql level is not supported
+  due to lack of syntax and lack of support for partitioning.
+
+  @return
+    Returns 0 or mysql error code.
+*/
 
 static int
 create_ndb_column(THD *thd,
