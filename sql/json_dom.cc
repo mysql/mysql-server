@@ -228,7 +228,7 @@ static bool add_if_missing(Json_dom *candidate,
 
 
 /**
-  Check if a seek operation performed by Json_dom::find_child_doms()
+  Check if a seek operation performed by find_child_doms()
   or Json_dom::seek() is done.
 
   @return true if only one result is needed and a result has been found
@@ -240,13 +240,31 @@ static inline bool is_seek_done(const Result_vector *hits, bool only_need_one)
 }
 
 
-bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
-                               bool auto_wrap,
-                               bool only_need_one,
-                               Json_dom_vector *duplicates,
-                               Json_dom_vector *result)
+/**
+  Return the child Json_doms identified by the given path leg.
+  The child doms are added to a vector.
+
+  See the header comment for Json_wrapper.seek() for a discussion
+  of complexities involving path expressions with more than one
+  ellipsis (**) token.
+
+  @param[in]     dom the DOM to search
+  @param[in]     path_leg identifies the child
+  @param[in]     auto_wrap if true, match final scalar with [0] is need be
+  @param[in]     only_need_one true if we can stop after finding one match
+  @param[in,out] duplicates helps to identify duplicate arrays and objects
+                 introduced by daisy-chained ** tokens
+  @param[in,out] result the vector of qualifying children
+  @return false on success, true on error
+*/
+static bool find_child_doms(Json_dom *dom,
+                            const Json_path_leg *path_leg,
+                            bool auto_wrap,
+                            bool only_need_one,
+                            Json_dom_vector *duplicates,
+                            Json_dom_vector *result)
 {
-  enum_json_type dom_type= json_type();
+  enum_json_type dom_type= dom->json_type();
   enum_json_path_leg_type leg_type= path_leg->get_type();
 
   if (is_seek_done(result, only_need_one))
@@ -256,8 +274,8 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
   if (auto_wrap && dom_type != enum_json_type::J_ARRAY &&
       path_leg->is_autowrap())
   {
-    return !seen_already(result, this) &&
-      add_if_missing(this, duplicates, result);
+    return !seen_already(result, dom) &&
+      add_if_missing(dom, duplicates, result);
   }
 
   switch (leg_type)
@@ -265,8 +283,8 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
   case jpl_array_cell:
     if (dom_type == enum_json_type::J_ARRAY)
     {
-      auto array= down_cast<const Json_array *>(this);
-      Json_array_index idx= path_leg->first_array_index(array->size());
+      const auto array= down_cast<const Json_array *>(dom);
+      const Json_array_index idx= path_leg->first_array_index(array->size());
       return idx.within_bounds() &&
         add_if_missing((*array)[idx.position()], duplicates, result);
     }
@@ -275,8 +293,8 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
   case jpl_array_cell_wildcard:
     if (dom_type == enum_json_type::J_ARRAY)
     {
-      const auto array= down_cast<const Json_array *>(this);
-      auto range= path_leg->get_array_range(array->size());
+      const auto array= down_cast<const Json_array *>(dom);
+      const auto range= path_leg->get_array_range(array->size());
       for (size_t i= range.m_begin; i < range.m_end; ++i)
       {
         if (add_if_missing((*array)[i], duplicates, result))
@@ -288,56 +306,39 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     return false;
   case jpl_ellipsis:
     {
-      if (add_if_missing(this, duplicates, result))
+      /*
+        Paths that end with an ellipsis are rejected by the JSON path
+        parser, so there is no need to check if we can stop after the
+        first match on this path leg.
+      */
+      DBUG_ASSERT(!only_need_one);
+
+      // The ellipsis matches the value on which it is called ...
+      if (add_if_missing(dom, duplicates, result))
         return true;                          /* purecov: inspected */
 
+      // ... and, recursively, all the values contained in it.
       if (dom_type == enum_json_type::J_ARRAY)
       {
-        const Json_array * const array= down_cast<const Json_array *>(this);
-
+        const auto array= down_cast<const Json_array *>(dom);
         for (unsigned eidx= 0; eidx < array->size(); eidx++)
         {
-          Json_dom * child= (*array)[eidx];
-          if (add_if_missing(child, duplicates, result))
+          Json_dom *child= (*array)[eidx];
+          // Now recurse and add the child and values under it.
+          if (find_child_doms(child, path_leg, auto_wrap, only_need_one,
+                              duplicates, result))
             return true;                      /* purecov: inspected */
-          if (is_seek_done(result, only_need_one))
-            return false;                     /* purecov: inspected */
-
-          enum_json_type child_type= child->json_type();
-          if ((child_type == enum_json_type::J_ARRAY) ||
-              (child_type == enum_json_type::J_OBJECT))
-          {
-            // now recurse and add all objects and arrays under the child
-            if (child->find_child_doms(path_leg, auto_wrap, only_need_one,
-                                       duplicates, result))
-              return true;                    /* purecov: inspected */
-          }
         } // end of loop through children
       }
       else if (dom_type == enum_json_type::J_OBJECT)
       {
-        const Json_object *const object=
-          down_cast<const Json_object *>(this);
-
-        for (Json_object::const_iterator iter= object->begin();
-             iter != object->end(); ++iter)
+        for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          Json_dom *child= iter->second;
-          enum_json_type child_type= child->json_type();
-
-          if (add_if_missing(child, duplicates, result))
+          Json_dom *child= member.second;
+          // Now recurse and add the child and values under it.
+          if (find_child_doms(child, path_leg, auto_wrap, only_need_one,
+                              duplicates, result))
             return true;                      /* purecov: inspected */
-          if (is_seek_done(result, only_need_one))
-            return false;                     /* purecov: inspected */
-
-          if ((child_type == enum_json_type::J_ARRAY) ||
-              (child_type == enum_json_type::J_OBJECT))
-          {
-            // now recurse and add all objects and arrays under the child
-            if (child->find_child_doms(path_leg, auto_wrap, only_need_one,
-                                       duplicates, result))
-              return true;                    /* purecov: inspected */
-          }
         } // end of loop through children
       }
 
@@ -347,7 +348,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     {
       if (dom_type == enum_json_type::J_OBJECT)
       {
-        const Json_object * object= down_cast<const Json_object *>(this);
+        const auto object= down_cast<const Json_object *>(dom);
         Json_dom *child= object->get(path_leg->get_member_name());
 
         if (child != NULL && add_if_missing(child, duplicates, result))
@@ -360,12 +361,9 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     {
       if (dom_type == enum_json_type::J_OBJECT)
       {
-        const Json_object * object= down_cast<const Json_object *>(this);
-
-        for (Json_object::const_iterator iter= object->begin();
-             iter != object->end(); ++iter)
+        for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          if (add_if_missing(iter->second, duplicates, result))
+          if (add_if_missing(member.second, duplicates, result))
             return true;                      /* purecov: inspected */
           if (is_seek_done(result, only_need_one))
             return false;
@@ -2280,12 +2278,17 @@ bool Json_dom::seek(const Json_seekable_path &path,
     duplicates.clear();
     candidates.clear();
 
-    for (Json_dom_vector::iterator it= hits->begin(); it != hits->end(); ++it)
+    /*
+      On the last path leg, we can stop after the first match if only
+      one match is requested by the caller.
+    */
+    const bool stop_after_first_match=
+      only_need_one && (path_idx == path_leg_count - 1);
+
+    for (Json_dom *hit : *hits)
     {
-      if ((*it)->find_child_doms(path_leg, auto_wrap,
-                                 (only_need_one &&
-                                  (path_idx == (path_leg_count-1))),
-                                 &duplicates, &candidates))
+      if (find_child_doms(hit, path_leg, auto_wrap, stop_after_first_match,
+                          &duplicates, &candidates))
         return true;                          /* purecov: inspected */
     }
 

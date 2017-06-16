@@ -303,28 +303,6 @@ private:
 
   /** Parent pointer */
   Json_dom *m_parent;
-
-  /**
-     Return the child Json_doms identified by the given path leg.
-     The child doms are added to a vector.
-
-     See the header comment for Json_wrapper.seek() for a discussion
-     of complexities involving path expressions with more than one
-     ellipsis (**) token.
-
-   @param[in]     path_leg identifies the child
-   @param[in]     auto_wrap if true, match final scalar with [0] is need be
-   @param[in]     only_need_one True if we can stop after finding one match
-   @param[in,out] duplicates helps to identify duplicate arrays and objects
-                  introduced by daisy-chained ** tokens
-   @param[in,out] result the vector of qualifying children
-   @return false on success, true on error
-  */
-  bool find_child_doms(const Json_path_leg *path_leg,
-                       bool auto_wrap,
-                       bool only_need_one,
-                       Json_dom_vector *duplicates,
-                       Json_dom_vector *result);
 };
 
 
