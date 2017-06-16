@@ -17494,7 +17494,6 @@ ha_ndbcluster::cond_push(const Item *cond)
 { 
   DBUG_ENTER("ha_ndbcluster::cond_push");
 
-#if 1
   if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
     /**
@@ -17506,14 +17505,6 @@ ha_ndbcluster::cond_push(const Item *cond)
     DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
     DBUG_RETURN(cond);
   }
-#else
-  /*
-    Make sure that 'cond' does not refer field(s) from other tables
-    or other instances of this table.
-    (This was a legacy bug in optimizer)
-  */
-  DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
-#endif
 
   if (m_cond == nullptr)
   {
