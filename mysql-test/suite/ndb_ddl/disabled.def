@@ -1,0 +1,3 @@
+# Problem with alter to other engine, the DD is not updated on
+# participants
+alter_other_engine: Need WL#9185 MySQL Cluster support for new DD
