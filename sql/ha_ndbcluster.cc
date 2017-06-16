@@ -9536,11 +9536,6 @@ ndb_blob_striping()
   return false;
 }
 
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
-#else
-const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
-#endif
 
 static bool
 ndb_column_is_dynamic(THD *thd,
@@ -9924,7 +9919,7 @@ create_ndb_column(THD *thd,
         col.setStripeSize(ndb_blob_striping() ? 16 : 0);
         if (mod_maxblob->m_found)
         {
-          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
         }
       }
       else if (field_blob->max_data_length() < (1 << 24))
@@ -9946,7 +9941,7 @@ create_ndb_column(THD *thd,
     col.setStripeSize(ndb_blob_striping() ? 8 : 0);
     if (mod_maxblob->m_found)
     {
-      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
     }
     break;
   mysql_type_long_blob:
@@ -9958,12 +9953,9 @@ create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(4 * (OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
     col.setStripeSize(ndb_blob_striping() ? 4 : 0);
-    if (mod_maxblob->m_found)
-    {
-      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
-    }
+    // The mod_maxblob modified has no effect here, already at max
     break;
 
   // MySQL 5.7 binary-encoded JSON type
@@ -11432,8 +11424,7 @@ int ha_ndbcluster::create(const char *name,
      * 5 - from extra words added by tup/dict??
      */
 
-    // To be upgrade/downgrade safe...we currently use
-    // old NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
+    // Use NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
     switch (form->field[i]->real_type()) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
@@ -11443,7 +11434,7 @@ int ha_ndbcluster::create(const char *name,
     {
       NdbDictionary::Column * column= table_map.getColumn(tab, i);
       unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
-      unsigned ndb_max= OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS;
+      unsigned ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS;
       if (column->getPartSize() > (int)(4 * ndb_max))
         ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS; // MAX_BLOB_PART_SIZE
 
