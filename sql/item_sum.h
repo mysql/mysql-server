@@ -1149,6 +1149,8 @@ public:
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
 class Item_sum_json : public Item_sum
 {
+  typedef Item_sum super;
+
 protected:
   /// String used when reading JSON binary values or JSON text values.
   String m_value;
@@ -1182,6 +1184,15 @@ public:
 
   void reset_field() override;
   void update_field() override;
+
+  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
+                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
+                          Window::Evaluation_requirements *reqs
+                            MY_ATTRIBUTE((unused))) override
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    return true;
+  }
 };
 
 
@@ -1583,6 +1594,8 @@ public:
  */
 class Item_sum_bit :public Item_sum
 {
+  typedef Item_sum super;
+
 protected:
   /// Stores the neutral element for function
   ulonglong reset_bits;
@@ -1637,6 +1650,14 @@ public:
   }
   template<class Char_op, class Int_op>
   bool eval_op(Char_op char_op, Int_op int_op);
+  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
+                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
+                          Window::Evaluation_requirements *reqs
+                            MY_ATTRIBUTE((unused))) override
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    return true;
+  }
 };
 
 
@@ -1984,6 +2005,15 @@ public:
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
     return false;
+  }
+
+  bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
+                          SELECT_LEX *select MY_ATTRIBUTE((unused)),
+                          Window::Evaluation_requirements *reqs
+                            MY_ATTRIBUTE((unused))) override
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    return true;
   }
 };
 

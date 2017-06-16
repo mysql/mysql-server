@@ -1459,6 +1459,9 @@ Item_sum_bit::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(!fixed);
 
+  if (super::fix_fields(thd, ref))
+    return true;                                /* purecov: inspected */
+
   if (init_sum_func_check(thd))
     return true;
 
@@ -6456,6 +6459,9 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(!fixed);
   result_field= nullptr;
+
+  if (super::fix_fields(thd, ref))
+    return true;                                /* purecov: inspected */
 
   if (init_sum_func_check(thd))
     return true;

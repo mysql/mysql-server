@@ -1,6 +1,21 @@
 # Test of SQL window functions.
 # ----------------------------------------------------------------------
 SET NAMES utf8;
+
+Flag unsupported aggregates as window functions
+
+select json_objectagg('a','3') over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+select json_arrayagg('3') over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+select group_concat('3') over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+select bit_or(3) over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+select bit_and(3) over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+select bit_xor(3) over ();
+ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
 Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
