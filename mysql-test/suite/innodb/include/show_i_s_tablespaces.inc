@@ -15,6 +15,7 @@ SELECT s.name 'Space_Name',
 	     information_schema.innodb_datafiles d
 	WHERE s.space = d.space
 	AND d.path NOT LIKE '%/sys/%'
+	AND d.path NOT LIKE '%\\\sys\\\%'
 	AND s.name NOT LIKE 'mysql/%'
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE 'innodb_undo%'
@@ -34,6 +35,7 @@ SELECT	s.name 'Space_Name',
 	     information_schema.innodb_tablespaces s
 	WHERE f.file_id = s.space
 	AND f.file_name NOT LIKE '%/sys/%'
+	AND f.file_name NOT LIKE '%\\\sys\\\%'
 	AND s.name NOT LIKE 'mysql'
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE 'innodb_temporary'
