@@ -3257,16 +3257,6 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       m_thd_ndb->m_execute_count++;
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
       trans->execute(NdbTransaction::Rollback);
-#ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
-      int undo_res;
-      // Undo delete_row(old_data)
-      undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
-      if (undo_res)
-        push_warning(table->in_use,
-                     Sql_condition::SL_WARNING,
-                     undo_res,
-                     "NDB failed undoing delete at primary key update");
-#endif
     }
     DBUG_RETURN(error);
   }
@@ -9154,9 +9144,6 @@ struct NDB_Modifier
       const char * str;
       size_t len;
     } m_val_str;
-#ifdef TODO__
-    int m_val_int;
-#endif
   };
 };
 
@@ -15079,9 +15066,6 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
-#ifdef NOT_YET
-  DBUG_ASSERT(FALSE);
-#endif
 
   /*
     This is probably an error.  We can however save the situation
