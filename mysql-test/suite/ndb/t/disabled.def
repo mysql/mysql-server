@@ -118,3 +118,7 @@ ndb_dd_ddl: Bug #26187744 TABLESPACE IS NOT DROPPED PROPERLY WHEN ADD DATAFILE F
 # Problem since DDL on tablespaces are not synchronized between mysqlds
 # this need to be implemented
 ndb_single_user: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with failing ALTER, the Thd_ndb::open_tables contains
+# invalid THD_NDB_SHARE
+ndb_alter_table_error: Need WL#9185 MySQL Cluster support for new DD
