@@ -9526,18 +9526,6 @@ NDB_Modifiers::notfound() const
 */
 
 static bool
-ndb_blob_striping()
-{
-#ifndef DBUG_OFF
-  const char* p= getenv("NDB_BLOB_STRIPING");
-  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
-    return true;
-#endif
-  return false;
-}
-
-
-static bool
 ndb_column_is_dynamic(THD *thd,
                       Field *field,
                       HA_CREATE_INFO *create_info,
@@ -9889,7 +9877,7 @@ create_ndb_column(THD *thd,
     col.setInlineSize(256);
     // No parts
     col.setPartSize(0);
-    col.setStripeSize(ndb_blob_striping() ? 0 : 0);
+    col.setStripeSize(0);
     break;
   //mysql_type_blob:
   case MYSQL_TYPE_GEOMETRY:
@@ -9916,7 +9904,7 @@ create_ndb_column(THD *thd,
       {
         col.setInlineSize(256);
         col.setPartSize(2000);
-        col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+        col.setStripeSize(0);
         if (mod_maxblob->m_found)
         {
           col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
@@ -9938,7 +9926,7 @@ create_ndb_column(THD *thd,
     }
     col.setInlineSize(256);
     col.setPartSize(4000);
-    col.setStripeSize(ndb_blob_striping() ? 8 : 0);
+    col.setStripeSize(0);
     if (mod_maxblob->m_found)
     {
       col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
@@ -9954,7 +9942,7 @@ create_ndb_column(THD *thd,
     }
     col.setInlineSize(256);
     col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
-    col.setStripeSize(ndb_blob_striping() ? 4 : 0);
+    col.setStripeSize(0);
     // The mod_maxblob modified has no effect here, already at max
     break;
 
@@ -9977,7 +9965,7 @@ create_ndb_column(THD *thd,
     col.setType(NDBCOL::Blob);
     col.setInlineSize(NDB_JSON_INLINE_SIZE);
     col.setPartSize(NDB_JSON_PART_SIZE);
-    col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+    col.setStripeSize(0);
     break;
   }
 
