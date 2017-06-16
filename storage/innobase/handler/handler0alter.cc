@@ -204,10 +204,6 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	ib_sequence_t	sequence;
 	/** maximum auto-increment value */
 	ulonglong	max_autoinc;
-	/** auto-increment value of the old table */
-	uint64		old_autoinc;
-	/** dynamic metadata version of the old table */
-	uint64		old_version;
 	/** temporary table name to use for old table when renaming tables */
 	const char*	tmp_name;
 	/** whether the order of the clustered index is unchanged */
@@ -260,8 +256,6 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		sequence(prebuilt->trx->mysql_thd,
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
-		old_autoinc (0),
-		old_version (0),
 		tmp_name (0),
 		skip_pk_sort(false),
 		num_to_add_vcol(0),
@@ -6405,18 +6399,6 @@ rollback_inplace_alter_table(
 
 	DBUG_ENTER("rollback_inplace_alter_table");
 
-	if (table->s->found_next_number_field != nullptr
-	    &&ctx != nullptr && ctx->old_autoinc != 0) {
-		dict_table_t*   innobase_table = prebuilt->table;
-
-		innobase_table->version = ctx->old_version;
-		dict_table_autoinc_lock(innobase_table);
-		dict_table_autoinc_initialize(
-			innobase_table, ctx->old_autoinc + 1);
-		dict_table_autoinc_unlock(innobase_table);
-		innobase_table->autoinc_persisted = ctx->old_autoinc;
-	}
-
 	if (!ctx || !ctx->trx) {
 		/* If we have not started a transaction yet,
 		(almost) nothing has been or needs to be done. */
@@ -7959,9 +7941,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 				autoinc = ctx->max_autoinc;
 			}
 
-			ctx->old_autoinc = ctx->old_table->autoinc_persisted;
-			ctx->old_version = ctx->old_version;
-
 			dict_table_t*	t = ctx->new_table;
 			Field* field = altered_table->found_next_number_field;
 
@@ -8144,11 +8123,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 	}
 #endif /* UNIV_DEBUG */
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
-
-	DBUG_EXECUTE_IF("fail_after_commit_inplace_alter_table",
-			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
-			DBUG_RETURN(true););
-
 	DBUG_RETURN(false);
 }
 
