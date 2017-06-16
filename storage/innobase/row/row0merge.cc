@@ -3529,8 +3529,6 @@ row_merge_drop_indexes(
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
 			case ONLINE_INDEX_ABORTED:
-				dict_drop_index(index, index->page);
-
 				rw_lock_x_lock(dict_index_get_lock(index));
 				dict_index_set_online_status(
 					index, ONLINE_INDEX_ABORTED_DROPPED);
@@ -3585,12 +3583,6 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				/* covered by dict_sys->mutex */
 				MONITOR_DEC(MONITOR_BACKGROUND_DROP_INDEX);
-			}
-
-			if (dict_index_get_online_status(index)
-			    != ONLINE_INDEX_ABORTED_DROPPED) {
-
-				dict_drop_index(index, index->page);
 			}
 
 			dict_index_remove_from_cache(table, index);

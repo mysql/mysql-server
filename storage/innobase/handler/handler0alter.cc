@@ -7559,22 +7559,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 	ut_ad(m_prebuilt->table == ctx0->old_table);
 	ha_alter_info->group_commit_ctx = NULL;
 
-	/* Free the ctx->trx of other partitions, if any. We will only
-	use the ctx0->trx here. Others may have been allocated in
-	the prepare stage. */
-
-	/* TODO: NewDD: Partition: can partition share one trx ? */
-	for (inplace_alter_handler_ctx** pctx = &ctx_array[1]; *pctx;
-	     pctx++) {
-		//ha_innobase_inplace_ctx*	ctx
-		//	= static_cast<ha_innobase_inplace_ctx*>(*pctx);
-
-		//if (ctx->trx) {
-		//	trx_free_for_mysql(ctx->trx);
-		//	ctx->trx = NULL;
-		//}
-	}
-
 	trx_start_if_not_started_xa(m_prebuilt->trx, true);
 
 	for (inplace_alter_handler_ctx** pctx = ctx_array; *pctx; pctx++) {
@@ -7627,10 +7611,10 @@ ha_innobase::commit_inplace_alter_table_impl(
 		}
 	}
 
-	if (!trx) {
+	if (trx == nullptr) {
 		trx = m_prebuilt->trx;
+		ctx0->trx = trx;
 		DBUG_ASSERT(!new_clustered);
-		//trx = innobase_trx_allocate(m_user_thd);
 	}
 
 	/* Generate the temporary name for old table, and acquire mdl
@@ -7797,8 +7781,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 		if (fail) {
 			if (new_clustered) {
-				dict_table_close_and_drop(trx, ctx->new_table);
-
+				dict_table_close(ctx->new_table, TRUE, FALSE);
 				ctx->new_table = NULL;
 			} else {
 				/* We failed, but did not rebuild the table.
@@ -7890,10 +7873,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 	tables, there is no share. */
 	if (m_share) {
 		m_share->idx_trans_tbl.index_count = 0;
-	}
-
-	if (trx == ctx0->trx) {
-		ctx0->trx = NULL;
 	}
 
 	/* Tell the InnoDB server that there might be work for
