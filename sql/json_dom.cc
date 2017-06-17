@@ -285,13 +285,6 @@ static bool find_child_doms(Json_dom *dom,
   enum_json_type dom_type= dom->json_type();
   enum_json_path_leg_type leg_type= path_leg->get_type();
 
-  // Handle auto-wrapping of non-arrays.
-  if (auto_wrap && dom_type != enum_json_type::J_ARRAY &&
-      path_leg->is_autowrap())
-  {
-    return add_if_missing(dom, duplicates, result);
-  }
-
   switch (leg_type)
   {
   case jpl_array_cell:
@@ -302,7 +295,9 @@ static bool find_child_doms(Json_dom *dom,
       return idx.within_bounds() &&
              add_if_missing((*array)[idx.position()], duplicates, result);
     }
-    return false;
+    // Handle auto-wrapping of non-arrays.
+    return auto_wrap && path_leg->is_autowrap() &&
+           add_if_missing(dom, duplicates, result);
   case jpl_array_range:
   case jpl_array_cell_wildcard:
     if (dom_type == enum_json_type::J_ARRAY)
@@ -316,8 +311,11 @@ static bool find_child_doms(Json_dom *dom,
         if (only_need_one)
           return false;
       }
+      return false;
     }
-    return false;
+    // Handle auto-wrapping of non-arrays.
+    return auto_wrap && path_leg->is_autowrap() &&
+           add_if_missing(dom, duplicates, result);
   case jpl_ellipsis:
     {
       /*
