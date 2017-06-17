@@ -199,14 +199,6 @@ void Json_dom::operator delete(void *ptr, const std::nothrow_t&) throw()
 /* purecov: end */
 
 
-static bool seen_already(Json_dom_vector *result, Json_dom *cand)
-{
-  Json_dom_vector::iterator it= std::find(result->begin(),
-                                          result->end(),
-                                          cand);
-  return it != result->end();
-}
-
 /**
   Add a value to a vector if it isn't already there.
 
@@ -221,9 +213,15 @@ static bool seen_already(Json_dom_vector *result, Json_dom *cand)
   will be seen multiple times, as its grandparent, parent and finally
   itself are inspected. We want it to appear only once in the result.
 
+  The same problem occurs if a possibly auto-wrapping array path leg
+  comes after an ellipsis. If the candidate set contains both an array
+  element and its parent array due to the ellipsis, the auto-wrapping
+  path leg may match the array element twice, and we only want it once
+  in the result.
+
   @param[in] candidate value to add
-  @param[in,out] duplicates set of values added, or `nullptr` if the ellipsis
-                            token is not daisy-chained
+  @param[in,out] duplicates set of values added, or `nullptr` if duplicate
+                            checking is not needed
   @param[in,out] result vector
   @return false on success, true on error
 */
@@ -267,12 +265,13 @@ static inline bool is_seek_done(const Result_vector *hits, bool only_need_one)
 
   @param[in]     dom the DOM to search
   @param[in]     path_leg identifies the child
-  @param[in]     auto_wrap if true, match final scalar with [0] is need be
+  @param[in]     auto_wrap if true, auto-wrap non-arrays when matching against
+                           array path legs
   @param[in]     only_need_one true if we can stop after finding one match
   @param[in,out] duplicates set of values collected, which helps to identify
                  duplicate arrays and objects introduced by daisy-chained
-                 ** tokens, or `nullptr` if the path leg is not a
-                 daisy-chained ** token
+                 ** tokens or auto-wrapping, or `nullptr` if duplicate
+                 elimination is not needed for this path leg
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
@@ -290,7 +289,7 @@ static bool find_child_doms(Json_dom *dom,
   if (auto_wrap && dom_type != enum_json_type::J_ARRAY &&
       path_leg->is_autowrap())
   {
-    return !seen_already(result, dom) && result->push_back(dom);
+    return add_if_missing(dom, duplicates, result);
   }
 
   switch (leg_type)
@@ -300,7 +299,8 @@ static bool find_child_doms(Json_dom *dom,
     {
       const auto array= down_cast<const Json_array *>(dom);
       const Json_array_index idx= path_leg->first_array_index(array->size());
-      return idx.within_bounds() && result->push_back((*array)[idx.position()]);
+      return idx.within_bounds() &&
+             add_if_missing((*array)[idx.position()], duplicates, result);
     }
     return false;
   case jpl_array_range:
@@ -311,7 +311,7 @@ static bool find_child_doms(Json_dom *dom,
       const auto range= path_leg->get_array_range(array->size());
       for (size_t i= range.m_begin; i < range.m_end; ++i)
       {
-        if (result->push_back((*array)[i]))
+        if (add_if_missing((*array)[i], duplicates, result))
           return true;                          /* purecov: inspected */
         if (only_need_one)
           return false;
@@ -2289,27 +2289,22 @@ bool Json_dom::seek(const Json_seekable_path &path,
   for (size_t path_idx= 0; path_idx < path_leg_count; path_idx++)
   {
     const Json_path_leg *path_leg= path.get_leg_at(path_idx);
-    candidates.clear();
 
     /*
-      When we have multiple ellipses in the path, we need to eliminate
-      duplicates from the result. It's not needed for the first ellipsis.
-      See explanation in add_if_missing() and Json_wrapper::seek().
+      When we have multiple ellipses in the path, or an ellipsis
+      followed by an auto-wrapping array path leg, we need to
+      eliminate duplicates from the result. It's not needed for the
+      first ellipsis. See explanation in add_if_missing() and
+      Json_wrapper::seek().
     */
     Json_dom_vector *dup_vector= nullptr;
-    if (path_leg->get_type() == jpl_ellipsis)
+    if (seen_ellipsis && (path_leg->get_type() == jpl_ellipsis ||
+                          (auto_wrap && path_leg->is_autowrap())))
     {
-      if (seen_ellipsis)
-      {
-        /*
-          This ellipsis is not the first one, so we need to eliminate
-          duplicates in find_child_doms().
-        */
-        dup_vector= &duplicates;
-        dup_vector->clear();
-      }
-      seen_ellipsis= true;
+      dup_vector= &duplicates;
+      dup_vector->clear();
     }
+    seen_ellipsis|= path_leg->get_type() == jpl_ellipsis;
 
     /*
       On the last path leg, we can stop after the first match if only
@@ -2330,6 +2325,7 @@ bool Json_dom::seek(const Json_seekable_path &path,
 
     // swap the two lists so that they can be re-used
     hits->swap(candidates);
+    candidates.clear();
   }
 
   return false;
