@@ -210,8 +210,20 @@ static bool seen_already(Json_dom_vector *result, Json_dom *cand)
 /**
   Add a value to a vector if it isn't already there.
 
+  This is used for removing duplicate matches for daisy-chained
+  ellipsis tokens in #find_child_doms(). The problem with
+  daisy-chained ellipses is that the candidate set may contain the
+  same Json_dom object multiple times at different nesting levels
+  after matching the first ellipsis. That is, the candidate set may
+  contain a Json_dom and its parent, grandparent and so on. When
+  matching the next ellipsis in the path, each value in the candidate
+  set and all its children will be inspected, so the nested Json_dom
+  will be seen multiple times, as its grandparent, parent and finally
+  itself are inspected. We want it to appear only once in the result.
+
   @param[in] candidate value to add
-  @param[in,out] duplicates set of values added
+  @param[in,out] duplicates set of values added, or `nullptr` if the ellipsis
+                            token is not daisy-chained
   @param[in,out] result vector
   @return false on success, true on error
 */
@@ -219,7 +231,12 @@ static bool add_if_missing(Json_dom *candidate,
                            Json_dom_vector *duplicates,
                            Json_dom_vector *result)
 {
-  if (duplicates->insert_unique(candidate).second)
+  /*
+    If we are not checking duplicates, or if the candidate is not
+    already in the duplicate set, add the candidate to the result
+    vector.
+  */
+  if (duplicates == nullptr || duplicates->insert_unique(candidate).second)
   {
     return result->push_back(candidate);
   }
@@ -252,8 +269,10 @@ static inline bool is_seek_done(const Result_vector *hits, bool only_need_one)
   @param[in]     path_leg identifies the child
   @param[in]     auto_wrap if true, match final scalar with [0] is need be
   @param[in]     only_need_one true if we can stop after finding one match
-  @param[in,out] duplicates helps to identify duplicate arrays and objects
-                 introduced by daisy-chained ** tokens
+  @param[in,out] duplicates set of values collected, which helps to identify
+                 duplicate arrays and objects introduced by daisy-chained
+                 ** tokens, or `nullptr` if the path leg is not a
+                 daisy-chained ** token
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
@@ -267,15 +286,11 @@ static bool find_child_doms(Json_dom *dom,
   enum_json_type dom_type= dom->json_type();
   enum_json_path_leg_type leg_type= path_leg->get_type();
 
-  if (is_seek_done(result, only_need_one))
-    return false;
-
   // Handle auto-wrapping of non-arrays.
   if (auto_wrap && dom_type != enum_json_type::J_ARRAY &&
       path_leg->is_autowrap())
   {
-    return !seen_already(result, dom) &&
-      add_if_missing(dom, duplicates, result);
+    return !seen_already(result, dom) && result->push_back(dom);
   }
 
   switch (leg_type)
@@ -285,8 +300,7 @@ static bool find_child_doms(Json_dom *dom,
     {
       const auto array= down_cast<const Json_array *>(dom);
       const Json_array_index idx= path_leg->first_array_index(array->size());
-      return idx.within_bounds() &&
-        add_if_missing((*array)[idx.position()], duplicates, result);
+      return idx.within_bounds() && result->push_back((*array)[idx.position()]);
     }
     return false;
   case jpl_array_range:
@@ -297,9 +311,9 @@ static bool find_child_doms(Json_dom *dom,
       const auto range= path_leg->get_array_range(array->size());
       for (size_t i= range.m_begin; i < range.m_end; ++i)
       {
-        if (add_if_missing((*array)[i], duplicates, result))
+        if (result->push_back((*array)[i]))
           return true;                          /* purecov: inspected */
-        if (is_seek_done(result, only_need_one))
+        if (only_need_one)
           return false;
       }
     }
@@ -350,9 +364,7 @@ static bool find_child_doms(Json_dom *dom,
       {
         const auto object= down_cast<const Json_object *>(dom);
         Json_dom *child= object->get(path_leg->get_member_name());
-
-        if (child != NULL && add_if_missing(child, duplicates, result))
-          return true;                        /* purecov: inspected */
+        return child != nullptr && result->push_back(child);
       }
 
       return false;
@@ -363,9 +375,9 @@ static bool find_child_doms(Json_dom *dom,
       {
         for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          if (add_if_missing(member.second, duplicates, result))
+          if (result->push_back(member.second))
             return true;                      /* purecov: inspected */
-          if (is_seek_done(result, only_need_one))
+          if (only_need_one)
             return false;
         }
       }
@@ -2271,12 +2283,33 @@ bool Json_dom::seek(const Json_seekable_path &path,
   if (hits->push_back(this))
     return true;                              /* purecov: inspected */
 
+  bool seen_ellipsis= false;
+
   size_t path_leg_count= path.leg_count();
   for (size_t path_idx= 0; path_idx < path_leg_count; path_idx++)
   {
     const Json_path_leg *path_leg= path.get_leg_at(path_idx);
-    duplicates.clear();
     candidates.clear();
+
+    /*
+      When we have multiple ellipses in the path, we need to eliminate
+      duplicates from the result. It's not needed for the first ellipsis.
+      See explanation in add_if_missing() and Json_wrapper::seek().
+    */
+    Json_dom_vector *dup_vector= nullptr;
+    if (path_leg->get_type() == jpl_ellipsis)
+    {
+      if (seen_ellipsis)
+      {
+        /*
+          This ellipsis is not the first one, so we need to eliminate
+          duplicates in find_child_doms().
+        */
+        dup_vector= &duplicates;
+        dup_vector->clear();
+      }
+      seen_ellipsis= true;
+    }
 
     /*
       On the last path leg, we can stop after the first match if only
@@ -2288,8 +2321,11 @@ bool Json_dom::seek(const Json_seekable_path &path,
     for (Json_dom *hit : *hits)
     {
       if (find_child_doms(hit, path_leg, auto_wrap, stop_after_first_match,
-                          &duplicates, &candidates))
+                          dup_vector, &candidates))
         return true;                          /* purecov: inspected */
+
+      if (is_seek_done(&candidates, stop_after_first_match))
+        break;
     }
 
     // swap the two lists so that they can be re-used
