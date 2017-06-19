@@ -2330,33 +2330,49 @@ bool Json_dom::seek(const Json_seekable_path &path,
 }
 
 
-bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
+/**
+  Finds all of the JSON sub-documents which match the path expression.
+  Puts the matches on an evolving vector of results. This is a
+  fast-track method for paths which don't need duplicate elimination
+  due to multiple ellipses or the combination of ellipses and
+  auto-wrapping. Those paths can take advantage of the efficient
+  positioning logic of json_binary::Value.
+
+  @param[in] wrapper the wrapper to search
+  @param[in] path   the (possibly wildcarded) address of the sub-documents
+  @param[out] hits  the result of the search
+  @param[in] current_leg the 0-based index of the first path leg to look at.
+             Should be the same as the depth at which the document in this
+             wrapper is located. Usually called on the root document with the
+             value 0, and then increased by one in recursive calls within the
+             function itself.
+  @param[in] last_leg the 0-based index of the leg just behind the last leg to
+             look at. If equal to the length of the path, the entire path is
+             used. If shorter than the length of the path, the search stops
+             at one of the ancestors of the value pointed to by the full
+             path.
+  @param[in] auto_wrap true if a non-array should be wrapped as a
+             single-element array before it is matched against an array path leg
+  @param[in] only_need_one true if we can stop after finding one match
+
+  @returns false if there was no error, otherwise true on error
+*/
+static bool seek_no_dup_elimination(const Json_wrapper &wrapper,
+                                    const Json_seekable_path &path,
                                     Json_wrapper_vector *hits,
                                     size_t current_leg,
                                     size_t last_leg,
                                     bool auto_wrap,
-                                    bool only_need_one) const
+                                    bool only_need_one)
 {
+  // DOMs are searched using Json_dom::seek() instead.
+  DBUG_ASSERT(!wrapper.is_dom());
+
   if (current_leg >= last_leg)
-  {
-    if (m_is_dom)
-    {
-      Json_wrapper clone(m_dom_value->clone());
-      return clone.empty() || hits->push_back(std::move(clone));
-    }
-    return hits->push_back(*this);
-  }
+    return hits->push_back(wrapper);
 
   const Json_path_leg *path_leg= path.get_leg_at(current_leg);
-  const enum_json_type jtype= type();
-
-  // Handle auto-wrapping of non-arrays.
-  if (auto_wrap && jtype != enum_json_type::J_ARRAY && path_leg->is_autowrap())
-  {
-    // recursion
-    return seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
-                            auto_wrap, only_need_one);
-  }
+  const enum_json_type jtype= wrapper.type();
 
   switch(path_leg->get_type())
   {
@@ -2366,12 +2382,13 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
       {
       case enum_json_type::J_OBJECT:
         {
-          Json_wrapper member= lookup(path_leg->get_member_name());
+          Json_wrapper member= wrapper.lookup(path_leg->get_member_name());
 
           if (member.type() != enum_json_type::J_ERROR)
           {
             // recursion
-            if (member.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
+            if (seek_no_dup_elimination(member, path, hits,
+                                        current_leg + 1, last_leg,
                                         auto_wrap, only_need_one))
               return true;                    /* purecov: inspected */
           }
@@ -2391,19 +2408,16 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
       {
       case enum_json_type::J_OBJECT:
         {
-          for (Json_wrapper_object_iterator iter= object_iterator();
+          for (Json_wrapper_object_iterator iter= wrapper.object_iterator();
                !iter.empty(); iter.next())
           {
             if (is_seek_done(hits, only_need_one))
               return false;
 
             // recursion
-            if (iter.elt().second.seek_no_ellipsis(path,
-                                                   hits,
-                                                   current_leg + 1,
-                                                   last_leg,
-                                                   auto_wrap,
-                                                   only_need_one))
+            if (seek_no_dup_elimination(iter.elt().second, path, hits,
+                                        current_leg + 1, last_leg,
+                                        auto_wrap, only_need_one))
               return true;                    /* purecov: inspected */
           }
           return false;
@@ -2419,95 +2433,155 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
   case jpl_array_cell:
     if (jtype == enum_json_type::J_ARRAY)
     {
-      Json_array_index idx= path_leg->first_array_index(length());
+      const Json_array_index idx= path_leg->first_array_index(wrapper.length());
       return idx.within_bounds() &&
-        (*this)[idx.position()].seek_no_ellipsis(path, hits, current_leg + 1,
-                                                 last_leg, auto_wrap,
-                                                 only_need_one);
+        seek_no_dup_elimination(wrapper[idx.position()], path, hits,
+                                current_leg + 1, last_leg,
+                                auto_wrap, only_need_one);
     }
-    return false;
+    return auto_wrap && path_leg->is_autowrap() &&
+      seek_no_dup_elimination(wrapper, path, hits, current_leg + 1, last_leg,
+                              auto_wrap, only_need_one);
 
   case jpl_array_range:
   case jpl_array_cell_wildcard:
     if (jtype == enum_json_type::J_ARRAY)
     {
-      auto range= path_leg->get_array_range(length());
+      const auto range= path_leg->get_array_range(wrapper.length());
       for (size_t idx= range.m_begin; idx < range.m_end; idx++)
       {
         if (is_seek_done(hits, only_need_one))
           return false;
 
         // recursion
-        Json_wrapper cell= (*this)[idx];
-        if (cell.seek_no_ellipsis(path, hits, current_leg + 1, last_leg,
-                                  auto_wrap, only_need_one))
+        if (seek_no_dup_elimination(wrapper[idx], path, hits, current_leg + 1,
+                                    last_leg, auto_wrap, only_need_one))
+          return true;                        /* purecov: inspected */
+      }
+      return false;
+    }
+    return auto_wrap && path_leg->is_autowrap() &&
+      seek_no_dup_elimination(wrapper, path, hits, current_leg + 1, last_leg,
+                              auto_wrap, only_need_one);
+
+  case jpl_ellipsis:
+    // recursion
+    if (seek_no_dup_elimination(wrapper, path, hits, current_leg + 1, last_leg,
+                                auto_wrap, only_need_one))
+      return true;                            /* purecov: inspected */
+    if (jtype == enum_json_type::J_ARRAY)
+    {
+      const size_t length= wrapper.length();
+      for (size_t idx= 0; idx < length; ++idx)
+      {
+        if (is_seek_done(hits, only_need_one))
+          return false;
+
+        // recursion
+        if (seek_no_dup_elimination(wrapper[idx], path, hits,
+                                    current_leg, last_leg,
+                                    auto_wrap, only_need_one))
+          return true;                        /* purecov: inspected */
+      }
+    }
+    else if (jtype == enum_json_type::J_OBJECT)
+    {
+      for (Json_wrapper_object_iterator iter= wrapper.object_iterator();
+           !iter.empty(); iter.next())
+      {
+        if (is_seek_done(hits, only_need_one))
+          return false;
+
+        // recursion
+        if (seek_no_dup_elimination(iter.elt().second, path, hits, current_leg,
+                                    last_leg, auto_wrap, only_need_one))
           return true;                        /* purecov: inspected */
       }
     }
     return false;
-
-  default:
-    // should never be called on a path which contains an ellipsis
-    DBUG_ASSERT(false);                         /* purecov: inspected */
-    return true;                                /* purecov: inspected */
   } // end outer switch on leg type
+
+  DBUG_ASSERT(false);                         /* purecov: deadcode */
+  return true;                                /* purecov: deadcode */
 }
 
 
-namespace
-{
+/**
+  Should Json_wrapper::seek() delegate to Json_dom::seek() for this
+  search?
 
-/// Does the path contain an ellipsis token?
-bool contains_ellipsis(const Json_seekable_path &path)
+  @param wrapper    the wrapper being searched
+  @param path       the path to search for
+  @param auto_wrap  true if array auto-wrapping is used
+
+  @retval true if Json_dom::seek() should be used
+  @retval false if the search should use the Json_wrapper interface
+*/
+static bool seek_as_dom(const Json_wrapper *wrapper,
+                        const Json_seekable_path &path,
+                        bool auto_wrap)
 {
-  const size_t size= path.leg_count();
-  for (size_t i= 0; i < size; i++)
-    if (path.get_leg_at(i)->get_type() == jpl_ellipsis)
+  // If the wrapper contains a DOM, search the DOM directly.
+  if (wrapper->is_dom())
+    return true;
+
+  /*
+    If the path requires duplicate elimination, Json_wrapper::seek()
+    should convert the value to a DOM and seek using Json_dom::seek(),
+    which handles duplicate elimination. Duplicate elimination is
+    required if the path contains multiple ellipses, or if it contains
+    an auto-wrapping array path leg after an ellipsis.
+  */
+  const size_t legs= path.leg_count();
+  bool has_ellipsis= false;
+  for (size_t i= 0; i < legs; ++i)
+  {
+    const Json_path_leg *leg= path.get_leg_at(i);
+    if (has_ellipsis && (leg->get_type() == jpl_ellipsis ||
+                         (auto_wrap && leg->is_autowrap())))
       return true;
+    has_ellipsis|= (leg->get_type() == jpl_ellipsis);
+  }
+
   return false;
 }
-
-} // namespace
 
 
 bool Json_wrapper::seek(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
 {
-  if (empty())
-  {
-    /* purecov: begin inspected */
-    DBUG_ASSERT(false);
-    return false;
-    /* purecov: end */
-  }
-
-  // use fast-track code if the path doesn't have any ellipses
-  if (!contains_ellipsis(path))
-  {
-    return seek_no_ellipsis(path, hits, 0, path.leg_count(),
-                            auto_wrap, only_need_one);
-  }
+  DBUG_ASSERT(!empty());
 
   /*
-    FIXME.
+    If the wrapper wraps a DOM, let's call Json_dom::seek() directly,
+    to avoid the overhead of going through the Json_wrapper interface.
 
-    Materialize the dom if the path contains ellipses. Duplicate
-    detection is difficult on binary values.
-   */
-  to_dom(current_thd);
-
-  Json_dom_vector dhits(key_memory_JSON);
-  if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
-    return true;                              /* purecov: inspected */
-  for (const Json_dom *dom : dhits)
+    If ellipsis and auto-wrapping are used in a way that requires
+    duplicate elimination, convert to DOM since duplicate detection is
+    difficult on binary values.
+  */
+  if (seek_as_dom(this, path, auto_wrap))
   {
-    Json_wrapper clone(dom->clone());
-    if (clone.empty() || hits->push_back(std::move(clone)))
+    Json_dom *dom= to_dom(current_thd);
+    if (dom == nullptr)
       return true;                            /* purecov: inspected */
+
+    Json_dom_vector dom_hits(key_memory_JSON);
+    if (dom->seek(path, &dom_hits, auto_wrap, only_need_one))
+      return true;                            /* purecov: inspected */
+
+    for (const Json_dom *hit : dom_hits)
+    {
+      if (hits->emplace_back(hit->clone()) || hits->back().empty())
+        return true;                          /* purecov: inspected */
+    }
+
+    return false;
   }
 
-  return false;
+  return seek_no_dup_elimination(*this, path, hits, 0, path.leg_count(),
+                                 auto_wrap, only_need_one);
 }
 
 
@@ -3901,7 +3975,8 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
 
   // Find the parent of the value we want to modify.
   Json_wrapper_vector hits(key_memory_JSON);
-  if (seek_no_ellipsis(path, &hits, 0, path.leg_count() - 1, false, true))
+  if (seek_no_dup_elimination(*this, path, &hits, 0, path.leg_count() - 1,
+                              false, true))
     return true;                                /* purecov: inspected */
 
   if (hits.empty())
@@ -4046,7 +4121,8 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   *found_path= false;
 
   Json_wrapper_vector hits(key_memory_JSON);
-  if (seek_no_ellipsis(path, &hits, 0, path.leg_count() - 1, false, true))
+  if (seek_no_dup_elimination(*this, path, &hits, 0, path.leg_count() - 1,
+                              false, true))
     return true;                                /* purecov: inspected */
 
   DBUG_ASSERT(hits.size() <= 1);

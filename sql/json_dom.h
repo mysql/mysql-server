@@ -1400,25 +1400,41 @@ public:
     ellipsis (**) token. That is because multiple paths with ellipses may
     identify the same value. Consider the following document:
 
-    { "a": { "x" : { "b": { "y": { "b": { "z": { "c": 100 } } } } } } }
+        { "a": { "x" : { "b": { "y": { "b": { "z": { "c": 100 } } } } } } }
 
     The innermost value (the number 100) has the following unique,
     non-wildcarded address:
 
-    $.a.x.b.y.b.z.c
+        $.a.x.b.y.b.z.c
 
     That location is reached by both of the following paths which include
     the ellipsis token:
 
-    $.a.x.b**.c
-    $.a.x.b.y.b**.c
+        $.a.x.b**.c
+        $.a.x.b.y.b**.c
 
     And those addresses both satisfy the following path expression which has
     two ellipses:
 
-    $.a**.b**.c
+        $.a**.b**.c
 
     In this case, we only want to return one instance of $.a.x.b.y.b.z.c
+
+    Similarly, special care must be taken if an auto-wrapping array
+    path leg follows an ellipsis. Consider the following document:
+
+        { "a": { "b" : [ 1, 2, 3 ] } }
+
+    The first element of the array (the number 1) can be reached with
+    either of these two non-wildcarded addresses, due to array auto-wrapping:
+
+        $.a.b[0]
+        $.a.b[0][0]
+
+    Both of those addresses match the following path expression, which
+    has an ellipsis followed by an auto-wrapping path leg:
+
+        $**[0]
 
     @param[in] path   the (possibly wildcarded) address of the sub-documents
     @param[out] hits  the result of the search
@@ -1431,37 +1447,6 @@ public:
   bool seek(const Json_seekable_path &path,
             Json_wrapper_vector *hits, bool auto_wrap,
             bool only_need_one);
-
-  /**
-    Finds all of the json sub-documents which match the path expression.
-    Puts the matches on an evolving vector of results. This is a fast-track
-    method for paths which don't contain ellipses. Those paths can take
-    advantage of the efficient positioning logic of json_binary::Value.
-
-    @param[in] path   the (possibly wildcarded) address of the sub-documents
-    @param[out] hits  the result of the search
-    @param[in] current_leg the 0-based index of the first path leg to look at.
-               Should be the same as the depth at which the document in this
-               wrapper is located. Usually called on the root document with the
-               value 0, and then increased by one in recursive calls within the
-               function itself.
-    @param[in] last_leg the 0-based index of the leg just behind the last leg to
-               look at. If equal to the length of the path, the entire path is
-               used. If shorter than the length of the path, the search stops
-               at one of the ancestors of the value pointed to by the full
-               path.
-    @param[in] auto_wrap true of we match a final scalar with search for [0]
-    @param[in]  only_need_one True if we can stop after finding one match
-
-    @returns false if there was no error, otherwise true on error
-  */
-  bool seek_no_ellipsis(const Json_seekable_path &path,
-                        Json_wrapper_vector *hits,
-                        size_t current_leg,
-                        size_t last_leg,
-                        bool auto_wrap,
-                        bool only_need_one)
-    const;
 
   /**
     Compute the length of a document. This is the value which would be
