@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         this.dictionary = new DictionaryImpl(ndbDictionary, clusterConnection);
     }
 
-    protected void assertOpen(String where) {
+    public void assertNotClosed(String where) {
         if (closing || ndb == null) {
             throw new ClusterJUserException(local.message("ERR_Db_Is_Closing", where));
         }
@@ -166,9 +166,6 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
                     " != numberOfScanOptionsDeleted " + numberOfScanOptionsDeleted);
         }
         if (clusterTransaction != null) {
-            if (clusterTransaction.isEnlisted()) {
-                throw new ClusterJUserException(local.message("ERR_Cannot_close_active_transaction")); 
-            }
             clusterTransaction.close();
             clusterTransaction = null;
         }
@@ -192,7 +189,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public ClusterTransaction startTransaction(String joinTransactionId) {
-        assertOpen("startTransaction");
+        assertNotClosed("DbImpl.startTransaction()");
         clusterTransaction = new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
         return clusterTransaction;
     }

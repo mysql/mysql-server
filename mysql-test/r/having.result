@@ -371,6 +371,7 @@ count(s1)
 select * from t1 a, t1 b group by a.s1 having s1 is null;
 ERROR 23000: Column 's1' in having clause is ambiguous
 drop table t1;
+set names latin1;
 create table t1 (s1 char character set latin1 collate latin1_german1_ci);
 insert ignore into t1 values ('ü'),('y');
 Warnings:
@@ -379,6 +380,7 @@ select s1,count(s1) from t1
 group by s1 collate latin1_swedish_ci having s1 = 'y';
 s1	count(s1)
 y	1
+set names utf8mb4;
 drop table t1;
 DROP SCHEMA IF EXISTS HU;
 CREATE SCHEMA HU ;
@@ -734,11 +736,16 @@ CREATE TABLE series (
 val INT(10) UNSIGNED NOT NULL
 );
 INSERT INTO series VALUES(1);
+CREATE TABLE seq_calls (
+c INT
+);
+INSERT INTO seq_calls VALUES(0);
 CREATE FUNCTION next_seq_value() RETURNS INT
 BEGIN
 DECLARE next_val INT;
 SELECT val INTO next_val FROM series;
 UPDATE series SET val=mod(val + 1, 2);
+UPDATE seq_calls SET c=c+1;
 RETURN next_val;
 END;
 |
@@ -748,6 +755,9 @@ INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+SELECT * FROM series, seq_calls;
+val	c
+1	0
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 GROUP BY t HAVING r = 1  ORDER BY t1.u;
 t	r
@@ -755,55 +765,53 @@ t	r
 12	1
 15	1
 17	1
+SELECT * FROM series, seq_calls;
+val	c
+0	7
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+11	1
+12	1
+15	1
+17	1
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+SELECT * FROM series, seq_calls;
+val	c
+0	17
 EXECUTE stmt;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+11	1
+14	1
+16	1
+SELECT * FROM series, seq_calls;
+val	c
+1	24
 EXECUTE stmt;
 t	r
-10	0
-11	0
-12	0
-14	0
-15	0
-16	0
-17	0
+10	1
+12	1
+15	1
+17	1
 DEALLOCATE PREPARE stmt;
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+SELECT * FROM series, seq_calls;
+val	c
+0	31
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
-0	10
-0	11
-0	12
-0	15
-0	16
-0	17
-0	18
+1	11
+1	15
+1	17
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
-DROP TABLE series;
+DROP TABLE series, seq_calls;
 #
 #  Bug#21243772: NOT IN SUBQUERY RETURNS INCORRECT RESULTS WHEN INNER
 #                QUERY HAS COUNT DISTINCT.

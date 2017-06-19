@@ -512,11 +512,15 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_FSP_PAGE);
 	LEVEL_MAP_INSERT(SYNC_FSP);
 	LEVEL_MAP_INSERT(SYNC_EXTERN_STORAGE);
+	LEVEL_MAP_INSERT(SYNC_RSEG_ARRAY_HEADER);
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO_PAGE);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER);
 	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER_NEW);
 	LEVEL_MAP_INSERT(SYNC_TEMP_SPACE_RSEG);
+	LEVEL_MAP_INSERT(SYNC_UNDO_SPACE_RSEG);
 	LEVEL_MAP_INSERT(SYNC_TRX_SYS_RSEG);
+	LEVEL_MAP_INSERT(SYNC_RSEGS);
+	LEVEL_MAP_INSERT(SYNC_UNDO_SPACES);
 	LEVEL_MAP_INSERT(SYNC_TRX_UNDO);
 	LEVEL_MAP_INSERT(SYNC_PURGE_LATCH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE);
@@ -757,15 +761,6 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_TRX_SYS_HEADER:
-
-		if (srv_is_being_started) {
-			/* This is violated during single-threaded srv_start()
-			by trx_sys_create_additional_rsegs(). */
-			break;
-		}
-
-		/* Fall through */
-
 	case SYNC_LOCK_FREE_HASH:
 	case SYNC_MONITOR_MUTEX:
 	case SYNC_RECV:
@@ -787,7 +782,10 @@ LatchDebug::check_order(
 	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
 	case SYNC_TEMP_SPACE_RSEG:
+	case SYNC_UNDO_SPACE_RSEG:
 	case SYNC_TRX_SYS_RSEG:
+	case SYNC_RSEGS:
+	case SYNC_UNDO_SPACES:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
 	case SYNC_PURGE_QUEUE:
@@ -880,14 +878,8 @@ LatchDebug::check_order(
 		bitmap page. */
 
 		if (find(latches, SYNC_IBUF_BITMAP_MUTEX) != 0) {
-
 			basic_check(latches, level, SYNC_IBUF_BITMAP - 1);
-
-		} else if (!srv_is_being_started) {
-
-			/* This is violated during single-threaded srv_start()
-			by trx_sys_create_additional_rsegs(). */
-
+		} else {
 			basic_check(latches, level, SYNC_IBUF_BITMAP);
 		}
 		break;
@@ -902,6 +894,10 @@ LatchDebug::check_order(
 		     || basic_check(latches, level, SYNC_FSP));
 		break;
 
+	case SYNC_RSEG_ARRAY_HEADER:
+		ut_a(basic_check(latches, level, level - 1));
+		break;
+
 	case SYNC_TRX_UNDO_PAGE:
 
 		/* Purge is allowed to read in as many UNDO pages as it likes.
@@ -910,6 +906,7 @@ LatchDebug::check_order(
 
 		ut_a(find(latches, SYNC_TRX_UNDO) != 0
 		     || find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_UNDO_SPACE_RSEG) != 0
 		     || find(latches, SYNC_TRX_SYS_RSEG) != 0
 		     || basic_check(latches, level, level - 1));
 		break;
@@ -917,6 +914,7 @@ LatchDebug::check_order(
 	case SYNC_RSEG_HEADER:
 
 		ut_a(find(latches, SYNC_TEMP_SPACE_RSEG) != 0
+		     || find(latches, SYNC_UNDO_SPACE_RSEG) != 0
 		     || find(latches, SYNC_TRX_SYS_RSEG) != 0);
 		break;
 
@@ -1460,6 +1458,9 @@ sync_latch_meta_init()
 	LATCH_ADD_MUTEX(TEMP_SPACE_RSEG, SYNC_TEMP_SPACE_RSEG,
 			temp_space_rseg_mutex_key);
 
+	LATCH_ADD_MUTEX(UNDO_SPACE_RSEG, SYNC_UNDO_SPACE_RSEG,
+			undo_space_rseg_mutex_key);
+
 	LATCH_ADD_MUTEX(TRX_SYS_RSEG, SYNC_TRX_SYS_RSEG,
 			trx_sys_rseg_mutex_key);
 
@@ -1591,6 +1592,10 @@ sync_latch_meta_init()
 	LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
 
 	LATCH_ADD_RWLOCK(CHECKPOINT, SYNC_NO_ORDER_CHECK, checkpoint_lock_key);
+
+	LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
+
+	LATCH_ADD_RWLOCK(UNDO_SPACES, SYNC_UNDO_SPACES, undo_spaces_lock_key);
 
 	LATCH_ADD_RWLOCK(FIL_SPACE, SYNC_FSP, fil_space_latch_key);
 

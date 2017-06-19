@@ -202,6 +202,21 @@ class Point : public Geometry {
   double m_y;
 };
 
+/// Compares two points.
+///
+/// The point with the lowest X coordinate is the smaller point. If X
+/// coordinates are equal, the point with the lowest Y coordinate is the
+/// smaller.
+///
+/// @param lhs Left hand side.
+/// @param rhs Right hand side.
+///
+/// @retval true Left hand side sorts before right hand side.
+/// @retval false Left hand side does not sort before right hand side.
+inline bool operator<(const Point &lhs, const Point &rhs) {
+  return (lhs.x() < rhs.x()) || (lhs.x() == rhs.x() && lhs.y() < rhs.y());
+}
+
 /// An abstract 2d curve.
 ///
 /// Curve is a non-instantiable type in SQL.
@@ -228,6 +243,7 @@ class Linestring : public Curve {
   /// Adds a point to the end of the linestring.
   ///
   /// @param pt The point to add.
+  virtual void push_back(const Point &pt) = 0;
   virtual void push_back(Point &&pt) = 0;
 
   /// Checks if the linestring is empty.
@@ -243,12 +259,6 @@ class Linestring : public Curve {
   ///
   /// @return Number of points in the linestring.
   virtual std::size_t size() const = 0;
-
-  /// Flip the linestring.
-  ///
-  /// The last point becomes the first point, the second to last point
-  /// becomes the second, etc.
-  virtual void flip() = 0;
 
   virtual Point &operator[](std::size_t i) = 0;
   virtual const Point &operator[](std::size_t i) const = 0;
@@ -295,6 +305,7 @@ class Polygon : public Surface {
   /// interior rings (holes).
   ///
   /// @param lr The linear ring to add.
+  virtual void push_back(const Linearring &lr) = 0;
   virtual void push_back(Linearring &&lr) = 0;
 
   /// Checks if the polygon is empty.
@@ -343,6 +354,7 @@ class Geometrycollection : public Geometry {
   /// Adds a geometry to the collection.
   ///
   /// @param g The geometry to add.
+  virtual void push_back(const Geometry &g) = 0;
   virtual void push_back(Geometry &&g) = 0;
 
   /// Checks if the collection is empty.
@@ -355,6 +367,9 @@ class Geometrycollection : public Geometry {
   ///
   /// @return Number of geometries in the geometrycollection.
   virtual std::size_t size() const = 0;
+
+  virtual Geometry &operator[](std::size_t i) = 0;
+  virtual const Geometry &operator[](std::size_t i) const = 0;
 };
 
 /// A collection of points.

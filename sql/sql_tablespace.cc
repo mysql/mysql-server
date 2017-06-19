@@ -175,7 +175,9 @@ static bool prepare_alter_tablespace(st_alter_tablespace *ts_info,
   case ALTER_TABLESPACE_DROP_FILE:
     if (new_ts_def->remove_file(ts_info->data_file_name))
     {
-      my_error(ER_WRONG_FILE_NAME, MYF(0), ts_info->data_file_name, 0, "");
+      my_error(ER_MISSING_TABLESPACE_FILE, MYF(0),
+               new_ts_def->name().c_str(),
+               ts_info->data_file_name);
       DBUG_RETURN(true);
     }
     break;

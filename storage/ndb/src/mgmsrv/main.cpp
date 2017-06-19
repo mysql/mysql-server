@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,7 +262,7 @@ static int mgmd_main(int argc, char** argv)
      Install signal handler for SIGPIPE
      Done in TransporterFacade as well.. what about Configretriever?
    */
-#if !defined NDB_WIN32
+#ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
 

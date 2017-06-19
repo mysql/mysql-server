@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -277,6 +277,8 @@ ErrorBundle ErrorCodes[] = {
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
+  { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
+  { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
@@ -358,6 +360,7 @@ ErrorBundle ErrorCodes[] = {
   { 230,  DMEC, IE, "230" },
   { 232,  DMEC, IE, "232" },
   { 238,  DMEC, IE, "238" },
+  { 240,  DMEC, IE, "Invalid data encountered during foreign key trigger execution" },
   { 271,  DMEC, IE, "Simple Read transaction without any attributes to read" },
   { 272,  DMEC, IE, "Update operation without any attributes to update" },
   { 276,  DMEC, IE, "276" },
@@ -732,12 +735,14 @@ ErrorBundle ErrorCodes[] = {
   { 4328, DMEC, AE, "Disk memory attributes not yet supported" },
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
+  { 4342, DMEC, AE, "Scan defined but not prepared" },
 
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
   { 4410, DMEC, AE, "Schema transaction is already started" },
   { 4411, DMEC, AE, "Schema transaction not possible until upgrade complete" },
+  { 4412, DMEC, AE, "Schema transaction is not started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },

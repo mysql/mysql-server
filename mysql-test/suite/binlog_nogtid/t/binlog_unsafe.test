@@ -26,7 +26,7 @@
 #
 # 1. If the binlogging is on and the unsafe statement is logged:
 #    - If binlog_format=STATEMENT, the statement shall give a warning.
-#    - If binlog_format=MIXED or binlog_format=ROW, the statement shall
+#    - If binlog_format=MIXED or binlog_format='ROW', the statement shall
 #      be logged in row format.
 #
 # 2. If binlogging is off or the statement is not logged (e.g. SELECT

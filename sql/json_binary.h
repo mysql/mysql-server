@@ -205,9 +205,11 @@ public:
   bool raw_binary(const THD *thd, String *buf) const;
   bool get_free_space(const THD *thd, size_t *space) const;
   bool has_space(size_t pos, size_t needed, size_t *offset) const;
-  bool update_in_shadow(const THD *thd, const Field_json *field,
+  bool update_in_shadow(const Field_json *field,
                         size_t pos, Json_wrapper *new_value,
                         size_t data_offset, size_t data_length,
+                        const char *original, char *destination) const;
+  bool remove_in_shadow(const Field_json *field, size_t pos,
                         const char *original, char *destination) const;
 
   /** Constructor for values that represent literals or errors. */
@@ -290,6 +292,7 @@ private:
   */
   const bool m_large;
 
+  size_t key_entry_offset(size_t pos) const;
   size_t value_entry_offset(size_t pos) const;
   bool first_value_offset(size_t *offset) const;
   bool element_offsets(size_t pos, size_t *start, size_t *end,

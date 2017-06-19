@@ -75,6 +75,7 @@ private:
   std::vector<Checker*> checkers;
   CheckerFactory checker_factory;
   File_io file_io;
+  File keyring_file;
 };
 
 }//namespace keyring

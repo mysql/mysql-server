@@ -24,6 +24,7 @@ namespace keyring
   {
     STORE_KEY,
     REMOVE_KEY,
+    ROTATE,
     NONE
   };
 

@@ -307,9 +307,11 @@ Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 drop table t1;
+set names latin1;
 SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
 NAME_CONST('var', 'value') COLLATE latin1_general_cs
 value
+set names utf8mb4;
 select @@session.time_zone into @save_tz;
 set @@session.time_zone='UTC';
 select uuid() into @my_uuid;

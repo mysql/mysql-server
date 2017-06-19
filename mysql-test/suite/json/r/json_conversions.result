@@ -5616,10 +5616,10 @@ _dat: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--TIME--	--TIME
 _smp: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6206,10 +6206,10 @@ _dat: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--TIME--	--TIME
 _smp: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6797,10 +6797,10 @@ _dat: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--TIME--	--TIME
 _smp: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _smp: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_varbinary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_binary	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_smp: opaque_mysql_type_var_string	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	N	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tim: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--EXPECTED_TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7767,24 +7767,24 @@ c	_smp
 _smp: opaque_mysql_type_date	--TIMESTAMP--
 _smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
-_smp: opaque_mysql_type_varbinary	--TIMESTAMP--
-_smp: opaque_mysql_type_binary	--TIMESTAMP--
-_smp: opaque_mysql_type_string	--TIMESTAMP--
-_smp: opaque_mysql_type_var_string	--TIMESTAMP--
+_smp: opaque_mysql_type_varbinary	NULL
+_smp: opaque_mysql_type_binary	NULL
+_smp: opaque_mysql_type_string	NULL
+_smp: opaque_mysql_type_var_string	NULL
 _smp: opaque_mysql_type_date	--TIMESTAMP--
 _smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
-_smp: opaque_mysql_type_varbinary	--TIMESTAMP--
-_smp: opaque_mysql_type_binary	--TIMESTAMP--
-_smp: opaque_mysql_type_string	--TIMESTAMP--
-_smp: opaque_mysql_type_var_string	--TIMESTAMP--
+_smp: opaque_mysql_type_varbinary	NULL
+_smp: opaque_mysql_type_binary	NULL
+_smp: opaque_mysql_type_string	NULL
+_smp: opaque_mysql_type_var_string	NULL
 _smp: opaque_mysql_type_date	--TIMESTAMP--
 _smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
-_smp: opaque_mysql_type_varbinary	--TIMESTAMP--
-_smp: opaque_mysql_type_binary	--TIMESTAMP--
-_smp: opaque_mysql_type_string	--TIMESTAMP--
-_smp: opaque_mysql_type_var_string	--TIMESTAMP--
+_smp: opaque_mysql_type_varbinary	NULL
+_smp: opaque_mysql_type_binary	NULL
+_smp: opaque_mysql_type_string	NULL
+_smp: opaque_mysql_type_var_string	NULL
 select c, _tim from at
 where c like '_tim%';
 c	_tim

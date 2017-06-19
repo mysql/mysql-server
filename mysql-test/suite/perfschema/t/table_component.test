@@ -1,0 +1,210 @@
+################################################################################
+# Test case to test functionality in which a component can add its own
+# tables in performance schema.
+#
+# This test script:
+#    - Installs the component named pfs_example_component_population.
+#         This component calls pfs_plugin_table service methods
+#         add_table() to add new tables named
+#              - pfs_example_continent
+#              - pfs_example_country
+#         in performance_schema database.
+#       - Tries to insert few rows in these tables and tries to fetch them.
+#       - Does some joins on two tables and fetch results.
+#       - Verifes that Indexes are bing used (PRIMARY KEY and KEY)
+#       - Verifes that Indexes and table statistics are being collected by
+#         performance schema
+#       - Uninstall component. This will call delete_table() service method
+#         to delete component tables from performance schema added earlier.
+################################################################################
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Install pfs_example_component_population component.
+--eval INSTALL COMPONENT 'file://component_pfs_example_component_population';
+
+# Make sure tables are visible in performance_schema.
+show tables in performance_schema
+  where Tables_in_performance_schema like "%pfs_example%";
+
+# Make sure tables are visible in information_schema.
+select TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE
+  from information_schema.tables
+  where TABLE_NAME like "pfs_example%" AND
+        TABLE_SCHEMA= "performance_schema";
+
+--echo ##############
+--echo # Operations #
+--echo ##############
+
+--echo -------------------------------------------------------------
+--echo Displaying records inserted from component code itself
+--echo -------------------------------------------------------------
+select * from performance_schema.pfs_example_continent;
+select * from performance_schema.pfs_example_country;
+
+--echo ----------------------------------
+--echo Inserting rows in component tables
+--echo ----------------------------------
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.pfs_example_continent
+  values ("bar3");
+
+insert into performance_schema.pfs_example_country
+  values ("foo3", "bar3", 2016, 100, 3.33);
+
+select * from performance_schema.pfs_example_continent;
+select * from performance_schema.pfs_example_country;
+
+--echo --------------------------------------
+--echo Fetching records from component tables
+--echo --------------------------------------
+select performance_schema.pfs_example_continent.NAME as CONTINENT_NAME,
+       performance_schema.pfs_example_country.NAME as COUNTRY_NAME,
+       YEAR, POPULATION, GROWTH_FACTOR
+  from performance_schema.pfs_example_continent,
+      performance_schema.pfs_example_country
+  where pfs_example_country.CONTINENT=pfs_example_continent.NAME;
+
+--echo ---------------------------------
+--echo Updating rows in component tables
+--echo ---------------------------------
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.pfs_example_continent
+  set NAME="bar3"
+  where NAME="bar1";
+
+update performance_schema.pfs_example_country
+  set GROWTH_FACTOR=8.88
+  where NAME="foo1";
+
+select * from performance_schema.pfs_example_continent;
+select * from performance_schema.pfs_example_country;
+
+--echo --------------------------------------
+--echo Fetching records from component tables
+--echo --------------------------------------
+select performance_schema.pfs_example_continent.NAME as CONTINENT_NAME,
+       performance_schema.pfs_example_country.NAME as COUNTRY_NAME,
+       YEAR, POPULATION, GROWTH_FACTOR
+  from performance_schema.pfs_example_continent,
+      performance_schema.pfs_example_country
+  where pfs_example_country.CONTINENT=pfs_example_continent.NAME;
+
+--echo -----------------------------------
+--echo Verify indexes usage
+--echo -----------------------------------
+--disable_warnings
+explain select * from performance_schema.pfs_example_continent
+  where NAME="bar1";
+--enable_warnings
+
+--echo -------------------------------------------------
+--echo Verify stats collection in PFS stats tables
+--echo -------------------------------------------------
+update performance_schema.setup_consumers set ENABLED='YES';
+update performance_schema.setup_instruments set ENABLED='YES', TIMED='YES';
+
+insert into performance_schema.setup_objects values
+  ('TABLE', "performance_schema", "pfs_example_country", 'YES', 'YES');
+
+# To make entry of NULL key in table_io_waits_summary_by_index_usage. To make
+# sure consecutive execution of test case doesn't fail.
+select * from performance_schema.pfs_example_country;
+
+truncate table performance_schema.table_io_waits_summary_by_table;
+truncate table performance_schema.table_io_waits_summary_by_index_usage;
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- insert query ----------
+insert into performance_schema.pfs_example_country
+  values ("foo4", "bar4", 2016, 100, 4.44);
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- update query with NAME ----------
+update performance_schema.pfs_example_country
+  set GROWTH_FACTOR=5.55
+  where NAME="foo4" and CONTINENT="bar4";
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- update query with NAME ----------
+update performance_schema.pfs_example_country
+  set GROWTH_FACTOR=6.66
+  where NAME="foo4" and CONTINENT="bar4";
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- delete query ----------
+delete from performance_schema.pfs_example_country
+  where NAME="foo4" and CONTINENT="bar4";
+
+--echo ---------- table I/O stat by table name ----------
+select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_table
+  where OBJECT_NAME="pfs_example_country";
+
+--echo ---------- table I/O stat by index usage ----------
+select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
+  from performance_schema.table_io_waits_summary_by_index_usage
+  where OBJECT_NAME="pfs_example_country";
+
+delete from performance_schema.setup_objects
+  where OBJECT_NAME="pfs_example_country";
+
+--echo -------------------------------------------------------
+--echo Fetching from component table after component uninstall
+--echo -------------------------------------------------------
+--eval UNINSTALL COMPONENT 'file://component_pfs_example_component_population';
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_continent;
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_country;
+
+# Make sure that tables are removed from performance_schema.
+show tables in performance_schema
+     where Tables_in_performance_schema like "%pfs_example%";
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/pfs_example_component_population.log;
+remove_file $MYSQLD_DATADIR/pfs_example_component_population.log;

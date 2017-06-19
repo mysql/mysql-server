@@ -42,7 +42,7 @@
 #include "thr_malloc.h"
 
 #ifdef MYSQL_SERVER
-#include "log.h"                 // sql_print_warning
+#include "log.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"              // ER_*
 #endif
@@ -238,9 +238,7 @@ void Gtid_set::create_new_chunk(int size)
     {
 #ifdef MYSQL_SERVER
       if (i > 0)
-        sql_print_warning("Server overcomes the temporary 'out of memory' "
-                          "in '%d' tries while allocating a new chunk of "
-                          "intervals for storing GTIDs.\n", i + 1);
+        LogErr(WARNING_LEVEL, ER_RPL_GTID_MEMORY_FINALLY_AVAILABLE, i + 1);
 #endif
       break;
     }

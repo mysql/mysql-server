@@ -9,4 +9,6 @@
 # The test is restarting the server to force undo truncation.
 --source include/big_test.inc
 
+--disable_result_log
 select SLEEP(10);
+--enable_result_log

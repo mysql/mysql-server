@@ -27,18 +27,106 @@
 #include <stddef.h>
 #include <string>
 
+#include "my_dbug.h"                            // DBUG_ASSERT
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;
 
+/** The type of a Json_path_leg. */
 enum enum_json_path_leg_type
 {
+  /**
+    A path leg that represents a JSON object member (such as `.name`).
+    This path leg matches a single member in a JSON object.
+  */
   jpl_member,
+
+  /**
+    A path leg that represents a JSON array cell (such as `[10]`).
+    This path leg matches a single element in a JSON object.
+  */
   jpl_array_cell,
+
+  /**
+    A path leg that represents a range in a JSON array
+    (such as `[2 to 7]`).
+  */
+  jpl_array_range,
+
+  /**
+    A path leg that represents the member wildcard (`.*`), which
+    matches all the members of a JSON object.
+  */
   jpl_member_wildcard,
+
+  /**
+    A path leg that represents the array wildcard (`[*]`), which
+    matches all the elements of a JSON array.
+  */
   jpl_array_cell_wildcard,
+
+  /**
+    A path leg that represents the ellipsis (`**`), which matches any
+    JSON value and recursively all the JSON values nested within it if
+    it is an object or an array.
+  */
   jpl_ellipsis
 };
+
+
+/**
+  A class that represents the index of an element in a JSON array. The
+  index is 0-based and relative to the beginning of the array.
+*/
+class Json_array_index final
+{
+  /**
+    The array index. It is 0 if the specified index was before the
+    first element of the array, or equal to the array length if the
+    specified index was after the last element of the array.
+  */
+  size_t m_index;
+
+  /** True if the array index is within the bounds of the array. */
+  bool m_within_bounds;
+
+public:
+  /**
+    Construct a new Json_array_index object representing the specified
+    position in an array of the given length.
+
+    @param index         the array index
+    @param from_end      true if @a index is relative to the end of the array
+    @param array_length  the length of the array
+  */
+  Json_array_index(size_t index, bool from_end, size_t array_length)
+    : m_index(from_end ?
+              (index < array_length ? array_length - index - 1: 0) :
+              std::min(index, array_length)),
+      m_within_bounds(index < array_length)
+  {}
+
+  /**
+    Is the array index within the bounds of the array?
+
+    @retval true if the array index is within bounds
+    @retval false otherwise
+  */
+  bool within_bounds() const { return m_within_bounds; }
+
+  /**
+    Get the position in the array pointed to by this array index.
+
+    If the index is out of bounds, 0 will be returned if the array
+    index is before the first element in the array, or a value equal
+    to the length of the array if the index is after the last element.
+
+    @return the position in the array (0-based index relative to the
+    start of the array)
+  */
+  size_t position() const { return m_index; }
+};
+
 
 /**
   One path leg in a JSON path expression.
@@ -48,24 +136,85 @@ enum enum_json_path_leg_type
 */
 class Json_path_leg final
 {
-private:
+  /// The type of this path leg.
   enum_json_path_leg_type m_leg_type;
 
-  size_t m_array_cell_index;
+  /// The index of an array cell, or the start of an array range.
+  size_t m_first_array_index;
 
+  /// Is #m_first_array_index relative to the end of the array?
+  bool m_first_array_index_from_end= false;
+
+  /// The end (inclusive) of an array range.
+  size_t m_last_array_index;
+
+  /// Is #m_last_array_index relative to the end of the array?
+  bool m_last_array_index_from_end= false;
+
+  /// The member name of a member path leg.
   std::string m_member_name;
 
 public:
+  /**
+    Construct a wildcard or ellipsis path leg.
+
+    @param leg_type the type of wildcard (#jpl_ellipsis,
+    #jpl_member_wildcard or #jpl_array_cell_wildcard)
+  */
   explicit Json_path_leg(enum_json_path_leg_type leg_type)
-    : m_leg_type(leg_type), m_array_cell_index(0), m_member_name()
+    : m_leg_type(leg_type)
+  {
+    DBUG_ASSERT(leg_type == jpl_ellipsis ||
+                leg_type == jpl_member_wildcard ||
+                leg_type == jpl_array_cell_wildcard);
+  }
+
+  /**
+    Construct an array cell path leg.
+
+    @param index the 0-based index in the array,
+      relative to the beginning of the array
+  */
+  explicit Json_path_leg(size_t index)
+    : Json_path_leg(index, false)
   {}
-  explicit Json_path_leg(size_t array_cell_index)
-    : m_leg_type(jpl_array_cell), m_array_cell_index(array_cell_index),
-      m_member_name()
+
+  /**
+    Construct an array cell path leg.
+
+    @param index the 0-based index in the array
+    @param from_end true if @a index is relative to the end of the array
+  */
+  Json_path_leg(size_t index, bool from_end)
+    : m_leg_type(jpl_array_cell),
+      m_first_array_index(index),
+      m_first_array_index_from_end(from_end)
   {}
-  Json_path_leg(const std::string &member_name)
-    : m_leg_type(jpl_member), m_array_cell_index(0),
-      m_member_name(member_name)
+
+  /**
+    Construct an array range path leg.
+
+    @param idx1  the start index of the range, inclusive
+    @param idx1_from_end  true if the start index is relative
+                          to the end of the array
+    @param idx2  the last index of the range, inclusive
+    @param idx2_from_end  true if the last index is relative
+                          to the end of the array
+  */
+  Json_path_leg(size_t idx1, bool idx1_from_end,
+                size_t idx2, bool idx2_from_end)
+    : m_leg_type(jpl_array_range),
+      m_first_array_index(idx1), m_first_array_index_from_end(idx1_from_end),
+      m_last_array_index(idx2), m_last_array_index_from_end(idx2_from_end)
+  {}
+
+  /**
+    Construct an object member path leg.
+
+    @param member_name  the name of the object member
+  */
+  explicit Json_path_leg(const std::string &member_name)
+    : m_leg_type(jpl_member), m_member_name(member_name)
   {}
 
   /** Get the type of the path leg. */
@@ -74,11 +223,66 @@ public:
   /** Get the member name of a ::jpl_member path leg. */
   const std::string &get_member_name() const { return m_member_name; }
 
-  /** Get the array cell index of a ::jpl_array_cell path leg. */
-  size_t get_array_cell_index() const { return m_array_cell_index; }
-
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;
+
+  /**
+    Is this path leg an auto-wrapping array accessor?
+
+    An auto-wrapping array accessor is an array accessor that matches
+    non-arrays by auto-wrapping them in a single-element array before doing
+    the matching.
+
+    This function returns true for any ::jpl_array_cell or ::jpl_array_range
+    path leg that would match the element contained in a single-element
+    array, and which therefore would also match non-arrays that have been
+    auto-wrapped in single-element arrays.
+  */
+  bool is_autowrap() const;
+
+  /**
+    Get the first array cell pointed to by an array range, or the
+    array cell pointed to by an array cell index.
+
+    @param array_length the length of the array
+  */
+  Json_array_index first_array_index(size_t array_length) const
+  {
+    DBUG_ASSERT(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
+    return Json_array_index(m_first_array_index,
+                            m_first_array_index_from_end,
+                            array_length);
+  }
+
+  /**
+    Get the last array cell pointed to by an array range. The range
+    includes this cell.
+
+    @param array_length the length of the array
+  */
+  Json_array_index last_array_index(size_t array_length) const
+  {
+    DBUG_ASSERT(m_leg_type == jpl_array_range);
+    return Json_array_index(m_last_array_index,
+                            m_last_array_index_from_end,
+                            array_length);
+  }
+
+  /**
+    A structure that represents an array range.
+  */
+  struct Array_range
+  {
+    size_t m_begin;           ///< Beginning of the range, inclusive.
+    size_t m_end;             ///< End of the range, exclusive.
+  };
+
+  /**
+    Get the array range pointed to by a path leg of type
+    ::jpl_array_range or ::jpl_array_cell_wildcard.
+    @param array_length  the length of the array
+  */
+  Array_range get_array_range(size_t array_length) const;
 };
 
 
@@ -106,44 +310,50 @@ public:
 
 };
 
-/*
+/**
   A JSON path expression.
 
   From the user's point of view,
   a path expression is a string literal with the following structure.
-  We parse this structure into a Json_path class:
+  We parse this structure into a Json_path object:
 
-  <code><pre>
+      pathExpression ::= scope  pathLeg (pathLeg)*
 
-  pathExpression ::= scope  pathLeg (pathLeg)*
+      scope ::= [ columnReference ] dollarSign
 
-  scope ::= [ columnReference ] dollarSign
+      columnReference ::=
+            [
+              [ databaseIdentifier period  ]
+              tableIdentifier period
+            ]
+            columnIdentifier
 
-  columnReference ::=
-        [
-          [ databaseIdentifier period  ]
-          tableIdentifier period
-        ]
-        columnIdentifier
+      databaseIdentifier ::= sqlIdentifier
+      tableIdentifier ::= sqlIdentifier
+      columnIdentifier ::= sqlIdentifier
 
-  databaseIdentifier ::= sqlIdentifier
-  tableIdentifier ::= sqlIdentifier
-  columnIdentifier ::= sqlIdentifier
+      pathLeg ::= member | arrayLocation | doubleAsterisk
 
-  pathLeg ::= member | arrayLocation | doubleAsterisk
+      member ::= period (keyName | asterisk)
 
-  member ::= period (keyName | asterisk)
+      arrayLocation ::=
+        leftBracket
+          (arrayIndex | arrayRange | asterisk)
+        rightBracket
 
-  arrayLocation ::=
-    leftBracket
-      (non-negative-integer | asterisk)
-    rightBracket
+      arrayIndex ::=
+        non-negative-integer |
+        last [ minus non-negative-integer ]
 
-  keyName ::= ECMAScript-identifier | ECMAScript-string-literal
+      arrayRange ::= arrayIndex to arrayIndex
 
-  doubleAsterisk ::= **
+      keyName ::= ECMAScript-identifier | ECMAScript-string-literal
 
-  </pre></code>
+      doubleAsterisk ::= **
+
+      to ::= "to"
+
+      last ::= "last"
 */
 class Json_path final : public Json_seekable_path
 {
@@ -270,10 +480,13 @@ public:
   void clear() { m_path_legs.clear(); }
 
   /**
-    Return true if the path contains a wildcard
-    or ellipsis token
+    Return true if the path can match more than one value in a JSON document.
+
+    @retval true   if the path contains a path leg which is a wildcard,
+                   ellipsis or array range
+    @retval false  otherwise
   */
-  bool contains_wildcard_or_ellipsis() const;
+  bool can_match_many() const;
 
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;

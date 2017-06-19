@@ -88,12 +88,12 @@ enum dd_space_keys {
 enum dd_system_id_t {
 	DD_TABLESPACES = 4,
 	DD_DATAFILES = 5,
-	DD_TABLES = 9,
-	DD_COLUMNS = 12,
-	DD_INDEXES = 13,
-	DD_FOREIGN = 16,
-	DD_FOREIGN_COLS = 17,
-	DD_PARTITIONS = 18,
+	DD_TABLES = 10,
+	DD_COLUMNS = 13,
+	DD_INDEXES = 14,
+	DD_FOREIGN = 17,
+	DD_FOREIGN_COLS = 18,
+	DD_PARTITIONS = 19,
 
 	/* This must be last item. Defines the number of system tables. */
 	DD_LAST_ID
@@ -172,6 +172,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("tablespaces", 2),
 	INNODB_DD_TABLE("tablespace_files", 2),
 	INNODB_DD_TABLE("catalogs", 2),
+	INNODB_DD_TABLE("column_statistics", 3),
 	INNODB_DD_TABLE("schemata", 3),
 	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
 	INNODB_DD_TABLE("tables", 6),
@@ -642,9 +643,11 @@ dd_table_open_on_dd_obj(
 	THD*				thd);
 
 /** Open a persistent InnoDB table based on table id.
-@param[in]	table_id	table identifier
-@param[in,out]	thd		current MySQL connection (for mdl)
-@param[in,out]	mdl		metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	table_id		table identifier
+@param[in,out]	thd			current MySQL connection (for mdl)
+@param[in,out]	mdl			metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	dict_locked		dict_sys mutex is held
+@param[in]	check_corruption	check if the table is corrupted or not.
 @return table
 @retval NULL if the table does not exist or cannot be opened */
 dict_table_t*
@@ -652,7 +655,8 @@ dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
 	MDL_ticket**	mdl,
-	bool		dict_locked);
+	bool		dict_locked,
+	bool		check_corruption);
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table	InnoDB table handle

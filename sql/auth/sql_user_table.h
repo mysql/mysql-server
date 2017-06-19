@@ -18,7 +18,7 @@
 #include <sys/types.h>
 
 #include "derror.h"                     /* ER_DEFAULT */
-#include "log.h"                        /* error_log_print */
+#include "log.h"                        /* error_log_printf */
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
@@ -54,7 +54,7 @@ protected:
     va_start(args, fmt);
 
     if (code == 0)
-      error_log_print(WARNING_LEVEL, fmt, args);
+      error_log_printf(WARNING_LEVEL, fmt, args);
     else if (code == ER_CANNOT_LOAD_FROM_TABLE_V2)
     {
       char *db_name, *table_name;

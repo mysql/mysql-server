@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,30 +20,35 @@
 
 #include "statement_builder.h"
 
-namespace xpl
-{
+namespace xpl {
 
-class Insert_statement_builder: public Crud_statement_builder
-{
-public:
-  typedef ::Mysqlx::Crud::Insert Insert;
+class Insert_statement_builder : public Crud_statement_builder {
+ public:
+  using Insert = ::Mysqlx::Crud::Insert;
 
   explicit Insert_statement_builder(const Expression_generator &gen)
       : Crud_statement_builder(gen) {}
 
   void build(const Insert &msg) const;
 
-protected:
-  typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Column > Projection_list;
-  typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr > Field_list;
-  typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Insert_TypedRow > Row_list;
+ protected:
+  using Projection_list =
+      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Column>;
+  using Field_list =
+      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr>;
+  using Row_list =
+      ::google::protobuf::RepeatedPtrField< ::Mysqlx::Crud::Insert_TypedRow>;
 
-  void add_projection(const Projection_list &projection, const bool is_relational) const;
+  void add_projection(const Projection_list &projection,
+                      const bool is_relational) const;
   void add_values(const Row_list &values, const int projection_size) const;
   void add_row(const Field_list &row, const int projection_size) const;
-  const Field_list &get_row_fields(const Insert::TypedRow &row) const { return row.field(); }
+  const Field_list &get_row_fields(const Insert::TypedRow &row) const {
+    return row.field();
+  }
+  void add_upsert(const bool is_relational) const;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // INSERT_STATEMENT_BUILDER_H_
+#endif  // INSERT_STATEMENT_BUILDER_H_

@@ -53,7 +53,7 @@ private:
   /// The cumulative frequency. 0.0 <= m_cumulative_frequency <= 1.0
   const double m_cumulative_frequency;
 
-  /// Number of distinct values in this bucket. m_num_distinct >= 1
+  /// Number of distinct values in this bucket.
   const ha_rows m_num_distinct;
 
   /**
@@ -80,7 +80,7 @@ public:
     @param lower         lower inclusive value
     @param upper         upper inclusive value
     @param freq          the cumulative frequency
-    @param num_distinct  number of distinct/unique values in this bucket
+    @param num_distinct  number of distinct values in this bucket
   */
   Bucket(T lower, T upper, double freq, ha_rows num_distinct);
 

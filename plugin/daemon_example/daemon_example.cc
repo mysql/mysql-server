@@ -225,6 +225,7 @@ mysql_declare_plugin(daemon_example)
   "Daemon example, creates a heartbeat beat file in mysql-heartbeat.log",
   PLUGIN_LICENSE_GPL,
   daemon_example_plugin_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   daemon_example_plugin_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

@@ -596,8 +596,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
         has_error= true;
         break;
       }
-      if (fill_record_n_invoke_before_triggers(thd, insert_field_list, *values,
-                                               insert_table,
+      if (fill_record_n_invoke_before_triggers(thd, &info, insert_field_list,
+                                               *values, insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
       {
@@ -1743,7 +1743,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
-        if (fill_record_n_invoke_before_triggers(thd,
+        if (fill_record_n_invoke_before_triggers(thd, update,
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
                                                  table, TRG_EVENT_UPDATE, 0))
@@ -2210,7 +2210,7 @@ void Query_result_insert::store_values(List<Item> &values)
   {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
-      fill_record_n_invoke_before_triggers(thd, *fields, values,
+      fill_record_n_invoke_before_triggers(thd, &info, *fields, values,
                                            table, TRG_EVENT_INSERT,
                                            table->s->fields);
   }
@@ -2475,8 +2475,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->db_low_byte_first= 
-        MY_TEST(create_info->db_type == myisam_hton ||
-                create_info->db_type == heap_hton);
+        (create_info->db_type == myisam_hton ||
+         create_info->db_type == heap_hton);
   tmp_table.set_not_started();
 
   if (!thd->variables.explicit_defaults_for_timestamp)
@@ -2524,7 +2524,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
-    Create_field *cr_field= new Create_field(tmp_table_field, table_field);
+    Create_field *cr_field= new (*THR_MALLOC) Create_field(tmp_table_field, table_field);
 
     if (!cr_field)
       DBUG_RETURN(NULL);

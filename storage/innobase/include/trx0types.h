@@ -29,10 +29,13 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0mutex.h"
 #include "ut0new.h"
+#include "sync0rw.h"
+#include "page0size.h"
 
 #include <set>
 #include <queue>
 #include <vector>
+#include <atomic>
 
 //#include <unordered_set>
 
@@ -153,6 +156,8 @@ struct trx_savept_t{
 /* @{ */
 /** Transaction system header */
 typedef byte	trx_sysf_t;
+/** Rollback segment array header */
+typedef byte	trx_rsegsf_t;
 /** Rollback segment header */
 typedef byte	trx_rsegf_t;
 /** Undo segment header */
@@ -171,8 +176,215 @@ typedef ib_mutex_t UndoMutex;
 typedef ib_mutex_t PQMutex;
 typedef ib_mutex_t TrxSysMutex;
 
-using Rsegs = std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
-using Rseg_Iterator = Rsegs::iterator;
+/** The rollback segment memory object */
+struct trx_rseg_t {
+	/*--------------------------------------------------------*/
+	/** rollback segment id == the index of its slot in the trx
+	system file copy */
+	ulint				id;
+
+	/** mutex protecting the fields in this struct except id,space,page_no
+	which are constant */
+	RsegMutex			mutex;
+
+	/** space ID where the rollback segment header is placed */
+	space_id_t			space_id;
+
+	/** page number of the rollback segment header */
+	page_no_t			page_no;
+
+	/** page size of the relevant tablespace */
+	page_size_t			page_size;
+
+	/** maximum allowed size in pages */
+	ulint				max_size;
+
+	/** current size in pages */
+	ulint				curr_size;
+
+	/*--------------------------------------------------------*/
+	/* Fields for update undo logs */
+	/** List of update undo logs */
+	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_list;
+
+	/** List of update undo log segments cached for fast reuse */
+	UT_LIST_BASE_NODE_T(trx_undo_t)	update_undo_cached;
+
+	/*--------------------------------------------------------*/
+	/* Fields for insert undo logs */
+	/** List of insert undo logs */
+	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_list;
+
+	/** List of insert undo log segments cached for fast reuse */
+	UT_LIST_BASE_NODE_T(trx_undo_t) insert_undo_cached;
+
+	/*--------------------------------------------------------*/
+
+	/** Page number of the last not yet purged log header in the history
+	list; FIL_NULL if all list purged */
+	page_no_t			last_page_no;
+
+	/** Byte offset of the last not yet purged log header */
+	ulint				last_offset;
+
+	/** Transaction number of the last not yet purged log */
+	trx_id_t			last_trx_no;
+
+	/** TRUE if the last not yet purged log needs purging */
+	ibool				last_del_marks;
+
+	/** Reference counter to track rseg allocated transactions. */
+	std::atomic<ulint>		trx_ref_count;
+};
+
+using Rsegs_Vector = std::vector<trx_rseg_t*, ut_allocator<trx_rseg_t*>>;
+using Rseg_Iterator = Rsegs_Vector::iterator;
+
+/** This is a wrapper for a std::vector of trx_rseg_t object pointers. */
+class Rsegs {
+public:
+	/** Default constructor */
+	Rsegs()
+		:
+		m_rsegs(),
+		m_latch(),
+		m_active(false)
+	{
+		init();
+	}
+
+	~Rsegs()
+	{
+		deinit();
+	}
+
+	/** Initialize */
+	void init();
+
+	/** De-initialize */
+	void deinit();
+
+	/** Clear the vector of cached rollback segments leaving the
+	reserved space allocated. */
+	void clear();
+
+	/** Add rollback segment.
+	@param[in]	rseg	rollback segment to add. */
+	void push_back(trx_rseg_t* rseg)
+	{
+		m_rsegs.push_back(rseg);
+	}
+
+	/** Number of registered rsegs.
+	@return size of rseg list. */
+	ulint size()
+	{
+		return(m_rsegs.size());
+	}
+
+	/** beginning iterator
+	@return an iterator to the first element */
+	Rseg_Iterator begin()
+	{
+		return(m_rsegs.begin());
+	}
+
+	/** ending iterator
+	@return an iterator to the end */
+	Rseg_Iterator end()
+	{
+		return(m_rsegs.end());
+	}
+
+	/** Find the rseg at the given slot in this vector.
+	@param[in]	slot	a slot within the vector.
+	@return an iterator to the end */
+	trx_rseg_t* at(ulint slot)
+	{
+		return(m_rsegs.at(slot));
+	}
+
+	/** Find an rseg in the std::vector that uses the rseg_id given.
+	@param[in]	rseg_id		A slot in a durable array such as
+					the TRX_SYS page or RSEG_ARRAY page.
+	@return a pointer to an trx_rseg_t that uses the rseg_id. */
+	trx_rseg_t* find(ulint rseg_id);
+
+	/** Sort the vector on trx_rseg_t::id */
+	void sort()
+	{
+		if (m_rsegs.empty()) {
+			return;
+		}
+
+		std::sort(m_rsegs.begin(), m_rsegs.end(),
+				  [](trx_rseg_t* lhs, trx_rseg_t* rhs) {
+					return(rhs->id > lhs->id);
+				  });
+	}
+
+	/** Get a shared lock on m_rsegs. */
+	void s_lock()
+	{
+		rw_lock_s_lock(m_latch);
+	}
+
+	/** Get a shared lock on m_rsegs. */
+	void s_unlock()
+	{
+		rw_lock_s_unlock(m_latch);
+	}
+
+	/** Get a shared lock on m_rsegs. */
+	void x_lock()
+	{
+		rw_lock_x_lock(m_latch);
+	}
+
+	/** Get a shared lock on m_rsegs. */
+	void x_unlock()
+	{
+		rw_lock_x_unlock(m_latch);
+	}
+
+	/* Set the transaction active. */
+	void set_active() {
+		m_active = true;
+	}
+
+	/* Set the transaction inactive. */
+	void set_inactive() {
+		m_active = false;
+	}
+
+	/* Return whether the undo tablespace is active.
+	@return true if active */
+	bool is_active() {
+		return(m_active);
+	}
+
+	/* Return whether the undo tablespace is inactive.
+	@return true if active */
+	bool is_inactive() {
+		return(!m_active);
+	}
+
+	/** std::vector of rollback segments */
+	Rsegs_Vector	m_rsegs;
+
+private:
+	/** RW lock to protect m_rsegs vector, m_active, and each
+	trx_rseg_t::trx_ref_count within it.
+	m_rsegs:   x for adding elements, s for scanning, size etc.
+	m_active:  x for modification, s for read
+	each trx_rseg_t::trx_ref_count within m_rsegs
+		   s and atomic increment for modification, x for read */
+	rw_lock_t*	m_latch;
+
+	/** If true, then these rollback segments can be allocated
+	to new transactions. */
+	bool		m_active;
+};
 
 /** Rollback segements from a given transaction with trx-no
 scheduled for purge. */
@@ -259,7 +471,7 @@ private:
 	trx_id_t		m_trx_no;
 
 	/** Rollback segments of a transaction, scheduled for purge. */
-	Rsegs			m_rsegs;
+	Rsegs_Vector		m_rsegs;
 };
 
 typedef std::priority_queue<

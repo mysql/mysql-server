@@ -603,32 +603,6 @@ public:
 
 
 template<Item_func::Functype Functype>
-using Mbr_rel_instantiator=
-  Instantiator_with_functype<Item_func_spatial_mbr_rel, Functype, 2>;
-
-using Mbr_covered_by_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_COVEREDBY_FUNC>;
-using Mbr_covers_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_COVERS_FUNC>;
-using Mbr_contains_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_CONTAINS_FUNC>;
-using Mbr_disjoint_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_DISJOINT_FUNC>;
-using Mbr_equals_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_EQUALS_FUNC>;
-using Mbr_intersects_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_INTERSECTS_FUNC>;
-using Mbr_overlaps_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_OVERLAPS_FUNC>;
-using Mbr_touches_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_TOUCHES_FUNC>;
-using Mbr_within_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_WITHIN_FUNC>;
-using Mbr_crosses_instantiator=
-  Mbr_rel_instantiator<Item_func::SP_CROSSES_FUNC>;
-
-
-template<Item_func::Functype Functype>
 using Spatial_decomp_instantiator=
   Instantiator_with_functype<Item_func_spatial_decomp, Functype, 1>;
 
@@ -1505,6 +1479,17 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   &Internal_function_factory<Instantiator<F, N>>::s_singleton
 
 /**
+  Just like SQL_FN_INTERNAL, but enforces a check that the argument count
+  is even.
+
+  @param F The Item_func that the factory should make.
+  @param MIN Number of arguments that the function accepts.
+  @param MAX Number of arguments that the function accepts.
+*/
+#define SQL_FN_INTERNAL_V(F, MIN, MAX) \
+  &Internal_function_factory<Instantiator<F, MIN, MAX>>::s_singleton
+
+/**
   Like SQL_FN_LIST, but for functions that may only be referenced from system
   views.
 
@@ -1647,15 +1632,15 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "MAKETIME", SQL_FN(Item_func_maketime, 3) },
   { "MAKE_SET", SQL_FACTORY(Make_set_instantiator) },
   { "MASTER_POS_WAIT", SQL_FN_V(Item_master_pos_wait, 2, 4) },
-  { "MBRCONTAINS", SQL_FACTORY(Mbr_contains_instantiator) },
-  { "MBRCOVEREDBY", SQL_FACTORY(Mbr_covered_by_instantiator) },
-  { "MBRCOVERS", SQL_FACTORY(Mbr_covers_instantiator) },
-  { "MBRDISJOINT", SQL_FACTORY(Mbr_disjoint_instantiator) },
-  { "MBREQUALS", SQL_FACTORY(Mbr_equals_instantiator) },
-  { "MBRINTERSECTS", SQL_FACTORY(Mbr_intersects_instantiator) },
-  { "MBROVERLAPS", SQL_FACTORY(Mbr_overlaps_instantiator) },
-  { "MBRTOUCHES", SQL_FACTORY(Mbr_touches_instantiator) },
-  { "MBRWITHIN", SQL_FACTORY(Mbr_within_instantiator) },
+  { "MBRCONTAINS", SQL_FN(Item_func_mbrcontains, 2) },
+  { "MBRCOVEREDBY", SQL_FN(Item_func_mbrcoveredby, 2) },
+  { "MBRCOVERS",  SQL_FN(Item_func_mbrcovers, 2)},
+  { "MBRDISJOINT", SQL_FN(Item_func_mbrdisjoint, 2) },
+  { "MBREQUALS",  SQL_FN(Item_func_mbrequals, 2) },
+  { "MBRINTERSECTS", SQL_FN(Item_func_mbrintersects, 2) },
+  { "MBROVERLAPS", SQL_FN(Item_func_mbroverlaps, 2) },
+  { "MBRTOUCHES", SQL_FN(Item_func_mbrtouches, 2) },
+  { "MBRWITHIN", SQL_FN(Item_func_mbrwithin, 2) },
   { "MD5", SQL_FN(Item_func_md5, 1) },
   { "MONTHNAME", SQL_FN(Item_func_monthname, 1) },
   { "NAME_CONST", SQL_FN(Item_name_const, 2) },
@@ -1812,12 +1797,13 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "GET_DD_INDEX_PRIVATE_DATA", SQL_FN_INTERNAL(Item_func_get_dd_index_private_data, 2) },
   { "INTERNAL_DD_CHAR_LENGTH", SQL_FN_INTERNAL(Item_func_internal_dd_char_length, 4) },
   { "CAN_ACCESS_DATABASE", SQL_FN_INTERNAL(Item_func_can_access_database, 1) },
-  { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 3) },
-  { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 4) },
+  { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 2) },
+  { "CAN_ACCESS_COLUMN", SQL_FN_INTERNAL(Item_func_can_access_column, 3) },
   { "CAN_ACCESS_VIEW", SQL_FN_INTERNAL(Item_func_can_access_view, 4) },
   { "CAN_ACCESS_TRIGGER", SQL_FN_INTERNAL(Item_func_can_access_trigger, 2) },
   { "CAN_ACCESS_ROUTINE", SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
+  { "IS_VISIBLE_DD_OBJECT", SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2) },
   { "INTERNAL_TABLE_ROWS", SQL_FN_INTERNAL(Item_func_internal_table_rows, 4) },
   { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_INTERNAL(Item_func_internal_avg_row_length, 4) },
   { "INTERNAL_DATA_LENGTH", SQL_FN_INTERNAL(Item_func_internal_data_length, 4) },

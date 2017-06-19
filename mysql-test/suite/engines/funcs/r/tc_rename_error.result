@@ -15,7 +15,7 @@ ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO t1;
 ERROR 42S01: Table 't1' already exists
 RENAME TABLE t3 TO doesnotexist.t1;
-ERROR 42S02: Table 'test.t3' doesn't exist
+ERROR 42000: Unknown database 'doesnotexist'
 SHOW TABLES;
 Tables_in_test
 t1

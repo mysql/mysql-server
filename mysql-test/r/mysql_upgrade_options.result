@@ -3,7 +3,6 @@ The --upgrade-system-tables option was used, databases won't be touched.
 # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 #
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -47,7 +46,6 @@ sys.sys_config                                     OK
 #
 # Droping the previously created mysql_upgrade_info file..
 # Running mysql_upgrade with --skip-write-binlog..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -86,7 +84,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --write-binlog..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -125,7 +122,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=4096..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -164,7 +160,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=2147483648..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -204,7 +199,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=4095..
 mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 4095 adjusted to 4096
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -244,7 +238,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=1000..
 mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 1000 adjusted to 4096
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -284,7 +277,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=2147483649..
 mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147483649 adjusted to 2147483648
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -324,7 +316,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=21474836480..
 mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147484652 adjusted to 2147483648
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -363,7 +354,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=4096..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -402,7 +392,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=16777216..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -442,7 +431,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=4095..
 mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 4095 adjusted to 4096
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -482,7 +470,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=1024..
 mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 1024 adjusted to 4096
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -522,7 +509,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=16777217..
 mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 16777217 adjusted to 16777216
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -562,7 +548,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=167772160..
 mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 167772160 adjusted to 16777216
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -601,7 +586,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --bind-address..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -640,7 +624,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with -C option..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -679,7 +662,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --compress..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -722,7 +704,6 @@ Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
 Checking system database.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -765,7 +746,6 @@ sys.sys_config                                     OK
 Upgrade process completed successfully.
 Checking if update is needed.
 # Running mysql_upgrade with --protocol..
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -804,7 +784,6 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Test positional arguments
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

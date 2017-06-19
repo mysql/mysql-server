@@ -26,8 +26,8 @@
 
 sanity () {
 # Make sure database and required directories exist
-	verify_ready
-	verify_database
+	verify_ready $1
+	verify_database $1
 
 	@DEB_INIT_APPARMOR@
 
@@ -38,5 +38,5 @@ sanity () {
 }
 
 case $1 in
-	"pre")  sanity ;;
+	"pre")  sanity $2 ;;
 esac

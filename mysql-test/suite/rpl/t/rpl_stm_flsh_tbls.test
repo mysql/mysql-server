@@ -3,7 +3,6 @@
 
 # depends on the binlog output
 --source include/have_binlog_format_mixed_or_statement.inc
---source include/not_relay_log_info_table.inc
 
 let $rename_event_pos= 933;
 -- source extra/rpl_tests/rpl_flsh_tbls.test

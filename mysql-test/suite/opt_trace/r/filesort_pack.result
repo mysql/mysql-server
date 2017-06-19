@@ -158,22 +158,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -185,6 +193,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -307,22 +316,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -334,6 +351,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -456,22 +474,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -483,6 +509,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -605,22 +632,30 @@ select * from t1 order by c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -632,6 +667,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1016,22 +1052,30 @@ SELECT * FROM t1 ORDER BY c1	{
             }
           },
           {
-            "clause_processing": {
-              "clause": "ORDER BY",
-              "original_clause": "`t1`.`c1`",
-              "items": [
-                {
-                  "item": "`t1`.`c1`"
-                }
-              ],
-              "resulting_clause_is_simple": true,
-              "resulting_clause": "`t1`.`c1`"
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t1`.`c1`",
+                "items": [
+                  {
+                    "item": "`t1`.`c1`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t1`.`c1`"
+              }
             }
           },
           {
             "refine_plan": [
               {
                 "table": "`t1`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_sort_to_table_in_plan_at_position": 0
               }
             ]
           }
@@ -1043,6 +1087,7 @@ SELECT * FROM t1 ORDER BY c1	{
         "select#": 1,
         "steps": [
           {
+            "sorting_table_in_plan_at_position": 0,
             "filesort_information": [
               {
                 "direction": "asc",

@@ -14,10 +14,6 @@ def	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin
 def	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references		
 def	mysql	columns_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
 def	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references		
-def	mysql	column_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
-def	mysql	column_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
-def	mysql	column_stats	column_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
-def	mysql	column_stats	histogram	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references		
 def	mysql	component	component_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references		
 def	mysql	component	component_group_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
 def	mysql	component	component_urn	3	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references		
@@ -324,7 +320,6 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	float	NULL	NULL
 NULL	int	NULL	NULL
-NULL	json	NULL	NULL
 NULL	smallint	NULL	NULL
 NULL	time	NULL	NULL
 NULL	timestamp	NULL	NULL
@@ -352,10 +347,6 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	mysql	columns_priv	Column_name	char	64	192	utf8	utf8_bin	char(64)
 NULL	mysql	columns_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	columns_priv	Column_priv	set	31	93	utf8	utf8_general_ci	set('Select','Insert','Update','References')
-3.0000	mysql	column_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	mysql	column_stats	table_name	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	mysql	column_stats	column_name	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	mysql	column_stats	histogram	json	NULL	NULL	NULL	NULL	json
 NULL	mysql	component	component_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	component	component_urn	text	65535	65535	utf8	utf8_general_ci	text

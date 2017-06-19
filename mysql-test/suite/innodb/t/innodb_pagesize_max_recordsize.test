@@ -33,7 +33,7 @@ let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
 
 --echo # create bootstrap file
 write_file $BOOTSTRAP_SQL;
-CREATE DATABASE test DEFAULT CHARACTER SET latin1;
+CREATE DATABASE test;
 EOF
 
 # Note: we add the following parameters: "--innodb_log_file_size=5M
@@ -73,7 +73,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT= COMPACT;
+ENGINE = innodb ROW_FORMAT= COMPACT charset latin1;
 
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE tab5(col1 CHAR (255), col2 CHAR (255), col3 CHAR(255),col4 CHAR(255), col5 CHAR(255),
@@ -104,7 +104,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=COMPRESSED;
+ENGINE = innodb ROW_FORMAT=COMPRESSED charset latin1;
 
 # Check the ERROR 1118 (42000): Row size too large (> 16383).
 --error ER_TOO_BIG_ROWSIZE
@@ -133,7 +133,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=FIXED;
+ENGINE = innodb ROW_FORMAT=FIXED charset latin1;
 
 SET innodb_strict_mode=OFF;
 
@@ -151,7 +151,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=COMPACT;
+ENGINE = innodb ROW_FORMAT=COMPACT charset latin1;
 
 DROP TABLE tab5;
 
@@ -168,7 +168,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=DYNAMIC;
+ENGINE = innodb ROW_FORMAT=DYNAMIC charset latin1;
 DROP TABLE tab5;
 
 #Check the ERROR 1118 (42000): Row size too large (> 16383).
@@ -184,7 +184,7 @@ col42 CHAR(255),col43 CHAR(255),col44 CHAR(255),col45 CHAR(255),col46  CHAR(255)
 col48 CHAR(255),col49 CHAR(255),col50 CHAR(255),col51 CHAR(255),col52  CHAR(255), col53 CHAR(255),
 col54 CHAR(255),col55 CHAR(255),col56 CHAR(255),col57 CHAR(255),col58  CHAR(255), col59 CHAR(255),
 col60 CHAR(255),col61 CHAR(255),col62 CHAR(255),col63 CHAR(255),col64  CHAR(255), col65  CHAR(255))
-ENGINE = innodb ROW_FORMAT=COMPRESSED;
+ENGINE = innodb ROW_FORMAT=COMPRESSED charset latin1;
 DROP TABLE tab5;
 
 # Stop the server when the instance was created by page size 32k
@@ -196,7 +196,7 @@ DROP TABLE tab5;
 let NEW_CMD = $MYSQLD --no-defaults $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0  --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
---error 1
+--error 1,42
 --exec $NEW_CMD
 
 # Search for particular warning during server startup

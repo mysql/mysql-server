@@ -22,9 +22,13 @@
 #include <stddef.h>
 
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
+#include <mysql/components/services/component_sys_var_service.h>
+#include <component_sys_var_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <auth/dynamic_privileges_impl.h>
+#include <udf_registration_imp.h>
 #include <persistent_dynamic_loader.h>
+#include <component_sys_var_service.h>
 #include <scope_guard.h>
 #include <server_component.h>
 
@@ -78,6 +82,70 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
   (Security_context_handle, const char *, size_t))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_unregister,
+(const char *, int *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register_aggregate,
+(const char *,
+ enum Item_result,
+ Udf_func_any,
+ Udf_func_init,
+ Udf_func_deinit,
+ Udf_func_add,
+ Udf_func_clear))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_udf_registration_imp::udf_register,
+(const char *,
+ Item_result,
+ Udf_func_any,
+ Udf_func_init,
+ Udf_func_deinit))
+{
+  return true;
+}
+
+void component_sys_var_init()
+{
+}
+
+void component_sys_var_deinit()
+{
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
+  (const char *,
+   const char *,
+   int,
+   const char *,
+   mysql_sys_var_check_func,
+   mysql_sys_var_update_func,
+   void *,
+   void *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
+  (const char *,
+   const char *, void **,
+   size_t *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
+  (const char *,
+   const char *))
 {
   return true;
 }

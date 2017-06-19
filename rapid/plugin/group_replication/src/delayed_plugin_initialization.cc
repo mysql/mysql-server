@@ -133,6 +133,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
   int error= 0;
   Sql_service_command_interface *sql_command_interface= NULL;
+  bool enabled_super_read_only= false;
+  bool read_only_mode= false, super_read_only_mode=false;
 
   //Just terminate it
   if (!wait_on_engine_initialization ||
@@ -150,6 +152,15 @@ int Delayed_initialization_thread::initialization_thread_handler()
     DBUG_ASSERT(server_engine_initialized());
     wait_on_engine_initialization= false;
 
+    char *hostname, *uuid;
+    uint port;
+    unsigned int server_version;
+    st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+    get_server_parameters(&hostname, &port, &uuid, &server_version,
+                          &server_ssl_variables);
+
     sql_command_interface= new Sql_service_command_interface();
     if (sql_command_interface->
             establish_session_connection(PSESSION_INIT_THREAD,
@@ -160,18 +171,32 @@ int Delayed_initialization_thread::initialization_thread_handler()
       log_message(MY_ERROR_LEVEL,
                   "It was not possible to establish a connection to "
                     "server SQL service");
-      goto end;
+      error= 1;
+      goto err;
       /* purecov: end */
     }
 
-    char *hostname, *uuid;
-    uint port;
-    unsigned int server_version;
-    st_server_ssl_variables server_ssl_variables=
-      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+    /*
+     At this point in the code, set the super_read_only mode here on the
+     server to protect recovery and version module of the Group Replication.
 
-    get_server_parameters(&hostname, &port, &uuid, &server_version,
-                          &server_ssl_variables);
+     Save the current read mode state to restore it in case Group Replication
+     fail to start.
+    */
+
+    get_read_mode_state(sql_command_interface, &read_only_mode,
+                        &super_read_only_mode);
+
+    if (enable_super_read_only_mode(sql_command_interface))
+    {
+      error =1; /* purecov: inspected */
+      log_message(MY_ERROR_LEVEL,
+                  "Could not enable the server read only mode and guarantee a "
+                  "safe recovery execution"); /* purecov: inspected */
+      goto err; /* purecov: inspected */
+    }
+
+    enabled_super_read_only= true;
 
     if ((error= configure_group_communication(&server_ssl_variables)))
       goto err; /* purecov: inspected */
@@ -182,6 +207,9 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
     configure_compatibility_manager();
 
+    // need to be initialized before applier, is called on kill_pending_transactions
+    blocked_transaction_handler= new Blocked_transaction_handler();
+
     if ((error= initialize_recovery_module()))
       goto err; /* purecov: inspected */
 
@@ -191,19 +219,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
       goto err;
     }
 
-    /*
-     At this point in the code, set the super_read_only mode here on the
-     server to protect recovery and version module of the Group Replication.
-    */
-
-    if (read_mode_handler->set_super_read_only_mode(sql_command_interface))
-    {
-      error =1; /* purecov: inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Could not enable the server read only mode and guarantee a "
-                  "safe recovery execution"); /* purecov: inspected */
-      goto err; /* purecov: inspected */
-    }
+    initialize_group_partition_handler();
 
     if ((error= start_group_communication()))
     {
@@ -235,6 +251,12 @@ int Delayed_initialization_thread::initialization_thread_handler()
     {
       leave_group();
       terminate_plugin_modules();
+      if (!server_shutdown_status && server_engine_initialized()
+          && enabled_super_read_only)
+      {
+        set_read_mode_state(sql_command_interface, read_only_mode,
+                            super_read_only_mode);
+      }
       if (certification_latch != NULL)
       {
         delete certification_latch; /* purecov: inspected */

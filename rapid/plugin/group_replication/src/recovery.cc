@@ -26,6 +26,7 @@
 #include "recovery.h"
 #include "recovery_channel_state_observer.h"
 #include "recovery_message.h"
+#include "services/notification/notification.h"
 
 using std::list;
 using std::string;
@@ -182,6 +183,7 @@ Recovery_module::stop_recovery()
   */
 void Recovery_module::leave_group_on_recovery_failure()
 {
+  Notification_context ctx;
   log_message(MY_ERROR_LEVEL, "Fatal error during the Recovery process of "
               "Group Replication. The server will leave the group.");
   //tell the update process that we are already stopping
@@ -189,7 +191,11 @@ void Recovery_module::leave_group_on_recovery_failure()
 
   //If you can't leave at least force the Error state.
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR);
+                                         Group_member_info::MEMBER_ERROR,
+                                         ctx);
+
+  /* Single state update. Notify right away. */
+  notify_and_reset_ctx(ctx);
 
   Gcs_operations::enum_leave_state state= gcs_module->leave();
 

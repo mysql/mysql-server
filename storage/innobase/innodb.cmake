@@ -111,7 +111,9 @@ ENDIF()
 IF(NOT MSVC)
   CHECK_C_SOURCE_RUNS(
   "
+  #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
+  #endif
   #include <fcntl.h>
   #include <linux/falloc.h>
   int main()

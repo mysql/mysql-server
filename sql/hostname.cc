@@ -39,7 +39,7 @@
 #endif
 
 #include "hash_filo.h"
-#include "log.h"                                // sql_print_warning,
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -48,7 +48,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                             // specialflag
-                                                // sql_print_information
+#include "mysqld_error.h"
 #include "psi_memory_key.h"
                                                 // vio_get_normalized_ip_string
 #include "template_utils.h"
@@ -580,9 +580,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                          ip_key,
                          gai_strerror(err_code)));
 
-    sql_print_warning("IP address '%s' could not be resolved: %s",
-                      ip_key,
-                      gai_strerror(err_code));
+    LogErr(WARNING_LEVEL, ER_UNABLE_TO_RESOLVE_IP,
+           ip_key, gai_strerror(err_code));
 
     bool validated;
     if (vio_is_no_name_error(err_code))
@@ -636,11 +635,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                          ip_key,
                          hostname_buffer));
 
-    sql_print_warning("IP address '%s' has been resolved "
-                      "to the host name '%s', which resembles "
-                      "IPv4-address itself.",
-                      ip_key,
-                      hostname_buffer);
+    LogErr(WARNING_LEVEL, ER_HOSTNAME_RESEMBLES_IPV4,
+           ip_key, hostname_buffer);
 
     errors.m_format= 1;
     add_hostname(ip_key, hostname_buffer, false, &errors);
@@ -916,9 +912,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   if (err_code != 0)
   {
-    sql_print_warning("Host name '%s' could not be resolved: %s",
-                      hostname_buffer,
-                      gai_strerror(err_code));
+    LogErr(WARNING_LEVEL, ER_UNABLE_TO_RESOLVE_HOSTNAME,
+           hostname_buffer, gai_strerror(err_code));
 
     bool validated;
 
@@ -990,11 +985,10 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
   {
     errors.m_FCrDNS= 1;
 
-    sql_print_warning("Hostname '%s' does not resolve to '%s'.",
-                      hostname_buffer,
-                      ip_key);
-    sql_print_information("Hostname '%s' has the following IP addresses:",
-                          hostname_buffer);
+    LogErr(WARNING_LEVEL, ER_HOSTNAME_DOESNT_RESOLVE_TO,
+           hostname_buffer, ip_key);
+    LogErr(INFORMATION_LEVEL, ER_ADDRESSES_FOR_HOSTNAME_HEADER,
+           hostname_buffer);
 
     for (struct addrinfo *addr_info= addr_info_list;
          addr_info; addr_info= addr_info->ai_next)
@@ -1008,7 +1002,8 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                                      ip_buffer, sizeof (ip_buffer));
       DBUG_ASSERT(!err_status);
 
-      sql_print_information(" - %s", ip_buffer);
+      LogErr(INFORMATION_LEVEL, ER_ADDRESSES_FOR_HOSTNAME_LIST_ITEM,
+             ip_buffer);
     }
   }
 

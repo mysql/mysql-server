@@ -798,25 +798,16 @@ pars_retrieve_table_def(
 		sym_node->resolved = TRUE;
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-		/* TODO: Use dict_table_open for InnoDB system
-		table. To be removed by WL#9535. */
-		if (strstr(sym_node->name, "sys") != nullptr
-		    || strstr(sym_node->name, "SYS") != nullptr) {
-			sym_node->table = dict_table_open_on_name(
-				sym_node->name, FALSE, FALSE,
-				DICT_ERR_IGNORE_NONE);
-		} else {
-			THD*		thd = current_thd;
+		THD*		thd = current_thd;
 
-			sym_node->mdl = nullptr;
-			sym_node->table = dd_table_open_on_name_in_mem(
-				sym_node->name, false);
+		sym_node->mdl = nullptr;
+		sym_node->table = dd_table_open_on_name_in_mem(
+			sym_node->name, false);
 
-			if (sym_node->table == nullptr) {
-				sym_node->table = dd_table_open_on_name(
-					thd, &sym_node->mdl, sym_node->name,
-					false, DICT_ERR_IGNORE_NONE);
-			}
+		if (sym_node->table == nullptr) {
+			sym_node->table = dd_table_open_on_name(
+				thd, &sym_node->mdl, sym_node->name,
+				false, DICT_ERR_IGNORE_NONE);
 		}
 
 		ut_a(sym_node->table != NULL);

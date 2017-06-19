@@ -1064,11 +1064,6 @@ struct dict_index_t{
 				compression failures and successes */
 	rw_lock_t	lock;	/*!< read-write lock protecting the
 				upper levels of the index tree */
-#ifdef INNODB_DD_TABLE
-	bool		skip_step;/*!< Skip certain steps in
-				dict_create_index_step(), will be removed
-				in wl#9535 */
-#endif /* INNNODB_DD_TABLE */
 	bool		fill_dd;/*!< Flag whether need to fill dd tables
 				when it's a fulltext index. */
 
@@ -1149,11 +1144,12 @@ struct dict_index_t{
 	/** Adds a field definition to an index. NOTE: does not take a copy
 	of the column name if the field is a column. The memory occupied
 	by the column name may be released only after publishing the index.
-	@param[in] name		column name
+	@param[in] name_arg	column name
 	@param[in] prefix_len	0 or the column prefix length in a MySQL index
 				like INDEX (textcol(25))
 	@param[in] is_ascending	true=ASC, false=DESC */
-	void add_field(const char* name, ulint prefix_len, bool	is_ascending)
+	void add_field(const char* name_arg,
+		       ulint prefix_len, bool	is_ascending)
 	{
 		dict_field_t*	field;
 
@@ -1163,7 +1159,7 @@ struct dict_index_t{
 
 		field =  get_field(n_def - 1);
 
-		field->name = name;
+		field->name = name_arg;
 		field->prefix_len = (unsigned int) prefix_len;
 		field->is_ascending = is_ascending;
 	}

@@ -14,9 +14,9 @@ CHANGE MASTER TO MASTER_PORT=SLAVE_PORT;
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_to_start.inc
 include/rpl_stop_server.inc [server_number=2]
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=1]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --relay-log-recovery=1]
 include/assert_grep.inc [One error should match 'Error during --relay-log-recovery']
-include/rpl_restart_server.inc [server_number=2 parameters: --master-info-repository=TABLE --relay-log-info-repository=TABLE --relay-log-recovery=0]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery=0]
 DROP TABLE t1;
 change master to master_port=MASTER_PORT;
 include/start_slave.inc

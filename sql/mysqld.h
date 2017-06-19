@@ -26,7 +26,6 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
-#include "my_atomic.h"
 #include "my_bitmap.h"
 #include "my_command.h"
 #include "my_compiler.h"
@@ -140,7 +139,7 @@ extern bool opt_help;
 extern bool opt_verbose;
 extern bool opt_ignore_builtin_innodb;
 extern bool opt_character_set_client_handshake;
-extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
+extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
@@ -187,6 +186,7 @@ extern Time_zone *default_tz;
 extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
 extern ulong internal_tmp_disk_storage_engine;
+extern ulonglong temptable_max_ram;
 extern bool  using_udf_functions;
 extern bool locked_in_memory;
 extern bool opt_using_transactions;
@@ -292,6 +292,7 @@ extern struct System_status_var global_status_var;
 extern struct rand_struct sql_rand;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+extern handlerton *temptable_hton;
 extern handlerton *innodb_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
@@ -312,6 +313,8 @@ extern LEX_STRING opt_init_connect, opt_init_slave;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
+extern char *opt_log_error_filter_rules;
+extern char *opt_log_error_services;
 extern bool  opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
 #ifndef _WIN32
@@ -621,6 +624,7 @@ extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
+extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;
@@ -649,6 +653,9 @@ extern sigset_t mysqld_signal_mask;
 typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
 
+int *get_remaining_argc();
+char ***get_remaining_argv();
+
 /* increment query_id and return it.  */
 inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 {
@@ -661,13 +668,16 @@ inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 inline MY_ATTRIBUTE((warn_unused_result))
 bool connection_events_loop_aborted()
 {
-  return my_atomic_load32(&connection_events_loop_aborted_flag);
+  return connection_events_loop_aborted_flag.load();
 }
 
 /* only here because of unireg_init(). */
 static inline void set_connection_events_loop_aborted(bool value)
 {
-  my_atomic_store32(&connection_events_loop_aborted_flag, value);
+  connection_events_loop_aborted_flag.store(value);
 }
 
+extern LEX_STRING opt_mandatory_roles;
+extern bool opt_mandatory_roles_cache;
+extern bool opt_always_activate_granted_roles;
 #endif /* MYSQLD_INCLUDED */

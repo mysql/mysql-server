@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,11 +17,7 @@
 INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 		    ${CMAKE_SOURCE_DIR}/include
 		    ${CMAKE_SOURCE_DIR}/sql
-		    ${CMAKE_SOURCE_DIR}/bld/include
-		    ${CMAKE_SOURCE_DIR}/regex
-		    ${CMAKE_SOURCE_DIR}/libevent
 		    ${CMAKE_SOURCE_DIR}/include/mysql
-		    ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/include/memcached
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached

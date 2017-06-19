@@ -233,6 +233,7 @@ bool SELECT_LEX::prepare(THD *thd)
   resolve_place= RESOLVE_NONE;
 
   const nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
+  const nesting_map save_deny_window_func= thd->lex->m_deny_window_func;
 
   // Do not allow local set functions for join conditions, WHERE and GROUP BY
   thd->lex->allow_sum_func&= ~((nesting_map)1 << nest_level);
@@ -252,6 +253,8 @@ bool SELECT_LEX::prepare(THD *thd)
 
   // Allow local set functions in HAVING and ORDER BY
   thd->lex->allow_sum_func|= (nesting_map)1 << nest_level;
+  // Windowing is not allowed with HAVING
+  thd->lex->m_deny_window_func|= (nesting_map)1 << nest_level;
 
   // Setup the HAVING clause
   if (m_having_cond)
@@ -268,6 +271,8 @@ bool SELECT_LEX::prepare(THD *thd)
     resolve_place= RESOLVE_NONE;
   }
 
+  thd->lex->m_deny_window_func= save_deny_window_func;
+
   // Set up the ORDER BY clause
   all_fields_count= all_fields.elements;
   int hidden_order_field_count= 0;
@@ -276,13 +281,16 @@ bool SELECT_LEX::prepare(THD *thd)
     if (setup_order(thd, base_ref_items, get_table_list(), fields_list,
                     all_fields, order_list.first))
       DBUG_RETURN(true);
-    hidden_order_field_count= all_fields.elements - all_fields_count;
-   }
+  }
 
-  // Query block is completely resolved, restore set function allowance
+  hidden_order_field_count= all_fields.elements - all_fields_count;
+
+  /*
+    Query block is completely resolved, except for windows (see below) which
+    handles its own, so restore set function allowance.
+  */
   thd->lex->allow_sum_func= save_allow_sum_func;
 
-  thd->want_privilege= want_privilege_saved;
   /*
     Permanently remove redundant parts from the query if
       1) This is a subquery
@@ -300,8 +308,22 @@ bool SELECT_LEX::prepare(THD *thd)
                                       hidden_order_field_count);
   }
 
-  if (order_list.elements && setup_order_final(thd, hidden_order_field_count))
-    DBUG_RETURN(true);     /* purecov: inspected */
+  /*
+    Set up windows after setup_order() (as the query's ORDER BY may contain
+    window functions), and before setup_order_final() (as such function needs
+    to know about implicit grouping which may be induced by an aggregate
+    function in the window's PARTITION or ORDER clause).
+  */
+  if (m_windows.elements != 0 &&
+      Window::setup_windows(thd, this, base_ref_items, get_table_list(),
+                            fields_list, all_fields, m_windows))
+    DBUG_RETURN(true);
+
+  if (order_list.elements &&
+      setup_order_final(thd, hidden_order_field_count))
+    DBUG_RETURN(true);      /* purecov: inspected */
+
+  thd->want_privilege= want_privilege_saved;
 
   if (is_distinct() &&
       is_grouped() &&
@@ -1073,32 +1095,34 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       2. Subquery is a single SELECT (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
-      5. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
+      5. Subquery does not use windowing functions
+      6. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
       the AND-top-level of that clause.
-      6. Parent query block accepts semijoins (i.e we are not in a subquery of
+      7. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
-      7. We're not in a confluent table-less subquery, like "SELECT 1".
-      8. No execution method was already chosen (by a prepared statement)
-      9. Parent select is not a confluent table-less select
-      10. Neither parent nor child select have STRAIGHT_JOIN option.
+      8. We're not in a confluent table-less subquery, like "SELECT 1".
+      9. No execution method was already chosen (by a prepared statement)
+      10. Parent select is not a confluent table-less select
+      11. Neither parent nor child select have STRAIGHT_JOIN option.
   */
   if (semijoin_enabled(thd) &&
       in_predicate &&                                                   // 1
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
       !m_having_cond && !with_sum_func &&                               // 4
-      (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||         // 5a
-       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&        // 5a
-      !outer->semijoin_disallowed &&                                    // 5b
-      outer->sj_candidates &&                                           // 6
-      leaf_table_count &&                                               // 7
+      m_windows.elements == 0 &&                                        // 5
+      (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||         // 6a
+       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&        // 6a
+      !outer->semijoin_disallowed &&                                    // 6b
+      outer->sj_candidates &&                                           // 7
+      leaf_table_count &&                                               // 8
       in_predicate->exec_method ==
-                           Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
+                           Item_exists_subselect::EXEC_UNSPECIFIED &&   // 9
       !(in_predicate->left_expr->used_tables() & RAND_TABLE_BIT) &&     // 1
-      outer->leaf_table_count &&                                        // 9
+      outer->leaf_table_count &&                                        // 10
       !((active_options() | outer->active_options()) &
-       SELECT_STRAIGHT_JOIN))                                           //10
+       SELECT_STRAIGHT_JOIN))                                           //11
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
@@ -1761,20 +1785,6 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables)
       outer_join|= table->nested_join->used_tables;
   }
   DBUG_RETURN(false);
-}
-
-
-static int subq_sj_candidate_cmp(const void *a, const void *b)
-{
-  Item_exists_subselect* const *el1= pointer_cast<Item_exists_subselect* const*>(a);
-  Item_exists_subselect* const *el2= pointer_cast<Item_exists_subselect* const*>(b);
-  /*
-    Remove this assert when we support semijoin on non-IN subqueries.
-  */
-  DBUG_ASSERT((*el1)->substype() == Item_subselect::IN_SUBS &&
-              (*el2)->substype() == Item_subselect::IN_SUBS);
-  return ((*el1)->sj_convert_priority < (*el2)->sj_convert_priority) ? 1 : 
-         ( ((*el1)->sj_convert_priority == (*el2)->sj_convert_priority)? 0 : -1);
 }
 
 
@@ -2718,9 +2728,16 @@ bool SELECT_LEX::flatten_subqueries()
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
   */
-  my_qsort(subq_begin,
-           sj_candidates->size(), sj_candidates->element_size(),
-           subq_sj_candidate_cmp);
+  std::sort(subq_begin, subq_begin + sj_candidates->size(),
+    [](Item_exists_subselect *el1, Item_exists_subselect *el2)
+    {
+      /*
+        Remove this assert when we support semijoin on non-IN subqueries.
+      */
+      DBUG_ASSERT(el1->substype() == Item_subselect::IN_SUBS &&
+                  el2->substype() == Item_subselect::IN_SUBS);
+      return el1->sj_convert_priority > el2->sj_convert_priority;
+    });
 
   // A permanent transformation is going to start, so:
   Prepared_stmt_arena_holder ps_arena_holder(thd);
@@ -3105,13 +3122,13 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
   }
 
   /*
-    Remove GROUP BY if there are no aggregate functions, no HAVING clause and
-    no ROLLUP.
+    Remove GROUP BY if there are no aggregate functions, no HAVING clause,
+    no ROLLUP and no windowing functions.
   */
 
   if ((possible_changes & REMOVE_GROUP) &&
       group_list.elements && !agg_func_used() && !having_cond() &&
-      olap == UNSPECIFIED_OLAP_TYPE)
+      olap == UNSPECIFIED_OLAP_TYPE && m_windows.elements == 0)
   {
     changelog|= REMOVE_GROUP;
     for (ORDER *g= group_list.first; g != NULL; g= g->next)
@@ -3156,6 +3173,18 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
 
 void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 {
+  if (m_windows.elements != 0)
+  {
+    /*
+      The next lines doing cleanup of ORDER elements expect the
+      query block's ORDER BY items to be the last part of all_fields and
+      base_ref_items, as they just chop the lists' end. But if there is a
+      window, that end is actually the PARTITION BY and ORDER BY clause of the
+      window, so do not chop then: leave the items in place.
+    */
+    order_list.empty();
+    return;
+  }
   for (ORDER *o= order_list.first; o != NULL; o= o->next)
   {
     if (*o->item == o->item_ptr)
@@ -3208,7 +3237,7 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
     TRUE  if error occurred
 */
 
-static bool
+bool
 find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                    TABLE_LIST *tables, ORDER *order,
                    List<Item> &fields, List<Item> &all_fields,
@@ -3244,7 +3273,6 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                                  REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
     return TRUE; /* The item is not unique, or some other error occured. */
-
 
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item)
@@ -3409,6 +3437,8 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
+  DBUG_ENTER("setup_order");
+
   DBUG_ASSERT(order);
 
   SELECT_LEX *const select= thd->lex->current_select();
@@ -3423,7 +3453,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
   {
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
 			   all_fields, false))
-      return true;
+      DBUG_RETURN(true);
     if ((*order->item)->has_aggregation())
     {
       /*
@@ -3437,7 +3467,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
       if (for_union)
       {
         my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-        return true;
+        DBUG_RETURN(true);
       }
 
       /*
@@ -3450,11 +3480,17 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
       if (!is_aggregated && select->agg_func_used())
       {
         my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
-        return true;
+        DBUG_RETURN(true);
       }
     }
+    if (for_union && (*order->item)->has_wf())
+    {
+      // Window function in ORDER BY of UNION not supported, SQL2014 4.16.3
+      my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
+      DBUG_RETURN(true);
+    }
   }
-  return false;
+  DBUG_RETURN(false);
 }
 
 
@@ -3510,11 +3546,12 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
 */
 bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
 {
+  DBUG_ENTER("SELECT_LEX::setup_order_final");
   if (is_implicitly_grouped())
   {
     // Result will contain zero or one row - ordering is redundant
     empty_order_list(hidden_order_field_count);
-    return false;
+    DBUG_RETURN(false);
   }
 
   if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
@@ -3523,21 +3560,27 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
   {
     // Part of UNION which requires global ordering may skip local order
     empty_order_list(hidden_order_field_count);
-    return false;
+    DBUG_RETURN(false);
   }
 
   for (ORDER *ord= order_list.first; ord; ord= ord->next)
   {
     Item *const item= *ord->item;
 
-    if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
+    const bool is_grouped_aggregate= (item->type() == Item::SUM_FUNC_ITEM &&
+                                      !item->m_is_window_function);
+    if (is_grouped_aggregate)
+      continue;
+
+    if (item->has_aggregation() ||
+        (!item->m_is_window_function && item->has_wf()))
     {
       item->split_sum_func(thd, base_ref_items, all_fields);
       if (thd->is_error())
-        return true;       /* purecov: inspected */
+        DBUG_RETURN(true);       /* purecov: inspected */
     }
   }
-  return false;
+  DBUG_RETURN(false);
 }
 
 
@@ -3555,14 +3598,16 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
 
 bool SELECT_LEX::setup_group(THD *thd)
 {
+  DBUG_ENTER("SELECT_LEX::setup_group");
   DBUG_ASSERT(group_list.elements);
 
   thd->where="group statement";
+  int has_explicit= 0;
   for (ORDER *group= group_list.first; group; group= group->next)
   {
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
                            fields_list, all_fields, true))
-      return true;
+      DBUG_RETURN(true);
 
     Item *item= *group->item;
     if (item->has_aggregation() ||
@@ -3570,10 +3615,23 @@ bool SELECT_LEX::setup_group(THD *thd)
          (down_cast<Item_func*>(item)->functype() == Item_func::GROUPING_FUNC)))
     {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
-      return true;
+      DBUG_RETURN(true);
     }
+
+    if ((*group->item)->has_wf())
+    {
+      my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
+      DBUG_RETURN(true);
+    }
+
+    has_explicit+= group->is_explicit;
   }
-  return false;
+  if (has_explicit && m_windows.elements > 0)
+  {
+    my_error(ER_WINDOW_NO_GROUP_ORDER, MYF(0));
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
 }
 
 
@@ -3691,6 +3749,7 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
 
 bool SELECT_LEX::resolve_rollup(THD *thd)
 {
+  DBUG_ENTER("SELECT_LEX::resolve_rollup");
   List_iterator<Item> it(all_fields);
   Item *item;
   while ((item= it++))
@@ -3710,7 +3769,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     {
       bool changed= false;
       if (change_group_ref(thd, (Item_func *) item, &changed))
-        return true;       /* purecov: inspected */
+        DBUG_RETURN(true);       /* purecov: inspected */
       /*
         We have to prevent creation of a field in a temporary table for
         an expression that contains GROUP BY attributes.
@@ -3720,7 +3779,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
         item->set_aggregation();
     }
   }
-  return false;
+  DBUG_RETURN(false);
 }
 
 /**

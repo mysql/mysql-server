@@ -90,7 +90,7 @@ SELECT a FROM qn4;
 
 --echo # ref from subq
 
-with qn as (select * from t1) select (select max(a) from qn);
+with qn as (select * from t1) select (select max(a) from qn);  
 
 --echo # QN defined in subq
 

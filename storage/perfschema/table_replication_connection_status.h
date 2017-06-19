@@ -70,7 +70,7 @@ struct st_row_connect_status
   uint channel_name_length;
   char source_uuid[UUID_LENGTH];
   bool source_uuid_is_null;
-  ulonglong thread_id;
+  ulonglong thread_id{0};
   bool thread_id_is_null;
   enum_rpl_connect_status_service_state service_state;
   ulonglong count_received_heartbeats;
@@ -168,8 +168,9 @@ private:
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
+  /** Table definition. */
+  static Plugin_table m_table_def;
+
   /** Current row */
   st_row_connect_status m_row;
   /** Current position. */

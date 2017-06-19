@@ -515,11 +515,19 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
             } /* attaching_conditions_to_tables */
           },
           {
+            "optimizing_distinct_group_by_order_by": {
+            } /* optimizing_distinct_group_by_order_by */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
               }
             ] /* refine_plan */
+          },
+          {
+            "considering_tmp_tables": [
+            ] /* considering_tmp_tables */
           }
         ] /* steps */
       } /* join_optimization */

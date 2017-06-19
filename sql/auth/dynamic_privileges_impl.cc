@@ -161,6 +161,12 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
   return sctx->has_global_grant(privilege_str, privilege_str_len).first;
 }
 
+
+/**
+  Boostrap the dynamic privilege service by seeding it with server
+  implementation specific data. 
+*/
+
 bool dynamic_privilege_init(void)
 {
   // Set up default dynamic privileges
@@ -187,6 +193,10 @@ bool dynamic_privilege_init(void)
         service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
       ret |=
         service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+      ret |=
+        service->register_privilege(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
     }
   } // exist scope
   mysql_plugin_registry_release(r);

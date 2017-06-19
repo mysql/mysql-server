@@ -3,7 +3,6 @@
 #
 
 
-main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 
 innodb.log_file_name                     # Bug#19442959 2014-08-14 marko calling exit() trips ut_ad(!m_freed)

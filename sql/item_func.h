@@ -279,12 +279,8 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
-  void count_only_length(Item **item, uint nitems);
   void count_real_length(Item **item, uint nitems);
   void count_decimal_length(Item **item, uint nitems);
-  void count_datetime_length(Item **item, uint nitems);
-  bool count_string_result_length(enum_field_types field_type,
-                                  Item **item, uint nitems);
   bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
@@ -2247,8 +2243,8 @@ public:
 class Item_func_can_access_table : public Item_int_func
 {
 public:
-  Item_func_can_access_table(const POS &pos, Item *a, Item *b, Item *c)
-    : Item_int_func(pos, a, b, c)
+  Item_func_can_access_table(const POS &pos, Item *a, Item *b)
+    : Item_int_func(pos, a, b)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_table"; }
@@ -2328,15 +2324,33 @@ public:
 class Item_func_can_access_column : public Item_int_func
 {
 public:
-  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c,
-                              Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_can_access_column(const POS &pos, Item *a, Item *b, Item *c)
+    : Item_int_func(pos, a, b, c)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "can_access_column"; }
   bool resolve_type(THD *) override
   {
     max_length= 21;
+    maybe_null= true;
+    return false;
+  }
+};
+
+class Item_func_is_visible_dd_object : public Item_int_func
+{
+public:
+  Item_func_is_visible_dd_object(const POS &pos, Item *a)
+    : Item_int_func(pos, a)
+  {}
+  Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b)
+    : Item_int_func(pos, a, b)
+  {}
+  longlong val_int();
+  const char *func_name() const { return "is_visible_dd_object"; }
+  bool resolve_type(THD*)
+  {
+    max_length= 1;
     maybe_null= true;
     return false;
   }
@@ -2841,7 +2855,7 @@ public:
   longlong val_int() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
-  double val_result() override;
+  double val_real_result() override;
   longlong val_int_result() override;
   bool val_bool_result() override;
   String *str_result(String *str) override;
@@ -3095,7 +3109,7 @@ public:
     if (!master && ft_handler)
     {
       ft_handler->please->close_search(ft_handler);
-      delete hints;
+      destroy(hints);
     }
     ft_handler= NULL;
     concat_ws= NULL;

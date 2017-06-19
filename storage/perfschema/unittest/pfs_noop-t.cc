@@ -25,6 +25,7 @@
 #include "mysql/psi/psi_transaction.h"
 #include "stub_pfs_defaults.h"
 #include "stub_print_error.h"
+#include "stub_pfs_plugin_table.h"
 
 static void test_noop()
 {

@@ -219,6 +219,7 @@ dict_boot(void)
 {
 	dict_hdr_t*	dict_hdr;
 	mtr_t		mtr;
+	dberr_t		err = DB_SUCCESS;
 
 	mtr_start(&mtr);
 
@@ -250,7 +251,6 @@ dict_boot(void)
 		dict_table_t*	table;
 		dict_index_t*	index;
 		mem_heap_t*	heap;
-		dberr_t		error;
 
 		/* Be sure these constants do not ever change.  To avoid bloat,
 		only check the *NUM_FIELDS* in each table */
@@ -273,7 +273,6 @@ dict_boot(void)
 
 		/* Insert into the dictionary cache the descriptions of the basic
 		system tables */
-		/*-------------------------*/
 		table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0, 0);
 
 		dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
@@ -307,12 +306,12 @@ dict_boot(void)
 
 		index->id = DICT_TABLES_ID;
 
-		error = dict_index_add_to_cache(table, index,
-						mtr_read_ulint(dict_hdr
-							       + DICT_HDR_TABLES,
-							       MLOG_4BYTES, &mtr),
-						FALSE);
-		ut_a(error == DB_SUCCESS);
+		err = dict_index_add_to_cache(table, index,
+					      mtr_read_ulint(dict_hdr
+							     + DICT_HDR_TABLES,
+							     MLOG_4BYTES, &mtr),
+					      FALSE);
+		ut_a(err == DB_SUCCESS);
 
 		/*-------------------------*/
 		index = dict_mem_index_create("SYS_TABLES", "ID_IND",
@@ -320,12 +319,12 @@ dict_boot(void)
 		index->add_field("ID", 0, true);
 
 		index->id = DICT_TABLE_IDS_ID;
-		error = dict_index_add_to_cache(table, index,
-						mtr_read_ulint(dict_hdr
-							       + DICT_HDR_TABLE_IDS,
-							       MLOG_4BYTES, &mtr),
-						FALSE);
-		ut_a(error == DB_SUCCESS);
+		err = dict_index_add_to_cache(table, index,
+					      mtr_read_ulint(dict_hdr
+							     + DICT_HDR_TABLE_IDS,
+							     MLOG_4BYTES, &mtr),
+					      FALSE);
+		ut_a(err == DB_SUCCESS);
 
 		/*-------------------------*/
 		table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE,
@@ -354,12 +353,12 @@ dict_boot(void)
 		index->add_field("POS", 0, true);
 
 		index->id = DICT_COLUMNS_ID;
-		error = dict_index_add_to_cache(table, index,
-						mtr_read_ulint(dict_hdr
-							       + DICT_HDR_COLUMNS,
-							       MLOG_4BYTES, &mtr),
-						FALSE);
-		ut_a(error == DB_SUCCESS);
+		err = dict_index_add_to_cache(table, index,
+					      mtr_read_ulint(dict_hdr
+							     + DICT_HDR_COLUMNS,
+							     MLOG_4BYTES, &mtr),
+					      FALSE);
+		ut_a(err == DB_SUCCESS);
 
 		/*-------------------------*/
 		table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE,
@@ -389,12 +388,12 @@ dict_boot(void)
 		index->add_field("ID", 0, true);
 
 		index->id = DICT_INDEXES_ID;
-		error = dict_index_add_to_cache(table, index,
-						mtr_read_ulint(dict_hdr
-							       + DICT_HDR_INDEXES,
-							       MLOG_4BYTES, &mtr),
-						FALSE);
-		ut_a(error == DB_SUCCESS);
+		err = dict_index_add_to_cache(table, index,
+					      mtr_read_ulint(dict_hdr
+							     + DICT_HDR_INDEXES,
+							     MLOG_4BYTES, &mtr),
+					      FALSE);
+		ut_a(err == DB_SUCCESS);
 
 		/*-------------------------*/
 		table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0, 0);
@@ -418,12 +417,12 @@ dict_boot(void)
 		index->add_field("POS", 0, true);
 
 		index->id = DICT_FIELDS_ID;
-		error = dict_index_add_to_cache(table, index,
-						mtr_read_ulint(dict_hdr
-							       + DICT_HDR_FIELDS,
-							       MLOG_4BYTES, &mtr),
-						FALSE);
-		ut_a(error == DB_SUCCESS);
+		err = dict_index_add_to_cache(table, index,
+					      mtr_read_ulint(dict_hdr
+							     + DICT_HDR_FIELDS,
+							     MLOG_4BYTES, &mtr),
+					      FALSE);
+		ut_a(err == DB_SUCCESS);
 
 		dict_load_sys_table(dict_sys->sys_tables);
 		dict_load_sys_table(dict_sys->sys_columns);
@@ -438,8 +437,6 @@ dict_boot(void)
 	/* Initialize the insert buffer table, table buffer and indexes */
 
 	ibuf_init_at_db_start();
-
-	dberr_t	err = DB_SUCCESS;
 
 	if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO
 	    && srv_read_only_mode && !ibuf_is_empty()) {

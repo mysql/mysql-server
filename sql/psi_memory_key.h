@@ -44,6 +44,8 @@ extern PSI_memory_key key_memory_NAMED_ILINK_name;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 extern PSI_memory_key key_memory_Sid_map_Node;
 extern PSI_memory_key key_memory_String_value;
+extern PSI_memory_key key_memory_log_error_loaded_services;
+extern PSI_memory_key key_memory_log_error_stack;
 extern PSI_memory_key key_memory_log_event;
 extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
@@ -51,6 +53,7 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
   These are defined in psi_memory_key.cc
  */
 extern PSI_memory_key key_memory_DATE_TIME_FORMAT;
+extern PSI_memory_key key_memory_DD_column_statistics;
 extern PSI_memory_key key_memory_DD_default_values;
 extern PSI_memory_key key_memory_DD_import;
 extern PSI_memory_key key_memory_DD_String_type;
@@ -133,6 +136,7 @@ extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
 extern PSI_memory_key key_memory_hash_index_key_buffer;
 extern PSI_memory_key key_memory_help;
+extern PSI_memory_key key_memory_histograms;
 extern PSI_memory_key key_memory_host_cache_hostname;
 extern PSI_memory_key key_memory_ignored_db;
 extern PSI_memory_key key_memory_locked_table_list;

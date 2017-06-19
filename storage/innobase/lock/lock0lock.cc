@@ -1429,14 +1429,14 @@ RecLock::create(
 
 #ifdef UNIV_DEBUG
 	/* GAP lock shouldn't be taken on DD tables, but give exemption to
-	18 : spatial_reference table
-	38 & 39 : stats tables
-	40 : innodb_ddl_log */
+	9 : spatial_reference table
+	29 & 30 : stats tables
+	31 : innodb_ddl_log */
 	if (m_index->table->is_dd_table
-	    && m_index->table->id != 8
-	    && m_index->table->id != 28
+	    && m_index->table->id != 9
 	    && m_index->table->id != 29
-	    && m_index->table->id != 30) {
+	    && m_index->table->id != 30
+	    && m_index->table->id != 31) {
 		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode)) - (LOCK_TYPE_MASK & m_mode)
 		      - (LOCK_WAIT & m_mode)) == LOCK_REC_NOT_GAP);
 	}

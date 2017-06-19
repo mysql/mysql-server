@@ -26,7 +26,7 @@ my $threads_shared_support= eval 'use threads::shared; 1';
 
 use base qw(Exporter);
 our @EXPORT= qw(collect_option collect_test_cases init_pattern
-                $suitedir $group_replication $xplugin);
+                $group_replication $xplugin);
 
 use mtr_report;
 use mtr_match;
@@ -50,7 +50,6 @@ our $quick_collect;
 # as default.  (temporary option used in connection
 # with the change of default storage engine to InnoDB)
 our $default_myisam= 0;
-our $suitedir;
 
 our $xplugin;
 our $group_replication;
@@ -165,7 +164,6 @@ sub collect_test_cases ($$$$) {
       share(\$xplugin);
       share(\$group_replication);
       share(\$some_test_found);
-      share(\$suitedir) if $quick_collect;
       # Array containing thread id of all the threads used for
       # collecting test cases from different test suites.
       my @collect_test_cases_thrds;
@@ -376,7 +374,9 @@ sub collect_one_suite($)
 
   mtr_verbose("Collecting: $suite");
 
-  $suitedir= "$::glob_mysql_test_dir"; # Default
+  # Default suite(i.e main suite) directory location
+  my $suitedir= "$::glob_mysql_test_dir";
+
   if ( $suite ne "main" )
   {
     # Allow suite to be path to "some dir" if $suite has at least
@@ -401,6 +401,7 @@ sub collect_one_suite($)
 			      "internal/plugin/$suite/tests",
 			      "rapid/plugin/$suite/tests",
 			      "rapid/mysql-test/suite",
+                              "components/$suite/tests",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;
@@ -760,6 +761,15 @@ sub optimize_cases {
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
      (my $dash_opt = $opt) =~ s/_/-/g;
+
+      # Check whether server supports SSL connection
+      if ($dash_opt eq "--skip-ssl" and $::opt_ssl)
+      {
+        $tinfo->{'skip'}= 1;
+        $tinfo->{'comment'}= "Server doesn't support SSL connection";
+        next;
+      }
+
       my $default_engine=
 	mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine=
@@ -1277,6 +1287,15 @@ sub collect_one_test_case {
     # ----------------------------------------------------------------------
     process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
   }
+
+  if (!$::start_only)
+  {
+    # ----------------------------------------------------------------------
+    # Add client opts, extra options only for mysqltest client
+    # ----------------------------------------------------------------------
+    process_opts_file($tinfo, "$testdir/$tname-client.opt", 'client_opt');
+  }
+
   return $tinfo;
 }
 

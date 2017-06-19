@@ -24,7 +24,7 @@
 # adding a 'SHOW WARNINGS' after the statement.
 
 set sql_mode='';
-set default_storage_engine=MyISAM;
+set default_storage_engine=InnoDB;
 
 # Move distributed grant tables to default engine during upgrade, remember
 # which tables was moved so they can be moved back after upgrade
@@ -32,7 +32,7 @@ SET @had_distributed_user =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'user' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.user ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.user ENGINE=InnoDB";
 SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -42,7 +42,7 @@ SET @had_distributed_db =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'db' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.db ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.db ENGINE=InnoDB";
 SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -52,7 +52,7 @@ SET @had_distributed_tables_priv =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'tables_priv' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=InnoDB";
 SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -62,7 +62,7 @@ SET @had_distributed_columns_priv =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'columns_priv' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=InnoDB";
 SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -72,7 +72,7 @@ SET @had_distributed_procs_priv =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'procs_priv' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=InnoDB";
 SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -82,7 +82,7 @@ SET @had_distributed_proxies_priv =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'proxies_priv' AND
            table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER' );
-SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=MyISAM";
+SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=InnoDB";
 SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -635,6 +635,13 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+-- Add the privilege XA_RECOVER_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige XA_RECOVER_ADMIN.
+SET @hadXARecoverAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'XA_RECOVER_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', 'Y' FROM mysql.user
+WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -923,12 +930,77 @@ DROP PREPARE stmt;
 # tables the mysql.user table.
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session_user','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N');
 
-UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session_user';
+UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
 
-INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session_user', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
+INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
 
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema', 'mysql.session_user','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema', 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
 
 FLUSH PRIVILEGES;
+
+# Move all system tables with InnoDB storage engine to mysql tablespace.
+# Move privilege tables to InnoDB only if they were not in NDB.
+SET @cmd="ALTER TABLE mysql.db TABLESPACE = mysql";
+SET @str = IF(@had_distributed_db > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.user TABLESPACE = mysql";
+SET @str = IF(@had_distributed_user > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
+SET @str = IF(@had_distributed_tables_priv > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
+SET @str = IF(@had_distributed_columns_priv > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
+SET @str = IF(@had_distributed_procs_priv > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE mysql.proxies_priv TABLESPACE = mysql";
+SET @str = IF(@had_distributed_proxies_priv > 0, "SET @dummy = 0", @cmd);
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# Alter mysql.ndb_binlog_index only if it exists already.
+SET @cmd="ALTER TABLE ndb_binlog_index TABLESPACE = mysql";
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+ALTER TABLE mysql.func TABLESPACE = mysql;
+ALTER TABLE mysql.plugin TABLESPACE = mysql;
+ALTER TABLE mysql.servers TABLESPACE = mysql;
+ALTER TABLE mysql.help_topic TABLESPACE = mysql;
+ALTER TABLE mysql.help_category TABLESPACE = mysql;
+ALTER TABLE mysql.help_relation TABLESPACE = mysql;
+ALTER TABLE mysql.help_keyword TABLESPACE = mysql;
+ALTER TABLE mysql.time_zone_name TABLESPACE = mysql;
+ALTER TABLE mysql.time_zone TABLESPACE = mysql;
+ALTER TABLE mysql.time_zone_transition TABLESPACE = mysql;
+ALTER TABLE mysql.time_zone_transition_type TABLESPACE = mysql;
+ALTER TABLE mysql.time_zone_leap_second TABLESPACE = mysql;
+ALTER TABLE mysql.slave_relay_log_info TABLESPACE = mysql;
+ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
+ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
+ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
+ALTER TABLE mysql.server_cost TABLESPACE = mysql;
+ALTER TABLE mysql.engine_cost TABLESPACE = mysql;

@@ -11,12 +11,27 @@
 # Change: Implemented review comments #
 #######################################
 
---echo --- Doing pre test cleanup --- 
+###
+# The MyISAM engine does not support native partitioning
+# Set flag to allow testcases which use native partitioning
+# to be skipped if either slave or master does not support feature
+connection slave;
+let $supports_native_partitioning = 1;
+if (`select @@default_storage_engine = "MyISAM"`)
+{
+  let $supports_native_partitioning = 0;
+}
 
 connection master;
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_query_log
+if (`select @@default_storage_engine = "MyISAM"`)
+{
+  let $supports_native_partitioning = 0;
+}
+echo supports_native_partitioning: $supports_native_partitioning;
+
+###
+
+connection master;
 
 --echo --- Start test 1 Basic testing ---
 --echo --- Create Table Section ---
@@ -75,6 +90,9 @@ SHOW CREATE TABLE t1;
 DROP TABLE IF EXISTS t1;
 
 #################################################################
+
+if ($supports_native_partitioning)
+{
 
 --echo --- Start test 2 partition RANGE testing --
 --echo --- Do setup --
@@ -139,9 +157,14 @@ SHOW CREATE TABLE t1;
 --echo --- End test 2 partition RANGE testing ---
 --echo --- Do Cleanup ---
 
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
+
+}
 
 ########################################################
+
+if ($supports_native_partitioning)
+{
 
 --echo --- Start test 3 partition LIST testing ---
 --echo --- Do setup ---
@@ -204,9 +227,14 @@ SHOW CREATE TABLE t1;
 --echo --- End test 3 partition LIST testing ---
 --echo --- Do Cleanup --
 
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
+
+}
 
 ########################################################
+
+if ($supports_native_partitioning)
+{
 
 --echo --- Start test 4 partition HASH testing ---
 --echo --- Do setup ---
@@ -261,9 +289,14 @@ SHOW CREATE TABLE t1;
 --echo --- End test 4 partition HASH testing ---
 --echo --- Do Cleanup --
 
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
+
+}
 
 ########################################################
+
+if ($supports_native_partitioning)
+{
 
 --echo --- Start test 5 partition by key testing ---
 --echo --- Create Table Section ---
@@ -340,7 +373,7 @@ SHOW CREATE TABLE t1;
 --echo --- End test 5 key partition testing ---
 --echo --- Do Cleanup ---
 
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 sync_slave_with_master;
 
-# End of 5.1 test case
+}

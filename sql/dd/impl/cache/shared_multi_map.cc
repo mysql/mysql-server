@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@
 #include <new>
 
 #include "dd/impl/cache/cache_element.h"
+#include "dd/types/column_statistics.h"      // Column_statistics
 #include "log.h"                             // sql_print_warning()
 #include "my_dbug.h"
+#include "mysqld_error.h"
 
 namespace dd {
 namespace cache {
@@ -143,7 +145,7 @@ void Shared_multi_map<T>::shutdown()
     if (m_map<const T*>()->size() > 0)
     {
       /* purecov: begin deadcode */
-      sql_print_warning("Dictionary cache not empty at shutdown.");
+      LogErr(WARNING_LEVEL, ER_DD_CACHE_NOT_EMPTY_AT_SHUTDOWN);
       dump();
       DBUG_ASSERT(false);
       /* purecov: end */
@@ -495,6 +497,38 @@ template void Shared_multi_map<Collation>::
       Cache_element<Collation> **);
 template void Shared_multi_map<Collation>::
   drop_if_present<Collation::id_key_type>(const Collation::id_key_type&);
+
+template class Shared_multi_map<Column_statistics>;
+template bool Shared_multi_map<Column_statistics>::
+  get<const Column_statistics*>
+    (const Column_statistics* const&, Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type&,
+     Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::name_key_type>
+    (const Column_statistics::name_key_type&,
+     Cache_element<Column_statistics> **);
+template bool Shared_multi_map<Column_statistics>::
+  get<Column_statistics::aux_key_type>
+    (const Column_statistics::aux_key_type&,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::name_key_type>
+    (const Column_statistics::name_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  put<Column_statistics::aux_key_type>
+    (const Column_statistics::aux_key_type*, const Column_statistics*,
+     Cache_element<Column_statistics> **);
+template void Shared_multi_map<Column_statistics>::
+  drop_if_present<Column_statistics::id_key_type>
+    (const Column_statistics::id_key_type&);
 
 template class Shared_multi_map<Event>;
 template bool Shared_multi_map<Event>::

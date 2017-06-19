@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -672,7 +672,7 @@ int main(int argc, char** argv)
 * L O C A L   F U N C T I O N S                                *
 ***************************************************************/
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
 #include <unistd.h>
 #endif
 

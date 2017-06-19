@@ -83,7 +83,7 @@ CREATE TABLE t1 ( i text );
 
 --connect(con1,localhost,root,,)
 CREATE TEMPORARY TABLE ttmp1 ( i text );
-SET @@session.binlog_format=ROW;
+SET @@session.binlog_format='ROW';
 INSERT INTO t1 VALUES ('1');
 SELECT @@session.binlog_format;
 --disconnect con1

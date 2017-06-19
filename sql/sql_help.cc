@@ -18,6 +18,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "debug_sync.h"
 #include "field.h"
 #include "handler.h"
@@ -546,15 +548,6 @@ static int send_header_2(THD *thd, bool for_category)
     same as strcmp
 */
 
-extern "C" {
-static int string_ptr_cmp(const void* ptr1, const void* ptr2)
-{
-  String *str1= *(String**)ptr1;
-  String *str2= *(String**)ptr2;
-  return strcmp(str1->c_ptr(),str2->c_ptr());
-}
-} // extern "C"
-
 /*
   Send to client rows in format:
    column1 : <name>
@@ -586,7 +579,11 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   List_iterator<String> it(*names);
   for (pos= pointers; pos!=end; (*pos++= it++)) ;
 
-  my_qsort(pointers,names->elements,sizeof(String*),string_ptr_cmp);
+  std::sort(pointers, pointers + names->elements,
+            [](String *str1, String *str2)
+            {
+              return strcmp(str1->c_ptr(), str2->c_ptr()) < 0;
+            });
 
   for (pos= pointers; pos!=end; pos++)
   {

@@ -463,7 +463,7 @@ dict_table_try_drop_aborted(
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	if (table == NULL) {
-		table = dd_table_open_on_id(table_id, nullptr, nullptr, true);
+		table = dd_table_open_on_id(table_id, nullptr, nullptr, true, true);
 
 		/* Decrement the ref count. The table is MDL locked, so should
 		not be dropped */
@@ -6002,15 +6002,19 @@ dict_table_persist_to_dd_table_buffer(
 }
 
 /** Check if any table has any dirty persistent data, if so
-write dirty persistent data of table to DD TABLE BUFFER table accordingly */
-void
+write dirty persistent data of table to DD TABLE BUFFER table accordingly
+@return true if any table is dirty and write to DD TABLE BUFFER would
+possibly be done */
+bool
 dict_persist_to_dd_table_buffer(void)
 {
+	bool	persisted = false;
+
 	if (dict_sys == NULL) {
 		/* We don't have dict_sys now, so just return.
 		This only happen during recovery.
 		TODO: remove in WL#7488 */
-		return;
+		return(persisted);
 	}
 
 	mutex_enter(&dict_persist->mutex);
@@ -6018,7 +6022,7 @@ dict_persist_to_dd_table_buffer(void)
 	if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
 
 		mutex_exit(&dict_persist->mutex);
-		return;
+		return(persisted);
 	}
 
 	for (dict_table_t* table = UT_LIST_GET_FIRST(
@@ -6037,12 +6041,14 @@ dict_persist_to_dd_table_buffer(void)
 
 		if (table->dirty_status == METADATA_DIRTY) {
 			dict_table_persist_to_dd_table_buffer_low(table);
+			persisted = true;
 		}
 
 		table = next;
 	}
 
 	mutex_exit(&dict_persist->mutex);
+	return(persisted);
 }
 
 #ifdef UNIV_DEBUG
@@ -7671,7 +7677,7 @@ dict_sdi_get_index(
 
 	dict_table_t*	table = dd_table_open_on_id(
 		dict_sdi_get_table_id(tablespace_id, copy_num), nullptr,
-		nullptr, true);
+		nullptr, true, true);
 
 	if (table != NULL) {
 		dict_sdi_close_table(table);
@@ -7695,7 +7701,7 @@ dict_sdi_get_table(
 
 	dict_table_t*   table = dd_table_open_on_id(
 		dict_sdi_get_table_id(tablespace_id, copy_num),
-		NULL, NULL, dict_locked);
+		NULL, NULL, dict_locked, true);
 
 	return(table);
 }
@@ -7753,6 +7759,11 @@ dict_table_change_id_sys_tables()
 
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+
+		/* It's possible the SYS_VIRTUAL is not exist. */
+		if (system_table == nullptr && i == 8) {
+			continue;
+		}
 		ut_a(system_table != nullptr);
 		ut_ad(dict_sys_table_id[i] == system_table->id);
 
@@ -7835,6 +7846,11 @@ dict_sys_table_id_build()
 	mutex_enter(&dict_sys->mutex);
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
+
+		/* It's possible the SYS_VIRTUAL is not exist. */
+		if (system_table == nullptr && i == 8) {
+			continue;
+		}
 		ut_a(system_table != nullptr);
 		dict_sys_table_id[i] = system_table->id;
 	}

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10337,6 +10337,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
     /**
      * This is a master only state...
      */
+    gcpState = MasterGCPConf::GCP_READY; //Compiler keep quiet
     ndbrequire(false);
   }
 
@@ -15060,7 +15061,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
-  thrjamEntry(jambuf);
+  thrjamEntryDebug(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
   /**
@@ -15521,20 +15522,22 @@ Dbdih::complete_scan_on_table(TabRecordPtr tabPtr,
    * that scans can continue also during schema changes).
    */
 
+  Uint32 line;
   NdbMutex_Lock(&tabPtr.p->theMutex);
   if (map_ptr_i == tabPtr.p->m_map_ptr_i)
   {
-    thrjam(jambuf);
+    line = __LINE__;
     ndbassert(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
-    thrjam(jambuf);
+    line = __LINE__;
     ndbassert(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
   NdbMutex_Unlock(&tabPtr.p->theMutex);
+  thrjamLine(jambuf, line);
 }
 
 bool
@@ -16227,8 +16230,6 @@ Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
 {
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)rep->jamBufferPtr;
-
-  thrjamEntry(jambuf);
 
   TabRecordPtr tabPtr;
   tabPtr.i = rep->tableId;
@@ -20394,6 +20395,13 @@ Dbdih::master_lcp_fragmentMutex_locked(Signal* signal,
   startLcpRoundLoopLab(signal, 0, 0);
 }
 
+
+//#define DIH_DEBUG_REPLICA_SEARCH
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+static Uint32 totalScheduled;
+static Uint32 totalExamined;
+#endif
+
 void Dbdih::startLcpRoundLoopLab(Signal* signal, 
 				 Uint32 startTableId, Uint32 startFragId) 
 {
@@ -20407,19 +20415,53 @@ void Dbdih::startLcpRoundLoopLab(Signal* signal,
   }//if
   c_lcpState.currentFragment.tableId = startTableId;
   c_lcpState.currentFragment.fragmentId = startFragId;
+  c_lcpState.m_allReplicasQueuedLQH.clear();
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+  totalScheduled = totalExamined = 0;
+#endif
+
   startNextChkpt(signal);
 }//Dbdih::startLcpRoundLoopLab()
 
 void Dbdih::startNextChkpt(Signal* signal)
 {
+  jam();
+  const bool allReplicaCheckpointsQueued = 
+    c_lcpState.m_allReplicasQueuedLQH.
+    contains(c_lcpState.m_participatingLQH);
+  
+  if (allReplicaCheckpointsQueued)
+  {
+    jam();
+
+    /**
+     * No need to find new checkpoints to start,
+     * just waiting for completion
+     */
+
+    sendLastLCP_FRAG_ORD(signal);
+    return;
+  }
+
   Uint32 lcpId = SYSFILE->latestLCP_ID;
 
-  NdbNodeBitmask busyNodes; 
-  busyNodes.clear();
+  /* Initialise handledNodes with those already fully queued */
+  NdbNodeBitmask handledNodes = c_lcpState.m_allReplicasQueuedLQH; 
+  
+  /* Remove any that have failed in the interim */
+  handledNodes.bitAND(c_lcpState.m_participatingLQH);
+  
   const Uint32 lcpNodes = c_lcpState.m_participatingLQH.count();
   
   bool save = true;
   LcpState::CurrentFragment curr = c_lcpState.currentFragment;
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+  Uint32 examined = 0;
+  Uint32 started = 0;
+  Uint32 queued = 0;
+#endif
   
   while (curr.tableId < ctabFileSize) {
     TabRecordPtr tabPtr;
@@ -20442,6 +20484,10 @@ void Dbdih::startNextChkpt(Signal* signal)
       
       jam();
       c_replicaRecordPool.getPtr(replicaPtr);
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+      examined++;
+#endif
       
       NodeRecordPtr nodePtr;
       nodePtr.i = replicaPtr.p->procNode;
@@ -20478,6 +20524,10 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    nodePtr.p->noOfStartedChkpt = i + 1;
 	    
 	    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+            started++;
+#endif
 	  } 
           else if (nodePtr.p->noOfQueuedChkpt <
                    MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE)
@@ -20497,6 +20547,9 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
 	    nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
 	    nodePtr.p->noOfQueuedChkpt = i + 1;
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+            queued++;
+#endif
 	  }
 	  else 
 	  {
@@ -20504,23 +20557,32 @@ void Dbdih::startNextChkpt(Signal* signal)
 	    
 	    if(save)
 	    {
-	      /**
-	       * Stop increasing value on first that was "full"
-	       */
-	      c_lcpState.currentFragment = curr;
-	      save = false;
-	    }
+              /**
+               * Stop increasing value on first replica that 
+               * we could not enqueue, so we don't miss it 
+               * next time
+               */
+              c_lcpState.currentFragment = curr;
+              save = false;
+            }
 	    
-	    busyNodes.set(nodePtr.i);
-	    if(busyNodes.count() == lcpNodes)
+	    handledNodes.set(nodePtr.i);
+	    if (handledNodes.count() == lcpNodes)
 	    {
-	      /**
-	       * There were no possibility to start the local checkpoint 
-	       * and it was not possible to queue it up. In this case we 
-	       * stop the start of local checkpoints until the nodes with a 
-	       * backlog have performed more checkpoints. We will return and 
-	       * will not continue the process of starting any more checkpoints.
-	       */
+              /**
+               * All participating nodes have either
+               * - Full queues
+               * - All available replica checkpoints queued
+               *   (m_allReplicasQueuedLQH)
+               *
+               * Therefore, exit the search here.
+               */
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+              ndbout_c("Search : All nodes busy.  Examined %u Started %u Queued %u",
+                       examined, started, queued);
+              totalExamined+= examined;
+              totalScheduled += (started + queued);
+#endif
 	      return;
 	    }//if
 	  }//if
@@ -20534,6 +20596,31 @@ void Dbdih::startNextChkpt(Signal* signal)
       curr.tableId++;
     }//if
   }//while
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+  ndbout_c("Search : At least one node not busy.  Examined %u Started %u Queued %u",
+           examined, started, queued);
+  totalExamined+= examined;
+  totalScheduled += (started + queued);
+#endif
+
+  /**
+   * Have examined all replicas and attempted to 
+   * enqueue as many replica LCPs as possible,
+   * without filling all queues.
+   * This means that some node(s) have no more
+   * replica LCPs to be enqueued.
+   * These are the node(s) which are *not* in
+   * the handled bitmap on this round.
+   * We keep track of these to allow the search
+   * to exit early on future invocations.
+   */
+  
+  /* Invert handled nodes to reveal newly finished nodes */
+  handledNodes.bitXOR(c_lcpState.m_participatingLQH);
+  
+  /* Add newly finished nodes to the global state */
+  c_lcpState.m_allReplicasQueuedLQH.bitOR(handledNodes);
   
   sendLastLCP_FRAG_ORD(signal);
 }//Dbdih::startNextChkpt()
@@ -21002,6 +21089,21 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
     ndbout_c("CLEARING 7194");
     CLEAR_ERROR_INSERT_VALUE;
   }
+
+#ifdef DIH_DEBUG_REPLICA_SEARCH
+  if (totalScheduled == 0)
+  {
+    totalScheduled = 1;
+  }
+  ndbout_c("LCP complete.  Examined %u replicas, scheduled %u.  Ratio : %u.%u",
+           totalExamined,
+           totalScheduled,
+           totalExamined/totalScheduled,
+           (10 * (totalExamined - 
+                  ((totalExamined/totalScheduled) *
+                   totalScheduled)))/
+           totalScheduled);
+#endif
   
   return true;
 }
@@ -21187,13 +21289,14 @@ void Dbdih::checkStartMoreLcp(Signal* signal, Uint32 nodeId)
     //-------------------------------------------------------------------
     
     sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[startIndex]);
+    return;
   }
 
   /* ----------------------------------------------------------------------- */
-  // When there are no more outstanding LCP reports and there are no one queued
-  // in at least one node, then we are ready to make sure all nodes have at
-  // least two outstanding LCP requests per node and at least two queued for
-  // sending.
+  // If this node has no checkpoints queued up, then attempt to re-fill the
+  // queues across all nodes.
+  // The search for next replicas can be expensive, so we only do it when
+  // the queues are empty.
   /* ----------------------------------------------------------------------- */
   startNextChkpt(signal);
 }//Dbdih::checkStartMoreLcp()

@@ -5,6 +5,7 @@ where VARIABLE_SOURCE = 'EXPLICIT' AND
 VARIABLE_NAME LIKE 'performance%'
   order by VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_SOURCE
+performance_schema	EXPLICIT
 performance_schema_accounts_size	EXPLICIT
 performance_schema_digests_size	EXPLICIT
 performance_schema_events_stages_history_long_size	EXPLICIT

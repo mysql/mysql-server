@@ -218,7 +218,7 @@ public:
     {
       std::stringstream str;
       str << "field_" << (i + 1);
-      add(new Mock_field_long(str.str().c_str(), cols_nullable), i);
+      add(new (*THR_MALLOC) Mock_field_long(str.str().c_str(), cols_nullable), i);
     }
   }
 
@@ -233,7 +233,7 @@ public:
       mock_handler(&fake_handlerton, &table_share)
   {
     initialize();
-    add(new Mock_field_long("field_1"), 0);
+    add(new (*THR_MALLOC) Mock_field_long("field_1"), 0);
     column_value->save_in_field_no_warnings(field[0], true);
   }
 
@@ -250,9 +250,9 @@ public:
     mock_handler(static_cast<handlerton*>(NULL), &table_share)
   {
     field= m_field_array;
-    field[0]= new Mock_field_long("field_1");
+    field[0]= new (*THR_MALLOC) Mock_field_long("field_1");
     field[0]->table= this;
-    field[1]= new Mock_field_long("field_2");
+    field[1]= new (*THR_MALLOC) Mock_field_long("field_2");
     field[1]->table= this;
     initialize();
     column1_value->save_in_field_no_warnings(field[0], true);

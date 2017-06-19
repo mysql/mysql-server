@@ -19,7 +19,7 @@ begin
 return unix_timestamp();
 end|
 set global log_bin_trust_function_creators=0;
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -33,7 +33,7 @@ returns int deterministic
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -48,7 +48,7 @@ returns int no sql
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp
@@ -63,7 +63,7 @@ returns int reads sql data
 begin
 return unix_timestamp();
 end|
-set binlog_format=ROW;
+set binlog_format='ROW';
 select fn16456();
 fn16456()
 timestamp

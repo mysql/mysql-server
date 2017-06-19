@@ -123,7 +123,9 @@ void acl_update_user(const char *user, const char *host,
                      MYSQL_TIME password_change_time,
                      LEX_ALTER password_life,
                      ulong what_is_set);
-void acl_insert_user(const char *user, const char *host,
+void acl_insert_user(THD *thd, 
+                     const char *user,
+                     const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -159,11 +161,14 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
                          List <LEX_COLUMN> &columns,
                          const char *db, const char *table_name,
                          ulong rights, bool revoke_grant);
-int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
-                        TABLE *table, const LEX_USER &combo,
-                        const char *db, const char *table_name,
-                        ulong rights, ulong col_rights,
-                        bool revoke_grant);
+int replace_table_table(
+  THD *thd, GRANT_TABLE *grant_table,
+  std::unique_ptr<GRANT_TABLE, Destroy_only<GRANT_TABLE>>
+    *deleted_grant_table,
+  TABLE *table, const LEX_USER &combo,
+  const char *db, const char *table_name,
+  ulong rights, ulong col_rights,
+  bool revoke_grant);
 int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           TABLE *table, const LEX_USER &combo,
                           const char *db, const char *routine_name,
@@ -200,36 +205,23 @@ public:
   {
     m_user.append(user, user_len);
     m_host.append(host, host_len);
-    append_identifier(&m_auth_str, user, user_len);
-    m_auth_str.append('@');
-    append_identifier(&m_auth_str, host, host_len);
   }
 
   Role_id(const Auth_id_ref &id)
   {
     m_user.append(id.first.str, id.first.length);
     m_host.append(id.second.str, id.second.length);
-    append_identifier(&m_auth_str, id.first.str, id.first.length);
-    m_auth_str.append('@');
-    append_identifier(&m_auth_str, id.second.str, id.second.length);
   }
 
   Role_id(const LEX_CSTRING &user, const LEX_CSTRING &host)
   {
     m_user.append(user.str, user.length);
     m_host.append(host.str, host.length);
-    append_identifier(&m_auth_str, user.str, user.length);
-    m_auth_str.append('@');
-    append_identifier(&m_auth_str, host.str, host.length);
   }
 
   Role_id(const std::string &user, const std::string &host)
   : m_user(user), m_host(host)
-  {
-    append_identifier(&m_auth_str, user.c_str(), user.length());
-    m_auth_str.append('@');
-    append_identifier(&m_auth_str, host.c_str(), host.length());
-  }
+  {}
 
   ~Role_id() {}
 
@@ -237,22 +229,22 @@ public:
   {
     m_user= id.m_user;
     m_host= id.m_host;
-    m_auth_str.copy(id.m_auth_str);
   }
 
   bool operator<(const Role_id &id) const
   {
-    std::string tmp,tmp2;
-    tmp.append(m_user);
-    tmp.append(m_host);
-    tmp2.append(id.m_user);
-    tmp2.append(id.m_host);
-    return (tmp < tmp2);
+    if (m_user >= id.m_user)
+      return m_host < id.m_host;
+    return true;
   }
 
   void auth_str(std::string *out) const
   {
-    out->append(m_auth_str.ptr());
+    String tmp;
+    append_identifier(&tmp, m_user.c_str(), m_user.length());
+    tmp.append('@');
+    append_identifier(&tmp, m_host.c_str(), m_host.length());
+    out->append(tmp.ptr());
   }
 
   const std::string &user() const { return m_user; }
@@ -260,7 +252,6 @@ public:
 private:
   std::string m_user;
   std::string m_host;
-  String m_auth_str;
 };
 
 void dynamic_privileges_init(void);
@@ -322,6 +313,8 @@ bool clear_default_roles(THD *thd, TABLE *table,
                          std::vector<Role_id > *default_roles);
 void get_granted_roles(THD *thd, LEX_USER *user,
                        List_of_granted_roles *granted_roles);
+int iterate_granted_roles(Auth_id_ref &authid,
+         std::function<bool (const std::pair<const Auth_id_ref &, bool> &p)> f);
 void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user);
 bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
                                 TABLE *defaults_table, LEX_USER *user);
@@ -348,4 +341,11 @@ User_to_dynamic_privileges_map *get_dynamic_privileges_map();
 User_to_dynamic_privileges_map *
 swap_dynamic_privileges_map(User_to_dynamic_privileges_map *map);
 bool populate_roles_caches(THD *thd, TABLE_LIST * tablelst);
+void grant_role(THD *thd, ACL_USER *role, const ACL_USER *user,
+                bool with_admin_opt);
+void get_mandatory_roles(std::vector< Role_id > *mandatory_roles);
+extern std::vector<Role_id > *g_mandatory_roles;
+void create_role_vertex(ACL_USER *role_acl_user);
+void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
+                                              Security_context *sctx);
 #endif /* AUTH_INTERNAL_INCLUDED */

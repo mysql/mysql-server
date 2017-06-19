@@ -22,6 +22,7 @@
 
 class THD;
 class MDL_ticket;
+class Plugin_table;
 
 namespace dd {
 
@@ -332,6 +333,35 @@ void release_mdl(THD *thd, MDL_ticket *mdl_ticket);
 
 /** Get Dictionary_client from THD object (the latter is opaque * in SEs). */
 cache::Dictionary_client *get_dd_client(THD *thd);
+
+
+/**
+  Create plugin native table. The API would only write metadata to DD
+  and skip calling handler::create().
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  pt               Plugin_table* contain metadata of table to
+                               be created.
+
+  @returns false on success, otherwise true.
+*/
+
+bool create_native_table(THD *thd, const Plugin_table *pt);
+
+
+/**
+  Remove plugin native table from DD. The API would only update
+  metadata to DD and skip calling handler::drop().
+
+  @param[in]  thd              THD to which lock belongs to.
+  @param[in]  schema_name      schema name which the table belongs to.
+  @param[in]  table_name       table name to be dropped.
+
+  @returns false on success, otherwise true.
+*/
+
+bool drop_native_table(THD *thd, const char* schema_name, const char* table_name);
+
 }
 
 #endif // DD__DICTIONARY_INCLUDED

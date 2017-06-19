@@ -361,7 +361,7 @@ dict_create_index_tree_in_mem(
 
 	if (missing) {
 		index->page = FIL_NULL;
-		index->trx_id= trx->id;
+		index->trx_id = trx->id;
 
 		return(DB_SUCCESS);
 	}

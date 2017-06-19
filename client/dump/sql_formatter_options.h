@@ -58,6 +58,7 @@ public:
   bool m_timezone_consistent;
   bool m_skip_definer;
   bool m_innodb_stats_tables_included;
+  bool m_column_statistics;
   enum_gtid_purged_mode m_gtid_purged;
   const Mysql_chain_element_options* m_mysql_chain_element_options;
 

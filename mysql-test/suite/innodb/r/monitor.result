@@ -111,6 +111,7 @@ buffer_page_read_xdes	disabled
 buffer_page_read_blob	disabled
 buffer_page_read_zblob	disabled
 buffer_page_read_zblob2	disabled
+buffer_page_read_rseg_array	disabled
 buffer_page_read_other	disabled
 buffer_page_written_index_leaf	disabled
 buffer_page_written_index_non_leaf	disabled
@@ -127,6 +128,7 @@ buffer_page_written_xdes	disabled
 buffer_page_written_blob	disabled
 buffer_page_written_zblob	disabled
 buffer_page_written_zblob2	disabled
+buffer_page_written_rseg_array	disabled
 buffer_page_written_other	disabled
 os_data_reads	disabled
 os_data_writes	disabled

@@ -1,5 +1,3 @@
-drop database if exists discover_db;
-drop database if exists discover_db_2;
 create database discover_db;
 create table discover_db.t1 (a int key, b int) engine ndb;
 create database discover_db_2;
@@ -7,7 +5,7 @@ alter database discover_db_2 character set binary;
 create table discover_db_2.t1 (a int key, b int) engine ndb;
 show create database discover_db;
 Database	Create Database
-discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET latin1 */
+discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
 show create database discover_db_2;
 Database	Create Database
 discover_db_2	CREATE DATABASE `discover_db_2` /*!40100 DEFAULT CHARACTER SET binary */
@@ -31,16 +29,5 @@ mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
 mysqld-bin.000001	#	Write_rows	#	#	table_id: #
 mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 mysqld-bin.000001	#	Query	#	#	COMMIT
-Deleting table t1 metadata files and discover_db directory from fs.
-Deleting table t1 metadata files and discover_db directory from fs.
-flush tables;
-Attempt to access table should get error
-select * from discover_db.t1;
-ERROR 42S02: Table 'discover_db.t1' doesn't exist
-Attempt to access table after database created should be ok
-create database discover_db;
-select * from discover_db.t1;
-a	b
-1	1
 drop database discover_db;
 drop database discover_db_2;

@@ -43,6 +43,7 @@
 #include "dd/object_id.h"
 #include "dd/properties.h"       // dd::Properties
 #include "dd/types/index.h"      // Index::enum_index_type
+#include "dd/types/table.h"      // dd::Abstract_table::enum_hidden_type
 #include "dd_sql_view.h"         // push_view_warning_or_error
 #include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -93,6 +94,7 @@
 #include "sql_class.h"           // THD
 #include "sql_error.h"
 #include "sql_lex.h"
+#include "window.h"              // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
@@ -110,6 +112,11 @@ class sp_rcontext;
 
 using std::min;
 using std::max;
+
+static void free_user_var(user_var_entry *entry)
+{
+  entry->destroy();
+}
 
 bool check_reserved_words(LEX_STRING *name)
 {
@@ -591,14 +598,15 @@ Field *Item_func::tmp_table_field(TABLE *table)
   switch (result_type()) {
   case INT_RESULT:
     if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
-      field= new Field_longlong(max_length, maybe_null, item_name.ptr(),
-                                unsigned_flag);
+      field= new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+                                              item_name.ptr(), unsigned_flag);
     else
-      field= new Field_long(max_length, maybe_null, item_name.ptr(),
-                            unsigned_flag);
+      field= new (*THR_MALLOC) Field_long(max_length, maybe_null,
+                                          item_name.ptr(), unsigned_flag);
     break;
   case REAL_RESULT:
-    field= new Field_double(max_char_length(), maybe_null, item_name.ptr(), decimals);
+    field= new (*THR_MALLOC) Field_double(max_char_length(), maybe_null,
+                                          item_name.ptr(), decimals);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -638,7 +646,8 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
     // Store the value in the JSON binary format.
     Field_json *f= down_cast<Field_json *>(field);
     Json_wrapper wr;
-    val_json(&wr);
+    if (val_json(&wr))
+      return TYPE_ERR_BAD_VALUE;
 
     if (null_value)
       return set_field_to_null(field);
@@ -696,45 +705,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 
 
 /**
-  Count max_length and decimals for temporal functions.
-
-  @param item    Argument array
-  @param nitems  Number of arguments in the array.
-*/
-
-void Item_func::count_datetime_length(Item **item, uint nitems)
-{
-  unsigned_flag= false;
-  decimals= 0;
-  if (data_type() != MYSQL_TYPE_DATE)
-  {
-    for (uint i= 0; i < nitems; i++)
-      set_if_bigger(decimals,
-                    data_type() == MYSQL_TYPE_TIME ?
-                    item[i]->time_precision() : item[i]->datetime_precision());
-  }
-  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
-  uint len= decimals ? (decimals + 1) : 0;
-  switch (data_type())
-  {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      len+= MAX_DATETIME_WIDTH;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-      len+= MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-      len+= MAX_TIME_WIDTH;
-      break;
-    default:
-      DBUG_ASSERT(0);
-  }
-  fix_char_length(len);
-}
-
-/**
   Set max_length/decimals of function if function is fixed point and
   result length/precision depends on argument ones.
 
@@ -758,22 +728,6 @@ void Item_func::count_decimal_length(Item **item, uint nitems)
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
                                                                decimals,
                                                                unsigned_flag));
-}
-
-/**
-  Set char_length to the maximum number of characters required by any
-  of this function's arguments.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
-void Item_func::count_only_length(Item **item, uint nitems)
-{
-  uint32 char_length= 0;
-  for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, item[i]->max_char_length());
-  fix_char_length(char_length);
 }
 
 /**
@@ -809,31 +763,6 @@ void Item_func::count_real_length(Item **item, uint nitems)
   }
 }
 
-/**
-  Calculate max_length and decimals for STRING_RESULT functions.
-
-  @param field_type  Field type.
-  @param items       Argument array.
-  @param nitems      Number of arguments.
-
-  @retval            False on success, true on error.
-*/
-bool Item_func::count_string_result_length(enum_field_types field_type,
-                                           Item **items, uint nitems)
-{
-  if (agg_arg_charsets_for_string_result(collation, items, nitems))
-    return true;
-  if (is_temporal_type(field_type))
-    count_datetime_length(items, nitems);
-  else
-  {
-    decimals= NOT_FIXED_DEC;
-    count_only_length(items, nitems);
-  }
-  return false;
-}
-
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
@@ -856,9 +785,24 @@ void Item_func::signal_invalid_argument_for_log()
 
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
-  if (!has_aggregation() && !const_item())
-    return new Item_field(result_field);
-  return copy_or_same(thd);
+  DBUG_ENTER("Item_func::get_tmp_table_item");
+
+  /*
+    For items with aggregate functions, return the copy
+    of the function.
+    For constant items, return the same object as fields
+    are not created in temp tables for them.
+    For items with windowing functions, return the same
+    object (temp table fields are not created for windowing
+    functions if they are not evaluated at this stage).
+  */
+  if (!has_aggregation() && !const_item() && !has_wf())
+  {
+    Item *result= new Item_field(result_field);
+    DBUG_RETURN(result);
+  }
+  Item *result= copy_or_same(thd);
+  DBUG_RETURN(result);
 }
 
 const Item_field* 
@@ -3391,7 +3335,7 @@ bool Item_func_round::resolve_type(THD *)
   case INT_RESULT:
     if ((!decimals_to_set && truncate) || (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS))
     {
-      int length_can_increase= MY_TEST(!truncate && (val1 < 0) && !val1_unsigned);
+      bool length_can_increase= (!truncate && (val1 < 0) && !val1_unsigned);
       max_length= args[0]->max_length + length_can_increase;
       /* Here we can keep INT_RESULT */
       set_data_type(MYSQL_TYPE_LONGLONG);
@@ -4568,6 +4512,7 @@ void udf_handler::cleanup()
         Udf_func_deinit deinit= u_d->func_deinit;
         (*deinit)(&initid);
       }
+      DEBUG_SYNC(current_thd, "udf_handler_cleanup_sync");
       free_udf(u_d);
       initialized= FALSE;
     }
@@ -5482,34 +5427,22 @@ struct User_level_lock
 };
 
 
-/** Extract a hash key from User_level_lock. */
-
-static const uchar *ull_get_key(const uchar *ptr, size_t *length)
-{
-  const User_level_lock *ull = reinterpret_cast<const User_level_lock*>(ptr);
-  const MDL_key *key = ull->ticket->get_key();
-  *length= key->length();
-  return key->ptr();
-}
-
-
 /**
   Release all user level locks for this THD.
 */
 
 void mysql_ull_cleanup(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_cleanup");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
 
-  my_hash_free(&thd->ull_hash);
+  thd->ull_hash.clear();
 
   DBUG_VOID_RETURN;
 }
@@ -5523,12 +5456,11 @@ void mysql_ull_cleanup(THD *thd)
 
 void mysql_ull_set_explicit_lock_duration(THD *thd)
 {
-  User_level_lock *ull;
   DBUG_ENTER("mysql_ull_set_explicit_lock_duration");
 
-  for (ulong i= 0; i < thd->ull_hash.records; i++)
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash, i));
+    User_level_lock *ull= key_and_value.second;
     thd->mdl_context.set_lock_duration(ull->ticket, MDL_EXPLICIT);
   }
   DBUG_VOID_RETURN;
@@ -5688,7 +5620,6 @@ longlong Item_func_get_lock::val_int()
   ulonglong timeout= args[1]->val_int();
   char name[NAME_LEN + 1];
   THD *thd= current_thd;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_get_lock::val_int");
 
   null_value= TRUE;
@@ -5717,25 +5648,17 @@ longlong Item_func_get_lock::val_int()
   if (timeout > INT_MAX32)
     timeout= INT_MAX32;
 
-  /* HASH entries are of type User_level_lock. */
-  if (! my_hash_inited(&thd->ull_hash) &&
-      my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, ull_get_key, nullptr, 0,
-                   key_memory_User_level_lock))
-  {
-    DBUG_RETURN(0);
-  }
-
   MDL_request ull_request;
   MDL_REQUEST_INIT(&ull_request, MDL_key::USER_LEVEL_LOCK, "",
                    name, MDL_EXCLUSIVE, MDL_EXPLICIT);
-  MDL_key *ull_key= &ull_request.key;
+  std::string ull_key(pointer_cast<const char *>(ull_request.key.ptr()),
+                      ull_request.key.length());
 
-  if ((ull= reinterpret_cast<User_level_lock*>
-         (my_hash_search(&thd->ull_hash, ull_key->ptr(), ull_key->length()))))
+  const auto it= thd->ull_hash.find(ull_key);
+  if (it != thd->ull_hash.end())
   {
     /* Recursive lock. */
-    ull->refs++;
+    it->second->refs++;
     null_value= FALSE;
     DBUG_RETURN(1);
   }
@@ -5759,6 +5682,7 @@ longlong Item_func_get_lock::val_int()
     DBUG_RETURN(0);
   }
 
+  User_level_lock *ull= nullptr;
   ull= reinterpret_cast<User_level_lock*>(my_malloc(key_memory_User_level_lock,
                                                     sizeof(User_level_lock),
                                                     MYF(0)));
@@ -5772,13 +5696,7 @@ longlong Item_func_get_lock::val_int()
   ull->ticket= ull_request.ticket;
   ull->refs= 1;
 
-  if (my_hash_insert(&thd->ull_hash, reinterpret_cast<uchar*>(ull)))
-  {
-    thd->mdl_context.release_lock(ull_request.ticket);
-    my_free(ull);
-    DBUG_RETURN(0);
-  }
-
+  thd->ull_hash.emplace(ull_key, ull);
   null_value= FALSE;
 
   DBUG_RETURN(1);
@@ -5831,10 +5749,9 @@ longlong Item_func_release_lock::val_int()
   MDL_key ull_key;
   ull_key.mdl_key_init(MDL_key::USER_LEVEL_LOCK, "", name);
 
-  User_level_lock *ull;
-
-  if (!(ull= reinterpret_cast<User_level_lock*>
-          (my_hash_search(&thd->ull_hash, ull_key.ptr(), ull_key.length()))))
+  const auto it= thd->ull_hash.find(
+    std::string(pointer_cast<const char *>(ull_key.ptr()), ull_key.length()));
+  if (it == thd->ull_hash.end())
   {
     /*
       When RELEASE_LOCK() is called for lock which is not owned by the
@@ -5850,10 +5767,12 @@ longlong Item_func_release_lock::val_int()
 
     DBUG_RETURN(0);
   }
+  User_level_lock *ull= it->second;
+
   null_value= FALSE;
   if (--ull->refs == 0)
   {
-    my_hash_delete(&thd->ull_hash, reinterpret_cast<uchar*>(ull));
+    thd->ull_hash.erase(it);
     thd->mdl_context.release_lock(ull->ticket);
     my_free(ull);
   }
@@ -5884,21 +5803,16 @@ longlong Item_func_release_all_locks::val_int()
   DBUG_ASSERT(fixed == 1);
   THD *thd= current_thd;
   uint result= 0;
-  User_level_lock *ull;
   DBUG_ENTER("Item_func_release_all_locks::val_int");
 
-  if (my_hash_inited(&thd->ull_hash))
+  for (const auto &key_and_value : thd->ull_hash)
   {
-    for (ulong i= 0; i < thd->ull_hash.records; i++)
-    {
-      ull= reinterpret_cast<User_level_lock*>(my_hash_element(&thd->ull_hash,
-                                                              i));
-      thd->mdl_context.release_lock(ull->ticket);
-      result+= ull->refs;
-      my_free(ull);
-    }
-    my_hash_reset(&thd->ull_hash);
+    User_level_lock *ull= key_and_value.second;
+    thd->mdl_context.release_lock(ull->ticket);
+    result+= ull->refs;
+    my_free(ull);
   }
+  thd->ull_hash.clear();
 
   DBUG_RETURN(result);
 }
@@ -5953,7 +5867,7 @@ longlong Item_func_is_free_lock::val_int()
     return 0;
 
   null_value= FALSE;
-  return MY_TEST(get_owner_visitor.get_owner_id() == 0);
+  return (get_owner_visitor.get_owner_id() == 0);
 }
 
 
@@ -6253,7 +6167,7 @@ longlong Item_func_sleep::val_int()
 
   mysql_cond_destroy(&cond);
 
-  return MY_TEST(!error); 		// Return 1 killed
+  return (error == 0); 		// Return 1 killed
 }
 
 /*
@@ -6263,25 +6177,19 @@ longlong Item_func_sleep::val_int()
 static user_var_entry *get_variable(THD *thd, const Name_string &name,
                                     const CHARSET_INFO *cs)
 {
-  user_var_entry *entry;
-  HASH *hash= & thd->user_vars;
+  const std::string key(name.ptr(), name.length());
 
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
-  if (!(entry= (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
-                                                 name.length())) &&
-        cs != NULL)
+  user_var_entry *entry= find_or_nullptr(thd->user_vars, key);
+  if (entry == nullptr && cs != nullptr)
   {
-    if (!my_hash_inited(hash))
+    entry= user_var_entry::create(thd, name, cs);
+    if (entry == nullptr)
       return 0;
-    if (!(entry= user_var_entry::create(thd, name, cs)))
-      return 0;
-    if (my_hash_insert(hash,(uchar*) entry))
-    {
-      my_free(entry);
-      return 0;
-    }
+    thd->user_vars.emplace(
+      key, unique_ptr_with_deleter<user_var_entry>(entry, &free_user_var));
   }
   return entry;
 }
@@ -6464,7 +6372,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   assert_locked();
 
   // Store strings with end \0
-  if (mem_realloc(length + MY_TEST(type == STRING_RESULT)))
+  if (mem_realloc(length + (type == STRING_RESULT)))
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
@@ -6770,7 +6678,7 @@ void Item_func_set_user_var::save_item_result(Item *item)
 
   switch (cached_result_type) {
   case REAL_RESULT:
-    save_result.vreal= item->val_result();
+    save_result.vreal= item->val_real_result();
     break;
   case INT_RESULT:
     save_result.vint= item->val_int_result();
@@ -6901,7 +6809,7 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 }
 
 
-double Item_func_set_user_var::val_result()
+double Item_func_set_user_var::val_real_result()
 {
   DBUG_ASSERT(fixed == 1);
   check(TRUE);
@@ -7211,9 +7119,9 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     LEX *sav_lex= thd->lex, lex_tmp;
     thd->lex= &lex_tmp;
     lex_start(thd);
-    tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
-                                                                       new Item_null(),
-                                                                       false)));
+    tmp_var_list.push_back
+      (new (*THR_MALLOC)
+       set_var_user(new Item_func_set_user_var(name, new Item_null(), false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list, false))
     {
@@ -8266,7 +8174,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   if (!master)
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    hints= new Ft_hints(flags);
+    hints= new (*THR_MALLOC) Ft_hints(flags);
     if (!hints)
     {
       my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
@@ -8623,7 +8531,7 @@ Item_func_sp::cleanup()
 {
   if (sp_result_field)
   {
-    delete sp_result_field;
+    destroy(sp_result_field);
     sp_result_field= NULL;
   }
   m_sp= NULL;
@@ -8766,7 +8674,7 @@ bool Item_func_sp::resolve_type(THD *)
   max_length= sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null= true;
-  unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag= (sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_RETURN(false);
 }
@@ -8787,7 +8695,7 @@ bool Item_func_sp::val_json(Json_wrapper *result)
   }
 
   /* purecov: begin deadcode */
-  DBUG_ABORT();
+  DBUG_ASSERT(false);
   my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
   return error_json();
   /* purecov: end */
@@ -9318,13 +9226,8 @@ bool check_table_and_trigger_access(Item **args,
     In order for INFORMATION_SCHEMA to skip listing table for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_TABLE is invoked from INFORMATION_SCHEMA views even for
-    the hidden database objects. For example, CAN_ACCESS_TABLE is
-    invoked from the INFORMATION_SCHEMA.STATISTICS_BASE. To skip listing
-    for hidden index and index element, parameter "skip_table" is used.
-
   Syntax:
-    int CAN_ACCCESS_TABLE(schema_name, table_name, skip_table);
+    int CAN_ACCCESS_TABLE(schema_name, table_name);
 
   @returns,
     1 - If current user has access.
@@ -9333,23 +9236,6 @@ bool check_table_and_trigger_access(Item **args,
 longlong Item_func_can_access_table::val_int()
 {
   DBUG_ENTER("Item_func_can_access_table::val_int");
-
-  /*
-    If CAN_ACCESS_TABLE is called for the hidden database objects then skip
-    listing those. For example, CAN_ACCESS_TABLE is called from the I_S query
-    STATISTICS_BASE. In this case if index or index column is hidden then
-    skip listing of it.
-    Keyword EXTENDED enables the SHOW INDEX command to list the hidden Indexes
-    and Indexes columns.
-  */
-  THD *thd= current_thd;
-  bool skip_table= args[2]->val_bool();
-  if (args[2]->null_value ||
-      (skip_table && thd->lex->m_extended_show == false))
-  {
-    null_value= args[2]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   if (check_table_and_trigger_access(args, false, &null_value))
     DBUG_RETURN(TRUE);
@@ -9518,16 +9404,10 @@ longlong Item_func_can_access_event::val_int()
     In order for INFORMATION_SCHEMA to skip listing column for which
     the user does not have rights, the following UDF's is used.
 
-    CAN_ACCESS_COLUMN is invoked from INFORMATION_SCHEMA views even
-    for the hidden database objects. For example, CAN_ACCESS_COLUMN
-    is invoked from the INFORMATION_SCHEMA.COLUMNS. To skip listing
-    of hiddden columns, parameter skip_column is used.
-
   Syntax:
     int CAN_ACCCESS_COLUMN(schema_name,
                            table_name,
-                           field_name,
-                           skip_column);
+                           field_name);
 
   @returns,
     1 - If current user has access.
@@ -9536,23 +9416,6 @@ longlong Item_func_can_access_event::val_int()
 longlong Item_func_can_access_column::val_int()
 {
   DBUG_ENTER("Item_func_can_access_column::val_int");
-
-  /*
-    If CAN_ACCCESS_COLUMN is called for the hidden database objects then
-    skip listing those. For example,CAN_ACCESS_COLUMN is called from the
-    I_S query COLUMNS. In this case if column is hidden then skip listing
-    of it.
-    Keyword EXTENDED enables the SHOW COLUMNS command to list the hidden
-    columns.
-  */
-  THD *thd= current_thd;
-  bool skip_column= args[3]->val_bool();
-  if (args[3]->null_value ||
-      (skip_column && thd->lex->m_extended_show == false))
-  {
-    null_value= args[3]->null_value;
-    DBUG_RETURN(FALSE);
-  }
 
   // Read schema_name, table_name
   String schema_name;
@@ -9570,6 +9433,7 @@ longlong Item_func_can_access_column::val_int()
   table_name_ptr->c_ptr_safe();
 
   // Check if table is hidden.
+  THD *thd= current_thd;
   if (is_hidden_by_ndb(thd, schema_name_ptr, table_name_ptr))
     DBUG_RETURN(FALSE);
 
@@ -9716,6 +9580,57 @@ longlong Item_func_can_access_view::val_int()
 
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Skip hidden tables, columns, indexes and index elements.
+  Do not skip them, when SHOW EXTENDED command are run.
+
+  Syntax:
+    longlong  IS_VISIBLE_DD_OBJECT(table_type, is_object_hidden);
+
+  @returns,
+    1 - If dd object is visible
+    0 - If not visible.
+*/
+longlong Item_func_is_visible_dd_object::val_int()
+{
+  DBUG_ENTER("Item_func_is_visible_dd_object::val_int");
+
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  DBUG_ASSERT(args[0]->null_value == false);
+
+  if (args[0]->null_value ||
+      (arg_count == 2 && args[1]->null_value))
+  {
+    null_value= true;
+    DBUG_RETURN(FALSE);
+  }
+
+  null_value= false;
+  THD *thd= current_thd;
+
+  auto table_type= static_cast<dd::Abstract_table::enum_hidden_type>(
+                                                     args[0]->val_int());
+
+  bool show_table= (table_type == dd::Abstract_table::HT_VISIBLE);
+
+  if (thd->lex->m_extended_show)
+    show_table= show_table ||
+                (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
+
+  if (arg_count == 1 || show_table == false)
+    DBUG_RETURN(MY_TEST(show_table));
+
+  bool show_non_table_objects;
+  if (thd->lex->m_extended_show)
+    show_non_table_objects= true;
+  else
+    show_non_table_objects= (args[1]->val_bool() == false);
+
+  DBUG_RETURN(MY_TEST(show_non_table_objects));
+}
+
 
 static ulonglong get_statistics_from_cache(
                    Item** args,

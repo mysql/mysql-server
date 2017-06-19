@@ -666,6 +666,7 @@ mysql_declare_plugin(validate_password)
   "check password strength",          /*   description                     */
   PLUGIN_LICENSE_GPL,
   validate_password_init,             /*   init function (when loaded)     */
+  NULL,                               /*   cwcheck uninstall function      */
   validate_password_deinit,           /*   deinit function (when unloaded) */
   0x0101,                             /*   version                         */
   validate_password_status_variables, /*   status variables                */

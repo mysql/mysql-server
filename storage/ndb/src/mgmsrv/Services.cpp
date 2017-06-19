@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -887,7 +887,7 @@ MgmApiSession::stopSignalLog(Parser<MgmApiSession>::Context &,
 
   int result = m_mgmsrv.stopSignalTracing(node);
 
-  m_output->println("stop signallog");
+  m_output->println("stop signallog reply");
   if(result != 0)
     m_output->println("result: %s", get_error_text(result));
   else

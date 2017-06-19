@@ -326,7 +326,7 @@ MetadataRecover::apply()
 		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dd_table_open_on_id(table_id, NULL, NULL, false);
+		table = dd_table_open_on_id(table_id, NULL, NULL, false, true);
 
 		/* If the table is nullptr, it might be already dropped */
 		if (table == nullptr) {
@@ -2222,7 +2222,7 @@ recv_recover_page_func(
 		was re-inited and that would lead to a problem later. */
 
 		if (recv->start_lsn >= page_lsn
-		    && !undo::is_under_construction(recv_addr->space)) {
+		    && undo::is_active(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -3955,6 +3955,8 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 		fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
 		mtr.commit();
+
+		fil_tablespace_open_create();
 	}
 
 	/* Free up the flush_rbt. */

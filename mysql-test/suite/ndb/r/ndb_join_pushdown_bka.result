@@ -60,7 +60,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16022.40"
+      "query_cost": "4007.20"
     },
     "nested_loop": [
       {
@@ -81,9 +81,9 @@ EXPLAIN
           "rows_produced_per_join": 16,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "16000.00",
-            "eval_cost": "3.20",
-            "prefix_cost": "16003.20",
+            "read_cost": "4000.00",
+            "eval_cost": "1.60",
+            "prefix_cost": "4001.60",
             "data_read_per_join": "384"
           },
           "used_columns": [
@@ -126,9 +126,9 @@ EXPLAIN
           "filtered": "100.00",
           "using_join_buffer": "Batched Key Access",
           "cost_info": {
-            "read_cost": "16.00",
-            "eval_cost": "3.20",
-            "prefix_cost": "16022.40",
+            "read_cost": "4.00",
+            "eval_cost": "1.60",
+            "prefix_cost": "4007.20",
             "data_read_per_join": "384"
           },
           "used_columns": [
@@ -2398,7 +2398,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a, t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
@@ -2432,7 +2432,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
@@ -2457,7 +2457,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using temporary
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
@@ -4551,10 +4551,10 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	68	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -4569,10 +4569,10 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -4587,10 +4587,10 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	2054	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -4657,22 +4657,22 @@ insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,const	1	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,const	1	100.00	NULL
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
 explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	18	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	66	const	3	100.00	NULL
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole'))
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
@@ -4757,8 +4757,8 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t1.c,test.t1.d	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
 Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
@@ -4778,7 +4778,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
 Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
@@ -4797,7 +4797,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t1.c,test.t1.d	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.c	30	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
@@ -4819,7 +4819,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
 Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
@@ -5068,12 +5068,12 @@ performance_schema.global_status as new
 where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
-NDB_PRUNED_SCAN_COUNT	1
-NDB_PUSHED_QUERIES_DEFINED	0
-NDB_PUSHED_QUERIES_DROPPED	0
-NDB_PUSHED_READS	0
-NDB_SCAN_COUNT	2
-NDB_SORTED_SCAN_COUNT	0
+Ndb_pruned_scan_count	1
+Ndb_pushed_queries_defined	0
+Ndb_pushed_queries_dropped	0
+Ndb_pushed_reads	0
+Ndb_scan_count	2
+Ndb_sorted_scan_count	0
 drop table server_counts;
 drop table t1;
 create table t1(
@@ -6281,8 +6281,8 @@ right outer join tc as x2 on x1.b=x2.a
 left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	13	test.x2.a	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	26	test.x2.b,test.x1.c	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	43	test.x2.a	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	86	test.x2.b,test.x1.c	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'x1' as child of table 'x2'. Doing so would prevent using join buffer for table 'x1'.
 Note	1003	Cannot push table 'x3' as child of table 'x2'. Doing so would prevent using join buffer for table 'x3'.
@@ -6298,14 +6298,14 @@ bb	cc	x	cc	dd	x	cc	dd	x
 explain select * from tc as x1, tc as x2 where x1.b=x2.a for update;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	uk1	NULL	NULL	NULL	3	100.00	Using where with pushed condition (`test`.`x1`.`b` is not null)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	42	test.x1.b	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'x2' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
 explain select * from tc as x1, tc as x2 where x1.b=x2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	uk1	NULL	NULL	NULL	3	100.00	Using where with pushed condition (`test`.`x1`.`b` is not null)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	42	test.x1.b	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'x2' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
@@ -6599,7 +6599,7 @@ l29 char(255) not null,
 l30 char(255) not null,
 l31 char(255) not null,
 index(c, b)
-) engine=ndb partition by key(a) partitions 8;
+) engine=ndb character set latin1 partition by key(a) partitions 8;
 insert into t1 values ('a','a','a','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
@@ -6817,7 +6817,7 @@ old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
 from scan_count, performance_schema.global_status as old 
 where old.variable_name = 'Ndb_scan_count';
 VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
-NDB_SCAN_COUNT	2
+Ndb_scan_count	2
 drop table scan_count;
 drop table t1;
 CREATE TABLE table1 (
@@ -7014,7 +7014,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	ndb_user_test	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'ndb_user_test' as child of table 'ndb_order_test'. Doing so would prevent using join buffer for table 'ndb_user_test'.
-Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number`
+Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number` asc
 SELECT *
 FROM ndb_order_test JOIN ndb_user_test USING (user_id)
 WHERE node_id = 68
@@ -7029,10 +7029,10 @@ performance_schema.global_status as new
 where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
-NDB_PRUNED_SCAN_COUNT	24
-NDB_PUSHED_QUERIES_DEFINED	0
-NDB_PUSHED_QUERIES_DROPPED	0
-NDB_SORTED_SCAN_COUNT	0
+Ndb_pruned_scan_count	24
+Ndb_pushed_queries_defined	0
+Ndb_pushed_queries_dropped	0
+Ndb_sorted_scan_count	0
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;

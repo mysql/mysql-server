@@ -49,7 +49,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 [connection server2]
 include/sync_slave_sql_with_master.inc
 [connection server_1]
-ERROR HY000: Plugin instructed the server to rollback the current transaction.
+ERROR 40000: Plugin instructed the server to rollback the current transaction.
 
 ############################################################
 # 7. Assert that number of certified transactions are the

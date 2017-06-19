@@ -91,7 +91,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   }
 
   if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                               MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
+                               !(nextflag & SEARCH_SAVE_BUFF))))
     goto err;
   DBUG_DUMP("page", buff, mi_getint(buff));
 
@@ -134,7 +134,7 @@ int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     uchar *old_buff=buff;
     if (!(buff=_mi_fetch_keypage(info,keyinfo,pos,DFLT_INIT_HITS,info->buff,
-                                 MY_TEST(!(nextflag & SEARCH_SAVE_BUFF)))))
+                                 !(nextflag & SEARCH_SAVE_BUFF))))
       goto err;
     keypos=buff+(keypos-old_buff);
     maxpos=buff+(maxpos-old_buff);

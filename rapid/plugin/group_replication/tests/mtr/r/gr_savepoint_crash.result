@@ -26,4 +26,9 @@ include/start_group_replication.inc
 include/assert.inc ['There should be two values in table1']
 3. Clean-up
 DROP TABLE table1;
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+set session sql_log_bin=1;
 include/group_replication_end.inc

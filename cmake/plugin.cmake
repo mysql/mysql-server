@@ -59,7 +59,6 @@ MACRO(MYSQL_ADD_PLUGIN)
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/libbinlogevents/include
                     ${CMAKE_SOURCE_DIR}/sql/auth
-                    ${CMAKE_SOURCE_DIR}/regex
                     ${SSL_INCLUDE_DIRS}
                     ${ZLIB_INCLUDE_DIR})
 

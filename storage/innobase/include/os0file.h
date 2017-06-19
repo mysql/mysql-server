@@ -150,7 +150,11 @@ static const ulint OS_FILE_NORMAL = 62;
 /** Types for file create @{ */
 static const ulint OS_DATA_FILE = 100;
 static const ulint OS_LOG_FILE = 101;
-static const ulint OS_DATA_TEMP_FILE = 102;
+/* Don't use this for Data files, Log files. Use it for smaller files
+or if number of bytes to write are not multiple of sector size.
+With this flag, writes to file will be always buffered and ignores the value
+of innodb_flush_method. */
+static const ulint OS_BUFFERED_FILE = 102;
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */
@@ -1039,13 +1043,13 @@ do {									\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_open_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
 # define register_pfs_file_open_end(locker, file, result)		\
 do {									\
-	if (locker != NULL) {				\
+	if (locker != NULL) {						\
 		file.m_psi = PSI_FILE_CALL(				\
 		end_file_open_wait)(					\
 			locker, result);				\
@@ -1053,13 +1057,14 @@ do {									\
 } while (0)
 
 # define register_pfs_file_rename_begin(state, locker, key, op, name,	\
-				src_file, src_line)                     \
-	register_pfs_file_open_begin(state, locker, key, op, name,      \
 					src_file, src_line)             \
+	register_pfs_file_open_begin(					\
+		state, locker, key, op, name,				\
+		src_file, static_cast<uint>(src_line))			\
 
 # define register_pfs_file_rename_end(locker, result)			\
 do {									\
-	if (locker != NULL) {                              \
+	if (locker != NULL) {						\
 		 PSI_FILE_CALL(						\
 			end_file_open_wait)(				\
 			locker, result);				\
@@ -1067,13 +1072,13 @@ do {									\
 }while(0)
 
 # define register_pfs_file_close_begin(state, locker, key, op, name,	\
-				      src_file, src_line)		\
+				       src_file, src_line)		\
 do {									\
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
 		state, key.m_value, op, name, &locker);			\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_close_wait)(			\
-			locker, src_file, src_line);			\
+			locker, src_file, static_cast<uint>(src_line));	\
 	}								\
 } while (0)
 
@@ -1088,11 +1093,12 @@ do {									\
 # define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
-	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(	\
+	locker = PSI_FILE_CALL(get_thread_file_stream_locker)(		\
 		state, file.m_psi, op);					\
 	if (locker != NULL) {						\
 		PSI_FILE_CALL(start_file_wait)(				\
-			locker, count, src_file, src_line);		\
+			locker, count,					\
+			src_file, static_cast<uint>(src_line));		\
 	}								\
 } while (0)
 

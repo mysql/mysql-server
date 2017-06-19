@@ -562,9 +562,11 @@ INSERT INTO t2 VALUES (0xf6);
 INSERT INTO t2 VALUES ('oe');
 
 SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t2) dt;
+
+set names latin1;
 SELECT COUNT(*) FROM 
   (SELECT DISTINCT a FROM t2 WHERE a='oe' COLLATE latin1_german2_ci) dt;
-
+set names utf8mb4;
 DROP TABLE t1, t2;
 
 #

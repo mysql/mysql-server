@@ -190,7 +190,7 @@ public:
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline bool push_back(void *info)
   {
-    if (((*last)=new list_node(info, &end_of_list)))
+    if (((*last)=new (*THR_MALLOC) list_node(info, &end_of_list)))
     {
       last= &(*last)->next;
       elements++;
@@ -210,7 +210,7 @@ public:
   }
   inline bool push_front(void *info)
   {
-    list_node *node=new list_node(info,first);
+    list_node *node=new (*THR_MALLOC) list_node(info,first);
     if (node)
     {
       if (last == &first)
@@ -242,7 +242,7 @@ public:
       last= &first;
     else if (last == &(*prev)->next)
       last= prev;
-    delete *prev;
+    destroy(*prev);
     *prev=node;
   }
   inline void concat(base_list *list)
@@ -391,7 +391,7 @@ public:
 protected:
   void after(void *info,list_node *node)
   {
-    list_node *new_node=new list_node(info,node->next);
+    list_node *new_node=new (*THR_MALLOC) list_node(info,node->next);
     node->next=new_node;
     elements++;
     if (last == &(node->next))
@@ -579,6 +579,38 @@ public:
     return static_cast<T*>(current->info);
   }
 
+  void replace(uint index, T *new_value)
+  {
+    DBUG_ASSERT(index < elements);
+    list_node *current= first;
+    for (uint i= 0; i < index; ++i)
+      current= current->next;
+    current->info= new_value;
+  }
+
+  bool swap_elts(uint index1, uint index2)
+  {
+    if (index1 == index2)
+      return false;
+
+    if (index1 >= elements || index2 >= elements)
+      return true; //error
+
+    if (index2 < index1)
+      std::swap(index1, index2);
+
+    list_node *current1= first;
+    for (uint i= 0; i < index1; ++i)
+      current1= current1->next;
+
+    list_node *current2= current1;
+    for (uint i= 0; i < index2 - index1; ++i)
+      current2= current2->next;
+
+    std::swap(current1->info, current2->info);
+    
+    return false;
+  }
   using base_list::sort;
 };
 

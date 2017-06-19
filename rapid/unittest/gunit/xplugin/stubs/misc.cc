@@ -31,6 +31,8 @@
 #include <sys/utsname.h>
 #endif
 
+#include <atomic>
+
 typedef struct st_vio Vio;
 
 PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
@@ -57,7 +59,7 @@ PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
 PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
 
 const char  *my_localhost;
-int32 volatile connection_events_loop_aborted_flag;;
+std::atomic<int32> connection_events_loop_aborted_flag;
 
 int ip_to_hostname(struct sockaddr_storage*,
                    const char*,

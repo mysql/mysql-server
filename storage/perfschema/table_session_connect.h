@@ -103,8 +103,6 @@ protected:
                               bool read_all);
 
 protected:
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
   /** Current row. */
   row_session_connect_attrs m_row;
   /** Safe copy of @c PFS_thread::m_session_connect_attrs. */

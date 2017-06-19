@@ -39,456 +39,6 @@
 
 namespace gis {
 
-/// The base class of all functors that takes two geometry arguments.
-///
-/// Subclasses of this functor base class will implement operator() and call
-/// apply() to do type combination dispatching. The actual body of the functor
-/// is in the eval() member function, which must be implemented for each
-/// different parameter type combinations.
-///
-/// The functor may throw exceptions.
-///
-/// @tparam T The return type of the functor.
-template <typename T>
-class Functor {
- public:
-  virtual T operator()(const Geometry *g1, const Geometry *g2) = 0;
-  virtual ~Functor() {}
-
- protected:
-  template <typename F>
-  static inline T apply(F &f, const Geometry *g1, const Geometry *g2) {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    switch (g1->coordinate_system()) {
-      case Coordinate_system::kCartesian:
-        switch (g1->type()) {
-          case Geometry_type::kPoint:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_point *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_point *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kLinestring:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_linestring *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_linestring *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kPolygon:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_polygon *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_polygon *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kGeometrycollection:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(
-                    down_cast<const Cartesian_geometrycollection *>(g1),
-                    down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultipoint:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_multipoint *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultilinestring:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_multilinestring *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultipolygon:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Cartesian_multipolygon *>(g1),
-                    down_cast<const Cartesian_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
-                              down_cast<const Cartesian_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kGeometry:
-            DBUG_ASSERT(false); /* purecov: inspected */
-            return true;
-        }  // switch (g1->type())
-      case Coordinate_system::kGeographic:
-        switch (g1->type()) {
-          case Geometry_type::kPoint:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_point *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_point *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_point *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_point *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_point *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_point *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_point *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kLinestring:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_linestring *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_linestring *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_linestring *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_linestring *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_linestring *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_linestring *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_linestring *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kPolygon:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_polygon *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_polygon *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_polygon *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_polygon *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_polygon *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_polygon *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_polygon *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kGeometrycollection:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(
-                    down_cast<const Geographic_geometrycollection *>(g1),
-                    down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultipoint:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_multipoint *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_multipoint *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_multipoint *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_multipoint *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_multipoint *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_multipoint *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_multipoint *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultilinestring:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_multilinestring *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_multilinestring *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kMultipolygon:
-            switch (g2->type()) {
-              case Geometry_type::kPoint:
-                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
-                              down_cast<const Geographic_point *>(g2));
-              case Geometry_type::kLinestring:
-                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
-                              down_cast<const Geographic_linestring *>(g2));
-              case Geometry_type::kPolygon:
-                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
-                              down_cast<const Geographic_polygon *>(g2));
-              case Geometry_type::kGeometrycollection:
-                return f.eval(
-                    down_cast<const Geographic_multipolygon *>(g1),
-                    down_cast<const Geographic_geometrycollection *>(g2));
-              case Geometry_type::kMultipoint:
-                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
-                              down_cast<const Geographic_multipoint *>(g2));
-              case Geometry_type::kMultilinestring:
-                return f.eval(
-                    down_cast<const Geographic_multipolygon *>(g1),
-                    down_cast<const Geographic_multilinestring *>(g2));
-              case Geometry_type::kMultipolygon:
-                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
-                              down_cast<const Geographic_multipolygon *>(g2));
-              case Geometry_type::kGeometry:
-                DBUG_ASSERT(false); /* purecov: inspected */
-                return true;
-            }
-          case Geometry_type::kGeometry:
-            DBUG_ASSERT(false); /* purecov: inspected */
-            return true;
-        }  // switch (g1->type())
-    }      // switch (g1->coordinate_system())
-
-    DBUG_ASSERT(false); /* purecov: inspected */
-    return true;
-  }
-};
-
 /// Function/parameter combination not implemented exception.
 ///
 /// Thrown by GIS functors for parameter combinations that have not been
@@ -540,6 +90,479 @@ class not_implemented_exception : public std::exception {
       DBUG_ASSERT(false); /* purecov: inspected */
       return "UNKNOWN";
     }
+  }
+};
+
+/// NULL value exception.
+///
+/// Thrown when the functor discovers that the result is NULL. Normally, NULL
+/// returns can be detected before calling the functor, but not always.
+class null_value_exception : public std::exception {};
+
+/// The base class of all functors that takes two geometry arguments.
+///
+/// Subclasses of this functor base class will implement operator() and call
+/// apply() to do type combination dispatching. The actual body of the functor
+/// is in the eval() member function, which must be implemented for each
+/// different parameter type combination.
+///
+/// The functor may throw exceptions.
+///
+/// @tparam T The return type of the functor.
+template <typename T>
+class Functor {
+ public:
+  virtual T operator()(const Geometry *g1, const Geometry *g2) const = 0;
+  virtual ~Functor() {}
+
+ protected:
+  template <typename F>
+  static inline T apply(F &f, const Geometry *g1, const Geometry *g2) {
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    switch (g1->coordinate_system()) {
+      case Coordinate_system::kCartesian:
+        switch (g1->type()) {
+          case Geometry_type::kPoint:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_point *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_point *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kLinestring:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_linestring *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_linestring *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kPolygon:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_polygon *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_polygon *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kGeometrycollection:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(
+                    down_cast<const Cartesian_geometrycollection *>(g1),
+                    down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultipoint:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_multipoint *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_multipoint *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultilinestring:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_multilinestring *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultipolygon:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Cartesian_multipolygon *>(g1),
+                    down_cast<const Cartesian_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
+                              down_cast<const Cartesian_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kGeometry:
+            DBUG_ASSERT(false); /* purecov: inspected */
+            throw new not_implemented_exception(g1->coordinate_system(),
+                                                g1->type(), g2->type());
+        }  // switch (g1->type())
+      case Coordinate_system::kGeographic:
+        switch (g1->type()) {
+          case Geometry_type::kPoint:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_point *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_point *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_point *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_point *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_point *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_point *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_point *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kLinestring:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_linestring *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_linestring *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_linestring *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_linestring *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_linestring *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_linestring *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_linestring *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kPolygon:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_polygon *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_polygon *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_polygon *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_polygon *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_polygon *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_polygon *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_polygon *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kGeometrycollection:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(
+                    down_cast<const Geographic_geometrycollection *>(g1),
+                    down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultipoint:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_multipoint *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_multipoint *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_multipoint *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_multipoint *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_multipoint *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_multipoint *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_multipoint *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultilinestring:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_multilinestring *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_multilinestring *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_multilinestring *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kMultipolygon:
+            switch (g2->type()) {
+              case Geometry_type::kPoint:
+                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
+                              down_cast<const Geographic_point *>(g2));
+              case Geometry_type::kLinestring:
+                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
+                              down_cast<const Geographic_linestring *>(g2));
+              case Geometry_type::kPolygon:
+                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
+                              down_cast<const Geographic_polygon *>(g2));
+              case Geometry_type::kGeometrycollection:
+                return f.eval(
+                    down_cast<const Geographic_multipolygon *>(g1),
+                    down_cast<const Geographic_geometrycollection *>(g2));
+              case Geometry_type::kMultipoint:
+                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
+                              down_cast<const Geographic_multipoint *>(g2));
+              case Geometry_type::kMultilinestring:
+                return f.eval(
+                    down_cast<const Geographic_multipolygon *>(g1),
+                    down_cast<const Geographic_multilinestring *>(g2));
+              case Geometry_type::kMultipolygon:
+                return f.eval(down_cast<const Geographic_multipolygon *>(g1),
+                              down_cast<const Geographic_multipolygon *>(g2));
+              case Geometry_type::kGeometry:
+                DBUG_ASSERT(false); /* purecov: inspected */
+                throw new not_implemented_exception(g1->coordinate_system(),
+                                                    g1->type(), g2->type());
+            }
+          case Geometry_type::kGeometry:
+            DBUG_ASSERT(false); /* purecov: inspected */
+            throw new not_implemented_exception(g1->coordinate_system(),
+                                                g1->type(), g2->type());
+        }  // switch (g1->type())
+    }      // switch (g1->coordinate_system())
+
+    DBUG_ASSERT(false); /* purecov: inspected */
+    throw new not_implemented_exception(g1->coordinate_system(), g1->type(),
+                                        g2->type());
   }
 };
 

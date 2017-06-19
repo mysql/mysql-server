@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#define  LOG_SUBSYSTEM_TAG "bootstrap"
+
 #include "sql/bootstrap.h"
 
 #include "my_config.h"
@@ -26,7 +28,7 @@
 #include "bootstrap_impl.h"
 #include "error_handler.h"       // Internal_error_handler
 #include "lex_string.h"
-#include "log.h"                 // sql_print_warning
+#include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -375,8 +377,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   if (error)
   {
     /* purecov: begin inspected */
-    sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
-                      error);
+    LogErr(WARNING_LEVEL, ER_BOOTSTRAP_CANT_THREAD, errno).os_errno(errno);
+
     DBUG_RETURN(true);
     /* purecov: end */
   }

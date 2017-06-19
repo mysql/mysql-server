@@ -37,6 +37,8 @@
 # successful.
 --source include/force_restart.inc
 --source include/have_binlog_format_statement.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
 --source include/only_mts_slave_parallel_workers.inc
 --source include/only_mts_slave_parallel_type_database.inc
 --source include/master-slave.inc
@@ -59,7 +61,7 @@ source include/wait_for_slave_sql_error.inc;
 # Restart the slave server - Recovery will fail as MTS has stopped due to an
 # error.
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --skip_slave_start=TRUE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1
+--let $rpl_server_parameters= --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc
@@ -83,7 +85,7 @@ DELETE FROM d1.t WHERE a=3;
 
 # Restart the slave server this should fix the gaps.
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --skip_slave_start=TRUE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1
+--let $rpl_server_parameters= --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
 --exec echo "MTS recovery should be successful. Check that gaps are filled."

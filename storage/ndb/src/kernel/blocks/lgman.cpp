@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1442,7 +1442,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
      */
     Uint32 ptrI;
     Uint32 cnt = 1;
-    m_ctx.m_mm.alloc_pages(RG_DISK_OPERATIONS, &ptrI, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RG_TRANSACTION_MEMORY, &ptrI, &cnt, 1);
     if (cnt == 0)
     {
       jam();
@@ -1647,7 +1647,7 @@ Lgman::execFSOPENREF(Signal* signal)
   Uint32 ptrI = ptr.p->m_zero_page_i;
   ptr.p->m_zero_page_i = RNIL;
   
-  m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, ptrI, 1);
+  m_ctx.m_mm.release_pages(RG_TRANSACTION_MEMORY, ptrI, 1);
 
   {
     CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
@@ -1686,7 +1686,7 @@ Lgman::execFSOPENCONF(Signal* signal)
   case CreateFileImplReq::CreateForce:
   {
     jam();
-    m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS,
+    m_ctx.m_mm.release_pages(RG_TRANSACTION_MEMORY,
                              file_ptr.p->m_zero_page_i,
                              1);
     file_ptr.p->m_zero_page_i = RNIL;
@@ -1759,7 +1759,7 @@ Lgman::completed_zero_page_read(Signal *signal, Ptr<Undofile> file_ptr)
     lg_ptr.p->m_ndb_version = zp->m_ndb_version;
     reinit_logbuffer_words(lg_ptr);
   }
-  m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, file_ptr.p->m_zero_page_i, 1);
+  m_ctx.m_mm.release_pages(RG_TRANSACTION_MEMORY, file_ptr.p->m_zero_page_i, 1);
   file_ptr.p->m_zero_page_i = RNIL;
   sendCREATE_FILE_IMPL_CONF(signal, file_ptr);
 }
@@ -2006,7 +2006,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
     {
       Uint32 ptrI;
       Uint32 cnt = pages > 64 ? 64 : pages;
-      m_ctx.m_mm.alloc_pages(RG_DISK_OPERATIONS, &ptrI, &cnt, 1);
+      m_ctx.m_mm.alloc_pages(RG_TRANSACTION_MEMORY, &ptrI, &cnt, 1);
       if (cnt)
       {
         jam();
@@ -2021,7 +2021,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
            *   jump out of alloc routine
            */
           jam();
-          m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, 
+          m_ctx.m_mm.release_pages(RG_TRANSACTION_MEMORY,
                                    range.m_ptr_i, range.m_idx);
           break;
         }
@@ -2179,7 +2179,7 @@ Lgman::free_logbuffer_memory(Ptr<Logfile_group> ptr)
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
     
-    m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, range.m_ptr_i, range.m_idx);
+    m_ctx.m_mm.release_pages(RG_TRANSACTION_MEMORY, range.m_ptr_i, range.m_idx);
     map.next(it);
   }
   map.release();

@@ -16,12 +16,13 @@
 #ifndef XCOM_CFG_H
 #define XCOM_CFG_H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct cfg_app_xcom
-{
+typedef struct cfg_app_xcom {
   /*
    The number of spin loops the XCom thread does before
    blocking on the poll system call.
@@ -48,7 +49,3 @@ void deinit_cfg_app_xcom();
 #endif
 
 #endif
-
-
-
-

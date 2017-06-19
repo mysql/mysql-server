@@ -25,6 +25,7 @@
 #include "plugin.h"
 #include "plugin_log.h"
 #include "single_primary_message.h"
+#include "services/notification/notification.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting= false;
@@ -40,7 +41,7 @@ Applier_module::Applier_module()
   :applier_running(false), applier_aborted(false), applier_error(0),
    suspended(false), waiting_for_applier_suspension(false),
    shared_stop_write_lock(NULL), incoming(NULL), pipeline(NULL),
-   fde_evt(BINLOG_VERSION), stop_wait_timeout(LONG_TIMEOUT),
+   stop_wait_timeout(LONG_TIMEOUT),
    applier_channel_observer(NULL)
 {
   mysql_mutex_init(key_GR_LOCK_applier_module_run, &run_lock, MY_MUTEX_INIT_FAST);
@@ -410,7 +411,7 @@ Applier_module::applier_thread_handle()
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  fde_evt= new Format_description_log_event(BINLOG_VERSION);
+  fde_evt= new Format_description_log_event();
   cont= new Continuation();
 
   //Give the handlers access to the applier THD
@@ -674,14 +675,20 @@ void Applier_module::inform_of_applier_stop(char* channel_name,
 
 void Applier_module::leave_group_on_failure()
 {
+  Notification_context ctx;
   DBUG_ENTER("Applier_module::leave_group_on_failure");
 
   log_message(MY_ERROR_LEVEL,
               "Fatal error during execution on the Applier process of "
               "Group Replication. The server will now leave the group.");
 
+  /* Notify member status update. */
   group_member_mgr->update_member_status(local_member_info->get_uuid(),
-                                         Group_member_info::MEMBER_ERROR);
+                                         Group_member_info::MEMBER_ERROR,
+                                         ctx);
+
+  /* Single state update. Notify right away. */
+  notify_and_reset_ctx(ctx);
 
   bool set_read_mode= false;
   Gcs_operations::enum_leave_state state= gcs_module->leave();
@@ -723,7 +730,7 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   bool already_locked= shared_stop_write_lock->try_grab_write_lock();
 
   //kill pending transactions
-  unblock_waiting_transactions();
+  blocked_transaction_handler->unblock_waiting_transactions();
 
   if (!already_locked)
     shared_stop_write_lock->release_write_lock();
@@ -731,9 +738,9 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   if (set_read_mode)
   {
     if (threaded_sql_session)
-      set_server_read_mode(PSESSION_INIT_THREAD);
+      enable_server_read_mode(PSESSION_INIT_THREAD);
     else
-      set_server_read_mode(PSESSION_USE_THREAD);
+      enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
   DBUG_VOID_RETURN;

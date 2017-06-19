@@ -110,7 +110,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
-ERROR 22004: Invalid use of NULL value
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;
@@ -139,12 +139,16 @@ tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES
 tab	1	idx6	1	c4	A	#	10	NULL		BTREE			YES
 SET @g1 = ST_GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
+# Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
 UPDATE tab SET C2 = ST_GeomFromText('POINT(1000 1000)')
 WHERE ST_Crosses(tab.c4, @g1);
+# Invalid polygon.
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
+# Invalid polygon.
 DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;
 ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL;
@@ -221,12 +225,12 @@ ALTER TABLE tab ADD PRIMARY KEY(c2) ;
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
-2	POINT(20 20)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(20 20)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(3000 3000)') 
 WHERE ST_Touches(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
-2	POINT(3000 3000)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(3000 3000)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 DELETE FROM tab WHERE ST_Touches(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
@@ -567,13 +571,13 @@ c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
+2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
 DELETE FROM tab WHERE ST_Touches(tab.c4, @g1) OR ST_Touches(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1)
 OR ST_Touches(tab.c3,@g2);

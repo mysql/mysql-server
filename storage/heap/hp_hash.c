@@ -511,7 +511,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
   {
     if (seg->null_bit)
     {
-      int found_null=MY_TEST(rec[seg->null_pos] & seg->null_bit);
+      bool found_null= (rec[seg->null_pos] & seg->null_bit);
       if (found_null != (int) *key++)
 	return 1;
       if (found_null)

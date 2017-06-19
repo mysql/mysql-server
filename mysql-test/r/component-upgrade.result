@@ -8,7 +8,6 @@
 CALL mtr.add_suppression("Table 'mysql.component' doesn't exis");
 CALL mtr.add_suppression("The mysql.component table is missing or has an incorrect definition.");
 Run mysql_upgrade once
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -51,7 +50,6 @@ DROP TABLE mysql.component;
 # shutdown the server from mtr.
 # restart the server.
 # running mysql_upgrade
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

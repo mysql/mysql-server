@@ -22,6 +22,7 @@
 #include <ndb_version.h>
 
 #include <ndb_rand.h>
+#include <NdbHost.h>
 
 // version >= 5.1 required
 
@@ -2189,7 +2190,7 @@ setseed(int n)
     if (g_opts.seed != (uint)-1)
       seed = (uint)g_opts.seed;
     else
-      seed = 1 + (ushort)getpid();
+      seed = 1 + NdbHost_GetProcessId();
   } else {
     if (g_opts.seed != 0)
       return;

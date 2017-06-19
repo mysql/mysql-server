@@ -16,67 +16,163 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
+#include <set>
 #include <stddef.h>
 
 #include "lex_string.h"
+#include "memroot_allocator.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/mysql_lex_string.h"
 #include "sql_cmd.h"       // Sql_cmd
+#include "sql/histograms/histogram.h"
+#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 
+class String;
 class THD;
+
 struct TABLE_LIST;
 template <class T> class List;
 
 typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lex_user LEX_USER;
 
+struct Column_name_comparator
+{
+  bool operator()(const String *lhs, const String *rhs) const;
+};
+
 /* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
 #define SQL_ADMIN_MSG_TEXT_SIZE 128 * 1024
 
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
-                              LEX_STRING *key_cache_name);
-bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
 
 /**
   Sql_cmd_analyze_table represents the ANALYZE TABLE statement.
+
+  Also this class is a base class for Sql_cmd_alter_table_analyze_partition
+  which represents the ALTER TABLE ... ANALYZE PARTITION statement.
 */
-class Sql_cmd_analyze_table : public Sql_cmd
+class Sql_cmd_analyze_table : public Sql_cmd_ddl_table
 {
 public:
   /**
+    Specifies which (if any) of the commands UPDATE HISTOGRAM or DROP HISTOGRAM
+    that is specified after ANALYZE TABLE tbl.
+  */
+  enum class Histogram_command
+  {
+    NONE,              ///< Neither UPDATE or DROP histogram is specified
+    UPDATE_HISTOGRAM,  ///< UPDATE HISTOGRAM ... is specified after ANALYZE TABLE
+    DROP_HISTOGRAM     ///< DROP HISTOGRAM ... is specified after ANALYZE TABLE
+  };
+
+  /**
     Constructor, used to represent a ANALYZE TABLE statement.
   */
-  Sql_cmd_analyze_table()
-  {}
+  Sql_cmd_analyze_table(THD *thd,
+                        Alter_info *alter_info,
+                        Histogram_command histogram_command,
+                        int histogram_buckets);
 
   ~Sql_cmd_analyze_table()
   {}
 
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
-  virtual enum_sql_command sql_command_code() const
+  enum_sql_command sql_command_code() const override
   {
     return SQLCOM_ANALYZE;
   }
+
+  /**
+    Set which fields to (try and) create/update or delete histogram statistics
+    for.
+  */
+  bool set_histogram_fields(List<String> *fields);
+private:
+  using columns_set= std::set<String*, Column_name_comparator,
+                            Memroot_allocator<String*>>;
+
+  /// Which histogram command (if any) is specified
+  Histogram_command m_histogram_command= Histogram_command::NONE;
+
+  /// The fields specified by the user in UPDATE/DROP HISTOGRAM
+  columns_set m_histogram_fields;
+
+  /// The number of buckets specified by the user in UPDATE HISTOGRAM
+  int m_histogram_buckets;
+
+  /// @return The histogram command specified, if any.
+  Histogram_command get_histogram_command() const
+  { return m_histogram_command; }
+
+  /// @return The number of buckets specified in UPDATE HISTOGRAM.
+  int get_histogram_buckets() const { return m_histogram_buckets; }
+
+  /// @return The fields specified in UPDATE/DROP HISTOGRAM
+  const columns_set &get_histogram_fields() const
+  { return m_histogram_fields; }
+
+  /**
+    Send the result of histogram operations back to the client as a result set.
+
+    @param thd      Thread handle.
+    @param results  The messages to send back to the client.
+    @param table    The table the operations was performed on.
+
+    @return false on success, true otherwise.
+  */
+  bool
+  send_histogram_results(THD *thd, const histograms::results_map &results,
+                         const TABLE_LIST *table);
+
+  /**
+    Update one or more histograms
+
+    This is invoked by running the command "ANALYZE TABLE tbl UPDATE HISTOGRAM
+    ON col1, col2 WITH n BUCKETS". Note that the function expects exactly one
+    table to be specified, but multiple columns can be specified.
+
+    @param thd Thread handler.
+    @param table The table specified in ANALYZE TABLE
+    @param results A map where the results of the operations will be stored.
+
+    @return false on success, true on error.
+  */
+  bool update_histogram(THD *thd, TABLE_LIST *table,
+                        histograms::results_map &results);
+
+  /**
+    Drops one or more histograms
+
+    This is invoked by running the command "ANALYZE TABLE tbl DROP HISTOGRAM ON
+    col1, col2;". Note that the function expects exactly one table to be
+    specified, but multiple columns can be specified.
+
+    @param thd Thread handler.
+    @param table The table specified in ANALYZE TABLE
+    @param results A map where the results of the operations will be stored.
+
+    @return false on success, true on error.
+  */
+  bool drop_histogram(THD *thd, TABLE_LIST *table,
+                      histograms::results_map &results);
+
+  bool handle_histogram_command(THD *thd, TABLE_LIST *table);
 };
 
 
 
 /**
   Sql_cmd_check_table represents the CHECK TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_check_partition which
+  represents the ALTER TABLE ... CHECK PARTITION statement.
 */
-class Sql_cmd_check_table : public Sql_cmd
+class Sql_cmd_check_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a CHECK TABLE statement.
-  */
-  Sql_cmd_check_table()
-  {}
-
-  ~Sql_cmd_check_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 
@@ -89,18 +185,14 @@ public:
 
 /**
   Sql_cmd_optimize_table represents the OPTIMIZE TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_optimize_partition.
+  represents the ALTER TABLE ... CHECK PARTITION statement.
 */
-class Sql_cmd_optimize_table : public Sql_cmd
+class Sql_cmd_optimize_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a OPTIMIZE TABLE statement.
-  */
-  Sql_cmd_optimize_table()
-  {}
-
-  ~Sql_cmd_optimize_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 
@@ -114,18 +206,14 @@ public:
 
 /**
   Sql_cmd_repair_table represents the REPAIR TABLE statement.
+
+  Also this is a base class of Sql_cmd_alter_table_repair_partition which
+  represents the ALTER TABLE ... REPAIR PARTITION statement.
 */
-class Sql_cmd_repair_table : public Sql_cmd
+class Sql_cmd_repair_table : public Sql_cmd_ddl_table
 {
 public:
-  /**
-    Constructor, used to represent a REPAIR TABLE statement.
-  */
-  Sql_cmd_repair_table()
-  {}
-
-  ~Sql_cmd_repair_table()
-  {}
+  using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
   bool execute(THD *thd);
 

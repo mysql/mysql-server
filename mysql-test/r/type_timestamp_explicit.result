@@ -148,7 +148,7 @@ ix+0
 0
 20030101000000
 drop table t1;
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -172,7 +172,7 @@ t1	timestamp	NO		2003-01-01 00:00:00
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -196,7 +196,7 @@ t1	timestamp	NO		CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime);
 SET TIMESTAMP=1000000004;
 insert into t1 values ();
 select * from t1;
@@ -221,7 +221,7 @@ Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
-create table t1 (t1 timestamp not null default now() on update now(), t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default now() on update now(), t2 datetime);
 SET TIMESTAMP=1000000006;
 insert into t1 values ();
 select * from t1;
@@ -246,7 +246,7 @@ Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
-create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00') charset utf8mb4;
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
@@ -273,7 +273,7 @@ t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime) charset utf8mb4;
+create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime);
 SET TIMESTAMP=1000000009;
 insert into t1 values ();
 select * from t1;
@@ -341,7 +341,7 @@ select * from t1;
 t1	i
 2004-04-01 00:00:00	10
 drop table t1;
-create table t1 (a timestamp null, b timestamp null) charset utf8mb4;
+create table t1 (a timestamp null, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -356,7 +356,7 @@ a	b
 NULL	NULL
 NULL	NULL
 drop table t1;
-create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null) charset utf8mb4;
+create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -371,7 +371,7 @@ a	b
 NULL	NULL
 2001-09-09 04:46:58	NULL
 drop table t1;
-create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00') charset utf8mb4;
+create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -405,7 +405,7 @@ drop table t1;
 set sql_mode='maxdb';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-create table t1 (a timestamp, b timestamp) charset utf8mb4;
+create table t1 (a timestamp, b timestamp);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
@@ -729,7 +729,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # Almost all the scenario's required to test this WL, is already tested
 # by most of existing test case. Adding some basic tests here.
 #
-CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP) charset utf8mb4;
+CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
 ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
 ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
 ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
@@ -754,7 +754,7 @@ t1	CREATE TABLE `t1` (
 # The new behavior affects CREATE SELECT with column definitions
 # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
 # with the new behavior.
-CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) charset utf8mb4 SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -773,7 +773,7 @@ DROP TABLE t2;
 CREATE TABLE t1(
 c1 TIMESTAMP NOT NULL,
 c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
-c3 INT NOT NULL DEFAULT 42) charset utf8mb4;
+c3 INT NOT NULL DEFAULT 42);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -816,7 +816,7 @@ t2_not_null_const TIMESTAMP NOT NULL DEFAULT '2001-01-01 03:03:03',
 i3_null INT NULL,
 t3_null TIMESTAMP NULL,
 i4_not_null INT NOT NULL,
-t4_not_null TIMESTAMP NOT NULL) charset utf8mb4;
+t4_not_null TIMESTAMP NOT NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -833,14 +833,14 @@ t1	CREATE TABLE `t1` (
   `t4_not_null` timestamp NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
-CREATE TABLE t1(a TIMESTAMP, b TIMESTAMP) charset utf8mb4;
+CREATE TABLE t1(a TIMESTAMP, b TIMESTAMP);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT NULL,
   `b` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-CREATE TABLE t2(a INT) charset utf8mb4;
+CREATE TABLE t2(a INT);
 ALTER TABLE t2 ADD COLUMN b TIMESTAMP;
 ALTER TABLE t2 ADD COLUMN c TIMESTAMP;
 SHOW CREATE TABLE t2;

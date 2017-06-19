@@ -1,12 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test KILL and KILL QUERY statements.
 #
-
 -- source include/have_debug_sync.inc
 -- source include/not_threadpool.inc
 
@@ -245,7 +239,7 @@ SET DEBUG_SYNC = 'RESET';
 DROP FUNCTION bug27563;
 
 # Test TRIGGERS
-CREATE TABLE t2 (f2 INT);
+CREATE TABLE t2 (f2 INT) engine myisam;
 delimiter |;
 CREATE TRIGGER trg27563 BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
@@ -371,7 +365,7 @@ SET DEBUG_SYNC = 'RESET';
 drop tables if exists t1, t2, t3;
 --enable_warnings
 
-create table t1 (i int primary key);
+create table t1 (i int primary key) engine myisam;
 connect (blocker, localhost, root, , );
 connect (dml, localhost, root, , );
 connect (ddl, localhost, root, , );

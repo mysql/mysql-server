@@ -74,7 +74,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
     @todo move these into constructor...
   */
   HA_CREATE_INFO create_info(*lex->create_info);
-  Alter_info alter_info(lex->alter_info, thd->mem_root);
+  Alter_info alter_info(*m_alter_info, thd->mem_root);
   ulong priv_needed= ALTER_ACL | DROP_ACL | INSERT_ACL | CREATE_ACL;
 
   DBUG_ENTER("Sql_cmd_alter_table_exchange_partition::execute");
@@ -82,8 +82,6 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(TRUE);
 
-  /* Must be set in the parser */
-  DBUG_ASSERT(select_lex->db);
   /* also check the table to be exchanged with the partition */
   DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
@@ -185,9 +183,23 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                                          partition_element *part_elem)
 {
   HA_CREATE_INFO table_create_info, part_create_info;
-  Alter_info part_alter_info;
+  Alter_info part_alter_info(thd->mem_root);
   Alter_table_ctx part_alter_ctx; // Not used
   DBUG_ENTER("compare_table_with_partition");
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *part_table_def= nullptr;
+  if (!part_table->s->tmp_table)
+  {
+    if (thd->dd_client()->acquire(part_table->s->db.str,
+                                  part_table->s->table_name.str,
+                                  &part_table_def))
+    {
+      DBUG_RETURN(true);
+    }
+    // Should not happen, we know the table exists and can be opened.
+    DBUG_ASSERT(part_table_def != nullptr);
+  }
 
   bool metadata_equal= false;
   memset(&part_create_info, 0, sizeof(HA_CREATE_INFO));
@@ -199,7 +211,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   /* mark all columns used, since they are used when preparing the new table */
   part_table->use_all_columns();
   table->use_all_columns();
-  if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
+  if (mysql_prepare_alter_table(thd, part_table_def,
+                                part_table, &part_create_info,
                                 &part_alter_info, &part_alter_ctx))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
@@ -587,12 +600,7 @@ bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd)
 {
   bool res;
   DBUG_ENTER("Sql_cmd_alter_table_analyze_partition::execute");
-
-  /*
-    Flag that it is an ALTER command which administrates partitions, used
-    by ha_partition
-  */
-  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
+  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res= Sql_cmd_analyze_table::execute(thd);
 
@@ -604,12 +612,7 @@ bool Sql_cmd_alter_table_check_partition::execute(THD *thd)
 {
   bool res;
   DBUG_ENTER("Sql_cmd_alter_table_check_partition::execute");
-
-  /*
-    Flag that it is an ALTER command which administrates partitions, used
-    by ha_partition
-  */
-  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
+  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res= Sql_cmd_check_table::execute(thd);
 
@@ -621,12 +624,7 @@ bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd)
 {
   bool res;
   DBUG_ENTER("Alter_table_optimize_partition_statement::execute");
-
-  /*
-    Flag that it is an ALTER command which administrates partitions, used
-    by ha_partition
-  */
-  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
+  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res= Sql_cmd_optimize_table::execute(thd);
 
@@ -638,12 +636,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd)
 {
   bool res;
   DBUG_ENTER("Sql_cmd_alter_table_repair_partition::execute");
-
-  /*
-    Flag that it is an ALTER command which administrates partitions, used
-    by ha_partition
-  */
-  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
+  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res= Sql_cmd_repair_table::execute(thd);
 
@@ -656,18 +649,15 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   int error;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
-  Alter_info *alter_info= &thd->lex->alter_info;
   uint table_counter;
   Partition_handler *part_handler= nullptr;
   handlerton *hton;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
-
-  /*
-    Flag that it is an ALTER command which administrates partitions, used
-    by ha_partition.
-  */
-  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION |
-                               Alter_info::ALTER_TRUNCATE_PARTITION;
+  DBUG_ASSERT((m_alter_info->flags &
+               (Alter_info::ALTER_ADMIN_PARTITION |
+                Alter_info::ALTER_TRUNCATE_PARTITION)) ==
+              (Alter_info::ALTER_ADMIN_PARTITION |
+               Alter_info::ALTER_TRUNCATE_PARTITION));
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
   first_table->set_lock({TL_WRITE, THR_DEFAULT});
@@ -700,7 +690,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     Prune all, but named partitions,
     to avoid excessive calls to external_lock().
   */
-  first_table->partition_names= &alter_info->partition_names;
+  first_table->partition_names= &m_alter_info->partition_names;
   if (first_table->table->part_info->set_partition_bitmaps(first_table))
     DBUG_RETURN(true);
 

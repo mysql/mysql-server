@@ -27,6 +27,7 @@
 #include "my_io.h"
 #include "stub_pfs_defaults.h"
 #include "stub_print_error.h"
+#include "stub_pfs_plugin_table.h"
 
 /* test helpers, to simulate the setup */
 

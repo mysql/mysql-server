@@ -45,10 +45,10 @@ DROP TABLE t2;
 --echo # Verify that importing the same file twice, triggers error
 --replace_regex /IMPORT TABLE FROM .*/IMPORT TABLE FROM '...', '...'/
 --error ER_IMP_TABLE_ALREADY_EXISTS
---eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.SDI', '$EXPORT_DIR/t1_*.SDI'
+--eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.sdi', '$EXPORT_DIR/t1_*.sdi'
 
 --replace_regex /IMPORT TABLE FROM .*/IMPORT TABLE FROM '...', '...'/
---eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.SDI', '$EXPORT_DIR/t2_*.SDI'
+--eval IMPORT TABLE FROM '$EXPORT_DIR/t1_*.sdi', '$EXPORT_DIR/t2_*.sdi'
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 SELECT * FROM t1;

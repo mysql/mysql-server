@@ -10,7 +10,7 @@
 call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");
 call mtr.add_suppression("The table 't1' is full");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating I_S metadata in InnoDB read-only mode.");
+call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
 --enable_query_log
 
 ################################################################################
@@ -186,9 +186,9 @@ drop table t1;
 #
 # 8. try re-starting server with param so that temp-tablespace can't be expanded
 #    and insert enough data to make it full.
-#
+#    Note that each rollback segment will take one full page
 --echo # test condition of full-temp-tablespace
-let $restart_parameters = restart: --innodb_temp_data_file_path=ibtmp1:32M;
+let $restart_parameters = restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:32M;
 --source include/restart_mysqld.inc
 #
 create temporary table t1
@@ -631,7 +631,7 @@ drop table t1;
 #
 --source include/shutdown_mysqld.inc
 --echo "try starting server with temp-tablespace size < min. threshold"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile1
 let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern_in_file.inc

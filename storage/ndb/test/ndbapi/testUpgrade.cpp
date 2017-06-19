@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -774,6 +774,22 @@ int runUpgrade_NdbdFirst(NDBT_Context* ctx, NDBT_Step* step)
 */
 int runUpgrade_NotAllMGMD(NDBT_Context* ctx, NDBT_Step* step)
 {
+  NdbRestarter restarter;
+  int minMgmVer = 0;
+  int maxMgmVer = 0;
+  int myVer = NDB_VERSION;
+
+  if (restarter.getNodeTypeVersionRange(NDB_MGM_NODE_TYPE_MGM,
+                                        minMgmVer,
+                                        maxMgmVer) == -1)
+  {
+    g_err << "runUpgrade_NotAllMGMD: getNodeTypeVersionRange call failed" << endl;
+  }
+
+  g_err << "runUpgrade_NotAllMGMD: My version " << myVer
+        << " Min mgm version " << minMgmVer
+        << " Max mgm version " << maxMgmVer << endl;
+
   ctx->setProperty("MgmdNodeSet", (Uint32) NodeSet(NotAll));
   ctx->setProperty("NdbdNodeSet", (Uint32) NodeSet(None));
   int res = runUpgrade_Half(ctx, step);

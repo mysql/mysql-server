@@ -20,6 +20,8 @@
 #include <string.h>                             // strncpy
 #include <tap.h>
 
+#include "stub_pfs_plugin_table.h"
+
 static void test_no_registration()
 {
   int rc;

@@ -19,6 +19,7 @@ INSERT INTO t1 VALUES
   ('AAAAAAAAAH','AAAAAAAAAH'), ('AAAAAAAAAI','AAAAAAAAAI'),
   ('AAAAAAAAAJ','AAAAAAAAAJ'), ('AAAAAAAAAK','AAAAAAAAAK');
 
+set session internal_tmp_mem_storage_engine='memory';
 set tmp_table_size=1024;
 
 # Set debug flag so an error is returned when
@@ -41,6 +42,7 @@ WITH qn (z) AS
 SELECT * FROM qn qn0 WHERE z = (SELECT z FROM qn qn1 LIMIT 1);
 
 set tmp_table_size=default;
+set session internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
 
 

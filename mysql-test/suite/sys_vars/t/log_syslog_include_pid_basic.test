@@ -20,37 +20,9 @@
 #                                                                             #
 ###############################################################################
 
---source include/not_windows.inc
+--echo # THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
+--echo #
+--echo # THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
+--echo #   mysql-test\t\log_components_notwin.test
 
-SET @start_value= @@global.log_syslog_include_pid;
-
-SET @@global.log_syslog_include_pid= DEFAULT;
-SELECT @@global.log_syslog_include_pid;
-
-SET @@global.log_syslog_include_pid= 0;
-SELECT @@global.log_syslog_include_pid;
-
-SET @@global.log_syslog_include_pid= 1;
-SELECT @@global.log_syslog_include_pid;
-
-SET @@global.log_syslog_include_pid= ON;
-SELECT @@global.log_syslog_include_pid;
-
-SET @@global.log_syslog_include_pid= OFF;
-SELECT @@global.log_syslog_include_pid;
-
-# wrong
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_syslog_include_pid= 9;
-SELECT @@global.log_syslog_include_pid;
-
---error ER_WRONG_TYPE_FOR_VAR
-SET GLOBAL log_syslog_include_pid= 0.01;
-
---error ER_GLOBAL_VARIABLE
-SET SESSION log_syslog_include_pid= 0;
-
---error ER_GLOBAL_VARIABLE
-SET LOCAL log_syslog_include_pid= 0;
-
-SET @@global.log_syslog_include_pid= @start_value;
+# This "test" should be removed once we have per-component system variables.

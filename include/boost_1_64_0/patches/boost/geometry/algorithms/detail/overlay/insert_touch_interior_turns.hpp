@@ -79,10 +79,12 @@ struct maa_turn_less
         typename MAA_Turn::turn_operation_type op1 = get_correct_op(t1);
         typename MAA_Turn::turn_operation_type op2 = get_correct_op(t2);
 
-        BOOST_GEOMETRY_ASSERT(! op1.fraction.is_zero()
-                              && ! op1.fraction.is_one());
-        BOOST_GEOMETRY_ASSERT(! op2.fraction.is_zero()
-                              && ! op2.fraction.is_one());
+        if (!(! op1.fraction.is_zero()
+              && ! op1.fraction.is_one()))
+          throw exception();
+        if (!(! op2.fraction.is_zero()
+              && ! op2.fraction.is_one()))
+          throw exception();
 
 
         if (op1.seg_id.multi_index != op2.seg_id.multi_index)

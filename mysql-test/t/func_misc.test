@@ -402,7 +402,12 @@ drop table t1;
 # BUG#34289 - Incorrect NAME_CONST substitution in stored procedures breaks
 # replication
 #
+
+set names latin1;
+
 SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
+
+set names utf8mb4;
 
 #
 # Bug #35848: UUID() returns UUIDs with the wrong time

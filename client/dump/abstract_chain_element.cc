@@ -15,6 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <atomic>
 #include <functional>
 
 #include "abstract_chain_element.h"
@@ -22,7 +23,7 @@
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
-my_boost::atomic_uint64_t Abstract_chain_element::next_id;
+std::atomic<uint64_t> Abstract_chain_element::next_id;
 
 uint64 Abstract_chain_element::get_id() const
 {

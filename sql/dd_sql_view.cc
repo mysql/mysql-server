@@ -529,6 +529,8 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
     break;
   case SQLCOM_ALTER_TABLE:
     {
+      DBUG_ASSERT(thd->lex->alter_info);
+
       // Alter operations which affects view column metadata.
       const uint alter_operations= (Alter_info::ALTER_ADD_COLUMN    |
                                     Alter_info::ALTER_DROP_COLUMN   |
@@ -537,7 +539,7 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
                                     Alter_info::ALTER_OPTIONS       |
                                     Alter_info::ALTER_CHANGE_COLUMN_DEFAULT);
       retval= is_non_temp_user_table(thd, db, name) &&
-        (thd->lex->alter_info.flags & alter_operations);
+        (thd->lex->alter_info->flags & alter_operations);
       break;
     }
   case SQLCOM_DROP_TABLE:

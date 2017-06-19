@@ -23,6 +23,7 @@
 #include <string>
 #include <type_traits>          // is_base_of
 #include <utility>
+#include <vector>
 
 #include "binary_log_types.h"   // enum_field_types
 #include "json_binary.h"        // json_binary::Value
@@ -269,7 +270,7 @@ public:
       Array and object should override this method. Not expected to be
       called on other DOM objects.
     */
-    DBUG_ABORT();
+    DBUG_ASSERT(false);
   }
   /* purecov: end */
 
@@ -413,11 +414,11 @@ public:
   /**
     Remove the child element addressed by key. The removed child is deleted.
 
-    @param[in]  child the child to remove
-
-    @return true If that really was a child of this object.
+    @param key the key of the element to remove
+    @retval true if an element was removed
+    @retval false if there was no element with that key
   */
-  bool remove(const Json_dom *child);
+  bool remove(const std::string &key);
 
   /**
     @return The number of elements in the JSON object.
@@ -460,7 +461,8 @@ public:
 class Json_array : public Json_dom
 {
 private:
-  Json_dom_vector m_v;                     //!< Holds the array values
+  /// Holds the array values.
+  std::vector<Json_dom*, Malloc_allocator<Json_dom*>> m_v;
 public:
   Json_array();
   ~Json_array();
@@ -528,19 +530,10 @@ public:
   /**
     Remove the value at this index. A no-op if index is larger than
     size. Deletes the value.
-    @param[in]  index
-    @return true of a value was removed, false otherwise.
+    @param[in]  index  the index of the value to remove
+    @return true if a value was removed, false otherwise.
   */
   bool remove(size_t index);
-
-  /**
-    Remove the child element addressed by key. Deletes the child.
-
-    @param[in]  child the child to remove
-
-    @return true If that really was a child of this object.
-  */
-  bool remove(const Json_dom *child);
 
   /**
     The cardinality of the array (number of values).
@@ -1618,14 +1611,13 @@ public:
   bool get_free_space(size_t *space) const;
 
   /**
-    Attempt a partial update by replacing the value at @a path with @a
+    Attempt a binary partial update by replacing the value at @a path with @a
     new_value. On successful completion, the updated document will be available
     in @a result, and this Json_wrapper will point to @a result instead of the
     original binary representation. The modifications that have been applied,
-    will also be collected in a vector in the TABLE object and can be retrieved
-    via TABLE::get_binary_diffs().
+    will also be collected as binary diffs, which can be retrieved via
+    TABLE::get_binary_diffs().
 
-    @param thd             the current session
     @param field           the column being updated
     @param path            the path of the value to update
     @param new_value       the new value
@@ -1635,16 +1627,43 @@ public:
                            this Json_wrapper so far, or contains the binary
                            representation of the document in this wrapper
                            otherwise)
+    @param[out] partially_updated gets set to true if partial update was
+                                  successful, also if it was a no-op
+    @param[out] replaced_path     gets set to true if the path was replaced,
+                                  will be false if this update is a no-op
 
-    @retval false     if the value was updated in place
-    @retval true      if the value could not be updated in place
+    @retval false     if the update was successful, or if it was determined
+                      that a full update was needed
+    @retval true      if an error occurred
   */
-  bool attempt_partial_update(const THD *thd,
-                              Field_json *field,
-                              const Json_seekable_path &path,
-                              Json_wrapper *new_value,
-                              bool replace,
-                              String *result);
+  bool attempt_binary_update(const Field_json *field,
+                             const Json_seekable_path &path,
+                             Json_wrapper *new_value, bool replace,
+                             String *result, bool *partially_updated,
+                             bool *replaced_path);
+
+  /**
+    Remove a path from a binary JSON document. On successful completion, the
+    updated document will be available in @a result, and this Json_wrapper will
+    point to @a result instead of the original binary representation. The
+    modifications that have been applied, will also be collected as binary
+    diffs, which can be retrieved via TABLE::get_binary_diffs().
+
+    @param field   the column being updated
+    @param path    the path to remove from the document
+    @param[in,out] result  buffer that holds the updated JSON document (is
+                           empty if no partial update has been performed on
+                           this Json_wrapper so far, or contains the binary
+                           representation of the document in this wrapper
+                           otherwise)
+    @param[out] found_path gets set to true if the path is found in the
+                           document, false otherwise
+
+    @retval false   if the value was successfully updated
+    @retval true    if an error occurred
+  */
+  bool binary_remove(const Field_json *field, const Json_seekable_path &path,
+                     String *result, bool *found_path);
 };
 
 /**

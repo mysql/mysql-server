@@ -118,7 +118,6 @@ our $path_charsetsdir;
 our $path_client_bindir;
 our $path_client_libdir;
 our $path_language;
-our $suitedir;
 our $path_current_testlog;
 our $path_testlog;
 
@@ -165,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -190,7 +189,7 @@ our @opt_extra_bootstrap_opt;
 my $opt_stress;
 
 my $opt_compress;
-my $opt_ssl;
+our $opt_ssl;
 my $opt_skip_ssl;
 my @opt_skip_test_list;
 my $opt_do_test_list= "";
@@ -531,6 +530,7 @@ sub main {
   for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
             " $basedir/internal/plugin/*/tests/mtr/plugin.defs".
             " $basedir/rapid/plugin/*/tests/mtr/plugin.defs".
+            " $basedir/components/*/tests/mtr/plugin.defs".
             " suite/*/plugin.defs") {
     read_plugin_defs($_);
   }
@@ -1026,18 +1026,7 @@ sub run_worker ($) {
     chomp($line);
     if ($line eq 'TESTCASE'){
       my $test= My::Test::read_test($server);
-      #$test->print_test();
 
-      # Don't use configurations of the first test case when using --start
-      if ( $start_only and !@opt_cases )
-      {
-        my $default_cnf = "$suitedir/my.cnf";
-        if (! -f $default_cnf )
-        {
-          $default_cnf = "include/default_my.cnf";
-        }
-        $test->{'template_path'} = $default_cnf;
-      }
       # Clear comment and logfile, to avoid
       # reusing them from previous test
       delete($test->{'comment'});
@@ -1426,6 +1415,15 @@ sub command_line_setup {
                                     "$basedir/share/charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
+
+  # On windows, backslashes in the file name argument to "load data
+  # infile" statement should be specified either as forward slashes or
+  # doubled backslashes. If vardir path contains backslashes,
+  # "check-warnings.test" will fail with parallel > 1, because the
+  # path to error log file is calculated using vardir path and this
+  # path is used with "load data infile" statement.
+  # Replace '\' with '/' on windows.
+  $opt_vardir =~ s/\\/\//g if (defined $opt_vardir and IS_WINDOWS);
 
   # --debug[-common] implies we run debug server
   $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
@@ -2579,15 +2577,6 @@ sub environment_setup {
     push(@ld_library_paths, "$path_client_libdir");
   }
 
-  # --------------------------------------------------------------------------
-  # Add the path where libndbclient can be found
-  # --------------------------------------------------------------------------
-  if ( $ndbcluster_enabled )
-  {
-    push(@ld_library_paths,  
-	 "$basedir/storage/ndb/src");
-  }
-
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
@@ -2626,7 +2615,6 @@ sub environment_setup {
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
-  
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
@@ -4035,7 +4023,7 @@ sub mysql_install_db {
              "UPDATE mysql.tables_priv SET
                timestamp = CURRENT_TIMESTAMP,
                Grantor= 'root\@localhost'
-               WHERE USER= 'mysql.session_user';\n");
+               WHERE USER= 'mysql.session';\n");
 
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
@@ -6432,6 +6420,21 @@ sub get_extra_opts {
 }
 
 
+# Collect client options from client.opt file
+sub get_client_options($$)
+{
+  my ($args, $tinfo)= @_;
+
+  foreach my $opt (@{$tinfo->{client_opt}})
+  {
+    # Expand environment variables
+    $opt =~ s/\$\{(\??\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\??\w+)/envsubst($1)/ge;
+    mtr_add_arg($args, $opt);
+  }
+}
+
+
 sub stop_servers($$) {
   my ($tinfo, @servers)= @_;
 
@@ -6869,6 +6872,9 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, $arg);
   }
 
+  # Check for any client options
+  get_client_options($args, $tinfo) if $tinfo->{client_opt};
+
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
@@ -6947,18 +6953,17 @@ sub create_debug_statement {
   my $args= shift;
   my $input= shift;
 
-  # Put $args into a single string
-  my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
-
-  # add quotes to escape ; in plugin_load option
-  my $pos1 = index($runline, "--plugin_load=");
-  if ( $pos1 != -1 ) {
-    my $pos2 = index($runline, " ",$pos1);
-    substr($runline,$pos1+14,0) = "\"";
-    substr($runline,$pos2+1,0) = "\"";
+  # Put arguments into a single string and enclose values which
+  # contain metacharacters in quotes
+  my $runline;
+  for my $arg (@$$args)
+  {
+    $runline.= ( $arg =~ /^(--[a-z0-9_-]+=)(.*[^A-Za-z_0-9].*)$/
+                 ? "$1\"$2\""
+                 : $arg )." ";
   }
 
+  $runline= $input ? "run $runline < $input" : "run $runline";
   return $runline;
 }
 

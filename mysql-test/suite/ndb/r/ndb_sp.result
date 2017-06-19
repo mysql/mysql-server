@@ -36,7 +36,7 @@ test_proc1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,E
     COMMENT 'new comment'
 begin
 select * from t1 where a = var_in;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure test_proc1;
 drop procedure test_proc2;
 drop procedure test_proc3;

@@ -11,6 +11,9 @@ The following options may be given as the first argument:
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
+ --activate-all-roles-on-login 
+ Automatically set all granted roles as active after the
+ user has authenticated successfully.
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -280,6 +283,7 @@ The following options may be given as the first argument:
  DEFAULT clauses. The old behavior is deprecated. The
  variable can only be set by users having the SUPER
  privilege.
+ (Defaults to on; use --skip-explicit-defaults-for-timestamp to disable.)
  --external-locking  Use system (external) locking (disabled by default). 
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
@@ -332,6 +336,9 @@ The following options may be given as the first argument:
  without a GTID to be replicated and executed on all
  servers, and finally set all servers to GTID_MODE = ON.
  -?, --help          Display this help and exit.
+ --histogram-generation-max-mem-size=# 
+ Maximum amount of memory available for generating
+ histograms
  --host-cache-size=# How many host names should be cached to avoid resolving.
  --ignore-builtin-innodb 
  IGNORED. This option will be removed in future releases.
@@ -345,7 +352,7 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-slave=name   Command(s) that are executed by a slave server each time
  the SQL thread starts
- --initialize        Create the default database and exit. Create a super user
+ -I, --initialize    Create the default database and exit. Create a super user
  with a random expired password and store it into the log.
  --initialize-insecure 
  Create the default database and exit. Create a super user
@@ -354,7 +361,11 @@ The following options may be given as the first argument:
  The number of seconds the server waits for activity on an
  interactive connection before closing it
  --internal-tmp-disk-storage-engine[=name] 
- The default storage engine for on-disk internal tmp table
+ The default storage engine for on-disk internal temporary
+ tables.
+ --internal-tmp-mem-storage-engine=name 
+ The default storage engine for in-memory internal
+ temporary tables.
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
  --keep-files-on-create 
@@ -383,7 +394,6 @@ The following options may be given as the first argument:
  Set the language used for the month names and the days of
  the week.
  --local-infile      Enable LOAD DATA LOCAL INFILE
- (Defaults to on; use --skip-local-infile to disable.)
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
@@ -412,6 +422,11 @@ The following options may be given as the first argument:
  user statements in replication binlogs, general query
  logs and audit logs.
  --log-error[=name]  Error log file
+ --log-error-filter-rules[=name] 
+ Error log filter rules
+ --log-error-services=name 
+ Services that should be called when an error event is
+ received
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
  2, log errors and warnings. 3, log errors, warnings, and
@@ -480,6 +495,12 @@ The following options may be given as the first argument:
  If set to 1 table names are stored in lowercase on disk
  and table names will be case-insensitive.  Should be set
  to 2 if you are using a case insensitive file system
+ --mandatory-roles=name 
+ All the specified roles are always considered granted to
+ every user and they can't be revoked. Mandatory roles
+ still require activation unless they are made into
+ default roles. The granted roles will not be visible in
+ the mysql.role_edges table.
  --master-info-file=name 
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
@@ -1120,8 +1141,7 @@ The following options may be given as the first argument:
  updated or deleted them. Possible values are: INDEX_SCAN,
  TABLE_SCAN and HASH_SCAN. Any combination is allowed, and
  the slave will always pick the most suitable algorithm
- for any given scenario. (Default: INDEX_SCAN,
- TABLE_SCAN).
+ for any given scenario. (Default: INDEX_SCAN, HASH_SCAN).
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
@@ -1212,6 +1232,10 @@ The following options may be given as the first argument:
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are OFF, COMMIT or ROLLBACK.
+ --temptable-max-ram=# 
+ Maximum amount of memory (in bytes) the TempTable storage
+ engine is allowed to allocate from the main memory (RAM)
+ before starting to store data on disk.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1221,9 +1245,9 @@ The following options may be given as the first argument:
  --time-format=name  The TIME format (ignored)
  --tls-version=name  TLS version, permitted values are TLSv1, TLSv1.1,
  TLSv1.2(Only for openssl)
- --tmp-table-size=#  If an internal in-memory temporary table exceeds this
- size, MySQL will automatically convert it to an on-disk
- MyISAM table
+ --tmp-table-size=#  If an internal in-memory temporary table in the MEMORY
+ storage engine exceeds this size, MySQL will
+ automatically convert it to an on-disk table
  -t, --tmpdir=name   Path for temporary files. Several paths may be specified,
  separated by a semicolon (;), in this case they are used
  in a round-robin fashion
@@ -1258,9 +1282,15 @@ The following options may be given as the first argument:
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
+ --windowing-use-high-precision 
+ For SQL window functions, determines whether to enable
+ inversion optimization for moving window frames also for
+ floating values.
+ (Defaults to on; use --skip-windowing-use-high-precision to disable.)
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
+activate-all-roles-on-login FALSE
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
@@ -1321,8 +1351,8 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
-expire-logs-days 0
-explicit-defaults-for-timestamp FALSE
+expire-logs-days 30
+explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0
@@ -1337,6 +1367,7 @@ group-concat-max-len 1024
 gtid-executed-compression-period 1000
 gtid-mode OFF
 help TRUE
+histogram-generation-max-mem-size 20000000
 host-cache-size 279
 ignore-builtin-innodb FALSE
 information-schema-stats CACHED
@@ -1347,6 +1378,7 @@ initialize TRUE
 initialize-insecure TRUE
 interactive-timeout 28800
 internal-tmp-disk-storage-engine InnoDB
+internal-tmp-mem-storage-engine TempTable
 join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
@@ -1357,7 +1389,7 @@ language MYSQL_SHAREDIR/
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
-local-infile TRUE
+local-infile FALSE
 lock-wait-timeout 31536000
 log-bin (No default value)
 log-bin-index (No default value)
@@ -1365,6 +1397,8 @@ log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-builtin-as-identified-by-password FALSE
 log-error stderr
+log-error-filter-rules prio>=3? gag. err_code==1408? set_priority 0. err_code==1408? add_field log_label:="HELO". +source_line? delete_field. +err_code? delete_field.
+log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
 log-isam myisam.log
 log-output FILE
@@ -1385,8 +1419,9 @@ log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
+mandatory-roles 
 master-info-file master.info
-master-info-repository FILE
+master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
 max-allowed-packet 4194304
@@ -1465,7 +1500,7 @@ performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
 performance-schema-digests-size -1
-performance-schema-error-size 1087
+performance-schema-error-size ####
 performance-schema-events-stages-history-long-size -1
 performance-schema-events-stages-history-size -1
 performance-schema-events-statements-history-long-size -1
@@ -1485,7 +1520,7 @@ performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
 performance-schema-max-memory-classes 450
 performance-schema-max-metadata-locks -1
-performance-schema-max-mutex-classes 220
+performance-schema-max-mutex-classes 250
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
@@ -1526,7 +1561,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
-relay-log-info-repository FILE
+relay-log-info-repository TABLE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
@@ -1568,7 +1603,7 @@ slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
 slave-preserve-commit-order FALSE
-slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
+slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
@@ -1591,6 +1626,7 @@ sysdate-is-now FALSE
 table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
+temptable-max-ram 1073741824
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
@@ -1600,11 +1636,12 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 transaction-read-only FALSE
-transaction-write-set-extraction OFF
+transaction-write-set-extraction XXHASH64
 updatable-views-with-limit YES
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800
+windowing-use-high-precision TRUE
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

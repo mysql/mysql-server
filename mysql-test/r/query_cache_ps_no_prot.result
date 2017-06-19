@@ -478,7 +478,7 @@ DROP DATABASE mysqltest2;
 
 SELECT DATABASE(), @@collation_database;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 
 EXECUTE stmt_c_1;
 DATABASE()	@@collation_database
@@ -486,29 +486,29 @@ mysqltest1	utf8_unicode_ci
 
 SELECT DATABASE(), @@collation_database;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 
 EXECUTE stmt_c_2;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 Warnings:
 Note	1049	Unknown database 'mysqltest2'
 
 SELECT DATABASE(), @@collation_database;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 
 PREPARE stmt_c_3 FROM 'SELECT DATABASE(), @@collation_database';
 
 EXECUTE stmt_c_3;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 
 use mysqltest1;
 
 EXECUTE stmt_c_2;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 Warnings:
 Note	1049	Unknown database 'mysqltest2'
 
@@ -518,7 +518,7 @@ mysqltest1	utf8_unicode_ci
 
 EXECUTE stmt_c_3;
 DATABASE()	@@collation_database
-NULL	latin1_swedish_ci
+NULL	utf8mb4_0900_ai_ci
 
 SELECT DATABASE(), @@collation_database;
 DATABASE()	@@collation_database

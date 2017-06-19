@@ -57,6 +57,7 @@
 #include "sql_class.h"
 #include "sql_executor.h"
 #include "sql_lex.h"
+#include "window.h"                             // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"                      // JOIN
 #include "sql_select.h"
@@ -185,7 +186,8 @@ bool Query_result_union::create_result_table(THD *thd_arg,
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  NULL, is_union_distinct, true,
-                                 options, HA_POS_ERROR, (char*) table_alias)))
+                                 options, HA_POS_ERROR, (char*) table_alias,
+                                 TMP_WIN_UNCONDITIONAL)))
     return true;
   if (create_table)
   {
@@ -565,7 +567,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (is_union() && !union_needs_tmp_table())
     {
       if (!(tmp_result= union_result=
-            new Query_result_union_direct(thd, sel_result, last_select)))
+            new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
       {
@@ -577,7 +579,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     }
     else
     {
-      if (!(tmp_result= union_result= new Query_result_union(thd)))
+      if (!(tmp_result= union_result= new (*THR_MALLOC) Query_result_union(thd)))
         goto err; /* purecov: inspected */
       instantiate_tmp_table= true;
     }
@@ -652,7 +654,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
-    if (simple_query_expression)
+    if (!is_union())
       types= first_select()->item_list;
     else if (sl == first_select())
     {
@@ -661,6 +663,19 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       Item *item_tmp;
       while ((item_tmp= it++))
       {
+        /*
+          If the outer query has a GROUP BY clause, an outer reference to this
+          query block may have been wrapped in a Item_outer_ref, which has not
+          been fixed yet. An Item_type_holder must be created based on a fixed
+          Item, so use the inner Item instead.
+        */
+        DBUG_ASSERT(item_tmp->fixed ||
+                    (item_tmp->type() == Item::REF_ITEM &&
+                     down_cast<Item_ref *>(item_tmp)->ref_type() ==
+                     Item_ref::OUTER_REF));
+        if (!item_tmp->fixed)
+          item_tmp= item_tmp->real_item();
+
         auto holder= new Item_type_holder(thd_arg, item_tmp);
         if (!holder)
           goto err;                             /* purecov: inspected */
@@ -710,14 +725,14 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       }
     }
 
-    if (sl->recursive_reference && sl->is_grouped())
+    if (sl->recursive_reference &&
+        (sl->is_grouped() || sl->m_windows.elements > 0))
     {
-      // Per SQL2011. Window functions are also forbidden.
+      // Per SQL2011.
       my_error(ER_CTE_RECURSIVE_FORBIDS_AGGREGATION, MYF(0),
                derived_table->alias);
       goto err;
     }
-
   }
 
   if (is_recursive())
@@ -766,7 +781,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
       create_options|= TMP_TABLE_FORCE_MYISAM;
 
-    if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
+    if (union_result->create_result_table(thd, &types,
+                                          union_distinct != nullptr,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;
@@ -1019,8 +1035,8 @@ private:
   ha_rows row_count;
   TABLE *table;                                 ///< Table for result of union
   handler *cached_file;                         ///< 'handler' of 'table'
-  /// Space to store a row position (InnoDB uses 6 bytes, MEMORY uses 8)
-  uchar row_ref[8];
+  /// Space to store a row position (InnoDB uses 6 bytes, MEMORY uses 16)
+  uchar row_ref[16];
 
 public:
 
@@ -1595,8 +1611,10 @@ bool SELECT_LEX::cleanup(bool full)
       join->cleanup();
   }
 
+  THD *const thd= master_unit()->thd;
+
   if (full)
-    destroy_materialized(master_unit()->thd, get_table_list());
+    destroy_materialized(thd, get_table_list());
 
   for (SELECT_LEX_UNIT *lex_unit= first_inner_unit(); lex_unit ;
        lex_unit= lex_unit->next_unit())
@@ -1604,6 +1622,15 @@ bool SELECT_LEX::cleanup(bool full)
     error|= lex_unit->cleanup(full);
   }
   inner_refs_list.empty();
+
+  if (full && m_windows.elements > 0)
+  {
+    List_iterator<Window> li(m_windows);
+    Window *w;
+    while ((w= li++))
+      w->cleanup(thd);
+  }
+
   DBUG_RETURN(error);
 }
 

@@ -620,22 +620,34 @@ from lowest level
 @param[in]	tablespace	table-level tablespace if specified
 @param[in]	part		Partition to check
 @param[in]	sub_part	Sub-partition to check, if no, just NULL
-@return Tablespace name, if [0] = '\0' then nothing specified */
+@return Tablespace name, if nullptr or [0] = '\0' then nothing specified */
 const char* partition_get_tablespace(
 	const char*			tablespace,
 	const partition_element*	part,
 	const partition_element*	sub_part)
 {
-	if (sub_part != NULL
-	    && sub_part->tablespace_name != NULL
-	    && sub_part->tablespace_name[0] != '\0') {
-		return(sub_part->tablespace_name);
+	if (sub_part != nullptr) {
+		if (sub_part->tablespace_name != nullptr
+		    && sub_part->tablespace_name[0] != '\0') {
+			return(sub_part->tablespace_name);
+		}
+		/* Once DATA DIRECTORY specified, it implies
+		non-default tablespace, same as below */
+		if (sub_part->data_file_name != nullptr
+		    && sub_part->data_file_name[0] != '\0') {
+			return(nullptr);
+		}
 	}
 
-	ut_ad(part != NULL);
-	if (part->tablespace_name != NULL
+	ut_ad(part != nullptr);
+	if (part->tablespace_name != nullptr
 	    && part->tablespace_name[0] != '\0') {
 		return(part->tablespace_name);
+	}
+
+	if (part->data_file_name != nullptr
+	    && part->data_file_name[0] != '\0') {
+		return(nullptr);
 	}
 
 	return(tablespace);
@@ -3441,14 +3453,11 @@ ha_innopart::records_in_range(
 	set_partition(part_id);
 	index = m_prebuilt->index;
 
-	/* Only validate the first partition, to avoid too much overhead. */
-
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || index->is_corrupted()
 	    || !index->is_usable(m_prebuilt->trx)) {
 
 		n_rows = HA_POS_ERROR;
@@ -3507,6 +3516,15 @@ ha_innopart::records_in_range(
 		     part_id = m_part_info->get_next_used_partition(part_id)) {
 
 			index = m_part_share->get_index(part_id, keynr);
+			/* Individual partitions can be discarded
+			we need to check each partition */
+			if (index == NULL
+			    || dict_table_is_discarded(index->table)
+			    || !index->is_usable(m_prebuilt->trx)) {
+
+				n_rows = HA_POS_ERROR;
+				goto func_exit;
+			}
 			int64_t n = btr_estimate_n_rows_in_range(index,
 							       range_start,
 							       mode1,

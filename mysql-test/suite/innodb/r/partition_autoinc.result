@@ -32,7 +32,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -49,6 +49,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -64,7 +65,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -83,6 +84,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -100,7 +102,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -118,7 +120,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -155,7 +157,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -183,6 +185,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -195,7 +198,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (2005) ENGINE = InnoDB) */
@@ -212,6 +215,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -226,7 +230,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB) */
 INSERT INTO t1 VALUES(0, 'study desk', '1988-09-16');
@@ -241,6 +245,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -253,6 +258,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
@@ -264,7 +270,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (2008) ENGINE = InnoDB) */
 # restart
@@ -276,7 +282,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (2008) ENGINE = InnoDB) */
 INSERT INTO t1 VALUES(0, 'lava lamp', '2006-01-02');
@@ -292,6 +298,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1.ibd
 SHOW CREATE TABLE t1;
@@ -302,7 +309,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB) */
 INSERT INTO t1 VALUES(0, 'lava lamp', '1992-01-15');
 SELECT MAX(id) AS `Expect 10` FROM t1;
@@ -325,7 +332,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 4 */
 DELETE FROM t1 WHERE id = 6;
 SELECT MAX(id) AS `Expect 5` FROM t1;
@@ -339,6 +346,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -354,7 +362,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 6 */
 INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
 SELECT MAX(id) AS `Expect 7` FROM t1;
@@ -368,6 +376,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -385,7 +394,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 8 */
 # restart
 SHOW CREATE TABLE t1;
@@ -396,7 +405,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 8 */
 INSERT INTO t1 VALUES
 (0, 'aquarium', '2019-08-04'),
@@ -422,7 +431,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 8 */
 DELETE FROM t1 WHERE id = 6;
 SELECT MAX(id) AS `Expect 5` FROM t1;
@@ -436,6 +445,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -451,7 +461,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 6 */
 INSERT INTO t1 VALUES (0, 'popcorn maker', '2010-11-22');
 SELECT MAX(id) AS `Expect 7` FROM t1;
@@ -465,7 +475,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 6 */
 ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 4;
 SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
@@ -475,6 +485,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -487,7 +498,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 2 */
 INSERT INTO t1 VALUES
 (0, 'aquarium', '2019-08-04'),
@@ -503,7 +514,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY HASH (year(`purchased`))
 PARTITIONS 2 */
 DROP TABLE t1;
 # Test for REORGANIZE PARTITION
@@ -527,7 +538,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -546,6 +557,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
@@ -561,7 +573,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -580,7 +592,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -597,6 +609,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p01.ibd
 ./test/t1#p#p02.ibd
@@ -614,7 +627,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -637,7 +650,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -655,6 +668,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p11.ibd
 ./test/t1#p#p12.ibd
@@ -672,7 +686,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -690,7 +704,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
  PARTITION p02 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p11 VALUES LESS THAN (1993) ENGINE = InnoDB,
@@ -724,7 +738,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -747,6 +761,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -769,7 +784,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -790,6 +805,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
@@ -812,7 +828,7 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=102 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (1995) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (2000) ENGINE = InnoDB,
@@ -849,8 +865,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -878,8 +894,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -897,6 +913,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -914,8 +931,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -942,8 +959,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -964,6 +981,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -979,8 +997,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -1007,8 +1025,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -1030,6 +1048,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
@@ -1047,8 +1066,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION sp00 ENGINE = InnoDB,
   SUBPARTITION sp01 ENGINE = InnoDB),
@@ -1073,6 +1092,7 @@ AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 ORDER BY t.space;
 LOWER(path)
+./sys/sys_config.ibd
 ./test/tr.ibd
 ./test/t1#p#p1#sp#sp10.ibd
 ./test/t1#p#p1#sp#sp11.ibd
@@ -1086,8 +1106,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p1 VALUES LESS THAN (2000)
  (SUBPARTITION sp10 ENGINE = InnoDB,
   SUBPARTITION sp11 ENGINE = InnoDB),
@@ -1108,8 +1128,8 @@ t1	CREATE TABLE `t1` (
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (YEAR(purchased))
-SUBPARTITION BY HASH (YEAR(purchased))
+/*!50100 PARTITION BY RANGE (year(`purchased`))
+SUBPARTITION BY HASH (year(`purchased`))
 (PARTITION p1 VALUES LESS THAN (2000)
  (SUBPARTITION sp10 ENGINE = InnoDB,
   SUBPARTITION sp11 ENGINE = InnoDB),

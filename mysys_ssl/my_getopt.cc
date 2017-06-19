@@ -35,8 +35,10 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/service_mysql_alloc.h"
 #include "typelib.h"
+#include <array>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -92,6 +94,21 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   getopt_get_addr= func_addr;
 }
 
+bool is_key_cache_variable_suffix(const char *suffix)
+{
+  static std::array<const char *, 4> key_cache_components= {
+    "key_buffer_size",
+    "key_cache_block_size",
+    "key_cache_division_limit",
+    "key_cache_age_threshold"
+  };
+
+  for (auto component : key_cache_components)
+    if (!my_strcasecmp(&my_charset_latin1, component, suffix))
+      return true;
+
+  return false;
+}
 
 /**
   Wrapper around my_handle_options() for interface compatibility.
@@ -220,10 +237,11 @@ int my_handle_options(int *argc, char ***argv,
   bool end_of_options= 0, must_be_var, set_maximum_value,
        option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
+  char **arg_sep= NULL, **persist_arg_sep= NULL;
   const struct my_option *optp;
   void *value;
   int error, i;
-  bool is_cmdline_arg= 1;
+  bool is_cmdline_arg= 1, is_persist_arg= 1;
   int opt_found;
 
   /* handle_options() assumes arg0 (program name) always exists */
@@ -241,25 +259,57 @@ int my_handle_options(int *argc, char ***argv,
   {
     if (my_getopt_is_args_separator(*pos))
     {
+      arg_sep= pos;
       is_cmdline_arg= 0;
       break;
     }
   }
-  if (pos && *pos)
+  /* search for persist_args_separator */
+  if (arg_sep)
+  {
+    for (pos= arg_sep, pos_end= (*argv + *argc); pos != pos_end ; pos++)
+    {
+      if (my_getopt_is_ro_persist_args_separator(*pos))
+      {
+        persist_arg_sep= pos;
+        is_persist_arg= 0;
+        break;
+      }
+    }
+  }
+  if (arg_sep)
   {
     /*
-      All options which are after args_separator are command line options,
-      thus update the variables_hash with these options with path set
-      to empty string.
+      All options which are between arg_sep and persist_arg_sep are
+      command line options, thus update the variables_hash with these
+      options. If persist_arg_sep is NULL then it means there are no
+      read only persist options, what follows is only command line options.
     */
-    pos+= 1;
-    while (*pos && pos != pos_end)
+    pos= arg_sep + 1;
+    while (*pos && pos != persist_arg_sep)
     {
       update_variable_source((const char*)*pos, NULL);
       ++pos;
     }
   }
-  for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
+  if (persist_arg_sep)
+  {
+    /*
+      All options which are between after persist_arg_sep are
+      read from persistent file, thus update the variables_hash with
+      these options with path set to "$datadir/mysqld-auto.cnf".
+    */
+    pos= persist_arg_sep + 1;
+    char persist_dir[FN_REFLEN]= {0};
+    fn_format(persist_dir, MYSQL_PERSIST_CONFIG_NAME, datadir_buffer,
+              ".cnf", MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH);
+    while (pos && *pos)
+    {
+      update_variable_source((const char *) *pos, persist_dir);
+      ++pos;
+    }
+  }
+  for (pos= *argv, pos_end= pos+ *argc; pos != pos_end ; pos++)
   {
     char **first= pos;
     char *cur_arg= *pos;
@@ -271,6 +321,16 @@ int my_handle_options(int *argc, char ***argv,
       /* save the separator too if skip unkown options  */
       if (my_getopt_skip_unknown)
         (*argv)[argvpos++]= cur_arg;
+      else
+        (*argc)--;
+      continue;
+    }
+    /* skip persist args separator */
+    if (!is_persist_arg && my_getopt_is_ro_persist_args_separator(cur_arg))
+    {
+      is_persist_arg= 1;
+      if (my_getopt_skip_unknown)
+        (*argv) [argvpos++]= cur_arg;
       else
         (*argc)--;
       continue;
@@ -300,6 +360,22 @@ int my_handle_options(int *argc, char ***argv,
 	else
 	  optend= 0;
 
+        /*
+         * For component system variables key_name is the component name and
+         * opt_str is the variable_name. For structured system variables
+         * opt_str will have key_cache_**** and key_name is the variable
+         * instance name And for all other variable key_name will be 0.
+         */
+        if (*key_name)
+        {
+          std::string tmp_name(opt_str, 0, length);
+
+          if (!is_key_cache_variable_suffix(tmp_name.c_str()))
+          {
+            opt_str= cur_arg;
+            length= (uint) ((optend - opt_str) - 1);
+          }
+        }
 	/*
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option

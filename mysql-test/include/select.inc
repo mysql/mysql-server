@@ -3374,7 +3374,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (
  access_id int NOT NULL default '0',
  name varchar(20) default NULL,
- rank int NOT NULL default '0',
+ `rank` int NOT NULL default '0',
  KEY idx (access_id)
 );
 

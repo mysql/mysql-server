@@ -1,18 +1,18 @@
 SET @start_value = @@global.local_infile;
 SELECT @start_value;
 @start_value
-1
+0
 '#--------------------FN_DYNVARS_018_01------------------------#'
 SET @@global.local_infile = 0;
 SET @@global.local_infile = DEFAULT;
 SELECT @@global.local_infile;
 @@global.local_infile
-1
+0
 '#---------------------FN_DYNVARS_018_02-------------------------#'
 SET @@global.local_infile = DEFAULT;
 SELECT @@global.local_infile = 1;
 @@global.local_infile = 1
-1
+0
 '#--------------------FN_DYNVARS_018_03------------------------#'
 SET @@global.local_infile = 0;
 SELECT @@global.local_infile;
@@ -96,4 +96,4 @@ ERROR 42S22: Unknown column 'local_infile' in 'field list'
 SET @@global.local_infile = @start_value;
 SELECT @@global.local_infile;
 @@global.local_infile
-1
+0

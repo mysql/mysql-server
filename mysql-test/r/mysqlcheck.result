@@ -3,7 +3,6 @@ drop view if exists v1;
 drop database if exists client_test_db;
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -43,9 +42,6 @@ mysql.user                                         OK
 sys.sys_config                                     OK
 mtr.global_suppressions                            Table is already up to date
 mtr.test_suppressions                              Table is already up to date
-mysql.column_stats
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -156,7 +152,6 @@ status   : OK
 sys.sys_config
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -193,9 +188,6 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-mysql.column_stats
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.columns_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK

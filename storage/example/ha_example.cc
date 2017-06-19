@@ -974,6 +974,7 @@ mysql_declare_plugin(example)
   "Example storage engine",
   PLUGIN_LICENSE_GPL,
   example_init_func,                            /* Plugin Init */
+  NULL,                                         /* Plugin check uninstall */
   NULL,                                         /* Plugin Deinit */
   0x0001 /* 0.1 */,
   func_status,                                  /* status variables */

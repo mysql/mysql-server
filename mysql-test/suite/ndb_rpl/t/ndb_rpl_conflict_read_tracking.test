@@ -49,7 +49,7 @@ create table test.t1$EX
   NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
   NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
   primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 
 create table test.t2$EX
  (NDB$SERVER_ID         int unsigned,
@@ -63,7 +63,7 @@ create table test.t2$EX
   NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
   NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
   primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 
 --enable_warnings
 --enable_query_log
@@ -78,11 +78,11 @@ eval replace into mysql.ndb_replication values
 
 create table test.t1 (
   a int primary key,
-  b varchar(2000)) engine=ndb;
+  b varchar(2000)) engine=ndb character set latin1;
 
 create table test.t2 (
   a int primary key,
-  b varchar(2000)) engine=ndb;
+  b varchar(2000)) engine=ndb character set latin1;
 
 --sync_slave_with_master slave
 
@@ -466,7 +466,7 @@ create table test.t3$EX
   NDB$CFT_CAUSE         ENUM('ROW_DOES_NOT_EXIST','ROW_ALREADY_EXISTS','DATA_IN_CONFLICT','TRANS_IN_CONFLICT') NOT NULL,
   NDB$ORIG_TRANSID      BIGINT UNSIGNED NOT NULL,
   primary key(NDB$SERVER_ID, NDB$MASTER_SERVER_ID, NDB$MASTER_EPOCH, NDB$COUNT))
-ENGINE=NDB;
+ENGINE=NDB CHARACTER SET latin1;
 
 --echo Populate ndb_replication table as necessary
 eval replace into mysql.ndb_replication values
@@ -478,7 +478,7 @@ create table test.t3 (
   b varchar(2000),
   c int not null unique,
   d int,
-  key(d)) engine=ndb;
+  key(d)) engine=ndb character set latin1;
 
 --sync_slave_with_master slave
 

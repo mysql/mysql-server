@@ -7,7 +7,6 @@ SET @old_engine_defaults =
 (SELECT GROUP_CONCAT(default_value) FROM mysql.engine_cost);
 ALTER TABLE mysql.server_cost DROP COLUMN default_value;
 ALTER TABLE mysql.engine_cost DROP COLUMN default_value;
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -66,7 +65,6 @@ SELECT @old_server_defaults=@new_server_defaults,
 @old_engine_defaults=@new_engine_defaults;
 @old_server_defaults=@new_server_defaults	@old_engine_defaults=@new_engine_defaults
 1	1
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

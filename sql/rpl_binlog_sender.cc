@@ -24,7 +24,7 @@
 #include "hash.h"
 #include "item_func.h"               // user_var_entry
 #include "lex_string.h"
-#include "log.h"                     // sql_print_information
+#include "log.h"
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
 #include "mdl.h"
@@ -125,10 +125,9 @@ void Binlog_sender::init()
   if (check_start_file())
     DBUG_VOID_RETURN;
 
-  sql_print_information("Start binlog_dump to master_thread_id(%u) "
-                        "slave_server(%u), pos(%s, %llu)",
-                        thd->thread_id(), thd->server_id,
-                        m_start_file, m_start_pos);
+  LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_STARTING_DUMP,
+         thd->thread_id(), thd->server_id,
+         m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start,
                (thd, m_flag, m_start_file, m_start_pos,
@@ -626,7 +625,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
   {
   case binary_log::GTID_LOG_EVENT:
     {
-      Format_description_log_event fd_ev(BINLOG_VERSION);
+      Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg= m_event_checksum_alg;
       Gtid_log_event gtid_ev((const char *)event_ptr, event_checksum_on() ?
                              event_len - BINLOG_CHECKSUM_LEN : event_len,
@@ -692,10 +691,11 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 #ifndef DBUG_OFF
       if (hb_info_counter < 3)
       {
-        sql_print_information("master sends heartbeat message");
+        LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT);
         hb_info_counter++;
         if (hb_info_counter == 3)
-          sql_print_information("the rest of heartbeat info skipped ...");
+          LogErr(INFORMATION_LEVEL,
+                 ER_RPL_BINLOG_SKIPPING_REMAINING_HEARTBEAT_INFO);
       }
 #endif
       if (send_heartbeat_event(log_pos))
@@ -718,10 +718,11 @@ void Binlog_sender::init_heartbeat_period()
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
 
-  user_var_entry *entry=
-    (user_var_entry*) my_hash_search(&m_thd->user_vars, (uchar*) name.str,
-                                     name.length);
-  m_heartbeat_period= entry ? entry->val_int(&null_value) : 0;
+  const auto it= m_thd->user_vars.find(to_string(name));
+  if (it == m_thd->user_vars.end())
+     m_heartbeat_period= 0;
+  else
+     m_heartbeat_period= it->second->val_int(&null_value);
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
 }
@@ -886,20 +887,17 @@ void Binlog_sender::init_checksum_alg()
 {
   DBUG_ENTER("init_binlog_checksum");
 
-  LEX_STRING name= {C_STRING_WITH_LEN("master_binlog_checksum")};
-  user_var_entry *entry;
-
   m_slave_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
 
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
 
-  entry= (user_var_entry*) my_hash_search(&m_thd->user_vars,
-                                          (uchar*) name.str, name.length);
-  if (entry)
+  const auto it= m_thd->user_vars.find("master_binlog_checksum");
+  if (it != m_thd->user_vars.end())
   {
     m_slave_checksum_alg=
-      static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);
+      static_cast<enum_binlog_checksum_alg>(
+        find_type((char*) it->second->ptr(), &binlog_checksum_typelib, 1) - 1);
     DBUG_ASSERT(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
@@ -1022,9 +1020,7 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     set_fatal_error("Slave can not handle replication events with the "
                     "checksum that master is configured to log");
 
-    sql_print_warning("Master is configured to log replication events "
-                      "with checksum, but will not send such events to "
-                      "slaves that cannot process them");
+    LogErr(WARNING_LEVEL, ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT);
     DBUG_RETURN(1);
   }
 

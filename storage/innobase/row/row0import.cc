@@ -2075,6 +2075,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
 			block->page.id.page_no(), get_frame(block));
+		/* Fall through. */
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:
@@ -2086,6 +2087,7 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_RSEG_ARRAY:
 
 		/* Work directly on the uncompressed page headers. */
 		/* This is on every page in the tablespace. */
@@ -3510,7 +3512,7 @@ dberr_t
 row_import_for_mysql(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	dd::Table*		table_def,
+	dd::Table*	table_def,
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
 	dberr_t		err;
@@ -3931,6 +3933,9 @@ row_import_for_mysql(
 	DBUG_EXECUTE_IF("ib_import_internal_error",
 			trx->error_state = DB_ERROR;
 			err = DB_ERROR;
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_INTERNAL_ERROR,
+				"While importing table %s", table->name.m_name);
 			return(row_import_error(prebuilt, trx, err)););
 
 	table->ibd_file_missing = false;

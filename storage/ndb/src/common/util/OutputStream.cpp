@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,55 @@
 
 #include <OutputStream.hpp>
 #include <socket_io.h>
+#include <LogBuffer.hpp>
+#include <BaseString.hpp>
+
+BufferedOutputStream::BufferedOutputStream(LogBuffer* plogBuf){
+  logBuf = plogBuf;
+  assert(logBuf != NULL);
+}
+
+int
+BufferedOutputStream::print(const char * fmt, ...){
+  char buf[1];
+  va_list ap;
+  int len = 0;
+  int ret = 0;
+
+  va_start(ap, fmt);
+  len = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
+  assert(len >= 0);
+  va_end(ap);
+
+  va_start(ap, fmt);
+  ret = logBuf->append(fmt, ap, (size_t)len);
+  va_end(ap);
+  return ret;
+}
+
+int
+BufferedOutputStream::println(const char * fmt, ...){
+  char buf[1];
+  va_list ap;
+  int len = 0;
+  int ret = 0;
+
+  va_start(ap, fmt);
+  len = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
+  assert(len >= 0);
+  va_end(ap);
+
+  va_start(ap, fmt);
+  ret = logBuf->append(fmt, ap, (size_t)len, true);
+  va_end(ap);
+  return ret;
+}
+
+int
+BufferedOutputStream::write(const void * buf, size_t len)
+{
+  return (int)(logBuf->append((void*)buf, len));
+}
 
 FileOutputStream::FileOutputStream(FILE * file){
   f = file;
@@ -126,7 +175,6 @@ SocketOutputStream::write(const void * buf, size_t len)
 }
 
 #include <UtilBuffer.hpp>
-#include <BaseString.hpp>
 
 BufferedSockOutputStream::BufferedSockOutputStream(NDB_SOCKET_TYPE socket,
                                                    unsigned write_timeout_ms) :

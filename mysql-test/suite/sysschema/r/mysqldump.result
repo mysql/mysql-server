@@ -8,7 +8,6 @@ mtr
 mysql
 performance_schema
 test
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

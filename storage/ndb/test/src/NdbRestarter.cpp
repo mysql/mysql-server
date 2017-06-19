@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,10 +176,14 @@ NdbRestarter::getMasterNodeId(){
 int
 NdbRestarter::getNodeGroup(int nodeId){
   if (!isConnected())
+  {
     return -1;
+  }
   
   if (getStatus() != 0)
+  {
     return -1;
+  }
   
   for(unsigned i = 0; i < ndbNodes.size(); i++)
   {
@@ -188,7 +192,6 @@ NdbRestarter::getNodeGroup(int nodeId){
       return ndbNodes[i].node_group;
     }
   }
-  
   return -1;
 }
 
@@ -967,6 +970,45 @@ NdbRestarter::getNode(NodeSelector type)
 void
 NdbRestarter::setReconnect(bool val){
   m_reconnect= val;
+}
+
+bool
+in_node_list(const int *dead_nodes, int num_dead_nodes, int nodeId)
+{
+  for (int i = 0; i < num_dead_nodes; i++)
+  {
+    if (dead_nodes[i] == nodeId)
+      return true;
+  }
+  return false;
+}
+
+bool
+NdbRestarter::checkClusterState(const int *dead_nodes, int num_dead_nodes)
+{
+  if (getStatus() != 0)
+    return false;
+
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
+  {
+    if (in_node_list(dead_nodes, num_dead_nodes, ndbNodes[n].node_id))
+    {
+      if (ndbNodes[n].node_status == NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d started, expected dead", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+    else
+    {
+      if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d dead, expected started", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 int

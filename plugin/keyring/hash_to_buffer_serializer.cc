@@ -53,7 +53,9 @@ namespace keyring
                       break;
       case REMOVE_KEY: memory_needed_for_buffer_after_operation -= key->get_key_pod_size();
                        break;
-      case NONE: break;
+      case NONE:
+      case ROTATE:
+        break;
     }
 
     Buffer *buffer= new Buffer(memory_needed_for_buffer_after_operation);

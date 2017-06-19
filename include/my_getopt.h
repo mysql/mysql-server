@@ -96,7 +96,7 @@ struct get_opt_arg_source
   /**
     config file path OR compiled default values
   */
-  const char* m_path_name;
+  char m_path_name[FN_REFLEN];
   enum enum_variable_source m_source;
 };
 
@@ -183,6 +183,7 @@ ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);
 int findopt(char *, uint, const struct my_option **);
 
+bool is_key_cache_variable_suffix(const char *suffix);
 
 C_MODE_END
 

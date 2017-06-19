@@ -66,7 +66,7 @@
 #include "my_decimal.h"
 #include "sql_string.h"
 #include "thr_malloc.h"
-                              // value_map_allocator, value_map_type
+#include "sql/histograms/value_map.h"        // Value_map
 
 #include <stddef.h>
 #include <map>                // std::map
@@ -91,9 +91,15 @@ private:
   /// String representation of the histogram type SINGLETON.
   static constexpr const char *singleton_str() { return "singleton"; }
 
+  using singleton_buckets_allocator=
+    Memroot_allocator<std::pair<const T, double>>;
+
+  using singleton_buckets_type=
+    std::map<const T, double, Histogram_comparator,
+             singleton_buckets_allocator>;
+
   /// The buckets for this histogram [key, cumulative frequency].
-  std::map<const T, double, Histogram_comparator,
-           Memroot_allocator<std::pair<const T, double>>> m_buckets;
+  singleton_buckets_type m_buckets;
 public:
   /**
     Singleton constructor.
@@ -105,19 +111,31 @@ public:
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
   */
-  Singleton(MEM_ROOT *mem_root, std::string db_name, std::string tbl_name,
-            std::string col_name);
+  Singleton(MEM_ROOT *mem_root, const std::string &db_name,
+            const std::string &tbl_name, const std::string &col_name);
+
+  /**
+    Singleton copy-constructor
+
+    This will take a copy of the histogram and all of its contents on the
+    provided MEM_ROOT.
+
+    @param mem_root the MEM_ROOT to allocate the new histogram on.
+    @param other    the histogram to take a copy of
+  */
+  Singleton(MEM_ROOT *mem_root, const Singleton<T> &other);
+
+  Singleton(const Singleton<T> &other) = delete;
 
   /**
     Build the Singleton histogram.
 
-    @param   value_map       values to create the histogram for
-    @param   num_null_values the number of NULL values in the data set
+    @param   value_map   values to create the histogram for
+    @param   num_buckets the number of buckets specified/requested by the user
 
     @return  true on error, false otherwise
   */
-  bool build_histogram(const value_map_type<T> &value_map,
-                       ha_rows num_null_values);
+  bool build_histogram(const Value_map<T> &value_map, size_t num_buckets);
 
   /**
     Convert this histogram to a JSON object.
@@ -144,6 +162,15 @@ public:
     @return a readable string representation of the histogram type
   */
   std::string histogram_type_to_str() const override;
+
+  /**
+    Make a clone of this histogram on a MEM_ROOT.
+
+    @param mem_root the MEM_ROOT to allocate the new histogram contents on.
+
+    @return a copy of the histogram allocated on the provided MEM_ROOT.
+  */
+  Histogram *clone(MEM_ROOT *mem_root) const override;
 private:
   /**
     Add value to a JSON bucket
@@ -168,6 +195,16 @@ private:
   */
   static bool create_json_bucket(const std::pair<T, double> &bucket,
                                  Json_array *json_bucket);
+
+protected:
+  /**
+    Populate this histogram with contents from a JSON object.
+
+    @param json_object a JSON object that represents an Singleton histogram
+
+    @return true on error, false otherwise.
+  */
+  bool json_to_histogram(const Json_object &json_object) override;
 };
 
 } // namespace histograms

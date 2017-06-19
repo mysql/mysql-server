@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,8 @@
 extern "C" {
 #endif
 
-#define dbg_node_set( s ) _dbg_node_set( s , #s )
-#define g_dbg_node_set( s ) _g_dbg_node_set( s , #s )
+#define dbg_node_set(s) _dbg_node_set(s, #s)
+#define g_dbg_node_set(s) _g_dbg_node_set(s, #s)
 bool_t equal_node_set(node_set x, node_set y);
 bool_t is_empty_node_set(node_set set);
 bool_t is_full_node_set(node_set set);
@@ -47,10 +47,8 @@ void remove_node(node_set set, node_no node);
 void xor_node_set(node_set *x, node_set const *y);
 node_set *realloc_node_set(node_set *set, u_int n);
 
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

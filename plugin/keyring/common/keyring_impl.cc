@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <sstream>
 #include <stddef.h>
 #include <memory>
 
@@ -29,10 +30,10 @@ namespace keyring
   PSI_rwlock_key key_LOCK_keyring;
 }
 
-mysql_rwlock_t LOCK_keyring;
+extern mysql_rwlock_t LOCK_keyring;
 
 std::unique_ptr<IKeys_container> keys(nullptr);
-bool is_keys_container_initialized= FALSE;
+volatile bool is_keys_container_initialized= FALSE;
 std::unique_ptr<ILogger> logger(nullptr);
 std::unique_ptr<char[]> keyring_file_data(nullptr);
 
@@ -62,9 +63,80 @@ void keyring_init_psi_keys(void)
 
 bool init_keyring_locks()
 {
-  if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
+  return mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring);
+}
+
+bool is_key_length_and_type_valid(const char *key_type, size_t key_len)
+{
+  bool is_key_len_valid= FALSE;
+  bool is_type_valid= TRUE;
+
+  if(strcmp(key_type, "AES") == 0)
+    is_key_len_valid= (key_len == 16 || key_len == 24 || key_len == 32);
+  else if (strcmp(key_type, "RSA") == 0)
+    is_key_len_valid= (key_len == 128 || key_len == 256 || key_len == 512);
+  else if (strcmp(key_type, "DSA") == 0)
+    is_key_len_valid= (key_len == 128 || key_len == 256 || key_len == 384);
+  else
+  {
+    is_type_valid= FALSE;
+    logger->log(MY_ERROR_LEVEL, "Invalid key type");
+  }
+
+  if (is_type_valid == TRUE && is_key_len_valid == FALSE)
+    logger->log(MY_ERROR_LEVEL, "Invalid key length for given block cipher");
+
+  return is_type_valid && is_key_len_valid;
+}
+
+void log_operation_error(const char *failed_operation, const char *plugin_name)
+{
+ if (logger != NULL)
+ {
+   std::ostringstream err_msg;
+   err_msg << "Failed to " << failed_operation << " due to internal exception inside "
+           << plugin_name << " plugin";
+   logger->log(MY_ERROR_LEVEL, err_msg.str().c_str());
+ }
+}
+
+bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
+{
+  if (!keyring_file_path || strlen(keyring_file_path) == 0)
     return TRUE;
+  char keyring_dir[FN_REFLEN];
+  size_t keyring_dir_length;
+  dirname_part(keyring_dir, keyring_file_path, &keyring_dir_length);
+  if (keyring_dir_length > 1 && (keyring_dir[keyring_dir_length-1] == FN_LIBCHAR))
+  {
+    keyring_dir[keyring_dir_length-1]= '\0';
+    --keyring_dir_length;
+  }
+  int flags=
+#ifdef _WIN32
+    0
+#else
+    S_IRWXU | S_IRGRP | S_IXGRP
+#endif
+    ;
+  /*
+    If keyring_dir_length is 0, it means file
+    is being created current working directory
+  */
+  if (strlen(keyring_dir) != 0)
+   my_mkdir(keyring_dir, flags, MYF(0));
   return FALSE;
+}
+
+void log_opearation_error(const char *failed_operation, const char *plugin_name)
+{
+ if (logger != NULL)
+ {
+   std::ostringstream err_msg;
+   err_msg << "Failed to " << failed_operation << " due to internal exception inside "
+           << plugin_name << " plugin";
+   logger->log(MY_ERROR_LEVEL, err_msg.str().c_str());
+ }
 }
 
 void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
@@ -112,7 +184,7 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
   return FALSE;
 }
 
-bool check_key_for_writting(IKey* key, std::string error_for)
+bool check_key_for_writing(IKey* key, std::string error_for)
 {
   std::string error_msg= "Error while ";
   error_msg+= error_for;
@@ -136,7 +208,7 @@ bool mysql_key_store(std::unique_ptr<IKey> key_to_store)
   if (is_keys_container_initialized == FALSE)
     return TRUE;
 
-  if (check_key_for_writting(key_to_store.get(), "storing"))
+  if (check_key_for_writing(key_to_store.get(), "storing"))
     return TRUE;
 
   if (key_to_store->get_key_data_size() > 0)

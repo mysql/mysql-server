@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,22 +20,18 @@
 extern "C" {
 #endif
 
+extern uint64_t send_count[LAST_OP];
+extern uint64_t receive_count[LAST_OP];
+extern uint64_t send_bytes[LAST_OP];
+extern uint64_t receive_bytes[LAST_OP];
 
-extern uint64_t	send_count[LAST_OP];
-extern uint64_t	receive_count[LAST_OP];
-extern uint64_t	send_bytes[LAST_OP];
-extern uint64_t	receive_bytes[LAST_OP];
-
-double	median_time();
-int	xcom_statistics(task_arg arg);
+double median_time();
+int xcom_statistics(task_arg arg);
 void add_to_filter(double t);
 void median_filter_init();
-
-
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

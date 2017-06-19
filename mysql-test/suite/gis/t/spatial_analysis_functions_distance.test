@@ -1258,11 +1258,11 @@ SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_g
 --error ER_GIS_INVALID_DATA
 SELECT ST_DISTANCE(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 
---error ER_GIS_INVALID_DATA
+--echo # Invalid polygon.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
                    ST_GEOMFROMTEXT('POLYGON((11 11,14 14,15 15,16 16,20 20,11 11))'));
 
---error ER_GIS_INVALID_DATA
+--echo # Invalid polygon.
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(14 14,14 16,16 16,16 14,14 14))'),
                    ST_GEOMFROMTEXT('MULTIPOLYGON(((11 11,14 14,15 15,11 11)),((16 16,20 20,30 30,16 16)))'));
 
@@ -1771,13 +1771,13 @@ DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
 ));
 
 # Exterior with only one point
---error ER_GIS_INVALID_DATA
+--echo # Invalid polygon.
 DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
   'POLYGON((0 0, 0 0, 0 0, 0 0, 0 0))'
 ));
 
 # Interior with only one point
---error ER_GIS_INVALID_DATA
+--echo # Invalid polygon.
 DO ST_DISTANCE(POINT(0, 0), ST_GEOMFROMTEXT(
   'POLYGON((0 0, 10 0, 10 10, 0 10, 0 0),(2 2, 2 2, 2 2, 2 2, 2 2))'
 ));

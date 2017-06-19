@@ -87,7 +87,7 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --echo #  4. Wait until server 2 receives and certifies T1.
 --connection server2
 
---let $wait_condition= SELECT Last_Conflict_Free_Transaction = '8a94f357-aab4-11df-86ab-c80aa9422222:5' from performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Last_Conflict_Free_Transaction = '8a94f357-aab4-11df-86ab-c80aa9422222:5' from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --echo
@@ -99,27 +99,27 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --echo #     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
 --connection server1
 --let $wait_timeout= 65
---let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
 --source include/wait_condition.inc
 
 --connection server1
---let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
 --let $assert_text= 'Count_transactions_rows_validating must be 2'
 --let $assert_cond= $count_transactions_validating = 2
 --source include/assert.inc
 
---let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
 --let $assert_text= 'Transactions_committed_all_members must be equal to $group_replication_group_name:1-4'
 --let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", "$group_replication_group_name:1-4")
 --source include/assert.inc
 
 --connection server2
---let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
 --let $assert_text= 'Count_transactions_rows_validating must be 2'
 --let $assert_cond= $count_transactions_validating = 2
 --source include/assert.inc
 
---let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
 --let $assert_text= 'Transactions_committed_all_members must be equal to $group_replication_group_name:1-4'
 --let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", "$group_replication_group_name:1-4")
 --source include/assert.inc

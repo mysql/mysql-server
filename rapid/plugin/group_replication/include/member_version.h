@@ -16,6 +16,8 @@
 #ifndef MEMBER_VERSION_INCLUDED
 #define	MEMBER_VERSION_INCLUDED
 
+#include <string>
+
 #include "my_inttypes.h"
 
 class Member_version
@@ -28,6 +30,10 @@ public:
   */
   uint32 get_version() const;
 
+  /**
+    @return returns the member version in string format.
+  */
+  const std::string get_version_string() const;
   /**
     @return returns the major version (Major.v.v)
   */

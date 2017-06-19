@@ -23,7 +23,7 @@ create procedure stamp(i int)
 insert into db1_secret.t1 values (user(), i);
 show procedure status like 'stamp';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 create function db() returns varchar(64)
 begin
 declare v varchar(64);
@@ -32,7 +32,7 @@ return v;
 end|
 show function status like 'db';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call stamp(1);
 select * from t1;
 u	i
@@ -86,11 +86,11 @@ anon@localhost	3
 alter procedure stamp sql security invoker;
 show procedure status like 'stamp';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+db1_secret	stamp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 alter function db sql security invoker;
 show function status like 'db';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
-db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+db1_secret	db	FUNCTION	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	INVOKER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call stamp(4);
 select * from t1;
 u	i
@@ -398,19 +398,19 @@ USE mysqltest;
 SHOW CREATE PROCEDURE wl2897_p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` PROCEDURE `wl2897_p1`()
-SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE wl2897_p3;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 wl2897_p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` PROCEDURE `wl2897_p3`()
-SELECT 3	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
-RETURN 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
-RETURN 3	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
@@ -483,7 +483,7 @@ BEGIN
 DECLARE a INT;
 SET a=1;
 SELECT a;
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP PROCEDURE IF EXISTS test.sp19857;
 
 ---> connection: root

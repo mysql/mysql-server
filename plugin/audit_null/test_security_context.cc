@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -154,6 +154,7 @@ mysql_declare_plugin(test_security_context)
   "Test security context service",    /* description                     */
   PLUGIN_LICENSE_GPL,
   NULL,                               /* init function (when loaded)     */
+  NULL,                               /* check uninstall function        */
   NULL,                               /* deinit function (when unloaded) */
   0x0001,                             /* version                         */
   NULL,                               /* status variables                */

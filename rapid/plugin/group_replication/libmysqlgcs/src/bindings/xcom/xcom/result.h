@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-
 #ifndef RESULT_H
 #define RESULT_H
 
@@ -25,42 +23,23 @@ extern "C" {
 #include "x_platform.h"
 
 /* Combined return value and error code */
-	struct result
-	{
-		int val;
-		int funerr;
-	};
-	typedef struct result result;
+struct result {
+  int val;
+  int funerr;
+};
+typedef struct result result;
 
-	enum err_limits{
-		errno_max = 1000000,
-		ssl_zero = 2000000
-	};
+enum err_limits { errno_max = 1000000, ssl_zero = 2000000 };
 
-	static inline int to_errno(int err)
-	{
-		return err;
-	}
+static inline int to_errno(int err) { return err; }
 
-	static inline int to_ssl_err(int err)
-	{
-		return err + ssl_zero;
-	}
+static inline int to_ssl_err(int err) { return err + ssl_zero; }
 
-	static inline int from_errno(int err)
-	{
-		return err;
-	}
+static inline int from_errno(int err) { return err; }
 
-	static inline int from_ssl_err(int err)
-	{
-		return err - ssl_zero;
-	}
+static inline int from_ssl_err(int err) { return err - ssl_zero; }
 
-	static inline int is_ssl_err(int err)
-	{
-		return err > errno_max;
-	}
+static inline int is_ssl_err(int err) { return err > errno_max; }
 
 #ifdef __cplusplus
 }

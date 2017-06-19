@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -253,6 +253,7 @@ enum monitor_id_t {
 	MONITOR_BLOB_PAGE_READ,
 	MONITOR_ZBLOB_PAGE_READ,
 	MONITOR_ZBLOB2_PAGE_READ,
+	MONITOR_RSEG_ARRAY_PAGE_READ,
 	MONITOR_OTHER_PAGE_READ,
 	MONITOR_INDEX_LEAF_PAGE_WRITTEN,
 	MONITOR_INDEX_NON_LEAF_PAGE_WRITTEN,
@@ -269,6 +270,7 @@ enum monitor_id_t {
 	MONITOR_BLOB_PAGE_WRITTEN,
 	MONITOR_ZBLOB_PAGE_WRITTEN,
 	MONITOR_ZBLOB2_PAGE_WRITTEN,
+	MONITOR_RSEG_ARRAY_PAGE_WRITTEN,
 	MONITOR_OTHER_PAGE_WRITTEN,
 
 	/* OS level counters (I/O) */

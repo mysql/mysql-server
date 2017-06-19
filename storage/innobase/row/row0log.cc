@@ -2040,6 +2040,7 @@ row_log_table_apply_update(
 
 		When applying the subsequent ROW_T_DELETE, no matching
 		record will be found. */
+		/* Fall through. */
 	case DB_SUCCESS:
 		ut_ad(row != NULL);
 		break;
@@ -2421,6 +2422,9 @@ row_log_table_apply_op(
 		next_mrec = mrec + rec_offs_data_size(offsets);
 
 		if (log->table->n_v_cols) {
+			if (next_mrec + 2 > mrec_end) {
+				return(NULL);
+			}
 			next_mrec += mach_read_from_2(next_mrec);
 		}
 

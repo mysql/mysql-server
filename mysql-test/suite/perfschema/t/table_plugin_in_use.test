@@ -1,0 +1,435 @@
+################################################################################
+# Test case to test functionality in which a plugin/component can add its own
+# tables in performance schema.
+#
+# This test covers various case when the plugin is in use during uninstall
+#
+################################################################################
+
+connect(con1, localhost, root,,);
+
+connect(con2, localhost, root,,);
+
+connect(mon, localhost, root,,);
+
+--connection default
+
+--echo #################
+--echo # INITIAL STATE #
+--echo #################
+
+update performance_schema.setup_objects
+  set ENABLED = "YES", TIMED = "YES"
+  where OBJECT_TYPE = "TABLE" and OBJECT_SCHEMA = "performance_schema";
+
+FLUSH TABLES;
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###########
+--echo # INSTALL #
+--echo ###########
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con1
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+echo "===== In con1 : Issue query";
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con2
+let $con2_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+echo "===== In con2 : Starting transaction";
+begin;
+select * from performance_schema.pfs_example_employee_name;
+
+--connection default
+let $con_default_thread_id= `select THREAD_ID from performance_schema.threads
+  where PROCESSLIST_ID = connection_id()`;
+
+--echo ##############
+--echo # UN INSTALL #
+--echo ##############
+
+echo "===== In default : Sending UNINSTALL";
+--send
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+--connection mon
+
+# Wait for MDL 'EXCLUSIVE' for connection default to appear
+let $wait_condition=  select count(*) = 1
+  from performance_schema.metadata_locks
+  where
+  OBJECT_TYPE='TABLE' and
+  OBJECT_SCHEMA='performance_schema' and
+  OBJECT_NAME="pfs_example_employee_name" and
+  LOCK_TYPE='EXCLUSIVE' and
+  LOCK_DURATION='TRANSACTION' and
+  LOCK_STATUS='PENDING' and
+  OWNER_THREAD_ID=$con_default_thread_id;
+--source include/wait_condition.inc
+
+--disable_query_log
+echo "===== Check table lock status ";
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  OWNER_THREAD_ID, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_NAME like "pfs_example_%";
+
+echo "===== Check Thread Status for default connection ";
+eval select NAME, PROCESSLIST_COMMAND, PROCESSLIST_STATE, PROCESSLIST_INFO
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+
+echo "===== Check metadata lock status ";
+eval select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  from performance_schema.metadata_locks
+  where OBJECT_NAME like "pfs_example_%"
+  and (OWNER_THREAD_ID = $con_default_thread_id
+       OR OWNER_THREAD_ID = $con1_thread_id
+       OR OWNER_THREAD_ID = $con2_thread_id)
+  order by LOCK_STATUS;
+--enable_query_log
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+--connection con1
+
+echo "===== In con1 : Send a query. About to block";
+--send
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con2
+
+echo "===== In con2 : Still alive. Issue a query.";
+select * from performance_schema.pfs_example_employee_name;
+
+--connection mon
+
+# Wait for MDL 'SHARED_READ' for connection con1 to appear
+let $wait_condition=  select count(*) = 1
+  from performance_schema.metadata_locks
+  where
+  OBJECT_TYPE='TABLE' and
+  OBJECT_SCHEMA='performance_schema' and
+  OBJECT_NAME="pfs_example_employee_name" and
+  LOCK_TYPE='SHARED_READ' and
+  LOCK_DURATION='TRANSACTION' and
+  LOCK_STATUS='PENDING' and
+  OWNER_THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
+--disable_query_log
+echo "===== Check table lock status ";
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  OWNER_THREAD_ID, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_NAME like "pfs_example_%";
+
+echo "===== Check Thread Status for default connection ";
+eval select NAME, PROCESSLIST_COMMAND, PROCESSLIST_STATE, PROCESSLIST_INFO
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+
+echo "===== Check metadata lock status ";
+eval select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  from performance_schema.metadata_locks
+  where OBJECT_NAME like "pfs_example_%"
+  and (OWNER_THREAD_ID = $con_default_thread_id
+       OR OWNER_THREAD_ID = $con1_thread_id
+       OR OWNER_THREAD_ID = $con2_thread_id)
+  order by LOCK_STATUS;
+--enable_query_log
+
+--connection con2
+
+echo "===== In con2 : Closing transaction";
+commit;
+
+--echo ########
+--echo # CON1 #
+--echo ########
+
+--connection con1
+--error ER_NO_SUCH_TABLE
+--reap
+
+--echo ########################
+--echo # UNINSTALL completing #
+--echo ########################
+
+--connection default
+--reap
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###############
+--echo # INSTALL (2) #
+--echo ###############
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con1
+
+echo "===== In con1 : Issue query.";
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con2
+
+echo "===== In con2 : Start transaction.";
+begin;
+select * from performance_schema.pfs_example_employee_name;
+
+--connection default
+
+--echo ##################
+--echo # UN INSTALL (2) #
+--echo ##################
+
+echo "===== In default : Sending UNINSTALL";
+--send
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+--connection mon
+
+# Wait for MDL 'EXCLUSIVE' for connection default to appear
+let $wait_condition=  select count(*) = 1
+  from performance_schema.metadata_locks
+  where
+  OBJECT_TYPE='TABLE' and
+  OBJECT_SCHEMA='performance_schema' and
+  OBJECT_NAME="pfs_example_employee_name" and
+  LOCK_TYPE='EXCLUSIVE' and
+  LOCK_DURATION='TRANSACTION' and
+  LOCK_STATUS='PENDING' and
+  OWNER_THREAD_ID=$con_default_thread_id;
+--source include/wait_condition.inc
+
+--disable_query_log
+echo "===== Check table lock status ";
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  OWNER_THREAD_ID, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_NAME like "pfs_example_%";
+
+echo "===== Check Thread Status for default connection ";
+eval select NAME, PROCESSLIST_COMMAND, PROCESSLIST_STATE, PROCESSLIST_INFO
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+
+echo "===== Check metadata lock status ";
+eval select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  from performance_schema.metadata_locks
+  where OBJECT_NAME like "pfs_example_%"
+  and (OWNER_THREAD_ID = $con_default_thread_id
+       OR OWNER_THREAD_ID = $con1_thread_id
+       OR OWNER_THREAD_ID = $con2_thread_id)
+  order by LOCK_STATUS;
+--enable_query_log
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+--connection con1
+
+echo "===== In con1 : Send query. About to block";
+--send
+select * from performance_schema.pfs_example_employee_name;
+
+--connection con2
+
+echo "===== In con2 : Still alive. Issue query.";
+select * from performance_schema.pfs_example_employee_name;
+
+--connection mon
+
+# Wait for MDL 'SHARED_READ' for connection con1 to appear
+let $wait_condition=  select count(*) = 1
+  from performance_schema.metadata_locks
+  where
+  OBJECT_TYPE='TABLE' and
+  OBJECT_SCHEMA='performance_schema' and
+  OBJECT_NAME="pfs_example_employee_name" and
+  LOCK_TYPE='SHARED_READ' and
+  LOCK_DURATION='TRANSACTION' and
+  LOCK_STATUS='PENDING' and
+  OWNER_THREAD_ID=$con1_thread_id;
+--source include/wait_condition.inc
+
+--disable_query_log
+echo "===== Check table lock status ";
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  OWNER_THREAD_ID, INTERNAL_LOCK, EXTERNAL_LOCK
+  from performance_schema.table_handles
+  where OBJECT_NAME like "pfs_example_%";
+
+echo "===== Check Thread Status for default connection ";
+eval select NAME, PROCESSLIST_COMMAND, PROCESSLIST_STATE, PROCESSLIST_INFO
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+
+echo "===== Check metadata lock status ";
+eval select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  from performance_schema.metadata_locks
+  where OBJECT_NAME like "pfs_example_%"
+  and (OWNER_THREAD_ID = $con_default_thread_id
+       OR OWNER_THREAD_ID = $con1_thread_id
+       OR OWNER_THREAD_ID = $con2_thread_id)
+  order by LOCK_STATUS;
+
+--echo #########################
+--echo # KILLING UNINSTALL (2) #
+--echo #########################
+
+eval select PROCESSLIST_ID into @pid
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+--enable_query_log
+
+kill query @pid;
+
+# Make sure that UNINSTALL query from connection default has been killed
+let $wait_condition=  select count(*) = 0
+  from performance_schema.threads
+  where NAME = "thread/sql/one_connection"
+  and PROCESSLIST_INFO like "UNINSTALL %" and
+  THREAD_ID = $con_default_thread_id;
+--source include/wait_condition.inc
+
+--connection con2
+
+echo "===== In con2 : Closing transaction";
+commit;
+
+--echo ########
+--echo # CON1 #
+--echo ########
+
+--connection con1
+--reap
+
+--echo ############################
+--echo # UNINSTALL (2) completing #
+--echo ############################
+
+--connection default
+--error ER_QUERY_INTERRUPTED
+--reap
+show errors;
+
+select name from mysql.plugin
+  where name like 'pfs_example_%';
+
+select TABLE_SCHEMA, TABLE_NAME, ENGINE, VERSION, TABLE_COMMENT
+  from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%"
+  order by table_name;
+
+describe performance_schema.pfs_example_employee_name;
+
+show create table performance_schema.pfs_example_employee_name;
+
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ##################
+--echo # UN INSTALL (3) #
+--echo ##################
+
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+
+select * from INFORMATION_SCHEMA.tables
+  where TABLE_NAME like "pfs_example_%";
+
+--error ER_NO_SUCH_TABLE
+describe performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.pfs_example_employee_name;
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.pfs_example_employee_name;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+update performance_schema.setup_objects
+  set ENABLED = "NO", TIMED = "NO"
+  where OBJECT_TYPE = "TABLE" and OBJECT_SCHEMA = "performance_schema";
+
+FLUSH TABLES;
+
+--disconnect con1
+--disconnect con2
+--disconnect mon

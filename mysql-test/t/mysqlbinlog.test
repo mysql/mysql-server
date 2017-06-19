@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # We are using .opt file since we need small binlog size
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
 # Forced the statement binlog format at .opt file
@@ -99,12 +94,12 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 # Bug#7853 mysqlbinlog does not accept input from stdin
 --echo --- reading stdin --
---let $mysqlbinlog_parameters= --short-form - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--let $mysqlbinlog_parameters= --short-form - < $MYSQL_TEST_DIR/std_data/master-bin.000001
 --source include/mysqlbinlog.inc
 
 # postion is constant to correspond to an event in pre-recorded binlog
---let $binlog_start_pos=79
---let $mysqlbinlog_parameters= --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
+--let $binlog_start_pos=123
+--let $mysqlbinlog_parameters= --short-form --start-position=$binlog_start_pos - < $MYSQL_TEST_DIR/std_data/master-bin.000001
 --source include/mysqlbinlog.inc
 
 drop table t1,t2;
@@ -289,7 +284,7 @@ let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 
 --echo Bug#31611 Security risk with BINLOG statement
 
-SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT='ROW';
 CREATE DATABASE mysqltest1;
 CREATE USER untrusted@localhost;
 GRANT SELECT ON mysqltest1.* TO untrusted@localhost;

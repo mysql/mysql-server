@@ -137,6 +137,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "trx0roll.h"
+#include "trx0rseg.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "trx0xa.h"
@@ -548,6 +549,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
 	PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0),
 	PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
 	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0),
@@ -603,6 +605,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(dict_persist_checkpoint),
 	PSI_RWLOCK_KEY(fil_space_latch),
 	PSI_RWLOCK_KEY(checkpoint_lock),
+	PSI_RWLOCK_KEY(undo_spaces_lock),
+	PSI_RWLOCK_KEY(rsegs_lock),
 	PSI_RWLOCK_KEY(fts_cache_rw_lock),
 	PSI_RWLOCK_KEY(fts_cache_init_rw_lock),
 	PSI_RWLOCK_KEY(trx_i_s_cache_lock),
@@ -985,10 +989,6 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"truncated_status_writes",
   (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
-  {"available_rollback_segments",
-  (char*) &export_vars.innodb_available_rollback_segments,SHOW_LONG, SHOW_SCOPE_GLOBAL},
-  {"available_undo_logs",
-  (char*) &export_vars.innodb_available_undo_logs,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #ifdef UNIV_DEBUG
   {"purge_trx_id_age",
   (char*) &export_vars.innodb_purge_trx_id_age,		  SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1640,7 +1640,7 @@ innobase_create_handler(
 		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
 		if (file && file->init_partitioning(mem_root))
 		{
-			delete file;
+			destroy(file);
 			return(NULL);
 		}
 		return(file);
@@ -3789,28 +3789,16 @@ predefine_undo_tablespaces(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd)
 {
-	Space_Ids::iterator	it;
-	for (it = trx_sys_undo_spaces->begin();
-	     it != trx_sys_undo_spaces->end(); ++it) {
-		space_id_t	space_id = *it;
-		ut_ad(fsp_is_undo_tablespace(space_id));
-
-		FilSpace space(space_id);
-		ut_a(space() != NULL);
-		/* Every undo tablespace has only one file now */
-		ut_ad(UT_LIST_GET_LEN(space()->chain) == 1);
-
-		static constexpr char fmt[] = "innodb_undo%03u";
-		char name[sizeof fmt];
-		snprintf(name, sizeof name, fmt, space_id);
-
-		fil_node_t*	node = UT_LIST_GET_FIRST(
-			space()->chain);
+	/** Undo tablespaces use a reserved range of tablespace ID. */
+	for (auto undo_space : undo::spaces->m_spaces) {
 		ulint flags = fsp_flags_init(
 			univ_page_size, false, false, false, false);
 
-		if (predefine_tablespace(dd_client, thd, space_id,
-					 flags, name, node->name)) {
+		if (predefine_tablespace(dd_client, thd,
+					 undo_space->id(),
+					 flags,
+					 undo_space->space_name(),
+					 undo_space->file_name())) {
 			return(true);
 		}
 	}
@@ -4201,6 +4189,7 @@ innodb_init_params()
 	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
 	}
+	os_normalize_path(srv_undo_dir);
 
 	/* The default dir for log files is the datadir of MySQL */
 
@@ -4824,15 +4813,6 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 	return(fail);
 }
 
-/** @brief Initialize the default and max value of innodb_rollback_segments.
-Once InnoDB is running, the default value and the max value of
-innodb_rollback_segments must be equal to srv_available_rollback_segments.
-This does not include the rollback segments in the temporary tablespace
-set by srv_tmp_rollback_segments. */
-static
-void
-innodb_rollback_segments_init_default_max();
-
 /** Open or create InnoDB data files.
 @param[in]	dict_init_mode	whether to create or open the files
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
@@ -4868,6 +4848,13 @@ innobase_init_files(
 	}
 
 	if (srv_is_upgrade_mode) {
+		if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+		    || srv_read_only_mode) {
+			ib::error() << "Database upgrade cannot be"
+				" accomplished in read-only mode.";
+			DBUG_RETURN(innodb_init_abort());
+		}
+
 		dict_sys_table_id_build();
 		/* Disable AHI when we start loading tables for purge.
 		These tables are evicted anyway after purge. */
@@ -4960,9 +4947,6 @@ innobase_init_files(
 
 	/* Create mutex to protect encryption master_key_id. */
 	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
-
-	/* Adjust the innodb_rollback_segments config object */
-	innodb_rollback_segments_init_default_max();
 
 	innobase_old_blocks_pct = static_cast<uint>(
 		buf_LRU_old_ratio_update(innobase_old_blocks_pct, TRUE));
@@ -7607,14 +7591,9 @@ ha_innobase::open_dict_table(
 
 		if (ib_table != NULL) {
 #ifndef _WIN32
-			sql_print_warning("Partition table %s opened"
-					  " after converting to lower"
-					  " case. The table may have"
-					  " been moved from a case"
-					  " in-sensitive file system."
-					  " Please recreate table in"
-					  " the current file system\n",
-					  norm_name);
+			LogErr(WARNING_LEVEL,
+			  ER_INNODB_PARTITION_TABLE_LOWERCASED,
+			  norm_name);
 #else
 			sql_print_warning("Partition table %s opened"
 					  " after skipping the step to"
@@ -12313,7 +12292,9 @@ innobase_dict_init(
 	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
 	static Plugin_table innodb_table_stats(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_table_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
@@ -12329,10 +12310,14 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	static Plugin_table innodb_index_stats(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_index_stats",
 		/* Definition */
 		"  database_name VARCHAR(64) NOT NULL, \n"
@@ -12356,10 +12341,14 @@ innobase_dict_init(
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
 		"DEFAULT CHARSET=utf8 COLLATE=utf8_bin "
-		"STATS_PERSISTENT=0");
+		"STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_dynamic_metadata(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_dynamic_metadata",
 		/* Definition */
 		"  table_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,\n"
@@ -12367,10 +12356,14 @@ innobase_dict_init(
 		"  metadata BLOB NOT NULL\n",
 		/* Options */
 		" ENGINE=INNODB ROW_FORMAT=DYNAMIC "
-		" STATS_PERSISTENT=0");
+		" STATS_PERSISTENT=0",
+                /* Tablespace */
+                MYSQL_TABLESPACE_NAME.str);
 
 	static const Plugin_table innodb_ddl_log(
-		/* Name */
+		/* Schema Name */
+		"mysql",
+		/* Table Name */
 		"innodb_ddl_log",
 		/* Definition */
 		" id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n"
@@ -12385,7 +12378,9 @@ innobase_dict_init(
 		" KEY(thread_id)\n",
 		/* Options */
 		" ENGINE=INNODB"
-		" STATS_PERSISTENT=0");
+		" STATS_PERSISTENT=0",
+		/* Tablespace */
+		MYSQL_TABLESPACE_NAME.str);
 
 	tables->push_back(&innodb_table_stats);
 	tables->push_back(&innodb_index_stats);
@@ -13285,7 +13280,11 @@ create_table_info_t::create_table(
 	if (handler == NULL
 	    && stmt != NULL
 	    && dd_table != nullptr
-	    && !dd_table->foreign_keys().empty()
+	    /* FIXME: NewDD: WL#6049 should add a new call to check if a table
+	    is a parent table of any FK. If the table is not child table, nor
+	    parent table, then it can skip the check:
+	    dd_table->foreign_keys().empty() &&
+	    dd_table->referenced_keys().empty() */
 	) {
 		dberr_t	err = DB_SUCCESS;
 		err = row_table_add_foreign_constraints(
@@ -20281,6 +20280,96 @@ innodb_reset_all_monitor_update(
 			      TRUE);
 }
 
+/** Update the number of undo tablespaces active when the system variable
+innodb_undo_tablespaces is changed.
+This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[in]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+static
+void
+innodb_undo_tablespaces_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	ulong	target = *static_cast<const ulong*>(save);
+
+	if (srv_undo_tablespaces == target) {
+		return;
+	}
+
+	if (srv_read_only_mode) {
+		ib::warn() << "Cannot set innodb_undo_tablespaces to "
+			<< target << " when in read-only mode.";
+		return;
+	}
+
+	if (srv_force_recovery > 0) {
+		ib::warn() << "Cannot set innodb_undo_tablespaces to "
+			<< target << " when in innodb_force_recovery > 0.";
+		return;
+	}
+
+	if (target == 0) {
+		ib::info() << "Setting 'innodb_undo_tablespaces' to 0 is"
+			" deprecated and will not be supported in a future"
+			" release.";
+	}
+
+	if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
+		ib::warn() << "Failed to set innodb_undo_tablespaces to "
+			<< target << ".";
+		return;
+	}
+
+	srv_undo_tablespaces = target;
+}
+
+/** Update the number of rollback segments per tablespace when the
+system variable innodb_rollback_segments is changed.
+This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[in]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+static
+void
+innodb_rollback_segments_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	ulong	target = *static_cast<const ulong*>(save);
+
+	if (srv_rollback_segments == target) {
+		return;
+	}
+
+	if (srv_read_only_mode) {
+		ib::warn() << "Cannot set innodb_rollback_segments to "
+			<< target << " when in read-only mode";
+		return;
+	}
+
+	if (srv_force_recovery > 0) {
+		ib::warn() << "Cannot set innodb_rollback_segments to "
+			<< target << " when in innodb_force_recovery > 0";
+		return;
+	}
+
+	if (!trx_rseg_adjust_rollback_segments(srv_undo_tablespaces, target)) {
+		ib::warn() << "Failed to set innodb_rollback_segments to "
+			<< target;
+		return;
+	}
+
+	srv_rollback_segments = target;
+}
+
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can list the monitor counters/groups to be enable by specifying
@@ -20826,7 +20915,7 @@ static MYSQL_SYSVAR_BOOL(log_checksums, innodb_log_checksums,
   NULL, innodb_log_checksums_update, TRUE);
 
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
-  PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "The common part for InnoDB table spaces.",
   NULL, NULL, NULL);
 
@@ -20956,12 +21045,12 @@ static MYSQL_SYSVAR_ENUM(flush_method, innodb_flush_method,
   &innodb_flush_method_typelib);
 
 static MYSQL_SYSVAR_BOOL(force_load_corrupted, srv_load_corrupted,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Force InnoDB to load metadata of corrupted table.",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to InnoDB log files.", NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
@@ -21194,7 +21283,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_load_abort, innodb_buffer_pool_load_abort,
 
 /* there is no point in changing this during runtime, thus readonly */
 static MYSQL_SYSVAR_BOOL(buffer_pool_load_at_startup, srv_buffer_pool_load_at_startup,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Load the buffer pool from a file named @@innodb_buffer_pool_filename",
   NULL, NULL, TRUE);
 
@@ -21322,7 +21411,7 @@ static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Page size to use for all InnoDB tablespaces.",
   NULL, NULL, UNIV_PAGE_SIZE_DEF,
   UNIV_PAGE_SIZE_MIN, UNIV_PAGE_SIZE_MAX, 0);
@@ -21400,41 +21489,31 @@ static MYSQL_SYSVAR_ULONG(thread_sleep_delay, srv_thread_sleep_delay,
   1000000L, 0);
 
 static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Path to files and their sizes making temp-tablespace.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Directory where undo tablespace files live, this path can be absolute.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
   "Number of undo tablespaces to use. ",
-  NULL, NULL,
-  0L,							/* Default seting */
-  0L,							/* Minimum value */
-  TRX_SYS_N_RSEGS - TRX_SYS_OLD_TMP_RSEGS - 1, 0);	/* Maximum value */
-
-/* Alias for innodb_rollback_segments. This is the number of rollback
-segments to use in the system tablespace and all undo tablespaces. */
-static MYSQL_SYSVAR_ULONG(undo_logs, srv_rollback_segments,
-  PLUGIN_VAR_OPCMDARG,
-  "Number of rollback segments to use for durable transactions.",
-  NULL, NULL,
-  TRX_SYS_N_RSEGS,	/* Default setting */
-  1,			/* Minimum value */
-  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
+  NULL, innodb_undo_tablespaces_update,
+  2L,				/* Default seting */
+  0L,				/* Minimum value */
+  FSP_MAX_UNDO_TABLESPACES, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_tablespace_size,
   PLUGIN_VAR_OPCMDARG,
-  "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
+  "Maximum size of an UNDO tablespace in MB (If an UNDO tablespace grows"
   " beyond this size it will be truncated in due course). ",
   NULL, NULL,
   1024 * 1024 * 1024L,
@@ -21451,17 +21530,19 @@ static MYSQL_SYSVAR_ULONG(purge_rseg_truncate_frequency,
 static MYSQL_SYSVAR_BOOL(undo_log_truncate, srv_undo_log_truncate,
   PLUGIN_VAR_OPCMDARG,
   "Enable or Disable Truncate of UNDO tablespace.",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
-/* Alias for innodb_undo_logs.  This is the number of rollback segments
-to use in the system tablespace and all undo tablespaces. */
+/*  This is the number of rollback segments per undo tablespace.
+This applies to the temporary tablespace, the system tablespace,
+and all undo tablespaces. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
-  "Number of rollback segments to use for durable transactions.",
-  NULL, NULL,
-  TRX_SYS_N_RSEGS,	/* Default setting */
-  1,			/* Minimum value */
-  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
+  "Number of rollback segments per tablespace. This applies to the system"
+  " tablespace, the temporary tablespace & any undo tablespace.",
+  NULL, innodb_rollback_segments_update,
+  FSP_MAX_ROLLBACK_SEGMENTS,		/* Default setting */
+  1,					/* Minimum value */
+  FSP_MAX_ROLLBACK_SEGMENTS, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
@@ -21480,7 +21561,7 @@ static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   AUTOINC_NO_LOCKING, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(version, innodb_version_str,
-  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "InnoDB version", NULL, NULL, INNODB_VERSION_STR);
 
 static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
@@ -21628,7 +21709,7 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   NULL, NULL, 50, 0, 75, 0);
 
 static MYSQL_SYSVAR_BOOL(read_only, srv_read_only_mode,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "Start InnoDB in read only mode (off by default)",
   NULL, NULL, FALSE);
 
@@ -21709,7 +21790,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "List of directories to scan for missing tablespace files.",
   NULL, NULL, "");
 
@@ -21855,7 +21936,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(status_output_locks),
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
-  MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(max_undo_log_size),
   MYSQL_SYSVAR(purge_rseg_truncate_frequency),
   MYSQL_SYSVAR(undo_log_truncate),
@@ -21893,6 +21973,7 @@ mysql_declare_plugin(innobase)
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innodb_init, /* Plugin Init */
+  NULL, /* Plugin Check uninstall */
   NULL, /* Plugin Deinit */
   INNODB_VERSION_SHORT,
   innodb_status_variables_export,/* status variables */
@@ -21950,23 +22031,6 @@ innobase_commit_concurrency_init_default()
 {
 	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
 		= innobase_commit_concurrency;
-}
-
-/** @brief Initialize the default and max value of innodb_rollback_segments.
-Once InnoDB is running, the default value and the max value of
-innodb_rollback_segments must be equal to srv_available_rollback_segments.
-This allows these two settings to change srv_rollback_segments at runtime
-to a value less than the total available rollback segments.
-Then get_next_redo_rseg() will only distribute srv_rollback_segments rsegs
-to new transactions. */
-static
-void
-innodb_rollback_segments_init_default_max() {
-	MYSQL_SYSVAR_NAME(rollback_segments).max_val
-		= MYSQL_SYSVAR_NAME(rollback_segments).def_val
-		= MYSQL_SYSVAR_NAME(undo_logs).max_val
-		= MYSQL_SYSVAR_NAME(undo_logs).def_val
-		= static_cast<unsigned long>(srv_available_rollback_segments);
 }
 
 /****************************************************************************

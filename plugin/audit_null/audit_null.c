@@ -794,6 +794,7 @@ mysql_declare_plugin(audit_null)
   "Simple NULL Audit",        /* description                     */
   PLUGIN_LICENSE_GPL,
   audit_null_plugin_init,     /* init function (when loaded)     */
+  NULL,                       /* check uninstall function        */
   audit_null_plugin_deinit,   /* deinit function (when unloaded) */
   0x0003,                     /* version                         */
   simple_status,              /* status variables                */

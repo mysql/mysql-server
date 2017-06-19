@@ -31,6 +31,7 @@
 #include "../../sql/dd/impl/types/weak_object_impl.h"
 #include "../../sql/dd/sdi_file.h"
 #include "../../sql/dd/types/column.h"
+#include "../../sql/dd/types/column_statistics.h"
 #include "../../sql/dd/types/column_type_element.h"
 #include "../../sql/dd/types/foreign_key.h"
 #include "../../sql/dd/types/foreign_key_element.h"
@@ -44,6 +45,9 @@
 #include "../../sql/dd/types/table.h"
 #include "../../sql/dd/types/tablespace.h"
 #include "../../sql/dd/types/tablespace_file.h"
+#include "histograms/equi_height.h"
+#include "histograms/histogram.h"
+#include "histograms/value_map.h"
 #include "my_inttypes.h"
 
 namespace {
@@ -116,6 +120,25 @@ static void mock_dd_obj(dd::Column *c)
   {
     dynamic_cast<dd::Column_impl*>(c)->set_ordinal_position(1);
   }
+}
+
+
+static void mock_column_statistics_obj(dd::Column_statistics *c,
+                                      MEM_ROOT *mem_root)
+{
+  c->set_schema_name("my_schema");
+  c->set_table_name("my_table");
+  c->set_column_name("my_column");
+
+  histograms::Value_map<longlong> int_values(&my_charset_latin1);
+  int_values.add_values(0LL, 10);
+
+  histograms::Equi_height<longlong> *equi_height=
+    new (mem_root) histograms::Equi_height<longlong>(mem_root, "my_schema",
+                                                     "my_table", "my_column");
+
+  EXPECT_FALSE(equi_height->build_histogram(int_values, 1024));
+  c->set_histogram(equi_height);
 }
 
 
@@ -375,6 +398,33 @@ TEST(SdiTest, Column)
   simple_test<dd::Column>();
 }
 
+TEST(SdiTest, Column_statistics)
+{
+  std::unique_ptr<dd::Column_statistics>
+    dd_obj(dd::create_object<dd::Column_statistics>());
+
+  MEM_ROOT mem_root;
+  init_alloc_root(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
+
+  mock_column_statistics_obj(dd_obj.get(), &mem_root);
+
+  /*
+    We only support proper serialization of column statistics. Proper
+    deserialization (which will include re-generating histogram data) will be
+    available later.
+  */
+  dd::String_type sdi= serialize_drv(dd_obj.get());
+  EXPECT_FALSE(sdi.empty());
+
+  std::unique_ptr<dd::Column_statistics>
+    deserialized{deserialize_drv<dd::Column_statistics>(sdi)};
+
+  EXPECT_TRUE(dd_obj.get()->schema_name() == deserialized.get()->schema_name());
+  EXPECT_TRUE(dd_obj.get()->table_name() == deserialized.get()->table_name());
+  EXPECT_TRUE(dd_obj.get()->column_name() == deserialized.get()->column_name());
+  free_root(&mem_root, MYF(0));
+}
+
 TEST(SdiTest, Index_element)
 {
   simple_test<dd::Index_element>();
@@ -504,7 +554,7 @@ TEST(SdiTest, Utf8Filename)
   x.set_id(42);
   dd::String_type path= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
   std::replace(path.begin(), path.end(), '\\', '/');
-  EXPECT_EQ("./foobar/@0800_42.SDI", path);
+  EXPECT_EQ("./foobar/@0800_42.sdi", path);
 }
 
 TEST(SdiTest, Utf8FilenameTrunc)
@@ -522,7 +572,7 @@ TEST(SdiTest, Utf8FilenameTrunc)
   dd::String_type fn= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
   std::replace(fn.begin(), fn.end(), '\\', '/');
   EXPECT_EQ(96u, fn.length());
-  EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.SDI", fn);
+  EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.sdi", fn);
 }
 
 TEST(SdiTest, EqualPrefixCharsAscii)

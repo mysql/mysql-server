@@ -1,0 +1,26 @@
+-- source include/have_ndb.inc
+# We are using some debug-only features in this test
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#24444878 MYSQLD CRASHED DURING UNIQUE KEY CREATION
+--echo #              WITH AN ERROR "VOID HA_NDBCLUSTER
+--echo #
+
+create table t1(
+  a int primary key,
+  b int
+) engine=ndb;
+insert into t1 values (1,1);
+
+--echo # Set debug variable to make get_metadata() fail during
+--echo # the alter
+set global debug='+d,ndb_get_metadata_fail';
+
+--echo # Run alter which will fail due to the debug variable
+--error ER_TABLE_DEF_CHANGED
+alter table t1 add unique(b);
+
+set global debug='';
+
+drop table t1;

@@ -2018,7 +2018,14 @@ log_checkpoint(
 
 	rw_lock_x_lock(&dict_persist->lock);
 
-	dict_persist_to_dd_table_buffer();
+	bool	has_persisted = dict_persist_to_dd_table_buffer();
+	lsn_t	persist_lsn = 0;
+
+	if (has_persisted) {
+		log_mutex_enter();
+		persist_lsn = log_sys->lsn;
+		log_mutex_exit();
+	}
 
 #ifndef _WIN32
 	switch (srv_unix_file_flush_method) {
@@ -2039,6 +2046,8 @@ log_checkpoint(
 
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
+	lsn_t	flush_lsn = std::max(persist_lsn, oldest_lsn);
+
 	/* Because log also contains headers and dummy log records,
 	log_buf_pool_get_oldest_modification() will return log_sys->lsn
 	if the buffer pool contains no dirty buffers.
@@ -2051,7 +2060,7 @@ log_checkpoint(
 
 	log_mutex_exit();
 
-	log_write_up_to(oldest_lsn, true);
+	log_write_up_to(flush_lsn, true);
 
 	DBUG_EXECUTE_IF(
 		"using_wa_checkpoint_middle",

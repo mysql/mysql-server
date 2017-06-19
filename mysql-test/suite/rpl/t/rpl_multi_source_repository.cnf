@@ -9,8 +9,6 @@
 log-slave-updates
 
 [mysqld.2]
-master-info-repository=FILE
-relay-log-info-repository=FILE
 log-slave-updates
 
 [mysqld.3]

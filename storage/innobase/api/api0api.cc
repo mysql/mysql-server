@@ -1801,9 +1801,11 @@ ib_cursor_read_row(
 				dict_table_is_comp(tuple->index->table));
 			rec = btr_pcur_get_rec(pcur);
 
-			if (prebuilt->innodb_api_rec &&
-			    prebuilt->innodb_api_rec != rec) {
-				rec = prebuilt->innodb_api_rec;
+			if (!rec_get_deleted_flag(rec, page_format)) {
+				if (prebuilt->innodb_api &&
+					prebuilt->innodb_api_rec != NULL) {
+					rec =prebuilt->innodb_api_rec;
+				}
 			}
 
 			if (!rec_get_deleted_flag(rec, page_format)) {
@@ -1839,6 +1841,9 @@ ib_cursor_position(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 	unsigned char*	buf;
 
+	if (prebuilt->innodb_api) {
+		prebuilt->cursor_heap = cursor->heap;
+	}
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
@@ -1879,6 +1884,9 @@ ib_cursor_next(
 	row_prebuilt_t* prebuilt = cursor->prebuilt;
 	byte		buf[UNIV_PAGE_SIZE_MAX];
 
+	if (prebuilt->innodb_api) {
+		prebuilt->cursor_heap = cursor->heap;
+	}
 	/* We want to move to the next record */
 	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
@@ -1931,6 +1939,9 @@ ib_cursor_moveto(
 
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
 
+	if (prebuilt->innodb_api) {
+		prebuilt->cursor_heap = cursor->heap;
+	}
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, static_cast<page_cur_mode_t>(ib_srch_mode), prebuilt,
 		cursor->match_mode, direction));
@@ -3160,7 +3171,8 @@ ib_cursor_open_table_using_id(
 	dict_table_t*	table;
 	MDL_ticket*	mdl = nullptr;
 
-	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd, &mdl, false);
+	table = dd_table_open_on_id(table_id, ib_trx->mysql_thd,
+				    &mdl, false, true);
 
 	if (table == NULL) {
 

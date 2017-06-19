@@ -28,7 +28,8 @@
 #include "my_sys.h"       // my_error
 #include "mysqld_error.h" // Error codes
 
-#include "gis/functor.h" // gis::not_implemented_exception
+#include "gis/functor.h"  // gis::not_implemented_exception
+#include "gis/gc_utils.h" // gis::invalid_geometry_exception
 
 #include <new> // std::bad_alloc
 #include <stdexcept> // Other std exceptions
@@ -119,6 +120,10 @@ void handle_gis_exception(const char *funcname)
   {
     my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), funcname,
              e.type_name(1), e.type_name(2));
+  }
+  catch (const gis::invalid_geometry_exception &e)
+  {
+    my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
   }
   catch (const boost::geometry::centroid_exception &)
   {

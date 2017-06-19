@@ -34,35 +34,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 
 #ifndef UNIV_HOTBACKUP
-/** Builds a roll pointer.
-@param[in]	is_insert	TRUE if insert undo log
-@param[in]	rseg_id		rollback segment id
-@param[in]	page_no		page number
-@param[in]	offset		offset of the undo entry within page
-@return roll pointer */
-UNIV_INLINE
-roll_ptr_t
-trx_undo_build_roll_ptr(
-	ibool		is_insert,
-	ulint		rseg_id,
-	page_no_t	page_no,
-	ulint		offset);
-
-/** Decodes a roll pointer.
-@param[in]	roll_ptr	roll pointer
-@param[out]	is_insert	TRUE if insert undo log
-@param[out]	rseg_id		rollback segment id
-@param[out]	page_no		page number
-@param[out]	offset		offset of the undo entry within page */
-UNIV_INLINE
-void
-trx_undo_decode_roll_ptr(
-	roll_ptr_t	roll_ptr,
-	ibool*		is_insert,
-	ulint*		rseg_id,
-	page_no_t*	page_no,
-	ulint*		offset);
-
 /***********************************************************************//**
 Returns TRUE if the roll pointer is of the insert type.
 @return TRUE if insert undo log */

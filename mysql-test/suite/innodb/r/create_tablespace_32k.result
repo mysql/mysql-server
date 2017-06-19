@@ -59,6 +59,7 @@ Error	1528	Failed to create TABLESPACE s_64k
 Error	1031	Table storage engine for 's_64k' doesn't have this option
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_32k	General	DEFAULT	0	Any	s_32k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	MYSQLD_DATADIR/s_32k.ibd
@@ -127,6 +128,7 @@ INSERT INTO t_dyn_in_32k VALUES (4,'d');
 # restart
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_32k	General	DEFAULT	0	Any	s_32k.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	s_32k.ibd

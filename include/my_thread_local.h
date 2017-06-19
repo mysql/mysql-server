@@ -23,60 +23,9 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
 typedef uint32 my_thread_id;
 
 C_MODE_START
-
-#ifdef _WIN32
-typedef DWORD thread_local_key_t;
-#else
-typedef pthread_key_t thread_local_key_t;
-#endif
-
-static inline int my_create_thread_local_key(thread_local_key_t *key,
-                                             void (*destructor)(void *))
-{
-#ifdef _WIN32
-  *key= TlsAlloc();
-  return (*key == TLS_OUT_OF_INDEXES);
-#else
-  return pthread_key_create(key, destructor);
-#endif
-}
-
-static inline int my_delete_thread_local_key(thread_local_key_t key)
-{
-#ifdef _WIN32
-  return !TlsFree(key);
-#else
-  return pthread_key_delete(key);
-#endif
-}
-
-static inline void* my_get_thread_local(thread_local_key_t key)
-{
-#ifdef _WIN32
-  return TlsGetValue(key);
-#else
-  return pthread_getspecific(key);
-#endif
-}
-
-static inline int my_set_thread_local(thread_local_key_t key,
-                                      void *value)
-{
-#ifdef _WIN32
-  return !TlsSetValue(key, value);
-#else
-  return pthread_setspecific(key, value);
-#endif
-}
 
 /**
   Retrieve the MySQL thread-local storage variant of errno.

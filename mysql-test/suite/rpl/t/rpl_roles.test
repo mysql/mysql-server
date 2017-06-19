@@ -1,0 +1,64 @@
+################# suite/rpl/t/rpl_roles.test #########################
+#                                                                    #
+# Testing of roles feature in replication setup                      #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2016-08-26 prabprad Added this test as part of WL#988 Roles        #
+#                                                                    #
+######################################################################
+
+--source include/master-slave.inc
+# Create roles, user and role hierarchy on master
+--connection master
+CREATE ROLE r1, r2, r3;
+CREATE USER u1@localhost;
+GRANT r1 TO r2;
+GRANT r2 TO u1@localhost;
+GRANT r3 TO u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE ALL;
+--source include/sync_slave_sql_with_master.inc
+
+# On slave, check if all objects created on master are
+# replicated to slave or not. Also do basic operations on
+# master and ensure that they are replicated as expected
+# All the operations done in master will affect the
+# mysql.roles_edges and mysql.default_roles table only.
+# Hence only this table is checked on slave.
+--connection slave
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--connection master
+REVOKE r3 FROM u1@localhost;
+ALTER USER u1@localhost DEFAULT ROLE r1;
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--connection master
+ALTER USER u1@localhost DEFAULT ROLE NONE;
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+--connection master
+REVOKE r1 FROM r2;
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+
+--echo # Cleanup Statement
+--connection master
+DROP ROLE r1, r2, r3;
+DROP USER u1@localhost;
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM mysql.default_roles;
+SELECT * FROM mysql.role_edges;
+source include/show_binlog_events.inc;
+--source include/rpl_end.inc
+
+
+
+
+

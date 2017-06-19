@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "auto_thd.h"
 
-#include "log.h"                      // sql_print_error
+#include "log.h"
 #include "sql_class.h"                // THD
 #include "sql_thd_internal_api.h"     // create_thd / destroy_thd
 
@@ -49,11 +49,20 @@ Auto_THD::~Auto_THD()
   @return This function always return false.
 */
 bool Auto_THD::handle_condition(THD *thd MY_ATTRIBUTE((unused)),
-  uint sql_errno MY_ATTRIBUTE((unused)),
-  const char* sqlstate MY_ATTRIBUTE((unused)),
+  uint sql_errno,
+  const char *sqlstate,
   Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-  const char* msg)
+  const char *msg)
 {
-  sql_print_error("%s", msg);
+  /*
+    Currently logging at ERROR_LEVEL for backward compatibility.
+    Perhaps change this to *level later?
+  */
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(ERROR_LEVEL)
+            .errcode(sql_errno)
+            .sqlstate(sqlstate)
+            .verbatim(msg);
+
   return false;
 }

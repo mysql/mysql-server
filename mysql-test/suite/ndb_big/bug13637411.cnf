@@ -7,7 +7,6 @@ mysqld=
 
 NoOfReplicas=1
 DataMemory=21G
-IndexMemory=220M
 Diskless=1
 Checksum=1
 

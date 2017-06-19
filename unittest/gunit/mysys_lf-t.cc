@@ -29,11 +29,10 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "lf.h"
 
 
 namespace mysys_lf_unittest {
-
-#include <lf.h>
 
 #include "thr_template.cc"
 

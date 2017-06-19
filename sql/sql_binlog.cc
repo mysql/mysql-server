@@ -52,31 +52,15 @@ static int check_event_type(int type, Relay_log_info *rli)
 {
   Format_description_log_event *fd_event= rli->get_rli_description_event();
 
-  /*
-    Convert event type id of certain old versions (see comment in
-    Format_description_log_event::Format_description_log_event(char*,...)).
-  */
-  if (fd_event && fd_event->event_type_permutation)
-  {
-#ifndef DBUG_OFF
-    Log_event_type new_type;
-    new_type= (Log_event_type) fd_event->event_type_permutation[type];
-    DBUG_PRINT("info", ("converting event type %d to %d (%s)",
-                        type, new_type, Log_event::get_type_str(new_type)));
-#endif
-    type= fd_event->event_type_permutation[type];
-  }
-
   switch (type)
   {
-  case binary_log::START_EVENT_V3:
   case binary_log::FORMAT_DESCRIPTION_EVENT:
     /*
       We need a preliminary FD event in order to parse the FD event,
       if we don't already have one.
     */
     if (!fd_event)
-      rli->set_rli_description_event(new Format_description_log_event(4));
+      rli->set_rli_description_event(new Format_description_log_event());
 
     /* It is always allowed to execute FD events. */
     return 0;

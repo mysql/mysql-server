@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <algorithm>
 #include <new>
 
 #include "m_string.h"
@@ -66,16 +67,6 @@ void my_dirend(MY_DIR *buffer)
   }
   DBUG_VOID_RETURN;
 } /* my_dirend */
-
-
-	/* Compare in sort of filenames */
-
-static int comp_names(const void *a_arg, const void *b_arg)
-{
-  const struct fileinfo *a= pointer_cast<const struct fileinfo*>(a_arg);
-  const struct fileinfo *b= pointer_cast<const struct fileinfo*>(b_arg);
-  return (strcmp(a->name,b->name));
-} /* comp_names */
 
 
 #if !defined(_WIN32)
@@ -147,8 +138,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   result->number_off_files= dir_entries_storage->size();
 
   if (!(MyFlags & MY_DONT_SORT))
-    my_qsort((void *) result->dir_entry, result->number_off_files,
-          sizeof(FILEINFO), comp_names);
+    std::sort(result->dir_entry, result->dir_entry + result->number_off_files,
+      [](const fileinfo &a, const fileinfo &b) {
+        return strcmp(a.name, b.name) < 0;
+      });
   DBUG_RETURN(result);
 
  error:
@@ -302,8 +295,10 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   result->number_off_files= dir_entries_storage->size();
 
   if (!(MyFlags & MY_DONT_SORT))
-    my_qsort((void *) result->dir_entry, result->number_off_files,
-          sizeof(FILEINFO), comp_names);
+    std::sort(result->dir_entry, result->dir_entry + result->number_off_files,
+      [](const fileinfo &a, const fileinfo &b) {
+        return strcmp(a.name, b.name) < 0;
+      });
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
   DBUG_RETURN(result);
 error:

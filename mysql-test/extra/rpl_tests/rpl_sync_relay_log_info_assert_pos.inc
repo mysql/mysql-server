@@ -26,25 +26,6 @@ if ($_rrli_expected != "N")
 }
 --source include/rpl_connection_slave.inc
 
-# When the master flushed the binary log, this will trigger the relay log to
-# be rotated and the relay log info will be flushed once the SQL thread
-# reaches the rotate.
-# The info obtained in the beginning of this include will show that the master
-# position is right after binary log FD + Previous_gtids, but the
-# master_position flushed by the slave in the relay info table repository in
-# this case will be the beginning of the master's binary log (4).
-# Without the following workaround this include would generate an assertion
-# failure as the information stored on the repository was updated to (4) but
-# this value is different from master's actual position (around 194 when this
-# test case was designed).
-if ($_rrli_counter == 4)
-{
-  if (`SELECT @@GLOBAL.sync_relay_log_info = 0`)
-  {
-    --let $master_pos= 4
-  }
-}
-
 # Ensure that the SQL thread is waiting for more events if started
 --let $is_slave_sql_running= query_get_value(SHOW SLAVE STATUS $_for_channel, Slave_SQL_Running, 1)
 if ($is_slave_sql_running == 'Yes' )

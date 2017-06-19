@@ -52,7 +52,7 @@
 #  3. DROP DATABASE: See details in rpl_split_statements_debug.test
 #
 #  4. CREATE TABLE ... SELECT: this statement contains both DDL and
-#     DML.  When binlog_format=ROW, all DML must be logged in row
+#     DML.  When binlog_format='ROW', all DML must be logged in row
 #     format, but at the same time DDL can only be logged in statement
 #     format.  Therefore this statement is logged as a CREATE TABLE
 #     followed by row events.  This statement is not allowed when

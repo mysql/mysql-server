@@ -268,6 +268,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     Context_handler(THD *thd)
       : m_thd(thd),
         m_allow_sum_func_saved(thd->lex->allow_sum_func),
+        m_deny_window_func_saved(thd->lex->m_deny_window_func),
         m_derived_tables_processing_saved(thd->derived_tables_processing)
     {
       /*
@@ -275,13 +276,18 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
         aggregation to occur in any outer query blocks.
       */
       m_thd->lex->allow_sum_func= 0;
-
+      /*
+        Window functions are allowed; they're aggregated in the derived
+        table's definition.
+      */
+      m_thd->lex->m_deny_window_func= 0;
       m_thd->derived_tables_processing= true;
     }
 
     ~Context_handler()
     {
       m_thd->lex->allow_sum_func= m_allow_sum_func_saved;
+      m_thd->lex->m_deny_window_func= m_deny_window_func_saved;
       m_thd->derived_tables_processing= m_derived_tables_processing_saved;
     }
   private:
@@ -290,6 +296,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
 
     // Saved state of THD::LEX::allow_sum_func.
     nesting_map m_allow_sum_func_saved;
+
+    // Saved state of THD::LEX::m_deny_window_func.
+    nesting_map m_deny_window_func_saved;
 
     // Saved state of THD::derived_tables_processing.
     bool m_derived_tables_processing_saved;
@@ -581,10 +590,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   set_name_temporary();
 
   table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
-  if (referencing_view)
-    table->grant= grant;
-  else
-    table->grant.privilege= SELECT_ACL;
 
   // Table is "nullable" if inner table of an outer_join
   if (is_inner_table_of_outer_join())

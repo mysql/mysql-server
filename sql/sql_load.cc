@@ -488,9 +488,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
           LOAD DATA INFILE in the slave SQL Thread can only read from 
           --slave-load-tmpdir". This should never happen. Please, report a bug.
         */
-
-        sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
-                        "Please, report a bug.");
+        LogErr(ERROR_LEVEL, ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY);
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }
@@ -560,7 +558,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 
-  if (!(error=MY_TEST(read_info.error)))
+  if (!(error= read_info.error))
   {
 
     table->next_number_field=table->found_next_number_field;
@@ -891,8 +889,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -926,7 +925,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error));
+  DBUG_RETURN(read_info.error);
 }
 
 
@@ -1125,8 +1124,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1185,7 +1185,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error));
+  DBUG_RETURN(read_info.error);
 }
 
 
@@ -1340,8 +1340,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1363,7 +1364,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
     continue_loop:;
   }
-  DBUG_RETURN(MY_TEST(read_info.error) || thd->is_error());
+  DBUG_RETURN(read_info.error || thd->is_error());
 } /* load xml end */
 
 
@@ -2127,6 +2128,15 @@ int READ_INFO::read_xml()
       
     case '>': /* end tag - read tag value */
       in_tag= false;
+      /* Skip all whitespaces */
+      while (' ' == (chr= my_tospace(GET)))
+      {
+      }
+      /*
+        Push the first non-whitespace char back to Stack. This char would be
+        read in the upcoming call to read_value()
+       */
+      PUSH(chr);
       chr= read_value('<', &value);
       if(chr == my_b_EOF)
         goto found_eof;

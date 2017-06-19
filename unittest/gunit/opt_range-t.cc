@@ -458,7 +458,7 @@ TEST_F(OptRangeTest, AllocateImplicit)
   {
     free_root(thd()->mem_root, MYF(MY_KEEP_PREALLOC));
     for (int ii= 0; ii < num_allocs; ++ii)
-      new SEL_ARG;
+      new (*THR_MALLOC) SEL_ARG;
   }
 }
 
@@ -1548,7 +1548,8 @@ TEST_F(OptRangeTest, KeyOr1)
   */
 
   SEL_ROOT *tmp= key_or(
-    &opt_param, new SEL_ROOT(&sel_arg_lt3), new SEL_ROOT(&sel_arg_gt3));
+    &opt_param, new (*THR_MALLOC) SEL_ROOT(&sel_arg_lt3),
+    new (*THR_MALLOC) SEL_ROOT(&sel_arg_gt3));
 
   /*
     Ranges now:
@@ -1563,7 +1564,8 @@ TEST_F(OptRangeTest, KeyOr1)
     "3 < field_1";
   EXPECT_STREQ(expected_merged, range_string.c_ptr());
 
-  SEL_ROOT *tmp2= key_or(&opt_param, tmp, new SEL_ROOT(&sel_arg_lt4));
+  SEL_ROOT *tmp2= key_or(
+    &opt_param, tmp, new (*THR_MALLOC) SEL_ROOT(&sel_arg_lt4));
   EXPECT_EQ(null_root, tmp2);
 }
 

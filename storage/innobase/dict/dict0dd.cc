@@ -281,7 +281,7 @@ dd_table_open_on_dd_obj(
 			     dd_table.name().c_str(), ""/* file name */,
 			     nullptr);
 
-	error = open_table_def_suppress_invalid_meta_data(thd, &ts, &dd_table);
+	error = open_table_def_suppress_invalid_meta_data(thd, &ts, dd_table);
 
 	if (error == 0) {
 		TABLE	td;
@@ -515,10 +515,11 @@ dd_check_corrupted(dict_table_t*& table)
 
 /** Open a persistent InnoDB table based on InnoDB table id, and
 hold Shared MDL lock on it.
-@param[in]	table_id	table identifier
-@param[in,out]	thd		current MySQL connection (for mdl)
-@param[in,out]	mdl		metadata lock (*mdl set if table_id was found);
-@param[in]	dict_locked	dict_sys mutex is held
+@param[in]	table_id		table identifier
+@param[in,out]	thd			current MySQL connection (for mdl)
+@param[in,out]	mdl			metadata lock (*mdl set if table_id was found);
+@param[in]	dict_locked		dict_sys mutex is held
+@param[in]	check_corruption	check if the table is corrupted or not.
 mdl=NULL if we are resurrecting table IX locks in recovery
 @return table
 @retval NULL if the table does not exist or cannot be opened */
@@ -527,7 +528,8 @@ dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
 	MDL_ticket**	mdl,
-	bool		dict_locked)
+	bool		dict_locked,
+	bool		check_corruption)
 {
 	dict_table_t*   ib_table;
 	const ulint     fold = ut_fold_ull(table_id);
@@ -628,7 +630,8 @@ reopen:
 					      full_name, namelen)) {
 					dd_mdl_release(thd, mdl);
 					continue;
-				} else if (dd_check_corrupted(ib_table)) {
+				} else if (check_corruption
+					   && dd_check_corrupted(ib_table)) {
 					ut_ad(ib_table == nullptr);
 				} else if (ib_table->discard_after_ddl) {
 					btr_drop_ahi_for_table(ib_table);
@@ -1688,7 +1691,9 @@ dd_fill_one_dict_index(
 			prefix_len = 0;
 		}
 
-		if (key_part->length > max_len || prefix_len > max_len) {
+		if ((key_part->length > max_len || prefix_len > max_len)
+		    && !(key.flags & (HA_FULLTEXT))) {
+
 			dict_mem_index_free(index);
 			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0), max_len);
 			return(HA_ERR_INDEX_COL_TOO_LONG);
@@ -2982,13 +2987,13 @@ dd_save_data_dir_path(
 template<typename Table>
 char*
 dd_get_first_path(
-	mem_heap_t*				heap,
-	dict_table_t*			table,
-	const Table*			dd_table)
+	mem_heap_t*	heap,
+	dict_table_t*	table,
+	const Table*	dd_table)
 {
 	char*		filepath = NULL;
-	dd::Tablespace*		dd_space = nullptr;
-	THD*			thd = current_thd;
+	dd::Tablespace*	dd_space = nullptr;
+	THD*		thd = current_thd;
 	MDL_ticket*     mdl = nullptr;
 	dd::Object_id   dd_space_id;
 
@@ -3003,12 +3008,8 @@ dd_get_first_path(
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
-			table->name.m_name,
-			db_buf, tbl_buf, NULL)) {
-			return(filepath);
-		}
-
-		if (dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
+				table->name.m_name, db_buf, tbl_buf, NULL)
+		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 			return(filepath);
 		}
 
@@ -3101,7 +3102,7 @@ single-table tablespace.
 void
 dd_get_meta_data_filename(
 	dict_table_t*	table,
-	dd::Table*		dd_table,
+	dd::Table*	dd_table,
 	char*		filename,
 	ulint		max_len)
 {
@@ -3116,8 +3117,7 @@ dd_get_meta_data_filename(
 
 		path = fil_make_filepath(
 			table->data_dir_path, table->name.m_name, CFG, true);
-	}
-	else {
+	} else {
 		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
 	}
 
@@ -3537,7 +3537,7 @@ dd_open_table_one_on_name(
 			""/* file name */, nullptr);
 
 		ulint error = open_table_def_suppress_invalid_meta_data(
-				thd, &ts, dd_table);
+				thd, &ts, *dd_table);
 
 		if (error != 0) {
 			dd_mdl_release(thd, &mdl);
@@ -3710,13 +3710,13 @@ template dict_table_t* dd_open_table<dd::Partition>(
 
 /** Get next record from a new dd system table, like mysql.tables...
 @param[in,out]	pcur		persistent cursor
-@param[in]		mtr			the mini-transaction
+@param[in]	mtr		the mini-transaction
 @retval the next rec of the dd system table */
 static
 const rec_t*
 dd_getnext_system_low(
 	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor to the
-							record*/
+					record*/
 	mtr_t*		mtr)		/*!< in: the mini-transaction */
 {
 	rec_t*	rec = NULL;
@@ -3764,14 +3764,14 @@ dd_startscan_system(
 
 	ut_a(system_id < DD_LAST_ID);
 
-	system_table = dd_table_open_on_id(system_id, thd, mdl, true);
+	system_table = dd_table_open_on_id(system_id, thd, mdl, true, true);
 	mtr_commit(mtr);
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
 	mtr_start(mtr);
 	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
-		true, 0, mtr);
+				    true, 0, mtr);
 
 	rec = dd_getnext_system_low(pcur, mtr);
 
@@ -3806,7 +3806,7 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 6, &len);
 
@@ -3814,16 +3814,17 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the se_private_id field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 14, &len);
+
 	/* When table is partitioned table, the se_private_id is null. */
 	if (len != 8) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the table id */
@@ -3833,24 +3834,20 @@ dd_process_dd_tables_rec_and_mtr_commit(
 	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true, false);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
 	}
 
-	if (err_msg) {
-		return(err_msg);
-	}
-
-	return(NULL);
+	return(err_msg);
 }
 
 /** Process one mysql.table_partitions record and get the dict_table_t
@@ -3880,7 +3877,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 7, &len);
 
@@ -3888,7 +3885,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the se_private_id field. */
@@ -3897,7 +3894,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (len != 8) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Get the table id */
@@ -3907,21 +3904,20 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	if (table_id <= INNODB_DD_TABLE_ID_MAX) {
 		*table = NULL;
 		mtr_commit(mtr);
-		return(NULL);
+		return(err_msg);
 	}
 
 	/* Commit before load the table again */
 	mtr_commit(mtr);
 	THD*		thd = current_thd;
 
-	*table = dd_table_open_on_id(table_id, thd, mdl, true);
+	*table = dd_table_open_on_id(table_id, thd, mdl, true, false);
 
 	if (!(*table)) {
 		err_msg = "Table not found";
-		return(err_msg);
 	}
 
-	return(NULL);
+	return(err_msg);
 }
 
 /** Get next record of new DD system tables
@@ -3939,8 +3935,8 @@ dd_getnext_system_rec(
 	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
 	/* Get the next record */
-	while (!rec || rec_get_deleted_flag(rec,
-		dict_table_is_comp(pcur->index()->table))) {
+	while (!rec || rec_get_deleted_flag(
+			rec, dict_table_is_comp(pcur->index()->table))) {
 		btr_pcur_move_to_next_user_rec(pcur, mtr);
 
 		rec = btr_pcur_get_rec(pcur);
@@ -3989,7 +3985,7 @@ dd_process_dd_columns_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	/* Get the hidden attibute, and skip if it's a hidden column. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
@@ -4033,12 +4029,11 @@ dd_process_dd_columns_rec(
 		dict_table_t*	table;
 		MDL_ticket*	mdl = NULL;
 
-		/* Commit before load the table */
+		/* Commit before we try to load the table. */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(*table_id, thd, &mdl, true);
+		table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
 
 		if (!table) {
-			delete p;
 			return(false);
 		}
 
@@ -4094,7 +4089,7 @@ dd_process_dd_indexes_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 16, &len);
 
@@ -4159,7 +4154,7 @@ dd_process_dd_indexes_rec(
 
 		/* Commit before load the table */
 		mtr_commit(mtr);
-		table = dd_table_open_on_id(table_id, thd, mdl, true);
+		table = dd_table_open_on_id(table_id, thd, mdl, true, true);
 
 		if (!table) {
 			delete p;
@@ -4191,6 +4186,64 @@ dd_process_dd_indexes_rec(
 	return(true);
 }
 
+/* Get space_id for a general tablespace of a given path info.
+@param[in,out]	path		datafile path
+@param[in,out]	space_id	space id of the tablespace to be filled
+@retval true if space_id is filled. */
+bool
+get_id_by_name(
+	char*		path,
+	uint32*		space_id)
+{
+	char*		temp_buf = nullptr;
+	FilSpace	space;
+
+	/* Remove the path info and get file name. */
+	temp_buf = strrchr(path, OS_PATH_SEPARATOR);
+
+	if (temp_buf == nullptr) {
+		temp_buf = path;
+	} else {
+		++temp_buf;
+	}
+
+	/* Gather space_id for the matching file in fil_system. */
+	for (const fil_node_t* node = fil_node_next(nullptr);
+	     node != nullptr;
+	     node = fil_node_next(node)) {
+		char*	path_name;
+
+		space = node->space;
+
+		/* Remove the path info and get file name. */
+		path_name = strrchr(node->name, OS_PATH_SEPARATOR);
+
+		if (path_name!=nullptr) {
+			++path_name;
+		} else {
+			path_name = node->name;
+		}
+
+		/* Fetch space_id if name matches. */
+		if (strcmp(temp_buf, path_name) == 0) {
+
+			/* Skip data dictionary tablespace and temp tablespace. */
+			if (space()->id == 0xFFFFFFFE
+			    || space()->id == dict_sys->temp_space_id) {
+				return(false);
+			}
+
+			*space_id = space()->id;
+
+			return(true);
+		}
+
+		space = nullptr;
+	}
+
+	return(false);
+}
+
 /** Process one mysql.tablespace_files record and get information from it
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
@@ -4212,13 +4265,22 @@ dd_process_dd_datafiles_rec(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_files)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_files->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
+
+	/* Get the data file path. */
+	field = rec_get_nth_field(rec, offsets, 4, &len);
+	*path = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
+	memset(*path, 0, len + 1);
+	memcpy(*path, field, len);
 
 	/* Get the se_private_data field. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
 
 	if (len == 0 || len == UNIV_SQL_NULL) {
-		return(false);
+		/* For general tablespaces we don't store se_private_data field
+		in dd::Tablespace_files. So we retrieve the space_id for the
+		tablspace by querying the fil system. */
+		return(get_id_by_name(*path, space_id));
 	}
 
 	/* Get space id. */
@@ -4246,12 +4308,6 @@ dd_process_dd_datafiles_rec(
 		return(false);
 	}
 
-	/* Get the data file path. */
-	field = rec_get_nth_field(rec, offsets, 4, &len);
-	*path = reinterpret_cast<char*>(mem_heap_alloc(heap, len + 1));
-	memset(*path, 0, len + 1);
-	memcpy(*path, field, len);
-
 	delete p;
 	return(true);
 }
@@ -4276,7 +4332,7 @@ dd_process_dd_indexes_rec_simple(
 	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
 	ulint*	offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
-		ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 
 	field = rec_get_nth_field(rec, offsets, 16, &len);
 

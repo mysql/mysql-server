@@ -13,7 +13,7 @@ INSERT INTO t1 VALUES (0), (2), (4);
 # Make copies of all t1 files
 DROP TABLE t1;
 # Restore all t1 files and recreate symlink to external DATA DIRECTORY
-IMPORT TABLE FROM 't1_*.SDI';
+IMPORT TABLE FROM 't1_*.sdi';
 SELECT * FROM t1 ORDER BY i;
 i
 0

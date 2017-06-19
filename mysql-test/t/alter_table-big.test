@@ -198,5 +198,49 @@ set debug= "-d,mysql_lock_tables_kill_query";
 connection default;
 --disable_connect_log
 
+--echo #
+--echo # Bug#24786075   FIND A WAY TO LIST #SQL... TABLE LEFT IN      
+--echo #                DATA DICTIONARY IN CASE ALTER FAILS.
+--echo # Test that we can see hidden temporary tables using ALTER TABLE.
+--echo # Test that we can delete the hidden temporary tables that were
+--echo # left by ALTER TABLE table failures in rare situations.
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+
+SET debug="+d,exit_after_alter_table_before_rename";
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 modify column a varchar(30);
+SET debug="-d,exit_after_alter_table_before_rename";
+
+--echo # Verify that #sql... tables are not seen by I_S and SHOW
+SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME like '#sql%';
+SHOW TABLES FROM test;
+
+--echo # The SHOW EXTENDED [FULL] syntax should show the hidden table.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # Dropping the temporary table.
+let $value=
+  query_get_value(SHOW EXTENDED TABLES FROM test, Tables_in_test, 1);
+let $stmt = DROP TABLE `$value`;
+--replace_regex /#sql.*$/#sql-xxxxx/
+eval $stmt;
+
+--echo # Verify that the temporary table is dropped.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # clean-up
+DROP TABLE t1;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

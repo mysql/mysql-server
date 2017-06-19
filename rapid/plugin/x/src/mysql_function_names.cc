@@ -210,35 +210,28 @@ const char *const *special_mysql_functions_end =
 // taken from sql_yacc.yy
 // keep in ASC order
 const char *const other_mysql_functions[] = {
-    "ASCII",             "BINARY",            "CHAR",
-    "CHARSET",           "COALESCE",          "COLLATION",
-    "CONTAINS",          "CURDATE",           "CURRENT_USER",
-    "CURTIME",           "DATABASE",          "DATE",
-    "DATE_ADD_INTERVAL", "DATE_SUB_INTERVAL", "DAY",
-    "EXTRACT",           "FORMAT",            "GEOMETRYCOLLECTION",
-    "HOUR",              "IF",                "IN",
-    "INSERT",            "INTERVAL",          "LEFT",
-    "LINESTRING",        "MICROSECOND",       "MINUTE",
-    "MOD",               "MONTH",             "MULTILINESTRING",
-    "MULTIPOINT",        "MULTIPOLYGON",
-    "PASSWORD",          "POINT",             "POLYGON",
-    "POSITION",          "QUARTER",           "REPEAT",
-    "REPLACE",           "REVERSE",           "RIGHT",
-    "ROW_COUNT",         "SECOND",            "STRONGLY",
-    "SUBDATE",           "SUBSTRING",         "SYSDATE",
-    "TIME",              "TIMESTAMP",         "TIMESTAMP_ADD",
-    "TIMESTAMP_DIFF",    "TRIM",              "TRIM_LEADING",
-    "TRUNCATE",          "USER",              "USING",
-    "UTC_DATE",          "UTC_TIME",          "UTC_TIMESTAMP",
-    "WEEK",              "WEIGHT_STRING",     "YEAR"};
+    "ASCII",             "BINARY",             "CHAR",           "CHARSET",
+    "COALESCE",          "COLLATION",          "CONTAINS",       "CURDATE",
+    "CURRENT_USER",      "CURTIME",            "DATABASE",       "DATE",
+    "DATE_ADD_INTERVAL", "DATE_SUB_INTERVAL",  "DAY",            "EXTRACT",
+    "FORMAT",            "GEOMETRYCOLLECTION", "HOUR",           "IF",
+    "IN",                "INSERT",             "INTERVAL",       "LEFT",
+    "LINESTRING",        "MICROSECOND",        "MINUTE",         "MOD",
+    "MONTH",             "MULTILINESTRING",    "MULTIPOINT",     "MULTIPOLYGON",
+    "PASSWORD",          "POINT",              "POLYGON",        "POSITION",
+    "QUARTER",           "REPEAT",             "REPLACE",        "REVERSE",
+    "RIGHT",             "ROW_COUNT",          "SECOND",         "STRONGLY",
+    "SUBDATE",           "SUBSTRING",          "SYSDATE",        "TIME",
+    "TIMESTAMP",         "TIMESTAMP_ADD",      "TIMESTAMP_DIFF", "TRIM",
+    "TRIM_LEADING",      "TRUNCATE",           "USER",           "USING",
+    "UTC_DATE",          "UTC_TIME",           "UTC_TIMESTAMP",  "WEEK",
+    "WEIGHT_STRING",     "YEAR"};
 const char *const *other_mysql_functions_end =
     get_array_end(other_mysql_functions);
 }  // namespace
 
 bool is_native_mysql_function(const std::string &name) {
-  std::string source;
-  source.resize(name.size());
-  std::transform(name.begin(), name.end(), source.begin(), ::toupper);
+  std::string source = to_upper(name);
   return std::binary_search(native_mysql_functions, native_mysql_functions_end,
                             source.c_str(), Is_less()) ||
          std::binary_search(special_mysql_functions,

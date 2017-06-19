@@ -190,20 +190,6 @@ public:
 
 
   /**
-    Sort the elements based on the custom comparator supplied.
-
-    @returns void.
-  */
-
-  template<typename Comparator>
-  void sort_items(Comparator c)
-  {
-    std::sort(m_items.begin(), m_items.end(), c);
-    renumerate_items();
-  }
-
-
-  /**
     Move item at position old_index to the new_index.
 
     @returns void.

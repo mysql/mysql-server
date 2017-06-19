@@ -109,7 +109,6 @@ count(*)
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
 mysql_upgrade: (non fatal) [WARNING] 1642: Table mysql.host is not empty. It is deprecated and will be removed in a future release.
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -154,7 +153,6 @@ create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 count(*)
 3
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -194,7 +192,6 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
-mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK

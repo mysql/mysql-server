@@ -3,8 +3,7 @@
 MaxNoOfSavedMessages=          1000
 MaxNoOfConcurrentTransactions= 6000
 MaxNoOfConcurrentOperations=   40000
-DataMemory=                    100M
-IndexMemory=                   50M
+DataMemory=                    150M
 Diskless=                      0
 TimeBetweenWatchDogCheck=      30000
 MaxNoOfOrderedIndexes=         32

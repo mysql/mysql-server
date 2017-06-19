@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@
 #define PKSIZE 1
 
 
-#ifdef NDB_WIN32
+#ifdef _WIN32
 inline long lrand48(void) { return rand(); };
 #endif
 

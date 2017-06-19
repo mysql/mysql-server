@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -28,6 +28,12 @@
 #include <float.h>
 #endif
 
+/**
+ * Include NDB file CharsetMap.hpp first to avoid clash between NDB
+ * define Int32 and v8::Int32 in declaration of CharsetMap::recode().
+ */
+#include "CharsetMap.hpp"
+
 #include "adapter_global.h"
 #include "NdbTypeEncoders.h"
 #include "js_wrapper_macros.h"
@@ -36,7 +42,6 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "CharsetMap.hpp"
 #include "decimal_utils.hpp"
 #include "EncoderCharset.h"
 

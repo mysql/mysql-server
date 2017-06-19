@@ -16,7 +16,6 @@
 #ifndef DD_TRIGGER_INCLUDED
 #define DD_TRIGGER_INCLUDED
 
-#include "dd/string_type.h"  // dd::String_type
 #include "lex_string.h"
 #include "m_string.h"        // LEX_CSTRING
 #include "trigger_def.h"     // enum_trigger_order_type
@@ -28,6 +27,7 @@ template <class T> class List;
 
 namespace dd
 {
+class Table;
 
 /**
   Create new trigger in the data dictionary.
@@ -57,6 +57,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
   @param [in]  mem_root           MEM_ROOT for memory allocation
   @param [in]  schema_name        name of schema
   @param [in]  table_name         subject table name
+  @param [in]  table              table object
   @param [out] triggers           pointer to the list where new Trigger
                                   objects will be inserted
 
@@ -69,6 +70,7 @@ bool load_triggers(THD *thd,
                    MEM_ROOT *mem_root,
                    const char *schema_name,
                    const char *table_name,
+                   const dd::Table &table,
                    List<::Trigger> *triggers);
 
 

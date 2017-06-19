@@ -399,6 +399,7 @@ affected rows: 1
 drop table t1;
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
+character set latin1
 engine = ndb;
 insert into t1(b,c) values (1,'this is a test'),
 (2,'this is a test'),(3,'this is a test'),

@@ -1,0 +1,44 @@
+--source include/have_ndb.inc
+
+# Turn off ndb_join_pushdown
+--disable_query_log
+set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
+set ndb_join_pushdown = false;
+--enable_query_log
+
+create table t1
+(
+  a int, b varchar(30),
+  primary key(a)
+) engine = NDB;
+
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+
+--echo #
+--echo # Group by query 1
+--echo #  - group by
+--echo #
+--sorted_result
+select sum(a), 'b' from t1 where a > 0
+and b is not null group by substr(b,2)
+having sum(a) <> 2 ;
+
+--echo #
+--echo # Group by query 2
+--echo #  - union + group by
+--sorted_result
+select sum(a) + 200 as the_sum, 'City 1' as the_town from t1
+group by b
+union distinct
+select sum(a) + 200, 'City 2' from t1
+group by b ;
+
+drop table t1;
+
+# Restore original ndb_join_pushdown value
+--disable_query_log
+set ndb_join_pushdown = @save_ndb_join_pushdown;
+--enable_query_log

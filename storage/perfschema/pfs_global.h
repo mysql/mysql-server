@@ -55,29 +55,29 @@ extern bool pfs_initialized;
 #endif
 
 /**
-  A @c uint32 variable, guaranteed to be alone in a CPU cache line.
+  An atomic @c uint32 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
-struct PFS_cacheline_uint32
+struct PFS_cacheline_atomic_uint32
 {
-  uint32 m_u32;
-  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint32)];
+  std::atomic<uint32> m_u32;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<uint32>)];
 
-  PFS_cacheline_uint32() : m_u32(0)
+  PFS_cacheline_atomic_uint32() : m_u32(0)
   {
   }
 };
 
 /**
-  A @c uint64 variable, guaranteed to be alone in a CPU cache line.
+  An atomic @c uint64 variable, guaranteed to be alone in a CPU cache line.
   This is for performance, for variables accessed very frequently.
 */
-struct PFS_cacheline_uint64
+struct PFS_cacheline_atomic_uint64
 {
-  uint64 m_u64;
-  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(uint64)];
+  std::atomic<uint64> m_u64;
+  char m_full_cache_line[PFS_CACHE_LINE_SIZE - sizeof(std::atomic<uint64>)];
 
-  PFS_cacheline_uint64() : m_u64(0)
+  PFS_cacheline_atomic_uint64() : m_u64(0)
   {
   }
 };

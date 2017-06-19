@@ -66,10 +66,15 @@
 #include "pfs_timer.h"
 #include "pfs_transaction_provider.h"
 #include "pfs_user.h"
+#include "service_pfs_notification.h"
 #include "sp_head.h"
 #include "sql_const.h"
 #include "sql_error.h"
 #include "thr_lock.h"
+
+#include <mysql/components/component_implementation.h>
+#include "pfs_plugin_table.h"
+#include "pfs_services.h"
 
 /*
   Exporting cmake compilation flags to doxygen,
@@ -419,6 +424,12 @@ report_memory_accounting_error(const char *api_name,
   @subpage PAGE_PFS_DATA_LOCKS
 
   @subpage PAGE_PFS_NEW_TABLE
+
+  @subpage PAGE_PFS_NOTIFICATION_SERVICE
+
+  @subpage PAGE_PFS_RESOURCE_GROUP_SERVICE
+
+  @subpage PAGE_PFS_TABLE_PLUGIN_SERVICE
 */
 
 /**
@@ -1473,33 +1484,19 @@ static inline int mysql_mutex_lock(...)
   @ingroup performance_schema_implementation
 */
 
-thread_local_key_t THR_PFS;
-thread_local_key_t THR_PFS_VG;   // global_variables
-thread_local_key_t THR_PFS_SV;   // session_variables
-thread_local_key_t THR_PFS_VBT;  // variables_by_thread
-thread_local_key_t THR_PFS_SG;   // global_status
-thread_local_key_t THR_PFS_SS;   // session_status
-thread_local_key_t THR_PFS_SBT;  // status_by_thread
-thread_local_key_t THR_PFS_SBU;  // status_by_user
-thread_local_key_t THR_PFS_SBH;  // status_by_host
-thread_local_key_t THR_PFS_SBA;  // status_by_account
-
-bool THR_PFS_initialized = false;
+thread_local PFS_thread *THR_PFS = nullptr;
+thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 static inline PFS_thread *
 my_thread_get_THR_PFS()
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  PFS_thread *thread = static_cast<PFS_thread *>(my_get_thread_local(THR_PFS));
-  DBUG_ASSERT(thread == NULL || sanitize_thread(thread) != NULL);
-  return thread;
+  return THR_PFS;
 }
 
 static inline void
 my_thread_set_THR_PFS(PFS_thread *pfs)
 {
-  DBUG_ASSERT(THR_PFS_initialized);
-  my_set_thread_local(THR_PFS, pfs);
+  THR_PFS = pfs;
 }
 
 /**
@@ -2393,6 +2390,7 @@ pfs_spawn_thread(void *arg)
   }
   my_thread_set_THR_PFS(pfs);
 
+  pfs_notify_thread_create((PSI_thread *)pfs);
   /*
     Secondly, free the memory allocated in spawn_thread_v1().
     It is preferable to do this before invoking the user
@@ -2489,6 +2487,11 @@ pfs_new_thread_v1(PSI_thread_key key,
   else
   {
     pfs = NULL;
+  }
+
+  if (pfs)
+  {
+    pfs_notify_thread_create((PSI_thread *)pfs);
   }
 
   return reinterpret_cast<PSI_thread *>(pfs);
@@ -2813,6 +2816,220 @@ pfs_set_thread_info_v1(const char *info, uint info_len)
 }
 
 /**
+  Set the resource group name for a given thread.
+  @param pfs Thread instrumentation
+  @param group_name Group name
+  @param group_name_len Length of group_name
+  @param user_data  Optional pointer to user-defined data
+  @return 0 if successful, 1 otherwise
+*/
+int
+set_thread_resource_group(PFS_thread *pfs,
+                          const char *group_name,
+                          int group_name_len,
+                          void *user_data)
+{
+  int result = 0;
+  pfs_dirty_state dirty_state;
+
+  if (unlikely(pfs == NULL || group_name_len <= 0))
+    return 1;
+
+  if ((size_t)group_name_len > sizeof(pfs->m_groupname))
+    return 1;
+
+  pfs->m_session_lock.allocated_to_dirty(&dirty_state);
+
+  memcpy(pfs->m_groupname, group_name, group_name_len);
+
+  pfs->m_groupname_length = group_name_len;
+  pfs->m_user_data = user_data;
+
+  pfs->m_session_lock.dirty_to_allocated(&dirty_state);
+  return result;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_resource_group
+*/
+int
+pfs_set_thread_resource_group_v1(const char *group_name,
+                                 int group_name_len,
+                                 void *user_data)
+{
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_resource_group_by_id
+*/
+int
+pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+                                       ulonglong thread_id,
+                                       const char *group_name,
+                                       int group_name_len,
+                                       void *user_data)
+{
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs == NULL)
+    pfs = find_thread(thread_id);
+  return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
+}
+
+/**
+  Get the system and session attributes for a given PFS_thread.
+  @param pfs thread instrumentation
+  @param current_thread true if pfs refers to the current thread
+  @param thread_attrs thread attribute structure
+  @return 0 if successful, non-zero otherwise
+*/
+int
+get_thread_attributes(PFS_thread *pfs,
+                      bool current_thread,
+                      PSI_thread_attrs *thread_attrs)
+
+{
+  int result = 0;
+  pfs_optimistic_state lock;
+  pfs_optimistic_state session_lock;
+
+  DBUG_ASSERT(thread_attrs != NULL);
+
+  static_assert(PSI_NAME_LEN == NAME_LEN, "");
+  static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
+  static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH, "");
+
+  if (unlikely(pfs == NULL))
+    return 1;
+
+  if (!current_thread)
+  {
+    /* Protect this reader against a thread delete. */
+    pfs->m_lock.begin_optimistic_lock(&lock);
+    /* Protect this reader against writing on session attributes */
+    pfs->m_session_lock.begin_optimistic_lock(&session_lock);
+  }
+
+  thread_attrs->m_thread_internal_id = pfs->m_thread_internal_id;
+  thread_attrs->m_processlist_id = pfs->m_processlist_id;
+  thread_attrs->m_thread_os_id = pfs->m_thread_os_id;
+  thread_attrs->m_user_data = pfs->m_user_data;
+  thread_attrs->m_system_thread = pfs->m_system_thread;
+
+  DBUG_ASSERT(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
+  thread_attrs->m_sock_addr_length = pfs->m_sock_addr_len;
+  if (thread_attrs->m_sock_addr_length > 0)
+    memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
+
+  DBUG_ASSERT(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
+  thread_attrs->m_username_length = pfs->m_username_length;
+  if (pfs->m_username_length > 0)
+    memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
+
+  DBUG_ASSERT(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
+  thread_attrs->m_hostname_length = pfs->m_hostname_length;
+  if (pfs->m_hostname_length > 0)
+    memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
+
+  DBUG_ASSERT(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
+  thread_attrs->m_groupname_length = pfs->m_groupname_length;
+  if (pfs->m_groupname_length > 0)
+    memcpy(
+      thread_attrs->m_groupname, pfs->m_groupname, pfs->m_groupname_length);
+
+  if (!current_thread)
+  {
+    if (!pfs->m_session_lock.end_optimistic_lock(&session_lock))
+      result = 1;
+
+    if (!pfs->m_lock.end_optimistic_lock(&lock))
+      result = 1;
+  }
+
+  return result;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_system_attrs.
+*/
+int
+pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs)
+{
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  return get_thread_attributes(pfs, true, thread_attrs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_system_attrs_by_id.
+*/
+int
+pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+                                     ulonglong thread_id,
+                                     PSI_thread_attrs *thread_attrs)
+{
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs == NULL)
+    pfs = find_thread(thread_id);
+  return get_thread_attributes(pfs, false, thread_attrs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::register_notification.
+*/
+int
+pfs_register_notification_v1(const PSI_notification *callbacks,
+                             bool with_ref_count)
+{
+  return pfs_register_notification(callbacks, with_ref_count);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::unregister_notification.
+*/
+int
+pfs_unregister_notification_v1(int handle)
+{
+  return pfs_unregister_notification(handle);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_connect.
+*/
+void
+pfs_notify_session_connect_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_connect(thread);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_disconnect.
+*/
+void
+pfs_notify_session_disconnect_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_disconnect(thread);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::notify_session_change_user.
+*/
+void
+pfs_notify_session_change_user_v1(PSI_thread *thread MY_ATTRIBUTE((unused)))
+{
+  pfs_notify_session_change_user(thread);
+}
+
+/**
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread.
 */
@@ -2835,6 +3052,7 @@ pfs_delete_current_thread_v1(void)
   {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
     my_thread_set_THR_PFS(NULL);
+    pfs_notify_thread_destroy((PSI_thread *)thread);
     destroy_thread(thread);
   }
 }
@@ -2851,6 +3069,7 @@ pfs_delete_thread_v1(PSI_thread *thread)
   if (pfs != NULL)
   {
     aggregate_thread(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
+    pfs_notify_thread_destroy(thread);
     destroy_thread(pfs);
   }
 }
@@ -6998,7 +7217,19 @@ pfs_set_socket_thread_owner_v1(PSI_socket *socket)
 {
   PFS_socket *pfs_socket = reinterpret_cast<PFS_socket *>(socket);
   DBUG_ASSERT(pfs_socket != NULL);
-  pfs_socket->m_thread_owner = my_thread_get_THR_PFS();
+  PFS_thread *pfs_thread = my_thread_get_THR_PFS();
+  pfs_socket->m_thread_owner = pfs_thread;
+
+  if (pfs_thread)  // TODO use set_thread_ip_addr()
+  {
+    pfs_thread->m_sock_addr_len = pfs_socket->m_addr_len;
+    if (pfs_thread->m_sock_addr_len > 0)
+    {
+      memcpy(&pfs_thread->m_sock_addr,
+             &pfs_socket->m_sock_addr,
+             pfs_socket->m_addr_len);
+    }
+  }
 }
 
 struct PSI_digest_locker *
@@ -7882,26 +8113,36 @@ pfs_unregister_data_lock_v1(PSI_engine_data_lock_inspector * /* inspector */)
   Implementation of the instrumentation interface.
   @sa PSI_thread_service_v1
 */
-PSI_thread_service_v1 pfs_thread_service_v1 = {pfs_register_thread_v1,
-                                               pfs_spawn_thread_v1,
-                                               pfs_new_thread_v1,
-                                               pfs_set_thread_id_v1,
-                                               pfs_set_thread_THD_v1,
-                                               pfs_set_thread_os_id_v1,
-                                               pfs_get_thread_v1,
-                                               pfs_set_thread_user_v1,
-                                               pfs_set_thread_account_v1,
-                                               pfs_set_thread_db_v1,
-                                               pfs_set_thread_command_v1,
-                                               pfs_set_connection_type_v1,
-                                               pfs_set_thread_start_time_v1,
-                                               pfs_set_thread_state_v1,
-                                               pfs_set_thread_info_v1,
-                                               pfs_set_thread_v1,
-                                               pfs_delete_current_thread_v1,
-                                               pfs_delete_thread_v1,
-                                               pfs_set_thread_connect_attrs_v1,
-                                               pfs_get_thread_event_id_v1};
+PSI_thread_service_v1 pfs_thread_service_v1 = {
+  pfs_register_thread_v1,
+  pfs_spawn_thread_v1,
+  pfs_new_thread_v1,
+  pfs_set_thread_id_v1,
+  pfs_set_thread_THD_v1,
+  pfs_set_thread_os_id_v1,
+  pfs_get_thread_v1,
+  pfs_set_thread_user_v1,
+  pfs_set_thread_account_v1,
+  pfs_set_thread_db_v1,
+  pfs_set_thread_command_v1,
+  pfs_set_connection_type_v1,
+  pfs_set_thread_start_time_v1,
+  pfs_set_thread_state_v1,
+  pfs_set_thread_info_v1,
+  pfs_set_thread_resource_group_v1,
+  pfs_set_thread_resource_group_by_id_v1,
+  pfs_set_thread_v1,
+  pfs_delete_current_thread_v1,
+  pfs_delete_thread_v1,
+  pfs_set_thread_connect_attrs_v1,
+  pfs_get_thread_event_id_v1,
+  pfs_get_thread_system_attrs_v1,
+  pfs_get_thread_system_attrs_by_id_v1,
+  pfs_register_notification_v1,
+  pfs_unregister_notification_v1,
+  pfs_notify_session_connect_v1,
+  pfs_notify_session_disconnect_v1,
+  pfs_notify_session_change_user_v1};
 
 PSI_mutex_service_v1 pfs_mutex_service_v1 = {pfs_register_mutex_v1,
                                              pfs_init_mutex_v1,
@@ -8256,3 +8497,66 @@ struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap = {
 PSI_engine_data_lock_inspector *g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES] =
   {NULL};
 unsigned int g_data_lock_inspector_count = 0;
+
+/* clang-format off */
+BEGIN_COMPONENT_PROVIDES(performance_schema)
+  PROVIDES_SERVICE(performance_schema, pfs_plugin_table)
+END_COMPONENT_PROVIDES()
+
+static BEGIN_COMPONENT_REQUIRES(performance_schema)
+END_COMPONENT_REQUIRES()
+
+BEGIN_COMPONENT_METADATA(performance_schema)
+  METADATA("mysql.author", "Oracle Corporation")
+  METADATA("mysql.license", "GPL")
+END_COMPONENT_METADATA()
+
+DECLARE_COMPONENT(performance_schema, "mysql:pfs")
+  /* There are no initialization/deinitialization functions, they will not be
+     called as this component is not a regular one. */
+  NULL,
+  NULL
+END_DECLARE_COMPONENT()
+  /* clang-format on */
+
+  bool pfs_init_services(SERVICE_TYPE(registry_registration) * reg)
+{
+  int inx = 0;
+
+  for (;;)
+  {
+    my_h_service pfs_service;
+    pfs_service = reinterpret_cast<my_h_service>(
+      mysql_component_performance_schema.provides[inx].implementation);
+
+    if (pfs_service == NULL)
+    {
+      break;
+    }
+
+    if (reg->register_service(
+          mysql_component_performance_schema.provides[inx].name, pfs_service))
+    {
+      return true;
+    }
+
+    inx++;
+  }
+
+  return false;
+}
+
+bool pfs_deinit_services(SERVICE_TYPE(registry_registration) * reg)
+{
+  for (int inx = 0;
+       mysql_component_performance_schema.provides[inx].name != NULL;
+       inx++)
+  {
+    if (reg->unregister(mysql_component_performance_schema.provides[inx].name))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}

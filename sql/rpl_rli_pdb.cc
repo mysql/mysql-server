@@ -25,6 +25,7 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 
 #include "binlog.h"
 #include "current_thd.h"
@@ -32,11 +33,10 @@
 #include "handler.h"
 #include "hash.h"
 #include "lex_string.h"
-#include "log.h"                            // sql_print_error
+#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
-#include "my_atomic.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -436,7 +436,7 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
 err:
   // todo: handler->end_info(uidx, nidx);
   inited= 0;
-  sql_print_error("Error reading slave worker configuration");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_SLAVE_WORKER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -484,7 +484,7 @@ int Slave_worker::flush_info(const bool force)
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Error writing slave worker configuration");
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_SLAVE_WORKER_CONFIGURATION);
   DBUG_RETURN(1);
 }
 
@@ -556,15 +556,13 @@ void Slave_worker::copy_values_for_PFS(ulong worker_id,
                                        en_running_state thd_running_status,
                                        THD *worker_thd,
                                        const Error &last_error,
-                                       trx_monitoring_info *processing_trx_arg,
-                                       trx_monitoring_info *last_processed_trx_arg)
+                                       Gtid_monitoring_info *monitoring_info)
 {
   id= worker_id;
   running_status= thd_running_status;
   info_thd= worker_thd;
   m_last_error= last_error;
-  get_processing_trx()->copy(processing_trx_arg);
-  get_last_processed_trx()->copy(last_processed_trx_arg);
+  monitoring_info->copy_info_to(get_gtid_monitoring_info());
 }
 
 bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
@@ -1252,7 +1250,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     */
     if (ev->get_type_code() != binary_log::XID_EVENT && !is_committed_ddl(ev))
     {
-      commit_positions(ev, ptr_g, false);
+      commit_positions(ev, ptr_g, true);
       DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
            sql_print_information("Crashing crash_after_commit_and_update_pos.");
            flush_info(TRUE);
@@ -1262,7 +1260,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
     ptr_g->group_master_log_pos= group_master_log_pos;
     ptr_g->group_relay_log_pos= group_relay_log_pos;
-    my_atomic_store32(&ptr_g->done, 1);
+    ptr_g->done.store(1);
     last_group_done_index= gaq_index;
     last_groups_assigned_index= ptr_g->total_seqno;
     reset_gaq_index();
@@ -1363,7 +1361,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     Mts_submode_logical_clock* mts_submode=
       static_cast<Mts_submode_logical_clock*>(c_rli->current_mts_submode);
     int64 min_child_waited_logical_ts=
-      my_atomic_load64(&mts_submode->min_waited_timestamp);
+      mts_submode->min_waited_timestamp.load();
 
     DBUG_EXECUTE_IF("slave_worker_ends_group_before_signal_lwm",
                     {
@@ -1412,48 +1410,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-   Class circular_buffer_queue.
-
-   Content of the being dequeued item is copied to the arg-pointer
-   location.
-
-   @return the queue's array index that the de-queued item
-           located at, or an error as an int outside the legacy
-           [0, size) (value `size' is excluded) range.
-*/
-
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
-{
-  ulong ret;
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  ret= entry;
-  *val= m_Q[entry];
-  len--;
-
-  // pre boundary cond
-  if (avail == size)
-    avail= entry;
-  entry= (entry + 1) % size;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
-}
 
 /**
    Similar to de_queue() but removing an item from the tail side.
@@ -1608,7 +1564,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       even assigned, this means there is a gap.
     */
     if (ptr_g->worker_id == MTS_WORKER_UNDEF ||
-        my_atomic_load32(&ptr_g->done) == 0)
+        ptr_g->done.load() == 0)
       break; /* gap at i'th */
 
     /* Worker-id domain guard */
@@ -1718,7 +1674,7 @@ ulong Slave_committed_queue::find_lwm(Slave_job_group** arg_g,
        i= (i + 1) % size, cnt++)
   {
     ptr_g= &m_Q[i];
-    if (my_atomic_load32(&ptr_g->done) == 0)
+    if (ptr_g->done.load() == 0)
     {
       if (cnt == 0)
         return size;             // the first node of the queue is not done
@@ -2115,8 +2071,8 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
 
       if (open_binlog_file(&relay_io, file_name, &errmsg) == -1)
       {
-        sql_print_error("Failed to open relay log %s, error: %s", file_name,
-                        errmsg);
+        LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_RELAY_LOG,
+               file_name, errmsg);
         goto end;
       }
       my_b_seek(&relay_io, start_relay_pos);
@@ -2170,16 +2126,14 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
       */
       if (relay_io.error != 0)
       {
-        sql_print_error("Error when worker read relay log events,"
-                        "relay log name %s, position %llu",
-                        rli->get_event_relay_log_name(), my_b_tell(&relay_io));
+        LogErr(ERROR_LEVEL, ER_RPL_WORKER_CANT_READ_RELAY_LOG,
+               rli->get_event_relay_log_name(), my_b_tell(&relay_io));
         goto end;
       }
 
       if (rli->relay_log.find_next_relay_log(file_name))
       {
-        sql_print_error("Failed to find next relay log when retrying the "
-                        "transaction, current relay log is %s", file_name);
+        LogErr(ERROR_LEVEL, ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG, file_name);
         goto end;
       }
 
@@ -2341,26 +2295,27 @@ bool append_item_to_jobs(slave_job_item *job_item,
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
-
   DBUG_ASSERT(thd == current_thd);
-
-  if (ev_size > rli->mts_pending_jobs_size_max)
-  {
-    char llbuff[22];
-    llstr(rli->get_event_relay_log_pos(), llbuff);
-    my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
-             job_item->data->get_type_str(),
-             rli->get_event_relay_log_name(), llbuff, ev_size,
-             rli->mts_pending_jobs_size_max);
-    /* Waiting in slave_stop_workers() avoidance */
-    rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    return ret;
-  }
 
   mysql_mutex_lock(&rli->pending_jobs_lock);
   new_pend_size= rli->mts_pending_jobs_size + ev_size;
-  // C waits basing on *data* sizes in the queues
-  while (new_pend_size > rli->mts_pending_jobs_size_max)
+  bool big_event= (ev_size > rli->mts_pending_jobs_size_max);
+  /*
+    C waits basing on *data* sizes in the queues.
+    If it is a big event (event size is greater than
+    slave_pending_jobs_size_max but less than slave_max_allowed_packet),
+    it will wait for all the jobs in the workers's queue to be
+    completed. If it is normal event (event size is less than
+    slave_pending_jobs_size_max), then it will wait for
+    enough empty memory to keep the event in one of the workers's
+    queue.
+    NOTE: Receiver thread (I/O thread) is taking care of restricting
+    the event size to slave_max_allowed_packet. If an event from
+    the master is bigger than this value, IO thread will be stopped
+    with error ER_NET_PACKET_TOO_LARGE.
+  */
+  while ( (!big_event && new_pend_size > rli->mts_pending_jobs_size_max)
+          || (big_event && rli->mts_pending_jobs_size != 0 ))
   {
     rli->mts_wq_oversize= TRUE;
     rli->wq_size_waits_cnt++; // waiting due to the total size
@@ -2372,10 +2327,8 @@ bool append_item_to_jobs(slave_job_item *job_item,
     if (thd->killed)
       return true;
     if (rli->wq_size_waits_cnt % 10 == 1)
-      sql_print_information("Multi-threaded slave: Coordinator has waited "
-                            "%lu times hitting slave_pending_jobs_size_max; "
-                            "current event size = %zu.",
-                            rli->wq_size_waits_cnt, ev_size);
+      LogErr(INFORMATION_LEVEL, ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED,
+             rli->wq_size_waits_cnt, ev_size);
     mysql_mutex_lock(&rli->pending_jobs_lock);
 
     new_pend_size= rli->mts_pending_jobs_size + ev_size;
@@ -2785,8 +2738,8 @@ int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
   worker->slave_worker_ends_group(ev, 0);
 
   /*
-   check if the finished group started with a gtid_log_event to update the
-   monitoring information
+    Check if the finished group started with a Gtid_log_event to update the
+    monitoring information
   */
   if (current_thd->rli_slave->is_processing_trx())
   {
@@ -2802,11 +2755,11 @@ int slave_worker_exec_job_group( Slave_worker *worker, Relay_log_info *rli)
         ((Query_log_event*)ev)->rollback_injected_by_coord)
     {
       /*
-       If this was a rollback event injected by the coordinator because of a
-       partial transaction in the relay log, we must not consider this
-       transaction completed and, instead, clear the monitoring info.
+        If this was a rollback event injected by the coordinator because of a
+        partial transaction in the relay log, we must not consider this
+        transaction completed and, instead, clear the monitoring info.
       */
-      current_thd->rli_slave->clear_processing_trx(true /*need_lock*/);
+      current_thd->rli_slave->clear_processing_trx();
     }
     else
     {

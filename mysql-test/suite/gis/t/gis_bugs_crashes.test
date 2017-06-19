@@ -267,7 +267,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 --echo # BUG#19549099 : VIRTUAL CONST CHAR* ITEM_FUNC_SPATIAL_MBR_REL::FUNC_NAME() CONST: ASSERTION `0'
 --echo ######################################################################################################
 
---error ER_GIS_DIFFERENT_SRIDS
+--error ER_SRS_NOT_FOUND
 SELECT MBRCOVERS(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)',100));
 
 --echo ######################################################################################################
@@ -962,6 +962,7 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTILINESTRING((5 0,5 5,5 10),(0 0,10 10))'
 --echo # More GIS crashes/assertion failure test cases
 --echo ######################################################################################################
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRCONTAINS(ST_UNION(
                        ST_GEOMFROMTEXT(
                            'GEOMETRYCOLLECTION('
@@ -1007,6 +1008,7 @@ SELECT ST_TOUCHES(ST_INTERSECTION(
                       ST_GEOMFROMWKB(ST_ASWKB(POINT(0,2)))));
 
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRCONTAINS(ST_UNION(
                        ST_GEOMFROMTEXT(
                            'GEOMETRYCOLLECTION('
@@ -1087,6 +1089,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(
                      ST_GEOMFROMTEXT('MULTIPOLYGON(((6 4,3 3,-8.4 6,-.0 4,6 4)))')));
 
 
+--error ER_SRS_NOT_FOUND
 SELECT MBRWITHIN(ST_SYMDIFFERENCE(
                      ST_GEOMFROMWKB(ST_ASWKB(POINT(3,8)),10),
                      ST_GEOMFROMWKB(

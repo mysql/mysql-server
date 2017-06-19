@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,30 +13,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef XCOM_SSL_TRANSPORT_H
 #define XCOM_SSL_TRANSPORT_H
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
 #include "openssl/err.h"
+#include "openssl/ssl.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #ifndef SSL_SUCCESS
-#define SSL_SUCCESS		1
-#define SSL_ERROR		0
+#define SSL_SUCCESS 1
+#define SSL_ERROR 0
 #endif
 
 /*
   Possible operation modes as explained further down. If you
   want to add a new mode, do it before the LAST_SSL_MODE.
 */
-enum ssl_enum_mode_options
-{
-  INVALID_SSL_MODE= -1,
-  SSL_DISABLED= 1,
+enum ssl_enum_mode_options {
+  INVALID_SSL_MODE = -1,
+  SSL_DISABLED = 1,
   SSL_PREFERRED,
   SSL_REQUIRED,
   SSL_VERIFY_CA,
@@ -52,7 +50,7 @@ enum ssl_enum_mode_options
 
   If a different value is provide, INVALID_SSL_MODE (-1) is returned.
 */
-int xcom_get_ssl_mode(const char* mode);
+int xcom_get_ssl_mode(const char *mode);
 
 /*
   Set the operation mode which might be the following:
@@ -126,7 +124,6 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
 void xcom_cleanup_ssl();
 void xcom_destroy_ssl();
 
-
 /*
   Return whether the SSL will be used to encrypt data or not.
 
@@ -138,14 +135,14 @@ int xcom_use_ssl();
   Verify whether the server certificate matches the host to which
   the connection is attempted.
 */
-int ssl_verify_server_cert(SSL *ssl, const char* server_hostname);
+int ssl_verify_server_cert(SSL *ssl, const char *server_hostname);
 
 /*
   Pointers to the SSL Context for the server and client
   contexts respectively.
 */
-extern SSL_CTX*    server_ctx;
-extern SSL_CTX*    client_ctx;
+extern SSL_CTX *server_ctx;
+extern SSL_CTX *client_ctx;
 
 #ifdef __cplusplus
 }

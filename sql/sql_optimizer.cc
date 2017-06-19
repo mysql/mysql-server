@@ -129,6 +129,34 @@ static Item_func_match *test_if_ft_index_order(ORDER *order);
 
 static uint32 get_key_length_tmp_table(Item *item);
 
+bool JOIN::alloc_indirection_slices()
+{
+  const uint card= REF_SLICE_WIN_1 + m_windows.elements*2;
+
+  DBUG_ASSERT(ref_items == nullptr);
+  ref_items= (Ref_item_array*)sql_alloc(sizeof(Ref_item_array) * card);
+  if (ref_items == nullptr)
+    return true;
+
+  tmp_all_fields= (List<Item>*)sql_alloc(sizeof(List<Item>) * card);
+  if (tmp_all_fields == nullptr)
+    return true;
+
+  tmp_fields_list= (List<Item>*)sql_alloc(sizeof(List<Item>) * card);
+  if (tmp_fields_list == nullptr)
+    return true;
+
+  for (uint i=0; i < card; i++)
+  {
+    ref_items[i].reset();
+    tmp_all_fields[i].empty();
+    tmp_fields_list[i].empty();
+  }
+
+  return false;
+}
+
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -167,6 +195,7 @@ int
 JOIN::optimize()
 {
   uint no_jbuf_after= UINT_MAX;
+  const bool no_w= m_windows.elements == 0;
 
   DBUG_ENTER("JOIN::optimize");
   DBUG_ASSERT(select_lex->leaf_table_count == 0 ||
@@ -225,6 +254,9 @@ JOIN::optimize()
   set_optimized();
 
   tables_list= select_lex->leaf_tables;
+
+  if (alloc_indirection_slices())
+    DBUG_RETURN(1);
 
   // The base ref items from query block are assigned as JOIN's ref items
   ref_items[REF_SLICE_BASE]= select_lex->base_ref_items;
@@ -392,6 +424,20 @@ JOIN::optimize()
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
+
+  {
+    m_windowing_steps= false; // initialization
+    m_windows_sort= false;
+    List_iterator<Window> li(m_windows);
+    Window *w;
+    while ((w= li++))
+      if (w->needs_sorting() && !w->sort_redundant())
+      {
+        m_windows_sort= true;
+        break;
+      }
+  }
+
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
   if ((where_cond || group_list || order) &&
@@ -655,23 +701,36 @@ JOIN::optimize()
   }
 
   /*
-    Check if we need to create a temporary table.
+    Check if we need to create a temporary table prior to any windowing.
     This has to be done if all tables are not already read (const tables)
     and one of the following conditions holds:
     - We are using DISTINCT (simple distinct's have already been optimized away)
-    - We are using an ORDER BY or GROUP BY on fields not in the first table
-    - We are using different ORDER BY and GROUP BY orders
-    - The user wants us to buffer the result.
+      and we have no windows
+    - We are using an ORDER BY and no windows, or GROUP BY on fields not in the 
+      first table
+    - We are using different ORDER BY and GROUP BY orders and we have no windows
+    - The user wants us to buffer the result and we have no windowing
+      (if we do, we make a final windowing step temporary table,
+       cf computation of Temp_table_param::m_window_short_circuit)
+    - We have windowing and the first window requires sorting
     When the WITH ROLLUP modifier is present, we cannot skip temporary table
     creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= ((!plan_is_const() &&
-             ((select_distinct ||
-               (order && !simple_order) ||
+  need_tmp_before_win=
+           ((!plan_is_const() &&
+             (((select_distinct && no_w) ||
+               (order && !simple_order && no_w) ||
                (group_list && !simple_group)) ||
-              (group_list && order) ||
-              (select_lex->active_options() & OPTION_BUFFER_RESULT))) ||
-             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
+              (group_list && order && no_w) ||
+              (select_lex->active_options() & OPTION_BUFFER_RESULT && no_w))) ||
+            /*
+              If the first window step needs sorting, we need a tmp file,
+              but only if there's more than one non-const table in join.
+            */
+            (!no_w && (primary_tables - const_tables) > 1 &&
+             m_windows[0]->needs_sorting() &&
+             !group_optimized_away) ||
+            (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   DBUG_EXECUTE("info", TEST_join(this););
 
@@ -1116,9 +1175,9 @@ int JOIN::replace_index_subquery()
   first_qep_tab->set_condition(where_cond);
 
   engine=
-    new subselect_indexsubquery_engine(first_qep_tab, unit->item,
-                                       where_cond,
-                                       having_cond);
+    new (*THR_MALLOC) subselect_indexsubquery_engine(first_qep_tab,
+                                                     unit->item, where_cond,
+                                                     having_cond);
 
   if (!unit->item->change_engine(engine))
     DBUG_RETURN(1);
@@ -1131,12 +1190,19 @@ bool JOIN::optimize_distinct_group_order()
 {
   DBUG_ENTER("optimize_distinct_group_order");
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-
+  const bool windowing= m_windows.elements > 0;
+  const bool may_trace= select_distinct || group_list || order || windowing ||
+    tmp_table_param.sum_func_count;
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_disable_I_S trace_disabled(trace, !may_trace);
+  Opt_trace_object wrapper(trace);
+  Opt_trace_object trace_opt(trace,
+                             "optimizing_distinct_group_by_order_by");
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
     order= ORDER_with_src(remove_const(order, where_cond, 1, &simple_order,
-                                       "ORDER BY"),
+                                       false),
                           order.src);
     if (thd->is_error())
     {
@@ -1205,6 +1271,8 @@ bool JOIN::optimize_distinct_group_order()
         // Inform EXPLAIN that we sort for ORDER and care about ASC/DESC
         order.src= ESC_ORDER_BY;
         order.force_order();
+        trace_opt.add("group_by_is_on_unique", true).
+          add("changed_group_by_to_order_by", true);
       }
 
       /*
@@ -1222,9 +1290,11 @@ bool JOIN::optimize_distinct_group_order()
                                  (void *) &fields_list))
     {
       select_distinct= 0;
+      trace_opt.add("distinct_is_on_unique", true).
+        add("removed_distinct", true);
     }
   }
-  if (!(group_list || tmp_table_param.sum_func_count) &&
+  if (!(group_list || tmp_table_param.sum_func_count || windowing) &&
       select_distinct &&
       plan_is_single_table() &&
       rollup.state == ROLLUP::STATE_NONE)
@@ -1240,6 +1310,8 @@ bool JOIN::optimize_distinct_group_order()
         This can happen if:
         - We are using CALC_FOUND_ROWS
         - We are using an ORDER BY that can't be optimized away.
+      - Selected expressions are not set functions (those cannot be put
+      into GROUP BY).
 
       We don't want to use this optimization when we are using LIMIT
       because in this case we can just create a temporary table that
@@ -1287,6 +1359,7 @@ bool JOIN::optimize_distinct_group_order()
           tmp_table_param.quick_group=0;
         }
         grouped= true;                    // For end_write_group
+        trace_opt.add("changed_distinct_to_group_by", true);
       }
       else
 	group_list= 0;
@@ -1295,22 +1368,22 @@ bool JOIN::optimize_distinct_group_order()
       DBUG_RETURN(true);
   }
   simple_group= 0;
-  {
-    ORDER *old_group_list= group_list;
-    group_list= ORDER_with_src(remove_const(group_list, where_cond,
-                                            rollup.state == ROLLUP::STATE_NONE,
-                                            &simple_group, "GROUP BY"),
-                               group_list.src);
 
-    if (thd->is_error())
-    {
-      error= 1;
-      DBUG_PRINT("error",("Error from remove_const"));
-      DBUG_RETURN(true);
-    }
-    if (old_group_list && !group_list)
-      select_distinct= 0;
+  ORDER *old_group_list= group_list;
+  group_list= ORDER_with_src(remove_const(group_list, where_cond,
+                                          rollup.state == ROLLUP::STATE_NONE,
+                                          &simple_group, true),
+                             group_list.src);
+
+  if (thd->is_error())
+  {
+    error= 1;
+    DBUG_PRINT("error",("Error from remove_const"));
+    DBUG_RETURN(true);
   }
+  if (old_group_list && !group_list)
+    select_distinct= 0;
+
   if (!group_list && grouped)
   {
     order=0;					// The output has only one row
@@ -1322,7 +1395,12 @@ bool JOIN::optimize_distinct_group_order()
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
 
-  if (test_if_subpart(group_list, order) ||
+  /*
+    Grouping orders row; so if windowing doesn't change this order, and
+    ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
+    Also true if the result is one row.
+    */
+  if ((test_if_subpart(group_list, order) && !m_windows_sort) ||
       (!group_list && tmp_table_param.sum_func_count))
   {
     if (order)
@@ -1330,6 +1408,7 @@ bool JOIN::optimize_distinct_group_order()
       order=0;
       // now GROUP BY also should provide proper order
       group_list.force_order();
+      trace_opt.add("removed_order_by", true);
     }
     if (is_indexed_agg_distinct(this, NULL))
       sort_and_group= 0;
@@ -1341,6 +1420,7 @@ bool JOIN::optimize_distinct_group_order()
 
 void JOIN::test_skip_sort()
 {
+  DBUG_ENTER("test_skip_sort");
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   JOIN_TAB *const tab= best_ref[const_tables];
 
@@ -1369,7 +1449,8 @@ void JOIN::test_skip_sort()
           'need_tmp' implies that there will be more postprocessing 
           so the specified 'limit' should not be enforced yet.
          */
-        const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
+        const ha_rows limit = (need_tmp_before_win ? HA_POS_ERROR :
+                               m_select_limit);
         int dummy;
 
         if (test_if_skip_sort_order(tab, group_list, limit, false, 
@@ -1392,13 +1473,14 @@ void JOIN::test_skip_sort()
            (tab->emb_sj_nest &&
             tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN)))
       {
-        need_tmp= true;
+        need_tmp_before_win= true;
         simple_order= simple_group= false; // Force tmp table without sort
       }
     }
   }
   else if (order &&                      // ORDER BY wo/ preceding GROUP BY
-           (simple_order || skip_sort_order)) // which is possibly skippable
+           (simple_order || skip_sort_order) && // which is possibly skippable,
+           !m_windows_sort) // and WFs will not shuffle rows
   {
     int dummy;
     if (test_if_skip_sort_order(tab, order, m_select_limit, false,
@@ -1408,6 +1490,7 @@ void JOIN::test_skip_sort()
       ordered_index_usage= ordered_index_order_by;
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2766,23 +2849,30 @@ bool JOIN::get_best_combination()
     Number of plan nodes:
       # of regular input tables (including semi-joined ones) +
       # of semi-join nests for materialization +
-      1? + // For GROUP BY
+      1? + // For GROUP BY (or implicit grouping when we have windowing)
       1? + // For DISTINCT
       1? + // For aggregation functions aggregated in outer query
            // when used with distinct
       1? + // For ORDER BY
       1?   // buffer result
-    Up to 2 tmp tables are actually used, but it's hard to tell exact number
-    at this stage.
+
+    Up to 2 tmp tables + N window output tmp are allocated (NOTE: windows also
+    have frame buffer tmp tables, but those are not relevant here).
   */
-  uint num_tmp_tables= (group_list ? 1 : 0) +
+  uint num_tmp_tables= (group_list ||
+                        (implicit_grouping && m_windows.elements) > 0 ? 1 : 0) +
                        (select_distinct ?
                         (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
                        (order ? 1 : 0) +
                        (select_lex->active_options() &
-                        (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0);
-  if (num_tmp_tables > 2)
-    num_tmp_tables= 2;
+                        (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) +
+                        m_windows.elements +
+                        1; /* the presence of windows may increase need for
+                              grouping tmp tables, cf. de-optimization
+                              in make_tmp_tables_info
+                            */
+  if (num_tmp_tables > (2 + m_windows.elements ))
+      num_tmp_tables= 2 + m_windows.elements;
 
   /*
     Rearrange queries with materialized semi-join nests so that the semi-join
@@ -4180,7 +4270,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     else if (cond_type == Item::FUNC_ITEM &&
          down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC)
     {
-      cond_equal= new COND_EQUAL;
+      cond_equal= new (*THR_MALLOC) COND_EQUAL;
       if (cond_equal == NULL)
         return true;
       cond_equal->current_level.push_back(down_cast<Item_equal *>(cond));
@@ -4834,6 +4924,7 @@ void JOIN::update_depend_map()
 
 void JOIN::update_depend_map(ORDER *order)
 {
+  DBUG_ENTER("JOIN::update_depend_map");
   for (; order ; order=order->next)
   {
     table_map depend_map;
@@ -4851,6 +4942,7 @@ void JOIN::update_depend_map(ORDER *order)
       }
     }
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5252,7 +5344,8 @@ bool JOIN::init_planner_arrays()
     need +2, to host at most 2 tmp sort/group/distinct tables.
   */
   if (!(best_ref= (JOIN_TAB **) thd->alloc(sizeof(JOIN_TAB *) *
-                                           (table_count + sj_nests + 2))))
+                                           (table_count + sj_nests + 2 +
+                                            m_windows.elements))))
     return true;
 
   // sort/group tmp tables have no map
@@ -5543,6 +5636,7 @@ bool JOIN::extract_func_dependent_tables()
 {
   // loop until no more const tables are found
   bool ref_changed;
+  // Tables referenced by others; if they're const the others may be too.
   table_map found_ref;
   do
   {
@@ -5592,7 +5686,10 @@ bool JOIN::extract_func_dependent_tables()
       {
         // All dependent tables must be const
         if (tab->dependent & ~const_table_map)
+        {
+          found_ref|= tab->dependent;
           continue;
+        }
         /*
           Mark a dependent table as constant if
            1. it has exactly zero or one rows (it is a system table), and
@@ -5686,7 +5783,12 @@ bool JOIN::extract_func_dependent_tables()
 	}
       }
     }
-  } while ((const_table_map & found_ref) && ref_changed);
+  } while
+    /*
+      A new const table appeared, that is referenced by others, so re-check
+      others:
+    */
+      ((const_table_map & found_ref) && ref_changed);
 
   return false;
 }
@@ -7848,8 +7950,8 @@ add_ft_keys(Key_use_array *keyuse_array,
 /**
   Compares two keyuse elements.
 
-  @param a_arg first Key_use element
-  @param b_arg second Key_use element
+  @param a first Key_use element
+  @param b second Key_use element
 
   Compare Key_use elements so that they are sorted as follows:
     -# By table.
@@ -7858,28 +7960,25 @@ add_ft_keys(Key_use_array *keyuse_array,
     -# Const values.
     -# Ref_or_null.
 
-  @retval 0 If a = b.
-  @retval negative If a < b.
-  @retval positive If a > b.
+  @retval true If a < b.
+  @retval false If a >= b.
 */
-static int sort_keyuse(const void *a_arg, const void *b_arg)
+static bool sort_keyuse(const Key_use &a, const Key_use &b)
 {
-  const Key_use *a= pointer_cast<const Key_use*>(a_arg);
-  const Key_use *b= pointer_cast<const Key_use*>(b_arg);
-  int res;
-  if (a->table_ref->tableno() != b->table_ref->tableno())
-    return (int) (a->table_ref->tableno() - b->table_ref->tableno());
-  if (a->key != b->key)
-    return (int) (a->key - b->key);
-  if (a->keypart != b->keypart)
-    return (int) (a->keypart - b->keypart);
+  if (a.table_ref->tableno() != b.table_ref->tableno())
+    return a.table_ref->tableno() < b.table_ref->tableno();
+  if (a.key != b.key)
+    return a.key < b.key;
+  if (a.keypart != b.keypart)
+    return a.keypart < b.keypart;
   // Place const values before other ones
-  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
-    return res;
+  int res;
+  if ((res= MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT)) -
+       MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT))))
+    return res < 0;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
-  return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
-		(b->optimize & KEY_OPTIMIZE_REF_OR_NULL));
+  return (a.optimize & KEY_OPTIMIZE_REF_OR_NULL) <
+         (b.optimize & KEY_OPTIMIZE_REF_OR_NULL);
 }
 
 
@@ -8347,8 +8446,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   {
     Key_use *save_pos, *use;
 
-    my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
-             sort_keyuse);
+    std::sort(keyuse->begin(), keyuse->begin() + keyuse->size(), sort_keyuse);
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
     if (keyuse->push_back(key_end)) // added for easy testing
@@ -9972,27 +10070,28 @@ static bool duplicate_order(const ORDER *first_order,
                                 If this is not set, then only simple_order is
                                 calculated.
   @param simple_order           Set to 1 if we are only using simple expressions
-  @param clause_type            "ORDER BY" etc for printing in optimizer trace
+  @param group_by               True if order represents a grouping operation
 
   @return
     Returns new sort order
 */
 
 ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
-                          bool *simple_order, const char *clause_type)
+                          bool *simple_order, bool group_by)
 {
+  DBUG_ENTER("JOIN::remove_const");
+
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   if (plan_is_const())
-    return change_list ? 0 : first_order;		// No need to sort
+    DBUG_RETURN(change_list ? 0 : first_order);		// No need to sort
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_disable_I_S trace_disabled(trace, first_order == NULL);
-  Opt_trace_object trace_wrapper(trace);
-  Opt_trace_object trace_simpl(trace, "clause_processing");
+  Opt_trace_object trace_simpl(trace, group_by ? "simplifying_group_by" :
+                               "simplifying_order_by");
   if (trace->is_started())
   {
-    trace_simpl.add_alnum("clause", clause_type);
     String str;
     SELECT_LEX::print_order(&str, first_order,
                             enum_query_type(QT_TO_SYSTEM_CHARSET |
@@ -10009,20 +10108,26 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   table_map ref;
   // Caches to avoid repeating eq_ref_table() calls, @see eq_ref_table()
   table_map eq_ref_tables= 0, cached_eq_ref_tables= 0;
-  DBUG_ENTER("JOIN::remove_const");
 
   prev_ptr= &first_order;
   *simple_order= !first_tab->join_cond();
 
+  // De-optimization in conjunction with window functions
+  if (group_by && m_windows.elements > 0)
+    *simple_order= false;
+
   /* NOTE: A variable of not_const_tables ^ first_table; breaks gcc 2.7 */
 
   update_depend_map(first_order);
+
   for (order=first_order; order ; order=order->next)
   {
     Opt_trace_object trace_one_item(trace);
     trace_one_item.add("item", order->item[0]);
     table_map order_tables=order->item[0]->used_tables();
+
     if (order->item[0]->has_aggregation() ||
+        order->item[0]->has_wf() ||
         /*
           If the outer table of an outer join is const (either by itself or
           after applying WHERE condition), grouping on a field from such a
@@ -11140,6 +11245,13 @@ bool JOIN::decide_subquery_strategy()
   switch (chosen_method)
   {
   case Item_exists_subselect::EXEC_EXISTS:
+    if (select_lex->m_windows.elements > 0)     // grep for WL#10431
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "the combination of this ALL/ANY/SOME/IN subquery with this"
+               " comparison operator and with contained window functions");
+      return true;
+    }
     return in_pred->finalize_exists_transform(select_lex);
   case Item_exists_subselect::EXEC_MATERIALIZATION:
     return in_pred->finalize_materialization_transform(this);
@@ -11423,10 +11535,13 @@ bool JOIN::optimize_rollup()
     static_cast<Ref_item_array*>
     (thd->alloc((sizeof(Ref_item_array) +
                  ref_array_size * sizeof(Item*)) * send_group_parts));
-  rollup.fields=
+  rollup.all_fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
+  rollup.fields_list=
+   static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
 
-  if (!null_items || !rollup.ref_item_arrays || !rollup.fields)
+  if (!null_items || !rollup.ref_item_arrays || !rollup.all_fields ||
+      !rollup.fields_list)
     return true;
 
   Item **ref_array= (Item**) (rollup.ref_item_arrays+send_group_parts);
@@ -11443,15 +11558,17 @@ bool JOIN::optimize_rollup()
                                            (*group->item)->result_type());
     if (rollup.null_items[i] == NULL)
       return true;           /* purecov: inspected */
-    List<Item> *rollup_fields= &rollup.fields[i];
-    rollup_fields->empty();
+    rollup.fields_list[i].empty();
+    rollup.all_fields[i].empty();
     rollup.ref_item_arrays[i]= Ref_item_array(ref_array, ref_array_size);
     ref_array+= ref_array_size;
   }
   for (uint i= 0; i < send_group_parts; i++)
   {
     for (uint j= 0; j < fields_list.elements; j++)
-      rollup.fields[i].push_back(rollup.null_items[i]);
+      rollup.fields_list[i].push_back(rollup.null_items[i]);
+    for (uint j= 0; j < all_fields.elements; j++)
+      rollup.all_fields[i].push_back(rollup.null_items[i]);
   }
   return false;
 }

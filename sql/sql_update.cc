@@ -32,6 +32,7 @@
 #include "filesort.h"                 // Filesort
 #include "handler.h"
 #include "item.h"                     // Item
+#include "item_json_func.h"           // Item_json_func
 #include "key.h"                      // is_key_used
 #include "m_ctype.h"
 #include "mem_root_array.h"
@@ -545,7 +546,11 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  if (table->setup_partial_update())
+  /*
+    WL#2955 will change this to only request JSON diffs when needed.
+    For now, always request JSON diffs so that the code can be tested.
+  */
+  if (table->setup_partial_update(true /* will be changed by WL#2955 */))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   ha_rows updated_rows= 0;
@@ -814,10 +819,11 @@ bool Sql_cmd_update::update_single_table(THD *thd)
       if (table->file->was_semi_consistent_read())
         continue;  /* repeat the read of the same row if it still exists */
 
-      table->clear_binary_diffs();
+      table->clear_partial_update_diffs();
 
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, *update_field_list,
+      if (fill_record_n_invoke_before_triggers(thd, &update,
+                                               *update_field_list,
                                                *update_value_list, table,
                                                TRG_EVENT_UPDATE, 0))
       {
@@ -1234,9 +1240,9 @@ static bool has_json_columns(List<Item> *items)
 
       json_col = JSON_SET(json_col, ...)
 
-  or
-
       json_col = JSON_REPLACE(json_col, ...)
+
+      json_col = JSON_REMOVE(json_col, ...)
 
   Even though a column is marked for partial update, it is not necessarily
   updated as a partial update during execution. It depends on the actual data
@@ -1273,11 +1279,12 @@ static bool prepare_partial_update(Opt_trace_context *trace,
        field_item != nullptr && value_item != nullptr;
        field_item= field_it++, value_item= value_it++)
   {
-    Field *field= down_cast<Item_field*>(field_item)->field;
-
     // Only consider JSON fields for partial update for now.
-    if (field->type() != MYSQL_TYPE_JSON)
+    if (field_item->data_type() != MYSQL_TYPE_JSON)
       continue;
+
+    const Field_json *field=
+      down_cast<Field_json*>(down_cast<Item_field*>(field_item)->field);
 
     if (rejected_fields.count_unique(field) != 0)
       continue;
@@ -1302,10 +1309,10 @@ static bool prepare_partial_update(Opt_trace_context *trace,
       continue;
     }
 
-    if (value_item->mark_for_partial_update(field))
+    if (!value_item->supports_partial_update(field))
     {
-      reject_column("Not JSON_SET or JSON_REPLACE with "
-                    "same source and target column");
+      reject_column("Updated using a function that does not support partial "
+                    "update, or source and target column differ");
       partial_update_fields.erase_unique(field);
       continue;
     }
@@ -1313,9 +1320,27 @@ static bool prepare_partial_update(Opt_trace_context *trace,
     partial_update_fields.insert_unique(field);
   }
 
+  if (partial_update_fields.empty())
+    return false;
+
   for (const Field *fld : partial_update_fields)
     if (fld->table->mark_column_for_partial_update(fld))
       return true;                              /* purecov: inspected */
+
+  field_it.rewind();
+  value_it.rewind();
+  for (Item *field_item= field_it++, *value_item= value_it++;
+       field_item != nullptr && value_item != nullptr;
+       field_item= field_it++, value_item= value_it++)
+  {
+    const Field *field= down_cast<Item_field*>(field_item)->field;
+    if (field->table->is_marked_for_partial_update(field))
+    {
+      auto json_field= down_cast<const Field_json*>(field);
+      auto json_func= down_cast<Item_json_func*>(value_item);
+      json_func->mark_for_partial_update(json_field);
+    }
+  }
 
   return false;
 }
@@ -1432,7 +1457,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
                                 OPTION_BUFFER_RESULT);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result= new Query_result_update(thd, update_fields, update_value_list);
+    result= new (*THR_MALLOC) Query_result_update(thd, update_fields,
+                                                  update_value_list);
     if (result == NULL)
       DBUG_RETURN(true);            /* purecov: inspected */
 
@@ -1797,8 +1823,8 @@ bool Query_result_update::prepare(List<Item>&,
     DBUG_RETURN(true);
   for (uint i= 0; i < update_table_count; i++)
   {
-    fields_for_table[i]= new List_item;
-    values_for_table[i]= new List_item;
+    fields_for_table[i]= new (*THR_MALLOC) List_item;
+    values_for_table[i]= new (*THR_MALLOC) List_item;
   }
   if (thd->is_error())
     DBUG_RETURN(true);
@@ -1822,7 +1848,7 @@ bool Query_result_update::prepare(List<Item>&,
   for (uint i= 0; i < update_table_count; i++)
     set_if_bigger(max_fields,
                   fields_for_table[i]->elements + select->leaf_table_count);
-  copy_field= new Copy_field[max_fields];
+  copy_field= new (*THR_MALLOC) Copy_field[max_fields];
 
 
   for (TABLE_LIST *ref= leaves; ref != NULL; ref= ref->next_leaf)
@@ -2040,7 +2066,11 @@ bool Query_result_update::optimize()
                              select->get_table_list()))
       {
         table->mark_columns_needed_for_update(thd, true/*mark_binlog_columns=true*/);
-        if (table->setup_partial_update())
+        /*
+          WL#2955 will change this to only request JSON diffs when needed.
+          For now, always request JSON diffs so that the code can be tested.
+        */
+        if (table->setup_partial_update(true /* will be changed by WL#2955 */))
           DBUG_RETURN(true);                    /* purecov: inspected */
 	table_to_update= table;			// Update table on the fly
 	continue;
@@ -2130,12 +2160,13 @@ loop_end:
       */
       tbl->prepare_for_position();
 
-      Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
+      Field_string *field= new (*THR_MALLOC) Field_string(tbl->file->ref_length,
+                                                          0, tbl->alias,
+                                                          &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);
-      Item_field *ifield= new Item_field((Field *) field);
+      Item_field *ifield= new (*THR_MALLOC) Item_field((Field *) field);
       if (!ifield)
          DBUG_RETURN(1);
       ifield->maybe_null= 0;
@@ -2159,7 +2190,8 @@ loop_end:
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
-                                     TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+                                     TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "",
+                                     TMP_WIN_NONE);
     thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
@@ -2237,10 +2269,10 @@ bool Query_result_update::send_data(List<Item>&)
 
     if (table == table_to_update)
     {
-      table->clear_binary_diffs();
+      table->clear_partial_update_diffs();
       table->set_updated_row();
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd,
+      if (fill_record_n_invoke_before_triggers(thd, update_operations[offset],
                                                *fields_for_table[offset],
                                                *values_for_table[offset],
                                                table,

@@ -34,7 +34,7 @@
 #
 # Test is binlog_format-agnostic. STATEMENT is simpler here since we
 # are parsing mysqlbinlog output for BINLOG statements, so if we used
-# binlog_format=ROW we might get confused by row events.
+# binlog_format='ROW' we might get confused by row events.
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 

@@ -1890,19 +1890,6 @@ static int compare_files(const char* filename1, const char* filename2)
   if ((fd= my_open(filename1, O_RDONLY, MYF(0))) < 0)
     die("Failed to open first file: '%s'", filename1);
 
-  /*
-    Removing the unnecessary warning messages generated
-    on GCOV platform.
-  */
-#ifdef HAVE_GCOV
-  char cmd[FN_REFLEN+FN_REFLEN];
-  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, filename1);
-  strcat(cmd, " ");
-  strcat(cmd, filename2);
-  system(cmd);
-#endif
-
   error= compare_files2(fd, filename2);
 
   my_close(fd, MYF(0));
@@ -1929,6 +1916,17 @@ static void check_result()
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
+
+  /*
+    Removing the unnecessary warning messages generated
+    on GCOV platform.
+  */
+#ifdef HAVE_GCOV
+  char cmd[FN_REFLEN];
+  strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
+  strcat(cmd, log_file.file_name());
+  system(cmd);
+#endif
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
@@ -9833,8 +9831,11 @@ int main(int argc, char **argv)
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
 
-    if(saved_expected_errors.count > 0)
+    if((saved_expected_errors.count > 0) ||
+       (command->expected_errors.count > 0))
+    {
       update_expected_errors(command);
+    }
 
     if (parsing_disabled &&
         command->type != Q_ENABLE_PARSING &&
@@ -9852,12 +9853,11 @@ int main(int argc, char **argv)
     bool ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
 
     /*
-      Some commands need to be "done" the first time if they may get
+      'source' command needs to be "done" the first time if it may get
       re-iterated over in a true context. This can only happen if there's 
       a while loop at some level above the current block.
     */
-    if (!ok_to_do && (command->type == Q_ERROR ||
-                      command->type == Q_SOURCE))
+    if (!ok_to_do && command->type == Q_SOURCE)
     {
       for (struct st_block *stb= cur_block - 1; stb >= block_stack; stb--)
       {
@@ -10217,19 +10217,40 @@ int main(int argc, char **argv)
         abort_flag= 1;
         break;
       case Q_SKIP:
-        if(!no_skip)
-          /*Skip the test-case*/
-          abort_not_supported_test("%s", command->first_argument);
-        else
         {
-          const char *excluded_list = excluded_string;
-          const char *path = cur_file->file_name;
-          const char *fn = get_filename_from_path(path);
-          if(strstr(excluded_list,fn))
-            abort_not_supported_test("%s", command->first_argument);
+          DYNAMIC_STRING ds_skip_msg;
+          init_dynamic_string(&ds_skip_msg, 0, command->query_len, 256);
+
+          // Evaluate the skip message
+          do_eval(&ds_skip_msg, command->first_argument, command->end, FALSE);
+
+          char skip_msg[FN_REFLEN];
+          strmake(skip_msg, ds_skip_msg.str, FN_REFLEN - 1);
+          dynstr_free(&ds_skip_msg);
+
+          if(!no_skip)
+          {
+            // --no-skip option is disabled, skip the test case
+            abort_not_supported_test("%s", skip_msg);
+          }
           else
-          /*Ignore the skip and continue running the test-case */
-          command->last_argument= command->end;
+          {
+            const char *path = cur_file->file_name;
+            const char *fn = get_filename_from_path(path);
+
+            // Check if the file is in excluded list
+            if(excluded_string && strstr(excluded_string, fn))
+            {
+              // File is present in excluded list, skip the test case
+              abort_not_supported_test("%s", skip_msg);
+            }
+            else
+            {
+              // File is not present in excluded list, ignore the skip
+              // and continue running the test case
+              command->last_argument= command->end;
+            }
+          }
         }
         break;
       case Q_OUTPUT:
@@ -11818,7 +11839,6 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, size_t len)
 {
-  char lower[512];
 #ifdef _WIN32
   fix_win_paths(val, len);
 #endif
@@ -11826,12 +11846,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   if (display_result_lower) 
   {
     /* Convert to lower case, and do this first */
-    char *c= lower;
-    for (const char *v= val;  *v;  v++)
-      *c++= my_tolower(charset_info, *v);
-    *c= '\0';
-    /* Copy from this buffer instead */
-    val= lower;
+    my_casedn_str(charset_info, (char*)val);
   }
   
   if (glob_replace_regex)

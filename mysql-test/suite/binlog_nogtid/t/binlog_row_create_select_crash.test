@@ -4,7 +4,7 @@
 # 'CREATE...SELECT' statement even if it is interrupted at
 # debug point 'mysql_lock_tables_kill_query' in the middle
 # and 'CREATE TABLE' event was not logged when
-# binlog_format=row, gtid_mode=off and autocommit=0.
+# binlog_format='row', gtid_mode=off and autocommit=0.
 #
 # ==== Implementation ====
 #

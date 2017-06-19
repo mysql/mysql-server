@@ -7,6 +7,7 @@ test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
@@ -32,6 +33,7 @@ test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
@@ -57,6 +59,7 @@ test/t1#p#p1	innodb_file_per_table.##	33	5	Dynamic	0	Single
 test/t1#p#p2	innodb_file_per_table.##	33	5	Dynamic	0	Single
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p0.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p1.ibd
 innodb_file_per_table.##	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1#p#p2.ibd
@@ -75,6 +78,7 @@ test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
 test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -94,6 +98,7 @@ test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
 test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -113,6 +118,7 @@ test/t1#p#p1	innodb_system	161	5	Dynamic	0	System
 test/t1#p#p2	innodb_system	161	5	Dynamic	0	System
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -125,6 +131,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -144,6 +151,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -163,6 +171,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -175,6 +184,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -194,6 +204,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -213,6 +224,7 @@ test/t1#p#p1	s1	161	5	Dynamic	0	General
 test/t1#p#p2	s1	161	5	Dynamic	0	General
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	s1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
@@ -231,7 +243,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (col1 * 2)
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
 SHOW CREATE TABLE t1;
@@ -239,7 +251,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (col1 * 2)
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 TRUNCATE TABLE t1;
 SHOW CREATE TABLE t1;
@@ -247,7 +259,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (col1 * 2)
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
 SHOW CREATE TABLE t1;
@@ -255,7 +267,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-/*!50100 PARTITION BY RANGE (col1 * 2)
+/*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 DROP TABLE t1;
 DROP TABLESPACE gt1;

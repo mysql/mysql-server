@@ -77,12 +77,12 @@ protected:
 
 protected:
   void log_verbose(unsigned verbose_level, const char* fmt, ...)
-    MY_ATTRIBUTE((format(printf, 3, 4)));
-  void log_error(const char *fmt, ...)
+    const MY_ATTRIBUTE((format(printf, 3, 4)));
+  void log_error(const char *fmt, ...) const
     MY_ATTRIBUTE((format(printf, 2, 3)));
-  void log_warning(const char *fmt, ...)
+  void log_warning(const char *fmt, ...) const
     MY_ATTRIBUTE((format(printf, 2, 3)));
-  void log_info(const char *fmt, ...)
+  void log_info(const char *fmt, ...) const
     MY_ATTRIBUTE((format(printf, 2, 3)));
 
 private:

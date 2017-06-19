@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,32 +22,32 @@ extern "C" {
 
 /* Reasonably type-safe parameters to tasks */
 enum arg_type {
-	a_int,
-	a_long,
-	a_uint,
-	a_ulong,
-	a_ulong_long,
-	a_float,
-	a_double,
-	a_void,
-	a_string,
-	a_end
+  a_int,
+  a_long,
+  a_uint,
+  a_ulong,
+  a_ulong_long,
+  a_float,
+  a_double,
+  a_void,
+  a_string,
+  a_end
 };
 typedef enum arg_type arg_type;
 
 struct task_arg {
-	arg_type type;
-	union {
-		int i;
-		long l;
-		unsigned int u_i;
-		unsigned long u_l;
-		unsigned long long u_ll;
-		float f;
-		double d;
-		char const *s;
-		void *v;
-	} val;
+  arg_type type;
+  union {
+    int i;
+    long l;
+    unsigned int u_i;
+    unsigned long u_l;
+    unsigned long long u_ll;
+    float f;
+    double d;
+    char const *s;
+    void *v;
+  } val;
 };
 typedef struct task_arg task_arg;
 

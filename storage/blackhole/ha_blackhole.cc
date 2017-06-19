@@ -403,6 +403,7 @@ mysql_declare_plugin(blackhole)
   "/dev/null storage engine (anything you write to it disappears)",
   PLUGIN_LICENSE_GPL,
   blackhole_init, /* Plugin Init */
+  NULL, /* Plugin check uninstall */
   blackhole_fini, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */

@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -125,7 +125,8 @@ def handle_hostInfoReq(req, body):
                                            'cores': ch.cores, 
                                            'uname': ch.hostInfo.uname,
                                            'installdir': ch.installdir, 
-                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster') }})
+                                           'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster'),
+                                           'diskfree': ch.hostInfo.disk_free   }})
 
 
 def start_proc(proc, body):
@@ -562,6 +563,9 @@ def main(prefix, cfgdir):
         file_handle = os.open('mcc.pid', flags)
     except OSError as e:
         if e.errno == errno.EEXIST:  # Failed as the file already exists.
+            file_handle = open('mcc.pid') # , os.O_RDONLY)
+            print 'mcc.pid file found at '+os.path.realpath(file_handle.name)+'. Please remove before restarting process.'
+            file_handle.close()
             sys.exit("Web server already running!")
         else:  # Something unexpected went wrong so reraise the exception.
             raise

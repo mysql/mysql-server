@@ -154,7 +154,7 @@ static const ulong EVENT_DEF_CACHE_MIN=          256;
   Feel free to raise this by the smallest amount you can to get the
   "execution_constants" test to pass.
 */
-#define STACK_MIN_SIZE          16000   // Abort if less stack during eval.
+#define STACK_MIN_SIZE          20000   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 
@@ -359,5 +359,25 @@ enum enum_mark_columns
 #define MYSQLD_FAILURE_EXIT 2
 
 #define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+
+/*
+  This enumeration type is used only by the function find_item_in_list
+  to return the info on how an item has been resolved against a list
+  of possibly aliased items.
+  The item can be resolved:
+   - against an alias name of the list's element (RESOLVED_AGAINST_ALIAS)
+   - against non-aliased field name of the list  (RESOLVED_WITH_NO_ALIAS)
+   - against an aliased field name of the list   (RESOLVED_BEHIND_ALIAS)
+   - ignoring the alias name in cases when SQL requires to ignore aliases
+     (e.g. when the resolved field reference contains a table name or
+     when the resolved item is an expression)   (RESOLVED_IGNORING_ALIAS)
+*/
+enum enum_resolution_type {
+  NOT_RESOLVED=0,
+  RESOLVED_BEHIND_ALIAS,
+  RESOLVED_AGAINST_ALIAS,
+  RESOLVED_WITH_NO_ALIAS,
+  RESOLVED_IGNORING_ALIAS
+};
 
 #endif /* SQL_CONST_INCLUDED */

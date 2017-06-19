@@ -32,6 +32,7 @@ delete from mysql.user where user='mysqltest_1' || user='mysqltest_2' || user='m
 delete from mysql.db where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
 --enable_warnings
+--character_set latin1
 
 create table t1 (a int not null primary key, b int not null,c int not null, key(b,c));
 insert into t1 values (1,2,2),(2,2,3),(3,2,4),(4,2,4);
@@ -146,9 +147,11 @@ flush tables;
 # after flush tables. These tables were open when we write to
 # mysql.general_log.
 #
+--sorted_result
 show open tables;
 create table t1(n int);
 insert into t1 values (1);
+--sorted_result
 show open tables;
 drop table t1;
 
@@ -480,6 +483,7 @@ SELECT 1 FROM t2;
 
 --echo
 
+--sorted_result
 SHOW OPEN TABLES FROM mysqltest1;
 
 --echo
@@ -627,6 +631,7 @@ show databases;
 show tables;
 show events;
 show table status;
+--sorted_result
 show open tables;
 show plugins;
 show columns in t1;

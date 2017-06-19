@@ -5008,7 +5008,7 @@ err_exit:
 
 	lock_table_unlock_for_trx(ctx->prebuilt->trx);
 
-	delete ctx;
+	destroy(ctx);
 	ha_alter_info->handler_ctx = NULL;
 
 	DBUG_RETURN(true);
@@ -5106,16 +5106,12 @@ innobase_check_foreign_key_index(
 	return(false);
 }
 
-/**
-Rename a given index in the InnoDB data dictionary cache.
-
+/** Rename a given index in the InnoDB data dictionary cache.
 @param[in,out] index index to rename
-@param new_name new index name
-*/
+@param new_name new index name */
 static
 void
 rename_index_in_cache(
-/*==================*/
 	dict_index_t*	index,
 	const char*	new_name)
 {
@@ -5795,7 +5791,7 @@ err_exit:
 
 		if (heap) {
 			ha_alter_info->handler_ctx
-				= new ha_innobase_inplace_ctx(
+				= new (*THR_MALLOC) ha_innobase_inplace_ctx(
 					m_prebuilt,
 					drop_index, n_drop_index,
 					rename_index, n_rename_index,
@@ -5938,7 +5934,7 @@ found_col:
 	DBUG_ASSERT(m_user_thd == m_prebuilt->trx->mysql_thd);
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
-	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
+	ha_alter_info->handler_ctx = new (*THR_MALLOC) ha_innobase_inplace_ctx(
 		m_prebuilt,
 		drop_index, n_drop_index,
 		rename_index, n_rename_index,
@@ -10460,7 +10456,7 @@ ha_innopart::prepare_inplace_alter_table(
 	/* Based on Sql_alloc class, return NULL for new on failure.
 	This object will be freed by server, so always use 'new'
 	and there is no need to free on failure */
-	ctx_parts = new ha_innopart_inplace_ctx(thd, m_tot_parts);
+	ctx_parts = new (*THR_MALLOC) ha_innopart_inplace_ctx(thd, m_tot_parts);
 	if (ctx_parts == nullptr) {
 		DBUG_RETURN(HA_ALTER_ERROR);
 	}

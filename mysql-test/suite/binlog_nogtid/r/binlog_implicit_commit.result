@@ -142,7 +142,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (2)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (3)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 COMMIT;
-SET BINLOG_FORMAT = ROW;
+SET BINLOG_FORMAT = 'ROW';
 RESET MASTER;
 SET AUTOCOMMIT = 0;
 INSERT INTO t1 VALUES (1);

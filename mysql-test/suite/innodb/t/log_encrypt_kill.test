@@ -7,23 +7,6 @@
 
 # Create a table with encryption, should fail since keyring is not
 # loaded
---disable_query_log
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set redo log tablespace to be encrypted.");
-call mtr.add_suppression("InnoDB: Resizing redo log from");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-call mtr.add_suppression("InnoDB: New log files created, LSN=");
-call mtr.add_suppression("InnoDB: Can't set redo log tablespace to be encrypted");
-call mtr.add_suppression("InnoDB: Can't set undo log tablespace to be encrypted");
-call mtr.add_suppression("Error in Log_event::read_log_event()");
---enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;
@@ -58,8 +41,6 @@ DROP TABLE tne_1;
 
 # Grep for message in server error log
 let SEARCH_PATTERN=Can\'t set redo log tablespace to be encrypted;
---source include/search_pattern.inc
-let SEARCH_PATTERN=Can\'t set undo log tablespace to be encrypted;
 --source include/search_pattern.inc
 
 # Create path for ibdata* & undo* files both DBs
@@ -368,8 +349,9 @@ DROP DATABASE tde_db;
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 
-# Cleanup
-#
+--echo #
+--echo # Cleanup
+--echo #
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
 --remove_file $BOOTSTRAP_SQL

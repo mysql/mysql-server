@@ -146,8 +146,6 @@ find_or_create_host(PFS_thread *thread,
                     const char *hostname,
                     uint hostname_length)
 {
-  static PFS_ALIGNED PFS_cacheline_uint32 monotonic;
-
   LF_PINS *pins = get_host_hash_pins(thread);
   if (unlikely(pins == NULL))
   {

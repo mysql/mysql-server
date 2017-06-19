@@ -44,7 +44,7 @@
 #include "hash.h"
 #include "key.h"
 #include "lex_string.h"
-#include "log.h"                              // sql_print_error
+#include "log.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
@@ -281,18 +281,13 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   if (use_hash)
   {
     Field **field_ptr= share->field;
-    use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info, share->fields, 0,
-                            get_field_name, nullptr, 0,
-                            PSI_INSTRUMENT_ME);
+    share->name_hash= new collation_unordered_map<std::string, Field**>(
+      system_charset_info, PSI_INSTRUMENT_ME);
+    share->name_hash->reserve(share->fields);
 
     for (uint i=0 ; i < share->fields; i++, field_ptr++)
     {
-        if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
-        {
-          // OOM error message already reported
-          return true; /* purecov: inspected */
-        }
+      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
     }
   }
 
@@ -450,10 +445,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
                       key_part->store_length-= (uint16)(key_part->length -
                               field->key_length());
                       key_part->length= (uint16)field->key_length();
-                      sql_print_error("Found wrong key definition in %s; "
-                              "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
-                              share->table_name.str,
-                              share->table_name.str);
+                      LogErr(ERROR_LEVEL, ER_TABLE_WRONG_KEY_DEFINITION,
+                             share->table_name.str,
+                             share->table_name.str);
                       push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CRASHED_ON_USAGE,
                               "Found wrong key definition in %s; "
@@ -530,7 +524,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
   }
   else
       share->primary_key= MAX_KEY;
-  delete handler_file;
+  destroy(handler_file);
 
   if (share->found_next_number_field)
   {
@@ -719,10 +713,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
     if (use_mb(default_charset_info))
     {
       /* Warn that we may be changing the size of character columns */
-      sql_print_warning("'%s' had no or invalid character set, "
-                        "and default character set is multi-byte, "
-                        "so character column sizes may have changed",
-                        share->path.str);
+      LogErr(WARNING_LEVEL,
+             ER_INVALID_CHARSET_AND_DEFAULT_IS_MB, share->path.str);
     }
     share->table_charset= default_charset_info;
   }
@@ -2228,13 +2220,17 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   char *buf;
   uint buf_len;
 
+  // Turn off ANSI_QUOTES and other SQL modes which affect printing of
+  // generated partitioning clause.
+  Sql_mode_parse_guard parse_guard(thd);
+
   buf= generate_partition_syntax(part_info,
                                  &buf_len,
                                  true,
                                  true,
-                                 NULL,
-                                 NULL,
+                                 false,
                                  NULL);
+
   if (!buf)
     return true;
 
@@ -2248,77 +2244,24 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 }
 
 
-bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
-                    const dd::Table *table_def)
+bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def)
 {
   DBUG_ENTER("open_table_def");
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  if (!table_def)
-  {
-    // Make sure the schema exists.
-    bool exists= false;
-    if (dd::schema_exists(thd, share->db.str, &exists))
-      DBUG_RETURN(true);
-
-    if (!exists)
-    {
-      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
-      DBUG_RETURN(true);
-    }
-
-    const dd::Abstract_table *abstract_table= nullptr;
-    if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
-                                  &abstract_table))
-      DBUG_RETURN(true);
-
-    if (abstract_table == nullptr)
-    {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-      DBUG_RETURN(true);
-    }
-
-    if (abstract_table->type() == dd::enum_table_type::USER_VIEW ||
-        abstract_table->type() == dd::enum_table_type::SYSTEM_VIEW)
-    {
-      if (!open_view)
-      {
-        // We found a view but were trying to open table only.
-        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-        DBUG_RETURN(true);
-      }
-      /*
-        Clone the view reference object and hold it in TABLE_SHARE member view_object.
-      */
-      share->is_view= true;
-      const dd::View *tmp_view= dynamic_cast<const dd::View*>(abstract_table);
-      share->view_object= tmp_view->clone();
-
-      share->table_category= get_table_category(share->db, share->table_name);
-      thd->status_var.opened_shares++;
-      DBUG_RETURN(false);
-    }
-
-    DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
-    table_def= dynamic_cast<const dd::Table*>(abstract_table);
-    DBUG_ASSERT(table_def != nullptr);
-  }
 
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &share->mem_root; // Needed for make_field()++
   share->blob_fields= 0; // HACK
 
   // Fill the TABLE_SHARE with details.
-  bool error=  (fill_share_from_dd(thd, share, table_def) ||
-                fill_columns_from_dd(thd, share, table_def) ||
-                fill_indexes_from_dd(thd, share, table_def) ||
-                fill_partitioning_from_dd(thd, share, table_def));
+  bool error=  (fill_share_from_dd(thd, share, &table_def) ||
+                fill_columns_from_dd(thd, share, &table_def) ||
+                fill_indexes_from_dd(thd, share, &table_def) ||
+                fill_partitioning_from_dd(thd, share, &table_def));
 
   thd->mem_root= old_root;
 
   if (!error)
-    error= prepare_share(thd, share, table_def);
+    error= prepare_share(thd, share, &table_def);
 
   if (!error)
   {
@@ -2350,11 +2293,11 @@ public:
 
 
 bool open_table_def_suppress_invalid_meta_data(THD *thd, TABLE_SHARE *share,
-                                               const dd::Table *table_def)
+                                               const dd::Table &table_def)
 {
   Open_table_error_handler error_handler;
   thd->push_internal_handler(&error_handler);
-  bool error= open_table_def(thd, share, false, table_def);
+  bool error= open_table_def(thd, share, table_def);
   thd->pop_internal_handler();
   return error;
 }

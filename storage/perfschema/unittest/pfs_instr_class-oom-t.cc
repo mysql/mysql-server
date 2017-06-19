@@ -23,6 +23,7 @@
 
 #include "lex_string.h"
 #include "stub_pfs_global.h"
+#include "stub_pfs_plugin_table.h"
 
 static void test_oom()
 {

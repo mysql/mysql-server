@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #endif
 
 #include "dynamic_ids.h"       // Server_ids
-#include "log.h"               // sql_print_error
+#include "log.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -34,6 +34,7 @@
 #include "my_thread_local.h"   // my_errno
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"            // mysql_data_home
+#include "mysqld_error.h"      // ER_*
 #include "psi_memory_key.h"
 #include "sql_string.h"
 
@@ -104,15 +105,15 @@ int Rpl_info_file::do_init_info()
     }
     if ((info_fd = my_open(info_fname, O_CREAT | O_RDWR, MYF(MY_WME))) < 0)
     {
-      sql_print_error("Failed to create a new info file (\
-file '%s', errno %d)", info_fname, my_errno());
+      LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_CREATE_NEW_INFO_FILE,
+             info_fname, my_errno());
       error= 1;
     }
     else if (init_io_cache(&info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,0,
                       MYF(MY_WME)))
     {
-      sql_print_error("Failed to create a cache on info file (\
-file '%s')", info_fname);
+      LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_CREATE_CACHE_FOR_INFO_FILE,
+             info_fname);
       error= 1;
     }
     if (error)
@@ -131,15 +132,15 @@ file '%s')", info_fname);
     {
       if ((info_fd = my_open(info_fname, O_RDWR, MYF(MY_WME))) < 0 )
       {
-        sql_print_error("Failed to open the existing info file (\
-file '%s', errno %d)", info_fname, my_errno());
+        LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_INFO_FILE,
+               info_fname, my_errno());
         error= 1;
       }
       else if (init_io_cache(&info_file, info_fd, IO_SIZE*2, READ_CACHE, 0L,
                         0, MYF(MY_WME)))
       {
-        sql_print_error("Failed to create a cache on info file (\
-file '%s')", info_fname);
+        LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_CREATE_CACHE_FOR_INFO_FILE,
+               info_fname);
         error= 1;
       }
       if (error)

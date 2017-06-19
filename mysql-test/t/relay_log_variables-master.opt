@@ -1,1 +1,2 @@
 --relay-log=other-relay
+--relay-log-info-repository=FILE

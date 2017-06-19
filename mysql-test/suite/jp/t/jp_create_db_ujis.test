@@ -1,3 +1,4 @@
+--character_set ujis
 --disable_warnings
 drop database if exists `ÆÎİºŞ`;
 drop database if exists `ÆüËÜ¸ì`;
