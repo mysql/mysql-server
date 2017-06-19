@@ -9584,7 +9584,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
    * here.
    */
   if (check_more_start_lcp &&
-      !masterTakeOver)
+      c_lcpMasterTakeOverState.state == LMTOS_IDLE)
   {
     jam();
     ndbrequire(isMaster());
@@ -20610,6 +20610,7 @@ void Dbdih::startLcpRoundLoopLab(Signal* signal,
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRecord);
     if (nodePtr.p->nodeStatus == NodeRecord::ALIVE) {
+      jamLine(nodePtr.i);
       ndbrequire(nodePtr.p->noOfStartedChkpt == 0);
       ndbrequire(nodePtr.p->noOfQueuedChkpt == 0);
     }//if
