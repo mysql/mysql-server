@@ -6815,24 +6815,18 @@ innobase_update_foreign_cache(
 
 	/* For complete loading of foreign keys, all associated tables must
 	also be loaded. */
+
 	while (err == DB_SUCCESS && !fk_tables.empty()) {
-		dict_table_t*	table = dict_load_table(
-			fk_tables.front(), true, DICT_ERR_IGNORE_NONE);
+		mutex_exit(&dict_sys->mutex);
+		dd::cache::Dictionary_client*   client
+			= dd::get_dd_client(user_thd);
 
-		if (table == NULL) {
-			table_name_t	table_name;
-			table_name.m_name = const_cast<char*>(
-						fk_tables.front());
+		dd::cache::Dictionary_client::Auto_releaser
+			releaser(client);
 
-			err = DB_TABLE_NOT_FOUND;
-			ib::error()
-				<< "Failed to load table '" << table_name
-				<< "' which has a foreign key constraint with"
-				<< " table '" << user_table->name << "'.";
-			break;
-		}
 
-		fk_tables.pop_front();
+		dd_open_fk_tables(client, fk_tables, false, user_thd);
+		mutex_enter(&dict_sys->mutex);
 	}
 
 	DBUG_RETURN(err);
