@@ -108,7 +108,7 @@ struct Mem_compare_queue_key
   {
     if (m_param)
       return
-        cmp_varlen_keys(m_param->local_sortorder, s1, s2);
+        cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash, s1, s2);
 
     // memcmp(s1, s2, 0) is guaranteed to return zero.
     return memcmp(s1, s2, m_compare_length) < 0;
@@ -2191,7 +2191,8 @@ struct Merge_chunk_greater
       return memcmp(key1, key2, m_len) > 0;
 
     if (m_param)
-      return !cmp_varlen_keys(m_param->local_sortorder, key1, key2);
+      return !cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash,
+                              key1, key2);
 
     // We can actually have zero-length sort key for filesort().
     return false;
