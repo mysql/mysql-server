@@ -1518,7 +1518,7 @@ struct dict_sys_t{
                         (it can be persistent or temporary) */
         static bool is_hardcoded(table_id_t id)
         {
-                return(id < NUM_HARD_CODED_TABLES);
+                return(id <= NUM_HARD_CODED_TABLES);
         }
 
 	/** Number of hard coded new dd tables */

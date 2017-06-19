@@ -39,6 +39,7 @@ index_column_usage	mysql
 index_partitions	mysql
 index_stats	mysql
 indexes	mysql
+innodb_ddl_log	mysql
 innodb_dynamic_metadata	mysql
 innodb_index_stats	mysql
 innodb_table_stats	mysql
@@ -103,6 +104,7 @@ index_column_usage
 index_partitions
 index_stats
 indexes
+innodb_ddl_log
 innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
@@ -179,6 +181,7 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
 mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
@@ -206,6 +209,8 @@ sys.sys_config                                     OK
 general_log.CSM
 general_log.CSV
 general_log_XXX.sdi
+innodb_index_stats_backup57.ibd
+innodb_table_stats_backup57.ibd
 slow_log.CSM
 slow_log.CSV
 slow_log_XXX.sdi
