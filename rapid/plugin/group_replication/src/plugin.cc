@@ -547,6 +547,13 @@ int configure_group_member_manager(char *hostname, char *uuid,
     /* purecov: end */
   }
 
+  if (!strcmp(uuid, group_name_var))
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Member server_uuid is incompatible with the group. "
+                "Server_uuid %s matches group_name %s.", uuid, group_name_var);
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  }
   //Configure Group Member Manager
   plugin_version= server_version;
 
