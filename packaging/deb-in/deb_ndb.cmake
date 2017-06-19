@@ -115,6 +115,7 @@ Description: nodejs
 /usr/bin/ndb_setup.py
 /usr/bin/ndb_show_tables
 /usr/bin/ndb_size.pl
+/usr/bin/ndb_top
 /usr/bin/ndb_waiter
 /usr/bin/ndbinfo_select_all
 
@@ -142,6 +143,7 @@ Description: nodejs
 /usr/share/man/man1/ndb_setup.py.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
+/usr/share/man/man1/ndb_top.1*
 /usr/share/man/man1/ndb_waiter.1*
 /usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
