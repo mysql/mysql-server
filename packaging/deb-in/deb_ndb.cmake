@@ -105,6 +105,7 @@ Description: nodejs
 /usr/bin/ndb_import
 /usr/bin/ndb_mgm
 /usr/bin/ndb_move_data
+/usr/bin/ndb_perror
 /usr/bin/ndb_print_backup_file
 /usr/bin/ndb_print_file
 /usr/bin/ndb_print_frag_file
@@ -134,6 +135,7 @@ Description: nodejs
 /usr/share/man/man1/ndb_index_stat.1*
 /usr/share/man/man1/ndb_mgm.1*
 /usr/share/man/man1/ndb_move_data.1*
+/usr/share/man/man1/ndb_perror.1*
 /usr/share/man/man1/ndb_print_backup_file.1*
 /usr/share/man/man1/ndb_print_file.1*
 /usr/share/man/man1/ndb_print_frag_file.1*
