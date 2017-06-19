@@ -19,6 +19,7 @@
 
 #include "base64.h"
 #include "base_mock_field.h"
+#include "benchmark.h"
 #include "fake_table.h"
 #include "json_binary.h"
 #include "json_diff.h"
@@ -1293,5 +1294,140 @@ TEST_F(JsonDomTest, ApplyJsonDiffs_CollectBinaryDiffs)
   EXPECT_FALSE(m_table.setup_partial_update(true));
   do_apply_json_diffs_tests(&m_field);
 }
+
+/**
+  Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
+  a wrapper that wraps a Json_dom.
+
+  @param num_iterations  the number of iterations to run
+  @param path            the JSON path to search for
+  @param need_only_one   true if the search should stop after the first match
+  @param expected_hits   the number of expected matches
+*/
+static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
+                               bool need_only_one, size_t expected_matches)
+{
+  StopBenchmarkTiming();
+
+  Json_object o;
+  for (size_t i= 0; i < 1000; ++i)
+    o.add_alias(std::to_string(i), new (std::nothrow) Json_object());
+
+  Json_wrapper wr(&o);
+  wr.set_alias();
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
+    wr.seek(path, &hits, true, need_only_one);
+    EXPECT_EQ(expected_matches, hits.size());
+  }
+
+  StopBenchmarkTiming();
+}
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a wrapper that wraps a Json_dom.
+*/
+static void BM_JsonDomSearchEllipsis(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonDomSearchEllipsis);
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a wrapper that wraps a Json_dom, with the `need_only_one` flag set.
+*/
+static void BM_JsonDomSearchEllipsis_OnlyOne(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
+}
+BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
+
+/**
+  Microbenchmark which tests how fast a lookup of a JSON object member
+  is in a wrapper that wraps a Json_dom.
+*/
+static void BM_JsonDomSearchKey(size_t num_iterations)
+{
+  benchmark_dom_seek(num_iterations, parse_path("$.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonDomSearchKey);
+
+/**
+  Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
+  a wrapper that wraps a binary JSON value.
+
+  @param num_iterations  the number of iterations to run
+  @param path            the JSON path to search for
+  @param need_only_one   true if the search should stop after the first match
+  @param expected_hits   the number of expected matches
+*/
+static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
+                                  bool need_only_one, size_t expected_matches)
+{
+  StopBenchmarkTiming();
+
+  Json_object o;
+  for (size_t i= 0; i < 1000; ++i)
+    o.add_alias(std::to_string(i), new (std::nothrow) Json_object());
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  String buffer;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &o, &buffer));
+  json_binary::Value val=
+    json_binary::parse_binary(buffer.ptr(), buffer.length());
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    Json_wrapper wr(val);
+    Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
+    wr.seek(path, &hits, true, need_only_one);
+    EXPECT_EQ(expected_matches, hits.size());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a Json_wrapper which wraps a binary JSON value.
+*/
+static void BM_JsonBinarySearchEllipsis(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonBinarySearchEllipsis);
+
+/**
+  Microbenchmark which tests how fast a lookup with an ellipsis is in
+  a Json_wrapper which wraps a binary JSON value, with the `need_only_one`
+  flag set.
+*/
+static void BM_JsonBinarySearchEllipsis_OnlyOne(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
+}
+BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
+
+/**
+  Microbenchmark which tests how fast a lookup of a JSON object member
+  is in a Json_wrapper which wraps a binary JSON value.
+*/
+static void BM_JsonBinarySearchKey(size_t num_iterations)
+{
+  benchmark_binary_seek(num_iterations, parse_path("$.\"432\""), false, 1);
+}
+BENCHMARK(BM_JsonBinarySearchKey);
 
 }  // namespace
