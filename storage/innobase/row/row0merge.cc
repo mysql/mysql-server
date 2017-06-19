@@ -3835,6 +3835,8 @@ row_merge_create_index(
 	this index, to ensure read consistency. */
 	ut_ad(index->trx_id == trx->id);
 
+	index->table->def_trx_id = trx->id;
+
 	DBUG_RETURN(index);
 }
 
