@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -788,8 +788,8 @@ void JOIN::reset()
       func->clear();
   }
 
-  if (!(select_options & SELECT_DESCRIBE))
-    init_ftfuncs(thd, select_lex, MY_TEST(order));
+  if (!(select_options & SELECT_DESCRIBE) && select_lex->has_ft_funcs())
+    (void) init_ftfuncs(thd, select_lex, MY_TEST(order));
 
   DBUG_VOID_RETURN;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -502,7 +502,9 @@ int mysql_update(THD *thd,
       goto exit_without_my_ok;
     }
   }
-  init_ftfuncs(thd, select_lex, 1);
+
+  if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex, 1))
+    goto exit_without_my_ok;
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
