@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1898,7 +1898,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search(bool no_order);
+  bool init_search(THD *thd, bool no_order);
 
   /**
      Get number of matching rows from FT handler.

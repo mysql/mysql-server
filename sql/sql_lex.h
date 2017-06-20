@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -902,6 +902,11 @@ public:
   {
     return &link_next;
   }
+
+  /// @return true if query block references full-text functions
+  bool has_ft_funcs() const
+  { return ftfunc_list->elements > 0; }
+
   void invalidate();
   void mark_as_dependent(st_select_lex *last);
 
