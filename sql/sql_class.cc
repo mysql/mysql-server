@@ -1841,7 +1841,7 @@ void Query_arena::free_items()
 }
 
 
-void Query_arena::set_query_arena(Query_arena *set)
+void Query_arena::set_query_arena(const Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;

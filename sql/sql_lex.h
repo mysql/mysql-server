@@ -3905,6 +3905,13 @@ public:
     on explicit_defaults_for_timestamp
   */
   bool binlog_need_explicit_defaults_ts;
+
+  /**
+    Used to inform MYSQLparse() whether it should contextualize the parse
+    tree. When we get a pure parser this will not be needed.
+  */
+  bool will_contextualize;
+
   LEX();
 
   virtual ~LEX();

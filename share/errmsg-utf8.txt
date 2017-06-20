@@ -10943,6 +10943,13 @@ ER_THREAD_PRIORITY_IGNORED
 
 ER_DISK_FULL_NOWAIT
   eng "Create table/tablespace '%-.192s' failed, as disk is full"
+
+ER_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function: \"%s\"."
+
+ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function."
+
 #
 #  End of 8.0 error messages.
 #
