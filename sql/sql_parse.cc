@@ -298,41 +298,39 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  Implicitly commit a active transaction if statement requires so.
+/**
+  Returns whether the command in thd->lex->sql_command should cause an
+  implicit commit. An active transaction should be implicitly commited if the
+  statement requires so.
 
   @param thd    Thread handle.
   @param mask   Bitmask used for the SQL command match.
 
+  @retval true This statement shall cause an implicit commit.
+  @retval false This statement shall not cause an implicit commit.
 */
 bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 {
-  const LEX *lex= thd->lex;
-  bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
+  const LEX *lex= thd->lex;
 
-  if (!(sql_command_flags[lex->sql_command] & mask) ||
+  if ((sql_command_flags[lex->sql_command] & mask) == 0 ||
       thd->is_plugin_fake_ddl())
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   switch (lex->sql_command) {
   case SQLCOM_DROP_TABLE:
-    skip= lex->drop_temporary;
-    break;
+    DBUG_RETURN(!lex->drop_temporary);
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_CREATE_TABLE:
     /* If CREATE TABLE of non-temporary table, do implicit commit */
-    skip= (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
-    break;
+    DBUG_RETURN((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) == 0);
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
-    skip= lex->autocommit ? FALSE : TRUE;
-    break;
+    DBUG_RETURN(lex->autocommit);
   default:
-    break;
+    DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(!skip);
 }
 
 
@@ -5858,6 +5856,7 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   node->m_is_derived_table= true;
   auto wc_save= wc->enter_parsing_definition(tl);
 
+  DBUG_ASSERT(thd->lex->will_contextualize);
   if (node->contextualize(pc))
     return true;
 

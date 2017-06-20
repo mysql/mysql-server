@@ -312,7 +312,12 @@ public:
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
 
-  void set_query_arena(Query_arena *set);
+  /**
+    Copies memory-managing members from `set`. No references are kept to it.
+
+    @param set A Query_arena from which members are copied.
+  */
+  void set_query_arena(const Query_arena *set);
 
   void free_items();
   /* Close the active state associated with execution of this statement */
