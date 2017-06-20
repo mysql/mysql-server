@@ -1696,6 +1696,17 @@ protected:
 
 
   /**
+    Gets the value to return from val_str() when returning a NULL value.
+    @return The value val_str() should return.
+  */
+  String *null_return_str()
+  {
+    DBUG_ASSERT(maybe_null);
+    null_value= true;
+    return nullptr;
+  }
+
+  /**
     Convert val_str() to date in MYSQL_TIME
   */
   bool get_date_from_string(MYSQL_TIME *ltime, my_time_flags_t flags);

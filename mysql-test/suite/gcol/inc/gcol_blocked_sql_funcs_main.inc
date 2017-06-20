@@ -67,6 +67,14 @@ create table t1 (a datetime, b varchar(10) generated always as (localtimestamp) 
 -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a datetime, b varchar(10) generated always as (now()) virtual);
 
+--echo # STATEMENT_DIGEST
+-- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int, b int generated always as (statement_digest(a)) virtual);
+
+--echo # STATEMENT_DIGEST_TEXT
+-- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int, b int generated always as (statement_digest_text(a)) virtual);
+
 --echo # SYSDATE()
 -- error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
 create table t1 (a int, b varchar(10) generated always as (sysdate()) virtual);

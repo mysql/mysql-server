@@ -141,7 +141,7 @@ bool contextualize_array(Context *pc, Array *array)
 {
   for (auto it : *array)
   {
-    if (it->contextualize(pc))
+    if (pc->thd->lex->will_contextualize && it->contextualize(pc))
       return true;
   }
   return false;

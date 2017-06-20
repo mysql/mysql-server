@@ -1465,3 +1465,473 @@ SHA2("hello", -4294966784)
 NULL
 Warnings:
 Warning	1583	Incorrect parameters in the call to native function 'sha2'
+#
+# The statement_digest() native function.
+#
+#
+# Error handling/edge cases.
+#
+SELECT statement_digest( (SELECT * FROM( SELECT user() ) t) );
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest( 'This can''t be parsed but yields a digest.' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'This can't be parsed but yields a digest.' at line 1".
+SELECT statement_digest();
+ERROR 42000: Incorrect parameter count in the call to native function 'statement_digest'
+SELECT statement_digest( 'too many', 'arguments' );
+ERROR 42000: Incorrect parameter count in the call to native function 'statement_digest'
+SELECT statement_digest( NULL );
+statement_digest( NULL )
+NULL
+SELECT statement_digest( '/*' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*' at line 1".
+SELECT statement_digest( '@@' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@' at line 1".
+SELECT statement_digest( "SELECT 1; SELECT 2" );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 2' at line 1".
+SELECT statement_digest( "SELECT 1;" ) IS NULL;
+statement_digest( "SELECT 1;" ) IS NULL
+0
+SELECT statement_digest( repeat( 'a', character_maximum_length ) ) IS NULL
+FROM information_schema.columns
+WHERE table_name = 'events_statements_history' AND column_name = 'digest';
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest( point(1, 2) ) IS NULL;
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest( _utf8 x'e298ba' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '☺' at line 1".
+SELECT statement_digest( 'a\0bc' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a' at line 1".
+SELECT statement_digest( '\0abc' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest( '' );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest( statement_digest( NULL ) );
+statement_digest( statement_digest( NULL ) )
+NULL
+SELECT statement_digest( statement_digest( '' ) );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest( statement_digest( '\0' ) );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest( statement_digest( 'SELECT 1, 2, 3' ) );
+ERROR HY000: Could not parse argument to digest function.
+# Prepared statement syntax is not supported...
+SELECT statement_digest( 'SELECT ?' );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
+# ... which is why we get the text in this case; The error stems from
+# the inner call.
+SELECT statement_digest( statement_digest( 'SELECT ?' ) );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
+SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1 ( g GEOMETRY NOT NULL );
+INSERT INTO t1 VALUES ( POINT(1,2) );
+SELECT concat( statement_digest(g), 'x' ) FROM t1;
+ERROR HY000: Could not parse argument to digest function.
+SET sql_mode = DEFAULT;
+DROP TABLE t1;
+# Let's check that warnings in the parser are silenced.
+SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
+statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" )
+e8055293a3d5e4859175a0b1f34f15aa68491c502afc95477b90ce9c19465ce5
+SELECT statement_digest( "SET PASSWORD = PASSWORD('foo')" );
+statement_digest( "SET PASSWORD = PASSWORD('foo')" )
+d5076b934abf42ee7389ca68fccd43d3b5798f25eee0ce76ebcf7e23f3a37c1e
+#
+# Test queries.
+#
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+SELECT 1;
+1
+1
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT 1" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT 1" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT ? 	YES
+SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
+a + b	a - b
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c` 	YES
+# The first NULL should be treated as a literal and not influence the
+# digest. The second NULL is a NULL token, however.
+# In order to know, the string must be parsed.
+SELECT NULL IS NULL;
+NULL IS NULL
+1
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT NULL IS NULL" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT NULL IS NULL" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT ? IS NULL 	YES
+SELECT 2;
+2
+2
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT 2" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT 2" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT ? 	YES
+DROP TABLE t1, t2, t3;
+#
+# Let's make sure that our 'borrowing' the token buffer does not upset
+# performance_schema. To do that we need to go to a meta-level. I.e. the
+# digest of the statement calling statement_digest() should not be
+# ruined by the execution of said statement.
+#
+SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL;
+statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL
+0
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT statement_digest( 'SELECT something FROM DUAL WHERE something' ) IS NULL" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT `statement_digest` (?) IS NULL 	YES
+#
+# Test of the data type.
+#
+CREATE TABLE t1 AS SELECT statement_digest( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `digest` varchar(64) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+#
+# It cannot be used as a generated column.
+#
+CREATE TABLE digest_gcol (
+query VARCHAR ( 100 ),
+digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( statement_digest(query) )
+);
+ERROR HY000: Expression of generated column 'digest' contains a disallowed function.
+#
+# The statement_digest_text() native function.
+#
+#
+# Error handling/edge cases.
+#
+SELECT statement_digest_text( (SELECT * FROM( SELECT user() ) t) );
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest_text( 'This can''t be parsed but yields a digest.' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'This can't be parsed but yields a digest.' at line 1".
+SELECT statement_digest_text();
+ERROR 42000: Incorrect parameter count in the call to native function 'statement_digest_text'
+SELECT statement_digest_text( 'too many', 'arguments' );
+ERROR 42000: Incorrect parameter count in the call to native function 'statement_digest_text'
+SELECT statement_digest_text( NULL );
+statement_digest_text( NULL )
+NULL
+SELECT statement_digest_text( '/*' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*' at line 1".
+SELECT statement_digest_text( '@@' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@@' at line 1".
+SELECT statement_digest_text( "SELECT 1; SELECT 2" );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 2' at line 1".
+SELECT statement_digest_text( "SELECT 1;" );
+statement_digest_text( "SELECT 1;" )
+SELECT ? ; 
+SELECT statement_digest_text( repeat( 'a', character_maximum_length ) ) IS NULL
+FROM information_schema.columns
+WHERE table_name = 'events_statements_history' AND column_name = 'digest';
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest_text( point(1, 2) ) IS NULL;
+ERROR HY000: Could not parse argument to digest function.
+SELECT statement_digest_text( _utf8 x'e298ba' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '☺' at line 1".
+SELECT statement_digest_text( 'a\0bc' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'a' at line 1".
+SELECT statement_digest_text( '\0abc' ) IS NULL;
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest_text( '' );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest_text( statement_digest_text( NULL ) );
+statement_digest_text( statement_digest_text( NULL ) )
+NULL
+SELECT statement_digest_text( statement_digest_text( '' ) );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest_text( statement_digest_text( '\0' ) );
+ERROR HY000: Could not parse argument to digest function: "Query was empty".
+SELECT statement_digest_text( statement_digest_text( 'SELECT 1, 2, 3' ) );
+ERROR HY000: Could not parse argument to digest function.
+# Prepared statement syntax is not supported...
+SELECT statement_digest_text( 'SELECT ?' );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
+# ... which is why we get the text in this case; The error stems from
+# the inner call.
+SELECT statement_digest_text( statement_digest_text( 'SELECT ?' ) );
+ERROR HY000: Could not parse argument to digest function: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '?' at line 1".
+SET sql_mode = '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1 ( g GEOMETRY NOT NULL );
+INSERT INTO t1 VALUES ( POINT(1,2) );
+SELECT concat( statement_digest_text(g), 'x' ) FROM t1;
+ERROR HY000: Could not parse argument to digest function.
+SET sql_mode = DEFAULT;
+DROP TABLE t1;
+# Let's check that warnings in the parser are silenced.
+SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
+statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" )
+INSERT DELAYED INTO `t1` VALUES (?) 
+SELECT statement_digest_text( "SET PASSWORD = PASSWORD('foo')" );
+statement_digest_text( "SET PASSWORD = PASSWORD('foo')" )
+SET PASSWORD = PASSWORD (?) 
+#
+# Test queries.
+#
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+SELECT 1;
+1
+1
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT 1" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT 1" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT ? 	YES
+SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
+a + b	a - b
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c` 	YES
+SELECT 2;
+2
+2
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT 2" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT 2" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT ? 	YES
+DROP TABLE t1, t2, t3;
+#
+# Test of the data type.
+#
+SET NAMES utf8mb4;
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `digest` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `digest` longtext CHARACTER SET latin1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+SET NAMES DEFAULT;
+#
+# It cannot be used as a generated column.
+#
+CREATE TABLE digest_gcol (
+query VARCHAR ( 100 ),
+digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( digest_gcol (query) )
+);
+ERROR HY000: Expression of generated column 'digest' contains a disallowed function.
+#
+# Test of multibyte characters.
+#
+# Here we test with two -, three -, and four byte characters that will
+# actually be part of the digest text. Four-byte-characters will not
+# work, i.e. they will be replaced by a "?". The limitation here is the
+# character set encoding in the table
+# performance_schema.events_statements_history, which is "utf8", a.k.a
+# utf8mb3. But we still test that the strings are equal.
+# Nonetheless we test that they get converted the same way.
+#
+SET NAMES utf8mb4;
+SELECT statement_digest_text("CREATE TABLE åäö( a int )");
+statement_digest_text("CREATE TABLE åäö( a int )")
+CREATE TABLE `åäö` ( `a` INTEGER ) 
+SELECT statement_digest_text("CREATE TABLE 日本語( a int )");
+statement_digest_text("CREATE TABLE 日本語( a int )")
+CREATE TABLE `日本語` ( `a` INTEGER ) 
+SELECT statement_digest_text("CREATE TABLE  𩸽( a int )");
+statement_digest_text("CREATE TABLE  ?( a int )")
+CREATE TABLE ( `a` INTEGER ) 
+# We get warnings here for the supplementary plane characters when
+# Performance Schema scans the table. They don't show up under
+# --ps-protocol for obvious reasons (see compare_digests.inc), so we
+# silence them.
+CREATE TABLE åäö( a int );
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "CREATE TABLE åäö( a int )" USING utf8 )
+UNION
+SELECT statement_digest_text( "CREATE TABLE åäö( a int )" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+CREATE TABLE `åäö` ( `a` INTEGER ) 	YES
+CREATE TABLE 日本語( a int );
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "CREATE TABLE 日本語( a int )" USING utf8 )
+UNION
+SELECT statement_digest_text( "CREATE TABLE 日本語( a int )" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+CREATE TABLE `日本語` ( `a` INTEGER ) 	YES
+CREATE TABLE  𩸽( a int );
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "CREATE TABLE  𩸽( a int )" USING utf8 )
+UNION
+SELECT statement_digest_text( "CREATE TABLE  𩸽( a int )" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+CREATE TABLE ( `a` INTEGER ) 	YES
+DROP TABLE åäö, 日本語,  𩸽;
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: '\xF0\xA9\xB8\xBD'
+SET NAMES DEFAULT;
+#
+# Bug#27021852: WL#9637: INT MYSQL_EXECUTE_COMMAND(THD*, BOOL):
+# ASSERTION `! THD->IN_SUB_STMT' F
+#
+CREATE FUNCTION f1() RETURNS longblob
+BEGIN
+DECLARE ret longblob;
+SELECT statement_digest_text( "DROP TABLE t" ) INTO ret;
+RETURN ret;
+END;
+//
+SELECT f1();
+f1()
+DROP TABLE `t` 
+DROP FUNCTION f1;
+#
+# Bug#27015951: WL#9637 ASSERTION `M_BASE_OPTIONS == 0 &&
+# M_ACTIVE_OPTIONS == 0' FAILED
+#
+# Test that the parse tree is not contextualized. We test some syntax
+# where the rules call the CONTEXTUALIZE macro. At least the first one
+# is known to crash if the call to Item::contextualize() goes through.
+#
+SELECT statement_digest( "CREATE VIEW v1 AS SELECT 1" ) IS NULL;
+statement_digest( "CREATE VIEW v1 AS SELECT 1" ) IS NULL
+0
+SELECT statement_digest( "SET PASSWORD = 'a'" ) IS NULL;
+statement_digest( "SET PASSWORD = 'a'" ) IS NULL
+0
+SELECT statement_digest( "CREATE FUNCTION f() RETURNS INT BEGIN RETURN 0; END" )
+IS NULL;
+statement_digest( "CREATE FUNCTION f() RETURNS INT BEGIN RETURN 0; END" )
+IS NULL
+0
+#
+# Various tests to verify that the AST is not touched. The pointer to the
+# AST is temporarily set to null during parsing of the query string, so
+# a crash would be seen. This fixes the following bugs:
+#
+# Bug#27081301: SERVER CRASHED AT GET_TABLE_SHARE(THD*, CHAR CONST*,
+#   CHAR CONST*, CHAR CONST*, U
+#
+# Bug#27076188: SERVER CRASHED AT TABLE_LIST::FETCH_NUMBER_OF_ROWS()
+#   DURING MULTITHREAD RQG RUN
+#
+# Bug#27076027: SERVER CRASHED AT REINIT_STMT_BEFORE_USE(THD*, LEX*)
+#   DURING MULTITHREAD RQG RUNS
+#
+# Bug#27066260: WL#9637 MYSQLD CRASHED BY RUNNING ./MTR MAIN.FUNC_DIGEST
+#   --PS-PROTOCOL
+SELECT statement_digest( "CHECKSUM TABLE t" ) IS NULL;
+statement_digest( "CHECKSUM TABLE t" ) IS NULL
+0
+SELECT statement_digest( "DROP VIEW v" ) IS NULL;
+statement_digest( "DROP VIEW v" ) IS NULL
+0
+SELECT statement_digest( "SHOW OPEN TABLES WHERE 1 = 1" ) IS NULL;
+statement_digest( "SHOW OPEN TABLES WHERE 1 = 1" ) IS NULL
+0
+SELECT statement_digest( "SHOW TRIGGERS WHERE 1 = 1" ) IS NULL;
+statement_digest( "SHOW TRIGGERS WHERE 1 = 1" ) IS NULL
+0
+SELECT statement_digest( "SHOW EVENTS WHERE 1 = 1" ) IS NULL;
+statement_digest( "SHOW EVENTS WHERE 1 = 1" ) IS NULL
+0
+SELECT statement_digest( "SHOW TABLE STATUS WHERE 1 = 1" ) IS NULL;
+statement_digest( "SHOW TABLE STATUS WHERE 1 = 1" ) IS NULL
+0
+SELECT statement_digest( "SHOW CREATE TABLE t1" ) IS NULL;
+statement_digest( "SHOW CREATE TABLE t1" ) IS NULL
+0
+SELECT statement_digest( "SHOW CREATE VIEW t1" ) IS NULL;
+statement_digest( "SHOW CREATE VIEW t1" ) IS NULL
+0
+SELECT statement_digest( "DESCRIBE t1" ) IS NULL;
+statement_digest( "DESCRIBE t1" ) IS NULL
+0
+SELECT statement_digest( "USE db1" ) IS NULL;
+statement_digest( "USE db1" ) IS NULL
+0
+SELECT statement_digest(
+"CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW SET @a := 1" ) IS NULL;
+statement_digest(
+"CREATE TRIGGER trg BEFORE INSERT ON t1 FOR EACH ROW SET @a := 1" ) IS NULL
+0
+SELECT statement_digest( "FLUSH TABLES t1" ) IS NULL;
+statement_digest( "FLUSH TABLES t1" ) IS NULL
+0
+SELECT statement_digest( "LOCK TABLE t1 READ" ) IS NULL;
+statement_digest( "LOCK TABLE t1 READ" ) IS NULL
+0
+#
+# Bug#27015951: WL#9637 ASSERTION `M_BASE_OPTIONS == 0 &&
+#  M_ACTIVE_OPTIONS == 0' FAILED
+#
+SET sql_mode = 'PIPES_AS_CONCAT';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
+"SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" );
+statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
+"SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" )
+X
+SET sql_mode = DEFAULT;
