@@ -256,15 +256,17 @@ static inline bool is_seek_done(const Result_vector *hits, bool only_need_one)
 
 
 /**
-  Return the child Json_doms identified by the given path leg.
+  Find the child Json_dom objects identified by the given path.
   The child doms are added to a vector.
 
-  See the header comment for Json_wrapper.seek() for a discussion
+  See the header comment for #Json_wrapper::seek() for a discussion
   of complexities involving path expressions with more than one
-  ellipsis (**) token.
+  ellipsis (**) token, or a combination of ellipsis and auto-wrapping
+  path legs.
 
   @param[in]     dom the DOM to search
-  @param[in]     path_leg identifies the child
+  @param[in]     path the path to search
+  @param[in]     current_leg the 0-based index of the first path leg to look at
   @param[in]     auto_wrap if true, auto-wrap non-arrays when matching against
                            array path legs
   @param[in]     only_need_one true if we can stop after finding one match
@@ -276,14 +278,19 @@ static inline bool is_seek_done(const Result_vector *hits, bool only_need_one)
   @return false on success, true on error
 */
 static bool find_child_doms(Json_dom *dom,
-                            const Json_path_leg *path_leg,
+                            const Json_seekable_path &path,
+                            size_t current_leg,
                             bool auto_wrap,
                             bool only_need_one,
                             Json_dom_vector *duplicates,
                             Json_dom_vector *result)
 {
-  enum_json_type dom_type= dom->json_type();
-  enum_json_path_leg_type leg_type= path_leg->get_type();
+  if (current_leg == path.leg_count())
+    return add_if_missing(dom, duplicates, result);
+
+  const enum_json_type dom_type= dom->json_type();
+  const Json_path_leg *const path_leg= path.get_leg_at(current_leg);
+  const enum_json_path_leg_type leg_type= path_leg->get_type();
 
   switch (leg_type)
   {
@@ -293,11 +300,13 @@ static bool find_child_doms(Json_dom *dom,
       const auto array= down_cast<const Json_array *>(dom);
       const Json_array_index idx= path_leg->first_array_index(array->size());
       return idx.within_bounds() &&
-             add_if_missing((*array)[idx.position()], duplicates, result);
+        find_child_doms((*array)[idx.position()], path, current_leg + 1,
+                        auto_wrap, only_need_one, duplicates, result);
     }
     // Handle auto-wrapping of non-arrays.
     return auto_wrap && path_leg->is_autowrap() &&
-           add_if_missing(dom, duplicates, result);
+      find_child_doms(dom, path, current_leg + 1, auto_wrap, only_need_one,
+                      duplicates, result);
   case jpl_array_range:
   case jpl_array_cell_wildcard:
     if (dom_type == enum_json_type::J_ARRAY)
@@ -306,27 +315,23 @@ static bool find_child_doms(Json_dom *dom,
       const auto range= path_leg->get_array_range(array->size());
       for (size_t i= range.m_begin; i < range.m_end; ++i)
       {
-        if (add_if_missing((*array)[i], duplicates, result))
+        if (find_child_doms((*array)[i], path, current_leg + 1, auto_wrap,
+                            only_need_one, duplicates, result))
           return true;                          /* purecov: inspected */
-        if (only_need_one)
+        if (is_seek_done(result, only_need_one))
           return false;
       }
       return false;
     }
     // Handle auto-wrapping of non-arrays.
     return auto_wrap && path_leg->is_autowrap() &&
-           add_if_missing(dom, duplicates, result);
+      find_child_doms(dom, path, current_leg + 1, auto_wrap, only_need_one,
+                      duplicates, result);
   case jpl_ellipsis:
     {
-      /*
-        Paths that end with an ellipsis are rejected by the JSON path
-        parser, so there is no need to check if we can stop after the
-        first match on this path leg.
-      */
-      DBUG_ASSERT(!only_need_one);
-
       // The ellipsis matches the value on which it is called ...
-      if (add_if_missing(dom, duplicates, result))
+      if (find_child_doms(dom, path, current_leg + 1, auto_wrap, only_need_one,
+                          duplicates, result))
         return true;                          /* purecov: inspected */
 
       // ... and, recursively, all the values contained in it.
@@ -335,10 +340,12 @@ static bool find_child_doms(Json_dom *dom,
         const auto array= down_cast<const Json_array *>(dom);
         for (unsigned eidx= 0; eidx < array->size(); eidx++)
         {
-          Json_dom *child= (*array)[eidx];
+          if (is_seek_done(result, only_need_one))
+            return false;
+
           // Now recurse and add the child and values under it.
-          if (find_child_doms(child, path_leg, auto_wrap, only_need_one,
-                              duplicates, result))
+          if (find_child_doms((*array)[eidx], path, current_leg, auto_wrap,
+                              only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
         } // end of loop through children
       }
@@ -346,10 +353,12 @@ static bool find_child_doms(Json_dom *dom,
       {
         for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          Json_dom *child= member.second;
+          if (is_seek_done(result, only_need_one))
+            return false;
+
           // Now recurse and add the child and values under it.
-          if (find_child_doms(child, path_leg, auto_wrap, only_need_one,
-                              duplicates, result))
+          if (find_child_doms(member.second, path, current_leg, auto_wrap,
+                              only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
         } // end of loop through children
       }
@@ -362,7 +371,9 @@ static bool find_child_doms(Json_dom *dom,
       {
         const auto object= down_cast<const Json_object *>(dom);
         Json_dom *child= object->get(path_leg->get_member_name());
-        return child != nullptr && result->push_back(child);
+        return child != nullptr &&
+          find_child_doms(child, path, current_leg + 1, auto_wrap,
+                          only_need_one, duplicates, result);
       }
 
       return false;
@@ -373,9 +384,10 @@ static bool find_child_doms(Json_dom *dom,
       {
         for (const auto &member : *down_cast<const Json_object *>(dom))
         {
-          if (result->push_back(member.second))
+          if (find_child_doms(member.second, path, current_leg + 1, auto_wrap,
+                              only_need_one, duplicates, result))
             return true;                      /* purecov: inspected */
-          if (only_need_one)
+          if (is_seek_done(result, only_need_one))
             return false;
         }
       }
@@ -388,6 +400,37 @@ static bool find_child_doms(Json_dom *dom,
   DBUG_ASSERT(false);
   return true;
   /* purecov: end */
+}
+
+
+/**
+  Does a search on this path, using Json_dom::seek() or
+  Json_wrapper::seek(), need duplicate elimination?
+
+  Duplicate elimination is needed if the path contains multiple
+  ellipses, or if it contains an auto-wrapping array path leg after an
+  ellipses. See #Json_wrapper::seek() for more details.
+
+  @param path       the path to search for
+  @param auto_wrap  true if array auto-wrapping is used
+
+  @retval true if duplicate elimination is needed
+  @retval false if the path won't produce duplicates
+*/
+static bool path_gives_duplicates(const Json_seekable_path &path,
+                                  bool auto_wrap)
+{
+  const size_t legs= path.leg_count();
+  bool has_ellipsis= false;
+  for (size_t i= 0; i < legs; ++i)
+  {
+    const Json_path_leg *leg= path.get_leg_at(i);
+    if (has_ellipsis && (leg->get_type() == jpl_ellipsis ||
+                         (auto_wrap && leg->is_autowrap())))
+      return true;
+    has_ellipsis|= (leg->get_type() == jpl_ellipsis);
+  }
+  return false;
 }
 
 
@@ -2275,58 +2318,12 @@ bool Json_dom::seek(const Json_seekable_path &path,
                     Json_dom_vector *hits,
                     bool auto_wrap, bool only_need_one)
 {
-  Json_dom_vector candidates(key_memory_JSON);
   Json_dom_vector duplicates(key_memory_JSON);
+  Json_dom_vector *dup_vector=
+    path_gives_duplicates(path, auto_wrap) ? &duplicates : nullptr;
 
-  if (hits->push_back(this))
-    return true;                              /* purecov: inspected */
-
-  bool seen_ellipsis= false;
-
-  size_t path_leg_count= path.leg_count();
-  for (size_t path_idx= 0; path_idx < path_leg_count; path_idx++)
-  {
-    const Json_path_leg *path_leg= path.get_leg_at(path_idx);
-
-    /*
-      When we have multiple ellipses in the path, or an ellipsis
-      followed by an auto-wrapping array path leg, we need to
-      eliminate duplicates from the result. It's not needed for the
-      first ellipsis. See explanation in add_if_missing() and
-      Json_wrapper::seek().
-    */
-    Json_dom_vector *dup_vector= nullptr;
-    if (seen_ellipsis && (path_leg->get_type() == jpl_ellipsis ||
-                          (auto_wrap && path_leg->is_autowrap())))
-    {
-      dup_vector= &duplicates;
-      dup_vector->clear();
-    }
-    seen_ellipsis|= path_leg->get_type() == jpl_ellipsis;
-
-    /*
-      On the last path leg, we can stop after the first match if only
-      one match is requested by the caller.
-    */
-    const bool stop_after_first_match=
-      only_need_one && (path_idx == path_leg_count - 1);
-
-    for (Json_dom *hit : *hits)
-    {
-      if (find_child_doms(hit, path_leg, auto_wrap, stop_after_first_match,
-                          dup_vector, &candidates))
-        return true;                          /* purecov: inspected */
-
-      if (is_seek_done(&candidates, stop_after_first_match))
-        break;
-    }
-
-    // swap the two lists so that they can be re-used
-    hits->swap(candidates);
-    candidates.clear();
-  }
-
-  return false;
+  return find_child_doms(this, path, 0, auto_wrap, only_need_one,
+                         dup_vector, hits);
 }
 
 
@@ -2506,47 +2503,6 @@ static bool seek_no_dup_elimination(const Json_wrapper &wrapper,
 }
 
 
-/**
-  Should Json_wrapper::seek() delegate to Json_dom::seek() for this
-  search?
-
-  @param wrapper    the wrapper being searched
-  @param path       the path to search for
-  @param auto_wrap  true if array auto-wrapping is used
-
-  @retval true if Json_dom::seek() should be used
-  @retval false if the search should use the Json_wrapper interface
-*/
-static bool seek_as_dom(const Json_wrapper *wrapper,
-                        const Json_seekable_path &path,
-                        bool auto_wrap)
-{
-  // If the wrapper contains a DOM, search the DOM directly.
-  if (wrapper->is_dom())
-    return true;
-
-  /*
-    If the path requires duplicate elimination, Json_wrapper::seek()
-    should convert the value to a DOM and seek using Json_dom::seek(),
-    which handles duplicate elimination. Duplicate elimination is
-    required if the path contains multiple ellipses, or if it contains
-    an auto-wrapping array path leg after an ellipsis.
-  */
-  const size_t legs= path.leg_count();
-  bool has_ellipsis= false;
-  for (size_t i= 0; i < legs; ++i)
-  {
-    const Json_path_leg *leg= path.get_leg_at(i);
-    if (has_ellipsis && (leg->get_type() == jpl_ellipsis ||
-                         (auto_wrap && leg->is_autowrap())))
-      return true;
-    has_ellipsis|= (leg->get_type() == jpl_ellipsis);
-  }
-
-  return false;
-}
-
-
 bool Json_wrapper::seek(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
@@ -2561,7 +2517,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     duplicate elimination, convert to DOM since duplicate detection is
     difficult on binary values.
   */
-  if (seek_as_dom(this, path, auto_wrap))
+  if (is_dom() || path_gives_duplicates(path, auto_wrap))
   {
     Json_dom *dom= to_dom(current_thd);
     if (dom == nullptr)
