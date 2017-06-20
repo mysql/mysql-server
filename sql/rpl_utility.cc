@@ -1097,6 +1097,7 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   /**
      Filling in the preamble.
    */
+  new (preamble) HASH_ROW_PREAMBLE();
   preamble->hash_value= 0;
   preamble->search_state= m_hash.end();
   preamble->is_search_state_inited= false;

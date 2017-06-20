@@ -73,6 +73,7 @@ struct hash_slave_rows_free_entry
  */
 typedef struct hash_row_preamble_st
 {
+  hash_row_preamble_st()= default;
   /*
     The actual key.
    */
