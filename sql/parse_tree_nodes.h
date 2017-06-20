@@ -138,6 +138,7 @@ class Parse_tree_root : public Sql_alloc
   void operator=(const Parse_tree_root &)= delete;
 
 protected:
+  virtual ~Parse_tree_root() {};
   Parse_tree_root() {}
 
 public:

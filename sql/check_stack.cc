@@ -18,6 +18,7 @@
 #include "my_config.h"
 
 #include <algorithm>
+#include <atomic>
 #include <new>
 
 #include "current_thd.h"
@@ -42,7 +43,7 @@
 #endif
 
 #ifndef DBUG_OFF
-long max_stack_used;
+std::atomic<long> max_stack_used;
 #endif
 
 
@@ -84,7 +85,7 @@ bool check_stack_overrun(const THD *thd, long margin,
     return true;
   }
 #ifndef DBUG_OFF
-  max_stack_used= std::max(max_stack_used, stack_used);
+  max_stack_used= std::max(max_stack_used.load(), stack_used);
 #endif
   return false;
 }

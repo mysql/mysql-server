@@ -1318,7 +1318,8 @@ dd_copy_private(
 	different index order in this case, so always do a double loop */
 	for (const auto old_index : old_table.indexes()) {
 		auto idx = new_table.indexes()->begin();
-		for (; (*idx)->name() != old_index->name(); ++idx);
+		for (; (*idx)->name() != old_index->name(); ++idx)
+			;
 		ut_ad(idx != new_table.indexes()->end());
 
 		auto new_index = *idx;

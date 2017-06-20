@@ -4234,7 +4234,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
        binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
 static Sys_var_bool Sys_master_verify_checksum(
        "master_verify_checksum",

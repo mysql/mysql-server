@@ -88,7 +88,10 @@ PFS_engine_table_share table_status_by_thread::m_share = {
   sizeof(pos_t),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

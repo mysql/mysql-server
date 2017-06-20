@@ -82,7 +82,10 @@ PFS_engine_table_share table_esms_by_user_by_event_name::m_share = {
   sizeof(pos_esms_by_user_by_event_name),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

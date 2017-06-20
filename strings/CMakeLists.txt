@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,6 +12,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/strings)
@@ -53,6 +55,14 @@ SET(STRINGS_SOURCES
   strxnmov.cc
   xml.cc
 )
+
+# Aliasing bug in union in Clang
+# Bug#26161442 MAIN.SELECT* TESTS ARE FAILING WITH CLANG 4.0
+# Problem: wrong results for some corner cases when converting string to double.
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
+    CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "4.0")
+  ADD_COMPILE_FLAGS(dtoa.cc COMPILE_FLAGS "-fno-strict-aliasing")
+ENDIF()
 
 # Avoid dependencies on perschema data defined in mysys
 ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)

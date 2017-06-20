@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "persisted_variable.h"// Persisted_variables_cache
 #include "sql_show.h"
 #include <string>
-#include "pfs_memory_provider.h"
+#include "mysql/psi/mysql_memory.h"
 
 #define FREE_RECORD(sysvar)                                                 \
   my_free((void *)                                                             \

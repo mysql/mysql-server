@@ -16,17 +16,17 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 connection default;
 
 # Create rows table and fill with 1000 rows
-create table rows(a int primary key) engine=ndb;
+create table `rows`(a int primary key) engine=ndb;
 
 --disable_query_log
 let $i = 0;
 while($i < 1000)
 {
- eval insert into rows(a) values ($i);
+ eval insert into `rows`(a) values ($i);
  inc $i;
 }
 --enable_query_log
-select count(a) from rows;
+select count(a) from `rows`;
 
 create table p1 (name varchar(255),
                  id int(11) auto_increment,
@@ -62,7 +62,7 @@ create table c2(c2 varchar(100),
 ) engine=ndb;
 
 # Populate parent table
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 
 select count(1) from test.p1;
 
@@ -72,7 +72,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -91,7 +91,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -107,7 +107,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -125,7 +125,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -141,7 +141,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -166,7 +166,7 @@ delete from test.c1;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 delete from test.p1;
-insert into p1(parent_id) select a from rows;
+insert into p1(parent_id) select a from `rows`;
 set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
 delete from test.c1;
 
@@ -175,4 +175,4 @@ delete from test.p1;
 drop table test.c2;
 drop table test.c1;
 drop table test.p1;
-drop table test.rows;
+drop table test.`rows`;

@@ -1247,6 +1247,8 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files.");
 --enable_query_log
 
 #cleanup

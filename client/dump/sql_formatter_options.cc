@@ -70,7 +70,8 @@ void Sql_formatter_options::create_options()
     ->set_value(enum_gtid_purged_mode::GTID_PURGED_AUTO);
   this->create_new_option(&m_column_statistics,
     "column-statistics",
-    "Add a ANALYZE TABLE-statement for any existing column statistics.")
+    "Add an ANALYZE TABLE statement to regenerate any existing column "
+    "statistics.")
     ->set_value(false);
 }
 

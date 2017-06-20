@@ -19,7 +19,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "hash.h"        // HASH
+#include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "template_utils.h"
@@ -82,7 +82,7 @@ public:
   int       set_table(ulonglong table_id, TABLE* table);
   int       remove_table(ulonglong table_id);
   void      clear_tables();
-  ulong     count() const { return m_table_ids.records; }
+  ulong     count() const { return m_table_ids.size(); }
 
 private:
 
@@ -94,19 +94,6 @@ private:
     };
   };
 
-  static const uchar *table_id_get_key(const uchar *ptr, size_t *length)
-  {
-    const entry *ent= pointer_cast<const entry*>(ptr);
-    *length= sizeof(ent->table_id);
-    return pointer_cast<const uchar*>(&ent->table_id);
-  }
-
-  entry *find_entry(ulonglong table_id)
-  {
-    return (entry *) my_hash_search(&m_table_ids,
-                                    (uchar*)&table_id,
-                                    sizeof(table_id));
-  }
   int expand();
 
   /*
@@ -116,8 +103,14 @@ private:
   */
   entry *m_free;
 
-  /* Correspondance between an id (a number) and a TABLE object */
-  HASH m_table_ids;
+  /*
+    Correspondence between an id (a number) and a TABLE object.
+
+    No destructor for entries passed here, as the entries are allocated in a
+    MEM_ROOT (freed as a whole in the destructor), they cannot be freed one by
+    one.
+  */
+  malloc_unordered_map<ulonglong, entry *> m_table_ids;
 };
 
 #endif

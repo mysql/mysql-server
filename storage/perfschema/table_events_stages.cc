@@ -67,7 +67,10 @@ PFS_engine_table_share table_events_stages_current::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_stages_history::m_table_lock;
@@ -105,7 +108,10 @@ PFS_engine_table_share table_events_stages_history::m_share = {
   sizeof(pos_events_stages_history), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 THR_LOCK table_events_stages_history_long::m_table_lock;
@@ -142,7 +148,10 @@ PFS_engine_table_share table_events_stages_history_long::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool
