@@ -7830,6 +7830,188 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
 
 
 /**
+  Set the maximum number of characters required by any of the items in args.
+*/
+void Item::aggregate_char_length(Item **args, uint nitems)
+{
+  uint32 char_length= 0;
+  for (uint i= 0; i < nitems; i++)
+    set_if_bigger(char_length, args[i]->max_char_length());
+  fix_char_length(char_length);
+}
+
+
+/**
+  Set ::max_length and ::decimals of function if function is floating point and
+  result length/precision depends on argument ones.
+
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_float_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == REAL_RESULT);
+  uint32 length= 0;
+  uint8 decimals_cnt= 0;
+  uint32 maxl= 0;
+  for (uint i=0 ; i < nitems; i++)
+  {
+    if (decimals_cnt != NOT_FIXED_DEC)
+    {
+      set_if_bigger(decimals_cnt, item[i]->decimals);
+      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
+    }
+    set_if_bigger(maxl, item[i]->max_length);
+  }
+  if (decimals_cnt != NOT_FIXED_DEC)
+  {
+    maxl= length;
+    length+= decimals_cnt;
+    if (length < maxl)  // If previous operation gave overflow
+      maxl= UINT_MAX32;
+    else
+      maxl= length;
+  }
+
+  this->max_length= maxl;
+  this->decimals= decimals_cnt;
+}
+
+/**
+  Set precision and decimals of function when this depends on arguments'
+  values for these quantities.
+ 
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_decimal_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == DECIMAL_RESULT);
+  int max_int_part= 0;
+  uint8 decimal_cnt= 0;
+  for (uint i=0 ; i < nitems ; i++)
+  {
+    set_if_bigger(decimal_cnt, item[i]->decimals);
+    set_if_bigger(max_int_part, item[i]->decimal_int_part());
+  }
+  int precision= min(max_int_part + decimal_cnt, DECIMAL_MAX_PRECISION);
+  set_data_type_decimal(precision, decimal_cnt);
+}
+
+
+/**
+  Set fractional seconds precision for temporal functions.
+
+  @param item    Argument array
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_temporal_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == STRING_RESULT);
+  uint8 decimal_cnt= 0;
+
+  switch (data_type())
+  {
+    case MYSQL_TYPE_DATETIME:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_datetime(decimal_cnt);
+      break;
+
+    case MYSQL_TYPE_TIMESTAMP:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_timestamp(decimal_cnt);
+      break;
+
+    case MYSQL_TYPE_NEWDATE:
+      DBUG_ASSERT(false);
+      set_data_type_date();
+      set_data_type(MYSQL_TYPE_NEWDATE);
+      break;
+
+    case MYSQL_TYPE_DATE:
+      set_data_type_date();
+      break;
+
+    case MYSQL_TYPE_TIME:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->time_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_time(decimal_cnt);
+      break;
+
+    default:
+      DBUG_ASSERT(false);                           /* purecov: inspected */
+  }
+}
+
+
+/**
+  Aggregate string properties (character set, collation and maximum length) for
+  string function.q
+
+  @param field_type  Field type.
+  @param name        Name of function
+  @param items       Argument array.
+  @param nitems      Number of arguments.
+
+  @retval            False on success, true on error.
+*/
+bool Item::aggregate_string_properties(enum_field_types field_type,
+                                       const char *name,
+                                       Item **items, uint nitems)
+{
+  DBUG_ASSERT(result_type() == STRING_RESULT);
+  if (agg_item_charsets_for_string_result(collation, name, items, nitems, 1))
+    return true;
+  if (is_temporal_type(field_type))
+    aggregate_temporal_properties(items, nitems);
+  else
+  {
+    decimals= NOT_FIXED_DEC;
+    aggregate_char_length(items, nitems);
+  }
+  return false;
+}
+
+
+/**
+  This function is used to resolve type for numeric result type of CASE,
+  COALESCE, IF and LEAD/LAG. COALESCE is a CASE abbreviation according to the
+  standard.
+
+  @param result_type The desired result type
+  @param item        The arguments of func
+  @param nitems      The number of arguments
+*/
+void Item::aggregate_num_type(Item_result result_type,
+                              Item **item,
+                              uint nitems)
+{
+  switch (result_type)
+  {
+    case DECIMAL_RESULT:
+      aggregate_decimal_properties(item, nitems);
+      break;
+    case REAL_RESULT:
+      aggregate_float_properties(item, nitems);
+      break;
+    case INT_RESULT:
+    case STRING_RESULT:
+      aggregate_char_length(item, nitems);
+      decimals= 0;
+      break;
+    case ROW_RESULT:
+    default:
+      DBUG_ASSERT(0);
+  }
+}
+
+
+/**
   Cache item if needed.
 
   @param arg   != NULL <=> Cache this item.
@@ -10898,87 +11080,6 @@ void Item_result_field::cleanup()
 }
 
 
-/**
-  Set char_length to the maximum number of characters required by any
-  of this function's or window function's arguments.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-void Item_result_field::count_only_length(Item **item, uint nitems)
-{
-  uint32 char_length= 0;
-  for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, item[i]->max_char_length());
-  fix_char_length(char_length);
-}
-
-
-/**
-  Count max_length and decimals for temporal functions or window functions.
-
-  @param item    Argument array
-  @param nitems  Number of arguments in the array.
-*/
-void Item_result_field::count_datetime_length(Item **item, uint nitems)
-{
-  unsigned_flag= false;
-  decimals= 0;
-  if (data_type() != MYSQL_TYPE_DATE)
-  {
-    for (uint i= 0; i < nitems; i++)
-      set_if_bigger(decimals,
-                    data_type() == MYSQL_TYPE_TIME ?
-                    item[i]->time_precision() : item[i]->datetime_precision());
-  }
-  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
-  uint len= decimals ? (decimals + 1) : 0;
-  switch (data_type())
-  {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      len+= MAX_DATETIME_WIDTH;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-      len+= MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-      len+= MAX_TIME_WIDTH;
-      break;
-    default:
-      DBUG_ASSERT(0);                           /* purecov: inspected */
-  }
-  fix_char_length(len);
-}
-
-
-/**
-  Calculate max_length and decimals for STRING_RESULT functions or window
-  functions.
-
-  @param field_type  Field type.
-  @param items       Argument array.
-  @param nitems      Number of arguments.
-
-  @retval            False on success, true on error.
-*/
-bool Item_result_field::count_string_result_length(enum_field_types field_type,
-                                                   Item **items, uint nitems)
-{
-  if (agg_item_charsets_for_string_result(collation, func_name(), items, nitems, 1))
-    return true;
-  if (is_temporal_type(field_type))
-    count_datetime_length(items, nitems);
-  else
-  {
-    decimals= NOT_FIXED_DEC;
-    count_only_length(items, nitems);
-  }
-  return false;
-}
-
-
 double Item_result_field::val_real_result()
 {
   double res;
@@ -11111,7 +11212,6 @@ bool Item_result_field::is_null_result()
     res= is_null();
   return res;
 }
-
 
 /**
   Helper method: Convert string to the given charset, then print.
