@@ -104,9 +104,9 @@ void Abstract_chain_element::object_processing_ends(
 {
   if (processed_item != NULL && processed_item->end_processing())
   {
+    this->report_object_processing_ended(processed_item);
     if (processed_item->call_completion_callback_at_end())
     {
-      this->report_object_processing_ended(processed_item);
       delete processed_item;
     }
   }
