@@ -11051,6 +11051,51 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
   {
     ptr.p->m_part_info[i] = ptr.p->m_part_info[i + remove_files];
   }
+
+  /**
+   * The first part is now likely too many parts since some of those
+   * parts were done by the new LCP. So we need to ensure that the
+   * first part in part_info[0] is one higher than the last part in the
+   * last part_info.
+   */
+  if (remaining_files > 1)
+  {
+    jam();
+    Uint32 last_part = ptr.p->m_part_info[remaining_files - 1].startPart +
+                       ptr.p->m_part_info[remaining_files - 1].numParts;
+    Uint32 first_part = last_part + 1;
+    if (first_part >= BackupFormat::NDB_MAX_LCP_PARTS)
+    {
+      jam();
+      first_part -= BackupFormat::NDB_MAX_LCP_PARTS;
+    }
+    Uint32 current_first_part = ptr.p->m_part_info[0].startPart;
+    Uint32 decrement_parts;
+    if (current_first_part < first_part)
+    {
+      jam();
+      decrement_parts = (current_first_part +
+                         BackupFormat::NDB_MAX_LCP_PARTS) - first_part;
+    }
+    else
+    {
+      jam();
+      decrement_parts = current_first_part - first_part;
+    }
+    ndbrequire(decrement_parts < ptr.p->m_part_info[0].numParts);
+    ptr.p->m_part_info[0].numParts -= decrement_parts;
+    Uint32 new_first_part = current_first_part + decrement_parts;
+    if (new_first_part >= BackupFormat::NDB_MAX_LCP_PARTS)
+    {
+      jam();
+      new_first_part -= BackupFormat::NDB_MAX_LCP_PARTS;
+    }
+    ptr.p->m_part_info[0].startPart = new_first_part;
+    DEB_LCP(("(%u)New first data file span is (%u,%u)",
+             instance(),
+             ptr.p->m_part_info[0].startPart,
+             ptr.p->m_part_info[0].numParts));
+  }
   /**
    * Calculate file numbers of files to delete after LCP is
    * completed.
