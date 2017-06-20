@@ -48,6 +48,8 @@ Created 2/27/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 
+#include "current_thd.h"
+
 /* Considerations on undoing a modify operation.
 (1) Undoing a delete marking: all index records should be found. Some of
 them may have delete mark already FALSE, if the delete mark operation was
@@ -1099,11 +1101,13 @@ row_undo_mod_upd_exist_sec(
 }
 
 /** Parses the row reference and other info in a modify undo log record.
-@param[in]	node	row undo node */
+@param[in]	node	row undo node
+@param[in,out]	mdl	MDL ticket */
 static
 void
 row_undo_mod_parse_undo_rec(
-	undo_node_t*	node)
+	undo_node_t*	node,
+	MDL_ticket**	mdl)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -1120,15 +1124,13 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	/* If a table exists, it cannot be dropped or evicted.
-	Rollback is typically protected by a table IX lock.
-	Notably, there cannot be a race between ROLLBACK and
+	/* Although table IX lock is held now, DROP TABLE could still be
+	done concurrently. To prevent this, MDL for this table should be
+	took here. Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	node->table = dd_table_open_on_id_in_mem(table_id, false);
-
-	/* TODO: other fixes associated with DROP TABLE + rollback in the
-	same table by another user */
+	node->table = dd_table_open_on_id(
+		table_id, current_thd, mdl, false, true);
 
 	if (node->table == NULL) {
 		/* Table was dropped */
@@ -1136,7 +1138,7 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
-		dd_table_close(node->table, nullptr, nullptr, false);
+		dd_table_close(node->table, current_thd, mdl, false);
 
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
@@ -1162,7 +1164,7 @@ row_undo_mod_parse_undo_rec(
 
 	if (!row_undo_search_clust_to_pcur(node)) {
 
-		dd_table_close(node->table, nullptr, nullptr, false);
+		dd_table_close(node->table, current_thd, mdl, false);
 
 		node->table = NULL;
 	}
@@ -1185,7 +1187,8 @@ row_undo_mod(
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	dberr_t	err;
+	dberr_t		err;
+	MDL_ticket*	mdl = nullptr;
 
 	ut_ad(node != NULL);
 	ut_ad(thr != NULL);
@@ -1195,7 +1198,7 @@ row_undo_mod(
 
 	ut_ad(thr_get_trx(thr) == node->trx);
 
-	row_undo_mod_parse_undo_rec(node);
+	row_undo_mod_parse_undo_rec(node, &mdl);
 
 	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
@@ -1234,7 +1237,7 @@ row_undo_mod(
 		err = row_undo_mod_clust(node, thr);
 	}
 
-	dd_table_close(node->table, nullptr, nullptr, false);
+	dd_table_close(node->table, current_thd, &mdl, false);
 
 	node->table = NULL;
 

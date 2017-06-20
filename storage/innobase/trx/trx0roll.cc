@@ -37,6 +37,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 #include "row0mysql.h"
 #include "row0undo.h"
+#include "sql_thd_internal_api.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "trx0rec.h"
@@ -817,6 +818,13 @@ Note: this is done in a background thread. */
 void
 trx_recovery_rollback_thread()
 {
+#ifdef UNIV_PFS_THREAD
+	THD*	thd = create_thd(false, true, true,
+				 trx_recovery_rollback_thread_key.m_value);
+#else
+	THD*	thd = create_thd(false, true, true, 0);
+#endif
+
 	my_thread_init();
 
 	ut_ad(!srv_read_only_mode);
@@ -824,6 +832,8 @@ trx_recovery_rollback_thread()
 	trx_rollback_or_clean_recovered(TRUE);
 
 	trx_rollback_or_clean_is_active = false;
+
+	destroy_thd(thd);
 
 	my_thread_end();
 }
