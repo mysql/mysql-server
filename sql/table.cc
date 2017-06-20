@@ -3654,6 +3654,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->comment= share->comment;
   create_info->storage_media= share->default_storage_media;
   create_info->tablespace= share->tablespace;
+  create_info->compress= share->compress;
+  create_info->encrypt_type= share->encrypt_type;
 
   DBUG_VOID_RETURN;
 }
