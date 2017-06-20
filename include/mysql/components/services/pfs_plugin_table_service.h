@@ -359,6 +359,7 @@ struct PFS_engine_table_proxy
   delete_row_values_t   delete_row_values;
   open_table_t          open_table;
   close_table_t         close_table;
+  PFS_engine_table_proxy()= default;
 };
 typedef struct PFS_engine_table_proxy PFS_engine_table_proxy;
 

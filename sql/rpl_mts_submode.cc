@@ -116,7 +116,6 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                                                  Slave_worker *ignore)
 {
   uint ret= 0;
-  HASH *hash= &rli->mapping_db_to_worker;
   THD *thd= rli->info_thd;
   bool cant_sync= FALSE;
   char llbuf[22];
@@ -128,20 +127,16 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
                       "procedure when scheduling event relay-log: %s "
                       "pos: %s", rli->get_event_relay_log_name(), llbuf));
 
-  for (uint i= 0, ret= 0; i < hash->records; i++)
+  mysql_mutex_lock(&rli->slave_worker_hash_lock);
+
+  for (const auto &key_and_value : rli->mapping_db_to_worker)
   {
-    db_worker_hash_entry *entry;
-
-    mysql_mutex_lock(&rli->slave_worker_hash_lock);
-
-    entry= (db_worker_hash_entry*) my_hash_element(hash, i);
-
+    db_worker_hash_entry *entry= key_and_value.second.get();
     DBUG_ASSERT(entry);
 
     // the ignore Worker retains its active resources
     if (ignore && entry->worker == ignore && entry->usage > 0)
     {
-      mysql_mutex_unlock(&rli->slave_worker_hash_lock);
       continue;
     }
 
@@ -177,7 +172,10 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     entry->temporary_tables= NULL;
     if (entry->worker->running_status != Slave_worker::RUNNING)
       cant_sync= TRUE;
+    mysql_mutex_lock(&rli->slave_worker_hash_lock);
   }
+
+  mysql_mutex_unlock(&rli->slave_worker_hash_lock);
 
   if (!ignore)
   {

@@ -270,7 +270,8 @@ static struct my_option my_long_options[] =
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"column-statistics", 0,
-   "Add a ANALYZE TABLE-statement for any existing column statistics.",
+   "Add an ANALYZE TABLE statement to regenerate any existing column "
+   "statistics.",
    &column_statistics, &column_statistics, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
@@ -6139,7 +6140,10 @@ static bool get_view_structure(char *table, char* db)
   if (path)
   {
     if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
+    {
+      mysql_free_result(table_res);
       DBUG_RETURN(1);
+    }
 
     write_header(sql_file, db);
   }

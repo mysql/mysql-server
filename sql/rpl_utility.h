@@ -28,17 +28,16 @@
 #include "my_macros.h"
 
 #ifdef MYSQL_SERVER
+#include <memory>
+
 #include "handler.h"
-#include "hash.h"
+#include "map_helpers.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "table.h"              // TABLE_LIST
 
 class THD;
 class Log_event;
 class Relay_log_info;
-#endif
-
-#ifdef MYSQL_SERVER
 
 /**
    Hash table used when applying row events on the slave and there is
@@ -57,6 +56,13 @@ typedef struct hash_row_pos_st
 
 } HASH_ROW_POS;
 
+struct HASH_ROW_ENTRY;
+
+struct hash_slave_rows_free_entry
+{
+  void operator() (HASH_ROW_ENTRY *entry) const;
+};
+
 
 /**
    Internal structure that acts as a preamble for HASH_ROW_POS
@@ -67,21 +73,21 @@ typedef struct hash_row_pos_st
  */
 typedef struct hash_row_preamble_st
 {
+  hash_row_preamble_st()= default;
   /*
     The actual key.
    */
   my_hash_value_type hash_value;
 
   /**  
-    Length of the key.
-   */
-  uint length;
-
-  /**  
     The search state used to iterate over multiple entries for a
     given key.
    */
-  HASH_SEARCH_STATE search_state;
+  malloc_unordered_multimap
+    <my_hash_value_type,
+     std::unique_ptr<HASH_ROW_ENTRY,
+                     hash_slave_rows_free_entry>>::const_iterator
+       search_state;
 
   /**  
     Wether this search_state is usable or not.
@@ -90,11 +96,11 @@ typedef struct hash_row_preamble_st
 
 } HASH_ROW_PREAMBLE;
 
-typedef struct hash_row_entry_st
+struct HASH_ROW_ENTRY
 {
   HASH_ROW_PREAMBLE *preamble;
   HASH_ROW_POS *positions;
-} HASH_ROW_ENTRY;
+};
 
 class Hash_slave_rows 
 {
@@ -211,7 +217,10 @@ private:
   /**
      The hashtable itself.
    */
-  HASH m_hash;
+  malloc_unordered_multimap
+    <my_hash_value_type,
+     std::unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>> m_hash
+       {key_memory_HASH_ROW_ENTRY};
 
   /**
      Auxiliary and internal method used to create an hash key, based on

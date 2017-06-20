@@ -108,7 +108,7 @@ struct Mem_compare_queue_key
   {
     if (m_param)
       return
-        cmp_varlen_keys(m_param->local_sortorder, s1, s2);
+        cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash, s1, s2);
 
     // memcmp(s1, s2, 0) is guaranteed to return zero.
     return memcmp(s1, s2, m_compare_length) < 0;
@@ -195,17 +195,20 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
   }
 
   m_num_varlen_keys= count_varlen_keys();
+  m_num_json_keys= count_json_keys();
   if (using_varlen_keys())
   {
-    use_hash= true;
     m_fixed_sort_length+= size_of_varlength_field;
   }
   /*
     Add hash at the end of sort key to order cut values correctly.
     Needed for GROUPing, rather than for ORDERing.
   */
-  if (use_hash)
+  if (using_json_keys())
+  {
+    use_hash= true;
     m_fixed_sort_length+= sizeof(ulonglong);
+  }
 
   m_fixed_rec_length= m_fixed_sort_length + m_addon_length;
   max_rows= maxrows;
@@ -258,6 +261,20 @@ int Sort_param::count_varlen_keys() const
   for (const auto &sf : local_sortorder)
   {
     if (sf.is_varlen)
+    {
+      ++retval;
+    }
+  }
+  return retval;
+}
+
+
+int Sort_param::count_json_keys() const
+{
+  int retval= 0;
+  for (const auto &sf : local_sortorder)
+  {
+    if (sf.field_type == MYSQL_TYPE_JSON)
     {
       ++retval;
     }
@@ -2174,7 +2191,8 @@ struct Merge_chunk_greater
       return memcmp(key1, key2, m_len) > 0;
 
     if (m_param)
-      return !cmp_varlen_keys(m_param->local_sortorder, key1, key2);
+      return !cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash,
+                              key1, key2);
 
     // We can actually have zero-length sort key for filesort().
     return false;

@@ -72,7 +72,10 @@ PFS_engine_table_share table_data_lock_waits::m_share = {
   sizeof(pk_pos_t),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

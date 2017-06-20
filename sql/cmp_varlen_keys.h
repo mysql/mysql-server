@@ -34,7 +34,7 @@
  */
 inline
 bool cmp_varlen_keys(Bounds_checked_array<st_sort_field> sort_field_array,
-                     const uchar *s1, const uchar *s2)
+                     bool use_hash, const uchar *s1, const uchar *s2)
 {
   const uchar *kp1= s1 + Sort_param::size_of_varlength_field;
   const uchar *kp2= s2 + Sort_param::size_of_varlength_field;
@@ -91,8 +91,16 @@ bool cmp_varlen_keys(Bounds_checked_array<st_sort_field> sort_field_array,
     kp1+= kp1_len;
     kp2+= kp2_len;
   }
-  // Compare hashes at the end of sort keys
-  return memcmp(kp1, kp2, 8) < 0;
+
+  if (use_hash)
+  {
+    // Compare hashes at the end of sort keys
+    return memcmp(kp1, kp2, 8) < 0;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 #endif  // CMP_VARLEN_KEYS_INCLUDED

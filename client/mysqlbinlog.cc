@@ -2045,7 +2045,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv)
   DBUG_ENTER("dump_multiple_logs");
   Exit_status rc= OK_CONTINUE;
 
-  PRINT_EVENT_INFO print_event_info{};
+  PRINT_EVENT_INFO print_event_info;
   if (!print_event_info.init_ok())
     DBUG_RETURN(ERROR_STOP);
   /*

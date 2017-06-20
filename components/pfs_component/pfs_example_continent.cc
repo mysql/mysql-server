@@ -29,7 +29,8 @@ unsigned int continent_rows_in_table = 0;
 unsigned int continent_next_available_index = 0;
 
 Continent_record continent_records_array[CONTINENT_MAX_ROWS] = {
-  "", 0, false};
+  {"", 0, false}
+};
 
 /**
  * Instantiate Continent_Table_Handle at plugin code when corresponding table

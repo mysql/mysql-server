@@ -691,7 +691,10 @@ public:
   // number's is determined by global slave_parallel_workers
   Slave_worker_array workers;
 
-  HASH mapping_db_to_worker; // To map a database to a worker
+  // To map a database to a worker
+  malloc_unordered_map<std::string,
+                       unique_ptr_with_deleter<db_worker_hash_entry>>
+    mapping_db_to_worker{key_memory_db_worker_hash_entry};
   bool inited_hash_workers; //  flag to check if mapping_db_to_worker is inited
 
   mysql_mutex_t slave_worker_hash_lock; // for mapping_db_to_worker

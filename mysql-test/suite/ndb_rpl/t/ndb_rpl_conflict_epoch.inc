@@ -152,14 +152,14 @@ insert into test.t1 values (1,1,repeat('B', 2000));
 --echo -- Generate a large batch of inserts with early + late conflicts
 delimiter %;
 
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
   set @x = 0;
   START TRANSACTION;
     repeat
       insert into test.t1 values (@x, @x, repeat('B', 2000));
       set @x = @x + 1;
-    until @x = rows
+    until @x = `rows`
     end repeat;
   COMMIT;
   START TRANSACTION;
@@ -217,7 +217,7 @@ delete from test.t1 where a=1;
 --echo -- Delete row on Secondary Cluster, followed by Insert in later 'batch'
 delimiter %;
 
-create procedure test.doit (rows int)
+create procedure test.doit (`rows` int)
 begin
   set @x = 2;
   START TRANSACTION;
@@ -225,7 +225,7 @@ begin
     repeat
       insert into test.t1 values (@x, @x, repeat('B', 2000));
       set @x = @x + 1;
-    until @x = (rows + 2)
+    until @x = (`rows` + 2)
     end repeat;
   COMMIT;
   START TRANSACTION;
