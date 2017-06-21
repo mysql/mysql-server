@@ -3472,7 +3472,16 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 }
 
 
-bool Item_func_json_merge::val_json(Json_wrapper *wr)
+Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
+                                           PT_item_list *a)
+  : Item_func_json_merge_preserve(thd, pos, a)
+{
+  push_deprecated_warn(thd, "JSON_MERGE",
+                       "JSON_MERGE_PRESERVE/JSON_MERGE_PATCH");
+}
+
+
+bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 

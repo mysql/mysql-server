@@ -694,18 +694,28 @@ public:
 };
 
 /**
-  Represents the JSON function JSON_MERGE()
+  Represents the JSON function JSON_MERGE_PRESERVE.
 */
-class Item_func_json_merge :public Item_json_func
+class Item_func_json_merge_preserve :public Item_json_func
 {
 public:
-  Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a)
+  Item_func_json_merge_preserve(THD *thd, const POS &pos, PT_item_list *a)
     : Item_json_func(thd, pos, a)
   {}
 
-  const char *func_name() const override { return "json_merge"; }
+  const char *func_name() const override { return "json_merge_preserve"; }
 
   bool val_json(Json_wrapper *wr) override;
+};
+
+/**
+  Represents the JSON function JSON_MERGE. It is a deprecated alias
+  for JSON_MERGE_PRESERVE.
+*/
+class Item_func_json_merge :public Item_func_json_merge_preserve
+{
+public:
+  Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a);
 };
 
 /**
