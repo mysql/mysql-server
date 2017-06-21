@@ -30,7 +30,7 @@ CHARSET_INFO *system_charset_info= NULL;
 
 namespace {
 
-bool opt_use_tap= true;
+bool opt_use_tap= false;
 bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
@@ -85,7 +85,8 @@ int main(int argc, char **argv)
   if (opt_use_tap)
     install_tap_listener();
   if (opt_unit_help)
-    printf("\n\nTest options: [--[disable-]tap-output]\n");
+    printf("\n\nTest options: [--[enable-]tap-output] output TAP "
+           "rather than googletest format\n");
 
   return RUN_ALL_TESTS();
 }
