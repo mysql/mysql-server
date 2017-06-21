@@ -116,7 +116,8 @@ void Win32AsyncFile::openReq(Request* request)
 
     if (ERROR_FILE_EXISTS == request->error)
     {
-      ndbrequire(flags & FsOpenReq::OM_CREATE_IF_NONE);
+      if (!(flags & FsOpenReq::OM_CREATE_IF_NONE))
+        abort();
       request->error = FsRef::fsErrFileExists;
       (void)CloseHandle(hFile);
       return;
