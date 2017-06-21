@@ -3301,7 +3301,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 }
 
 
-bool Item_func_json_merge::val_json(Json_wrapper *wr)
+bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 

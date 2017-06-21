@@ -570,7 +570,9 @@ INSERT INTO json_merge_t VALUES
 (3, '[1,2]'),
 (4, '{"a":["x", "y"]}'),
 (5, '{"a":"b","c":"d"}');
-SELECT t1.j, t2.j, json_merge(t1.j, t2.j), json_merge(t2.j, t1.j)
+SELECT t1.j, t2.j,
+       JSON_MERGE_PRESERVE(t1.j, t2.j) AS m1,
+       JSON_MERGE_PRESERVE(t2.j, t1.j) AS m2
 FROM json_merge_t t1, json_merge_t t2 ORDER BY t1.i, t2.i;
 DROP TABLE json_merge_t;
 
@@ -1409,7 +1411,7 @@ create procedure merge_docs
 )
 language sql deterministic contains sql
 begin
-  set out_value = json_merge( in_value, inout_value );
+  set out_value = json_merge_preserve(in_value, inout_value);
   set inout_value = in_value;
 end//
 delimiter ;//
@@ -1958,7 +1960,7 @@ JSON_ARRAY_APPEND(j, '\$', 2),
 JSON_SET(j, '\$[0]', 2),
 JSON_INSERT(j, '\$[0]', 2),
 JSON_REPLACE(j, '\$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '\$.a'),
@@ -2008,7 +2010,7 @@ SELECT JSON_INSERT(json_text, json_path, json_atom_text)
 FROM t_latin1 ORDER BY id;
 SELECT JSON_REPLACE(json_text, json_path, json_atom_text)
 FROM t_latin1 ORDER BY id;
-SELECT JSON_MERGE(json_text, json_text) FROM t_latin1 ORDER BY id;
+SELECT JSON_MERGE_PRESERVE(json_text, json_text) FROM t_latin1 ORDER BY id;
 SELECT JSON_SEARCH(json_text, CONVERT('one' USING latin1), json_atom_text,
                   CONVERT(X'F8' USING latin1), json_path)
 FROM t_latin1 ORDER BY id;
@@ -2984,8 +2986,8 @@ drop table t1;
 
 CREATE TABLE t (doc json);
 INSERT INTO t VALUES('{"array":[1,2,3,4]}');
-UPDATE t SET doc=JSON_MERGE(doc,doc);
-UPDATE t SET doc=JSON_MERGE(doc,doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
 drop table t;
 
 --echo #
