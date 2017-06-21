@@ -250,8 +250,8 @@ public:
   { return m_workerCount; }
 
   /** Get the number of fragments handled by each worker. */
-  Uint32 getFragsPrWorker() const
-  { return m_fragsPrWorker; }
+  Uint32 getFragsPerWorker() const
+  { return m_fragsPerWorker; }
  
   NdbBulkAllocator& getResultStreamAlloc()
   { return m_resultStreamAlloc; }
@@ -458,7 +458,7 @@ private:
   /**
    * How many fragments are handled by each Worker, > 1 if MultiFragScan.
    */
-  Uint32 m_fragsPrWorker;
+  Uint32 m_fragsPerWorker;
 
   /**
    * This is an array with one element for each worker (SPJ requests)

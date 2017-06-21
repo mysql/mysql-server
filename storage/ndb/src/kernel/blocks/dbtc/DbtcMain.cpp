@@ -12283,6 +12283,14 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }
 
+  if (unlikely(ScanTabReq::getMultiFragFlag(ri) &&
+               !ScanTabReq::getViaSPJFlag(ri)))
+  {
+    jam();
+    errCode = 4003; // Function not implemented
+    goto SCAN_TAB_error;
+  }
+
   ptrAss(tabptr, tableRecord);
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
@@ -12485,10 +12493,6 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   {
     jam();
     scanptr.p->m_scan_block_no = DBSPJ;
-  }
-  if (ScanTabReq::getMultiFragFlag(ri))
-  {
-    ndbassert(ScanTabReq::getViaSPJFlag(ri));
   }
 
   scanptr.p->scanRequestInfo = tmp;
