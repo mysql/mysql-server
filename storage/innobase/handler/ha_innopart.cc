@@ -668,6 +668,7 @@ ha_innopart::ha_innopart(
 	m_blob_heap_parts(),
 	m_trx_id_parts(),
 	m_row_read_type_parts(),
+	m_bitset(),
 	m_sql_stat_start_parts(),
 	m_pcur(),
 	m_clust_pcur(),
@@ -933,6 +934,7 @@ share_error:
 	/* Get pointer to a table object in InnoDB dictionary cache. */
 	ib_table = m_part_share->get_table_part(0);
 
+	m_prebuilt = nullptr;
 	m_pcur_parts = NULL;
 	m_clust_pcur_parts = NULL;
 	m_pcur_map = NULL;
@@ -994,12 +996,7 @@ share_error:
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
 		set_my_errno(ENOENT);
-
-		lock_shared_ha_data();
-		m_part_share->close_table_parts(false);
-		unlock_shared_ha_data();
-		m_part_share = NULL;
-
+		close();
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -1324,7 +1321,8 @@ ha_innopart::close()
 	ut_ad(m_part_share != NULL);
 	if (m_part_share != NULL) {
 		lock_shared_ha_data();
-		m_part_share->close_table_parts(m_prebuilt->table == NULL);
+		m_part_share->close_table_parts(
+			m_prebuilt == nullptr || m_prebuilt->table == nullptr);
 		unlock_shared_ha_data();
 		m_part_share = NULL;
 	}
@@ -1333,8 +1331,10 @@ ha_innopart::close()
 
 	/* Prevent double close of m_prebuilt->table. The real one was done
 	done in m_part_share->close_table_parts(). */
-	m_prebuilt->table = NULL;
-	row_prebuilt_free(m_prebuilt, FALSE);
+	if (m_prebuilt != nullptr) {
+		m_prebuilt->table = NULL;
+		row_prebuilt_free(m_prebuilt, FALSE);
+	}
 
 	if (m_upd_buf != NULL) {
 		ut_ad(m_upd_buf_size != 0);
@@ -1361,7 +1361,9 @@ ha_innopart::close()
 		m_row_read_type_parts = NULL;
 	}
 
-	ut_free(m_bitset);
+	if (m_bitset != nullptr) {
+		ut_free(m_bitset);
+	}
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
