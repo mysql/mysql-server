@@ -1120,6 +1120,7 @@ public:
     Uint32 m_senderData;
     Uint32 m_rootResultData;
     Uint32 m_rootFragId;
+    Uint32 m_rootFragCnt;
     Uint32 m_transId[2];
     TreeNode_list::Head m_nodes;
     TreeNodeCursor_list::Head m_cursor_nodes;
