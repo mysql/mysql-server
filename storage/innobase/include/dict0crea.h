@@ -78,24 +78,6 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx);	/*!< in/out: InnoDB transaction
 					handle */
-/** Creates an index tree for the index if it is not a member of a cluster.
-Don't update SYSTEM TABLES.
-@param[in,out]	index	index
-@param[in]	trx	InnoDB transaction handle
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-dict_create_index_tree(
-	dict_index_t*	index,
-	const trx_t*	trx);
-
-/** Drop an index tree
-@param[in]	index		dict index
-@param[in]	root_page_no	index root page number */
-void
-dict_drop_index(
-	const dict_index_t*	index,
-	page_no_t		root_page_no);
-
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.

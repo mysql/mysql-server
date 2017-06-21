@@ -7215,18 +7215,9 @@ commit_cache_norebuild(
 	}
 
 	if (ctx->num_to_drop_index) {
-		/* Really drop the indexes that were dropped.
-		The transaction had to be committed first
-		(after renaming the indexes), so that in the
-		event of a crash, crash recovery will drop the
-		indexes, because it drops all indexes whose
-		names start with TEMP_INDEX_PREFIX. Once we
-		have started dropping an index tree, there is
-		no way to roll it back. */
 
-		std::vector<page_no_t>*	page_no_vector =
-				new std::vector<page_no_t>();
-
+		/* Drop indexes in data dictionary cache and write
+		DDL log for them */
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
 			dict_index_t*	index = ctx->drop_index[i];
 			DBUG_ASSERT(index->is_committed());
@@ -7235,18 +7226,10 @@ commit_cache_norebuild(
 
 			/* Replace the indexes in foreign key
 			constraints if needed. */
-
 			if (!dict_foreign_replace_index(
 				    index->table, ctx->col_names, index)) {
 				found = false;
 			}
-
-			/* Mark the index dropped
-			in the data dictionary cache. */
-			rw_lock_x_lock(dict_index_get_lock(index));
-			page_no_vector->push_back(index->page);
-			index->page = FIL_NULL;
-			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		for (ulint i = 0; i < ctx->num_to_drop_index; i++) {
@@ -7264,12 +7247,15 @@ commit_cache_norebuild(
 					       trx, ctx->fts_drop_aux_vec);
 			}
 
-			dict_drop_index(index, page_no_vector->at(i));
+			/* It is a single table tablespace and the .ibd file is
+			missing if root is FIL_NULL, do nothing. */
+			if (index->page != FIL_NULL) {
+				log_ddl->writeFreeTreeLog(trx, index, true);
+			}
 
+			btr_drop_ahi_for_index(index);
 			dict_index_remove_from_cache(index->table, index);
 		}
-
-		delete page_no_vector;
 	}
 
 	ctx->new_table->fts_doc_id_index

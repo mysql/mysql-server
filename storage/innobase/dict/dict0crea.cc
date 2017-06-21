@@ -410,52 +410,6 @@ dict_create_index_tree_in_mem(
 	return(err);
 }
 
-/** Drop an index tree
-@param[in]	index		dict index
-@param[in]	root_page_no	root page no */
-void
-dict_drop_index(
-	const dict_index_t*	index,
-	page_no_t		root_page_no)
-{
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(!index->table->is_temporary());
-
-	if (root_page_no == FIL_NULL) {
-		ut_ad((index->type & DICT_FTS)
-		      || index->table->ibd_file_missing);
-		return;
-	}
-
-	/* This is an index which has its index tree dropped, but left due
-	to table ref count in row_merge_drop_indexes() */
-	if (dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED
-	    && index->is_corrupted()) {
-		return;
-	}
-
-	bool			found;
-	const page_size_t	page_size(fil_space_get_page_size(index->space,
-								  &found));
-
-	if (!found) {
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
-		return;
-	}
-
-	mtr_t	mtr;
-	mtr_start(&mtr);
-
-	btr_free_if_exists(page_id_t(index->space, root_page_no),
-			   page_size, index->id, &mtr);
-
-	mtr_commit(&mtr);
-
-	return;
-}
-
 /** Drop an index tree belonging to a temporary table.
 @param[in]	index		index in a temporary table
 @param[in]	root_page_no	index root page number */

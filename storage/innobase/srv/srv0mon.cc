@@ -1311,11 +1311,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_MODULE,
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_DDL_STATS},
 
-	{"ddl_background_drop_indexes", "ddl",
-	 "Number of indexes waiting to be dropped after failed index creation",
-	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_BACKGROUND_DROP_INDEX},
-
 	{"ddl_background_drop_tables", "ddl",
 	 "Number of tables in background drop table list",
 	 MONITOR_NONE,

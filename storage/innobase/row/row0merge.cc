@@ -3525,8 +3525,6 @@ row_merge_drop_indexes(
 				rw_lock_x_unlock(dict_index_get_lock(index));
 
 				DEBUG_SYNC_C("merge_drop_index_after_abort");
-				/* covered by dict_sys->mutex */
-				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
 			case ONLINE_INDEX_ABORTED:
 				rw_lock_x_lock(dict_index_get_lock(index));
@@ -3581,8 +3579,7 @@ row_merge_drop_indexes(
 				break;
 			case ONLINE_INDEX_ABORTED:
 			case ONLINE_INDEX_ABORTED_DROPPED:
-				/* covered by dict_sys->mutex */
-				MONITOR_DEC(MONITOR_BACKGROUND_DROP_INDEX);
+				break;
 			}
 
 			dict_index_remove_from_cache(table, index);
@@ -4245,8 +4242,7 @@ func_exit:
 				/* fall through */
 			case ONLINE_INDEX_ABORTED_DROPPED:
 			case ONLINE_INDEX_ABORTED:
-				MONITOR_ATOMIC_INC(
-					MONITOR_BACKGROUND_DROP_INDEX);
+				break;
 			}
 		}
 	}
