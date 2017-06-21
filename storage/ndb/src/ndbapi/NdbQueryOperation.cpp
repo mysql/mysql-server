@@ -759,16 +759,16 @@ NdbResultStream::prepare()
     /* Parent / child correlation is only relevant for scan type queries
      * Don't create a m_tupleSet with these correlation id's for lookups!
      */
-    const Uint32 fragsPrWorker = query.getFragsPrWorker();
+    const Uint32 fragsPerWorker = query.getFragsPerWorker();
 
-    m_maxRows  = fragsPrWorker * m_operation.getMaxBatchRows();
+    m_maxRows  = fragsPerWorker * m_operation.getMaxBatchRows();
     m_tupleSet = 
       new (query.getTupleSetAlloc().allocObjMem(m_maxRows)) 
       TupleSet[m_maxRows];
 
     // Scan results may be double buffered
-    m_resultSets[0].init(query, m_maxRows, fragsPrWorker * resultBufferSize); 
-    m_resultSets[1].init(query, m_maxRows, fragsPrWorker * resultBufferSize);
+    m_resultSets[0].init(query, m_maxRows, fragsPerWorker * resultBufferSize); 
+    m_resultSets[1].init(query, m_maxRows, fragsPerWorker * resultBufferSize);
   }
   else
   {
@@ -1791,7 +1791,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_globalCursor(0),
   m_pendingWorkers(0),
   m_workerCount(0),
-  m_fragsPrWorker(0),
+  m_fragsPerWorker(0),
   m_workers(NULL),
   m_applFrags(),
   m_finalWorkers(0),
@@ -1871,13 +1871,15 @@ NdbQueryImpl::postFetchRelease()
   if (m_workers != NULL)
   {
     for (unsigned i=0; i<m_workerCount; i++)
-    { m_workers[i].postFetchRelease();
+    {
+      m_workers[i].postFetchRelease();
     }
   }
   if (m_operations != NULL)
   {
     for (unsigned i=0; i<m_countOperations; i++)
-    { m_operations[i].postFetchRelease();
+    {
+      m_operations[i].postFetchRelease();
     }
   }
   delete[] m_workers;
@@ -2712,17 +2714,17 @@ NdbQueryImpl::prepareSend()
     {
       // Scan pruned to single fragment
       rootFragments = 1;
-      m_fragsPrWorker = 1;
+      m_fragsPerWorker = 1;
     }
     else if (rootOp.getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
     {
       // Merge-sort need one result set from each fragment
-      m_fragsPrWorker = 1;
+      m_fragsPerWorker = 1;
     }
     else if (!ndbd_spj_multifrag_scan(m_transaction.getNdb()->getMinDbNodeVersion()))
     {
       // 'MultiFragment' not supported by all datanodes, partially upgraded?
-      m_fragsPrWorker = 1;
+      m_fragsPerWorker = 1;
     }
     else
     {
@@ -2744,7 +2746,7 @@ NdbQueryImpl::prepareSend()
         }
       }
       assert((rootFragments % cnt) == 0);
-      m_fragsPrWorker = rootFragments / cnt;
+      m_fragsPerWorker = rootFragments / cnt;
     }
 
     /** Scan operations need a own sub-transaction object associated with each 
@@ -2765,9 +2767,9 @@ NdbQueryImpl::prepareSend()
   else  // Lookup query
   {
     rootFragments = 1;
-    m_fragsPrWorker = 1;
+    m_fragsPerWorker = 1;
   }
-  m_workerCount = rootFragments / m_fragsPrWorker;
+  m_workerCount = rootFragments / m_fragsPerWorker;
   assert(m_workerCount > 0);
 
   int error = m_resultStreamAlloc.init(m_workerCount * getNoOfOperations());
@@ -3142,7 +3144,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     scanTabReq->batch_byte_size = batchByteSize;
     scanTabReq->first_batch_size = batchRows;
 
-    if (m_fragsPrWorker > 1)
+    if (m_fragsPerWorker > 1)
     {
       ScanTabReq::setMultiFragFlag(reqInfo, 1);
     }
@@ -4472,8 +4474,8 @@ NdbQueryOperationImpl
     if (m_children.size() > 0)  //Is a 'parent'
     {
       static const Uint32 max_batch_size_rows = 0x1000;
-      const Uint32 fragsPrWorker = getQuery().m_fragsPrWorker;
-      maxBatchRows = MIN(maxBatchRows, max_batch_size_rows/fragsPrWorker);
+      const Uint32 fragsPerWorker = getQuery().m_fragsPerWorker;
+      maxBatchRows = MIN(maxBatchRows, max_batch_size_rows/fragsPerWorker);
     }
   }
 
@@ -4671,9 +4673,9 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     if (unlikely(param==NULL))
       return Err_MemoryAlloc;
 
-    const Uint32 fragsPrWorker = getQuery().m_fragsPrWorker;
-    const Uint32 batchRows = getMaxBatchRows()*fragsPrWorker;
-    const Uint32 batchByteSize = getMaxBatchBytes()*fragsPrWorker;
+    const Uint32 fragsPerWorker = getQuery().m_fragsPerWorker;
+    const Uint32 batchRows = getMaxBatchRows()*fragsPerWorker;
+    const Uint32 batchByteSize = getMaxBatchBytes()*fragsPerWorker;
     assert(batchRows <= batchByteSize);
     assert(m_parallelism == Parallelism_max ||
            m_parallelism == Parallelism_adaptive);
@@ -5428,7 +5430,7 @@ Uint32 NdbQueryOperationImpl::getMaxBatchBytes() const
   {
     Uint32 batchRows     = getMaxBatchRows();
     Uint32 batchByteSize = 0;
-    Uint32 batchFrags    = getQuery().m_fragsPrWorker;
+    Uint32 batchFrags    = getQuery().m_fragsPerWorker;
 
     // Set together with 'm_resultBufferSize'
     assert(m_resultBufferSize == 0);
