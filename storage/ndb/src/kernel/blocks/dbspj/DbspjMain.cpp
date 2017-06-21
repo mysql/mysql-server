@@ -5685,7 +5685,6 @@ Dbspj::parseScanFrag(Build_context& ctx,
     data.m_frags_complete = 0;
     data.m_frags_not_started = 0;
     data.m_parallelismStat.init();
-    data.m_firstExecution = true;
     data.m_batch_chunks = 0;
 
     /**
@@ -6520,16 +6519,14 @@ Dbspj::scanFrag_send(Signal* signal,
     jam();
     data.m_parallelism = MIN(data.m_frags_not_started, org->batch_size_rows);
   }
-  else if (data.m_firstExecution)
+  else if (!data.m_parallelismStat.isValid())
   {
     /**
-     * Having a high parallelism would allow us to fetch data from many
-     * fragments in parallel and thus reduce the number of round trips.
-     * On the other hand, we should set parallelism so low that we can fetch
-     * all data from a fragment in one batch if possible.
-     * Since this is the first execution, we do not know how many rows or bytes
-     * this operation is likely to return. Therefore we set parallelism to 1,
-     * since this gives the lowest penalty if our guess is wrong.
+     * No valid statistics yet to estimate 'parallism' from. We start
+     * by reading a single fragment, which will get the entire 'batch',
+     * in order to hopefully give us a valid sample. Note that SCAN_FRAGCONF
+     * may start more scans when this scan completes, if there are a
+     * sufficient amount of unused batch size left.
      */
     jam();
     data.m_parallelism = 1;
@@ -6619,8 +6616,6 @@ Dbspj::scanFrag_send(Signal* signal,
   if (likely(frags_started > 0))
   {
     jam();
-    data.m_firstExecution = false;
-
     ndbrequire(static_cast<Uint32>(data.m_frags_outstanding + 
                                    data.m_frags_complete) <=
                data.m_fragCount);
@@ -7122,7 +7117,7 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
                           double(org->batch_size_bytes) * data.m_fragCount
                           / data.m_totalBytes);
       }
-      data.m_parallelismStat.update(parallelism);
+      data.m_parallelismStat.sample(parallelism);
     }
 
     /**
@@ -7816,13 +7811,12 @@ Dbspj::scanFrag_dumpNode(const Ptr<Request> requestPtr,
                       data.m_frags_outstanding,
                       data.m_frags_not_started);
   g_eventLogger->info("DBSPJ %u :       parallelism %u rows_expecting %u "
-                      "rows_received %u firstBatch %u firstExec %u",
+                      "rows_received %u firstBatch %u",
                       instance(),
                       data.m_parallelism,
                       data.m_rows_expecting,
                       data.m_rows_received,
-                      data.m_firstBatch,
-                      data.m_firstExecution);
+                      data.m_firstBatch);
   g_eventLogger->info("DBSPJ %u :       totalRows %u totalBytes %u "
                       "constPrunePtrI %u",
                       instance(),
@@ -9321,14 +9315,14 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
  *
  * Source: http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html
  */
-void Dbspj::IncrementalStatistics::update(double sample)
+void Dbspj::IncrementalStatistics::sample(double observation)
 {
   // Prevent wrap-around
   if(m_noOfSamples < 0xffffffff)
   {
     m_noOfSamples++;
-    const double delta = sample - m_mean;
+    const double delta = observation - m_mean;
     m_mean += delta/m_noOfSamples;
-    m_sumSquare +=  delta * (sample - m_mean);
+    m_sumSquare +=  delta * (observation - m_mean);
   }
 }
