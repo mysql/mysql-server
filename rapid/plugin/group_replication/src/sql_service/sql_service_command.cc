@@ -701,6 +701,7 @@ Session_plugin_thread::session_thread_handler()
 
   end:
   delete m_server_interface;
+  m_server_interface = NULL;
 
   mysql_mutex_lock(&m_run_lock);
   m_session_thread_running= false;
