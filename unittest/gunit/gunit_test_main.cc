@@ -26,7 +26,9 @@
 #include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
-CHARSET_INFO *system_charset_info= NULL;
+extern "C" {
+  CHARSET_INFO *system_charset_info= NULL;
+}
 
 namespace {
 

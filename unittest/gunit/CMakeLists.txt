@@ -459,10 +459,6 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
   ENDIF()
   LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
-  ADD_COMPILE_FLAGS(
-    ../../storage/example/ha_example.cc
-    COMPILE_FLAGS "-DDISABLE_DTRACE"
-  )
 
   ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS})
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
@@ -474,7 +470,7 @@ IF (MERGE_UNITTESTS)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
-    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema)
   ENDIF()
 
   ADD_TEST(merge_large_tests merge_large_tests-t)

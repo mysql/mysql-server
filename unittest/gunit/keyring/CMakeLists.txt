@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ FOREACH(test ${TESTS})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
   ENDIF()
 
   IF(MERGE_UNITTESTS)
