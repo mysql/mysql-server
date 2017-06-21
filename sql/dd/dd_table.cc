@@ -314,6 +314,10 @@ static void prepare_default_value_string(uchar *buf,
   {
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp, sizeof(tmp), f->charset());
+    const bool is_binary_type=
+      ((f->type() == MYSQL_TYPE_VARCHAR || f->type() == MYSQL_TYPE_STRING) &&
+       (f->flags & BINARY_FLAG) && f->charset() == &my_charset_bin);
+
     if (f->type() == MYSQL_TYPE_BIT)
     {
       longlong dec= f->val_int();
@@ -323,6 +327,40 @@ static void prepare_default_value_string(uchar *buf,
       tmp[1]= '\'';
       tmp[length]= '\'';
       type.length(length + 1);
+    }
+    else if (is_binary_type)
+    {
+      String type2;
+      char *ptr= type.c_ptr_safe();
+
+      // Get the default value.
+      f->val_str(&type2);
+
+      if (type2.length() > 0)
+      {
+        /*
+          The default value for BINARY and VARBINARY type is converted to the
+          hex string if hex format is used for default value at the parsing
+          stage. Converting hex string to system_charset_info charset while
+          storing value in DD table might fail because of unsupported byte
+          value in hex string. Hence converting default value to printable
+          HEX encoded string before store.
+
+          The original format as supplied by user is lost after parsing stage.
+          So regardless of the type specified by the user, default for
+          varbinary/binary is stored in the printable HEX encoded format.
+          I_S queries and SHOW COLUMNS always list such default value in HEX
+          format instead of user specified one.
+        */
+        *ptr++= '0';
+        *ptr++= 'x';
+        size_t len= bin_to_hex_str(ptr, type.length() - 2,
+                                   type2.c_ptr_safe(), strlen(type2.c_ptr_safe()));
+        type.length(len+2);
+      }
+      else
+        // For BINARY(0) and VARBINARY type with empty string as default value.
+        f->val_str(&type);
     }
     else
       f->val_str(&type);
