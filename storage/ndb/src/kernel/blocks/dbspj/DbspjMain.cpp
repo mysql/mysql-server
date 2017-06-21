@@ -940,6 +940,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootFragId = LqhKeyReq::getFragmentId(req->fragmentData);
+  requestP->m_rootFragCnt = 1;
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -1283,6 +1284,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_transId[1] = req->transId2;
   requestP->m_rootResultData = req->resultData;
   requestP->m_rootFragId = req->fragmentNoKeyLen;
+  requestP->m_rootFragCnt = 0; //Filled in later
   bzero(requestP->m_lookup_node_data, sizeof(requestP->m_lookup_node_data));
 #ifdef SPJ_TRACE_TIME
   requestP->m_cnt_batches = 0;
@@ -5602,6 +5604,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
             return err;
           }
         }
+        requestPtr.p->m_rootFragCnt = data.m_fragCount;
       }
 
       if (ScanFragReq::getRangeScanFlag(req->requestInfo))
@@ -5907,8 +5910,8 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
   // Add a skew in the fragment lists such that we don't scan 
   // the same subset of frags from all SPJ requests in case of
-  // the scan not being ' T_SCAN_PARALLEL'
-  Uint16 fragNoOffs = requestPtr.p->m_rootFragId % fragCount;
+  // the scan not being 'T_SCAN_PARALLEL'
+  Uint16 fragNoOffs = (getOwnNodeId()*requestPtr.p->m_rootFragCnt) % fragCount;
   Uint32 err = 0;
 
   do
