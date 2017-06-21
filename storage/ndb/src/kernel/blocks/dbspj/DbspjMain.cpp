@@ -6567,6 +6567,15 @@ Dbspj::scanFrag_send(Signal* signal,
       parallelism = data.m_frags_not_started / roundTrips;
     }
 
+    // Allow higher parallelism to avoid 'rows' capped by MAX_PARALLEL_OP_PER_SCAN
+    if ((org->batch_size_rows / parallelism) > MAX_PARALLEL_OP_PER_SCAN)
+    {
+      jam();
+      parallelism = MIN((org->batch_size_rows + MAX_PARALLEL_OP_PER_SCAN-1)
+                        / MAX_PARALLEL_OP_PER_SCAN,
+                        data.m_frags_not_started);
+    }
+
     ndbassert(parallelism >= 1);
     ndbassert((Uint32)parallelism + data.m_frags_complete <= data.m_fragCount);
     data.m_parallelism = static_cast<Uint32>(parallelism);
@@ -6578,15 +6587,7 @@ Dbspj::scanFrag_send(Signal* signal,
   }
   ndbrequire(data.m_parallelism > 0);
 
-  // Increase parallelism if MAX_ROWS limitation is exceeded
-  if ((org->batch_size_rows / data.m_parallelism) > MAX_PARALLEL_OP_PER_SCAN)
-  {
-    jam();
-    data.m_parallelism = MIN((org->batch_size_rows + MAX_PARALLEL_OP_PER_SCAN-1) / 
-			     MAX_PARALLEL_OP_PER_SCAN,
-                             data.m_frags_not_started);
-  }
-
+  // Cap batchSize-rows to avoid exceeding MAX_PARALLEL_OP_PER_SCAN
   const Uint32 bs_rows = MIN(org->batch_size_rows / data.m_parallelism,
                              MAX_PARALLEL_OP_PER_SCAN);
   const Uint32 bs_bytes = org->batch_size_bytes / data.m_parallelism;
