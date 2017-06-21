@@ -1910,16 +1910,18 @@
       test runs, using the options for each instance of
       <b>`--combination`</b> in successive runs. The following
       command passes <b>`--big-tables`</b> to <b>mysqld</b> for the
-      first test run, and <b>`--innodb`</b> and
-      <b>`--innodb-file-per-table`</b> for the second test run:
+      first test run, <b>`--innodb`</b> for the second run and
+      <b>`--innodb-file-per-table`</b> for the last run:
 
       @verbatim
   shell> ./mysql-test-run.pl
            --combination=--big-tables
-           --combination=--innodb, --innodb-file-per-table
+           --combination=--innodb
+           --combination=--innodb-file-per-table
       @endverbatim
 
-      If <b>`--combination`</b> is given only once, it has no effect.
+      If <b>`--combination`</b> is given only once, it behaves similar
+      to <b>`--mysqld`</b> option.
 
       For test runs specific to a given test suite, an alternative to
       the use of the <b>`--combination`</b> option is to create a
@@ -3816,7 +3818,15 @@
       @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" executes
       multiple test runs, using the options for each instance of
       <b>`--combination`</b> in successive runs. If
-      <b>`--combination`</b> is given only once, it has no effect.
+      <b>`--combination`</b> is given only once, it has no effect and
+      behaves similar to <b>`--mysqld`</b> option.
+
+      If a test being run, passes the same <b>`--mysqld`</b> option from an
+      opt file which is also passed from <b>`--combination`</b>, then that
+      <b>`--combination`</b> run is skipped because opt file always takes
+      higher precedence over command line options. The test will just run
+      once using the options provided in the opt file.
+
       For test runs specific to a given test suite, an alternative to
       the use of <b>`--combination`</b> is to create a
       <b>combinations</b> file in the suite directory. The file

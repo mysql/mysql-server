@@ -652,7 +652,7 @@ sub collect_one_suite($)
 
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
-	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
+	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
 	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
 	    next;
 	  }
