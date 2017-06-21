@@ -724,12 +724,18 @@ public:
     }
 
     // Add another sample.
-    void update(double sample);
+    void sample(double observation);
 
-    double getMean() const { return m_mean; }
+    double getMean() const {
+      return m_mean;
+    }
 
     double getStdDev() const { 
       return m_noOfSamples < 2 ? 0.0 : sqrt(m_sumSquare/(m_noOfSamples - 1));
+    }
+
+    bool isValid() const {
+      return (m_noOfSamples > 0);
     }
 
   private:
@@ -758,11 +764,6 @@ public:
     Uint32 m_parallelism;
     // True if we are still receiving the first batch for this operation.
     bool   m_firstBatch;
-    /**
-     * True if this is the first instantiation of this operation. A child
-     * operation will be instantiated once for each batch of its parent.
-     */
-    bool m_firstExecution;
     /**
      * Mean and standard deviation for the optimal parallelism for earlier
      * executions of this operation.
