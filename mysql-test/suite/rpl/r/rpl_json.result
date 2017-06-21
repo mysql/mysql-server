@@ -762,7 +762,7 @@ i	j	j2
 28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
 29	[]	[]
 30	"base64:type16:yv66vg=="	"base64:type16:yv66vg=="
-UPDATE t1 SET j2 = JSON_MERGE(j, j);
+UPDATE t1 SET j2 = JSON_MERGE_PRESERVE(j, j);
 SELECT * FROM t1 ORDER BY i;
 i	j	j2
 0	NULL	NULL

@@ -97,31 +97,31 @@ EXECUTE p4;
 JSON_ARRAYAGG(b)
 ["alfa", null, "doi", "unu", "trei", null, null, "one"]
 deallocate prepare p4;
-SELECT JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
-JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]')
+SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1;
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
 ["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
 PREPARE p1 FROM
-"SELECT a, JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
+"SELECT a, JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1 GROUP BY a";
 EXECUTE p1;
-a	JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]')
+a	JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
 1	["alfa", null, "unu", "one", true, false]
 2	["doi", true, false]
 3	["trei", true, false]
 4	[null, null, true, false]
 EXECUTE p1;
-a	JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]')
+a	JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
 1	["alfa", null, "unu", "one", true, false]
 2	["doi", true, false]
 3	["trei", true, false]
 4	[null, null, true, false]
 deallocate prepare p1;
 PREPARE p4 FROM
-"SELECT JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
+"SELECT JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]') FROM t1";
 EXECUTE p4;
-JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]')
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
 ["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
 EXECUTE p4;
-JSON_MERGE(JSON_ARRAYAGG(b), '[true, false]')
+JSON_MERGE_PRESERVE(JSON_ARRAYAGG(b), '[true, false]')
 ["alfa", null, "doi", "unu", "trei", null, null, "one", true, false]
 deallocate prepare p4;
 ANALYZE TABLE t1;
@@ -455,39 +455,39 @@ EXECUTE p4;
 JSON_OBJECTAGG(k, b)
 {"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}
 deallocate prepare p4;
-SELECT a, JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
-a	JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1 GROUP BY a;
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
 2	[{"3": "doi"}, true, false]
 3	[{"5": "trei"}, true, false]
 4	[{"6": null, "7": null}, true, false]
-SELECT JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
-JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1;
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 [{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
 PREPARE p1 FROM
-"SELECT a, JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+"SELECT a, JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 FROM t1
 GROUP BY a";
 EXECUTE p1;
-a	JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
 2	[{"3": "doi"}, true, false]
 3	[{"5": "trei"}, true, false]
 4	[{"6": null, "7": null}, true, false]
 EXECUTE p1;
-a	JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+a	JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 1	[{"1": "alfa", "2": null, "4": "unu", "8": "one"}, true, false]
 2	[{"3": "doi"}, true, false]
 3	[{"5": "trei"}, true, false]
 4	[{"6": null, "7": null}, true, false]
 deallocate prepare p1;
 PREPARE p4 FROM
-"SELECT JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
+"SELECT JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]') FROM t1";
 EXECUTE p4;
-JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 [{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
 EXECUTE p4;
-JSON_MERGE(JSON_OBJECTAGG(k, b), '[true, false]')
+JSON_MERGE_PRESERVE(JSON_OBJECTAGG(k, b), '[true, false]')
 [{"1": "alfa", "2": null, "3": "doi", "4": "unu", "5": "trei", "6": null, "7": null, "8": "one"}, true, false]
 deallocate prepare p4;
 ANALYZE TABLE t1;
