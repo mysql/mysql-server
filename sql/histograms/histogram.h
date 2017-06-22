@@ -403,6 +403,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table,
   @return false on success, true on error.
 */
 bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         const dd::Table &original_table_def,
                          results_map &results);
 
 /**

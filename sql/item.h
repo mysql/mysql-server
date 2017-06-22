@@ -2210,6 +2210,17 @@ public:
   virtual Bool3 local_column(const SELECT_LEX*) const
   { return Bool3::false3(); }
 
+  /**
+    Check if an aggregate is referenced from within the GROUP BY
+    clause of the query block in which it is aggregated. Such
+    references will be rejected.
+    @see Item_ref::fix_fields()
+    @retval true   if this is an aggregate which is referenced from
+                   the GROUP BY clause of the aggregating query block
+    @retval false  otherwise
+  */
+  virtual bool has_aggregate_ref_in_group_by(uchar *) { return false; }
+
   virtual bool cache_const_expr_analyzer(uchar **cache_item);
   Item *cache_const_expr_transformer(uchar *item);
 

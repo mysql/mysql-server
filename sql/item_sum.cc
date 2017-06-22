@@ -675,6 +675,16 @@ bool Item_sum::aggregate_check_group(uchar *arg)
 }
 
 
+bool Item_sum::has_aggregate_ref_in_group_by(uchar *)
+{
+  /*
+    We reject references to aggregates in the GROUP BY clause of the
+    query block where the aggregation happens.
+  */
+  return aggr_select != nullptr && aggr_select->group_fix_field;
+}
+
+
 Field *Item_sum::create_tmp_field(bool, TABLE *table)
 {
   DBUG_ENTER("Item_sum::create_tmp_field");
@@ -1458,6 +1468,9 @@ bool
 Item_sum_bit::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(!fixed);
+
+  if (super::fix_fields(thd, ref))
+    return true;                                /* purecov: inspected */
 
   if (init_sum_func_check(thd))
     return true;
@@ -6456,6 +6469,9 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(!fixed);
   result_field= nullptr;
+
+  if (super::fix_fields(thd, ref))
+    return true;                                /* purecov: inspected */
 
   if (init_sum_func_check(thd))
     return true;

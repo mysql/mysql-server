@@ -7878,35 +7878,67 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
 
   // @todo make this work with the group log. /sven
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-  if (cache_mngr == NULL)
-    DBUG_RETURN(error);
 
-  if (!cache_mngr->stmt_cache.is_binlog_empty())
+#ifndef DBUG_OFF
+  if (DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
+                       1, 0) && !cache_mngr->stmt_cache.is_binlog_empty())
   {
     /* The stmt_cache contains corruption data, so we can reset it. */
     cache_mngr->stmt_cache.reset();
   }
-  if (!cache_mngr->trx_cache.is_binlog_empty())
-  {
-    /* The trx_cache contains corruption data, so we can reset it. */
-    cache_mngr->trx_cache.reset();
-  }
-  /*
-    Write the incident event into stmt_cache, so that a GTID is generated and
-    written for it prior to flushing the stmt_cache.
-  */
-  binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
-  if ((error= cache_data->write_event(thd, ev)))
-  {
-    sql_print_error("Failed to write an incident event into stmt_cache.");
-    cache_mngr->stmt_cache.reset();
-    DBUG_RETURN(error);
-  }
+#endif
 
-  if (need_lock_log)
-    mysql_mutex_lock(&LOCK_log);
-  else
-    mysql_mutex_assert_owner(&LOCK_log);
+  /*
+    If there is no binlog cache then we write incidents directly
+    into the binlog. If caller needs GTIDs it has to setup the
+    binlog cache (for the injector thread).
+  */
+  if (cache_mngr == NULL ||
+      DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
+                       1, 0))
+  {
+    if (need_lock_log)
+      mysql_mutex_lock(&LOCK_log);
+    else
+      mysql_mutex_assert_owner(&LOCK_log);
+    /* Write an incident event into binlog directly. */
+    error= ev->write(&log_file);
+    /*
+      Write an error to log. So that user might have a chance
+      to be alerted and explore incident details.
+    */
+    if (!error)
+      LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
+  }
+  else // (cache_mngr != NULL)
+  {
+    if (!cache_mngr->stmt_cache.is_binlog_empty())
+    {
+      /* The stmt_cache contains corruption data, so we can reset it. */
+      cache_mngr->stmt_cache.reset();
+    }
+    if (!cache_mngr->trx_cache.is_binlog_empty())
+    {
+      /* The trx_cache contains corruption data, so we can reset it. */
+      cache_mngr->trx_cache.reset();
+    }
+    /*
+      Write the incident event into stmt_cache, so that a GTID is generated and
+      written for it prior to flushing the stmt_cache.
+    */
+    binlog_cache_data *cache_data= cache_mngr->get_binlog_cache_data(false);
+    if ((error= cache_data->write_event(thd, ev)))
+    {
+      sql_print_error("Failed to write an incident event into stmt_cache.");
+      cache_mngr->stmt_cache.reset();
+      DBUG_RETURN(error);
+    }
+
+    if (need_lock_log)
+      mysql_mutex_lock(&LOCK_log);
+    else
+      mysql_mutex_assert_owner(&LOCK_log);
+  }
 
   if (do_flush_and_sync)
   {
@@ -7929,7 +7961,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     Write an error to log. So that user might have a chance
     to be alerted and explore incident details.
   */
-  if (!error)
+  if (!error && cache_mngr != NULL)
     LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES, err_msg);
 
   DBUG_RETURN(error);

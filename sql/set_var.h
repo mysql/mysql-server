@@ -24,9 +24,11 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
@@ -415,7 +417,8 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 */
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
-HASH *get_system_variable_hash(void);
+collation_unordered_map<std::string, sys_var *>
+  *get_system_variable_hash(void);
 
 bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);

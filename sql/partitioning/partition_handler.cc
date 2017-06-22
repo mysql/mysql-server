@@ -113,7 +113,6 @@ void partitioning_init()
 Partition_share::Partition_share()
   : auto_inc_initialized(false),
   auto_inc_mutex(NULL), next_auto_inc_val(0),
-  partition_name_hash_initialized(false),
   partition_names(NULL)
 {}
 
@@ -127,10 +126,6 @@ Partition_share::~Partition_share()
   if (partition_names)
   {
     my_free(partition_names);
-  }
-  if (partition_name_hash_initialized)
-  {
-    my_hash_free(&partition_name_hash);
   }
 }
 
@@ -207,23 +202,6 @@ release_auto_inc_if_possible(THD *thd,
 
 
 /**
-  Get the partition name.
-
-  @param       arg    Struct containing name and length
-  @param[out]  length Length of the name
-
-  @return Partition name
-*/
-
-static const uchar *get_part_name_from_def(const uchar *arg, size_t *length)
-{
-  const PART_NAME_DEF *part= pointer_cast<const PART_NAME_DEF*>(arg);
-  *length= part->length;
-  return part->partition_name;
-}
-
-
-/**
   Populate the partition_name_hash in part_share.
 */
 
@@ -250,7 +228,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     mysql_mutex_assert_owner(&part_info->table->s->LOCK_ha_data);
   }
 #endif
-  if (partition_name_hash_initialized)
+  if (partition_name_hash != nullptr)
   {
     DBUG_RETURN(false);
   }
@@ -268,16 +246,9 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   {
     DBUG_RETURN(true);
   }
-  if (my_hash_init(&partition_name_hash,
-                   system_charset_info, tot_names, 0,
-                   get_part_name_from_def,
-                   my_free, HASH_UNIQUE,
-                   key_memory_Partition_share))
-  {
-    my_free(partition_names);
-    partition_names= NULL;
-    DBUG_RETURN(true);
-  }
+  partition_name_hash.reset
+    (new collation_unordered_map<std::string, unique_ptr_my_free<PART_NAME_DEF>>
+       (system_charset_info, key_memory_Partition_share));
 
   List_iterator<partition_element> part_it(part_info->partitions);
   uint i= 0;
@@ -309,21 +280,18 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     }
   } while (++i < part_info->num_parts);
 
-  for (i= 0; i < tot_names; i++)
+  for (const auto &key_and_value : *partition_name_hash)
   {
-    PART_NAME_DEF *part_def;
-    part_def= reinterpret_cast<PART_NAME_DEF*>(
-                              my_hash_element(&partition_name_hash, i));
+    PART_NAME_DEF *part_def= key_and_value.second.get();
     if (part_def->is_subpart == part_info->is_sub_partitioned())
     {
       partition_names[part_def->part_id]= part_def->partition_name;
     }
   }
-  partition_name_hash_initialized= true;
 
   DBUG_RETURN(false);
 err:
-  my_hash_free(&partition_name_hash);
+  partition_name_hash.reset();
   my_free(partition_names);
   partition_names= NULL;
 
@@ -348,7 +316,7 @@ bool Partition_share::insert_partition_name_in_hash(const char *name,
                                                     bool is_subpart)
 {
   PART_NAME_DEF *part_def;
-  uchar *part_name;
+  char *part_name;
   uint part_name_length;
   DBUG_ENTER("Partition_share::insert_partition_name_in_hash");
   /*
@@ -371,16 +339,12 @@ bool Partition_share::insert_partition_name_in_hash(const char *name,
     DBUG_RETURN(true);
   }
   memcpy(part_name, name, part_name_length + 1);
-  part_def->partition_name= part_name;
+  part_def->partition_name= pointer_cast<uchar *>(part_name);
   part_def->length= part_name_length;
   part_def->part_id= part_id;
   part_def->is_subpart= is_subpart;
-  if (my_hash_insert(&partition_name_hash, (uchar *) part_def))
-  {
-    my_free(part_def);
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
+  DBUG_RETURN(!partition_name_hash->emplace
+               (part_name, unique_ptr_my_free<PART_NAME_DEF>(part_def)).second);
 }
 
 

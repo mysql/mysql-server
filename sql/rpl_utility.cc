@@ -1042,7 +1042,10 @@ void hash_slave_rows_free_entry::operator() (HASH_ROW_ENTRY *entry) const
   if (entry)
   {
     if (entry->preamble)
+    {
+      entry->preamble->~HASH_ROW_PREAMBLE();
       my_free(entry->preamble);
+    }
     if (entry->positions)
       my_free(entry->positions);
     my_free(entry);
@@ -1120,7 +1123,10 @@ err:
   if (entry)
     my_free(entry);
   if (preamble)
-    my_free(entry);
+  {
+    preamble->~HASH_ROW_PREAMBLE();
+    my_free(preamble);
+  }
   if (pos)
     my_free(pos);
   DBUG_RETURN(NULL);

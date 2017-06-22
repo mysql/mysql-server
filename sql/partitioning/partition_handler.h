@@ -112,9 +112,9 @@ public:
     table_share calling populate_partition_name_hash().
     After that it is read-only, i.e. no locking required for reading.
   */
-  HASH partition_name_hash;
-  /** flag that the name hash is initialized, so it only will do it once. */
-  bool partition_name_hash_initialized;
+  std::unique_ptr
+    <collation_unordered_map<std::string, unique_ptr_my_free<PART_NAME_DEF>>>
+      partition_name_hash;
 
   /**
     Initializes and sets auto_inc_mutex.
