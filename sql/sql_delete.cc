@@ -806,7 +806,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd)
   thd->want_privilege= want_privilege_saved;
   thd->mark_used_columns= mark_used_columns_saved;
 
-  if (select->has_ft_funcs() && setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
     DBUG_RETURN(true);                       /* purecov: inspected */
 
   /*

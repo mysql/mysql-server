@@ -3133,7 +3133,7 @@ public:
   double val_real() override;
   void print(String *str, enum_query_type query_type) override;
 
-  bool fix_index();
+  bool fix_index(const THD *thd);
   bool init_search(THD *thd);
   bool check_gcol_func_processor(uchar *) override
   // TODO: consider adding in support for the MATCH-based generated columns

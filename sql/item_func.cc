@@ -8127,7 +8127,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
                                             args, arg_count, 0);
 }
 
-bool Item_func_match::fix_index()
+bool Item_func_match::fix_index(const THD *thd)
 {
   Item_field *item;
   TABLE *table;
@@ -8156,7 +8156,7 @@ bool Item_func_match::fix_index()
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
-         table->s->usable_indexes().is_set(keynr)))
+         table->s->usable_indexes(thd).is_set(keynr)))
 
     {
       ft_to_key[fts]=keynr;

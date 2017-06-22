@@ -10113,7 +10113,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 }
 
 
-int setup_ftfuncs(SELECT_LEX *select_lex)
+int setup_ftfuncs(const THD *thd, SELECT_LEX *select_lex)
 {
   DBUG_ASSERT(select_lex->has_ft_funcs());
 
@@ -10123,7 +10123,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 
   while ((ftf= li++))
   {
-    if (ftf->table_ref && ftf->fix_index())
+    if (ftf->table_ref && ftf->fix_index(thd))
       return 1;
     lj.rewind();
 

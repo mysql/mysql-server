@@ -264,7 +264,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_ftfuncs(SELECT_LEX* select);
+int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
 bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,

@@ -4496,7 +4496,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_IS_NULLABLE]->store(pos, strlen(pos), cs);
 
       // COMMENT
-      if (!show_table->s->keys_in_use.is_set(i))
+      if (!show_table->s->keys_in_use.is_set(i) && key_info->is_visible)
         table->field[TMP_TABLE_KEYS_COMMENT]->store(STRING_WITH_LEN("disabled"),
                                                     cs);
       else

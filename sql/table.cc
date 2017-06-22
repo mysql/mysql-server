@@ -526,6 +526,15 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 }
 
 
+Key_map TABLE_SHARE::usable_indexes(const THD *thd) const
+{
+  Key_map usable_indexes(keys_in_use);
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
+    usable_indexes.intersect(visible_indexes);
+  return usable_indexes;
+}
+
+
 /**
   Release resources (plugins) used by the share and free its memory.
   TABLE_SHARE is self-contained -- it's stored in its own MEM_ROOT.
@@ -6753,11 +6762,11 @@ uint TABLE_LIST::query_block_id_for_explain() const
   @retval FALSE no errors found
   @retval TRUE found and reported an error.
 */
-bool TABLE_LIST::process_index_hints(TABLE *tbl)
+bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 {
   /* initialize the result variables */
   tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
-    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes();
+    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes(thd);
 
   /* index hint list processing */
   if (index_hints)

@@ -3011,6 +3011,10 @@ export void update_parser_max_mem_size()
   global_system_variables.parser_max_mem_size= new_val;
 }
 
+/**
+  @note
+  @b BEWARE! These must have the same order as the #defines in sql_const.h!
+*/
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
@@ -3020,6 +3024,7 @@ static const char *optimizer_switch_names[]=
   "materialization", "semijoin", "loosescan", "firstmatch", "duplicateweedout",
   "subquery_materialization_cost_based",
   "use_index_extensions", "condition_fanout_filter", "derived_merge",
+  "use_invisible_indexes",
   "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(

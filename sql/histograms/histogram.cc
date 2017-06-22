@@ -688,10 +688,10 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom,
   @return true if the field is covered by a single-part unique index. False
           otherwise.
 */
-static bool covered_by_single_part_index(const Field *field)
+static bool covered_by_single_part_index(const THD *thd, const Field *field)
 {
   Key_map possible_keys;
-  possible_keys.merge(field->table->s->usable_indexes());
+  possible_keys.merge(field->table->s->usable_indexes(thd));
   possible_keys.intersect(field->key_start);
   DBUG_ASSERT(field->table->s->keys <= possible_keys.length());
   for (uint i= 0; i < field->table->s->keys; ++i)
@@ -1052,7 +1052,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
       Check if this field is covered by a single-part unique index. If it is, we
       don't want to create histogram statistics for it.
     */
-    if (covered_by_single_part_index(field))
+    if (covered_by_single_part_index(thd, field))
     {
       results.emplace(column_name,
                       Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX);

@@ -1053,12 +1053,7 @@ struct TABLE_SHARE
     The set of indexes that the optimizer may use when creating an execution
     plan.
    */
-  Key_map usable_indexes() const
-  {
-    Key_map usable_indexes(keys_in_use);
-    usable_indexes.intersect(visible_indexes);
-    return usable_indexes;
-  }
+  Key_map usable_indexes(const THD *thd) const;
 
   /** Release resources and free memory occupied by the table share. */
   void destroy();
@@ -2666,7 +2661,7 @@ struct TABLE_LIST
     TABLE::keys_in_use_for_group_by, TABLE::keys_in_use_for_order_by,
     TABLE::force_index and TABLE::covering_keys.
   */
-  bool process_index_hints(TABLE *table);
+  bool process_index_hints(const THD *thd, TABLE *table);
 
   /**
     Compare the version of metadata from the previous execution

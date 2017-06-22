@@ -413,7 +413,7 @@ bool SELECT_LEX::prepare(THD *thd)
   }
 
   // Setup full-text functions after resolving HAVING
-  if (has_ft_funcs() && setup_ftfuncs(this))
+  if (has_ft_funcs() && setup_ftfuncs(thd, this))
     DBUG_RETURN(true);
 
   if (query_result() && query_result()->prepare(fields_list, unit))
@@ -866,7 +866,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       continue;
     table->pos_in_table_list= tr;
     tr->reset();
-    if (tr->process_index_hints(table))
+    if (tr->process_index_hints(thd, table))
       DBUG_RETURN(true);
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;

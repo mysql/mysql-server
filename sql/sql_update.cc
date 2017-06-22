@@ -1666,7 +1666,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   DBUG_ASSERT(select->having_cond() == NULL &&
               select->group_list.elements == 0);
 
-  if (select->has_ft_funcs() && setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   if (select->inner_refs_list.elements && select->fix_inner_refs(thd))
