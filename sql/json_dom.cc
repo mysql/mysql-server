@@ -1265,6 +1265,18 @@ bool Json_object::remove(const Json_dom *child)
 }
 
 
+bool Json_object::remove(const std::string &key)
+{
+  Json_object_map::iterator it= m_map.find(key);
+  if (it == m_map.end())
+    return false;
+
+  delete it->second;
+  m_map.erase(it);
+  return true;
+}
+
+
 size_t Json_object::cardinality() const
 {
   return m_map.size();
@@ -1311,6 +1323,68 @@ void Json_object::clear()
     delete iter->second;
   }
   m_map.clear();
+}
+
+
+bool Json_object::merge_patch(Json_object *patch)
+{
+  std::auto_ptr<Json_object> aptr(patch); // We own it, and must make sure
+                                          // to delete it.
+
+  for (Json_object_map::iterator it= patch->m_map.begin();
+       it != patch->m_map.end(); ++it)
+  {
+    const std::string &patch_key= it->first;
+    std::auto_ptr<Json_dom> patch_value(it->second);
+    it->second= NULL;
+
+    // Remove the member if the value in the patch is the null literal.
+    if (patch_value->json_type() == Json_dom::J_NULL)
+    {
+      remove(patch_key);
+      continue;
+    }
+
+    // See if the target has this member, add it if not.
+    std::pair<Json_object_map::iterator, bool>
+      target_pair= m_map.insert(std::make_pair(patch_key,
+                                               static_cast<Json_dom*>(NULL)));
+
+    std::auto_ptr<Json_dom> target_value(target_pair.first->second);
+    target_pair.first->second= NULL;
+
+    /*
+      If the value in the patch is not an object and not the null
+      literal, the new value is the patch.
+    */
+    if (patch_value->json_type() != Json_dom::J_OBJECT)
+    {
+      patch_value->set_parent(this);
+      target_pair.first->second= patch_value.release();
+      continue;
+    }
+
+    /*
+      If there is no target value, or if the target value is not an
+      object, use an empty object as the target value.
+    */
+    if (target_value.get() == NULL ||
+        target_value->json_type() != Json_dom::J_OBJECT)
+    {
+      target_value.reset(new (std::nothrow) Json_object());
+    }
+
+    // Recursively merge the target value with the patch.
+    Json_object *target_obj= down_cast<Json_object*>(target_value.get());
+    if (target_obj == NULL ||
+        target_obj->merge_patch(down_cast<Json_object*>(patch_value.release())))
+      return true;                            /* purecov: inspected */
+
+    target_value->set_parent(this);
+    target_pair.first->second= target_value.release();
+  }
+
+  return false;
 }
 
 

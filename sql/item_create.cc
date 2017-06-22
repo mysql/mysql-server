@@ -2693,6 +2693,15 @@ public:
 };
 Create_func_issimple_deprecated Create_func_issimple_deprecated::s_singleton;
 
+class Create_func_json_merge_patch : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_merge_patch s_singleton;
+};
+Create_func_json_merge_patch Create_func_json_merge_patch::s_singleton;
 
 class Create_func_json_merge_preserve : public Create_native_func
 {
@@ -6174,6 +6183,15 @@ Create_func_validate::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_validate(POS(), arg1);
 }
 
+Item*
+Create_func_json_merge_patch::create_native(THD *thd, LEX_STRING name,
+                                            PT_item_list *item_list)
+{
+  int arg_count= item_list ? item_list->elements() : 0;
+  if (arg_count < 2)
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  return new (thd->mem_root) Item_func_json_merge_patch(thd, POS(), item_list);
+}
 
 Item*
 Create_func_json_merge_preserve::create_native(THD *thd, LEX_STRING name,
@@ -7585,6 +7603,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_ARRAY") }, BUILDER(Create_func_json_array)},
   { { C_STRING_WITH_LEN("JSON_REMOVE") }, BUILDER(Create_func_json_remove)},
   { { C_STRING_WITH_LEN("JSON_MERGE") }, BUILDER(Create_func_json_merge)},
+  { { C_STRING_WITH_LEN("JSON_MERGE_PATCH") }, BUILDER(Create_func_json_merge_patch)},
   { { C_STRING_WITH_LEN("JSON_MERGE_PRESERVE") }, BUILDER(Create_func_json_merge_preserve)},
   { { C_STRING_WITH_LEN("JSON_QUOTE") }, BUILDER(Create_func_json_quote)},
   { { C_STRING_WITH_LEN("JSON_STORAGE_SIZE") }, BUILDER(Create_func_json_storage_size)},

@@ -9990,3 +9990,68 @@ id	j	x	ss
 1	{"b": 99}	3	13
 2	{"b": 99}	4	13
 DROP TABLE t1, t2;
+#
+# WL#9692: Add JSON_MERGE_PATCH
+#
+CREATE TABLE merge_t(
+id INT PRIMARY KEY AUTO_INCREMENT,
+target VARCHAR(100), patch VARCHAR(100)
+);
+INSERT INTO merge_t(target, patch) VALUES
+('{"a":"b"}', '{"a":"c"}'),
+('{"a":"b"}', '{"b":"c"}'),
+('{"a":"b"}', '{"a":null}'),
+('{"a":"b", "b":"c"}', '{"a":null}'),
+('{"a":["b"]}', '{"a":"c"}'),
+('{"a":"c"}', '{"a":["b"]}'),
+('{"a": {"b":"c"}}', '{"a": {"b":"d", "c":null}}'),
+('{"a":[{"b":"c"}]}', '{"a": [1]}'),
+('["a","b"]', '["c","d"]'),
+('{"a":"b"}', '["c"]'),
+('{"a":"foo"}', 'null'),
+('{"a":"foo"}', '"bar"'),
+('{"e":null}', '{"a":1}'),
+('[1,2]', '{"a":"b", "c":null}'),
+('{}', '{"a":{"bb":{"ccc":null}}}'),
+(NULL, '{}'),
+('{}', NULL);
+SELECT id, target, patch,
+JSON_MERGE_PATCH(target, patch) AS merged,
+JSON_EXTRACT(JSON_MERGE_PATCH(target, patch), '$.a') AS a
+FROM merge_t ORDER BY id;
+id	target	patch	merged	a
+1	{"a":"b"}	{"a":"c"}	{"a": "c"}	"c"
+2	{"a":"b"}	{"b":"c"}	{"a": "b", "b": "c"}	"b"
+3	{"a":"b"}	{"a":null}	{}	NULL
+4	{"a":"b", "b":"c"}	{"a":null}	{"b": "c"}	NULL
+5	{"a":["b"]}	{"a":"c"}	{"a": "c"}	"c"
+6	{"a":"c"}	{"a":["b"]}	{"a": ["b"]}	["b"]
+7	{"a": {"b":"c"}}	{"a": {"b":"d", "c":null}}	{"a": {"b": "d"}}	{"b": "d"}
+8	{"a":[{"b":"c"}]}	{"a": [1]}	{"a": [1]}	[1]
+9	["a","b"]	["c","d"]	["c", "d"]	NULL
+10	{"a":"b"}	["c"]	["c"]	NULL
+11	{"a":"foo"}	null	null	NULL
+12	{"a":"foo"}	"bar"	"bar"	NULL
+13	{"e":null}	{"a":1}	{"a": 1, "e": null}	1
+14	[1,2]	{"a":"b", "c":null}	{"a": "b"}	"b"
+15	{}	{"a":{"bb":{"ccc":null}}}	{"a": {"bb": {}}}	{"bb": {}}
+16	NULL	{}	NULL	NULL
+17	{}	NULL	NULL	NULL
+DROP TABLE merge_t;
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}')
+NULL
+SELECT JSON_MERGE_PATCH(NULL, '[1,2,3]');
+JSON_MERGE_PATCH(NULL, '[1,2,3]')
+[1, 2, 3]
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}')
+{"d": "e"}
+SELECT JSON_MERGE_PATCH();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{}');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{', '[1,2,3]');
+ERROR 22032: Invalid JSON text in argument 1 to function json_merge_patch: "Missing a name for object member." at position 1.
+SELECT JSON_MERGE_PATCH('{"a":"b"}', '[1,');
+ERROR 22032: Invalid JSON text in argument 2 to function json_merge_patch: "Invalid value." at position 3.
