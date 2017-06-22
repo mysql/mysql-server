@@ -15725,6 +15725,7 @@ void Dblqh::start_local_lcp(Signal *signal,
       (crestartNewestGci == 0 ||
        crestartNewestGci == ZUNDEFINED_GCI_LIMIT) ?
                             2 : crestartNewestGci;
+    c_keep_gci_for_lcp = c_max_keep_gci_in_lcp;
     c_first_set_min_keep_gci = true;
     c_current_local_lcp_instance++;
     c_current_local_lcp_instance &= 1;
@@ -16719,15 +16720,17 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
 #endif
   Uint32 restorable_gci = signal->theData[1];
   Uint32 backup_restorable_gci = c_backup->getRestorableGci();
-  c_keep_gci_for_distributed_lcp = MIN(backup_restorable_gci,
-                                       MIN(restorable_gci,
-                                           cnewestCompletedGci));
-  DEB_LCP(("c_keep_gci_for_distributed_lcp = %u,"
-           " current_gci = %u, restorable_gci = %u",
-            c_keep_gci_for_distributed_lcp,
+  c_keep_gci_for_lcp = restorable_gci;
+  DEB_LCP(("c_keep_gci_for_lcp = %u,"
+           " current_gci = %u, restorable_gci = %u"
+           ", cnewestCompletedGci = %u, "
+           "backup_restorable_gci = %u",
+            c_keep_gci_for_lcp,
             current_gci,
-            restorable_gci));
-  c_max_keep_gci_in_lcp = c_keep_gci_for_distributed_lcp;
+            restorable_gci,
+            cnewestCompletedGci,
+            backup_restorable_gci));
+  c_max_keep_gci_in_lcp = c_keep_gci_for_lcp;
   c_first_set_min_keep_gci = true;
   BlockReference ref;
   if (isNdbMtLqh())
@@ -17435,6 +17438,15 @@ Dblqh::lcp_max_completed_gci(Uint32 & completedGci,
      */
     fragptr.p->maxGciCompletedInLcp = restorable_gci;
   }
+  if (fragptr.p->maxGciCompletedInLcp < c_keep_gci_for_lcp)
+  {
+    jam();
+    /**
+     * maxGciCompletedInLcp can never be smaller than the restorable GCI
+     * at the time when we start the LCP.
+     */
+    fragptr.p->maxGciCompletedInLcp = c_keep_gci_for_lcp;
+  }
 
   completedGci = fragptr.p->maxGciCompletedInLcp;
   DEB_LCP(("(%u)maxGciCompletedInLcp = %u, tab(%u,%u)",
@@ -17764,7 +17776,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
    *
    * This coordination happens in NDBCNTR.
    */
-  ndbrequire(c_keep_gci_for_distributed_lcp <= c_max_keep_gci_in_lcp);
+  ndbrequire(c_keep_gci_for_lcp <= c_max_keep_gci_in_lcp);
   LcpAllCompleteReq* req = (LcpAllCompleteReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->lcpId = lcpId;
