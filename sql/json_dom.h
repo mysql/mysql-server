@@ -442,6 +442,15 @@ public:
   bool remove(const Json_dom *child);
 
   /**
+    Remove the child element addressed by key. The removed child is deleted.
+
+    @param key the key of the element to remove
+    @retval true if an element was removed
+    @retval false if there was no element with that key
+  */
+  bool remove(const std::string &key);
+
+  /**
     @return The number of elements in the JSON object.
   */
   size_t cardinality() const;
@@ -473,6 +482,30 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_map.end(); }
+
+  /**
+    Implementation of the MergePatch function specified in RFC 7396:
+
+        define MergePatch(Target, Patch):
+          if Patch is an Object:
+            if Target is not an Object:
+              Target = {} # Ignore the contents and set it to an empty Object
+            for each Key/Value pair in Patch:
+              if Value is null:
+                if Key exists in Target:
+                  remove the Key/Value pair from Target
+              else:
+                Target[Key] = MergePatch(Target[Key], Value)
+            return Target
+          else:
+            return Patch
+
+    @param patch  The object that describes the patch. The ownership of the
+                  patch object is transferred to the target object.
+    @retval false on success
+    @retval true on memory allocation error
+  */
+  bool merge_patch(Json_object *patch);
 };
 
 

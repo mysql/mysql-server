@@ -738,6 +738,21 @@ public:
 };
 
 /**
+  Represents the JSON function JSON_MERGE_PATCH.
+*/
+class Item_func_json_merge_patch :public Item_json_func
+{
+public:
+  Item_func_json_merge_patch(THD *thd, const POS &pos, PT_item_list *a)
+    : Item_json_func(thd, pos, a)
+  {}
+
+  const char *func_name() const { return "json_merge_patch"; }
+
+  bool val_json(Json_wrapper *wr);
+};
+
+/**
   Represents the JSON function JSON_QUOTE()
 */
 class Item_func_json_quote :public Item_str_func

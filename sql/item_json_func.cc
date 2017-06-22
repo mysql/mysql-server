@@ -17,6 +17,9 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
+
+#include <memory>               // std::auto_ptr
+
 #include "derror.h"             // ER_THD
 #include "mysqld.h"             // key_memory_JSON, current_thd
 #include "sql_class.h"          // THD
@@ -3615,4 +3618,98 @@ longlong Item_func_json_storage_size::val_int()
   if (wrapper.to_binary(&buffer))
     return error_int();                         /* purecov: inspected */
   return buffer.length();
+}
+
+
+bool Item_func_json_merge_patch::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+
+  try
+  {
+    if (get_json_wrapper(args, 0, &m_value, func_name(), wr))
+      return error_json();
+
+    null_value= args[0]->null_value;
+
+    Json_wrapper patch_wr;
+    for (uint i= 1; i < arg_count; ++i)
+    {
+      if (get_json_wrapper(args, i, &m_value, func_name(), &patch_wr))
+        return error_json();
+
+      if (args[i]->null_value)
+      {
+        /*
+          The patch is unknown, so the result so far is unknown. We
+          cannot return NULL immediately, since a later patch can give
+          a known result. This is because the result of a merge
+          operation is the patch itself if the patch is not an object,
+          regardless of what the target document is.
+        */
+        null_value= true;
+        continue;
+      }
+
+      /*
+        If a patch is not an object, the result of the merge operation
+        is the patch itself. So just set the result to this patch and
+        go on to the next patch.
+      */
+      if (patch_wr.type() != Json_dom::J_OBJECT)
+      {
+        wr->steal(&patch_wr);
+        null_value= false;
+        continue;
+      }
+
+      /*
+        The target document is unknown, and we cannot tell the result
+        from the patch alone when the patch is an object, so go on to
+        the next patch.
+      */
+      if (null_value)
+        continue;
+
+      /*
+        Get the DOM representation of the target document. It should
+        be an object, and we will use an empty object if it is not.
+      */
+      std::auto_ptr<Json_object> target_dom;
+      if (wr->type() == Json_dom::J_OBJECT)
+      {
+        target_dom.reset(down_cast<Json_object*>(wr->to_dom()));
+        wr->set_alias();
+      }
+      else
+      {
+        target_dom.reset(new (std::nothrow) Json_object());
+      }
+
+      if (target_dom.get() == NULL)
+        return error_json();                  /* purecov: inspected */
+
+      // Get the DOM representation of the patch object.
+      Json_object *patch_dom= down_cast<Json_object*>(patch_wr.to_dom());
+      patch_wr.set_alias();    // target_dom will take over the ownership
+
+      // Apply the patch on the target document.
+      if (patch_dom == NULL || target_dom->merge_patch(patch_dom))
+        return error_json();                  /* purecov: inspected */
+
+      // Move the result of the merge operation into the result wrapper.
+      Json_wrapper res(target_dom.release());
+      wr->steal(&res);
+      null_value= false;
+    }
+
+    return false;
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_json();
+  }
+  /* purecov: end */
 }
