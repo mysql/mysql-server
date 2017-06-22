@@ -3715,10 +3715,10 @@ public:
 
   /**
    * Variable keeping track of which GCI to keep in REDO log
-   * after completing a distributed LCP.
+   * after completing a LCP.
    */
   Uint32 c_max_keep_gci_in_lcp;
-  Uint32 c_keep_gci_for_distributed_lcp;
+  Uint32 c_keep_gci_for_lcp;
   bool c_first_set_min_keep_gci;
 
   /**
