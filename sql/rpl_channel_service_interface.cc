@@ -163,10 +163,9 @@ initialize_channel_connection_info(Channel_connection_info* channel_info)
 void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
 {
 
-  if (channel_ssl_info->use_ssl)
-  {
-    lex_mi->ssl= LEX_MASTER_INFO::LEX_MI_ENABLE;
-  }
+  lex_mi->ssl= (channel_ssl_info->use_ssl) ?
+    LEX_MASTER_INFO::LEX_MI_ENABLE :
+    LEX_MASTER_INFO::LEX_MI_DISABLE;
 
   if (channel_ssl_info->ssl_ca_file_name != NULL)
   {
@@ -208,10 +207,9 @@ void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_i
     lex_mi->ssl_cipher= channel_ssl_info->ssl_cipher;
   }
 
-  if (channel_ssl_info->ssl_verify_server_cert)
-  {
-    lex_mi->ssl_verify_server_cert= LEX_MASTER_INFO::LEX_MI_ENABLE;
-  }
+  lex_mi->ssl_verify_server_cert= (channel_ssl_info->ssl_verify_server_cert) ?
+    LEX_MASTER_INFO::LEX_MI_ENABLE :
+    LEX_MASTER_INFO::LEX_MI_DISABLE;
 }
 
 int channel_create(const char* channel,
