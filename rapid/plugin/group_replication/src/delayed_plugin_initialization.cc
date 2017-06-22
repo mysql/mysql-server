@@ -182,6 +182,16 @@ int Delayed_initialization_thread::initialization_thread_handler()
                                                 server_version)))
       goto err; /* purecov: inspected */
 
+    if (check_async_channel_running_on_secondary())
+    {
+      error= 1;
+      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                  " member with single primary-mode while"
+                                  " asynchronous replication channels are"
+                                  " running.");
+      goto err; /* purecov: inspected */
+    }
+
     configure_compatibility_manager();
 
     // need to be initialized before applier, is called on kill_pending_transactions
@@ -196,6 +206,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
       goto err;
     }
 
+    initialize_asynchronous_channels_observer();
     initialize_group_partition_handler();
 
     /*

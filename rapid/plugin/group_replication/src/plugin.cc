@@ -405,24 +405,14 @@ int plugin_group_replication_start()
                                              server_version)))
     goto err; /* purecov: inspected */
 
-  /* To stop group replication to start on secondary member with single primary-
-     mode, when any async channels are running, we verify whether member is not
-     bootstrapping. As only when the member is bootstrapping, it can be the
-     primary leader on a single primary member context.
-
-   */
-  if (single_primary_mode_var && !bootstrap_group_var)
+  if (check_async_channel_running_on_secondary())
   {
-    if (is_any_slave_channel_running(
-        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
-    {
-      error= 1;
-      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                  " member with single primary-mode while"
-                                  " asynchronous replication channels are"
-                                  " running.");
-      goto err; /* purecov: inspected */
-    }
+    error= 1;
+    log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                " member with single primary-mode while"
+                                " asynchronous replication channels are"
+                                " running.");
+    goto err; /* purecov: inspected */
   }
 
   configure_compatibility_manager();
@@ -1311,6 +1301,25 @@ int start_group_communication()
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);
+}
+
+bool check_async_channel_running_on_secondary()
+{
+  /* To stop group replication to start on secondary member with single primary-
+     mode, when any async channels are running, we verify whether member is not
+    bootstrapping. As only when the member is bootstrapping, it can be the
+    primary leader on a single primary member context.
+  */
+  if (single_primary_mode_var && !bootstrap_group_var)
+  {
+    if (is_any_slave_channel_running(
+        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void initialize_asynchronous_channels_observer()

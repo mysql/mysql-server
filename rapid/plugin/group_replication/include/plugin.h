@@ -102,6 +102,7 @@ bool get_allow_local_disjoint_gtids_join();
 ulong get_transaction_size_limit();
 void initialize_asynchronous_channels_observer();
 void terminate_asynchronous_channels_observer();
+bool check_async_channel_running_on_secondary();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
