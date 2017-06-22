@@ -231,6 +231,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
     initialize_asynchronous_channels_observer();
     initialize_group_partition_handler();
+    set_auto_increment_handler();
 
     if ((error= start_group_communication()))
     {

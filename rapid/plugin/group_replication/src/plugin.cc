@@ -531,6 +531,7 @@ int plugin_group_replication_start()
 
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
+  set_auto_increment_handler();
 
   if ((error= start_group_communication()))
   {
@@ -742,10 +743,7 @@ bypass_message:
   // Finalize GCS.
   gcs_module->finalize();
 
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->reset_auto_increment_variables();
-  }
+  auto_increment_handler->reset_auto_increment_variables();
 
   // Destroy handlers and notifiers
   delete events_handler;
@@ -1189,6 +1187,13 @@ void initialize_group_partition_handler()
                                    timeout_on_unreachable_var);
 }
 
+void set_auto_increment_handler()
+{
+  auto_increment_handler->
+      set_auto_increment_variables(auto_increment_increment_var,
+                                   get_server_id());
+}
+
 int terminate_applier_module()
 {
 
@@ -1360,13 +1365,6 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
 int start_group_communication()
 {
   DBUG_ENTER("start_group_communication");
-
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->
-      set_auto_increment_variables(auto_increment_increment_var,
-                                   get_server_id());
-  }
 
   view_change_notifier= new Plugin_gcs_view_modification_notifier();
   events_handler= new Plugin_gcs_events_handler(applier_module,

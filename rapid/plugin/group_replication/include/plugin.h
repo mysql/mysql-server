@@ -91,6 +91,7 @@ int configure_compatibility_manager();
 int terminate_applier_module();
 int initialize_recovery_module();
 void initialize_group_partition_handler();
+void set_auto_increment_handler();
 int terminate_recovery_module();
 int configure_group_communication(st_server_ssl_variables *ssl_variables);
 int start_group_communication();
