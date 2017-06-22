@@ -269,7 +269,7 @@ function verifyConfiguration() {
     // Alert if NoOfReplicas==2 for an odd number of data nodes
     var noOfReplicas = getEffectiveTypeValue(processFamilyMap['data'], 'NoOfReplicas');
     if (processFamilyInstances('data').length % 2 == 1 && noOfReplicas == 2) {
-        alert("With an uneven number of data nodes, the number of replicas " +
+        alert("With an odd number of data nodes, the number of replicas " +
         "(NoOfReplicas) must be set to 1");
         return false;
     }
@@ -689,15 +689,15 @@ function getEffectiveInstalldir(host) {
     return host.getValue("installdir");
 }
 
-// Get the connect string for this cluster, use FQDN and not hostname.
+// Get the connect string for this cluster, use FQDN/internalIP and not hostname.
 function getConnectstring() {
     var connectString = "";
     var mgmds = processTypeInstances("ndb_mgmd");
     // Loop over all ndb_mgmd processes
     for (var i in mgmds) {
         var port = getEffectiveInstanceValue(mgmds[i], "Portnumber");
-        // Use fqdn instead of name:
-        var host = clusterItems[mgmds[i].getValue("host")].getValue("fqdn");
+        // Use internal IP instead of name:
+        var host = clusterItems[mgmds[i].getValue("host")].getValue("internalIP");
         connectString += host + ":" + port + ",";
     }
     return connectString;
@@ -817,7 +817,7 @@ function getCreateCommands() {
             // Get datadir and dir separator
             var datadir = mcc.util.unixPath(
                     mcc.util.terminatePath(
-                            getEffectiveInstanceValue(process, "DataDir")));
+                        getEffectiveInstanceValue(process, "DataDir")));
             var dirSep = mcc.util.dirSep(datadir);
 
             // Push the create datadir command unless mysqld

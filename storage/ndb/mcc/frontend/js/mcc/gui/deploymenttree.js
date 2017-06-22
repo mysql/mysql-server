@@ -545,7 +545,7 @@ function doPoll() {
         );
     };
     
-    // If not overridden, get predefined host. Note, old code which returns FQDN now,
+    // If not overridden, get predefined host. Note, old code which returns FQDN/internalIP now,
     // left here in case both above methods fail.
     if (!host) {
         host = mcc.configuration.getPara("management", 
