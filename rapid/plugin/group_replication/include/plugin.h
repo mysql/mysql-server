@@ -66,7 +66,8 @@ extern Recovery_module *recovery_module;
 extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
 extern Channel_observation_manager *channel_observation_manager;
-extern Asynchronous_channels_state_observer *asynchronous_channels_state_observer;
+extern Asynchronous_channels_state_observer
+        *asynchronous_channels_state_observer;
 //Lock for the applier and recovery module to prevent the race between STOP
 //Group replication and ongoing transactions.
 extern Shared_writelock *shared_plugin_stop_lock;
@@ -103,6 +104,7 @@ ulong get_transaction_size_limit();
 void initialize_asynchronous_channels_observer();
 void terminate_asynchronous_channels_observer();
 bool is_plugin_waiting_to_set_server_read_mode();
+bool check_async_channel_running_on_secondary();
 
 //Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
