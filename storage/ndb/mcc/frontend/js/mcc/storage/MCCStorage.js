@@ -423,8 +423,8 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                         }
                         if (!host.getValue("datadir") &&
                                 reply.body.hostRes.datadir) {
-                            var path = mcc.util.terminatePath(
-                                    reply.body.hostRes.datadir);
+                            var path = reply.body.hostRes.datadir.replace(/(\r\n|\n|\r)/gm,"");
+                            path = mcc.util.terminatePath(path);
                             if (mcc.util.isWin(host.getValue("uname"))) {
                                 path = mcc.util.winPath(path);
                             } else {
@@ -438,6 +438,10 @@ function getHostResourceInfo(hostName, hostId, showAlert, override) {
                         }
                         if (!host.getValue("fqdn") || override) {
                             host.setValue("fqdn", reply.body.hostRes.fqdn);
+                        }
+                        if (!host.getValue("internalIP")) {
+                            // Use FQDN as default value for internal IP.
+                            host.setValue("internalIP", host.getValue("fqdn"));
                         }
                         hostStorage.save();
 

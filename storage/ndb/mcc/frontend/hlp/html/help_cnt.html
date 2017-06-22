@@ -357,7 +357,7 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     at the first page. </li>
 <li><i>Automatically save configuration as cookies: </i>This will save your 
     configuration information (host names, processes, parameter values etc.) as 
-    a cookie in the browser you are using. All information <b>except the SSH password</b> 
+    a cookie in the browser you are using. All information <b>but password/passphrase</b> 
     will be saved. Hence, you can quit and restart you browser, and continue 
     working on the same configuration. </li>
 <li><i>Show advanced configuration options: </i>This setting means that advanced 
@@ -521,8 +521,8 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 </p>
 
 <p>Here, hosts can be added by pressing the <i>Add hosts</i> button and entering 
-    host name or ip address as well as credentials which are saved on Host level 
-    (host.mcc_hostStore cookie), passwords/passphrases excluded. Field 
+    host name or external ip address as well as credentials which are saved on
+    Host level (host.mcc_hostStore cookie), passwords/passphrases excluded. Field 
     <i>Key_file<i> should point to private key file to be used with selected host
     (i.e. C:\Users\user\.ssh\key_file_name).
     Please bear in mind that, since passwords are not persisted over sessions,
@@ -564,6 +564,46 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
 <p style="text-align: center">
     <img src="../img/edit_selected_hosts.png" width="800" alt="Edit selected hosts">
 </p>
+
+<h4>Details on hosts naming</h4>
+<p>One should always keep in mind the goal, i.e. deployment of the Cluster over  
+    any number of hosts. The nodes are governed by config.ini file, distributed 
+    to each one, containing hosts designation on process basis as well as  
+    connection strings. It might look like this:<br/>
+    <code>[NDB_MGMD]
+    <br/>NodeId=49
+    <br/>HostName=10.172.165.190
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/49/
+    <br/>Portnumber=1186
+    <br/>[NDBD]
+    <br/>NodeId=2
+    <br/>HostName=10.172.162.24
+    <br/>DataDir=C:/Users/user/MySQL_Cluster/2/</code><br/>
+    In this particular case, HostName=10.172.162.24 is actually localhost defined as
+    Name=127.0.0.1 but when config.ini is distributed to second host, 127.0.0.1 will
+    point to that host (10.172.165.190) and the Cluster will not start. This is why 
+    following mechanism is implemented:<br/>
+    When you enter Host=..., back-end Python web server fetches fully qualified domain
+    name (FQDN) based on your input and stores it in Host cookie store. It also copies
+    FQDN to InternalIP member if that one is empty. We encourage you to also enter 
+    Internal IP when adding/editing hosts if Cluster is running inside VPN (say Cloud
+    deployment).<br/>
+    Let's recapitulate various scenarios:
+    <ul>
+    <li><b>Small localhost deployment: </b> 
+        Just leave default 127.0.0.1 in HostList on 1st page. </li>
+    <li><b>Small deployment, home or office network: </b>
+        Leave default 127.0.0.1 in HostList on 1st page, add other hosts using 
+        "Add Host" button on next page. You can safely ignore InternalIP member. </li>
+    <li><b>Deployment to Cloud/other VPN environment: </b>
+        If you are using localhost too, edit that host on 2nd page and add Internal IP 
+        information. When adding hosts on 2nd page, fill in Internal IP member. </li>
+    </ul>
+    MCC will always use FQDN member to connect, distribute configuration and start processes
+    while configuration files and Cluster processes will always use Internal IP member.
+    This way there can be no confusion as to what "localhost" means and the communication
+    between nodes will be as fast as possible bypassing possible errors on DNS level.
+    </p>
 
 <!-- ======================= Define processes ============================== -->
 

@@ -162,6 +162,8 @@ function addHostList(event) {
                         nhost[0].setValue("key_file", null);
                     }
                     nhost[0].setValue("key_auth", dijit.byId("sd_key_auth").get("checked"));
+                    if (dijit.byId("sd_IntIP").getValue())
+                        nhost[0].setValue("internalIP", dijit.byId("sd_IntIP").get("value"));
                     mcc.util.dbg("Saving credentials for new host " + nhost[0].getValue("name"));
                     mcc.storage.hostStorage().save();
                     mcc.storage.getHostResourceInfo(
@@ -238,7 +240,10 @@ function addHostsDialogSetup() {
                     <p>\
                         Host name: \
                         <span class=\"helpIcon\" id=\"hostlist_qm\">[?]</span>\
-                        <span id='hostlist'></span>\
+                        <br /><span id='hostlist'></span>\
+                        <br />Host internal IP (VPN): \
+                        <span class=\"helpIcon\" id=\"sd_IntIP_qm\">[?]</span>\
+                        <br /><span id='sd_IntIP'></span>\
                         <br /><br />Key-based auth: \
                         <span class=\"helpIcon\" id=\"sd_key_auth_qm\">[?]</span>\
                         <span id='sd_key_auth'></span>\
@@ -296,12 +301,19 @@ function addHostsDialogSetup() {
         });
         // Must connect outside of html to be in scope of function
         dojo.connect(dijit.byId("addHostsForm"), "onSubmit", addHostList);
-        var hostlist= new dijit.form.ValidationTextBox({style: "width: 250px"}, "hostlist");
+        var hostlist= new dijit.form.ValidationTextBox({style: "width: 245px"}, "hostlist");
         hostlist.required = true;
         hostlist.missingMessage = "This field must have value!";
         var hostlist_tt = new dijit.Tooltip({
             connectId: ["hostlist", "hostlist_qm"],
             label: "Name or ip addresses of host\
+                    to use for running MySQL cluster"
+        });
+
+        var sd_IntIP = new dijit.form.ValidationTextBox({style: "width: 245px"}, "sd_IntIP");
+        var sd_IntIP_tt = new dijit.Tooltip({
+            connectId: ["sd_IntIP", "sd_IntIP_qm"],
+            label: "If running Cluster inside VPN, internal ip addresses of host\
                     to use for running MySQL cluster"
         });
 
@@ -356,7 +368,7 @@ function addHostsDialogSetup() {
                 label: "Passphrase for the key."
             });
 
-            var sd_key_file = new dijit.form.TextBox({style: "width: 300px"}, "sd_key_file");
+            var sd_key_file = new dijit.form.TextBox({style: "width: 245px"}, "sd_key_file");
             dojo.connect(sd_key_file, "onChange", updateHostAuth);
             var sd_key_file_tt = new dijit.Tooltip({
                 connectId: ["sd_key_file", "sd_key_file_qm"],
@@ -386,8 +398,8 @@ function saveSelectedHosts(event) {
                     getValue(selection[i], "uname");
             if (dijit.byId("uname").getValue() && dijit.byId("uname").getValue() != uname) {
                 uname = dijit.byId("uname").getValue();
-                mcc.storage.hostStorage().store().setValue(selection[i], 
-                    "uname", uname);
+                mcc.storage.hostStorage().store().setValue(selection[i],
+                     "uname", uname);
                 mcc.util.dbg("Updating uname, check predef dirs");
                 // If we changed platform, we need to update predef dirs
                 if (mcc.storage.hostStorage().store().getValue(selection[i], 
@@ -442,6 +454,11 @@ function saveSelectedHosts(event) {
             if (dijit.byId("diskfree").getValue() && dijit.byId("diskfree").getValue() != hsval) {
                 mcc.storage.hostStorage().store().setValue(selection[i], 
                         "diskfree", dijit.byId("diskfree").getValue());
+            }
+
+            if (dijit.byId("sd_IntIPedit").getValue()) {
+                mcc.storage.hostStorage().store().setValue(selection[i], 
+                        "internalIP", dijit.byId("sd_IntIPedit").getValue());
             }
             // Update credentials if necessary.
             if (dijit.byId("sd_usredit").getValue()) {
@@ -579,6 +596,9 @@ function editHostsDialogSetup() {
                             <td><span id='diskfree'></span></td>\
                         </tr>\
                     </table>\
+                    <br />Host internal IP (VPN): \
+                    <span class=\"helpIcon\" id=\"sd_IntIPedit_qm\">[?]</span>\
+                    <br /><span id='sd_IntIPedit'></span>\
                     <br /><br />Key-based auth: \
                     <span class=\"helpIcon\" id=\"sd_key_authedit_qm\">[?]</span>\
                     <span id='sd_key_authedit'></span>\
@@ -679,6 +699,13 @@ function editHostsDialogSetup() {
             connectId: ["diskfree_qm"],
             label: getFieldTT("diskfree")
         });
+
+        var sd_IntIPedit = new dijit.form.ValidationTextBox({style: "width: 245px"}, "sd_IntIPedit");
+        var sd_IntIPedit_tt = new dijit.Tooltip({
+            connectId: ["sd_IntIPedit", "sd_IntIPedit_qm"],
+            label: "If running Cluster inside VPN, internal ip addresses of host\
+                    to use for running MySQL cluster"
+        });
         
         // Credentials definition
         var sd_key_authedit = new dijit.form.CheckBox({}, "sd_key_authedit");
@@ -727,7 +754,7 @@ function editHostsDialogSetup() {
             label: "Passphrase for the key."
         });
 
-        var sd_key_fileedit = new dijit.form.TextBox({style: "width: 300px"}, "sd_key_fileedit");
+        var sd_key_fileedit = new dijit.form.TextBox({style: "width: 245px"}, "sd_key_fileedit");
         dojo.connect(sd_key_fileedit, "onChange", updateHostAuthE);
         var sd_key_fileedit_tt = new dijit.Tooltip({
             connectId: ["sd_key_fileedit", "sd_key_fileedit_qm"],
@@ -815,13 +842,19 @@ function hostGridSetup() {
         var selection = hostGrid.selection.getSelected();
         if (selection && selection.length > 0) {
             for (var i in selection) {
-
                 dijit.byId("uname").setValue(mcc.storage.hostStorage().store().getValue(selection[i], "uname"));//null);
                 dijit.byId("ram").setValue(mcc.storage.hostStorage().store().getValue(selection[i], "ram"));//null);
                 dijit.byId("cores").setValue(mcc.storage.hostStorage().store().getValue(selection[i], "cores"));//null);
-                dijit.byId("installdir").setValue(null); //Needs to account for termination!
-                dijit.byId("datadir").setValue(null); //Needs to account for termination!
+                dijit.byId("installdir").setValue(null);
+                dijit.byId("datadir").setValue(null);
                 dijit.byId("diskfree").setValue(mcc.storage.hostStorage().store().getValue(selection[i], "diskfree")); //null);
+
+                var val = mcc.storage.hostStorage().store().getValue(selection[i], "internalIP");
+                if (val) {
+                    dijit.byId("sd_IntIPedit").setValue(val);
+                } else {
+                    dijit.byId("sd_IntIPedit").setValue(null);
+                }
 
                 var hasCreds = false;
                 var val = mcc.storage.hostStorage().store().getValue(selection[i], "usr");

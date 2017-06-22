@@ -723,9 +723,9 @@ function instanceSetup(processFamilyName, processItem) {
             mcc.configuration.setPara(processFamilyName, id, "HostName",
                     "defaultValueInstance", null);
         } else {
-            //Use HostName=FQDN to avoid mixing LOCAL & REMOTE hosts.
+            //Use HostName=internalIP to avoid mixing LOCAL & REMOTE hosts.
             mcc.configuration.setPara(processFamilyName, id, "HostName",
-                    "defaultValueInstance", host.getValue("fqdn"));
+                    "defaultValueInstance", host.getValue("internalIP"));
         }
 
         // Get prototypical process type and do process specific assignments
