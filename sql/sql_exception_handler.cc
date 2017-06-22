@@ -128,10 +128,10 @@ void handle_gis_exception(const char *funcname)
       case gis::not_implemented_exception::kCartesian:
         er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
         break;
-      case gis::not_implemented_exception::kGeographic:
+      case gis::not_implemented_exception::Srs_type::kGeographic:
         er_variant = ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS;
         break;
-      case gis::not_implemented_exception::kProjected:
+      case gis::not_implemented_exception::Srs_type::kProjected:
         er_variant = ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS;
         break;
     }

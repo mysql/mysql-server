@@ -58,6 +58,7 @@
 #include "sql/gis/distance_sphere.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/is_simple.h"
+#include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
@@ -5788,34 +5789,42 @@ static int check_geometry_valid(Geometry *geom)
 
 longlong Item_func_isvalid::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
-  Geometry_buffer buffer;
-  Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0L;
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return 0;
+  }
 
-  // It should return false if the argument isn't a valid GEOMETRY string.
-  if (!(geom= Geometry::construct(&buffer, swkb)))
-    return 0L;
-
-  if (verify_cartesian_srs(geom, func_name()))
+  if (swkb == nullptr)
+  {
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
-
-  int ret= 0;
-  try
-  {
-    ret= check_geometry_valid(geom);
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("ST_IsValid");
   }
 
-  return ret;
+  const dd::Spatial_reference_system *srs= nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
+  if ( gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+  {
+    return error_int();
+  }
+
+  bool result= false;
+
+  if (gis::is_valid(srs, g.get(),func_name(), &result))
+  {
+    return error_int();
+  }
+
+  return result;
 }
 
 
