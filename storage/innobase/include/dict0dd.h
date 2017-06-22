@@ -390,6 +390,13 @@ dd_mdl_release(
 	THD*		thd,
 	MDL_ticket**	mdl);
 
+/** Check if current undo needs a MDL or not
+@param[in]	thd	current thd
+@return	true if MDL is necessary, otherwise false */
+bool
+dd_mdl_for_undo(
+	const THD*	thd);
+
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table

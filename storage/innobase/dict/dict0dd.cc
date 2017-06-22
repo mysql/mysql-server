@@ -21,6 +21,7 @@ Data dictionary interface */
 
 #include <current_thd.h>
 #include <sql_thd_internal_api.h>
+#include <sql_class.h>
 
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -178,6 +179,23 @@ dd_mdl_release(
 
 	dd::release_mdl(thd, *mdl);
 	*mdl = nullptr;
+}
+
+/** Check if current undo needs a MDL or not
+@param[in]	thd	current thd
+@return true if MDL is necessary, otherwise false */
+bool
+dd_mdl_for_undo(
+	const THD*	thd)
+{
+	/* There are three cases for the undo to check here:
+	1. In recovery phase, binlog recover, there is no concurrent
+	user queries, so MDL is no necessary. In this case, thd is NULL.
+	2. In background rollback thread, there could be concurrent
+	user queties, so MDL is needed. In this case, thd is not NULL
+	3. In runtime transaction rollback, no need for MDL.
+	In this case, THD::transaction_rollback_request would be set. */
+	return(thd != nullptr && !thd->transaction_rollback_request);
 }
 
 /** Instantiate an InnoDB in-memory table metadata (dict_table_t)

@@ -1119,6 +1119,9 @@ row_undo_mod_parse_undo_rec(
 	ulint		type;
 	ulint		cmpl_info;
 	bool		dummy_extern;
+	bool		get_mdl;
+
+	get_mdl = dd_mdl_for_undo(current_thd);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);
@@ -1129,8 +1132,12 @@ row_undo_mod_parse_undo_rec(
 	took here. Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	node->table = dd_table_open_on_id(
-		table_id, current_thd, mdl, false, true);
+	if (get_mdl) {
+		node->table = dd_table_open_on_id(
+			table_id, current_thd, mdl, false, true);
+	} else {
+		node->table = dd_table_open_on_id_in_mem(table_id, false);
+	}
 
 	if (node->table == NULL) {
 		/* Table was dropped */
@@ -1138,7 +1145,11 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
-		dd_table_close(node->table, current_thd, mdl, false);
+		if (get_mdl) {
+			dd_table_close(node->table, current_thd, mdl, false);
+		} else {
+			dd_table_close(node->table, nullptr, nullptr, false);
+		}
 
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
@@ -1164,7 +1175,11 @@ row_undo_mod_parse_undo_rec(
 
 	if (!row_undo_search_clust_to_pcur(node)) {
 
-		dd_table_close(node->table, current_thd, mdl, false);
+		if (get_mdl) {
+			dd_table_close(node->table, current_thd, mdl, false);
+		} else {
+			dd_table_close(node->table, nullptr, nullptr, false);
+		}
 
 		node->table = NULL;
 	}
@@ -1237,7 +1252,11 @@ row_undo_mod(
 		err = row_undo_mod_clust(node, thr);
 	}
 
-	dd_table_close(node->table, current_thd, &mdl, false);
+	if (dd_mdl_for_undo(current_thd)) {
+		dd_table_close(node->table, current_thd, &mdl, false);
+	} else {
+		dd_table_close(node->table, nullptr, nullptr, false);
+	}
 
 	node->table = NULL;
 

@@ -45,6 +45,8 @@ Created 2/25/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 
+#include "current_thd.h"
+
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -308,11 +310,13 @@ retry:
 }
 
 /** Parses the row reference and other info in a fresh insert undo record.
-@param[in,out]	node	row undo node */
+@param[in,out]	node	row undo node
+@param[in,out]	mdl	MDL ticket */
 static
 void
 row_undo_ins_parse_undo_rec(
-	undo_node_t*	node)
+	undo_node_t*	node,
+	MDL_ticket**	mdl)
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -321,8 +325,11 @@ row_undo_ins_parse_undo_rec(
 	ulint		type;
 	ulint		dummy;
 	bool		dummy_extern;
+	bool		get_mdl;
 
 	ut_ad(node);
+
+	get_mdl = dd_mdl_for_undo(current_thd);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
 				    &dummy_extern, &undo_no, &table_id);
@@ -331,13 +338,22 @@ row_undo_ins_parse_undo_rec(
 
 	node->update = NULL;
 
-	node->table = dd_table_open_on_id_in_mem(table_id, false);
+	if (get_mdl) {
+		node->table = dd_table_open_on_id(
+			table_id, current_thd, mdl, false, true);
+	} else {
+		node->table = dd_table_open_on_id_in_mem(table_id, false);
+	}
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (node->table == NULL) {
 	} else if (node->table->ibd_file_missing) {
 close_table:
-		dd_table_close(node->table, nullptr, nullptr, false);
+		if (get_mdl) {
+			dd_table_close(node->table, current_thd, mdl, false);
+		} else {
+			dd_table_close(node->table, nullptr, nullptr, false);
+		}
 		node->table = NULL;
 	} else {
 		ut_ad(!node->table->skip_alter_undo);
@@ -438,13 +454,14 @@ row_undo_ins(
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	dberr_t	err;
+	dberr_t		err;
+	MDL_ticket*	mdl = nullptr;
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
 	ut_ad(node->trx->in_rollback);
 	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-	row_undo_ins_parse_undo_rec(node);
+	row_undo_ins_parse_undo_rec(node, &mdl);
 
 	if (node->table == NULL) {
 		return(DB_SUCCESS);
@@ -470,7 +487,11 @@ row_undo_ins(
 		err = row_undo_ins_remove_clust_rec(node);
 	}
 
-	dd_table_close(node->table, nullptr, nullptr, false);
+	if (dd_mdl_for_undo(current_thd)) {
+		dd_table_close(node->table, current_thd, &mdl, false);
+	} else {
+		dd_table_close(node->table, nullptr, nullptr, false);
+	}
 
 	node->table = NULL;
 
