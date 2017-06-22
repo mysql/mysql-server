@@ -484,6 +484,29 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_map.end(); }
+
+  /**
+    Implementation of the MergePatch function specified in RFC 7396:
+
+        define MergePatch(Target, Patch):
+          if Patch is an Object:
+            if Target is not an Object:
+              Target = {} # Ignore the contents and set it to an empty Object
+            for each Key/Value pair in Patch:
+              if Value is null:
+                if Key exists in Target:
+                  remove the Key/Value pair from Target
+              else:
+                Target[Key] = MergePatch(Target[Key], Value)
+            return Target
+          else:
+            return Patch
+
+    @param patch  the object that describes the patch
+    @retval false on success
+    @retval true on memory allocation error
+  */
+  bool merge_patch(Json_object_ptr patch);
 };
 
 

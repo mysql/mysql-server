@@ -1120,6 +1120,51 @@ Json_dom_ptr Json_object::clone() const
 }
 
 
+bool Json_object::merge_patch(Json_object_ptr patch)
+{
+  for (auto &member : patch->m_map)
+  {
+    // Remove the member if the value in the patch is the null literal.
+    if (member.second->json_type() == enum_json_type::J_NULL)
+    {
+      remove(member.first);
+      continue;
+    }
+
+    // See if the target has this member, add it if not.
+    Json_dom_ptr &target= m_map.emplace(member.first, nullptr).first->second;
+
+    /*
+      If the value in the patch is not an object and not the null
+      literal, the new value is the patch.
+    */
+    if (member.second->json_type() != enum_json_type::J_OBJECT)
+    {
+      target= std::move(member.second);
+      target->set_parent(this);
+      continue;
+    }
+
+    /*
+      If there is no target value, or if the target value is not an
+      object, use an empty object as the target value.
+    */
+    if (target == nullptr || target->json_type() != enum_json_type::J_OBJECT)
+      target= create_dom_ptr<Json_object>();
+
+    // Recursively merge the target value with the patch.
+    Json_object *target_obj= down_cast<Json_object*>(target.get());
+    Json_object_ptr patch_obj(down_cast<Json_object*>(member.second.release()));
+    if (target_obj == nullptr || target_obj->merge_patch(std::move(patch_obj)))
+      return true;                            /* purecov: inspected */
+
+    target->set_parent(this);
+  }
+
+  return false;
+}
+
+
 /**
   Compare two keys from a JSON object and determine whether or not the
   first key is less than the second key. key1 is considered less than

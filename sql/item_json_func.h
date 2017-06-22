@@ -718,6 +718,22 @@ public:
   Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a);
 };
 
+
+/**
+  Represents the JSON function JSON_MERGE_PATCH.
+*/
+class Item_func_json_merge_patch :public Item_json_func
+{
+public:
+  Item_func_json_merge_patch(THD *thd, const POS &pos, PT_item_list *a)
+    : Item_json_func(thd, pos, a)
+  {}
+
+  const char *func_name() const override { return "json_merge_patch"; }
+
+  bool val_json(Json_wrapper *wr) override;
+};
+
 /**
   Represents the JSON function JSON_QUOTE()
 */
