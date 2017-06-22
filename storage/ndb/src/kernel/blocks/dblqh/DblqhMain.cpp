@@ -16717,9 +16717,9 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
   jamEntry();
 #ifdef DEBUG_LCP
   Uint32 current_gci = signal->theData[0];
+  Uint32 backup_restorable_gci = c_backup->getRestorableGci();
 #endif
   Uint32 restorable_gci = signal->theData[1];
-  Uint32 backup_restorable_gci = c_backup->getRestorableGci();
   c_keep_gci_for_lcp = restorable_gci;
   DEB_LCP(("c_keep_gci_for_lcp = %u,"
            " current_gci = %u, restorable_gci = %u"
