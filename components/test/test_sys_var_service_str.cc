@@ -78,8 +78,6 @@ static mysql_service_status_t test_component_sys_var_service_str_init()
 */
 static mysql_service_status_t test_component_sys_var_service_str_deinit()
 {
-  outfile= fopen(filename, "a+");
-
   char *var_value;
   size_t len=0;
 
