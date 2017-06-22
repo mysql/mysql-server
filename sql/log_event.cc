@@ -3333,7 +3333,13 @@ int Log_event::apply_gtid_event(Relay_log_info *rli)
   */
   DBUG_ASSERT(rli->gaq->len > 0);
   Slave_job_group g= Slave_job_group();
-  rli->gaq->de_queue(&g);
+  rli->gaq->de_tail(&g);
+  /*
+    The rli->mts_groups_assigned is increased when adding the slave job
+    generated for the gtid into the (G)lobal (A)ssigned (Q)ueue. So we
+    decrease it here.
+  */
+  rli->mts_groups_assigned--;
 
   DBUG_RETURN(error);
 }
@@ -12591,6 +12597,17 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
 
+  /*
+    It is not necessary to do GTID related check if the error
+    'ER_SLAVE_INCIDENT' is ignored.
+  */
+  if (ignored_error_code(ER_SLAVE_INCIDENT))
+  {
+    DBUG_PRINT("info", ("Ignoring Incident"));
+    mysql_bin_log.gtid_end_transaction(thd);
+    DBUG_RETURN(0);
+  }
+
   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
   if (state == GTID_STATEMENT_EXECUTE)
   {
@@ -12617,12 +12634,6 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_RETURN(0);
   }
 
-  if (ignored_error_code(ER_SLAVE_INCIDENT))
-  {
-    DBUG_PRINT("info", ("Ignoring Incident"));
-    DBUG_RETURN(0);
-  }
-   
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER_THD(thd, ER_SLAVE_INCIDENT),
               description(),

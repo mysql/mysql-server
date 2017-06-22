@@ -1372,38 +1372,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
 
 /**
-   Similar to de_queue() but removing an item from the tail side.
-
-   return  the queue's array index that the de-queued item
-           located at, or an error.
-*/
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_tail(Element_type *val)
-{
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  avail= (entry + len - 1) % size;
-  *val= m_Q[avail];
-  len--;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return avail;
-}
-
-
-/**
    two index comparision to determine which of the two
    is ordered first.
 

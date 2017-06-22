@@ -5494,10 +5494,8 @@ static Item**
 resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 {
   DBUG_ENTER("resolve_ref_in_select_and_group");
-  Item **group_by_ref= NULL;
   Item **select_ref= NULL;
   ORDER *group_list= select->group_list.first;
-  bool ambiguous_fields= FALSE;
   uint counter;
   enum_resolution_type resolution;
 
@@ -5515,21 +5513,25 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
   if (select->having_fix_field && !ref->has_aggregation() && group_list)
   {
-    group_by_ref= find_field_in_group_list(ref, group_list);
-    
+    Item **group_by_ref= find_field_in_group_list(ref, group_list);
+
     /* Check if the fields found in SELECT and GROUP BY are the same field. */
     if (group_by_ref && (select_ref != not_found_item) &&
         !((*group_by_ref)->eq(*select_ref, 0)))
     {
-      ambiguous_fields= TRUE;
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
                           thd->where);
-
     }
+
+    if (group_by_ref != nullptr)
+      DBUG_RETURN(group_by_ref);
   }
 
-  if (select_ref != not_found_item && (*select_ref)->has_wf())
+  if (select_ref == not_found_item)
+    DBUG_RETURN(not_found_item);
+
+  if ((*select_ref)->has_wf())
   {
     /*
       We can't reference an alias to a window function expr from within
@@ -5539,32 +5541,34 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     DBUG_RETURN(NULL);
   }
 
-  if (select_ref != not_found_item || group_by_ref)
-  {
-    if (select_ref != not_found_item && !ambiguous_fields)
-    {
-      DBUG_ASSERT(*select_ref != 0);
-      if (!select->base_ref_items[counter])
-      {
-        my_error(ER_ILLEGAL_REFERENCE, MYF(0),
-                 ref->item_name.ptr(), "forward reference in item list");
-        DBUG_RETURN(NULL);
-      }
-      /*
-       Assert if its an incorrect reference . We do not assert if its a outer
-       reference, as they get fixed later in fix_innner_refs function.
-      */
-      DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
+  /*
+    The pointer in base_ref_items is nullptr if the column reference
+    is a reference to itself, such as 'a' in:
 
-      DBUG_RETURN(&select->base_ref_items[counter]);
-    }
-    if (group_by_ref)
-      DBUG_RETURN(group_by_ref);
-    DBUG_ASSERT(FALSE);
-    DBUG_RETURN(NULL); /* So there is no compiler warning. */
+      SELECT (SELECT ... WHERE a = 1) AS a ...
+
+    Or if it's a reference to an expression that comes later in the
+    select list, such as 'b' in:
+
+      SELECT (SELECT ... WHERE b = 1) AS a, (SELECT ...) AS b ...
+
+    Raise an error if such invalid references are encountered.
+  */
+  if (select->base_ref_items[counter] == nullptr)
+  {
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0),
+             ref->item_name.ptr(), "forward reference in item list");
+    DBUG_RETURN(nullptr);
   }
 
-  DBUG_RETURN(not_found_item);
+  /*
+    Assert if it's an incorrect reference. We do not assert if it's an
+    outer reference, as they get fixed later in the fix_inner_refs()
+    function.
+  */
+  DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
+
+  DBUG_RETURN(&select->base_ref_items[counter]);
 }
 
 
@@ -8061,8 +8065,6 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
 bool Item_ref::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ENTER("Item_ref::fix_fields");
-
-  enum_parsing_context place= CTX_NONE;
   DBUG_ASSERT(fixed == 0);
   SELECT_LEX *current_sel= thd->lex->current_select();
 
@@ -8108,7 +8110,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         Item_subselect *prev_subselect_item=
           last_checked_context->select_lex->master_unit()->item;
         last_checked_context= outer_context;
-        place= prev_subselect_item->parsing_place;
+        const enum_parsing_context place= prev_subselect_item->parsing_place;
 
         /* Search in the SELECT and GROUP lists of the outer select. */
         if (select_alias_referencable(place) &&
@@ -8189,7 +8191,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
               /*
                 Due to cache, find_field_in_tables() can return field which
                 doesn't belong to provided outer_context. In this case we have
-                to find proper field context in order to fix field correcly.
+                to find proper field context in order to fix field correctly.
               */
               do
               {
@@ -8230,7 +8232,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
-                          thd->lex->current_select(), this, fld);
+                          current_sel, this, fld);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -8267,24 +8269,33 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
     }
   }
 
-  DBUG_ASSERT(*ref);
   /*
-    Check if this is an incorrect reference in a group function or forward
-    reference. Do not issue an error if this is:
-      1. outer reference (will be fixed later by the fix_inner_refs function);
-      2. an unnamed reference inside an aggregate function.
+    The reference should be fixed at this point. Outer references will
+    be fixed later by the fix_inner_refs() function.
   */
-  if (!((*ref)->type() == REF_ITEM &&
-       ((Item_ref *)(*ref))->ref_type() == OUTER_REF) &&
-      (((*ref)->has_aggregation() && item_name.ptr() &&
-        !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
-          current_sel->having_fix_field)) ||
-       !(*ref)->fixed))
+  DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+
+  /*
+    Reject invalid references to aggregates.
+
+    1) We only accept references to aggregates in a HAVING clause.
+    (This restriction is not strictly necessary, but we don't want to
+    lift it without making sure that such queries are handled
+    correctly. Lifting the restriction will make bugs such as
+    bug#13633829 and bug#22588319 (aka bug#80116) affect a larger set
+    of queries.)
+
+    2) An aggregate cannot be referenced from the GROUP BY clause of
+    the query block where the aggregation happens, since grouping
+    happens before aggregation.
+  */
+  if (((*ref)->has_aggregation() && !current_sel->having_fix_field) ||  // 1
+      walk(&Item::has_aggregate_ref_in_group_by,                        // 2
+           enum_walk(WALK_POSTFIX | WALK_SUBQUERY),
+           nullptr))
   {
-    my_error(ER_ILLEGAL_REFERENCE, MYF(0),
-             item_name.ptr(), ((*ref)->has_aggregation() ?
-                    "reference to group function":
-                    "forward reference in item list"));
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
+             "reference to group function");
     goto error;
   }
 

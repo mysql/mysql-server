@@ -2172,7 +2172,8 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   }
 
   histograms::results_map results;
-  bool histogram_error= histograms::drop_all_histograms(thd, *table, results);
+  bool histogram_error= histograms::drop_all_histograms(thd, *table, *table_def,
+                                                        results);
 
   DBUG_EXECUTE_IF("fail_after_drop_histograms",
                   {
@@ -6345,7 +6346,11 @@ rename_histograms(THD *thd, const char *old_schema_name,
   @param alter_info the alter changes to be carried out by ALTER TABLE
   @param create_info the alter changes to be carried out by ALTER TABLE
   @param columns a list of columns to be changed or dropped
-  @param table_def the altered table (the new table definition, post altering)
+  @param original_table_def the table definition, pre altering. Note that the
+                            name returned by original_table_def->name() might
+                            not be the same as table->table_name, since this may
+                            be a backup table object with an auto-generated name
+  @param altered_table_def the table definition, post altering
 
   @return false on success, true on error
 */
@@ -6353,7 +6358,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
                                         Alter_info *alter_info,
                                         HA_CREATE_INFO *create_info,
                                         histograms::columns_set &columns,
-                                        const dd::Table *table_def)
+                                        const dd::Table *original_table_def,
+                                        const dd::Table *altered_table_def)
 {
   bool alter_drop_column=
     (alter_info->flags & (Alter_info::ALTER_DROP_COLUMN |
@@ -6362,11 +6368,13 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
     (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
     (create_info->used_fields & HA_CREATE_USED_CHARSET);
 
-  bool encryption_enabled=
-    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
-    (create_info->encrypt_type.length > 0 &&
-     my_strcasecmp(system_charset_info, "n",
-                   create_info->encrypt_type.str) != 0);
+  bool encryption_enabled= false;
+  if (altered_table_def->options().exists("encrypt_type"))
+  {
+    encryption_enabled= 0 !=
+      my_strcasecmp(system_charset_info, "n",
+                    altered_table_def->options().value("encrypt_type").c_str());
+  }
 
   bool single_part_unique_index= false;
   /*
@@ -6375,7 +6383,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
   */
   if (alter_info->flags & Alter_info::ALTER_ADD_INDEX)
   {
-    for (const auto key : table_def->indexes())
+    for (const auto key : altered_table_def->indexes())
     {
       /*
         A key may have multiple elements, such as (DB_ROW_ID, column). So, check
@@ -6404,7 +6412,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
   */
   if (convert_character_set)
   {
-    for (const auto column : table_def->columns())
+    for (const auto column : altered_table_def->columns())
     {
       switch (column->type())
       {
@@ -6430,7 +6438,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
     histograms::results_map results;
     bool res;
     if (encryption_enabled)
-      res= histograms::drop_all_histograms(thd, *table, results);
+      res= histograms::drop_all_histograms(thd, *table, *original_table_def,
+                                           results);
     else
       res= histograms::drop_histograms(thd, *table, columns, results);
 
@@ -8649,7 +8658,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     if (alter_table_drop_histograms(thd, table_list, ha_alter_info->alter_info,
                                     ha_alter_info->create_info, columns,
-                                    altered_table_def))
+                                    table_def, altered_table_def))
       goto rollback;
 
     // Upgrade to EXCLUSIVE before commit.
@@ -11844,7 +11853,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       new_table is invalidated on commit.
     */
     if (alter_table_drop_histograms(thd, table_list, alter_info, create_info,
-                                    columns, new_table))
+                                    columns, backup_table, new_table))
       goto err_with_mdl; /* purecov: deadcode */
 
     if (backup_table->has_trigger())

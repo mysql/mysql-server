@@ -1452,10 +1452,7 @@ int sender_task(task_arg arg) {
       if (0 && link_empty(&ep->s->outgoing.data)) {
         TASK_DELAY(0.1 * xcom_drand48());
       }
-      /*      FWD_ITER(&ep->s->outgoing.data, msg_link,
-DBGOUT(FN; PTREXP(link_iter));
-);
-*/
+      /*      FWD_ITER(&ep->s->outgoing.data, msg_link, DBGOUT(FN; PTREXP(link_iter));); */
       if (link_empty(&ep->s->outgoing.data)) {
         TASK_CALL(flush_srv_buf(ep->s, &ret));
       }
@@ -1475,34 +1472,20 @@ DBGOUT(FN; PTREXP(link_iter));
                STRLIT(xcom_proto_to_str(get_latest_common_proto()));
                NDBG(ep->s->con.fd, d));
         if (ep->link->p) {
-          if (ep->s->con.x_proto !=
-              get_latest_common_proto()) { /* See if we need renegotiation */
-            ADD_EVENTS(
-                add_event(string_arg("renegotiate get_latest_common_proto()"));
-                add_event(
-                    string_arg(xcom_proto_to_str(get_latest_common_proto())));
-                add_event(string_arg(xcom_proto_to_str(ep->s->con.x_proto))););
-            channel_put_front(
-                &ep->s->outgoing,
-                &ep->link->l); /* Push message back in queue, will be handled
-                                  after negotiation */
-            start_protocol_negotiation(&ep->s->outgoing);
-          } else {
-            ADD_EVENTS(add_event(string_arg("sending ep->link->p->synode"));
-                       add_synode_event(ep->link->p->synode);
-                       add_event(string_arg("to"));
-                       add_event(uint_arg(ep->link->p->to));
-                       add_event(string_arg(pax_op_to_str(ep->link->p->op))););
-            TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
-            if (ret < 0) {
-              goto next;
-            }
-            ADD_EVENTS(add_event(string_arg("sent ep->link->p->synode"));
-                       add_synode_event(ep->link->p->synode);
-                       add_event(string_arg("to"));
-                       add_event(uint_arg(ep->link->p->to));
-                       add_event(string_arg(pax_op_to_str(ep->link->p->op))););
+          ADD_EVENTS(add_event(string_arg("sending ep->link->p->synode"));
+                     add_synode_event(ep->link->p->synode);
+                     add_event(string_arg("to"));
+                     add_event(uint_arg(ep->link->p->to));
+                     add_event(string_arg(pax_op_to_str(ep->link->p->op))););
+          TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret));
+          if (ret < 0) {
+            goto next;
           }
+          ADD_EVENTS(add_event(string_arg("sent ep->link->p->synode"));
+                     add_synode_event(ep->link->p->synode);
+                     add_event(string_arg("to"));
+                     add_event(uint_arg(ep->link->p->to));
+                     add_event(string_arg(pax_op_to_str(ep->link->p->op))););
         } else {
           set_connected(&ep->s->con, CON_FD);
           /* Send protocol negotiation request */
