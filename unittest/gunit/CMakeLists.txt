@@ -379,6 +379,7 @@ SET(SERVER_TESTS
   gis_algos
   gis_geometries
   gis_is_simple
+  gis_isvalid
   gis_relops
   gis_wkb_parser
   handler
