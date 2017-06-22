@@ -3752,7 +3752,9 @@ row_discard_tablespace_end(
 	row_mysql_unlock_data_dictionary(trx);
 
 	if (aux_vec->aux_name.size() > 0) {
-		fts_drop_dd_tables(aux_vec, file_per_table);
+		if(!fts_drop_dd_tables(aux_vec, file_per_table)) {
+			err = DB_ERROR;
+		}
 		fts_free_aux_names(aux_vec);
 	}
 
@@ -4625,7 +4627,9 @@ funct_exit:
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		fts_drop_dd_tables(&aux_vec, file_per_table);
+		if(!fts_drop_dd_tables(&aux_vec, file_per_table)) {
+			err = DB_ERROR;
+		}
 
 		if (trx->dict_operation_lock_mode == RW_X_LATCH) {
 			mutex_enter(&dict_sys->mutex);

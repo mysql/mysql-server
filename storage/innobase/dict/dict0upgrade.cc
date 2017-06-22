@@ -889,7 +889,12 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
   }
 
   if (dict_table_has_fts_index(ib_table)) {
-    fts_upgrade_aux_tables(ib_table);
+    dberr_t err = fts_upgrade_aux_tables(ib_table);
+
+    if (err != DB_SUCCESS) {
+      dict_table_close(ib_table, false, false);
+      return (true);
+    }
   }
 
   dd_upgrade_table_fk(ib_table, dd_table);

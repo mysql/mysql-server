@@ -4904,11 +4904,17 @@ new_clustered_failed:
 
 	if (error == DB_SUCCESS) {
 		if (build_fts_common) {
-			fts_create_common_dd_tables(ctx->new_table);
+			if (!fts_create_common_dd_tables(ctx->new_table)) {
+				error = DB_ERROR;
+				goto error_handling;
+			}
 		}
 
 		if (fts_index) {
-			fts_create_index_dd_tables(ctx->new_table);
+			error = fts_create_index_dd_tables(ctx->new_table);
+			if (error != DB_SUCCESS) {
+				goto error_handling;
+			}
 		}
 	}
 
