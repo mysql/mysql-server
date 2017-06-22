@@ -831,7 +831,7 @@ ndbd_join_pushdown(Uint32 x)
 
 /**
  * An enhanced version of the SCAN_FRAGREQ signal has been
- * introduced in 7.6.x, where multiple fragments to be scanned
+ * introduced in 7.6.4, where multiple fragments to be scanned
  * can be specified in a single 'REQ'.
  *
  * At the same time an updated version of QueryNode introduced
@@ -841,7 +841,7 @@ ndbd_join_pushdown(Uint32 x)
  * That also deprecated (still supported) the former 'SCAN' type
  * QueryNode into QN_SCAN_FRAG_v1 and QN_SCAN_INDEX_v1.
  */
-#define NDBD_SPJ_MULTIFRAG_SCAN NDB_MAKE_VERSION(7,6,3)
+#define NDBD_SPJ_MULTIFRAG_SCAN NDB_MAKE_VERSION(7,6,4)
 
 static
 inline
