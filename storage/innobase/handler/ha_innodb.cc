@@ -16318,6 +16318,13 @@ innobase_get_index_column_cardinality(
 		return(failure);
 	}
 
+	if (ib_table->is_fts_aux()) {
+		/* Server should not ask for Stats for Internal Tables */
+		ut_ad(0);
+		dd_table_close(ib_table, thd, &mdl, false);
+		return(true);
+	}
+
 	for (const dict_index_t* index = UT_LIST_GET_FIRST(ib_table->indexes);
 	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
