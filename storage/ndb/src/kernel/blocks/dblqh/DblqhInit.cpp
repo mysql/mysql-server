@@ -168,7 +168,7 @@ void Dblqh::initData()
   c_local_lcp_sent_wait_complete_conf = false;
   c_local_lcp_sent_wait_all_complete_lcp_req = false;
   c_localLcpId = 0;
-  c_keep_gci_for_distributed_lcp = 0;
+  c_keep_gci_for_lcp = 0;
   c_max_keep_gci_in_lcp = 0;
   c_first_set_min_keep_gci = false;
 }//Dblqh::initData()

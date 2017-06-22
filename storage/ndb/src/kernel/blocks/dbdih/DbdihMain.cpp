@@ -10583,6 +10583,9 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     SYSFILE->latestLCP_ID = latestLcpId;
 #endif
     SYSFILE->keepGCI = oldestKeepGci;
+
+    DEB_LCP(("Master takeover: Set SYSFILE->keepGCI = %u", SYSFILE->keepGCI));
+
     SYSFILE->oldestRestorableGCI = oldestRestorableGci;
     for(Uint32 i = 0; i < NdbNodeBitmask::Size; i++)
       SYSFILE->lcpActive[i] = masterGCPConf->lcpActive[i];
@@ -18826,11 +18829,11 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    {
 	      jam();
 	      g_eventLogger->info("Forcing take-over of node %d due to insufficient REDO"
-			" for table %d fragment: %d",
-			nodePtr.i, tabPtr.i, i);
+			" for tab(%u,%u)",
+			nodePtr.i, tabPtr.i, fragPtr.p->fragId);
 	      infoEvent("Forcing take-over of node %d due to insufficient REDO"
-			" for table %d fragment: %d",
-			nodePtr.i, tabPtr.i, i);
+			" for tab(%u,%u)",
+			nodePtr.i, tabPtr.i, fragPtr.p->fragId);
 	      
               m_sr_nodes.clear(nodePtr.i);
               m_to_nodes.set(nodePtr.i);
@@ -18838,6 +18841,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 				  Sysfile::NS_NotActive_NotTakenOver);
 	    }
 	  }
+          break;
 	}
         default:
 	  jam();
@@ -20392,6 +20396,9 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
 
   CRASH_INSERTION(7013);
   SYSFILE->keepGCI = c_lcpState.keepGci;
+
+  DEB_LCP(("Set SYSFILE->keepGCI = %u", SYSFILE->keepGCI));
+
   SYSFILE->oldestRestorableGCI = c_lcpState.oldestRestorableGci;
 
   const Uint32 oldestRestorableGCI = SYSFILE->oldestRestorableGCI;
@@ -23751,6 +23758,9 @@ void Dbdih::initRestartInfo(Signal* signal)
   c_newest_restorable_gci = startGci;
 
   SYSFILE->keepGCI             = startGci;
+
+  DEB_LCP(("Init SYSFILE->keepGCI = %u", SYSFILE->keepGCI));
+
   SYSFILE->oldestRestorableGCI = startGci;
   SYSFILE->newestRestorableGCI = startGci;
   SYSFILE->systemRestartBits   = 0;
