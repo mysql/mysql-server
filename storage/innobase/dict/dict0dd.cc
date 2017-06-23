@@ -1072,7 +1072,10 @@ format_validate(
 	switch (m_form->s->row_type) {
 	case ROW_TYPE_DYNAMIC:
 		ut_ad(*zip_ssize == 0);
-		ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC);
+		/* If non strict_mode, row type can be converted between
+		COMPRESSED and DYNAMIC */
+		ut_ad(m_form->s->real_row_type == ROW_TYPE_DYNAMIC
+		      || m_form->s->real_row_type == ROW_TYPE_COMPRESSED);
 		break;
 	case ROW_TYPE_COMPACT:
 		ut_ad(*zip_ssize == 0);
