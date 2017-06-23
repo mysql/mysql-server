@@ -609,6 +609,8 @@ reopen:
 			memset(full_name, 0, MAX_FULL_NAME_LEN);
 			strcpy(full_name, ib_table->name.m_name);
 
+			ut_ad(!ib_table->is_temporary());
+
 			mutex_exit(&dict_sys->mutex);
 
 			if (ret == false) {
@@ -617,8 +619,6 @@ reopen:
 				}
 				return(nullptr);
 			}
-
-			ut_ad(!ib_table->is_temporary());
 
 			if (dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
 				if (dict_locked) {
