@@ -3008,6 +3008,7 @@ SHOW_VAR com_status_vars[]= {
   {"change_repl_filter",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHANGE_REPLICATION_FILTER]),  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"check",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHECK]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"checksum",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHECKSUM]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"clone",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CLONE]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"commit",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_COMMIT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_db",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_DB]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_event",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_EVENT]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},

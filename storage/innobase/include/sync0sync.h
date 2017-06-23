@@ -112,6 +112,9 @@ extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_sys_write_mutex_key;
 extern mysql_pfs_key_t	log_cmdq_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
+extern mysql_pfs_key_t	log_sys_arch_mutex_key;
+extern mysql_pfs_key_t	page_sys_arch_mutex_key;
+extern mysql_pfs_key_t	page_sys_arch_oper_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
 extern mysql_pfs_key_t	recalc_pool_mutex_key;
 extern mysql_pfs_key_t	page_cleaner_mutex_key;
@@ -158,6 +161,9 @@ extern mysql_pfs_key_t  zip_pad_mutex_key;
 extern mysql_pfs_key_t  row_drop_list_mutex_key;
 extern mysql_pfs_key_t  file_open_mutex_key;
 extern mysql_pfs_key_t	master_key_id_mutex_key;
+extern mysql_pfs_key_t clone_sys_mutex_key;
+extern mysql_pfs_key_t clone_task_mutex_key;
+extern mysql_pfs_key_t clone_snapshot_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK

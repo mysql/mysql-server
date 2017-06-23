@@ -1552,6 +1552,9 @@ struct dict_sys_t{
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
 
+	/** Use maximum UINT value to indicate invalid space ID. */
+	static constexpr space_id_t	invalid_space_id = 0xFFFFFFFF;
+
 	/** The data dictionary tablespace ID. */
 	static constexpr space_id_t	space_id = 0xFFFFFFFE;
 

@@ -50,6 +50,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
+#include "clone0api.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 ulong		srv_max_purge_lag = 0;
@@ -1397,7 +1398,13 @@ trx_purge_truncate_history(
 	undo::spaces->s_unlock();
 	for (i = 0; i < n_spaces; i++) {
 		trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
-		trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+
+		/* Don't truncate if concurrent clone in progress. */
+		if (clone_mark_abort(false)) {
+
+			trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+			clone_mark_active();
+		}
 	}
 }
 

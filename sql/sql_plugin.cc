@@ -58,6 +58,7 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
+#include "mysql/plugin_clone.h"
 #include "mysql/plugin_group_replication.h"
 #include "mysql/plugin_keyring.h"
 #include "mysql/plugin_validate_password.h"
@@ -333,7 +334,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
   { C_STRING_WITH_LEN("GROUP REPLICATION") },
-  { C_STRING_WITH_LEN("KEYRING") }
+  { C_STRING_WITH_LEN("KEYRING") },
+  { C_STRING_WITH_LEN("CLONE") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -380,7 +382,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
-  MYSQL_KEYRING_INTERFACE_VERSION
+  MYSQL_KEYRING_INTERFACE_VERSION,
+  MYSQL_CLONE_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -394,7 +397,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
-  MYSQL_KEYRING_INTERFACE_VERSION
+  MYSQL_KEYRING_INTERFACE_VERSION,
+  MYSQL_CLONE_INTERFACE_VERSION
 };
 
 /* support for Services */

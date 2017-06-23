@@ -4464,6 +4464,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SHOW_FIELDS:
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_TABLES:
+  case SQLCOM_CLONE:
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
     break;

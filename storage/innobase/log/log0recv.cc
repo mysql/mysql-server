@@ -71,6 +71,8 @@ directories which were not included */
 bool	recv_replay_file_ops	= true;
 #endif /* !UNIV_HOTBACKUP */
 
+const char* const ib_logfile_basename = "ib_logfile";
+
 /** Log records are stored in the hash table in chunks at most of this size;
 this must be less than UNIV_PAGE_SIZE as it is stored in the buffer pool */
 #define RECV_DATA_BLOCK_SIZE	(MEM_MAX_ALLOC_IN_BUF - sizeof(recv_data_t))
@@ -639,8 +641,11 @@ recv_sys_init(ulint max_mem)
 	recv_sys->heap = mem_heap_create(256);
 #endif /* !UNIV_HOTBACKUP */
 
-	/* Set appropriate value of recv_n_pool_free_frames. */
-	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
+	/* Set appropriate value of recv_n_pool_free_frames. If capacity
+	is at least 10M and 25% above 512 pages then bump free frames to
+	512. */
+	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)
+	    && (buf_pool_get_curr_size() >= ((512 + 128) * UNIV_PAGE_SIZE))) {
 		/* Buffer pool of size greater than 10 MB. */
 		recv_n_pool_free_frames = 512;
 	}
@@ -659,6 +664,7 @@ recv_sys_init(ulint max_mem)
 
 	recv_sys->apply_log_recs = false;
 	recv_sys->apply_batch_on = false;
+	recv_sys->is_cloned_db = false;
 
 	recv_sys->last_block_buf_start = static_cast<byte*>(
 		ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
@@ -1521,7 +1527,17 @@ recv_parse_or_apply_log_rec_body(
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_SIZE:
+					bool	success;
 					space->size_in_header = val;
+					success = fil_space_extend(space, val);
+					if (!success) {
+						ib::error()
+						<< "Could not extend tablespace"
+						<< ": " << space->id << " space"
+						<< " name: " << space->name
+						<< " to new size: " << val
+						<< " pages during recovery.";
+					}
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_FREE_LIMIT:
@@ -3695,6 +3711,13 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		fil_io(IORequestLogWrite, true, page_id,
 		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
 		       max_cp_group);
+
+	} else if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
+		(byte*)LOG_HEADER_CREATOR_CLONE,
+		(sizeof LOG_HEADER_CREATOR_CLONE) - 1)) {
+
+		recv_sys->is_cloned_db = true;
+		ib::info() << "Opening cloned database";
 	}
 
 	/* Start reading the log groups from the checkpoint LSN up. The
@@ -4024,8 +4047,6 @@ recv_reset_log_files_for_backup(
 	ulint		log_dir_len;
 	char		name[5000];
 
-	static const char ib_logfile_basename[] = "ib_logfile";
-
 	log_dir_len = strlen(log_dir);
 	/* full path name of ib_logfile consists of log dir path + basename
 	+ number. This must fit in the name buffer.
@@ -4052,7 +4073,8 @@ recv_reset_log_files_for_backup(
 		ib::info() << "Setting log file size to " << log_file_size;
 
 		success = os_file_set_size(
-			name, log_file, log_file_size, srv_read_only_mode);
+			name, log_file, log_file_size,
+			srv_read_only_mode, true);
 
 		if (!success) {
 			ib::fatal() << "Cannot set " << name << " size to "

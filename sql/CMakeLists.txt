@@ -249,6 +249,7 @@ SET(SQL_SHARED_SOURCES
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
+  clone_handler.cc
   current_thd.cc
   dd_sql_view.cc
   dd_sp.cc

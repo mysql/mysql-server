@@ -83,6 +83,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0stats.h"
+#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -520,6 +521,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
 	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
 	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_task_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
@@ -538,10 +542,13 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
 	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
 	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
@@ -622,6 +629,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
+	PSI_KEY(archiver_thread),
 	PSI_KEY(buf_dump_thread),
 	PSI_KEY(dict_stats_thread),
 	PSI_KEY(io_handler_thread),
@@ -653,7 +661,9 @@ static PSI_file_info	all_innodb_files[] = {
 	PSI_KEY(innodb_tablespace_open_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
-	PSI_KEY(innodb_temp_file)
+	PSI_KEY(innodb_temp_file),
+	PSI_KEY(innodb_arch_file),
+	PSI_KEY(innodb_clone_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
@@ -3902,6 +3912,13 @@ innobase_dict_recover(
 			return(true);
 		}
 
+		/* Check and extend space files, if needed. */
+		if (fil_iterate_tablespace_files(false, nullptr,
+			fil_check_extend_space) != DB_SUCCESS) {
+
+			return(true);
+		}
+
 		srv_dict_recover_on_restart();
 success:
 		srv_start_threads(
@@ -4612,6 +4629,22 @@ innodb_init(
 		innobase_encryption_key_rotation;
 
 	innobase_hton->post_ddl = innobase_post_ddl;
+
+	/* Initialize handler clone interfaces for. */
+
+	innobase_hton->clone_interface.clone_begin
+		= innodb_clone_begin;
+	innobase_hton->clone_interface.clone_copy
+		= innodb_clone_copy;
+	innobase_hton->clone_interface.clone_end
+		= innodb_clone_end;
+
+	innobase_hton->clone_interface.clone_apply_begin
+		= innodb_clone_apply_begin;
+	innobase_hton->clone_interface.clone_apply
+		= innodb_clone_apply;
+	innobase_hton->clone_interface.clone_apply_end
+		= innodb_clone_apply_end;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 

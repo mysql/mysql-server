@@ -78,10 +78,12 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "ut0mem.h"
 #ifndef UNIV_HOTBACKUP
+# include "arch0arch.h"
 # include "btr0pcur.h"
 # include "btr0sea.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
+# include "clone0api.h"
 # include "dict0boot.h"
 # include "dict0crea.h"
 # include "dict0load.h"
@@ -177,6 +179,7 @@ static char*	srv_monitor_file_name;
 
 /* Keys to register InnoDB threads with performance schema */
 #ifdef UNIV_PFS_THREAD
+mysql_pfs_key_t	archiver_thread_key;
 mysql_pfs_key_t	buf_dump_thread_key;
 mysql_pfs_key_t	buf_resize_thread_key;
 mysql_pfs_key_t	dict_stats_thread_key;
@@ -210,6 +213,9 @@ static PSI_stage_info*	srv_stages[] =
 	&srv_stage_alter_table_merge_sort,
 	&srv_stage_alter_table_read_pk_internal_sort,
 	&srv_stage_buffer_pool_load,
+	&srv_stage_clone_file_copy,
+	&srv_stage_clone_redo_copy,
+	&srv_stage_clone_page_copy,
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
@@ -311,7 +317,7 @@ create_log_file(
 	ret = os_file_set_size(name, *file,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT,
-			       srv_read_only_mode);
+			       srv_read_only_mode, true);
 	if (!ret) {
 		ib::error() << "Cannot set log file " << name << " to size "
 			<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
@@ -506,7 +512,8 @@ create_log_files_rename(
 
 	fil_open_log_and_system_tablespace_files();
 
-	ib::warn() << "New log files created, LSN=" << lsn;
+	/* For cloned database it is normal to resize redo logs. */
+	ib::info() << "New log files created, LSN=" << lsn;
 }
 
 /*********************************************************************//**
@@ -600,7 +607,7 @@ srv_undo_tablespace_create(
 			file_name, fh,
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT,
-			srv_read_only_mode);
+			srv_read_only_mode, true);
 
 		if (!ret) {
 			ib::info() << "Error in creating " << file_name
@@ -1617,6 +1624,12 @@ srv_shutdown_all_bg_threads()
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
+		/* Stop archiver thread. */
+		if (archiver_is_active) {
+
+			os_event_set(archiver_thread_event);
+		}
+
 		bool	active = os_thread_any_active();
 
 		os_thread_sleep(100000);
@@ -1718,17 +1731,17 @@ srv_prepare_to_delete_redo_log_files(
 		flushed_lsn = log_sys->lsn;
 
 		{
-			ib::warn	warning;
+			ib::info	info;
 			if (srv_log_file_size == 0) {
-				warning << "Upgrading redo log: ";
+				info << "Upgrading redo log: ";
 			} else {
-				warning << "Resizing redo log from "
-					<< n_files << "*"
-					<< srv_log_file_size << " to ";
+				info << "Resizing redo log from "
+				     << n_files << "*"
+				     << srv_log_file_size << " to ";
 			}
-			warning << srv_n_log_files << "*"
-				<< srv_log_file_size_requested
-				<< " pages, LSN=" << flushed_lsn;
+			info << srv_n_log_files << "*"
+			     << srv_log_file_size_requested
+			     << " pages, LSN=" << flushed_lsn;
 		}
 
 		/* Flush the old log files. */
@@ -2045,6 +2058,8 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 	fsp_init();
 	log_init();
+	clone_init();
+	arch_init();
 
 	recv_sys_create();
 	recv_sys_init(buf_pool_get_curr_size());
@@ -2384,7 +2399,19 @@ files_checked:
 			respective file pages, for the last batch of
 			recv_group_scan_log_recs(). */
 
-			recv_apply_hashed_log_recs(true);
+			/* Don't allow IBUF operations for cloned database
+			recovery as it would add extra redo log and we may
+			not have enough margin. */
+			if (recv_sys->is_cloned_db) {
+
+				log_mutex_enter();
+				recv_apply_hashed_log_recs(false);
+				log_mutex_exit();
+
+			} else {
+
+				recv_apply_hashed_log_recs(true);
+			}
 
 			if (recv_sys->found_corrupt_log  == true) {
 				err = DB_ERROR;
@@ -2489,7 +2516,7 @@ files_checked:
 			/* Free the old log file space. */
 			log_group_close_all();
 
-			ib::warn() << "Starting to delete and rewrite log"
+			ib::info() << "Starting to delete and rewrite log"
 				" files.";
 
 			srv_log_file_size = srv_log_file_size_requested;
@@ -2505,6 +2532,26 @@ files_checked:
 			create_log_files_rename(
 				logfilename, dirnamelen, flushed_lsn,
 				logfile0);
+
+		} else if (recv_sys->is_cloned_db) {
+
+			/* Reset creator for log group */
+			log_group_t*	group;
+			group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+			log_mutex_enter();
+			log_group_header_read(group, 0);
+
+			lsn_t	start_lsn;
+			start_lsn = mach_read_from_8(log_sys->checkpoint_buf
+				+ LOG_HEADER_START_LSN);
+
+			log_group_header_read(group, LOG_CHECKPOINT_1);
+			log_mutex_exit();
+
+			log_write_mutex_enter();
+			log_group_file_header_flush(group, 0, start_lsn);
+			log_write_mutex_exit();
 		}
 
 		if (sum_of_new_sizes > 0) {
@@ -3086,6 +3133,8 @@ srv_shutdown()
 	btr_search_disable(true);
 
 	ibuf_close();
+	clone_free();
+	arch_free();
 	log_shutdown();
 	trx_sys_close();
 	lock_sys_close();

@@ -830,6 +830,236 @@ enum enum_schema_tables
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
+/** Clone operation types. */
+enum Ha_clone_type
+{
+  /** Caller must block all write operation to the SE. */
+  HA_CLONE_BLOCKING = 1,
+
+  /** For transactional SE, archive redo to support concurrent dml */
+  HA_CLONE_REDO,
+
+  /** For transactional SE, track page changes to support concurrent dml */
+  HA_CLONE_PAGE,
+
+  /** For transactional SE, use both page tracking and redo to optimize
+  clone with concurrent dml. Currently supported by Innodb. */
+  HA_CLONE_HYBRID
+};
+
+/** File reference for clone */
+struct Ha_clone_file
+{
+  /** File reference type */
+  enum
+  {
+    /** File handle */
+    FILE_HANDLE,
+
+    /** File descriptor */
+    FILE_DESC
+
+  } type;
+
+  /** File reference */
+  union
+  {
+    /** File descriptor */
+    int file_desc;
+
+    /** File handle for windows */
+    void* file_handle;
+  };
+};
+
+/* Abstract callback interface to stream data back to the caller. */
+class Ha_clone_cbk
+{
+public:
+
+  /** Callback providing data from current position of a
+  file descriptor of specific length.
+  @param[in]  from_file  source file to read from
+  @param[in]  len        data length
+  @return error code */
+  virtual int file_cbk(Ha_clone_file from_file, uint len) = 0;
+
+  /** Callback providing data in buffer of specific length.
+  @param[in]  from_buffer  source buffer to read from
+  @param[in]  len          data length
+  @return error code */
+  virtual int buffer_cbk(uchar* from_buffer, uint len) = 0;
+
+  /** Callback providing a file descriptor to write data starting
+  from current position.
+  @param[in]  to_file  destination file to write data
+  @return error code */
+  virtual int apply_file_cbk(Ha_clone_file to_file) = 0;
+
+  /** virtual destructor. */
+  virtual ~Ha_clone_cbk() {}
+
+  /** Set current storage engine handlerton.
+  @param[in]  hton  SE handlerton */
+  void set_hton(handlerton *hton)
+  {
+    m_hton = hton;
+  }
+
+  /** Get current storage engine handlerton.
+  @return SE handlerton */
+  handlerton* get_hton()
+  {
+    return(m_hton);
+  }
+
+  /** Set caller's transfer buffer size. SE can adjust the data chunk size
+  based on this parameter.
+  @param[in]  size  buffer size in bytes */
+  void set_client_buffer_size(uint size)
+  {
+    m_client_buff_size = size;
+  }
+
+  /** Get caller's transfer buffer size.
+  @return buffer size in bytes */
+  uint get_client_buffer_size()
+  {
+    return(m_client_buff_size);
+  }
+
+  /** Set current SE index.
+  @param[in]  idx  SE index in locator array */
+  void set_loc_index(uint idx)
+  {
+    m_loc_idx = idx;
+  }
+
+  /** Get current SE index.
+  @return SE index in locator array */
+  uint get_loc_index()
+  {
+    return(m_loc_idx);
+  }
+
+  /** Set data descriptor. SE specific descriptor for the
+  data transferred by the callbacks.
+  @param[in]  desc  serialized data descriptor
+  @param[in]  len   length of the descriptor byte stream  */
+  void set_data_desc(uchar* desc, uint len)
+  {
+    m_data_desc = desc;
+    m_desc_len = len;
+  }
+
+  /** Get data descriptor. SE specific descriptor for the
+  data transferred by the callbacks.
+  @param[out]  lenp  length of the descriptor byte stream
+  @return pointer to the serialized data descriptor */
+  uchar* get_data_desc(uint* lenp)
+  {
+    if (lenp != nullptr)
+    {
+      *lenp = m_desc_len;
+    }
+
+    return(m_data_desc);
+  }
+
+  /** Get SE source file name. Used for debug printing and error message.
+  @return null terminated string for source file name */
+  const char* get_source_name()
+  {
+    return(m_src_name);
+  }
+
+  /** Set SE source file name.
+  @param[in]   name  null terminated string for source file name */
+  void set_source_name(const char* name)
+  {
+    m_src_name = name;
+  }
+
+  /** Get SE destination file name. Used for debug printing and error message.
+  @return null terminated string for destination file name */
+  const char* get_dest_name()
+  {
+    return(m_dest_name);
+  }
+
+  /** Set SE destination file name.
+  @param[in]   name  null terminated string for destination file name */
+  void set_dest_name(const char* name)
+  {
+    m_dest_name = name;
+  }
+
+  /** Clear all flags set by SE */
+  void clear_flags()
+  {
+    m_flag = 0;
+  }
+
+  /* Mark that ACK is needed for the data transfer before returning
+  from callback. Set by SE. */
+  void set_ack()
+  {
+    m_flag |= HA_CLONE_ACK;
+  }
+
+  /** Check if ACK is needed for the data transfer
+  @return true if ACK is needed */
+  bool is_ack_needed()
+  {
+    return(m_flag & HA_CLONE_ACK);
+  }
+
+  /* Mark that the file descriptor is opened for read/write
+  with OS buffer cache. For O_DIRECT, the flag is not set. */
+  void set_os_buffer_cache()
+  {
+    m_flag |= HA_CLONE_FILE_CACHE;
+  }
+
+  /** Check if the file descriptor is opened for read/write with OS
+  buffer cache. Currently clone avoids using zero copy (sendfile on linux),
+  if SE is using O_DIRECT. This improves data copy performance.
+  @return true if O_DIRECT is not used */
+  bool is_os_buffer_cache()
+  {
+    return(m_flag & HA_CLONE_FILE_CACHE);
+  }
+
+private:
+  /** Handlerton for the SE */
+  handlerton*  m_hton;
+
+  /** SE index in caller's locator array */
+  uint   m_loc_idx;
+
+  /** Caller's transfer buffer size. */
+  uint   m_client_buff_size;
+
+  /** SE's Serialized data descriptor */
+  uchar* m_data_desc;
+  uint   m_desc_len;
+
+  /** Current source file name */
+  const char* m_src_name;
+
+  /** Current destination file name */
+  const char* m_dest_name;
+
+  /** Flag storing data related options */
+  int   m_flag;
+
+  /** Acknowledgement is needed for the data transfer. */
+  const int HA_CLONE_ACK = 0x01;
+
+  /** Data file is opened for read/write with OS buffer cache. */
+  const int HA_CLONE_FILE_CACHE = 0x02;
+};
+
 /**
   Class to hold information regarding a table to be created on
   behalf of a plugin. The class stores the name, definition, options
@@ -1606,6 +1836,37 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
                                                dd::Object_id se_private_id,
                                                ulonglong *cardinality);
 
+/* Database physical clone interfaces */
+using Clone_begin_t = int (*)(handlerton* hton, THD* thd,
+                              uchar*& loc, uint& loc_len, Ha_clone_type type);
+
+using Clone_copy_t = int (*)(handlerton* hton, THD* thd, uchar* loc,
+			     Ha_clone_cbk* desc);
+
+using Clone_end_t = int (*)(handlerton* hton, THD* thd, uchar* loc);
+
+using Clone_apply_begin_t = int (*)(handlerton* hton, THD* thd,
+                                    uchar*& loc, uint& loc_len,
+                                    const char* data_dir);
+
+using Clone_apply_t = int (*)(handlerton* hton, THD* thd, uchar* loc,
+			      Ha_clone_cbk* desc);
+
+using Clone_apply_end_t = int(*)(handlerton* hton, THD* thd, uchar* loc);
+
+struct Clone_interface_t
+{
+  /* Interfaces to copy data. */
+  Clone_begin_t clone_begin;
+  Clone_copy_t  clone_copy;
+  Clone_end_t   clone_end;
+
+  /* Interfaces to apply data. */
+  Clone_apply_begin_t clone_apply_begin;
+  Clone_apply_t       clone_apply;
+  Clone_apply_end_t   clone_apply_end;
+};
+
 /**
   Perform post-commit/rollback cleanup after DDL statement (e.g. in
   case of DROP TABLES really remove table files from disk).
@@ -1770,6 +2031,9 @@ struct handlerton
   get_index_column_cardinality_t get_index_column_cardinality;
 
   post_ddl_t post_ddl;
+
+  /** Clone data transfer interfaces */
+  Clone_interface_t clone_interface;
 
   /** Flag for Engine License. */
   uint32 license;
