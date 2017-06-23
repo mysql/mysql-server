@@ -421,7 +421,7 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
 
           if (thd->killed)
           {
-            switch (thd->killed)
+            switch (thd->killed.load())
             {
             case ER_SERVER_SHUTDOWN:
             case ER_QUERY_INTERRUPTED:

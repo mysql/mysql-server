@@ -608,7 +608,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     thd->killed= THD::KILL_QUERY;
                   };);
 
-  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed.load();
 
   /*
     We must invalidate the table in query cache before binlog writing and

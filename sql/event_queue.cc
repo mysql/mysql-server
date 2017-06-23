@@ -578,7 +578,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     /* Break loop if thd has been killed */
     if (thd->killed)
     {
-      DBUG_PRINT("info", ("thd->killed=%d", thd->killed));
+      DBUG_PRINT("info", ("thd->killed=%d", thd->killed.load()));
       goto end;
     }
 

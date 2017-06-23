@@ -171,8 +171,8 @@ merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Uniq_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  volatile THD::killed_state *killed= &thd->killed;
-  THD::killed_state not_killable;
+  std::atomic<THD::killed_state> *killed= &thd->killed;
+  std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
   DBUG_ENTER("uniq_merge_buffers");
 
   thd->inc_status_sort_merge_passes();

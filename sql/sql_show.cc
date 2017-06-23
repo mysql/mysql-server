@@ -2061,7 +2061,7 @@ static const char *thread_state_info(THD *tmp)
     Mutex_lock lock(&tmp->LOCK_current_cond);
     if (tmp->proc_info)
       return tmp->proc_info;
-    else if (tmp->current_cond)
+    else if (tmp->current_cond.load())
       return "Waiting on cond";
     else
       return NULL;

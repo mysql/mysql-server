@@ -1612,7 +1612,7 @@ public:
         killing_thd->kill_immunizer == NULL)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
-      if (killing_thd->current_cond)
+      if (killing_thd->current_cond.load())
       {
         mysql_mutex_lock(killing_thd->current_mutex);
         mysql_cond_broadcast(killing_thd->current_cond);

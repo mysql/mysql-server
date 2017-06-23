@@ -2395,7 +2395,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
-                      err_status, thd->killed, thd->is_slave_error,
+                      err_status, thd->killed.load(), thd->is_slave_error,
                       thd->is_error()));
 
   if (thd->killed)
