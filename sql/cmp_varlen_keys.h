@@ -28,6 +28,7 @@
   For record format documentation, @see Sort_param.
 
   @param  sort_field_array array of field descriptors for sorting
+  @param  use_hash compare hash values (for grouping of JSON data)
   @param  s1 pointer to record 1
   @param  s2 pointer to record 2
   @return true/false according to sorting order
