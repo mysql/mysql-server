@@ -180,6 +180,16 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table);
 
+/** Read persistent dynamic metadata stored in a buffer
+@param[in]	buffer		buffer to read
+@param[in]	size		size of data in buffer
+@param[in]	metadata	where we store the metadata from buffer */
+void
+dict_table_read_dynamic_metadata(
+	const byte*		buffer,
+	ulint			size,
+	PersistentTableMetadata*metadata);
+
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note that if !dict_table_has_atomic_blobs(table), no prefix

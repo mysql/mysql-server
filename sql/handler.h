@@ -31,6 +31,7 @@
 #include <string>
 
 #include "dd/object_id.h"      // dd::Object_id
+#include "dd/properties.h"     // dd::Properties
 #include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
 #include "hash.h"
@@ -1565,17 +1566,22 @@ typedef bool (*rotate_encryption_master_key_t)(void);
   @param db_name                  Name of schema
   @param table_name               Name of table
   @param se_private_id            SE private id of the table.
+  @param ts_se_private_data       Tablespace SE private data.
+  @param tbl_se_private_data      Table SE private data.
   @param flags                    Type of statistics to retrieve.
   @param stats                    (OUT) Contains statistics read from SE.
 
   @returns false on success,
            true on failure
 */
-typedef bool (*get_table_statistics_t)(const char *db_name,
-                                       const char *table_name,
-                                       dd::Object_id se_private_id,
-                                       uint flags,
-                                       ha_statistics *stats);
+typedef bool (*get_table_statistics_t)(
+                const char *db_name,
+                const char *table_name,
+                dd::Object_id se_private_id,
+                const dd::Properties &ts_se_private_data,
+                const dd::Properties &tbl_se_private_data,
+                uint flags,
+                ha_statistics *stats);
 
 /**
   @brief

@@ -38,6 +38,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0types.h"
 #include "trx0types.h"
+#include "dict0stats.h"
 #include "univ.i"
 
 /*********************************************************************//**
@@ -503,6 +504,36 @@ row_sel_field_store_in_mysql_format_func(
 	,ulint				sec_field
 #endif /* UNIV_DEBUG */
 	);
+
+
+/** Search the record present in innodb_table_stats table using
+db_name, table_name and fill it in table stats structure.
+@param[in]	db_name		database name
+@param[in]	tbl_name	table name
+@param[out]	table_stats	stats table structure.
+@return true if successful else false. */
+bool
+row_search_table_stats(
+	const char*		db_name,
+	const char*		tbl_name,
+	TableStatsRecord&	table_stats);
+
+/** Search the record present in innodb_index_stats using
+db_name, table name and index_name and fill the
+cardinality for the each column.
+@param[in]	db_name		database name
+@param[in]	tbl_name	table name
+@param[in]	index_name	index name
+@param[in]	col_offset	offset of the column in the index
+@param[out]	cardinality	cardinality of the column.
+@return true if successful else false. */
+bool
+row_search_index_stats(
+	const char*	db_name,
+	const char*	tbl_name,
+	const char*	index_name,
+	ulint		col_offset,
+	ulonglong*	cardinality);
 
 #include "row0sel.ic"
 

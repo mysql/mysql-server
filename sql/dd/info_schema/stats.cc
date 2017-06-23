@@ -296,6 +296,8 @@ ulonglong Statistics_cache::read_stat(
             uint column_ordinal_position,
             const String &engine_name_ptr,
             Object_id se_private_id,
+            const char* ts_se_private_data,
+            const char* tbl_se_private_data,
             enum_statistics_type stype)
 {
   DBUG_ENTER("Statistics_cache::read_stat");
@@ -331,6 +333,8 @@ ulonglong Statistics_cache::read_stat(
                               index_ordinal_position,
                               column_ordinal_position,
                               se_private_id,
+                              ts_se_private_data,
+                              tbl_se_private_data,
                               stype);
   else
     result= read_stat_by_open_table(thd,
@@ -375,6 +379,8 @@ ulonglong Statistics_cache::read_stat_from_SE(
             uint index_ordinal_position,
             uint column_ordinal_position,
             Object_id se_private_id,
+            const char* ts_se_private_data,
+            const char* tbl_se_private_data,
             enum_statistics_type stype)
 {
   DBUG_ENTER("Statistics_cache::read_stat_from_SE");
@@ -481,6 +487,20 @@ ulonglong Statistics_cache::read_stat_from_SE(
   {
     error= -1;
 
+    /*
+      It is possible that 'se_private_data' is not supplied to this
+      function. The function dd::Properties::parse_properties() would
+      at-least needs a single key-value pair to return a dd::Properties
+      object. So, when se_private_data is not supplied, we force creation
+      of dd::Properties object by passing a dummy=0 key-value pair.
+    */
+    std::unique_ptr<dd::Properties> ts_se_private_data_obj(
+      dd::Properties::parse_properties(
+        ts_se_private_data?ts_se_private_data:"dummy=0;"));
+    std::unique_ptr<dd::Properties> tbl_se_private_data_obj(
+      dd::Properties::parse_properties(
+        tbl_se_private_data?tbl_se_private_data:"dummy=0;"));
+
     //
     // Read statistics from SE
     //
@@ -503,6 +523,8 @@ ulonglong Statistics_cache::read_stat_from_SE(
         !hton->get_table_statistics(schema_name_ptr.ptr(),
                                     table_name_ptr.ptr(),
                                     se_private_id,
+                                    *ts_se_private_data_obj.get(),
+                                    *tbl_se_private_data_obj.get(),
                                     se_flags,
                                     &ha_stat))
     {
