@@ -7063,6 +7063,7 @@ ha_innobase::open(
 				ib_table = nullptr;
 				cached = true;
 			} else if (ib_table->refresh_fk) {
+				ib_table->acquire();
 				dict_names_t    fk_tables;
 				mutex_exit(&dict_sys->mutex);
 				dd::cache::Dictionary_client*
@@ -7081,11 +7082,11 @@ ha_innobase::open(
 				ib_table->refresh_fk = false;
 
 				if (err != DB_SUCCESS) {
+					ib_table->release();
 					goto reload;
 				}
 
 				cached = true;
-				ib_table->acquire();
 			} else if (ib_table->discard_after_ddl) {
 reload:
 				btr_drop_ahi_for_table(ib_table);
