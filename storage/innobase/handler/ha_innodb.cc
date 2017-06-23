@@ -13827,10 +13827,36 @@ innobase_basic_ddl::rename_impl(
 		dict_table_t*	table;
 		bool		rename_dd_filename = false;
 		char*		new_path = nullptr;
+		bool		dict_locked = true;
 
 		mutex_enter(&dict_sys->mutex);
+
 		table = dict_table_check_if_in_cache_low(norm_to);
-		ut_ad(table != nullptr);
+		if (table == nullptr) {
+			int	err;
+
+			mutex_exit(&dict_sys->mutex);
+			dict_locked = false;
+
+			dd::cache::Dictionary_client* client =
+				dd::get_dd_client(thd);
+			dd::cache::Dictionary_client::Auto_releaser releaser(
+				client);
+
+			/* This could not happen for ALTER PARTITION
+			operations, because the table has always been required.
+			So in other cases, the norm_to and the to_table->name()
+			should be always consistent */
+			err = dd_table_open_on_dd_obj(
+				client, to_table->table(),
+				(!dd_table_is_partitioned(to_table->table())
+				? nullptr
+				: reinterpret_cast<const dd::Partition*>(
+					to_table)),
+				norm_to, table, thd);
+			ut_ad(err == 0);
+			ut_ad(table != nullptr);
+		}
 
 		rename_dd_filename = dict_table_is_file_per_table(table);
 
@@ -13842,10 +13868,12 @@ innobase_basic_ddl::rename_impl(
 		    && !row_is_mysql_tmp_table_name(norm_to)
 		    && !dict_table_is_partition(table)) {
 			table->refresh_fk = true;
+		}
 
+		if (dict_locked) {
 			mutex_exit(&dict_sys->mutex);
 		} else {
-			mutex_exit(&dict_sys->mutex);
+			dd_table_close(table, thd, nullptr, false);
 		}
 
 		if (rename_dd_filename && new_path != nullptr) {
