@@ -9644,9 +9644,16 @@ static ulonglong get_statistics_from_cache(
   String schema_name;
   String table_name;
   String engine_name;
+  String ts_se_private_data;
+  String tbl_se_private_data;
   String *schema_name_ptr=args[0]->val_str(&schema_name);
   String *table_name_ptr=args[1]->val_str(&table_name);
   String *engine_name_ptr=args[2]->val_str(&engine_name);
+  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *tbl_se_private_data_ptr= nullptr;
+  if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
+    tbl_se_private_data_ptr= args[5]->val_str(&tbl_se_private_data);
+
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr)
   {
@@ -9666,12 +9673,18 @@ static ulonglong get_statistics_from_cache(
   // Read the statistic value from cache.
   THD *thd= current_thd;
   dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-  ulonglong result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-                                                      *schema_name_ptr,
-                                                      *table_name_ptr,
-                                                      *engine_name_ptr,
-                                                      se_private_id,
-                                                      stype);
+  ulonglong result=
+    thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr),
+                (tbl_se_private_data_ptr ?
+                 tbl_se_private_data_ptr->c_ptr_safe() : nullptr),
+                stype);
+
   DBUG_RETURN(result);
 }
 
@@ -9878,6 +9891,8 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             column_ordinal_position - 1,
             *engine_name_ptr,
             se_private_id,
+            nullptr,
+            nullptr,
             dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)

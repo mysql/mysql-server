@@ -5765,7 +5765,6 @@ dict_table_apply_dynamic_metadata(
 @param[in]	buffer		buffer to read
 @param[in]	size		size of data in buffer
 @param[in]	metadata	where we store the metadata from buffer */
-static
 void
 dict_table_read_dynamic_metadata(
 	const byte*		buffer,

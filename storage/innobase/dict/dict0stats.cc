@@ -3651,6 +3651,121 @@ dict_stats_evict_tablespaces()
 	trx_free_for_background(trx);
 }
 
+TableStatsRecord::TableStatsRecord()
+{
+	m_heap = nullptr;
+}
+
+TableStatsRecord::~TableStatsRecord()
+{
+	if (m_heap != nullptr) {
+		mem_heap_free(m_heap);
+	}
+}
+
+ib_uint64_t TableStatsRecord::get_n_rows() const
+{
+	return(m_n_rows);
+}
+
+void TableStatsRecord::set_n_rows(
+	ib_uint64_t no_of_rows)
+{
+	m_n_rows = no_of_rows;
+}
+
+ulint TableStatsRecord::get_clustered_index_size() const
+{
+	return(m_clustered_index_size);
+}
+
+void TableStatsRecord::set_clustered_index_size(ulint clust_size)
+{
+	m_clustered_index_size = clust_size;
+}
+
+ulint TableStatsRecord::get_sum_of_other_index_size() const
+{
+	return(m_sum_of_other_index_sizes);
+}
+
+void TableStatsRecord::set_sum_of_other_index_size(
+		ulint sum_of_other_index_size)
+{
+	m_sum_of_other_index_sizes = sum_of_other_index_size;
+}
+
+char* TableStatsRecord::get_db_name() const
+{
+	return(m_db_name);
+}
+
+void TableStatsRecord::set_db_name(
+	const byte*	data,
+	ulint		len)
+{
+	if (m_heap == nullptr) {
+		m_heap = mem_heap_create(MAX_DATABASE_NAME_LEN + 1);
+	}
+
+	m_db_name = static_cast<char*>(
+			mem_heap_dup(m_heap, data, len + 1));
+	m_db_name[len] = '\0';
+}
+
+char* TableStatsRecord::get_tbl_name() const
+{
+	return(m_tbl_name);
+}
+
+void TableStatsRecord::set_tbl_name(
+	const byte*	data,
+	ulint		len)
+{
+	if (m_heap == nullptr) {
+		m_heap = mem_heap_create(MAX_TABLE_NAME_LEN + 1);
+	}
+
+	m_tbl_name = static_cast<char*>(
+			mem_heap_dup(m_heap, data, len + 1));
+	m_tbl_name[len] = '\0';
+}
+
+void TableStatsRecord::set_data(
+	const byte*	data,
+	ulint		col_offset,
+	ulint		len)
+{
+	dict_table_t*	table = dict_sys->table_stats;
+	dict_index_t*	index = table->first_index();
+	ulint		value;
+	ib_uint64_t	n_row;
+	ulint		index_col_offset = index->get_col_no(col_offset);
+
+	switch(index_col_offset) {
+		case DB_NAME_COL_NO:
+			set_db_name(data, len);
+			break;
+		case TABLE_NAME_COL_NO:
+			set_tbl_name(data, len);
+			break;
+		case N_ROWS_COL_NO:
+			n_row = mach_read_from_8(data);
+			set_n_rows(n_row);
+			break;
+		case CLUST_INDEX_SIZE_COL_NO:
+			value = mach_read_from_8(data);
+			set_clustered_index_size(value);
+			break;
+		case SUM_OF_OTHER_INDEX_SIZE_COL_NO:
+			value = mach_read_from_8(data);
+			set_sum_of_other_index_size(value);
+			break;
+		default:
+			break;
+	}
+}
+
 /* tests @{ */
 #ifdef UNIV_COMPILE_TEST_FUNCS
 /* save/fetch aux macros @{ */
