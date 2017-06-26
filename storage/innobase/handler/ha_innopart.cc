@@ -3287,6 +3287,12 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		info->tablespace = table_part->tablespace == NULL
 			? NULL
 			: mem_heap_strdup(heap, table_part->tablespace);
+
+		if (table_part->can_be_evicted) {
+			mutex_enter(&dict_sys->mutex);
+			dict_table_prevent_eviction(table_part);
+			mutex_exit(&dict_sys->mutex);
+		}
 	}
 
 	if (error != 0) {

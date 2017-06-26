@@ -13746,6 +13746,13 @@ innobase_basic_ddl::delete_impl(
 			norm_name, tab, thd);
 
 		if (err == 0 && tab != nullptr) {
+
+			if (tab->can_be_evicted) {
+				mutex_enter(&dict_sys->mutex);
+				dict_table_prevent_eviction(tab);
+				mutex_exit(&dict_sys->mutex);
+			}
+
 			file_per_table = dict_table_is_file_per_table(tab);
 			dd_table_close(tab, thd, nullptr, false);
 		}
@@ -14606,6 +14613,12 @@ ha_innobase::truncate(dd::Table *table_def)
 	}
 
 	char*	name	= mem_strdup(m_share->table_name);
+
+	if (m_prebuilt->table->can_be_evicted) {
+		mutex_enter(&dict_sys->mutex);
+		dict_table_prevent_eviction(m_prebuilt->table);
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	close();
 
