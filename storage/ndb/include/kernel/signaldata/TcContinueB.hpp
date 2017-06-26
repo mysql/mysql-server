@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,12 +49,13 @@ private:
     DelayTCKEYCONF                         = 18,
     ZNF_CHECK_TRANSACTIONS                 = 19,
     ZSEND_FIRE_TRIG_REQ                    = 20,
-    ZSTART_FRAG_SCANS                      = 21
+    ZSTART_FRAG_SCANS                      = 21,
+    ZSEND_FRAG_SCANS                       = 22
 #ifdef ERROR_INSERT
-    ,ZDEBUG_DELAYED_ABORT                  = 22
-    ,ZDEBUG_DELAY_TCROLLBACKREP            = 23
+    ,ZDEBUG_DELAYED_ABORT                  = 23
+    ,ZDEBUG_DELAY_TCROLLBACKREP            = 24
 #endif
-    ,ZSCAN_FOR_READ_BACKUP                  = 24
+    ,ZSCAN_FOR_READ_BACKUP                 = 25
   };
 };
 

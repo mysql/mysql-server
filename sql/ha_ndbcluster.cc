@@ -17280,7 +17280,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
 
   if (THDVAR(thd, join_pushdown) &&
       // Check for online upgrade/downgrade.
-      ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
+      ndbd_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
     bool pushed_something = false;
     ndb_pushed_builder_ctx pushed_builder(*plan);

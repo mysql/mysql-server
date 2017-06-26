@@ -133,3 +133,15 @@ cmd: testNodeRestart
 args: -n InitialNodeRestartTest D1 D2
 max-time : 1200
 
+cmd: testScan
+args: -n ScanReadError8115 T1 T6 I3
+max-time : 60
+
+cmd: tstSpj
+args: -n MultiFrag_OOM T1 T6 I3
+max-time : 60
+
+cmd: tstSpj
+args: -n MultiFrag_OOM_rand T1 T6 I3
+max-time : 60
+

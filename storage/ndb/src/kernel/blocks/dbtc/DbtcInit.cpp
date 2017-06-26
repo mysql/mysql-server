@@ -166,6 +166,10 @@ void Dbtc::initRecords()
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
 				      sizeof(GcpRecord), 
 				      cgcpFilesize);
+
+  Pool_context pc;
+  pc.m_block = this;
+  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc);
   
 }//Dbtc::initRecords()
 

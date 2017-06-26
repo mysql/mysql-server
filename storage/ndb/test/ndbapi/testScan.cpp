@@ -3102,9 +3102,18 @@ TESTCASE("ScanReadError5025",
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanReadError8081",
-	 "Scan and insert error 8081"){
+         "Scan and insert error 8081."\
+         "Check scanError() return from 'sendDihGetNodesLab'"){
   INITIALIZER(runLoadTable);
   TC_PROPERTY("ErrorCode", 8081);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanReadError8115",
+         "Scan and insert error 8115."\
+         "Check scanError() return from 'sendFragScansLab'"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8115);
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
@@ -3350,10 +3359,10 @@ TESTCASE("ScanKeyInfoExhaust",
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug16402744", 
-	 "Test scan behaviour with multiple DIH_SCAN_GET_NODES_REQ "\
-         "and _CONF handling possible delayed/incomplete due to "\
-         "CONTINUEB(ZSTART_FRAG_SCAN)"){
+TESTCASE("Bug16402744",
+         "Test scan behaviour with multiple SCAN_FRAGREQ possibly "
+         "delayed/incomplete due to a CONTINUEB(ZSEND_FRAG_SCANS) break.")
+{
   INITIALIZER(runLoadTable);
   TC_PROPERTY("Parallelism", 240);
   TC_PROPERTY("ErrorCode", 8097);
