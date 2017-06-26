@@ -43,12 +43,14 @@ extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;
 
 
+namespace {
 /**
   Static name of Group Replication plugin.
 */
 LEX_CSTRING group_replication_plugin_name= {
   C_STRING_WITH_LEN("group_replication")
 };
+} // namespace
 
 
 /*
