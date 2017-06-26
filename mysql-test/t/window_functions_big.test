@@ -6,6 +6,7 @@
 # INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY' again (currently banned), but as it
 # stands it doesn't add much value.
 
+--source include/not_valgrind.inc
 --source include/big_test.inc
 
 --echo # ----------------------------------------------------------------------
