@@ -492,13 +492,13 @@ my $file = "$vardir/tmp/t9.csv";
 my $fh = gensym();
 open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
-my $d = '"';
-print $fh 0, "//", "123", "//", "abc", "###\n";
-print $fh 1, "//", "/456#", "//", "/foo#", "###\n";
-print $fh 2, "//", "789###", "//", "bar###", "###\n";
-print $fh 3, "//", $d."123".$d, "//", "abc", "###\n";
-print $fh 4, "//", "/456#", "//", $d."/foo#".$d, "###\n";
-print $fh 5, "//", $d."789###".$d, "//", $d."bar###".$d, "###\n";
+my $d = '-';
+print $fh 0, "::", "123", "::", "abc", "===_";
+print $fh 1, "::", ":456=", "::", ":foo=", "===_";
+print $fh 2, "::", "789===", "::", "bar===", "===_";
+print $fh 3, "::", $d."123".$d, "::", "abc", "===_";
+print $fh 4, "::", ":456=", "::", $d.":foo=".$d, "===_";
+print $fh 5, "::", $d."789===".$d, "::", $d."bar===".$d, "===_";
 close($fh)
   or die "$file: close after write failed: $!";
 exit(0);
@@ -515,17 +515,30 @@ create table t9ver like t9;
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t9.csv'
 into table t9ver
-fields terminated by '//' optionally enclosed by '"'
-lines terminated by '###\n';
+fields terminated by '::' optionally enclosed by '-'
+lines terminated by '===_';
 --enable_query_log
 select * from t9ver order by a;
 
+if (!$is_windows)
+{
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
      --keep-state
-     --fields-terminated-by='//'
-     --fields-optionally-enclosed-by='"'
-     --lines-terminated-by='###\n'
+     --fields-terminated-by='::'
+     --fields-optionally-enclosed-by='-'
+     --lines-terminated-by='===_'
      test $MYSQLTEST_VARDIR/tmp/t9.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+}
+
+if ($is_windows)
+{
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
+     --keep-state
+     --fields-terminated-by=::
+     --fields-optionally-enclosed-by=-
+     --lines-terminated-by====_
+     test $MYSQLTEST_VARDIR/tmp/t9.csv >> $NDB_TOOLS_OUTPUT 2>&1;
+}
 
 select count(*) from t9 x, t9ver y
 where x.a = y.a
