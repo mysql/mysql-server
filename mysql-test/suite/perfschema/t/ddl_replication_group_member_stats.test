@@ -6,7 +6,7 @@
 ALTER TABLE performance_schema.replication_group_member_stats
   ADD COLUMN foo INTEGER;
 
---error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.replication_group_member_stats;
 
 --error ER_DBACCESS_DENIED_ERROR

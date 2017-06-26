@@ -69,7 +69,7 @@ Plugin_table table_socket_summary_by_event_name::m_table_def(
   nullptr);
 
 PFS_engine_table_share table_socket_summary_by_event_name::m_share = {
-  &pfs_readonly_acl,
+  &pfs_truncatable_acl,
   table_socket_summary_by_event_name::create,
   NULL, /* write_row */
   table_socket_summary_by_event_name::delete_all_rows,
