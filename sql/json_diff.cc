@@ -37,16 +37,17 @@ Json_wrapper Json_diff::value() const
   member names. Auto-wrapping is not performed.
 
   @param dom        the root of the DOM
-  @param path       the path to seek for
-  @param path_legs  the number of path legs to use
+  @param first_leg  the first path leg
+  @param last_leg   the last path leg (exclusive)
   @return the JSON DOM at the given path, or `nullptr` if the path is not found
 */
-static Json_dom *seek_exact_path(Json_dom *dom, const Json_seekable_path &path,
-                                 size_t path_legs)
+static Json_dom *seek_exact_path(Json_dom *dom,
+                                 const Json_path_iterator &first_leg,
+                                 const Json_path_iterator &last_leg)
 {
-  for (size_t i= 0; i < path_legs; ++i)
+  for (auto it= first_leg; it != last_leg; ++it)
   {
-    const auto leg= path.get_leg_at(i);
+    const Json_path_leg *leg= *it;
     const auto leg_type= leg->get_type();
     DBUG_ASSERT(leg_type == jpl_member || leg_type == jpl_array_cell);
     switch (dom->json_type())
@@ -164,7 +165,7 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
     case enum_json_diff_operation::REPLACE:
       {
         DBUG_ASSERT(path.leg_count() > 0);
-        Json_dom *old= seek_exact_path(dom, path, path.leg_count());
+        Json_dom *old= seek_exact_path(dom, path.begin(), path.end());
         if (old == nullptr)
           return enum_json_diff_status::REJECTED;
         DBUG_ASSERT(old->parent() != nullptr);
@@ -174,10 +175,10 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
     case enum_json_diff_operation::INSERT:
       {
         DBUG_ASSERT(path.leg_count() > 0);
-        Json_dom *parent= seek_exact_path(dom, path, path.leg_count() - 1);
+        Json_dom *parent= seek_exact_path(dom, path.begin(), path.end() - 1);
         if (parent == nullptr)
           return enum_json_diff_status::REJECTED;
-        const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+        const Json_path_leg *last_leg= path.last_leg();
         if (parent->json_type() == enum_json_type::J_OBJECT &&
             last_leg->get_type() == jpl_member)
         {
@@ -202,10 +203,10 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
     case enum_json_diff_operation::REMOVE:
       {
         DBUG_ASSERT(path.leg_count() > 0);
-        Json_dom *parent= seek_exact_path(dom, path, path.leg_count() - 1);
+        Json_dom *parent= seek_exact_path(dom, path.begin(), path.end() - 1);
         if (parent == nullptr)
           return enum_json_diff_status::REJECTED;
-        const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+        const Json_path_leg *last_leg= path.last_leg();
         if (parent->json_type() == enum_json_type::J_OBJECT)
         {
           auto object= down_cast<Json_object*>(parent);
