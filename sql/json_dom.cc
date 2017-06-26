@@ -2152,7 +2152,7 @@ bool Json_dom::seek(const Json_seekable_path &path,
   auto-wrapping. Those paths can take advantage of the efficient
   positioning logic of json_binary::Value.
 
-  @param[in] wrapper the wrapper to search
+  @param[in] value the JSON value to search
   @param[in] current_leg iterator to the first path leg to look at.
              Usually called on the root document with an iterator pointing to
              the beginning of the path, and then incremented in recursive calls
@@ -2165,143 +2165,106 @@ bool Json_dom::seek(const Json_seekable_path &path,
 
   @returns false if there was no error, otherwise true on error
 */
-static bool seek_no_dup_elimination(const Json_wrapper &wrapper,
+static bool seek_no_dup_elimination(const json_binary::Value &value,
                                     const Json_path_iterator &current_leg,
                                     const Json_path_iterator &last_leg,
                                     Json_wrapper_vector *hits,
                                     bool auto_wrap,
                                     bool only_need_one)
 {
-  // DOMs are searched using Json_dom::seek() instead.
-  DBUG_ASSERT(!wrapper.is_dom());
-
   if (current_leg == last_leg)
-    return hits->push_back(wrapper);
+    return hits->emplace_back(value);
 
   const Json_path_leg *path_leg= *current_leg;
   const Json_path_iterator next_leg= current_leg + 1;
-  const enum_json_type jtype= wrapper.type();
 
   switch (path_leg->get_type())
   {
   case jpl_member:
     {
-      switch (jtype)
-      {
-      case enum_json_type::J_OBJECT:
-        {
-          Json_wrapper member= wrapper.lookup(path_leg->get_member_name());
+      if (!value.is_object())
+        return false;
 
-          if (member.type() != enum_json_type::J_ERROR)
-          {
-            // recursion
-            if (seek_no_dup_elimination(member, next_leg, last_leg, hits,
-                                        auto_wrap, only_need_one))
-              return true;                    /* purecov: inspected */
-          }
-          return false;
-        }
+      json_binary::Value member= value.lookup(path_leg->get_member_name());
+      if (member.type() == json_binary::Value::ERROR)
+        return false;
 
-      default:
-        {
-          return false;
-        }
-      } // end inner switch on wrapper type
+      // recursion
+      return seek_no_dup_elimination(member, next_leg, last_leg, hits,
+                                     auto_wrap, only_need_one);
     }
 
   case jpl_member_wildcard:
+    if (!value.is_object())
+      return false;
+
+    for (size_t i= 0, size= value.element_count(); i < size; ++i)
     {
-      switch (jtype)
-      {
-      case enum_json_type::J_OBJECT:
-        {
-          for (Json_wrapper_object_iterator iter= wrapper.object_iterator();
-               !iter.empty(); iter.next())
-          {
-            if (is_seek_done(hits, only_need_one))
-              return false;
+      if (is_seek_done(hits, only_need_one))
+        return false;
 
-            // recursion
-            if (seek_no_dup_elimination(iter.elt().second, next_leg, last_leg,
-                                        hits, auto_wrap, only_need_one))
-              return true;                    /* purecov: inspected */
-          }
-          return false;
-        }
-
-      default:
-        {
-          return false;
-        }
-      } // end inner switch on wrapper type
+      // recursion
+      if (seek_no_dup_elimination(value.element(i), next_leg, last_leg,
+                                  hits, auto_wrap, only_need_one))
+        return true;                    /* purecov: inspected */
     }
+
+    return false;
 
   case jpl_array_cell:
-    if (jtype == enum_json_type::J_ARRAY)
+    if (value.is_array())
     {
-      const Json_array_index idx= path_leg->first_array_index(wrapper.length());
+      const Json_array_index idx=
+        path_leg->first_array_index(value.element_count());
       return idx.within_bounds() &&
-        seek_no_dup_elimination(wrapper[idx.position()], next_leg, last_leg, hits,
-                                auto_wrap, only_need_one);
+        seek_no_dup_elimination(value.element(idx.position()), next_leg,
+                                last_leg, hits, auto_wrap, only_need_one);
     }
     return auto_wrap && path_leg->is_autowrap() &&
-      seek_no_dup_elimination(wrapper, next_leg, last_leg, hits,
+      seek_no_dup_elimination(value, next_leg, last_leg, hits,
                               auto_wrap, only_need_one);
 
   case jpl_array_range:
   case jpl_array_cell_wildcard:
-    if (jtype == enum_json_type::J_ARRAY)
+    if (value.is_array())
     {
-      const auto range= path_leg->get_array_range(wrapper.length());
-      for (size_t idx= range.m_begin; idx < range.m_end; idx++)
+      const auto range= path_leg->get_array_range(value.element_count());
+      for (size_t i= range.m_begin; i < range.m_end; ++i)
       {
         if (is_seek_done(hits, only_need_one))
           return false;
 
         // recursion
-        if (seek_no_dup_elimination(wrapper[idx], next_leg, last_leg, hits,
+        if (seek_no_dup_elimination(value.element(i), next_leg, last_leg, hits,
                                     auto_wrap, only_need_one))
           return true;                        /* purecov: inspected */
       }
       return false;
     }
     return auto_wrap && path_leg->is_autowrap() &&
-      seek_no_dup_elimination(wrapper, next_leg, last_leg, hits,
+      seek_no_dup_elimination(value, next_leg, last_leg, hits,
                               auto_wrap, only_need_one);
 
   case jpl_ellipsis:
     // recursion
-    if (seek_no_dup_elimination(wrapper, next_leg, last_leg, hits,
+    if (seek_no_dup_elimination(value, next_leg, last_leg, hits,
                                 auto_wrap, only_need_one))
       return true;                            /* purecov: inspected */
-    if (jtype == enum_json_type::J_ARRAY)
+
+    if (value.is_array() || value.is_object())
     {
-      const size_t length= wrapper.length();
-      for (size_t idx= 0; idx < length; ++idx)
+      for (size_t i= 0, size= value.element_count(); i < size; ++i)
       {
         if (is_seek_done(hits, only_need_one))
           return false;
 
         // recursion
-        if (seek_no_dup_elimination(wrapper[idx], current_leg, last_leg, hits,
-                                    auto_wrap, only_need_one))
-          return true;                        /* purecov: inspected */
-      }
-    }
-    else if (jtype == enum_json_type::J_OBJECT)
-    {
-      for (Json_wrapper_object_iterator iter= wrapper.object_iterator();
-           !iter.empty(); iter.next())
-      {
-        if (is_seek_done(hits, only_need_one))
-          return false;
-
-        // recursion
-        if (seek_no_dup_elimination(iter.elt().second, current_leg, last_leg,
+        if (seek_no_dup_elimination(value.element(i), current_leg, last_leg,
                                     hits, auto_wrap, only_need_one))
           return true;                        /* purecov: inspected */
       }
     }
+
     return false;
   } // end outer switch on leg type
 
@@ -2343,7 +2306,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     return false;
   }
 
-  return seek_no_dup_elimination(*this, path.begin(), path.end(), hits,
+  return seek_no_dup_elimination(m_value, path.begin(), path.end(), hits,
                                  auto_wrap, only_need_one);
 }
 
@@ -3719,7 +3682,7 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
 
   // Find the parent of the value we want to modify.
   Json_wrapper_vector hits(key_memory_JSON);
-  if (seek_no_dup_elimination(*this, path.begin(), path.end() - 1, &hits,
+  if (seek_no_dup_elimination(m_value, path.begin(), path.end() - 1, &hits,
                               false, true))
     return true;                                /* purecov: inspected */
 
@@ -3865,7 +3828,7 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   *found_path= false;
 
   Json_wrapper_vector hits(key_memory_JSON);
-  if (seek_no_dup_elimination(*this, path.begin(), path.end() - 1, &hits,
+  if (seek_no_dup_elimination(m_value, path.begin(), path.end() - 1, &hits,
                               false, true))
     return true;                                /* purecov: inspected */
 

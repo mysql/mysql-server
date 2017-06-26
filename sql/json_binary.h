@@ -249,6 +249,12 @@ public:
     return *this;
   }
 
+  /** Is this value an array? */
+  bool is_array() const { return m_type == ARRAY; }
+
+  /** Is this value an object? */
+  bool is_object() const { return m_type == OBJECT; }
+
 private:
   /*
     Instances use only one of m_data, m_int_value and m_double_value,
