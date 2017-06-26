@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +111,7 @@ private:
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
   static Uint32 get4WordConf(const Uint32&);
   static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
+  static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 
   /**
    * Set:ers for requestInfo
@@ -131,6 +132,7 @@ private:
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
   static void set4WordConf(Uint32 & requestInfo, Uint32 val);
   static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
+  static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -205,6 +207,7 @@ private:
 #define SCAN_PASS_CONF_SHIFT (28)
 #define SCAN_4WORD_CONF_SHIFT (29)
 #define SCAN_READ_COMMITTED_BASE_SHIFT (30)
+#define SCAN_MULTI_FRAG_SHIFT (31)
 
 inline
 Uint8
@@ -417,6 +420,24 @@ void
 ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
   requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+}
+
+/**
+ * MULTI_FRAG flag can currently only be used together
+ * with ViaSPJ flag.
+ */
+inline
+UintR
+ScanTabReq::getMultiFragFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_MULTI_FRAG_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setMultiFragFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setMultiFragFlag");
+  requestInfo= (requestInfo & ~(1 << SCAN_MULTI_FRAG_SHIFT)) |
+               (flag << SCAN_MULTI_FRAG_SHIFT);
 }
 
 /**

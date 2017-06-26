@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
+#include "ndb_thd.h"
 #include <ndb_version.h>
 
 
@@ -45,7 +46,7 @@
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
-  if (unlikely(current_thd->lex->describe))   \
+  if (unlikely(current_thd->lex->describe))                       \
   {                                                               \
     push_warning_printf(current_thd,                              \
                         Sql_condition::SL_NOTE, ER_YES,           \
@@ -451,7 +452,7 @@ ndb_pushed_builder_ctx::make_pushed_join(
     if (unlikely(error))
       DBUG_RETURN(error);
 
-    const NdbQueryDef* const query_def= m_builder->prepare();
+    const NdbQueryDef* const query_def= m_builder->prepare(get_thd_ndb(current_thd)->ndb);
     if (unlikely(query_def == NULL))
       DBUG_RETURN(-1);  // Get error with ::getNdbError()
 

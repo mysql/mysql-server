@@ -1445,11 +1445,11 @@ tot_key_keyinfo_bytes	0
 tot_key_prog_bytes	0
 tot_key_inst_exec	0
 tot_key_bytes_returned	0
-tot_frag_scans	80
+tot_frag_scans	32
 tot_scan_rows_examined	20
 tot_scan_rows_returned	20
 tot_scan_bytes_returned	588
-tot_scan_prog_bytes	768
+tot_scan_prog_bytes	576
 tot_scan_bound_bytes	9888
 tot_scan_inst_exec	58
 conc_qd_frag_scans	0
