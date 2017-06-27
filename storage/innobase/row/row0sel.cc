@@ -5194,7 +5194,7 @@ rec_loop:
 
 					/** In case of prebuilt->fetch,
 					set the error in prebuilt->end_range. */
-					if (prebuilt->n_fetch_cached > 0) {
+					if (next_buf != nullptr) {
 						prebuilt->m_end_range = true;
 					}
 
