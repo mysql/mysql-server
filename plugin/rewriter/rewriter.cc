@@ -211,12 +211,15 @@ Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key)
   for (auto it= it_range.first; it != it_range.second; ++it)
   {
     Rule *rule= it->second.get();
-    digest_matched= true;
     if (rule->matches(thd))
     {
       result= rule->create_new_query(thd);
       if (result.was_rewritten)
         return result;
+    }
+    else
+    {
+      digest_matched= true;
     }
   }
 
