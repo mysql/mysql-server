@@ -918,8 +918,19 @@ try_again:
 			const auto no_mdl = nullptr;
 			node->mdl = no_mdl;
 
+			mutex_enter(&dict_sys->mutex);
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl, false, true);
+				table_id, thd, &node->mdl, true, true);
+
+			if (node->table && node->table->is_temporary()) {
+				/* Temp table does not do purge */
+				ut_ad(node->mdl == nullptr);
+				dd_table_close(node->table, nullptr, nullptr , true);
+				mutex_exit(&dict_sys->mutex);
+				goto err_exit;
+			}
+
+			mutex_exit(&dict_sys->mutex);
 
 			if (node->table != nullptr) {
 				if (node->table->is_fts_aux()) {
