@@ -1627,9 +1627,13 @@ struct dict_table_t {
 	/** Number of virtual columns. */
 	unsigned				n_v_cols:10;
 
-	/** TRUE if it's not an InnoDB system table or a table that has no FK
-	relationships. */
+	/** TRUE if this table is expected to be kept in memory. This table
+	could be a table that has FK relationships or is undergoing DDL */
 	unsigned				can_be_evicted:1;
+
+	/** TRUE if this table is not evictable(can_be_evicted) and this is
+	because of DDL operation */
+	unsigned				ddl_not_evictable:1;
 
 	/** TRUE if some indexes should be dropped after ONLINE_INDEX_ABORTED
 	or ONLINE_INDEX_ABORTED_DROPPED. */

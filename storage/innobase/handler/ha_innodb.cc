@@ -7110,6 +7110,10 @@ reload:
 			if (ib_table != nullptr && table_def != nullptr) {
 				ib_table->version = dd_get_version(table_def);
 			}
+
+			if (ib_table != nullptr) {
+				dict_table_ddl_release(ib_table);
+			}
 		}
 
 		/* ib_table could be freed, reset the index_mapping */
@@ -12762,7 +12766,7 @@ create_table_info_t::prevent_eviction()
 	ut_ad(table != NULL);
 
 	if (table->can_be_evicted) {
-		dict_table_prevent_eviction(table);
+		dict_table_ddl_acquire(table);
 		prevent = true;
 	} else {
 		prevent = false;
@@ -12779,11 +12783,13 @@ create_table_info_t::prevent_eviction()
 }
 
 /** Detach the just created table and its auxiliary tables
+@param[in]	force		True if caller wants this table to be
+				not evictable and ignore 'prevented'
 @param[in]	prevented	True if the base table was prevented
 				to be evicted by prevent_eviction()
 @param[in]	dict_locked	True if dict_sys mutex is held */
 void
-create_table_info_t::detach(bool prevented, bool dict_locked)
+create_table_info_t::detach(bool force, bool prevented, bool dict_locked)
 {
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -12793,8 +12799,8 @@ create_table_info_t::detach(bool prevented, bool dict_locked)
 		m_table_name, true);
 	ut_ad(table != NULL);
 
-	if (prevented && !table->can_be_evicted) {
-		dict_table_allow_eviction(table);
+	if (!force && prevented && !table->can_be_evicted) {
+		dict_table_ddl_release(table);
 	}
 
 	if ((table->flags2 & (DICT_TF2_FTS | DICT_TF2_FTS_ADD_DOC_ID))
@@ -13531,6 +13537,8 @@ template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 @param[in]	create_info	Create info (including create statement string)
 @param[in,out]	dd_tab		dd::Table describing table to be created
 @param[in]	file_per_table	whether to create a tablespace too
+@param[in]	evictable	whether the caller wants the dict_table_t
+				to be kept in memory
 @return	error number
 @retval 0 on success */
 template<typename Table>
@@ -13541,7 +13549,8 @@ innobase_basic_ddl::create_impl(
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
 	Table*			dd_tab,
-	bool			file_per_table)
+	bool			file_per_table,
+	bool			evictable)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -13614,14 +13623,14 @@ innobase_basic_ddl::create_impl(
 	error = info.create_table_update_dict();
 
 	if (prevent_eviction || prevented) {
-		info.detach(prevent_eviction, false);
+		info.detach(!evictable, prevent_eviction, false);
 	}
 
 	return(error);
 
 cleanup:
 	if (prevent_eviction || prevented) {
-		info.detach(prevent_eviction, dict_locked);
+		info.detach(!evictable, prevent_eviction, dict_locked);
 	}
 
 	if (!info.is_intrinsic_temp_table()) {
@@ -13660,10 +13669,10 @@ cleanup:
 }
 
 template int innobase_basic_ddl::create_impl<dd::Table>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool, bool);
 
 template int innobase_basic_ddl::create_impl<dd::Partition>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool, bool);
 
 
 /** Drop a table.
@@ -13748,9 +13757,10 @@ innobase_basic_ddl::delete_impl(
 
 		if (err == 0 && tab != nullptr) {
 
-			if (tab->can_be_evicted) {
+			if (tab->can_be_evicted
+			    && dd_table_is_partitioned(dd_tab->table())) {
 				mutex_enter(&dict_sys->mutex);
-				dict_table_prevent_eviction(tab);
+				dict_table_ddl_acquire(tab);
 				mutex_exit(&dict_sys->mutex);
 			}
 
@@ -13792,6 +13802,8 @@ template int innobase_basic_ddl::delete_impl<dd::Partition>(
 @param[in,out]	thd		THD object
 @param[in]	from		old name of the table
 @param[in]	to		new name of the table
+@param[in]	from_table	dd::Table or dd::Partition of the table with
+				old name
 @param[in]	to_table	dd::Table or dd::Partition of the table with
 				new name
 @return	error number
@@ -13802,16 +13814,22 @@ innobase_basic_ddl::rename_impl(
 	THD*		thd,
 	const char*	from,
 	const char*	to,
+	const Table*	from_table,
 	const Table*	to_table)
 {
-	dberr_t	error;
-	char	norm_to[FN_REFLEN];
-	char	norm_from[FN_REFLEN];
+	dberr_t		error;
+	char		norm_to[FN_REFLEN];
+	char		norm_from[FN_REFLEN];
+	bool		rename_file = false;
+	space_id_t	space = SPACE_UNKNOWN;
+	dict_table_t*	table = nullptr;
 
 	ut_ad(!srv_read_only_mode);
 
 	normalize_table_name(norm_to, to);
 	normalize_table_name(norm_from, from);
+
+	ut_ad(strcmp(norm_from, norm_to) != 0);
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
@@ -13823,6 +13841,37 @@ innobase_basic_ddl::rename_impl(
 
 	++trx->will_lock;
 
+	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	int err = dd_table_open_on_dd_obj(
+		client, from_table->table(),
+		(!dd_table_is_partitioned(from_table->table())
+		? nullptr : reinterpret_cast<const dd::Partition*>(
+			from_table)),
+		norm_from, table, thd);
+	if (err != 0 || table == nullptr) {
+		error = DB_TABLE_NOT_FOUND;
+		return(convert_error_code_to_mysql(error, 0, NULL));
+	}
+
+	rename_file = dict_table_is_file_per_table(table);
+	space = table->space;
+
+	if (row_is_mysql_tmp_table_name(norm_from)
+	    && !row_is_mysql_tmp_table_name(norm_to)
+	    && !dd_table_is_partitioned(from_table->table())) {
+		table->refresh_fk = true;
+	}
+
+	if (dd_table_is_partitioned(from_table->table())) {
+		mutex_enter(&dict_sys->mutex);
+		dict_table_ddl_acquire(table);
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	dd_table_close(table, thd, nullptr, false);
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations. */
 
@@ -13833,67 +13882,16 @@ innobase_basic_ddl::rename_impl(
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	if (error == DB_SUCCESS && to_table->is_persistent()
-	    && strcmp(norm_from, norm_to) != 0) {
-		dict_table_t*	table;
-		bool		rename_dd_filename = false;
-		char*		new_path = nullptr;
-		bool		dict_locked = true;
+	if (error == DB_SUCCESS && rename_file) {
+		char* new_path = fil_space_get_first_path(space);
 
-		mutex_enter(&dict_sys->mutex);
-
-		table = dict_table_check_if_in_cache_low(norm_to);
-		if (table == nullptr) {
-			int	err;
-
-			mutex_exit(&dict_sys->mutex);
-			dict_locked = false;
-
-			dd::cache::Dictionary_client* client =
-				dd::get_dd_client(thd);
-			dd::cache::Dictionary_client::Auto_releaser releaser(
-				client);
-
-			/* This could not happen for ALTER PARTITION
-			operations, because the table has always been required.
-			So in other cases, the norm_to and the to_table->name()
-			should be always consistent */
-			err = dd_table_open_on_dd_obj(
-				client, to_table->table(),
-				(!dd_table_is_partitioned(to_table->table())
-				? nullptr
-				: reinterpret_cast<const dd::Partition*>(
-					to_table)),
-				norm_to, table, thd);
-			ut_ad(err == 0);
-			ut_ad(table != nullptr);
-		}
-
-		rename_dd_filename = dict_table_is_file_per_table(table);
-
-		if (rename_dd_filename) {
-			new_path = fil_space_get_first_path(table->space);
-		}
-
-		if (row_is_mysql_tmp_table_name(norm_from)
-		    && !row_is_mysql_tmp_table_name(norm_to)
-		    && !dict_table_is_partition(table)) {
-			table->refresh_fk = true;
-		}
-
-		if (dict_locked) {
-			mutex_exit(&dict_sys->mutex);
-		} else {
-			dd_table_close(table, thd, nullptr, false);
-		}
-
-		if (rename_dd_filename && new_path != nullptr) {
+		if (new_path != nullptr) {
 			dd::Object_id	dd_space_id =
 				dd_first_index(to_table)->tablespace_id();
 
 			if (dd_tablespace_update_filename(
 				dd_space_id, new_path)) {
-				ut_a(false);
+				error = DB_ERROR;
 			}
 
 			ut_free(new_path);
@@ -13922,10 +13920,11 @@ innobase_basic_ddl::rename_impl(
 }
 
 template int innobase_basic_ddl::rename_impl<dd::Table>(
-	THD*, const char*, const char*, const dd::Table*);
+	THD*, const char*, const char*, const dd::Table*, const dd::Table*);
 
 template int innobase_basic_ddl::rename_impl<dd::Partition>(
-	THD*, const char*, const char*, const dd::Partition*);
+	THD*, const char*, const char*, const dd::Partition*,
+	const dd::Partition*);
 
 
 /** Check if a column is the only column in an index.
@@ -14301,7 +14300,7 @@ ha_innobase::create(
 	decisions based on this. */
 	return(innobase_basic_ddl::create_impl(
 		ha_thd(), name, form, create_info, table_def,
-		srv_file_per_table));
+		srv_file_per_table, true));
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -14617,7 +14616,7 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	if (m_prebuilt->table->can_be_evicted) {
 		mutex_enter(&dict_sys->mutex);
-		dict_table_prevent_eviction(m_prebuilt->table);
+		dict_table_ddl_acquire(m_prebuilt->table);
 		mutex_exit(&dict_sys->mutex);
 	}
 
@@ -14646,7 +14645,8 @@ ha_innobase::truncate(dd::Table *table_def)
 		}
 
 		error = innobase_basic_ddl::create_impl(
-			thd, name, table, &info, table_def, file_per_table);
+			thd, name, table, &info, table_def,
+			file_per_table, true);
 	}
 
 	if (!error) {
@@ -15145,7 +15145,7 @@ ha_innobase::rename_table(
 	innobase_register_trx(ht, thd, trx);
 
 	DBUG_RETURN(innobase_basic_ddl::rename_impl<dd::Table>(
-		thd, from, to, to_table_def));
+		thd, from, to, from_table_def, to_table_def));
 }
 
 /*********************************************************************//**

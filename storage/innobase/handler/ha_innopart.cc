@@ -240,6 +240,7 @@ Ha_innopart_share::open_one_table_part(
 
 		if (part_table != nullptr) {
 			part_table->version = dd_get_version(&dd_part->table());
+			dict_table_ddl_release(part_table);
 		}
 	}
 	mutex_exit(&dict_sys->mutex);
@@ -903,6 +904,7 @@ ha_innopart::open(const char* name, int, uint,const dd::Table* table_def)
 
 	/* Get the Ha_innopart_share from the TABLE_SHARE. */
 	lock_shared_ha_data();
+
 	m_part_share = static_cast<Ha_innopart_share*>(get_ha_share_ptr());
 	if (m_part_share == NULL) {
 		m_part_share = new (std::nothrow)
@@ -914,17 +916,20 @@ share_error:
 		}
 		set_ha_share_ptr(static_cast<Handler_share*>(m_part_share));
 	}
+
 	if (m_part_share->open_table_parts(thd, table, table_def, m_part_info,
 					   norm_name)
 	    || m_part_share->populate_partition_name_hash(m_part_info)) {
 		goto share_error;
 	}
+
 	if (m_part_share->auto_inc_mutex == NULL
 	    && table->found_next_number_field != NULL) {
 		if (m_part_share->init_auto_inc_mutex(table_share)) {
 			goto share_error;
 		}
 	}
+
 	unlock_shared_ha_data();
 
 	/* Will be allocated if it is needed in ::update_row(). */
@@ -2825,9 +2830,9 @@ end:
 			Ha_innopart_share::create_partition_postfix(
 				table_name_end, FN_REFLEN - table_name_len,
 				dd_part);
-			/* Partition tables are not working with FTS, so
+			/* Partitioned tables are not working with FTS, so
 			only base table is cared here */
-			info.detach(true, false);
+			info.detach(false, true, false);
 		}
 	}
 
@@ -2848,9 +2853,9 @@ cleanup:
 			Ha_innopart_share::create_partition_postfix(
 				table_name_end, FN_REFLEN - table_name_len,
 				dd_part);
-			/* Partition tables are not working with FTS, so
+			/* Partitioned tables are not working with FTS, so
 			only base table is cared here */
-			info.detach(true, true);
+			info.detach(false, true, true);
 		}
 	}
 
@@ -2992,7 +2997,7 @@ ha_innopart::rename_table(
 		}
 
 		error = innobase_basic_ddl::rename_impl<dd::Partition>(
-			thd, from_name, to_name, *to_part);
+			thd, from_name, to_name, from_part, *to_part);
 
 		if (error != 0) {
 			break;
@@ -3290,7 +3295,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 
 		if (table_part->can_be_evicted) {
 			mutex_enter(&dict_sys->mutex);
-			dict_table_prevent_eviction(table_part);
+			dict_table_ddl_acquire(table_part);
 			mutex_exit(&dict_sys->mutex);
 		}
 	}
@@ -3363,7 +3368,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			}
 
 			error = innobase_basic_ddl::create_impl(
-				thd, name, table, info, dd_part, file_per_table);
+				thd, name, table, info, dd_part,
+				file_per_table, true);
 
 			if (reset) {
 				dd_part->set_tablespace_id(

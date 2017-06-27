@@ -1392,6 +1392,23 @@ void
 dict_table_allow_eviction(
 	dict_table_t*	table);
 
+/** Move this table to non-LRU list for DDL operations if it's
+currently not there. This also prevents later opening table via DD objects,
+when the table name in InnoDB doesn't match with DD object.
+@param[in,out]	table	Table to put in non-LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_acquire(
+	dict_table_t*	table);
+
+/** Move this table to LRU list after DDL operations if it was moved
+to non-LRU list
+@param[in,out]	table	Table to put in LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_release(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Move a table to the non LRU end of the LRU list. */
 void

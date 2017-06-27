@@ -231,22 +231,6 @@ dd_table_open_on_dd_obj(
 		ut_ad(dd_part->parent() == nullptr
 		      || dd_part->parent()->level() == 0);
 	}
-
-	/* If this is a internal temporary table, it's impossible
-	to verify the MDL against the table name, because both the
-	database name and table name may be invalid for MDL */
-	if (tbl_name && !row_is_mysql_tmp_table_name(tbl_name)) {
-		char	db_buf[MAX_DATABASE_NAME_LEN];
-		char	tbl_buf[MAX_TABLE_NAME_LEN];
-
-		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr);
-		if (dd_part == nullptr) {
-			ut_ad(innobase_strcasecmp(dd_table.name().c_str(),
-						  tbl_buf) == 0);
-		} else {
-			ut_ad(innobase_strcasecmp(dd_table.name().c_str(),							  tbl_buf) == 0);
-		}
-	}
 #endif /* UNIV_DEBUG */
 
 	int			error		= 0;
@@ -272,6 +256,20 @@ dd_table_open_on_dd_obj(
 	if (table != nullptr) {
 		return(0);
 	}
+
+#ifdef UNIV_DEBUG
+	/* If this is a internal temporary table, it's impossible
+	to verify the MDL against the table name, because both the
+	database name and table name may be invalid for MDL */
+	if (tbl_name && !row_is_mysql_tmp_table_name(tbl_name)) {
+		char	db_buf[MAX_DATABASE_NAME_LEN + 1];
+		char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
+
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr);
+		ut_ad(innobase_strcasecmp(dd_table.name().c_str(), tbl_buf)
+		      == 0);
+	}
+#endif /* UNIV_DEBUG */
 
 	TABLE_SHARE		ts;
 	dd::Schema*		schema;

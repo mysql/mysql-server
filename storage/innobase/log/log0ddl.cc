@@ -1692,6 +1692,12 @@ LogDDL::replayRenameTableLog(
 	dberr_t	err;
 	err = row_rename_table_for_mysql(old_name, new_name, NULL, trx, false);
 
+	dict_table_t*	table;
+	table = dd_table_open_on_name_in_mem(new_name, true);
+	ut_ad(table != nullptr);
+	dict_table_ddl_release(table);
+	dd_table_close(table, nullptr, nullptr, true);
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx_commit_for_mysql(trx);

@@ -947,10 +947,12 @@ public:
 	bool prevent_eviction();
 
 	/** Detach the just created table and its auxiliary tables.
+	@param[in]	force		True if caller wants this table to be
+					not evictable and ignore 'prevented'
 	@param[in]	prevented	True if the base table was prevented
 					to be evicted by prevent_eviction()
 	@param[in]	dict_locked	True if dict_sys mutex is held */
-	void detach(bool prevented, bool dict_locked);
+	void detach(bool force, bool prevented, bool dict_locked);
 
 	/** Normalizes a table name string.
 	A normalized name consists of the database name catenated to '/' and
@@ -1041,6 +1043,8 @@ public:
 					string)
 	@param[in,out]	dd_tab		dd::Table describing table to be created
 	@param[in]	file_per_table	whether to create a tablespace too
+	@param[in]	evictable	whether the caller wants the dict_table_t
+					to be kept in memory
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
@@ -1050,7 +1054,8 @@ public:
 		TABLE*		form,
 		HA_CREATE_INFO*	create_info,
 		Table*		dd_tab,
-		bool		file_per_table);
+		bool		file_per_table,
+		bool		evictable);
 
 	/** Drop an InnoDB table.
 	@tparam		Table		dd::Table or dd::Partition
@@ -1073,6 +1078,8 @@ public:
 	@param[in,out]	thd		THD object
 	@param[in]	from		old name of the table
 	@param[in]	to		new name of the table
+	@param[in]	from_table	dd::Table or dd::Partition of the table
+					with old name
 	@param[in]	to_table	dd::Table or dd::Partition of the table
 					with new name
 	@return	error number
@@ -1082,6 +1089,7 @@ public:
 		THD*			thd,
 		const char*		from,
 		const char*		to,
+		const Table*		from_table,
 		const Table*		to_table);
 };
 
