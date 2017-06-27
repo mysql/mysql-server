@@ -2100,7 +2100,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       interval.day= acl_user->password_lifetime;
     else
     {
-      Mutex_lock lock(&LOCK_default_password_lifetime);
+      MUTEX_LOCK(lock, &LOCK_default_password_lifetime);
       interval.day= default_password_lifetime;
     }
     if (interval.day)

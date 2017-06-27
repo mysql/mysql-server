@@ -161,7 +161,7 @@ void Socket_events::add_timer(const std::size_t delay_ms, ngs::function<bool ()>
   event_base_set(m_evbase, &data->ev);
   evtimer_add(&data->ev, &data->tv);
 
-  Mutex_lock lock(m_timers_mutex);
+  MUTEX_LOCK(lock, m_timers_mutex);
   m_timer_events.push_back(data);
 }
 
@@ -180,7 +180,7 @@ void Socket_events::timeout_call(int, short, void *arg) {
     evtimer_del(&data->ev);
 
     {
-      Mutex_lock timer_lock(data->self->m_timers_mutex);
+      MUTEX_LOCK(timer_lock, data->self->m_timers_mutex);
       data->self->m_timer_events.erase(std::remove(data->self->m_timer_events.begin(), data->self->m_timer_events.end(), data),
                 data->self->m_timer_events.end());
     }

@@ -1437,7 +1437,6 @@ static void server_components_initialized()
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
-
 /**
   Initializes component infrastructure by bootstrapping core component
   subsystem.
@@ -2775,7 +2774,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 #ifdef HAVE_PSI_THREAD_INTERFACE
         // Delete the instrumentation for the signal thread.
         PSI_THREAD_CALL(delete_current_thread)();
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
         /*
           Kill the socket listener.
           The main thread will then set socket_listener_active= false,
@@ -5140,10 +5139,11 @@ int mysqld_main(int argc, char **argv)
     if available.
   */
 
+  void *service;
+
   if (psi_thread_hook != NULL)
   {
-    PSI_thread_service_t *service;
-    service= (PSI_thread_service_t*) psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
+    service= psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
     if (service != NULL)
     {
       set_psi_thread_service(service);
@@ -5152,8 +5152,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_mutex_hook != NULL)
   {
-    PSI_mutex_service_t *service;
-    service= (PSI_mutex_service_t*) psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
+    service= psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
     if (service != NULL)
     {
       set_psi_mutex_service(service);
@@ -5162,8 +5161,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_rwlock_hook != NULL)
   {
-    PSI_rwlock_service_t *service;
-    service= (PSI_rwlock_service_t*) psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
+    service= psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
     if (service != NULL)
     {
       set_psi_rwlock_service(service);
@@ -5172,8 +5170,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_cond_hook != NULL)
   {
-    PSI_cond_service_t *service;
-    service= (PSI_cond_service_t*) psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
+    service= psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
     if (service != NULL)
     {
       set_psi_cond_service(service);
@@ -5182,8 +5179,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_file_hook != NULL)
   {
-    PSI_file_service_t *service;
-    service= (PSI_file_service_t*) psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
+    service= psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
     if (service != NULL)
     {
       set_psi_file_service(service);
@@ -5192,8 +5188,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_socket_hook != NULL)
   {
-    PSI_socket_service_t *service;
-    service= (PSI_socket_service_t*) psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
+    service= psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
     if (service != NULL)
     {
       set_psi_socket_service(service);
@@ -5202,8 +5197,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_table_hook != NULL)
   {
-    PSI_table_service_t *service;
-    service= (PSI_table_service_t*) psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
+    service= psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
     if (service != NULL)
     {
       set_psi_table_service(service);
@@ -5212,8 +5206,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_mdl_hook != NULL)
   {
-    PSI_mdl_service_t *service;
-    service= (PSI_mdl_service_t*) psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
+    service= psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
     if (service != NULL)
     {
       set_psi_mdl_service(service);
@@ -5222,8 +5215,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_idle_hook != NULL)
   {
-    PSI_idle_service_t *service;
-    service= (PSI_idle_service_t*) psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
+    service= psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
     if (service != NULL)
     {
       set_psi_idle_service(service);
@@ -5232,8 +5224,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_stage_hook != NULL)
   {
-    PSI_stage_service_t *service;
-    service= (PSI_stage_service_t*) psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
+    service= psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
     if (service != NULL)
     {
       set_psi_stage_service(service);
@@ -5242,8 +5233,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_statement_hook != NULL)
   {
-    PSI_statement_service_t *service;
-    service= (PSI_statement_service_t*) psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
+    service= psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
     if (service != NULL)
     {
       set_psi_statement_service(service);
@@ -5252,8 +5242,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_transaction_hook != NULL)
   {
-    PSI_transaction_service_t *service;
-    service= (PSI_transaction_service_t*) psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
+    service= psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
     if (service != NULL)
     {
       set_psi_transaction_service(service);
@@ -5262,8 +5251,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_memory_hook != NULL)
   {
-    PSI_memory_service_t *service;
-    service= (PSI_memory_service_t*) psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
+    service= psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
     if (service != NULL)
     {
       set_psi_memory_service(service);
@@ -5272,8 +5260,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_error_hook != NULL)
   {
-    PSI_error_service_t *service;
-    service= (PSI_error_service_t*) psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
+    service= psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
     if (service != NULL)
     {
       set_psi_error_service(service);
@@ -5282,8 +5269,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_data_lock_hook != NULL)
   {
-    PSI_data_lock_service_t *service;
-    service= (PSI_data_lock_service_t*) psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
+    service= psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
     if (service != NULL)
     {
       set_psi_data_lock_service(service);
@@ -5296,10 +5282,13 @@ int mysqld_main(int argc, char **argv)
     server instruments.
   */
   init_server_psi_keys();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /* Instrument the main thread */
   PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   /*
     Now that some instrumentation is in place,
@@ -6000,7 +5989,7 @@ int mysqld_main(int argc, char **argv)
     to avoid recording events during the shutdown.
   */
   PSI_THREAD_CALL(delete_current_thread)();
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   DBUG_PRINT("info", ("Waiting for shutdown proceed"));
   int ret= 0;

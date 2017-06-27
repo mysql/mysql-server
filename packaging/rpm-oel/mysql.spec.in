@@ -1132,6 +1132,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
@@ -1190,6 +1191,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so

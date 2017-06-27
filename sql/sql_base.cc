@@ -4450,7 +4450,7 @@ static bool fix_row_type(THD *thd, TABLE_LIST *table_list)
       Hold LOCK_open until we can keep it and are likely to
       release TABLE_SHARE on return.
     */
-    Mutex_lock lock_open_guard(&LOCK_open);
+    MUTEX_LOCK(lock_open_guard, &LOCK_open);
 
     No_such_table_error_handler no_such_table_handler;
     thd->push_internal_handler(&no_such_table_handler);

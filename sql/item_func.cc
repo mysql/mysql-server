@@ -58,7 +58,7 @@
 #include "log_event.h"
 #include "m_string.h"
 #include "mdl.h"
-#include "mutex_lock.h"
+#include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -7597,7 +7597,7 @@ longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
 {
   T value;
   {
-    Mutex_lock lock(&LOCK_global_system_variables);
+    MUTEX_LOCK(lock, &LOCK_global_system_variables);
     value= *pointer_cast<T *>(var->value_ptr(thd, var_type, &component));
   }
   cache_present|= GET_SYS_VAR_CACHE_LONG;

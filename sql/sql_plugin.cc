@@ -43,7 +43,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mutex_lock.h"        // Mutex_lock
+#include "mutex_lock.h"        // MUTEX_LOCK
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -2966,7 +2966,7 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
 
   if (enable_plugins)
   {
-    Mutex_lock plugin_lock(&LOCK_plugin);
+    MUTEX_LOCK(plugin_lock, &LOCK_plugin);
     unlock_variables(&thd->variables);
     size_t idx;
     if ((idx= thd->lex->plugins.size()))

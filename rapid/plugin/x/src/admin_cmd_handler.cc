@@ -224,7 +224,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
     Server::Server_ref server(Server::get_instance());
     if (server)
     {
-      Mutex_lock lock((*server)->server().get_client_exit_mutex());
+      MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
       std::vector<ngs::Client_ptr> client_list;
 
       (*server)->server().get_client_list().get_all_clients(client_list);

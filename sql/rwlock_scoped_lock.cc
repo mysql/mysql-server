@@ -34,14 +34,14 @@ rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t* lock,
 {
   if (lock_for_write)
   {
-    if (!mysql_rwlock_wrlock_indirect(lock, file, line))
+    if (!mysql_rwlock_wrlock_with_src(lock, file, line))
     {
       m_lock= lock;
     }
   }
   else
   {
-    if (!mysql_rwlock_rdlock_indirect(lock, file, line))
+    if (!mysql_rwlock_rdlock_with_src(lock, file, line))
     {
       m_lock= lock;
     }

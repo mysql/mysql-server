@@ -44,7 +44,7 @@ void safe_mutex_global_init(void)
 }
 
 
-int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
+int safe_mutex_init(safe_mutex_t *mp, const native_mutexattr_t *attr,
 		    const char *file, uint line)
 {
   DBUG_ASSERT(safe_mutex_inited);
@@ -58,7 +58,7 @@ int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
 }
 
 
-int safe_mutex_lock(my_mutex_t *mp, bool try_lock,
+int safe_mutex_lock(safe_mutex_t *mp, bool try_lock,
                     const char *file, uint line)
 {
   int error;
@@ -141,7 +141,7 @@ line %d more than 1 time\n", file,line);
 }
 
 
-int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line)
+int safe_mutex_unlock(safe_mutex_t *mp, const char *file, uint line)
 {
   int error;
   native_mutex_lock(&mp->global);
@@ -173,7 +173,7 @@ int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line)
 }
 
 
-int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line)
+int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
 {
   int error=0;
   native_mutex_lock(&mp->global);

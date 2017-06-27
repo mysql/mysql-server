@@ -46,48 +46,20 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
   IF(NOT WITHOUT_SERVER)
     SET(API_PREPROCESSOR_HEADER
       ${API_PREPROCESSOR_HEADER}
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_thread_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_thread_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_thread_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mutex_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mutex_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mutex_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_rwlock_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_rwlock_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_rwlock_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_cond_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_cond_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_cond_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_file_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_file_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_file_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_socket_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_socket_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_socket_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_table_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_table_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_table_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mdl_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mdl_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mdl_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_idle_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_idle_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_idle_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_stage_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_stage_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_stage_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_statement_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_statement_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_statement_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_transaction_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_transaction_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_transaction_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_memory_v2.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v0.h
       ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v1.h
-      ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_error_v2.h
       ${CMAKE_SOURCE_DIR}/include/mysql/services.h
     )
   ENDIF()

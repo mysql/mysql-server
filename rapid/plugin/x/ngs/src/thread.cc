@@ -118,7 +118,7 @@ void ngs::Cond::signal()
 
 void ngs::Cond::signal(Mutex& mutex)
 {
-  Mutex_lock lock(mutex);
+  MUTEX_LOCK(lock, mutex);
 
   signal();
 }
@@ -132,7 +132,7 @@ void ngs::Cond::broadcast()
 
 void ngs::Cond::broadcast(Mutex& mutex)
 {
-  Mutex_lock lock(mutex);
+  MUTEX_LOCK(lock, mutex);
 
   broadcast();
 }

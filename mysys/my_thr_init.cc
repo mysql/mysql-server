@@ -319,7 +319,7 @@ void my_thread_end()
   struct st_my_thread_var *tmp= mysys_thread_var();
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /*
     Remove the instrumentation for this thread.
     This must be done before trashing st_my_thread_var,
