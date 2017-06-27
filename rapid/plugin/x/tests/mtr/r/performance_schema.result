@@ -85,15 +85,15 @@ Got expected error: Access denied for user 'root'@'localhost' to database 'perfo
 While executing alter table performance_schema.socket_summary_by_instance add column foo integer:
 Got expected error: Access denied for user 'root'@'localhost' to database 'performance_schema' (code 1044)
 While executing truncate table performance_schema.mutex_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'mutex_instances' (code 1142)
 While executing truncate table performance_schema.cond_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'cond_instances' (code 1142)
 While executing truncate table performance_schema.threads:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'threads' (code 1142)
 While executing truncate table performance_schema.rwlock_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'rwlock_instances' (code 1142)
 While executing truncate table performance_schema.socket_instances:
-Got expected error: Invalid performance_schema usage. (code 1683)
+Got expected error: DROP command denied to user 'root'@'localhost' for table 'socket_instances' (code 1142)
 
 0 rows affected
 
