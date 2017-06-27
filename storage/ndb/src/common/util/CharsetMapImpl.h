@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -49,8 +49,6 @@ public:
      such as "keybcs2" or "dec8".
      */
     const char * getName(int);
-            
-    const char * mysql_charset_name[256];
 
     int UTF16Charset;
     int UTF8Charset;
@@ -65,4 +63,10 @@ private:
     const char * get(const char *) const;
     int hash(const char *) const;
     MapTableItem map[CHARSET_MAP_HASH_TABLE_SIZE];
+    /*
+     * MY_ALL_CHARSETS_SIZE is actually 2048.
+     * But the actual number of charsets is very low.
+     * So, CharsetMapImpl now supports upto 512 charsets.
+     * */
+    const char * mysql_charset_name[512];
 };
