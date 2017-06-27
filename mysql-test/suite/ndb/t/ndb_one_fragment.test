@@ -25,10 +25,10 @@ insert into t2 select a from t1;
 
 --echo the left join below should result in scanning t2 and do pk lookups in t1
 --replace_column 10 # 11 #
-explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 --echo the result rows with missed equal to NULL should count all rows (160000)
 --echo the other rows are the failed lookups and there should not be any such
-select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+select if(isnull(t1.a),t2.a,NULL) missed, count(*) row_count from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
 
 --echo verify that it is not possible to reinsert all rows in t1 to itself
 --echo affected rows should be zero
