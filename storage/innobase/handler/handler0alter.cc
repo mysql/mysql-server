@@ -7600,7 +7600,7 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			/* Acquire mdl lock on the temporary table name. */
 			dd_parse_tbl_name(ctx->tmp_name, db_buf,
-					  tbl_buf, nullptr);
+					  tbl_buf, nullptr, nullptr);
 
 			if (dd::acquire_exclusive_table_mdl(thd, db_buf,
 				tbl_buf, false, &mdl_ticket)) {
@@ -9248,7 +9248,8 @@ public:
 				heap, m_old->name.m_name, m_old->id);
 
 			/* Acquire mdl lock on the temporary table name. */
-			dd_parse_tbl_name(temp_name, db_buf, tbl_buf, nullptr);
+			dd_parse_tbl_name(
+				temp_name, db_buf, tbl_buf, nullptr, nullptr);
 
 			if (dd::acquire_exclusive_table_mdl(
 				thd, db_buf, tbl_buf, false, &mdl_ticket)) {
@@ -9450,7 +9451,7 @@ alter_part_change::try_commit(
 	dd_table_close(m_old, nullptr, nullptr, false);
 
 	/* Acquire mdl lock on the temporary table name. */
-	dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr);
+	dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr, nullptr);
 
 	MDL_ticket*	mdl_ticket = nullptr;
 	if (dd::acquire_exclusive_table_mdl(thd, db_buf, tbl_buf,

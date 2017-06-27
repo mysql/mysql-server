@@ -7146,7 +7146,8 @@ reload:
 		/* Make sure table->is_dd_table is set */
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
-		dd_parse_tbl_name(ib_table->name.m_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(
+			ib_table->name.m_name, db_buf, tbl_buf, NULL, NULL);
 		ib_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
 	}

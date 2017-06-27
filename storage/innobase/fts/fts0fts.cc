@@ -1964,7 +1964,7 @@ fts_lock_common_tables(
 
 		fts_get_table_name(fts_table, table_name);
 
-		dd_parse_tbl_name(table_name, db_n, table_n, NULL);
+		dd_parse_tbl_name(table_name, db_n, table_n, NULL, NULL);
 
 		if (dd::acquire_exclusive_table_mdl(
 			thd, db_n, table_n, false, &exclusiv_mdl)) {
@@ -1999,7 +1999,7 @@ fts_lock_index_tables(
 
 		fts_get_table_name(&fts_table, table_name);
 
-		dd_parse_tbl_name(table_name, db_n, table_n, NULL);
+		dd_parse_tbl_name(table_name, db_n, table_n, NULL, NULL);
 
 		if (dd::acquire_exclusive_table_mdl(
 			thd, db_n, table_n, false, &exclusiv_mdl)) {

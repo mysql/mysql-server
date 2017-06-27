@@ -110,7 +110,8 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     char db_buf[MAX_FULL_NAME_LEN + 1];
     char tbl_buf[MAX_FULL_NAME_LEN + 1];
 
-    dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf, NULL);
+    dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf,
+		      nullptr, nullptr);
 
     fk_obj->referenced_table_schema_name(db_buf);
     fk_obj->referenced_table_name(tbl_buf);

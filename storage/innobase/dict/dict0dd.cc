@@ -239,7 +239,7 @@ dd_table_open_on_dd_obj(
 		char	db_buf[MAX_DATABASE_NAME_LEN];
 		char	tbl_buf[MAX_TABLE_NAME_LEN];
 
-		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr);
 		if (dd_part == nullptr) {
 			ut_ad(innobase_strcasecmp(dd_table.name().c_str(),
 						  tbl_buf) == 0);
@@ -504,7 +504,8 @@ dd_check_corrupted(dict_table_t*& table)
 			char	tbl_buf[MAX_TABLE_NAME_LEN];
 
 			dd_parse_tbl_name(
-				table->name.m_name, db_buf, tbl_buf, nullptr);
+				table->name.m_name, db_buf, tbl_buf,
+				nullptr, nullptr);
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
 		}
@@ -605,7 +606,8 @@ reopen:
 	} else {
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
-				ib_table->name.m_name, db_buf, tbl_buf, nullptr);
+				ib_table->name.m_name, db_buf, tbl_buf,
+				nullptr, nullptr);
 			memset(full_name, 0, MAX_FULL_NAME_LEN);
 			strcpy(full_name, ib_table->name.m_name);
 
@@ -772,8 +774,10 @@ dd_table_open_on_name(
 #endif
 	ut_ad(!srv_is_being_shutdown);
 
-	char		db_buf[MAX_DATABASE_NAME_LEN];
-	char		tbl_buf[MAX_TABLE_NAME_LEN];
+	char		db_buf[MAX_DATABASE_NAME_LEN + 1];
+	char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
+	char		part_buf[MAX_TABLE_NAME_LEN + 1];
+	char		sub_buf[MAX_TABLE_NAME_LEN + 1];
 	bool		skip_mdl = !(thd && mdl);
 	dict_table_t*	table = nullptr;
 
@@ -789,7 +793,8 @@ dd_table_open_on_name(
 		DBUG_RETURN(table);
 	}
 
-	if (!dd_parse_tbl_name(name, db_buf, tbl_buf, nullptr)) {
+	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
+	if (!dd_parse_tbl_name(name, db_buf, tbl_buf, part_buf, sub_buf)) {
 		DBUG_RETURN(nullptr);
 	}
 
@@ -828,9 +833,38 @@ dd_table_open_on_name(
 		table = nullptr;
 	} else {
 		if (dd_table->se_private_id() == dd::INVALID_OBJECT_ID) {
-			/* This must be a partitioned table. */
 			ut_ad(!dd_table->partitions().empty());
-			table = nullptr;
+			if (strlen(part_buf) != 0) {
+				const dd::Partition*	dd_part = nullptr;
+				for (auto part : dd_table->partitions()) {
+					if (!dd_part_is_stored(part)) {
+						continue;
+					}
+
+					if (part->parent() != nullptr) {
+						ut_ad(strlen(sub_buf) != 0);
+						if (part->name() == sub_buf
+						    && part->parent()->name()
+							== part_buf) {
+							dd_part = part;
+							break;
+						}
+					} else if (part->name() == part_buf) {
+						dd_part = part;
+						break;
+					}
+				}
+
+				ut_ad(dd_part != nullptr);
+				dd_table_open_on_dd_obj(
+					client, *dd_table, dd_part, name,
+					table, thd);
+			} else {
+				/* FIXME: Once FK functions will not open
+				partitioned table in current improper way,
+				just assert this false */
+				table = nullptr;
+			}
 		} else {
 			ut_ad(dd_table->partitions().empty());
 			dd_table_open_on_dd_obj(
@@ -2841,7 +2875,7 @@ dd_table_check_for_child(
 		char    name_buf2[MAX_TABLE_NAME_LEN];
 
 		dd_parse_tbl_name(m_table->name.m_name,
-					name_buf1, name_buf2, nullptr);
+				  name_buf1, name_buf2, nullptr, nullptr);
 
 		if (client->fetch_fk_children_uncached(
 			name_buf1, name_buf2, &child_schema, &child_name)) {
@@ -3030,7 +3064,7 @@ dd_get_first_path(
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
-				table->name.m_name, db_buf, tbl_buf, NULL)
+				table->name.m_name, db_buf, tbl_buf, NULL, NULL)
 		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 			return(filepath);
 		}
@@ -3484,7 +3518,8 @@ dd_open_table_one(
 	if (m_table != nullptr) {
 		char db_buf[MAX_DATABASE_NAME_LEN];
 		char tbl_buf[MAX_TABLE_NAME_LEN];
-		dd_parse_tbl_name(m_table->name.m_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(m_table->name.m_name, db_buf, tbl_buf,
+				  nullptr, nullptr);
 		m_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
 	}
@@ -3534,7 +3569,7 @@ dd_open_table_one_on_name(
 		char		tbl_buf[MAX_TABLE_NAME_LEN];
 
 		if (!dd_parse_tbl_name(
-			name, db_buf, tbl_buf, nullptr)) {
+			name, db_buf, tbl_buf, nullptr, nullptr)) {
 			goto func_exit;
 		}
 
@@ -4490,7 +4525,7 @@ dd_get_fts_tablespace_id(
 	char	table_name[MAX_TABLE_NAME_LEN];
 
 	dd_parse_tbl_name(parent_table->name.m_name, db_name,
-				table_name, NULL);
+				table_name, nullptr, nullptr);
 
 	THD*	thd = current_thd;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -4616,7 +4651,7 @@ dd_create_fts_index_table(
 	char	db_name[MAX_DATABASE_NAME_LEN];
 	char	table_name[MAX_TABLE_NAME_LEN];
 
-	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -4761,7 +4796,7 @@ dd_create_fts_common_table(
 	char	db_name[MAX_DATABASE_NAME_LEN];
 	char	table_name[MAX_TABLE_NAME_LEN];
 
-	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -4897,7 +4932,7 @@ dd_drop_fts_table(
 	char	db_name[MAX_DATABASE_NAME_LEN];
 	char	table_name[MAX_TABLE_NAME_LEN];
 
-	dd_parse_tbl_name(name, db_name, table_name, NULL);
+	dd_parse_tbl_name(name, db_name, table_name, NULL, NULL);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -4952,8 +4987,10 @@ dd_rename_fts_table(
 	char	old_table_name[MAX_TABLE_NAME_LEN];
 	char*	new_name = table->name.m_name;
 
-	dd_parse_tbl_name(new_name, new_db_name, new_table_name, nullptr);
-	dd_parse_tbl_name(old_name, old_db_name, old_table_name, nullptr);
+	dd_parse_tbl_name(new_name, new_db_name, new_table_name,
+			  nullptr, nullptr);
+	dd_parse_tbl_name(old_name, old_db_name, old_table_name,
+			  nullptr, nullptr);
 
 	ut_ad(strcmp(new_db_name, old_db_name) != 0);
 	ut_ad(strcmp(new_table_name, old_table_name) == 0);
@@ -5048,6 +5085,9 @@ dd_get_referenced_table(
 {
 	char*		ref;
 	const char*	db_name;
+	bool		is_part = (strstr(name, part_sep) != nullptr);
+
+	*table = nullptr;
 
 	if (!database_name) {
 		/* Use the database name of the foreign key table */
@@ -5071,8 +5111,11 @@ dd_get_referenced_table(
 		    2 = Store as given, compare in lower; case semi-sensitive */
 	if (innobase_get_lower_case_table_names() == 2) {
 		innobase_casedn_str(ref);
-		*table = dd_table_open_on_name(current_thd, mdl, ref,
-					       true, DICT_ERR_IGNORE_NONE);
+		if (!is_part) {
+			*table = dd_table_open_on_name(
+				current_thd, mdl, ref, true,
+				DICT_ERR_IGNORE_NONE);
+		}
 		memcpy(ref, db_name, database_name_len);
 		ref[database_name_len] = '/';
 		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
@@ -5085,8 +5128,11 @@ dd_get_referenced_table(
 #else
 		innobase_casedn_str(ref);
 #endif /* !_WIN32 */
-		*table = dd_table_open_on_name(current_thd, mdl, ref,
-					       true, DICT_ERR_IGNORE_NONE);
+		if (!is_part) {
+			*table = dd_table_open_on_name(
+				current_thd, mdl, ref, true,
+				DICT_ERR_IGNORE_NONE);
+		}
 	}
 
 	return(ref);

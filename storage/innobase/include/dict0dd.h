@@ -822,7 +822,8 @@ thd_to_innodb_session(
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
-@param[in,out]	dd_ptn_name	partition name to be filled if not NULL
+@param[in,out]	dd_part_name	partition name to be filled if not nullptr
+@param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -831,7 +832,8 @@ dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
-	char*		dd_ptn_name);
+	char*		dd_part_name,
+	char*		dd_sub_name);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table

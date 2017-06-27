@@ -66,7 +66,8 @@ dict_build_table_def(
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 
-		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, NULL);
+		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
+				  NULL, NULL);
 #endif /* UNIV_DEBUG */
 
 	} else {

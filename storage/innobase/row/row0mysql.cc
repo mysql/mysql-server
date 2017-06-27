@@ -4920,7 +4920,8 @@ row_rename_table_for_mysql(
 			[&old_name](const char* name) {
 				char	db_buf[NAME_LEN + 1];
 				char	tbl_buf[NAME_LEN + 1];
-				dd_parse_tbl_name(name, db_buf, tbl_buf, NULL);
+				dd_parse_tbl_name(
+					name, db_buf, tbl_buf, NULL, NULL);
 				char	fullname[2 * (NAME_LEN + 1)];
 				snprintf(fullname, sizeof fullname,
 					 "%s/%s", db_buf, tbl_buf);
