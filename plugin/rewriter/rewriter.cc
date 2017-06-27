@@ -205,12 +205,13 @@ Rewriter::Load_status Rewriter::refresh(MYSQL_THD thd)
 Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key)
 {
   Rewrite_result result;
+  bool digest_matched= false;
 
   auto it_range= m_digests.equal_range(hash_key_from_digest(key));
   for (auto it= it_range.first; it != it_range.second; ++it)
   {
     Rule *rule= it->second.get();
-    result.digest_matched= true;
+    digest_matched= true;
     if (rule->matches(thd))
     {
       result= rule->create_new_query(thd);
@@ -220,5 +221,6 @@ Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key)
   }
 
   result.was_rewritten= false;
+  result.digest_matched= digest_matched;
   return result;
 }
