@@ -142,6 +142,7 @@ public:
 		return(m_snapshot_arr_idx);
 	}
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	/** Get performance schema accounting object used to monitor stage
 	progress.
 	@return PFS stage object */
@@ -149,6 +150,7 @@ public:
 	{
 		return(m_monitor);
 	}
+#endif
 
 	/** Get snapshot heap used for allocation during clone.
 	@return heap */
@@ -555,8 +557,10 @@ private:
 	/** Total number of redo data chunks */
 	uint			m_num_redo_chunks;
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	/** Performance Schema accounting object to monitor stage progess */
 	Clone_Monitor		m_monitor;
+#endif
 };
 
 #endif /* CLONE_SNAPSHOT_INCLUDE */

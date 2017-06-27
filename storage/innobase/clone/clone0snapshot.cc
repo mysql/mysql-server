@@ -622,30 +622,44 @@ Clone_Snapshot::init_state(
 
 	case CLONE_SNAPSHOT_FILE_COPY:
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.init_state(srv_stage_clone_file_copy.m_key);
+#endif
 		err = init_file_copy();
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.change_phase();
+#endif
 		DEBUG_SYNC_C("page_archiving");
 		break;
 
 	case CLONE_SNAPSHOT_PAGE_COPY:
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.init_state(srv_stage_clone_page_copy.m_key);
+#endif
 		err = init_page_copy(temp_buffer, temp_buffer_len);
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.change_phase();
+#endif
 		DEBUG_SYNC_C("redo_archiving");
 		break;
 
 	case CLONE_SNAPSHOT_REDO_COPY:
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.init_state(srv_stage_clone_redo_copy.m_key);
+#endif
 		err = init_redo_copy();
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.change_phase();
+#endif
 		break;
 
 	case CLONE_SNAPSHOT_DONE:
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.init_state(Clone_Monitor::s_invalid_key);
+#endif
 		m_redo_ctx.release();
 		ib::info() << "Clone State DONE ";
 		break;

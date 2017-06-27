@@ -321,11 +321,16 @@ Clone_Snapshot::init_redo_copy()
 
 	/* Add another chunk for the redo log header. */
 	++m_num_redo_chunks;
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	m_monitor.add_estimate(m_redo_header_size);
+#endif
 
 	/* Add another chunk for the redo log trailer. */
 	++m_num_redo_chunks;
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	m_monitor.add_estimate(m_redo_trailer_size);
+#endif
 
 	m_num_current_chunks = m_num_redo_chunks;
 
@@ -556,7 +561,9 @@ Clone_Snapshot::add_node(
 		size_bytes = file_size.m_total_size;
 	}
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	m_monitor.add_estimate(size_bytes);
+#endif
 
 	/* Add file to snapshot. */
 	err = add_file(node->name, size_bytes, space->id, false);
@@ -594,7 +601,9 @@ Clone_Snapshot::add_page(
 	if (result.second) {
 
 		m_num_pages++;
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		m_monitor.add_estimate(UNIV_PAGE_SIZE);
+#endif
 	} else {
 
 		m_num_duplicate_pages++;
@@ -624,7 +633,9 @@ Clone_Snapshot::add_redo_file(
 	/* Build redo file metadata and add to redo vector. */
 	file_meta = build_file(file_name, file_size, file_offset, num_chunks, true);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 	m_monitor.add_estimate(file_meta->m_file_size);
+#endif
 
 	if (file_meta == nullptr) {
 
@@ -871,11 +882,13 @@ Clone_Handle::send_data(
 		int	int_err;
 		int_err = callback->buffer_cbk(buffer, size);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		/* Update PFS if success. */
 		if (!int_err) {
 			Clone_Monitor &monitor = snapshot->get_clone_monitor();
 			monitor.update_work(size);
 		}
+#endif
 
 		return(int_err == 0 ? DB_SUCCESS : DB_ERROR);
 
@@ -918,11 +931,13 @@ Clone_Handle::send_data(
 		err = file_callback(callback, task, size,
 				    __FILE__,  __LINE__);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 		/* Update PFS if success. */
 		if (err == DB_SUCCESS) {
-			Clone_Monitor &m_monitor = snapshot->get_clone_monitor();
-			m_monitor.update_work(size);
+			Clone_Monitor &monitor = snapshot->get_clone_monitor();
+			monitor.update_work(size);
 		}
+#endif
 
 		return(err);
 	}
