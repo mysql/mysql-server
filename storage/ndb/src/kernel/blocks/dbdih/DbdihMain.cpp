@@ -9087,7 +9087,7 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
         }
         else
         {
-          ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+          ndbrequire(NGPtr.p->activeTakeOver == startingNode);
           NGPtr.p->activeTakeOver = 0;
           NGPtr.p->activeTakeOverCount = 0;
         }

@@ -21178,7 +21178,7 @@ Dblqh::send_restore_lcp(Signal * signal)
       req->maxGciCompleted = fragptr.p->srStartGci[0] - 1;
     }
     req->restoreGcpId = crestartNewestGci;
-    if (c_local_sysfile.m_max_gci_restorable != 0)
+    if (c_local_sysfile.m_max_gci_restorable >= ZUNDEFINED_GCI_LIMIT)
     {
       jam();
       ndbrequire(c_local_sysfile.m_max_gci_restorable >=

@@ -88,7 +88,7 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_EXTRA_LCP 1
+#define DEBUG_EXTRA_LCP 1
 #ifdef DEBUG_EXTRA_LCP
 #define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -4154,6 +4154,7 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     jam();
     ptr.p->setPrepareErrorCode(errCode);
     ptr.p->prepareState = PREPARE_ABORTING;
+    g_eventLogger->info("PREPARE_ABORTING");
     ndbrequire(ptr.p->ctlFilePtr != RNIL);
 
     /**
@@ -4222,6 +4223,7 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_REF, 
 	       signal, LcpPrepareRef::SignalLength, JBA);
     ptr.p->prepareState = NOT_ACTIVE;
+    g_eventLogger->info("NOT_ACTIVE(REF)");
     return;
   }
   ptr.p->setErrorCode(errCode);
@@ -4286,6 +4288,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->slaveState.forceState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->prepareState = NOT_ACTIVE;
+  g_eventLogger->info("NOT_ACTIVE(CONF)");
   ptr.p->slaveData.dropTrig.tableId = RNIL;
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
@@ -6469,44 +6472,37 @@ Backup::is_page_lcp_scanned(Uint32 page_id, bool & all_part)
     jam();
     return +1; /* Page will never be scanned */
   }
-  Uint32 curr_lcp_round = 0;
   Uint32 part_id = hash_lcp_part(page_id);
+  if (check_if_in_page_range(part_id,
+                 ptr.p->m_scan_info[0].m_start_all_part,
+                 ptr.p->m_scan_info[0].m_num_all_parts))
   {
-    Uint32 i = curr_lcp_round;
     jam();
-    if (check_if_in_page_range(part_id,
-                   ptr.p->m_scan_info[i].m_start_all_part,
-                   ptr.p->m_scan_info[i].m_num_all_parts))
-    {
-      all_part = true;
-      if (!ptr.p->m_is_lcp_scan_active)
-      {
-        /**
-         * LCP scan is already completed.
-         */
-        jam();
-        return +1;
-      }
-      if (page_id < ptr.p->m_lcp_current_page_scanned)
-      {
-        jam();
-        return +1; /* Page have been scanned in this LCP scan round */
-      }
-      else if (page_id > ptr.p->m_lcp_current_page_scanned)
-      {
-        jam();
-        return -1; /* Page to be scanned this LCP scan round, not done yet */
-      }
-      else
-      {
-        jam();
-        return 0; /* Page is currently being scanned. Need more info */
-      }
-    }
+    all_part = true;
   }
-  /* Must be in CHANGED ROWS page range if not in ALL ROWS pages */
-  ndbrequire(false); /* Code not ready yet */
-  return +1; /* All pages in changed part is handled in first LCP round */
+  if (!ptr.p->m_is_lcp_scan_active)
+  {
+    /**
+     * LCP scan is already completed.
+     */
+    jam();
+    return +1;
+  }
+  if (page_id < ptr.p->m_lcp_current_page_scanned)
+  {
+    jam();
+    return +1; /* Page have been scanned in this LCP scan round */
+  }
+  else if (page_id > ptr.p->m_lcp_current_page_scanned)
+  {
+    jam();
+    return -1; /* Page to be scanned this LCP scan round, not done yet */
+  }
+  else
+  {
+    jam();
+    return 0; /* Page is currently being scanned. Need more info */
+  }
 }
 
 void
@@ -9942,6 +9938,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
 
   ndbrequire(ptr.p->prepareState == NOT_ACTIVE);
   ptr.p->prepareState = PREPARE_READ_CTL_FILES;
+  g_eventLogger->info("PREPARE_READ_CTL_FILES");
   ptr.p->prepareErrorCode = 0;
 
   ptr.p->prepare_table.first(tabPtr);
@@ -10372,6 +10369,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
             fragPtr.p->createGci));
 
     ptr.p->prepareState = PREPARE_DROP_CLOSE;
+    g_eventLogger->info("PREPARE_DROP_CLOSE");
     closeFile(signal, ptr, filePtr[closeLcpNumber]);
     closeFile(signal,
               ptr,
@@ -10628,7 +10626,12 @@ Backup::convert_ctl_page_to_network(Uint32 *page)
   Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr, numPartPairs);
   ndbrequire(total_parts <= maxPartPairs);
 
-  /* Checksum is calculated on network byte order */
+  /**
+   * Checksum is calculated on network byte order.
+   * The checksum is calculated without regard to size decreasing due to
+   * compression. This is not a problem since we fill the remainder with
+   * zeroes and XOR doesn't change the checksum with extra zeroes.
+   */
   lcpCtlFilePtr->Checksum = 0;
   Uint32 words = real_bytes_read / sizeof(Uint32);
   Uint32 chksum = 0;
@@ -10667,7 +10670,21 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
     part_array[2] = (unsigned char)numParts_bit4_11;
     part_array += 3;
     total_parts += numParts;
+    DEB_EXTRA_LCP(("(%u)compress:tab(%u,%u) Part(%u), start:%u, num_parts: %u",
+                   instance(),
+                   ntohl(lcpCtlFilePtr->TableId),
+                   ntohl(lcpCtlFilePtr->FragmentId),
+                   part,
+                   startPart,
+                   numParts));
   }
+  ndbrequire(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+  unsigned char *start_page = (unsigned char*)lcpCtlFilePtr;
+  unsigned char *end_page = start_page + BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  Uint64 remaining_size_64 = end_page - part_array;
+  ndbrequire(remaining_size_64 < BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+  Uint32 remaining_size = Uint32(remaining_size_64);
+  memset(part_array, 0, remaining_size);
   return total_parts;
 }
 
@@ -10678,18 +10695,29 @@ Uint32 Backup::decompress_part_pairs(
   Uint32 total_parts = 0;
   unsigned char *part_array =
     (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  ndbrequire(num_parts <= BackupFormat::NDB_MAX_LCP_PARTS);
   memcpy(c_part_array, part_array, 3 * num_parts);
+  Uint32 j = 0;
   for (Uint32 part = 0; part < num_parts; part++)
   {
-    Uint32 part_0 = c_part_array[0];
-    Uint32 part_1 = c_part_array[1];
-    Uint32 part_2 = c_part_array[2];
+    Uint32 part_0 = c_part_array[j+0];
+    Uint32 part_1 = c_part_array[j+1];
+    Uint32 part_2 = c_part_array[j+2];
     Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
     Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
     lcpCtlFilePtr->partPairs[part].startPart = startPart;
     lcpCtlFilePtr->partPairs[part].numParts = numParts;
     total_parts += numParts;
+    DEB_EXTRA_LCP(("(%u)decompress:tab(%u,%u) Part(%u), start:%u, num_parts: %u",
+                   instance(),
+                   lcpCtlFilePtr->TableId,
+                   lcpCtlFilePtr->FragmentId,
+                   part,
+                   startPart,
+                   numParts));
+    j += 3;
   }
+  ndbassert(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
   return total_parts;
 }
 
@@ -10778,6 +10806,7 @@ Backup::lcp_open_data_file(Signal* signal,
   dataFileNumber = ptr.p->prepareFirstDataFileNumber;
   ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
   ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
+  g_eventLogger->info("PREPARE_OPEN_DATA_FILE");
   /**
    * Lcp file
    */
@@ -10811,6 +10840,7 @@ Backup::lcp_open_data_file_done(Signal* signal,
 
   ndbrequire(ptr.p->prepareState == PREPARE_READ_TABLE_DESC);
   ptr.p->prepareState = PREPARED;
+  g_eventLogger->info("PREPARED");
  
   LcpPrepareConf* conf= (LcpPrepareConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->clientData;
@@ -11018,24 +11048,21 @@ Backup::prepare_ranges_for_parts(BackupRecordPtr ptr,
 void
 Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
 {
-  Uint32 old_num_parts = ptr.p->m_num_parts_in_lcp;
-  Uint32 new_start_part = ptr.p->m_first_start_part_in_lcp;
-  Uint32 new_end_part = new_start_part + new_parts;
   Uint32 remove_files = 0;
+  Uint32 old_num_parts = ptr.p->m_num_parts_in_lcp;
   if (old_num_parts != 0)
   {
+    Uint32 new_start_part = ptr.p->m_first_start_part_in_lcp;
+    Uint32 new_end_part = new_start_part + new_parts;
+    Uint32 old_start_part = ptr.p->m_part_info[0].startPart;
+    Uint32 old_end_part = old_start_part;
+    ndbrequire(new_start_part == old_start_part);
     jam();
     do
     {
       jam();
-      Uint32 old_start_part = ptr.p->m_part_info[0].startPart;
-      Uint32 old_parts = ptr.p->m_part_info[0].numParts;
-      Uint32 old_end_part = old_start_part + old_parts;
-      if (new_end_part < old_end_part)
-      {
-        jam();
-        old_end_part += BackupFormat::NDB_MAX_LCP_PARTS;
-      }
+      Uint32 old_parts = ptr.p->m_part_info[remove_files].numParts;
+      old_end_part += old_parts;
       if (old_end_part > new_end_part)
       {
         jam();
@@ -11047,55 +11074,49 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
     } while (old_num_parts > 0);
   }
   Uint32 remaining_files = ptr.p->m_num_parts_in_lcp - remove_files;
+  /* First remove all files no longer used */
   for (Uint32 i = 0; i < remaining_files; i++)
   {
     ptr.p->m_part_info[i] = ptr.p->m_part_info[i + remove_files];
+    DEB_EXTRA_LCP(("(%u)Parts(%u,%u)",
+                   instance(),
+                   ptr.p->m_part_info[i].startPart,
+                   ptr.p->m_part_info[i].numParts));
   }
 
   /**
-   * The first part is now likely too many parts since some of those
-   * parts were done by the new LCP. So we need to ensure that the
-   * first part in part_info[0] is one higher than the last part in the
-   * last part_info.
+   * The first set of parts is now likely too many parts. The new set of
+   * parts have eaten into this from the start. So it needs to be moved
+   * ahead as many parts as we have eaten into it.
    */
-  if (remaining_files > 1)
+  if (remaining_files >= 1)
   {
     jam();
-    Uint32 last_part = ptr.p->m_part_info[remaining_files - 1].startPart +
-                       ptr.p->m_part_info[remaining_files - 1].numParts;
-    Uint32 first_part = last_part + 1;
-    if (first_part >= BackupFormat::NDB_MAX_LCP_PARTS)
-    {
-      jam();
-      first_part -= BackupFormat::NDB_MAX_LCP_PARTS;
-    }
-    Uint32 current_first_part = ptr.p->m_part_info[0].startPart;
+    Uint32 new_first_part = get_part_add(
+             ptr.p->m_scan_info[0].m_start_all_part,
+             ptr.p->m_scan_info[0].m_num_all_parts);
+    Uint32 old_first_part = ptr.p->m_part_info[0].startPart;
     Uint32 decrement_parts;
-    if (current_first_part < first_part)
+    if (old_first_part > new_first_part)
     {
       jam();
-      decrement_parts = (current_first_part +
-                         BackupFormat::NDB_MAX_LCP_PARTS) - first_part;
+      decrement_parts = (new_first_part +
+                         BackupFormat::NDB_MAX_LCP_PARTS) - old_first_part;
     }
     else
     {
       jam();
-      decrement_parts = current_first_part - first_part;
+      decrement_parts = new_first_part - old_first_part;
     }
     ndbrequire(decrement_parts < ptr.p->m_part_info[0].numParts);
     ptr.p->m_part_info[0].numParts -= decrement_parts;
-    Uint32 new_first_part = current_first_part + decrement_parts;
-    if (new_first_part >= BackupFormat::NDB_MAX_LCP_PARTS)
-    {
-      jam();
-      new_first_part -= BackupFormat::NDB_MAX_LCP_PARTS;
-    }
     ptr.p->m_part_info[0].startPart = new_first_part;
     DEB_LCP(("(%u)New first data file span is (%u,%u)",
              instance(),
              ptr.p->m_part_info[0].startPart,
              ptr.p->m_part_info[0].numParts));
   }
+
   /**
    * Calculate file numbers of files to delete after LCP is
    * completed.
@@ -11556,6 +11577,7 @@ Backup::start_execute_lcp(Signal *signal,
   ptr.p->slaveState.setState(STARTED);
   ndbrequire(ptr.p->prepareState == PREPARED);
   ptr.p->prepareState = NOT_ACTIVE;
+  g_eventLogger->info("NOT_ACTIVE(START)");
   ptr.p->m_lcp_lsn_synced = 1;
 
   copy_lcp_info_from_prepare(ptr);
@@ -11936,10 +11958,6 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (struct BackupFormat::LCPCtlFile*)pagePtr.p;
 
-  Uint32 bytesRead = (sizeof(*lcpCtlFilePtr) +
-                      (sizeof(struct BackupFormat::PartPair) *
-                       (lcpCtlFilePtr->NumPartPairs - 1)));
-
   memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
   lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
 
@@ -12011,11 +12029,6 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
     jam();
     lcpCtlFilePtr->partPairs[i] = ptr.p->m_part_info[i];
   }
-
-  Uint32 words = bytesRead / sizeof(Uint32);
-  memset(&pagePtr.p->data[words],
-         0,
-         (BackupFormat::NDB_LCP_CTL_FILE_SIZE - bytesRead));
 
   /**
    * Since we calculated checksum with bytes in network order we will write it
@@ -12323,6 +12336,7 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
        * LCP_PREPARE_REQ handling for this case.
        */
       ptr.p->prepareState = PREPARE_READ_CTL_FILES;
+      g_eventLogger->info("PREPARE_READ_CTL_FILES(2)");
       DEB_LCP(("(%u)TAGT Completed wait delete files for drop case",
                instance()));
       lcp_open_ctl_file(signal, ptr, 0);
@@ -12924,6 +12938,7 @@ Backup::openFilesReplyLCP(Signal* signal,
     jam();
     ndbrequire(ptr.p->prepareState == PREPARE_OPEN_DATA_FILE);
     ptr.p->prepareState = PREPARE_READ_TABLE_DESC;
+    g_eventLogger->info("PREPARE_READ_TABLE_DESC");
     ptr.p->prepare_table.first(tabPtr);
   }
   else
@@ -13089,6 +13104,7 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
    * the LCP.
    */
   ptr.p->prepareState = PREPARE_DROP;
+  g_eventLogger->info("PREPARE_DROP");
   DEB_LCP(("(%u)TAGT Insert delete files in queue (drop case):"
     " tab(%u,%u), createGci: %u, waitCompletedGCI: 0",
     instance(),

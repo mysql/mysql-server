@@ -35,6 +35,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_LCP_KEEP 1
+#ifdef DEBUG_LCP_KEEP
+#define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_KEEP(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_NR_SCAN 1
 #ifdef DEBUG_NR_SCAN
 #define DEB_NR_SCAN(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1921,7 +1928,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_no = page_id;
       key.m_page_idx = ZNIL;
       ndbrequire(num_entries == 1);
-      DEB_LCP(("(%u)Handle LCP keep DELETE by PAGEID", instance()));
+      DEB_LCP_KEEP(("(%u)Handle LCP keep DELETE by PAGEID", instance()));
       record_delete_by_pageid(signal,
                               fragPtr.p->fragmentId,
                               *scanPtrP,
@@ -1935,7 +1942,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       jam();
       /* DELETE by ROWID */
       Local_key key;
-      DEB_LCP(("(%u)Handle LCP keep DELETE by ROWID", instance()));
+      DEB_LCP_KEEP(("(%u)Handle LCP keep DELETE by ROWID", instance()));
       key.m_page_no = page_id;
       ndbrequire(num_entries > 0);
       num_entries--;
@@ -1964,7 +1971,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
     jam();
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
 
-    DEB_LCP(("(%u)Handle LCP keep insert entry", instance()));
+    DEB_LCP_KEEP(("(%u)Handle LCP keep insert entry", instance()));
     Local_key save = tmp;
     setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
     prepareTUPKEYREQ(tmp.m_page_no, tmp.m_page_idx, fragPtr.i);
@@ -1994,7 +2001,7 @@ Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
   if (fragPtrP->m_lcp_keep_list_head.isNull())
   {
     jam();
-    DEB_LCP(("(%u)LCP keep list empty again", instance()));
+    DEB_LCP_KEEP(("(%u)LCP keep list empty again", instance()));
     ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
     ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
     fragPtrP->m_lcp_keep_list_tail.setNull();
