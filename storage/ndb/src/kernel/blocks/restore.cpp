@@ -41,14 +41,14 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
 
-//#define DEBUG_RES 1
+#define DEBUG_RES 1
 #ifdef DEBUG_RES
 #define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_HIGH_RES 1
+#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1909,6 +1909,12 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
 
+    DEB_HIGH_RES(("(%u)Prepare ALL parts[%u] = (%u,%u)",
+                  instance(),
+                  file_ptr.p->m_current_file_index,
+                  partPair.startPart,
+                  partPair.numParts));
+
     Uint32 part_id = partPair.startPart;
     for (Uint32 i = 0; i < partPair.numParts; i++)
     {
@@ -1921,10 +1927,21 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
 
   for (int i = lcpCtlFilePtr->NumPartPairs - 1; i >= 0; i--)
   {
+    jam();
     if (file_ptr.p->m_current_file_index == Uint32(i))
-      break;
+    {
+      DEB_HIGH_RES(("(%u)Skip file(%u)", instance(), i));
+      continue;
+    }
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[i];
+
+    DEB_HIGH_RES(("(%u)Prepare IGNORE parts[%u] = (%u,%u)",
+                  instance(),
+                  i,
+                  partPair.startPart,
+                  partPair.numParts));
+
     Uint32 part_id = partPair.startPart;
     for (Uint32 j = 0; j < partPair.numParts; j++)
     {
@@ -2638,6 +2655,25 @@ Restore::get_state_string(Uint32 part_state)
   return NULL;
 }
 
+const char*
+Restore::get_header_string(Uint32 header_type)
+{
+  switch (header_type)
+  {
+    case BackupFormat::INSERT_TYPE:
+      return "INSERT_TYPE";
+    case BackupFormat::WRITE_TYPE:
+      return "WRITE_TYPE";
+    case BackupFormat::DELETE_BY_PAGEID_TYPE:
+      return "DELETE_BY_PAGEID_TYPE";
+    case BackupFormat::DELETE_BY_ROWID_TYPE:
+      return "DELETE_BY_ROWID_TYPE";
+    default:
+      ndbrequire(false);
+      return NULL;
+  }
+}
+
 void
 Restore::parse_record(Signal* signal,
                       FilePtr file_ptr,
@@ -2674,13 +2710,15 @@ Restore::parse_record(Signal* signal,
     }
     Uint32 part_id = c_backup->hash_lcp_part(rowid_val.m_page_no);
     ndbrequire(part_id < MAX_LCP_PARTS_SUPPORTED);
-    DEB_HIGH_RES(("instance: %u, parse_record, page_no: %u, part: %u,"
+    /*
+    DEB_HIGH_RES(("(%u)parse_record, page_no: %u, part: %u,"
                   " state: %s, header_type: %s",
                   instance(),
                   rowid_val.m_page_no,
                   part_id,
                   get_state_string(Uint32(file_ptr.p->m_part_state[part_id])),
                   get_header_string(Uint32(header_type))));
+    */
     switch (file_ptr.p->m_part_state[part_id])
     {
       case File::PART_IGNORED:
@@ -2744,6 +2782,10 @@ Restore::parse_record(Signal* signal,
       gci_id = data[2];
       keyLen = 0;
       attrLen = 0;
+      DEB_HIGH_RES(("(%u)DELETE_BY_ROWID, page_idx=%u, gci=%u",
+                     instance(),
+                     data[1],
+                     gci_id));
       ndbrequire(len == 3);
     }
     else if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
@@ -2756,6 +2798,9 @@ Restore::parse_record(Signal* signal,
       gci_id = 0;
       keyLen = 0;
       attrLen = 0;
+      DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID, page_idx=0, rec_size=%u",
+                     instance(),
+                     data[1]));
       ndbrequire(len == 2);
     }
     else if (header_type == BackupFormat::WRITE_TYPE ||
@@ -2999,7 +3044,7 @@ void
 Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
 {
   file_ptr.p->m_current_file_index++;
-  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files)
+  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files && false)
   {
     /**
      * There are still more data files to apply before restore is complete.
