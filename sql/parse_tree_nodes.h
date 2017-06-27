@@ -5098,7 +5098,7 @@ public:
       m_key_cache_name(key_cache_name)
   {}
 
-  Sql_cmd *make_cmd(THD *thd) override;;
+  Sql_cmd *make_cmd(THD *thd) override;
 
 private:
   Table_ident *m_table;
