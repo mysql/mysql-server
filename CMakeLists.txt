@@ -844,6 +844,14 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   )
 ENDIF()
 
+IF(UNIX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./runtime_output_directory bin
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
+ENDIF()
+
 INCLUDE(CPack)
 
 # C compiler flags consist of:
