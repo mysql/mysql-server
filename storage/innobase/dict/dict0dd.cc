@@ -3617,7 +3617,11 @@ dd_open_table_one_on_name(
 
 		closefrm(&td, false);
 		free_table_share(&ts);
-		dd_table_close(table, thd, &mdl, false);
+		if (table != NULL) {
+			dd_table_close(table, thd, &mdl, false);
+		} else {
+			dd_mdl_release(thd, &mdl);
+		}
 	}
 
 func_exit:
