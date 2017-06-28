@@ -44,6 +44,7 @@
 #include "lex_string.h"
 #include "mdl.h"
 #include "my_compiler.h"
+#include "sql_base.h"
 #include "test_mdl_context_owner.h"
 #include "test_utils.h"
 
@@ -122,11 +123,13 @@ protected:
   static void SetUpTestCase()
   {
     mdl_init();
+    table_def_init();
   }
 
   static void TearDownTestCase()
   {
     dd::cache::Shared_dictionary_cache::shutdown();
+    table_def_free();
     mdl_destroy();
   }
 
