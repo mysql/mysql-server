@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1574,7 +1574,7 @@ gather_result(atrt_config& config, int * result){
     if (config.m_hosts[i]->m_hostname.length() == 0)
       continue;
 
-    tmp.appfmt(" %s:%s/*", 
+    tmp.appfmt(" %s:%s",
 	       config.m_hosts[i]->m_hostname.c_str(),
 	       config.m_hosts[i]->m_basedir.c_str());
   }
