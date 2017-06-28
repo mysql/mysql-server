@@ -2769,8 +2769,6 @@ any tables (including data dictionary tables) can be accessed. */
 void
 srv_dict_recover_on_restart()
 {
-	apply_dynamic_metadata();
-
 	trx_resurrect_locks();
 
 	/* Roll back any recovered data dictionary transactions, so
@@ -2784,10 +2782,10 @@ srv_dict_recover_on_restart()
 		}
 	}
 
+	/* Do after all DD transactions recovery, to get consistent metadata */
+	apply_dynamic_metadata();
+
 	if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
-		/* Open or Create SYS_TABLESPACES and SYS_DATAFILES
-		so that tablespace names and other metadata can be
-		found. */
 		srv_sys_tablespaces_open = true;
 	}
 }
