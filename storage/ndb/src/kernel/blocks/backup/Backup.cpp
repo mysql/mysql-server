@@ -10895,6 +10895,9 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
              lqhCreateTableVersion == 0);
 
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
+
+  ptr.p->m_wait_gci_to_delete = MAX(maxCompletedGci, ptr.p->newestGci);
+
   lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
   ndbrequire(lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci);
@@ -11959,6 +11962,8 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
 
+  ptr.p->m_wait_gci_to_delete = MAX(maxCompletedGci, ptr.p->newestGci);
+
   ndbrequire(m_newestRestorableGci != 0);
   DEB_LCP(("(%u)tab(%u,%u).%u, use ctl file %u, GCI completed: %u,"
            " GCI written: %u, createGci: %u",
@@ -12153,10 +12158,10 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
       c_lqh->getCreateSchemaVersion(tableId),
       ptr.p->deleteDataFileNumber,
       ptr.p->deleteCtlFileNumber,
-      ptr.p->newestGci,
+      ptr.p->m_wait_gci_to_delete,
       ptr.p->m_lcp_lsn_synced));
 
-    Uint32 wait_for_gci = ptr.p->newestGci;
+    Uint32 wait_for_gci = ptr.p->m_wait_gci_to_delete;
     if (m_our_node_started)
     {
       jam();

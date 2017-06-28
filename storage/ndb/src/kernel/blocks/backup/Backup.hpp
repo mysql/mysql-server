@@ -534,6 +534,7 @@ public:
       {
         m_wait_end_lcp = false;
         m_initial_lcp_started = false;
+        m_wait_gci_to_delete = 0;
         localLcpId = 0;
         /*
           report of backup status uses these variables to keep track
@@ -621,6 +622,7 @@ public:
     BlockReference m_informDropTabReference;
 
     Uint32 newestGci;
+    Uint32 m_wait_gci_to_delete;
     Uint32 deleteCtlFileNumber;
     Uint32 deleteDataFileNumber;
 
