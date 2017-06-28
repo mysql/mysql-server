@@ -6272,7 +6272,9 @@ runDeleteRestart(NDBT_Context* ctx, NDBT_Step* step)
       if (diff < 0)
         diff = -diff;
 
-      int diffpct = (100 * diff) / time0->events[i].MemoryUsage.pages_used;
+      int diffpct = 0;
+      if (time0->events[i].MemoryUsage.pages_used > 0)
+        diffpct = (100 * diff) / time0->events[i].MemoryUsage.pages_used;
       ndbout_c("node %u pages %u - %u => diff pct: %u%% (max: %u) => %s",
                node,
                time0->events[i].MemoryUsage.pages_used,

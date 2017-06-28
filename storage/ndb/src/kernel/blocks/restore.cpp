@@ -1780,7 +1780,14 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_num_files = 0;
   file_ptr.p->m_max_parts = BackupFormat::NDB_MAX_LCP_PARTS;
   file_ptr.p->m_max_files = BackupFormat::NDB_MAX_LCP_FILES;
-  file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
+  file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();
+  Uint32 err = seize_file(file_ptr);
+  return err;
+}
+
+Uint32
+Restore::seize_file(FilePtr file_ptr)
+{
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 
   ndbassert(pages.isEmpty());
@@ -1829,7 +1836,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
 }
 
 void
-Restore::release_file(FilePtr file_ptr)
+Restore::release_file(FilePtr file_ptr, bool statistics)
 {
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
 
@@ -1844,6 +1851,7 @@ Restore::release_file(FilePtr file_ptr)
     m_global_page_pool.release(* it.data);
   }
 
+  if (statistics)
   {
     Uint64 millis = NdbTick_CurrentMillisecond() -
                    file_ptr.p->m_restore_start_time;
@@ -1865,7 +1873,11 @@ Restore::release_file(FilePtr file_ptr)
     m_frags_restored++;
   }
   pages.release();
-  m_file_list.release(file_ptr);
+  if (statistics)
+  {
+    jam();
+    m_file_list.release(file_ptr);
+  }
 }
 
 void
@@ -2073,7 +2085,7 @@ Restore::execFSOPENREF(Signal* signal)
   rep->extra[0] = osError;
   sendSignal(file_ptr.p->m_sender_ref, GSN_RESTORE_LCP_REF, signal,
              RestoreLcpRef::SignalLength+1, JBB);
-  release_file(file_ptr);
+  release_file(file_ptr, true);
 }
 
 void
@@ -2104,6 +2116,8 @@ Restore::execFSOPENCONF(Signal* signal)
    * Start thread's
    */
 
+  ndbrequire((file_ptr.p->m_status & File::FILE_THREAD_RUNNING) == 0);
+  ndbrequire((file_ptr.p->m_status & File::RESTORE_THREAD_RUNNING) == 0);
   file_ptr.p->m_status |= File::FILE_THREAD_RUNNING;
   signal->theData[0] = RestoreContinueB::READ_FILE;
   signal->theData[1] = file_ptr.i;
@@ -3044,7 +3058,7 @@ void
 Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
 {
   file_ptr.p->m_current_file_index++;
-  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files && false)
+  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files)
   {
     /**
      * There are still more data files to apply before restore is complete.
@@ -3053,6 +3067,13 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
     jam();
     DEB_HIGH_RES(("instance: %u Step forward to next data file", instance()));
     step_file_number_forward(file_ptr);
+    file_ptr.p->m_current_page_pos = 0; 
+    file_ptr.p->m_current_page_index = 0;
+    file_ptr.p->m_current_file_page = 0;
+    ndbrequire(file_ptr.p->m_outstanding_reads == 0);
+    ndbrequire(file_ptr.p->m_outstanding_operations == 0);
+    release_file(file_ptr, false);
+    ndbrequire(seize_file(file_ptr) == 0);
     open_data_file(signal, file_ptr);
     return;
   }
@@ -3092,7 +3113,7 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
   signal->theData[4] = Uint32(file_ptr.p->m_rows_restored);
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
 
-  release_file(file_ptr);
+  release_file(file_ptr, true);
 }
 
 void
