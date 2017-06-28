@@ -1437,7 +1437,9 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       ndbrequire(c_fragmentPool.getSize() == c_fragmentPool.getNoOfFree() + 2);
       ndbrequire(c_triggerPool.getSize() == c_triggerPool.getNoOfFree());
 
-      ndbrequire(c_backupFilePool.getSize() == c_backupFilePool.getNoOfFree() + 6);
+      ndbrequire(c_backupFilePool.getSize() == (c_backupFilePool.getNoOfFree() + 
+                           (4 + 2 * BackupFormat::NDB_MAX_FILES_PER_LCP)));
+
       Uint32 file_pages = 0;
       BackupFilePtr lcp_file;
 
@@ -1447,11 +1449,14 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[1]);
       file_pages += lcp_file.p->pages.getSize();
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr[0]);
-      file_pages += lcp_file.p->pages.getSize();
+      for (Uint32 i = 0; i < BackupFormat::NDB_MAX_FILES_PER_LCP; i++)
+      {
+        c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr[i]);
+        file_pages += lcp_file.p->pages.getSize();
 
-      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareDataFilePtr[0]);
-      file_pages += lcp_file.p->pages.getSize();
+        c_backupFilePool.getPtr(lcp_file, lcp.p->prepareDataFilePtr[i]);
+        file_pages += lcp_file.p->pages.getSize();
+      }
 
       c_backupFilePool.getPtr(lcp_file, lcp.p->ctlFilePtr);
       file_pages += lcp_file.p->pages.getSize();
@@ -4154,7 +4159,6 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     jam();
     ptr.p->setPrepareErrorCode(errCode);
     ptr.p->prepareState = PREPARE_ABORTING;
-    g_eventLogger->info("PREPARE_ABORTING");
     ndbrequire(ptr.p->ctlFilePtr != RNIL);
 
     /**
@@ -4223,7 +4227,6 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_REF, 
 	       signal, LcpPrepareRef::SignalLength, JBA);
     ptr.p->prepareState = NOT_ACTIVE;
-    g_eventLogger->info("NOT_ACTIVE(REF)");
     return;
   }
   ptr.p->setErrorCode(errCode);
@@ -4288,7 +4291,6 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->slaveState.forceState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->prepareState = NOT_ACTIVE;
-  g_eventLogger->info("NOT_ACTIVE(CONF)");
   ptr.p->slaveData.dropTrig.tableId = RNIL;
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
@@ -5604,7 +5606,8 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   if (filePtr.p->tableId != tableId)
   {
     jam();
-    DEB_EXTRA_LCP(("Init new tab(%u): maxRecordSize: %u",
+    DEB_EXTRA_LCP(("(%u)Init new tab(%u): maxRecordSize: %u",
+                   instance(),
                    tableId,
                    tabPtr.p->maxRecordSize));
     filePtr.p->operation.init(tabPtr);
@@ -9622,6 +9625,7 @@ Backup::execFSREMOVECONF(Signal* signal)
   |         Flush fragment page cache
   |         SYNC_PAGE_CACHE_CONF
   |          ------------------>|
+  |         If first fragment in LCP then also:
   |         SYNC_EXTENT_PAGES_REQ
   |          <------------------|
   |         Flush all extent pages
@@ -9938,7 +9942,6 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
 
   ndbrequire(ptr.p->prepareState == NOT_ACTIVE);
   ptr.p->prepareState = PREPARE_READ_CTL_FILES;
-  g_eventLogger->info("PREPARE_READ_CTL_FILES");
   ptr.p->prepareErrorCode = 0;
 
   ptr.p->prepare_table.first(tabPtr);
@@ -10313,8 +10316,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
    * recent, then we will add one modulo the max number to get the
    * new last data file number.
    */
-  dataFileNumber += 1;
-  dataFileNumber %= BackupFormat::NDB_MAX_LCP_FILES;
+  dataFileNumber = get_file_add(dataFileNumber, 1);
   ptr.p->prepareFirstDataFileNumber = dataFileNumber;
   TablePtr tabPtr;
   FragmentPtr fragPtr;
@@ -10369,7 +10371,6 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
             fragPtr.p->createGci));
 
     ptr.p->prepareState = PREPARE_DROP_CLOSE;
-    g_eventLogger->info("PREPARE_DROP_CLOSE");
     closeFile(signal, ptr, filePtr[closeLcpNumber]);
     closeFile(signal,
               ptr,
@@ -10454,6 +10455,21 @@ Uint32
 Backup::get_file_add(Uint32 start_file, Uint32 num_files)
 {
   return (start_file + num_files) % BackupFormat::NDB_MAX_LCP_FILES;
+}
+
+Uint32
+Backup::get_file_sub(Uint32 start_file, Uint32 num_files)
+{
+  if (start_file >= num_files)
+  {
+    jam();
+    return (start_file - num_files);
+  }
+  else
+  {
+    jam();
+    return (start_file + BackupFormat::NDB_MAX_LCP_FILES - num_files);
+  }
 }
 
 void
@@ -10806,7 +10822,6 @@ Backup::lcp_open_data_file(Signal* signal,
   dataFileNumber = ptr.p->prepareFirstDataFileNumber;
   ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
   ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
-  g_eventLogger->info("PREPARE_OPEN_DATA_FILE");
   /**
    * Lcp file
    */
@@ -10840,7 +10855,6 @@ Backup::lcp_open_data_file_done(Signal* signal,
 
   ndbrequire(ptr.p->prepareState == PREPARE_READ_TABLE_DESC);
   ptr.p->prepareState = PREPARED;
-  g_eventLogger->info("PREPARED");
  
   LcpPrepareConf* conf= (LcpPrepareConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->clientData;
@@ -11129,19 +11143,11 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
   }
   else
   {
-    if (ptr.p->m_current_data_file_number >= remove_files)
-    {
-      jam();
-      ptr.p->deleteDataFileNumber =
-        (ptr.p->m_current_data_file_number - remove_files);
-    }
-    else
-    {
-      jam();
-      ptr.p->deleteDataFileNumber =
-        (BackupFormat::NDB_MAX_LCP_FILES +
-         ptr.p->m_current_data_file_number) - remove_files;
-    }
+    Uint32 move_back_files = remove_files + remaining_files;
+    ptr.p->deleteDataFileNumber = get_file_sub(
+      ptr.p->m_current_data_file_number,
+      move_back_files);
+
     DEB_LCP(("(%u)m_current_data_file_number = %u, deleteDataFileNumber: %u,"
              " remove_files: %u",
              instance(),
@@ -11577,7 +11583,6 @@ Backup::start_execute_lcp(Signal *signal,
   ptr.p->slaveState.setState(STARTED);
   ndbrequire(ptr.p->prepareState == PREPARED);
   ptr.p->prepareState = NOT_ACTIVE;
-  g_eventLogger->info("NOT_ACTIVE(START)");
   ptr.p->m_lcp_lsn_synced = 1;
 
   copy_lcp_info_from_prepare(ptr);
@@ -11740,6 +11745,10 @@ Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
    * this LCP. The LCP is still not 100% ready to use, it still will have
    * to wait until the global checkpoint is completed of its highest GCI
    * that was written as part of the checkpoint.
+   *
+   * As explained in another place it is actually only necessary to sync
+   * the extent pages for the first fragment containing disk data and
+   * also at the end of the local checkpoint.
    *
    * We don't need to wait for this however since the restart will check
    * that we don't recover an LCP which has more recent GCI's than we are
@@ -12175,16 +12184,6 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     ndbrequire(c_deleteLcpFilePool.seize(deleteLcpFilePtr));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
-    DEB_LCP(("(%u))TAGI Insert delete file in queue:"
-      " tab(%u,%u).%u, file(%u,%u) GCI: %u, validFlag: %u",
-      instance(),
-      tableId,
-      fragmentId,
-      c_lqh->getCreateSchemaVersion(tableId),
-      ptr.p->deleteDataFileNumber,
-      ptr.p->deleteCtlFileNumber,
-      ptr.p->m_wait_gci_to_delete,
-      ptr.p->m_lcp_lsn_synced));
 
     Uint32 wait_for_gci = ptr.p->m_wait_gci_to_delete;
     if (m_our_node_started)
@@ -12203,6 +12202,34 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     deleteLcpFilePtr.p->lcpCtlFileNumber = ptr.p->deleteCtlFileNumber;
     deleteLcpFilePtr.p->validFlag = ptr.p->m_lcp_lsn_synced;
     deleteLcpFilePtr.p->lcpLsn = ptr.p->m_current_lcp_lsn;
+#ifdef DEBUG_LCP
+    if (deleteLcpFilePtr.p->firstFileId != RNIL)
+    {
+      DEB_LCP(("(%u))TAGI Insert delete file in queue:"
+        " tab(%u,%u).%u, file(%u-%u,%u) GCI: %u, validFlag: %u",
+        instance(),
+        tableId,
+        fragmentId,
+        c_lqh->getCreateSchemaVersion(tableId),
+        deleteLcpFilePtr.p->firstFileId,
+        deleteLcpFilePtr.p->lastFileId,
+        ptr.p->deleteCtlFileNumber,
+        ptr.p->m_wait_gci_to_delete,
+        ptr.p->m_lcp_lsn_synced));
+    }
+    else
+    {
+      DEB_LCP(("(%u))TAGI Insert delete file in queue:"
+        " tab(%u,%u).%u, file(RNIL,%u) GCI: %u, validFlag: %u",
+        instance(),
+        tableId,
+        fragmentId,
+        c_lqh->getCreateSchemaVersion(tableId),
+        ptr.p->deleteCtlFileNumber,
+        ptr.p->m_wait_gci_to_delete,
+        ptr.p->m_lcp_lsn_synced));
+    }
+#endif
 
     if (ready_for_delete)
     {
@@ -12336,7 +12363,6 @@ Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
        * LCP_PREPARE_REQ handling for this case.
        */
       ptr.p->prepareState = PREPARE_READ_CTL_FILES;
-      g_eventLogger->info("PREPARE_READ_CTL_FILES(2)");
       DEB_LCP(("(%u)TAGT Completed wait delete files for drop case",
                instance()));
       lcp_open_ctl_file(signal, ptr, 0);
@@ -12684,8 +12710,8 @@ Backup::lcp_remove_file_conf(Signal *signal, BackupRecordPtr ptr)
       return;
     }
     /* Continue with deleting the next data file. */
-    deleteLcpFilePtr.p->firstFileId++;
-    deleteLcpFilePtr.p->firstFileId %= BackupFormat::NDB_MAX_LCP_FILES;
+    deleteLcpFilePtr.p->firstFileId =
+      get_file_add(deleteLcpFilePtr.p->firstFileId, 1);
     lcp_remove_file(signal, ptr, deleteLcpFilePtr);
   }
   else
@@ -12938,7 +12964,6 @@ Backup::openFilesReplyLCP(Signal* signal,
     jam();
     ndbrequire(ptr.p->prepareState == PREPARE_OPEN_DATA_FILE);
     ptr.p->prepareState = PREPARE_READ_TABLE_DESC;
-    g_eventLogger->info("PREPARE_READ_TABLE_DESC");
     ptr.p->prepare_table.first(tabPtr);
   }
   else
@@ -13104,7 +13129,6 @@ Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
    * the LCP.
    */
   ptr.p->prepareState = PREPARE_DROP;
-  g_eventLogger->info("PREPARE_DROP");
   DEB_LCP(("(%u)TAGT Insert delete files in queue (drop case):"
     " tab(%u,%u), createGci: %u, waitCompletedGCI: 0",
     instance(),
