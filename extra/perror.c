@@ -295,9 +295,10 @@ int main(int argc,char *argv[])
         else
           msg= ndb_string;
 
-        printf("Warning: using '--ndb' with 'perror' is deprecated and this "
-               "functionality may not be available in the future versions, "
-               "please use 'ndb_perror' instead\n");
+        fprintf(stderr,
+                "Warning: using '--ndb' with 'perror' is deprecated and this "
+                "functionality may not be available in the future versions, "
+                "please use 'ndb_perror' instead\n");
 
         if (msg)
         {
