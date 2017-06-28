@@ -17566,7 +17566,9 @@ Dblqh::lcp_complete_scan(Uint32 & newestGci)
   {
     jam();
     c_max_gci_in_lcp = fragptr.p->newestGci;
-    DEB_LCP(("New c_max_gci_in_lcp = %u", c_max_gci_in_lcp));
+    DEB_LCP(("(%u)New c_max_gci_in_lcp = %u",
+             instance(),
+             c_max_gci_in_lcp));
   }
   DEB_LCP(("(%u)complete_scan: newestGci = %u, tab(%u,%u)",
            instance(),
@@ -21178,7 +21180,7 @@ Dblqh::send_restore_lcp(Signal * signal)
       req->maxGciCompleted = fragptr.p->srStartGci[0] - 1;
     }
     req->restoreGcpId = crestartNewestGci;
-    if (c_local_sysfile.m_max_gci_restorable >= ZUNDEFINED_GCI_LIMIT)
+    if (c_local_sysfile.m_max_gci_restorable > ZUNDEFINED_GCI_LIMIT)
     {
       jam();
       ndbrequire(c_local_sysfile.m_max_gci_restorable >=

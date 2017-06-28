@@ -1755,7 +1755,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_restored_local_lcp_id = 0;
   file_ptr.p->m_max_gci_completed = req->maxGciCompleted;
   file_ptr.p->m_create_gci = req->createGci;
-  DEB_RES(("RESTORE_LCP_REQ(%u) tab(%u,%u),"
+  DEB_RES(("(%u)RESTORE_LCP_REQ tab(%u,%u),"
            " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
            instance(),
            req->tableId,
@@ -2045,7 +2045,7 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
  
-  DEB_RES(("open_data_file(%u) data file number = %u",
+  DEB_RES(("(%u)open_data_file data file number = %u",
            instance(),
            file_ptr.p->m_file_id));
   FsOpenReq::setVersion(req->fileNumber, 5);
