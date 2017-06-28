@@ -1,5 +1,6 @@
 select component_urn from mysql.component;
 
+--sorted_result
 select *
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
@@ -8,6 +9,7 @@ INSTALL COMPONENT "file://component_pfs_example";
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "%/pfs_example/%";
 
@@ -19,9 +21,11 @@ UNINSTALL COMPONENT "file://component_pfs_example";
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
+--sorted_result
 select *
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
@@ -30,6 +34,7 @@ INSTALL COMPONENT "file://component_pfs_example";
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
@@ -41,6 +46,7 @@ select NAME
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
@@ -52,9 +58,11 @@ UNINSTALL COMPONENT "file://component_pfs_example";
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
+--sorted_result
 select *
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
@@ -63,9 +71,11 @@ select *
 
 select component_urn from mysql.component;
 
+--sorted_result
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
+--sorted_result
 select *
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
