@@ -1464,7 +1464,7 @@ static int make_field_from_frm(THD *thd,
              f_is_dec(pack_flag) == 0,
              f_decimals(pack_flag),
              f_bit_as_char(pack_flag),
-             0);
+             0, {});
   if (!reg_field)
   {
     // Not supported field type

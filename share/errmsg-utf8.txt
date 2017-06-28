@@ -10836,11 +10836,18 @@ ER_I_S_SKIPPED_TABLESPACE
 ER_TABLESPACE_ENGINE_MISMATCH
   eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
 
+
 ER_RPL_CANT_HAVE_SAME_BASENAME
   eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s') and %s (default '%s') options to ensure they do not conflict"
 
 ER_WARN_NO_SERVERID_SPECIFIED
   eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
+
+ER_WRONG_SRID_FOR_COLUMN
+  eng "The SRID of the geometry does not match the SRID of the column '%.64s'. The SRID of the geometry is %lu, but the SRID of the column is %lu. Consider changing the SRID of the geometry or the SRID property of the column."
+
+ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
+  eng "The SRID specification on the column '%.64s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification."
 
 #
 #  End of 8.0 error messages.

@@ -110,6 +110,7 @@ static void mock_dd_obj(dd::Column *c)
   c->set_default_option("mocked default option");
   c->set_update_option("mocked update option");
   c->set_comment("mocked column comment");
+  c->set_srs_id({4326});
   mock_properties(c->se_private_data(), FANOUT);
 
   for (int i= 0; i < FANOUT; ++i)

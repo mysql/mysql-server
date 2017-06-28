@@ -612,6 +612,7 @@ static const SYMBOL symbols[] = {
   { SYM("SQL_TSI_MONTH",            MONTH_SYM)},
   { SYM("SQL_TSI_QUARTER",          QUARTER_SYM)},
   { SYM("SQL_TSI_YEAR",             YEAR_SYM)},
+  { SYM("SRID",                     SRID_SYM)},
   { SYM("SSL",                      SSL_SYM)},
   { SYM("STACKED",                  STACKED_SYM)},
   { SYM("START",                    START_SYM)},

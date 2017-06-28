@@ -183,7 +183,8 @@ static void prepare_type_string_from_dd_param(THD *thd,
                        dd_get_mysql_charset(param->collation_id()),
                        geom_type, Field::NONE, interval, "", false,
                        param->is_zerofill(), param->is_unsigned(),
-                       numeric_scale, 0, 0));
+                       numeric_scale, 0, 0, {}));
+
   field->init(&table);
   field->sql_type(*type_str);
 

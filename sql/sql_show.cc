@@ -1479,6 +1479,16 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      const Field_geom *field_geom= down_cast<const Field_geom*>(field);
+      if (field_geom->get_srid().has_value())
+      {
+        packet->append(STRING_WITH_LEN(" /*!80003 SRID "));
+        packet->append_ulonglong(field_geom->get_srid().value());
+        packet->append(STRING_WITH_LEN(" */"));
+      }
+    }
     switch(field->field_storage_type()){
     case HA_SM_DEFAULT:
       break;

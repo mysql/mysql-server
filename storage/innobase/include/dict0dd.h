@@ -180,7 +180,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("tables", 6),
 	INNODB_DD_TABLE("view_table_usage", 2),
 	INNODB_DD_TABLE("view_routine_usage", 2),
-	INNODB_DD_TABLE("columns", 4),
+	INNODB_DD_TABLE("columns", 5),
 	INNODB_DD_TABLE("indexes", 3),
 	INNODB_DD_TABLE("index_column_usage", 3),
 	INNODB_DD_TABLE("column_type_elements", 1),

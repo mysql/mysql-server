@@ -2308,20 +2308,27 @@ innobase_create_index_def(
 	index->name = mem_heap_strdup(heap, key->name);
 	index->rebuild = new_clustered;
 
+	/* If this is a spatial index, we need to fetch the SRID */
+	if (key->flags & HA_SPATIAL) {
+		ulint	dd_key_num = key_number + (
+			(altered_table->s->primary_key == MAX_KEY) ? 1 : 0);
 
-	const auto* dd_index_auto =
-		(index->key_number != ULINT_UNDEFINED)
-		? const_cast<const Table*>(new_dd_tab)->indexes()
-		[index->key_number]
-	: nullptr;
+		const auto* dd_index_auto =
+			(index->key_number != ULINT_UNDEFINED)
+			? const_cast<const Table*>(
+				new_dd_tab)->indexes()[dd_key_num]
+		: nullptr;
 
-	const dd::Index* dd_index = get_dd_index(dd_index_auto);
+		const dd::Index* dd_index = get_dd_index(dd_index_auto);
 
-	if (dd_index != nullptr) {
-		const dd::Column& col = dd_index->elements()[0]->column();
-		bool has_value = col.srs_id().has_value();
-		index->srid_is_valid = has_value;
-		index->srid = has_value ? col.srs_id().value() : 0;
+		if (dd_index != nullptr) {
+			ut_ad(dd_index->name() == key->name);
+			/* Spatial index indexes on only one column */
+			const dd::Column& col = dd_index->elements()[0]->column();
+			bool has_value = col.srs_id().has_value();
+			index->srid_is_valid = has_value;
+			index->srid = has_value ? col.srs_id().value() : 0;
+		}
 	}
 
 	if (key_clustered) {

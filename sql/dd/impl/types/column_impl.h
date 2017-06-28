@@ -22,6 +22,7 @@
 #include <new>
 
 #include "my_dbug.h"
+#include "nullable.h"
 #include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
@@ -31,6 +32,9 @@
 #include "sql/dd/types/column.h"              // dd::Column
 #include "sql/dd/types/column_type_element.h" // IWYU pragma: keep
 #include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/gis/srid.h"                     // gis::srid_t
+
+using Mysql::Nullable;
 
 namespace dd {
 
@@ -386,19 +390,11 @@ public:
   /////////////////////////////////////////////////////////////////////////
   // Spatial reference system ID
   /////////////////////////////////////////////////////////////////////////
-  virtual void set_srs_id(Mysql::Nullable<gis::srid_t> srs_id)
-  {
-    (void)srs_id;
-    // This value is mocked for now.
-    // TODO in wl#8592 - return actual column values.
-  }
+  virtual void set_srs_id(Nullable<gis::srid_t> srs_id)
+  { m_srs_id= srs_id; }
 
-  virtual Mysql::Nullable<gis::srid_t> srs_id() const
-  {
-    // This value is mocked for now.
-    // TODO in wl#8592 - return actual column values.
-    return {};
-  }
+  virtual Nullable<gis::srid_t> srs_id() const
+  { return m_srs_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.
@@ -510,6 +506,8 @@ private:
   // instead of utf8_general_ci.
 
   enum_column_key m_column_key;
+
+  Nullable<gis::srid_t> m_srs_id;
 };
 
 ///////////////////////////////////////////////////////////////////////////

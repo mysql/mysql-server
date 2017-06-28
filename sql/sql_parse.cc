@@ -55,6 +55,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"        // EE_CAPACITY_EXCEEDED
+#include "nullable.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
@@ -73,6 +74,7 @@
 #include "sql/error_handler.h" // Strict_error_handler
 #include "sql/events.h"       // Events
 #include "sql/field.h"
+#include "sql/gis/srid.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -142,6 +144,7 @@
 #include "sql/sql_trigger.h"  // add_table_for_trigger
 #include "sql/sql_udf.h"
 #include "sql/sql_view.h"     // mysql_create_view
+#include "sql/srs_fetcher.h"
 #include "sql/system_variables.h" // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
@@ -160,7 +163,7 @@ class Abstract_table;
 }  // namespace dd
 
 using std::max;
-
+using Mysql::Nullable;
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -5433,6 +5436,8 @@ bool mysql_test_parse_for_slave(THD *thd)
   @param gcol_info              The generated column data or NULL.
   @param opt_after              The name of the field to add after or
                                 the @see first_keyword pointer to insert first.
+  @param srid                   The SRID for this column (only relevant if this
+                                is a geometry column).
 
   @return
     Return 0 if ok
@@ -5449,7 +5454,7 @@ bool Alter_info::add_field(THD *thd,
                            List<String> *interval_list, const CHARSET_INFO *cs,
                            uint uint_geom_type,
                            Generated_column *gcol_info,
-                           const char *opt_after)
+                           const char *opt_after, Nullable<gis::srid_t> srid)
 {
   Create_field *new_field;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
@@ -5535,10 +5540,36 @@ bool Alter_info::add_field(THD *thd,
     DBUG_RETURN(1);
   }
 
+  // If the SRID is specified on a non-geometric column, return an error
+  if (type != MYSQL_TYPE_GEOMETRY && srid.has_value())
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "SRID", "non-geometry column");
+    DBUG_RETURN(true);
+  }
+
+  // Check if the spatial reference system exists
+  if (srid.has_value() && srid.value() != 0)
+  {
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    if (fetcher.acquire(srid.value(), &srs))
+    {
+      // An error has already been raised
+      DBUG_RETURN(true); /* purecov: deadcode */
+    }
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
+      DBUG_RETURN(true);
+    }
+  }
+
   if (!(new_field= new (*THR_MALLOC) Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type, gcol_info))
+                      interval_list, cs, uint_geom_type, gcol_info, srid))
     DBUG_RETURN(1);
 
   create_list.push_back(new_field);

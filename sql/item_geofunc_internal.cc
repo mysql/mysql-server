@@ -51,7 +51,6 @@ class Spatial_reference_system;
 bool Srs_fetcher::lock(gis::srid_t srid)
 {
   DBUG_ENTER("lock_srs");
-
   DBUG_ASSERT(srid != 0);
 
   char id_str[11]; // uint32 => max 10 digits + \0

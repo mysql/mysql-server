@@ -8747,6 +8747,22 @@ Field_geom::store_internal(const char *from, size_t length,
     return TYPE_ERR_BAD_VALUE;
   }
 
+  /*
+    Check that the SRID of the geometry matches the expected SRID for this
+    field
+  */
+  if (get_srid().has_value())
+  {
+    gis::srid_t geometry_srid= uint4korr(from);
+    if (geometry_srid != get_srid().value())
+    {
+      memset(ptr, 0, Field_blob::pack_length());
+      my_error(ER_WRONG_SRID_FOR_COLUMN, MYF(0), field_name, geometry_srid,
+               get_srid().value());
+      return TYPE_ERR_BAD_VALUE;
+    }
+  }
+
   if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
   {                                                   // Must make a copy
     value.copy(from, length, cs);
@@ -10554,7 +10570,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
   @param fld_gcol_info         Generated column data
-
+  @param srid                  The SRID specification. This might be null
+                               (has_value() may return false).
   @retval
     FALSE on success.
   @retval
@@ -10568,7 +10585,8 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type,
-                        Generated_column *fld_gcol_info)
+                        Generated_column *fld_gcol_info,
+                        Nullable<gis::srid_t> srid)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -10632,6 +10650,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   comment= *fld_comment;
   gcol_info= fld_gcol_info;
   stored_in_db= TRUE;
+  m_srid= srid;
 
   /* Initialize data for a virtual field */
   if (gcol_info)
@@ -11081,7 +11100,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   bool is_unsigned,
                   uint decimals,
                   bool treat_bit_as_char,
-                  uint pack_length_override)
+                  uint pack_length_override, Nullable<gis::srid_t> srid)
 {
   uchar *bit_ptr= NULL;
   uchar bit_offset= 0;
@@ -11158,7 +11177,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 
       return new (*THR_MALLOC) Field_geom(ptr, null_pos, null_bit, auto_flags,
                                           field_name, share, pack_length,
-                                          geom_type);
+                                          geom_type, srid);
     }
   case MYSQL_TYPE_JSON:
     {
@@ -11355,8 +11374,12 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
   case MYSQL_TYPE_GEOMETRY:
-    geom_type= ((Field_geom*)old_field)->geom_type;
+  {
+    const Field_geom *field_geom= down_cast<const Field_geom*>(old_field);
+    geom_type= field_geom->geom_type;
+    m_srid= field_geom->get_srid();
     break;
+  }
   case MYSQL_TYPE_YEAR:
     if (length != 4)
       length= 4; //set default value

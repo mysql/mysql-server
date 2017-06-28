@@ -35,6 +35,9 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
+
+#include <limits>
+
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
@@ -96,6 +99,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
                                              // Sql_cmd_create_trigger
 #include "sql_truncate.h"                      // Sql_cmd_truncate_table
                                              // used in RESET_MASTER parsing check
+#include "sql/gis/srid.h"                    // gis::srid_t
 
 #include <type_traits>                       // for std::remove_reference
 
@@ -1178,6 +1182,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  WINDOW_SYM                    /* SQL-2003-R */
 %token  HISTORY_SYM                   /* MYSQL */
 %token  REUSE_SYM                     /* MYSQL */
+%token  SRID_SYM                      /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -3068,7 +3073,7 @@ sp_fdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $2->get_uint_geom_type(), NULL))
+                                      $2->get_uint_geom_type(), nullptr, {}))
             {
               MYSQL_YYABORT;
             }
@@ -3127,7 +3132,7 @@ sp_pdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $3->get_uint_geom_type(), NULL))
+                                      $3->get_uint_geom_type(), nullptr, {}))
             {
               MYSQL_YYABORT;
             }
@@ -3255,7 +3260,7 @@ sp_decl:
                                         NULL, NULL, &NULL_STR, 0,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
-                                        $3->get_uint_geom_type(), NULL))
+                                        $3->get_uint_geom_type(), nullptr, {}))
               {
                 MYSQL_YYABORT;
               }
@@ -6365,8 +6370,16 @@ column_attribute:
           {
             $$= NEW_PTN PT_storage_media_column_attr($2);
           }
+        | SRID_SYM real_ulonglong_num
+          {
+            if ($2 > std::numeric_limits<gis::srid_t>::max())
+            {
+              my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID", "SRID");
+              MYSQL_YYABORT;
+            }
+            $$= NEW_PTN PT_srid_column_attr(static_cast<gis::srid_t>($2));
+          }
         ;
-
 
 column_format:
           DEFAULT_SYM { $$= COLUMN_FORMAT_TYPE_DEFAULT; }
@@ -13587,6 +13600,7 @@ role_or_label_keyword:
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
+        | SRID_SYM                 {}
         | STACKED_SYM              {}
         | STARTS_SYM               {}
         | STATS_AUTO_RECALC_SYM    {}
@@ -15244,7 +15258,8 @@ sf_tail:
                                             $9->get_type_flags(), NULL, NULL, &NULL_STR, 0,
                                             $9->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-                                            $9->get_uint_geom_type(), NULL))
+                                            $9->get_uint_geom_type(), nullptr,
+                                            {}))
             {
               MYSQL_YYABORT;
             }

@@ -7,7 +7,7 @@
 --source include/big_test.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 # Insert enough values to let R-tree split.
 insert into t1 values(1, Point(1,1));
@@ -308,7 +308,7 @@ drop table t1;
 drop procedure insert_t1;
 
 #============ Test row locks =======================
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 
 INSERT INTO t1  VALUES (1, ST_GeomFromText('LineString(2 2, 150 150)'));
@@ -356,7 +356,7 @@ drop table t1;
 SET DEBUG_SYNC= 'RESET';
 
 # Test btr_discard_page adjust concurrent search path
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 start transaction;
 insert into t1 values(1, Point(1,1));
@@ -402,7 +402,7 @@ connection default;
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
 
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb;
 
 delimiter |;
 create procedure insert_t1(IN total int)

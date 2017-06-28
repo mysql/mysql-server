@@ -3009,6 +3009,7 @@ ha_innobase::ha_innobase(
 			  Still, claim support for partial update so that the
 			  optimizer parts get tested. */
 			  | HA_BLOB_PARTIAL_UPDATE
+			  | HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN
 		  ),
 	m_start_of_scan(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),
@@ -11063,6 +11064,18 @@ error_ret:
 	DBUG_RETURN(convert_error_code_to_mysql(err, m_flags, m_thd));
 }
 
+template<typename Index> const dd::Index* get_my_dd_index(const Index* index);
+
+template<> const dd::Index* get_my_dd_index<dd::Index>(const dd::Index* dd_index) {
+        return dd_index;
+}
+
+template<>
+const dd::Index* get_my_dd_index<dd::Partition_index>(
+        const dd::Partition_index* dd_index) {
+        return (dd_index != nullptr) ? &dd_index->index() : nullptr;
+}
+
 /*****************************************************************//**
 Creates an index in an InnoDB database. */
 inline
@@ -11074,13 +11087,16 @@ create_index(
 					columns and indexes */
 	ulint		flags,		/*!< in: InnoDB table flags */
 	const char*	table_name,	/*!< in: table name */
-	uint		key_num)	/*!< in: index number */
+	uint		key_num,	/*!< in: index number */
+	const dd::Table*dd_table)	/*!< in: dd::Table for the table*/
 {
 	dict_index_t*	index;
 	int		error;
 	const KEY*	key;
 	ulint		ind_type;
 	ulint*		field_lengths;
+	uint32_t	srid = 0;
+	bool		has_srid = false;
 
 	DBUG_ENTER("create_index");
 
@@ -11096,8 +11112,22 @@ create_index(
 		ind_type = DICT_FTS;
 	}
 
-	if (ind_type != 0)
-	{
+	if (ind_type == DICT_SPATIAL) {
+		ulint	dd_index_num = key_num + ((
+			form->s->primary_key == MAX_KEY) ? 1 : 0);
+
+		const auto* dd_index_auto =
+				dd_table->indexes()[dd_index_num];
+
+                const dd::Index* dd_index = get_my_dd_index(dd_index_auto);
+		ut_ad(dd_index->name() == key->name);
+
+		const dd::Column& col = dd_index->elements()[0]->column();
+		has_srid = col.srs_id().has_value();
+		srid = has_srid ? col.srs_id().value() : 0;
+	}
+
+	if (ind_type != 0) {
 		index = dict_mem_index_create(table_name, key->name, 0,
 					      ind_type,
 					      key->user_defined_key_parts);
@@ -11115,6 +11145,11 @@ create_index(
 			index->add_field(
 				key_part->field->field_name, 0,
 				!(key_part->key_part_flag & HA_REVERSE_SORT));
+		}
+
+		if (ind_type == DICT_SPATIAL) {
+			index->srid_is_valid = has_srid;
+			index->srid = srid;
 		}
 
 		DBUG_RETURN(convert_error_code_to_mysql(
@@ -12782,7 +12817,7 @@ create_table_info_t::create_table(
 		/* In InnoDB the clustered index must always be created
 		first */
 		if ((error = create_index(m_trx, m_form, m_flags, m_table_name,
-					  primary_key_no))) {
+					  primary_key_no, dd_table))) {
 			DBUG_RETURN(error);
 		}
 	}
@@ -12852,7 +12887,8 @@ create_table_info_t::create_table(
 		if (i != primary_key_no) {
 
 			if ((error = create_index(m_trx, m_form, m_flags,
-						  m_table_name, i))) {
+						  m_table_name, i,
+						  dd_table))) {
 				DBUG_RETURN(error);
 			}
 		}

@@ -224,7 +224,7 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
   Field *result;
   if ((result= new (*THR_MALLOC) Field_geom(max_length, maybe_null,
                                             item_name.ptr(),
-                                            get_geometry_type())))
+                                            get_geometry_type(), {})))
     result->init(t_arg);
   return result;
 }

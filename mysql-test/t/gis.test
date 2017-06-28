@@ -2187,9 +2187,9 @@ SET @poly1 = ST_GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))');
 
 CREATE TABLE t1 (
                    a INT NOT NULL,
-                   p POINT NOT NULL,
-                   l LINESTRING NOT NULL,
-                   g GEOMETRY NOT NULL,
+                   p POINT NOT NULL SRID 0,
+                   l LINESTRING NOT NULL SRID 0,
+                   g GEOMETRY NOT NULL SRID 0,
                    PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),
@@ -2214,9 +2214,9 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
                    a INT NOT NULL,
-                   p POINT NOT NULL,
-                   l LINESTRING NOT NULL,
-                   g GEOMETRY NOT NULL,
+                   p POINT NOT NULL SRID 0,
+                   l LINESTRING NOT NULL SRID 0,
+                   g GEOMETRY NOT NULL SRID 0,
                    PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),

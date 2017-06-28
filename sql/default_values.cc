@@ -255,7 +255,8 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
                               field.is_unsigned,
                               field.decimals,
                               field.treat_bit_as_char,
-                              field.pack_length_override);
+                              field.pack_length_override,
+                              {field.m_srid});
   bool retval= true;
   if (!regfield)
     goto err;

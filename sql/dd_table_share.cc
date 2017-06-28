@@ -1026,7 +1026,8 @@ static bool fill_column_from_dd(THD *thd,
                         col_obj->is_nullable(),
                         col_obj->is_zerofill(),
                         col_obj->is_unsigned(),
-                        decimals, treat_bit_as_char, 0);
+                        decimals, treat_bit_as_char, 0,
+                        col_obj->srs_id());
 
   reg_field->field_index= field_nr;
   reg_field->gcol_info= gcol_info;
@@ -1421,6 +1422,42 @@ static bool fill_index_from_dd(THD* thd, TABLE_SHARE *share,
 
 
 /**
+  Check if this is a spatial index that can be used. That is, if there is
+  a spatial index on a geometry column without the SRID specified, we will
+  hide the index so that the optimizer won't consider the index during
+  optimization/execution.
+
+  @param index The index to verify
+
+  @retval true if the index is an usable spatial index, or if it isn't a
+          spatial index.
+  @retval false if the index is a spatial index on a geometry column without
+          an SRID specified.
+*/
+static bool is_spatial_index_usable(const dd::Index &index)
+{
+  if (index.type() == dd::Index::IT_SPATIAL)
+  {
+    /*
+      We have already checked for hidden indexes before we get here. But we
+      still play safe since the check is very cheap.
+    */
+    if (index.is_hidden())
+      return false; /* purecov: deadcode */
+
+    // Check that none of the parts references a column with SRID == NULL
+    for (const auto element : index.elements())
+    {
+      if (!element->is_hidden() && !element->column().srs_id().has_value())
+        return false;
+    }
+  }
+
+  return true;
+}
+
+
+/**
   Fill TABLE_SHARE::key_info array according to index metadata
   from dd::Table object.
 */
@@ -1537,7 +1574,8 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
       index_at_pos[key_nr]= idx_obj;
 
       share->keys_in_use.set_bit(key_nr);
-      if (idx_obj->is_visible())
+
+      if (idx_obj->is_visible() && is_spatial_index_usable(*idx_obj))
         share->visible_indexes.set_bit(key_nr);
 
       key_nr++;

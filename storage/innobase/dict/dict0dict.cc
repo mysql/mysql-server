@@ -2568,6 +2568,8 @@ dict_index_add_to_cache_w_vcol(
 	new_index->allow_duplicates = index->allow_duplicates;
 	new_index->nulls_equal = index->nulls_equal;
 	new_index->disable_ahi = index->disable_ahi;
+	new_index->srid_is_valid = index->srid_is_valid;
+	new_index->srid = index->srid;
 
 	if (dict_index_too_big_for_tree(table, new_index, strict)) {
 

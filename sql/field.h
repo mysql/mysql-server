@@ -24,6 +24,8 @@
 #include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
+#include "nullable.h"
+#include "sql/gis/srid.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_error.h"                      // Sql_condition
 #include "sql/table.h"                          // TABLE
@@ -39,6 +41,8 @@ class Protocol;
 class Relay_log_info;
 class Send_field;
 struct TABLE;
+
+using Mysql::Nullable;
 
 /*
 
@@ -708,7 +712,6 @@ private:
     m_is_tmp_null attribute.
   */
   enum_check_fields m_check_for_truncated_fields_saved;
-
 protected:
 
   const uchar *get_null_ptr() const
@@ -4057,6 +4060,9 @@ private:
 
 
 class Field_geom :public Field_blob {
+private:
+  const Nullable<gis::srid_t> m_srid;
+
   virtual type_conversion_status store_internal(const char *from, size_t length,
                                                 const CHARSET_INFO *cs);
 public:
@@ -4065,14 +4071,17 @@ public:
   Field_geom(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
 	     uchar auto_flags_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, uint blob_pack_length,
-	     enum geometry_type geom_type_arg)
+	     enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
      :Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                 field_name_arg, share, blob_pack_length, &my_charset_bin)
-  { geom_type= geom_type_arg; }
+                 field_name_arg, share, blob_pack_length, &my_charset_bin),
+      m_srid(srid), geom_type(geom_type_arg)
+  {}
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-             enum geometry_type geom_type_arg)
-    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
-  { geom_type= geom_type_arg; }
+             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin,
+                false),
+     m_srid(srid), geom_type(geom_type_arg)
+  {}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
   bool match_collation_to_optimize_range() const { return false; }
@@ -4106,6 +4115,8 @@ public:
     return new (*THR_MALLOC) Field_geom(*this);
   }
   uint is_equal(const Create_field *new_field);
+
+  Nullable<gis::srid_t> get_srid() const { return m_srid; }
 };
 
 
@@ -4581,6 +4592,8 @@ public:
   */
   bool stored_in_db;
 
+  Nullable<gis::srid_t> m_srid;
+
   Create_field()
    :after(NULL),
     geom_type(Field::GEOM_GEOMETRY),
@@ -4615,7 +4628,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
-            Generated_column *gcol_info= NULL);
+            Generated_column *gcol_info, Nullable<gis::srid_t> srid);
 
   ha_storage_media field_storage_type() const
   {
@@ -4749,7 +4762,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   bool is_unsigned,
                   uint decimals,
                   bool treat_bit_as_char,
-                  uint pack_length_override);
+                  uint pack_length_override, Nullable<gis::srid_t> srid);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,

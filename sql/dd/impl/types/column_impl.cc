@@ -298,6 +298,8 @@ bool Column_impl::restore_attributes(const Raw_record &r)
 
   m_column_type_utf8= r.read_str(Columns::FIELD_COLUMN_TYPE_UTF8);
 
+  if (!r.is_null(Columns::FIELD_SRS_ID))
+    m_srs_id= r.read_uint(Columns::FIELD_SRS_ID);
   return false;
 }
 
@@ -359,7 +361,10 @@ bool Column_impl::store_attributes(Raw_record *r)
     r->store(Columns::FIELD_OPTIONS, *m_options) ||
     r->store(Columns::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
     r->store(Columns::FIELD_COLUMN_KEY, m_column_key) ||
-    r->store(Columns::FIELD_COLUMN_TYPE_UTF8, m_column_type_utf8);
+    r->store(Columns::FIELD_COLUMN_TYPE_UTF8, m_column_type_utf8) ||
+    r->store(Columns::FIELD_SRS_ID,
+             (m_srs_id.has_value() ? m_srs_id.value() : 0),
+             !m_srs_id.has_value());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -386,6 +391,9 @@ Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_datetime_precision_null, STRING_WITH_LEN("datetime_precision_null"));
   write(w, m_has_no_default, STRING_WITH_LEN("has_no_default"));
   write(w, m_default_value_null, STRING_WITH_LEN("default_value_null"));
+  write(w, !m_srs_id.has_value(), STRING_WITH_LEN("srs_id_null"));
+  write(w, (m_srs_id.has_value() ? m_srs_id.value() : 0),
+        STRING_WITH_LEN("srs_id"));
 
   // Binary
   write_binary(wctx, w, m_default_value, STRING_WITH_LEN("default_value"));
@@ -441,6 +449,16 @@ Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read_enum(&m_column_key, val, "column_key");
   read(&m_column_type_utf8, val, "column_type_utf8");
 
+  bool srs_id_is_null;
+  read(&srs_id_is_null, val, "srs_id_null");
+
+  if (!srs_id_is_null)
+  {
+    gis::srid_t srs_id;
+    read(&srs_id, val, "srs_id");
+    m_srs_id= srs_id;
+  }
+
   deserialize_each(rctx, [this] () { return add_element(); },
                    val, "elements");
 
@@ -485,7 +503,11 @@ void Column_impl::debug_print(String_type &outb) const
     << "m_hidden: " << m_hidden << "; "
     << "m_options: " << m_options->raw_string() << "; "
     << "m_column_key: " << m_column_key << "; "
-    << "m_column_type_utf8: " << m_column_type_utf8 << "; ";
+    << "m_column_type_utf8: " << m_column_type_utf8 << "; "
+    << "m_srs_id_null: " << !m_srs_id.has_value() << "; ";
+
+  if (m_srs_id.has_value())
+    ss << "m_srs_id: " << m_srs_id.value() << "; ";
 
   if (m_type == enum_column_types::ENUM || m_type == enum_column_types::SET)
   {
@@ -551,7 +573,8 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
     m_table(parent), m_elements(),
     m_column_type_utf8(src.m_column_type_utf8),
     m_collation_id(src.m_collation_id),
-    m_column_key(src.m_column_key)
+    m_column_key(src.m_column_key),
+    m_srs_id(src.m_srs_id)
 {
   m_elements.deep_copy(src.m_elements, this);
 }

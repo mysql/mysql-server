@@ -474,6 +474,13 @@ enum enum_alter_inplace_result {
 */
 #define HA_BLOB_PARTIAL_UPDATE (1LL << 49)
 
+/**
+  If this isn't defined, only columns/indexes with Cartesian coordinate systems
+  (projected SRS or SRID 0) is supported. Columns/indexes without SRID
+  restriction is also supported if this isn't defined.
+*/
+#define HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN (1LL << 50)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.

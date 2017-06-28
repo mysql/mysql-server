@@ -1878,6 +1878,7 @@ dd_fill_one_dict_index(
 	}
 
 	if (dict_index_is_spatial(index)) {
+		ut_ad(dd_index->name() == key.name);
 		const dd::Column& col = dd_index->elements()[0]->column();
 		bool srid_has_value = col.srs_id().has_value();
 		index->fill_srid_value(
@@ -2051,8 +2052,12 @@ dd_fill_dict_index(
 	}
 
 	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
+		ulint   dd_index_num = i + ((
+			m_form->s->primary_key == MAX_KEY) ? 1 : 0);
+
 		error = dd_fill_one_dict_index(
-			dd_table.indexes()[i], m_table, strict, m_form->s, i);
+			dd_table.indexes()[dd_index_num], m_table, strict,
+			m_form->s, i);
 		if (error != 0) {
 			goto dd_error;
 		}

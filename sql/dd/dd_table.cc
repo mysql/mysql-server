@@ -77,6 +77,7 @@
 #include "sql/sql_partition.h"                // expr_to_string
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h"                    // primary_key_name
+#include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"                      // lex_cstring_handle
 #include "sql/table.h"
 #include "sql_string.h"
@@ -226,7 +227,8 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
                    field->is_zerofill,
                    field->is_unsigned,
                    field->decimals,
-                   field->treat_bit_as_char, 0));
+                   field->treat_bit_as_char, 0,
+                   field->m_srid));
   fld->init(table);
 
   // Read column display type.
@@ -282,7 +284,8 @@ static void prepare_default_value_string(uchar *buf,
                  field.is_zerofill,
                  field.is_unsigned,
                  field.decimals,
-                 field.treat_bit_as_char, 0));
+                 field.treat_bit_as_char, 0,
+                 field.m_srid));
   f->init(table);
 
   if (col_obj->has_no_default())
@@ -608,6 +611,8 @@ fill_dd_columns_from_create_fields(THD *thd,
     col_obj->set_unsigned(field->is_unsigned);
 
     col_obj->set_zerofill(field->is_zerofill);
+
+    col_obj->set_srs_id(field->m_srid);
 
     /*
       AUTO_INCREMENT, DEFAULT/ON UPDATE CURRENT_TIMESTAMP properties are
@@ -1013,7 +1018,8 @@ bool is_candidate_primary_key(THD *thd,
                              cfield->is_zerofill,
                              cfield->is_unsigned,
                              cfield->decimals,
-                             cfield->treat_bit_as_char, 0));
+                             cfield->treat_bit_as_char, 0,
+                             cfield->m_srid));
     table_field->init(&table);
 
     if (is_suitable_for_primary_key(key_part, table_field.get()) == false)
@@ -2018,6 +2024,53 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format)
 }
 
 
+/**
+  Check if the storage engine supports geographic geometry columns. If not,
+  check that the columns defined only has Cartesian coordinate systems
+  (projected SRS or SRID 0).
+
+  @param thd Thread handle
+  @param table The table definition
+  @param handler Handler to the storage engine
+
+  @retval true if the engine does not supports the provided SRS id. In that case
+          my_error is called
+  @retval false on success
+*/
+static bool engine_supports_provided_srs_id(THD *thd, const dd::Table &table,
+                                            const handler *handler)
+{
+  if (!(handler->ha_table_flags() & HA_SUPPORTS_GEOGRAPHIC_GEOMETRY_COLUMN))
+  {
+    for (const auto col : table.columns())
+    {
+      if (col->srs_id().has_value() && col->srs_id() != 0)
+      {
+        Srs_fetcher fetcher(thd);
+        const dd::Spatial_reference_system *srs= nullptr;
+        dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+        if (fetcher.acquire(col->srs_id().value(), &srs))
+        {
+          // An error has already been flagged.
+          return true; /* purecov: deadcode */
+        }
+
+        // Non-existing spatial reference systems should already been stopped
+        DBUG_ASSERT(srs != nullptr);
+        if (srs->is_geographic())
+        {
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0),
+                   "geographic spatial reference systems");
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+
 /** Fill dd::Table object from mysql_prepare_create_table() output. */
 static bool fill_dd_table_from_create_info(THD *thd,
                                            dd::Table *tab_obj,
@@ -2218,6 +2271,14 @@ static bool fill_dd_table_from_create_info(THD *thd,
   if (fill_dd_columns_from_create_fields(thd, tab_obj,
                                          create_fields,
                                          file))
+    return true;
+
+  /*
+    Reject the create if the SRID represents a geographic spatial reference
+    system in an engine that does not support it. The function will call
+    my_error in case of any errors.
+  */
+  if (engine_supports_provided_srs_id(thd, *tab_obj, file))
     return true;
 
   // Add index definitions
