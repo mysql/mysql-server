@@ -102,7 +102,7 @@ include/assert.inc [MASTER_POS_WAIT should return NULL for channel '' and positi
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
-include/show_relaylog_events.inc
+SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -145,10 +145,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog-channel_2.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog-channel_2.000006	#	Rotate	#	#	msr-relaylog-channel_2.000007;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -195,10 +192,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog-channel_3.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog-channel_3.000006	#	Rotate	#	#	msr-relaylog-channel_3.000007;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -329,10 +323,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog.000008	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog.000008	#	Rotate	#	#	msr-relaylog.000009;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -379,7 +370,7 @@ include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_2' a
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
-include/show_relaylog_events.inc
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -422,10 +413,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_3' and
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog-channel_3.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog-channel_3.000006	#	Rotate	#	#	msr-relaylog-channel_3.000007;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -556,10 +544,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel '' and position
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel ''.
 FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog.000008	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog.000008	#	Rotate	#	#	msr-relaylog.000009;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -606,10 +591,7 @@ include/assert.inc [MASTER_POS_WAIT should return -1 for channel 'channel_2' and
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_2'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
-include/show_relaylog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-msr-relaylog-channel_2.000008	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
-msr-relaylog-channel_2.000008	#	Rotate	#	#	msr-relaylog-channel_2.000009;pos=4
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -656,7 +638,7 @@ include/assert.inc [MASTER_POS_WAIT should return NULL for channel 'channel_3' a
 ===== Executing FLUSH RELAY LOGS FOR CHANNEL on channel 'channel_3'.
 FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
-include/show_relaylog_events.inc
+SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

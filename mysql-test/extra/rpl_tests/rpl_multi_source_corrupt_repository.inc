@@ -293,7 +293,10 @@ while ($i <= $number_of_channels)
 
   --echo ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel '$channel_name'.
   --let $rpl_channel_name=$channel_name
-  --source include/show_relaylog_events.inc
+  # It doesn't care the result, just make sure the query can be executed successfully
+  --disable_result_log
+  eval SHOW RELAYLOG EVENTS FOR CHANNEL '$channel_name';
+  --enable_result_log
 
   #############################################################################
   # Step 4.4: SHOW SLAVE STATUS FOR CHANNEL 'channel_name'
