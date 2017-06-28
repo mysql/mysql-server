@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3672,7 +3672,8 @@ Dbdih::nr_start_fragments(Signal* signal,
 {
   Uint32 loopCount = 0 ;
   TabRecordPtr tabPtr;
-  while (loopCount++ < 100) {
+  const Uint32 MaxFragsToSearch = 100;
+  while (loopCount++ < MaxFragsToSearch) {
     tabPtr.i = takeOverPtr.p->toCurrentTabref;
     if (tabPtr.i >= ctabFileSize) {
       jam();
@@ -3704,6 +3705,7 @@ Dbdih::nr_start_fragments(Signal* signal,
       if (loopReplicaPtr.p->procNode == takeOverPtr.p->toStartingNode) {
         jam();
 	nr_start_fragment(signal, takeOverPtr, loopReplicaPtr);
+        loopCount+= MaxFragsToSearch; /* Take a break */
 	break;
       } else {
         jam();
