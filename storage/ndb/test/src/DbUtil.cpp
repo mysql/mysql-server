@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,19 +300,18 @@ DbUtil::createDb(BaseString& m_db)
 {
   BaseString stm;
   setDbName(m_db.c_str());
-  
+
+  if (selectDb())
   {
-    if(selectDb())
+    stm.assfmt("DROP DATABASE %s", m_db.c_str());
+    if (!doQuery(stm))
     {
-      stm.assfmt("DROP DATABASE %s", m_db.c_str());
-      if(!doQuery(m_db.c_str()))
-        return false;
-    }
-    stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-    if(!doQuery(m_db.c_str()))
       return false;
-    return true;
+    }
   }
+
+  stm.assfmt("CREATE DATABASE %s", m_db.c_str());
+  return doQuery(stm);
 }
 
 
