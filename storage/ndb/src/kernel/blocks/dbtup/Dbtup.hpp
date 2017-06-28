@@ -3212,12 +3212,14 @@ private:
                        Uint32 page_no);
 
   void record_delete_by_pageid(Signal *signal,
+                               Uint32 tableId,
                                Uint32 fragmentId,
                                ScanOp &scan,
                                Local_key &key,
                                Uint32 record_size);
 
   void record_delete_by_rowid(Signal *signal,
+                              Uint32 tableId,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,

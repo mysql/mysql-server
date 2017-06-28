@@ -192,7 +192,8 @@ private:
   void close_ctl_file_done(Signal*, FilePtr);
 
   Uint32 init_file(const struct RestoreLcpReq*, FilePtr);
-  void release_file(FilePtr);
+  void release_file(FilePtr, bool statistics);
+  Uint32 seize_file(FilePtr);
 
   void step_file_number_forward(FilePtr);
   void step_file_number_back(FilePtr, Uint32);

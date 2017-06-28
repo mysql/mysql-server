@@ -29339,8 +29339,9 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
                  lcpStateString(c_lcpFragWatchdog.lcpState));
     c_tup->lcp_frag_watchdog_print(c_lcpFragWatchdog.tableId,
                                    c_lcpFragWatchdog.fragId);
-    ndbout_c("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
-             "  %llu %s, state: %s",
+    g_eventLogger->info("LCP Frag watchdog : No progress on table %u,"
+                        " frag %u for %u s."
+                        "  %llu %s, state: %s",
              c_lcpFragWatchdog.tableId,
              c_lcpFragWatchdog.fragId,
              c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,

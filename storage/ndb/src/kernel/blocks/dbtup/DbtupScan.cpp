@@ -35,6 +35,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_DEL 1
+#ifdef DEBUG_LCP_DEL
+#define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1106,6 +1113,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 jam();
                 /* 1a) as described above */
                 scan.m_last_seen = __LINE__;
+                pos.m_get = ScanPos::Get_next_page_mm;
                 goto record_dropped_change_page;
               }
             }
@@ -1196,6 +1204,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              * record the entire page as DELETE by PAGEID.
              */
             scan.m_last_seen = __LINE__;
+            pos.m_get = ScanPos::Get_next_page_mm;
             goto record_dropped_change_page;
           }
           else
@@ -1716,6 +1725,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       {
         ndbassert(c_backup->is_partial_lcp_enabled());
         record_delete_by_pageid(signal,
+                                frag.fragTableId,
                                 frag.fragmentId,
                                 scan,
                                 pos.m_key_mm,
@@ -1769,6 +1779,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
          * This code is also used by LCPs to record deleted row ids.
          */
         record_delete_by_rowid(signal,
+                               frag.fragTableId,
                                frag.fragmentId,
                                scan,
                                pos.m_key_mm,
@@ -1813,11 +1824,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 
 void
 Dbtup::record_delete_by_rowid(Signal *signal,
+                              Uint32 tableId,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,
                               Uint32 foundGCI)
 {
+  DEB_LCP_DEL(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
+               instance(),
+               tableId,
+               fragmentId,
+               key.m_page_no,
+               key.m_page_idx));
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
   conf->accOperationPtr = RNIL;
@@ -1834,11 +1852,17 @@ Dbtup::record_delete_by_rowid(Signal *signal,
 
 void
 Dbtup::record_delete_by_pageid(Signal *signal,
+                               Uint32 tableId,
                                Uint32 fragmentId,
                                ScanOp &scan,
                                Local_key &key,
                                Uint32 record_size)
 {
+  DEB_LCP_DEL(("(%u)Delete by pageid tab(%u,%u), page(%u)",
+               instance(),
+               tableId,
+               fragmentId,
+               key.m_page_no));
   jam();
   /**
    * Set pos.m_key_mm.m_page_idx to flag to LQH that it is a
@@ -1930,6 +1954,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       ndbrequire(num_entries == 1);
       DEB_LCP_KEEP(("(%u)Handle LCP keep DELETE by PAGEID", instance()));
       record_delete_by_pageid(signal,
+                              fragPtr.p->fragTableId,
                               fragPtr.p->fragmentId,
                               *scanPtrP,
                               key,
@@ -1949,6 +1974,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
       key.m_page_no = page_id;
       key.m_page_idx = page_index_array[num_entries];
       record_delete_by_rowid(signal,
+                             fragPtr.p->fragTableId,
                              fragPtr.p->fragmentId,
                              *scanPtrP,
                              key,
