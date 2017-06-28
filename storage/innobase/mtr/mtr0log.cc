@@ -117,7 +117,7 @@ mlog_parse_initial_dict_log_record(
 
 	*id = mach_parse_u64_much_compressed(&ptr, end_ptr);
 
-	if (end_ptr < ptr + 1) {
+	if (ptr == nullptr || end_ptr < ptr + 1) {
 
 		return(nullptr);
 	}
