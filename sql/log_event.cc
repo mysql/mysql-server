@@ -10038,20 +10038,19 @@ Rows_log_event::next_record_scan(bool first_read)
     if (!first_read)
     {
       /*
-        if we fail to fetch next record corresponding to an index value, we
+        if we fail to fetch next record corresponding to a key value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      error= table->file->ha_index_next(table->record[0]);
+      error= table->file->ha_index_next_same(table->record[0], m_key,
+                                             m_key_info->key_length);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+      {
         /*
-          if we are out of rows for this particular key value
-          or we have jumped to the next key value, we reposition the
-          marker according to the next key value that we have in the
-          list.
+          if we are out of rows for this particular key value, we reposition the
+          marker according to the next key value that we have in the list.
          */
-        if ((error) ||
-            (key_cmp(m_key_info->key_part, m_key, m_key_info->key_length) != 0))
+        if (error)
         {
           if (m_itr != m_distinct_keys.end())
           {
@@ -10062,6 +10061,7 @@ Rows_log_event::next_record_scan(bool first_read)
           else
             error= HA_ERR_KEY_NOT_FOUND;
         }
+      }
     }
 
     if (first_read)
