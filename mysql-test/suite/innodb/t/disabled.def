@@ -10,11 +10,6 @@
 #
 ##############################################################################
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
-innodb_wl6501_crash_1     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_2     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_6     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_7     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
-innodb_wl6501_crash_8     : WL#6795 2015-11-06 jhauglid WL6795_WL9536_RECOVERY
 innodb.bootstrap        @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
