@@ -7328,7 +7328,8 @@ Dbdih::nr_start_fragments(Signal* signal,
 {
   Uint32 loopCount = 0 ;
   TabRecordPtr tabPtr;
-  while (loopCount++ < 100) {
+  const Uint32 MaxFragsToSearch = 100;
+  while (loopCount++ < MaxFragsToSearch) {
     tabPtr.i = takeOverPtr.p->toCurrentTabref;
     if (tabPtr.i >= ctabFileSize) {
       jam();
@@ -7360,6 +7361,7 @@ Dbdih::nr_start_fragments(Signal* signal,
       if (loopReplicaPtr.p->procNode == takeOverPtr.p->toStartingNode) {
         jam();
 	nr_start_fragment(signal, takeOverPtr, loopReplicaPtr);
+        loopCount+= MaxFragsToSearch; /* Take a break */
 	break;
       } else {
         jam();
