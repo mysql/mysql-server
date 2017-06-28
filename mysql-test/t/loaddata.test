@@ -709,3 +709,18 @@ LOAD DATA INFILE 'test.dat' INTO TABLE v(@a, @d) SET a= @a, d= @d;
 
 DROP VIEW v;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #25147988: LOAD DATA INFILE FAILS WITH AN ESCAPE CHARACTER
+--echo #                FOLLOWED BY A MULTI-BYTE ONE
+--echo #
+# Test escape mark followed by multibyte character
+CREATE TABLE t1(a VARCHAR(20)) CHARSET utf8mb4;
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1 CHARACTER SET utf8mb4;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
+# Test multibyte character whose second byte is 0x5C
+CREATE TABLE t1(a VARCHAR(20)) CHARSET gb18030;
+LOAD DATA INFILE '../../std_data/loaddata7.dat' INTO TABLE t1 CHARACTER SET gb18030;
+SELECT HEX(a) FROM t1;
+DROP TABLE t1;
