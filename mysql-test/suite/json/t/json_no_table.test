@@ -872,7 +872,7 @@ SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : {"not array": 4} } ] }
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
                    '$.b[ 1 ].c[ 1 ]');
 
---echo # returns a JSON value containing the number 123 (due to normalization)
+--echo # returns a JSON value containing the number 456 (due to normalization)
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
                    '$.b[ 1 ].c');
 
@@ -968,7 +968,7 @@ SELECT JSON_EXTRACT
   '$.b[ 1 ].c[ 1 ]'
 );
 
-# returns a JSON value containing the number 123 (due to normalization)
+# returns a JSON value containing the number 456 (due to normalization)
 SELECT JSON_EXTRACT
 (
   '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
@@ -1607,6 +1607,9 @@ select json_object( cast(json_array() as char), json_array());
 
 select json_object( 1, json_array());
 select json_object( cast(1 as char), json_array());
+
+# duplicate keys
+SELECT JSON_OBJECT('a', 1, 'b', 2, 'a', 3);
 
 # returns the empty object: {}
 SELECT JSON_OBJECT();
@@ -2540,3 +2543,8 @@ CREATE VIEW v AS SELECT JSON_MERGE('{}', '{}') AS col;
 SHOW CREATE VIEW v;
 SELECT * FROM v;
 DROP VIEW v;
+
+--echo #
+--echo # Bug#26238736: ASSERTION `__NULL != DYNAMIC_CAST<TARGET>(ARG)' FAILURE
+--echo #
+SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);

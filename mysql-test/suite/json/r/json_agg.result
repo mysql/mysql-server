@@ -984,8 +984,8 @@ INSERT INTO t1 VALUES
 (2, 2, "2.3");
 SELECT a, JSON_OBJECTAGG(k, b) FROM t1 GROUP BY a;
 a	JSON_OBJECTAGG(k, b)
-1	{"1": "1.1"}
-2	{"2": "2.1"}
+1	{"1": "1.3"}
+2	{"2": "2.3"}
 SELECT a, JSON_ARRAYAGG(b) FROM t1 GROUP BY a;
 a	JSON_ARRAYAGG(b)
 1	["1.1", "1.2", "1.3"]

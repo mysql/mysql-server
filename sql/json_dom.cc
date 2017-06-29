@@ -1006,8 +1006,9 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
   value->set_parent(this);
 
   /*
-    We have already an element with this key.  Note we compare utf-8 bytes
-    directly here. It's complicated when when you take into account composed
+    Insert the key and the value into the map. If we have already an element
+    with this key, the old value is replaced. Note we compare utf-8 bytes
+    directly here. It's complicated when you take into account composed
     and decomposed forms of accented characters and ligatures: different
     sequences might encode the same glyphs but we ignore that for now.  For
     example, the code point U+006E (the Latin lowercase "n") followed by
@@ -1026,7 +1027,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
 
     See WL-2048 Add function for Unicode normalization
   */
-  m_map.emplace(key, std::move(value));
+  m_map.emplace(key, nullptr).first->second= std::move(value);
   return false;
 }
 

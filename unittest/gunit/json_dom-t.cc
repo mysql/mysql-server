@@ -215,12 +215,15 @@ TEST_F(JsonDomTest, BasicTest)
   }
 
   /* Test uniqueness of keys */
-  Json_string js6(std::string("should be discarded"));
-  o.add_clone(std::string("key1"), &js6);
+  Json_string js6(std::string("js6"));
+  o.add_clone("key1", &js6);
   EXPECT_EQ(2U, o.cardinality());
-  EXPECT_EQ(std::string("{\"key1\": null, \"key2\": [\"val1\", \"val2\"]}"),
+  EXPECT_EQ(std::string("{\"key1\": \"js6\", \"key2\": [\"val1\", \"val2\"]}"),
             format(o));
   EXPECT_EQ(3U, o.depth());
+  o.add_clone("key1", &null);
+  EXPECT_EQ(std::string("{\"key1\": null, \"key2\": [\"val1\", \"val2\"]}"),
+            format(o));
 
   /* Nested array inside object and object inside array,
    * and object cloning
@@ -381,11 +384,11 @@ TEST_F(JsonDomTest, BasicTest)
     "\"\":9, \"\":10}";
   const std::string expected[8][2]=
     {
-      { "",        "9" },
+      { "",        "10" },
       { "a",       "6" },
       { "b",       "8" },
       { "ab",      "7" },
-      { "key1",    "1" },
+      { "key1",    "3" },
       { "key2",    "2" },
       { std::string("key1\0x", 6), "4" },
       { std::string("key1\0y", 6), "5" },

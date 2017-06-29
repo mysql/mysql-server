@@ -1213,7 +1213,7 @@ nkey	jcol
 6	[1, 2, 3, 4, 5]
 SELECT JSON_OBJECTAGG(t1.pkey, t2.jcol) FROM data_table AS t1, json_data AS t2;
 JSON_OBJECTAGG(t1.pkey, t2.jcol)
-{"1": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "2": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "3": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "4": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, "5": {"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}}
+{"1": [1, 2, 3, 4, 5], "2": [1, 2, 3, 4, 5], "3": [1, 2, 3, 4, 5], "4": [1, 2, 3, 4, 5], "5": [1, 2, 3, 4, 5]}
 SELECT JSON_ARRAYAGG(jcol) FROM json_data;
 JSON_ARRAYAGG(jcol)
 [{"1": 30, "2": 24, "3": 26, "4": 28, "5": 32}, ["ailemac", "nielk", "nuicarc", "ihcseruj", "qweasdas"], [30, 24, 26, 28, 32], {"12": "uciov", "13": "ierdna", "14": "elisav", "15": "namor", "16": "jugcvb"}, {"1": "ailemac", "2": "nielk", "3": "nuicarc", "4": "ihcseruj", "5": "qweasdas"}, [1, 2, 3, 4, 5]]
@@ -1419,9 +1419,9 @@ include/sync_slave_sql_with_master.inc
 SELECT * FROM json_data;
 pk	jcol	jgcol
 1	{
-  "1": 300
+  "1": 64
 }	{
-  "1": 300
+  "1": 64
 }
 2	[
   {
@@ -1553,9 +1553,9 @@ include/sync_slave_sql_with_master.inc
 SELECT * FROM json_data;
 pk	jcol	jgcol
 1	{
-  "1": 300
+  "1": 64
 }	{
-  "1": 300
+  "1": 64
 }
 2	[
   {

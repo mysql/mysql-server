@@ -1263,12 +1263,12 @@ SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
 JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123 } ] }',
 '$.b[ 1 ].c[ 1 ]')
 NULL
-# returns a JSON value containing the number 123 (due to normalization)
+# returns a JSON value containing the number 456 (due to normalization)
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 '$.b[ 1 ].c');
 JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 '$.b[ 1 ].c')
-123
+456
 # returns a JSON array [ "foo", true ]
 SELECT JSON_EXTRACT('{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 '$.a', '$.b[0]');
@@ -1436,7 +1436,7 @@ JSON_EXTRACT
 '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
 '$.b[ 1 ].c'
 )
-123
+456
 SELECT JSON_EXTRACT
 (
 '{ "a" : "foo", "b" : [ true, { "c" : 123, "c" : 456 } ] }',
@@ -2350,6 +2350,9 @@ json_object( 1, json_array())
 select json_object( cast(1 as char), json_array());
 json_object( cast(1 as char), json_array())
 {"1": []}
+SELECT JSON_OBJECT('a', 1, 'b', 2, 'a', 3);
+JSON_OBJECT('a', 1, 'b', 2, 'a', 3)
+{"a": 3, "b": 2}
 SELECT JSON_OBJECT();
 JSON_OBJECT()
 {}
@@ -3794,3 +3797,9 @@ SELECT * FROM v;
 col
 {}
 DROP VIEW v;
+#
+# Bug#26238736: ASSERTION `__NULL != DYNAMIC_CAST<TARGET>(ARG)' FAILURE
+#
+SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
+CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON)
+{"a": [4, 5, 6]}

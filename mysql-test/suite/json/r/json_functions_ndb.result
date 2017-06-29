@@ -9420,7 +9420,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-[[true, {"c": 123}]]	[[true, {"c": 123}]]	1
+[[true, {"c": 456}]]	[[true, {"c": 456}]]	1
 [[true, {"c": "123"}]]	[[true, {"c": "123"}]]	1
 [[true, {"c": 123}]]	[[true, {"c": 123}]]	1
 SELECT
@@ -9460,7 +9460,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-123	123	1
+456	456	1
 123	123	1
 123	123	1
 SELECT
@@ -9481,7 +9481,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-123	123	1
+456	456	1
 "123"	"123"	1
 123	123	1
 SELECT
@@ -9502,7 +9502,7 @@ NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
 NULL	NULL	1
-{"c": 123}	{"c": 123}	1
+{"c": 456}	{"c": 456}	1
 {"c": "123"}	{"c": "123"}	1
 {"c": 123}	{"c": 123}	1
 SELECT
@@ -9523,7 +9523,7 @@ cast(json_unquote(json_extract(f1,'$[0][0]')) as char)
 {"t": "b"}	{"t": "b"}	1
 {"t": "c"}	{"t": "c"}	1
 {"a": 1}	{"a": 1}	1
-{"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
+{"a": "foo", "b": [true, {"c": 456}]}	{"a": "foo", "b": [true, {"c": 456}]}	1
 {"a": "foo", "b": [true, {"c": "123"}]}	{"a": "foo", "b": [true, {"c": "123"}]}	1
 {"a": "foo", "b": [true, {"c": 123}]}	{"a": "foo", "b": [true, {"c": 123}]}	1
 SELECT
@@ -9544,7 +9544,7 @@ cast(json_unquote(json_extract(f1,'$**[0]')) as char)
 [{"t": "b"}, "b"]	[{"t": "b"}, "b"]	1
 [{"t": "c"}, "c"]	[{"t": "c"}, "c"]	1
 [{"a": 1}, 1, {"a": 2}, 2]	[{"a": 1}, 1, {"a": 2}, 2]	1
-[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
+[{"a": "foo", "b": [true, {"c": 456}]}, "foo", true, {"c": 456}, 456]	[{"a": "foo", "b": [true, {"c": 456}]}, "foo", true, {"c": 456}, 456]	1
 [{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	[{"a": "foo", "b": [true, {"c": "123"}]}, "foo", true, {"c": "123"}, "123"]	1
 [{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	[{"a": "foo", "b": [true, {"c": 123}]}, "foo", true, {"c": 123}, 123]	1
 SELECT

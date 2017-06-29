@@ -378,8 +378,9 @@ public:
   enum_json_type json_type() const { return enum_json_type::J_OBJECT; }
 
   /**
-    Add a clone of the value to the object iff the key isn't already set.  If
-    it is set, the value is not modified by this call ("first value wins").
+    Insert a clone of the value into the object. If the key already
+    exists in the object, the existing value is replaced ("last value
+    wins").
 
     @param[in]  key    the JSON element key of to be added
     @param[in]  value  a JSON value: the element key's value
@@ -392,7 +393,8 @@ public:
   }
 
   /**
-    Add the value to the object iff they key isn't already set.
+    Insert the value into the object. If the key already exists in the
+    object, the existing value is replaced ("last value wins").
 
     Ownership of the value is effectively transferred to the
     object and the value will be deallocated by the object so only add
@@ -413,8 +415,10 @@ public:
   }
 
   /**
-    Add the value to the object if the key isn't already set. The
-    ownership of the value is transferred to the object.
+    Insert the value into the object. If the key already exists in the
+    object, the existing value is replaced ("last value wins").
+
+    The ownership of the value is transferred to the object.
 
     @param[in] key    the key of the value to be added
     @param[in] value  the value to add
