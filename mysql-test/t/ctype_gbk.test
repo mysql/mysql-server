@@ -114,7 +114,10 @@ let $default_engine = `select @@SESSION.default_storage_engine`;
 --enable_query_log
 --replace_result $default_engine default_engine
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
 # Display all characters that have upper or lower case mapping.

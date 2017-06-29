@@ -96,7 +96,7 @@
 #define TRANS_MEM_ROOT_BLOCK_SIZE 4096
 #define TRANS_MEM_ROOT_PREALLOC   4096
 
-#define DEFAULT_ERROR_COUNT	64
+#define DEFAULT_ERROR_COUNT	1024
 #define EXTRA_RECORDS	10			/* Extra records in sort */
 #define SCROLL_EXTRA	5			/* Extra scroll-rows. */
 #define FERR		-1			/* Error from my_functions */

@@ -142,7 +142,10 @@ ORDER BY head, tail;
 INSERT t1 (code) SELECT head FROM head WHERE (head BETWEEN 'A1' AND 'DF');
 DROP TEMPORARY TABLE head, tail;
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = DEFAULT;
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
 SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
