@@ -1297,17 +1297,22 @@ recv_parse_or_apply_log_rec_body(
 	ut_ad(!block == !mtr);
 
 	switch (type) {
-	case MLOG_FILE_OPEN:
-		ut_ad(parsed_bytes != ULINT_UNDEFINED);
-		// Fall through
 	case MLOG_FILE_DELETE:
-	case MLOG_FILE_CREATE2:
-	case MLOG_FILE_RENAME2:
 
-		ut_ad(block == nullptr);
+		return(fil_tablespace_redo_delete(
+			ptr,end_ptr, page_id_t(space_id, page_no),
+			parsed_bytes));
 
-		return(fil_tablespace_name_recover(
-			ptr, end_ptr, page_id_t(space_id, page_no), type,
+	case MLOG_FILE_CREATE:
+
+		return(fil_tablespace_redo_create(
+			ptr,end_ptr, page_id_t(space_id, page_no),
+			parsed_bytes));
+
+	case MLOG_FILE_RENAME:
+
+		return(fil_tablespace_redo_rename(
+			ptr, end_ptr, page_id_t(space_id, page_no),
 			parsed_bytes));
 
 	case MLOG_INDEX_LOAD:
@@ -1967,10 +1972,9 @@ recv_add_to_hash_table(
 	lsn_t		start_lsn,
 	lsn_t		end_lsn)
 {
-	ut_ad(type != MLOG_FILE_OPEN);
 	ut_ad(type != MLOG_FILE_DELETE);
-	ut_ad(type != MLOG_FILE_CREATE2);
-	ut_ad(type != MLOG_FILE_RENAME2);
+	ut_ad(type != MLOG_FILE_CREATE);
+	ut_ad(type != MLOG_FILE_RENAME);
 	ut_ad(type != MLOG_DUMMY_RECORD);
 	ut_ad(type != MLOG_INDEX_LOAD);
 
@@ -2894,10 +2898,9 @@ recv_single_rec(
 		/* fall through */
 
 	case MLOG_INDEX_LOAD:
-	case MLOG_FILE_OPEN:
 	case MLOG_FILE_DELETE:
-	case MLOG_FILE_RENAME2:
-	case MLOG_FILE_CREATE2:
+	case MLOG_FILE_RENAME:
+	case MLOG_FILE_CREATE:
 	case MLOG_TABLE_DYNAMIC_META:
 
 		/* These were already handled by
@@ -3058,10 +3061,9 @@ recv_multi_rec(byte* ptr, byte*	end_ptr)
 			break;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-		case MLOG_FILE_OPEN:
 		case MLOG_FILE_DELETE:
-		case MLOG_FILE_CREATE2:
-		case MLOG_FILE_RENAME2:
+		case MLOG_FILE_CREATE:
+		case MLOG_FILE_RENAME:
 		case MLOG_TABLE_DYNAMIC_META:
 			/* case MLOG_TRUNCATE: Disabled for WL6378 */
 			/* These were already handled by
@@ -3593,11 +3595,6 @@ recv_init_crash_recovery()
 	ib::info() << "Database was not shutdown normally!";
 	ib::info() << "Starting crash recovery.";
 
-	/* Open the tablespace ID to file name mapping file. Required for
-	redo log apply and dblwr buffer page restore. */
-
-	fil_tablespace_open_init_for_recovery(true);
-
 	buf_dblwr_process();
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3794,9 +3791,6 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 			recv_init_crash_recovery();
 		}
 
-	} else if (!srv_read_only_mode) {
-		/* Read the UNDO tablespace locations only. */
-		fil_tablespace_open_init_for_recovery(false);
 	}
 
 	contiguous_lsn = checkpoint_lsn;
@@ -3972,8 +3966,6 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 		fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
 		mtr.commit();
-
-		fil_tablespace_open_create();
 	}
 
 	/* Free up the flush_rbt. */
@@ -4300,8 +4292,8 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_COMP_PAGE_REORGANIZE:
 		return("MLOG_COMP_PAGE_REORGANIZE");
 
-	case MLOG_FILE_CREATE2:
-		return("MLOG_FILE_CREATE2");
+	case MLOG_FILE_CREATE:
+		return("MLOG_FILE_CREATE");
 
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		return("MLOG_ZIP_WRITE_NODE_PTR");
@@ -4321,11 +4313,8 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_ZIP_PAGE_REORGANIZE:
 		return("MLOG_ZIP_PAGE_REORGANIZE");
 
-	case MLOG_FILE_RENAME2:
-		return("MLOG_FILE_RENAME2");
-
-	case MLOG_FILE_OPEN:
-		return("MLOG_FILE_OPEN");
+	case MLOG_FILE_RENAME:
+		return("MLOG_FILE_RENAME");
 
 	case MLOG_PAGE_CREATE_RTREE:
 		return("MLOG_PAGE_CREATE_RTREE");

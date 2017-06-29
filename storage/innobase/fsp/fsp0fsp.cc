@@ -3458,12 +3458,18 @@ tablespace without running out of space.
 uintmax_t
 fsp_get_available_space_in_free_extents(space_id_t space_id)
 {
-	FilSpace	space(space_id);
-	if (space() == NULL) {
+	fil_space_t*	space = fil_space_acquire(space_id);
+
+	if (space == nullptr) {
+
 		return(UINTMAX_MAX);
 	}
 
-	return(fsp_get_available_space_in_free_extents(space));
+	auto	n_free_extents = fsp_get_available_space_in_free_extents(space);
+
+	fil_space_release(space);
+
+	return(n_free_extents);
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the

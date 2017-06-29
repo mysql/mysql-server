@@ -425,7 +425,8 @@ create_log_files(
 	logfile0 = fil_node_create(
 		logfilename, static_cast<page_no_t>(srv_log_file_size),
 		log_space, false, false);
-	ut_a(logfile0);
+
+	ut_a(logfile0 != nullptr);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
 
@@ -436,7 +437,7 @@ create_log_files(
 				     log_space, false, false)) {
 
 			ib::error()
-				<< "Cannot create file node for log file "
+				<< "Cannot create file for log file "
 				<< logfilename;
 
 			return(DB_ERROR);
@@ -450,7 +451,6 @@ create_log_files(
 	}
 
 	fil_open_log_and_system_tablespace_files();
-	fil_tablespace_open_create();
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
@@ -795,10 +795,10 @@ srv_undo_tablespace_open(space_id_t space_id)
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
 	fil_space_t*		space;
-	fil_node_t*		node = nullptr;
 
 	/* See if the previous name in the file map is correct. */
-	std::string	recover_name = fil_system_open_fetch(space_id); // KLTEST
+	std::string	recover_name = fil_system_open_fetch(space_id);
+
 	if (recover_name.length() != 0
 	    && !fil_paths_equal(file_name, recover_name.c_str())) {
 		/* Make sure that this space_id is used by the
@@ -814,9 +814,10 @@ srv_undo_tablespace_open(space_id_t space_id)
 	/* Check if it was already opened during redo recovery. */
 	space = fil_space_get(space_id);
 	if (space != nullptr) {
-		node = UT_LIST_GET_FIRST(space->chain);
 
-		ut_ad(fil_paths_equal(recover_name.c_str(), node->name));
+		const auto&	file = space->files.front();
+
+		ut_ad(fil_paths_equal(recover_name.c_str(), file.name));
 
 		fil_flush(space_id);
 
@@ -877,11 +878,19 @@ srv_undo_tablespace_open(space_id_t space_id)
 		if (nullptr == fil_node_create(file_name, n_pages, space,
 					       false, atomic_write)) {
 			os_file_close(fh);
-			ib::error() << "Error creating file node for " << undo_name;
+
+			ib::error()
+				<< "Error creating file for "
+				<< undo_name;
+
 			return(DB_ERROR);
 		}
+
 	} else {
-		node->atomic_write = atomic_write;
+
+		auto&	file = space->files.front();
+
+		file.atomic_write = atomic_write;
 	}
 
 	/* Read the encryption metadata in this undo tablespace.
@@ -2005,7 +2014,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		return(srv_init_abort(DB_ERROR));
 	}
 
-	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
+	fil_init(srv_max_n_open_files);
 
 	double	size;
 	char	unit;

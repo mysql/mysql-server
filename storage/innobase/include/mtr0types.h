@@ -141,6 +141,12 @@ enum mlog_id_t {
 	/** dummy log record used to pad a log block full */
 	MLOG_DUMMY_RECORD = 32,
 
+	/** log record about creating an .ibd file, with format */
+	MLOG_FILE_CREATE = 33,
+
+	/** rename a tablespace file that starts with (space_id,page_no) */
+	MLOG_FILE_RENAME = 34,
+
 	/** delete a tablespace file that starts with (space_id,page_no) */
 	MLOG_FILE_DELETE = 35,
 
@@ -179,9 +185,6 @@ enum mlog_id_t {
 	/** reorganize an index page */
 	MLOG_COMP_PAGE_REORGANIZE = 46,
 
-	/** log record about creating an .ibd file, with format */
-	MLOG_FILE_CREATE2 = 47,
-
 	/** write the node pointer of a record on a compressed
 	non-leaf B-tree page */
 	MLOG_ZIP_WRITE_NODE_PTR = 48,
@@ -201,13 +204,6 @@ enum mlog_id_t {
 
 	/** reorganize a compressed page */
 	MLOG_ZIP_PAGE_REORGANIZE = 53,
-
-	/** rename a tablespace file that starts with (space_id,page_no) */
-	MLOG_FILE_RENAME2 = 54,
-
-	/** Track the open files. For mapping space IDs to physical filenames
-	during recovery. */
-	MLOG_FILE_OPEN = 55,
 
 	/** Create a R-Tree index page */
 	MLOG_PAGE_CREATE_RTREE = 57,

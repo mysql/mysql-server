@@ -4808,17 +4808,22 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 	bool		fail = false;
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
 
-	if (space != NULL) {
+	if (space != nullptr) {
+
 		/* The tablespace was already opened up by redo log apply. */
 		ut_ad(space->flags == predefined_flags);
-		if (strstr(UT_LIST_GET_FIRST(space->chain)->name, filename) != 0
+
+		if (strstr(space->files.front().name, filename) != 0
 		    && space->flags == predefined_flags) {
+
 			fil_space_open_if_needed(space);
+
 		} else {
 			fail = true;
 		}
 
 		fil_space_release(space);
+
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
 				predefined_flags, dict_sys_t::dd_space_name,
 				filename)

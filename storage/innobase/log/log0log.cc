@@ -2058,8 +2058,6 @@ log_checkpoint(
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(true);
-	} else {
-		fil_tablespace_open_sync_to_disk();
 	}
 
 #ifdef UNIV_DEBUG
@@ -2552,9 +2550,6 @@ loop:
 	}
 
 	fil_close_all_files();
-
-	/* Safe to truncate the tablespace.open.* files now. */
-	fil_tablespace_open_clear();
 
 	/* Stop Archiver background thread. */
 	count = 0;
