@@ -5056,6 +5056,7 @@ retry:
 
 		os_offset_t     len;
 		dberr_t		err = DB_SUCCESS;
+		bool		need_write_zeros = !node->atomic_write;
 
 		len = ((node->size + n_node_extend) * page_size) - node_start;
 		ut_ad(len > 0);
@@ -5081,11 +5082,16 @@ retry:
 				" numbers are described at " REFMAN
 				" operating-system-error-codes.html";
 
-			err = DB_IO_ERROR;
+			need_write_zeros = true;
+		} else {
+			/* Physically writing zeroes is redundant if
+			posix_fallocate() successfully extended the
+			tablespace */
+			need_write_zeros = false;
 		}
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
-		if (!node->atomic_write || err == DB_IO_ERROR) {
+		if (need_write_zeros) {
 
 			bool	read_only_mode;
 
