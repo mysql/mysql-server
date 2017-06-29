@@ -1694,9 +1694,10 @@ LogDDL::replayRenameTableLog(
 
 	dict_table_t*	table;
 	table = dd_table_open_on_name_in_mem(new_name, true);
-	ut_ad(table != nullptr);
-	dict_table_ddl_release(table);
-	dd_table_close(table, nullptr, nullptr, true);
+	if (table != nullptr) {
+		dict_table_ddl_release(table);
+		dd_table_close(table, nullptr, nullptr, true);
+	}
 
 	row_mysql_unlock_data_dictionary(trx);
 
