@@ -2,3 +2,5 @@ tablespace_datafiles: Bug #26187744 TABLESPACE IS NOT DROPPED PROPERLY WHEN ADD 
 
 # Disabled until table can be opened without comparing SDI
 table_private_id: Need WL#9185 MySQL Cluster support for new DD
+
+utf8mb4_order_by: Bug #26368685 ORDER BY ON A VARCHAR COLUMN USING UTF8MB4 CHARSET GIVES INCONSISTENT RESULTS
