@@ -648,8 +648,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush status;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush des_key_file;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush user_resources;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -695,10 +693,6 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush status;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush des_key_file;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;

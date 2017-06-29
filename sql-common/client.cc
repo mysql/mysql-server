@@ -1681,7 +1681,7 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
-  "multi-results", "multi-statements", "multi-queries", "secure-auth",
+  "multi-results", "multi-statements", "multi-queries",
   "report-data-truncation", "plugin-dir", "default-auth",
   "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin", "tls-version",
   "ssl_mode",
@@ -1694,7 +1694,7 @@ enum option_id {
   OPT_character_sets_dir, OPT_default_character_set, OPT_interactive_timeout, 
   OPT_connect_timeout, OPT_local_infile, OPT_disable_local_infile, 
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
-  OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
+  OPT_multi_results, OPT_multi_statements, OPT_multi_queries,
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
   OPT_tls_version, OPT_ssl_mode,
@@ -1995,9 +1995,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case OPT_multi_queries:
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case OPT_secure_auth:
-          /* this is a no-op */
-          break;
         case OPT_report_data_truncation:
           options->report_data_truncation= opt_arg ? (atoi(opt_arg) != 0) : 1;
           break;
@@ -5845,10 +5842,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                                            static_cast<const char*>(arg),
                                            MYF(MY_WME));
     break;
-  case MYSQL_SECURE_AUTH:
-    if (!*(bool *) arg)
-      DBUG_RETURN(1);
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= *(bool *) arg;
     break;
@@ -6025,7 +6018,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   bool
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
     MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
-    MYSQL_SECURE_AUTH, MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+    MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
 
   const char *
@@ -6112,9 +6105,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     break;
   case MYSQL_SET_CLIENT_IP:
     *((char **)arg) = mysql->options.ci.client_ip;
-    break;
-  case MYSQL_SECURE_AUTH:
-    *((bool *)arg)= TRUE;
     break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     *((bool *)arg)= mysql->options.report_data_truncation;

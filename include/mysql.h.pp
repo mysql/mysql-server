@@ -175,8 +175,8 @@ typedef long long int longlong;
 typedef unsigned long ulong;
 enum Item_result
 {
-  INVALID_RESULT=-1,
-  STRING_RESULT=0,
+  INVALID_RESULT= -1,
+  STRING_RESULT= 0,
   REAL_RESULT,
   INT_RESULT,
   ROW_RESULT,
@@ -209,7 +209,7 @@ enum Item_udftype
 };
 typedef void(*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
 typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef void(*Udf_func_deinit)(UDF_INIT*);
+typedef void(*Udf_func_deinit)(UDF_INIT *);
 typedef my_bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
 typedef void(*Udf_func_any)();
 typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
@@ -358,7 +358,7 @@ enum mysql_option
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
   MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
+  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,

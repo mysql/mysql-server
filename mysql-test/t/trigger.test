@@ -671,8 +671,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush status;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create trigger t1_ai after insert on t1 for each row flush des_key_file;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush user_resources;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush tables;
@@ -728,11 +726,6 @@ insert into t1 values (0);
 
 drop procedure p1;
 create procedure p1() flush status;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-insert into t1 values (0);
-
-drop procedure p1;
-create procedure p1() flush des_key_file;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 insert into t1 values (0);
 

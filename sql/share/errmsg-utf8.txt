@@ -8315,7 +8315,7 @@ ER_INVALID_INSTRUMENT
 ER_INNODB_MANDATORY
   eng "The use of InnoDB is mandatory since MySQL 5.7. The former options like '--innodb=0/1/OFF/ON' or '--skip-innodb' are ignored."
 
-ER_INNODB_CANNOT_BE_IGNORED
+OBSOLETE_ER_INNODB_CANNOT_BE_IGNORED
   eng "ignore-builtin-innodb is ignored and will be removed in future releases."
 
 ER_OLD_PASSWORDS_NO_MIDDLE_GROUND

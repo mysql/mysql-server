@@ -106,11 +106,6 @@ void Mysql_connection_options::create_options()
   this->create_new_option(&this->m_mysql_unix_port, "socket",
     "The socket file to use for connection.")
     ->set_short_character('S');
-  this->create_new_option(&this->m_secure_auth, "secure-auth",
-      "Refuse client connecting to server if it uses old (pre-4.1.1) "
-      "protocol. Deprecated. Always TRUE")
-    ->add_callback(new std::function<void(char*)>(
-      std::bind(&Mysql_connection_options::secure_auth_callback, this, _1)));
   this->create_new_option(&this->m_user, "user",
     "User for login if not current user.")
     ->set_short_character('u');
@@ -134,9 +129,6 @@ MYSQL* Mysql_connection_options::create_connection()
   if (this->m_bind_addr.has_value())
     mysql_options(connection,MYSQL_OPT_BIND,
       this->m_bind_addr.value().c_str());
-  if (!this->m_secure_auth)
-    mysql_options(connection,MYSQL_SECURE_AUTH,
-      (char*)&this->m_secure_auth);
 #if defined (_WIN32)
   if (this->m_shared_memory_base_name.has_value())
     mysql_options(connection,MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -219,20 +211,6 @@ void Mysql_connection_options::protocol_callback(
     find_type_or_exit(this->m_protocol_string.value().c_str(),
     &sql_protocol_typelib, "protocol");
 }
-
-void Mysql_connection_options::secure_auth_callback(
-  char* not_used MY_ATTRIBUTE((unused)))
-{
-  /* --secure-auth is a zombie option. */
-  if (!this->m_secure_auth)
-  {
-    my_printf_error(0, "--skip-secure-auth is not supported.\n", MYF(0));
-    exit(1);
-  }
-  else
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
-}
-
 
 void Mysql_connection_options::db_error(
   MYSQL* connection, const char* when)

@@ -602,7 +602,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  DELETE_SYM                    /* SQL-2003-R */
 %token  DESC                          /* SQL-2003-N */
 %token  DESCRIBE                      /* SQL-2003-R */
-%token  DES_KEY_FILE
+%token  OBSOLETE_TOKEN_388            /* was: DES_KEY_FILE */
 %token  DETERMINISTIC_SYM             /* SQL-2003-R */
 %token  DIAGNOSTICS_SYM               /* SQL-2003-N */
 %token  DIRECTORY_SYM
@@ -12369,8 +12369,6 @@ flush_option:
           { Lex->type|= REFRESH_LOG; }
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
-        | DES_KEY_FILE
-          { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
         | OPTIMIZER_COSTS_SYM
@@ -13346,7 +13344,6 @@ role_or_label_keyword:
         | DEFAULT_AUTH_SYM         {}
         | DEFINER_SYM              {}
         | DELAY_KEY_WRITE_SYM      {}
-        | DES_KEY_FILE             {}
         | DIAGNOSTICS_SYM          {}
         | DIRECTORY_SYM            {}
         | DISABLE_SYM              {}

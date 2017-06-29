@@ -129,7 +129,6 @@ select NOW() from t1;
 select CURDATE() from t1;
 select CURTIME() from t1;
 select DATABASE() from t1;
-select ENCRYPT("test") from t1;
 select LAST_INSERT_ID() from t1;
 select RAND() from t1;
 select UNIX_TIMESTAMP() from t1;

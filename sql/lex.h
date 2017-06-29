@@ -190,7 +190,6 @@ static const SYMBOL symbols[] = {
   { SYM("DENSE_RANK",               DENSE_RANK_SYM)},
   { SYM("DESC",                     DESC)},
   { SYM("DESCRIBE",                 DESCRIBE)},
-  { SYM("DES_KEY_FILE",             DES_KEY_FILE)},
   { SYM("DETERMINISTIC",            DETERMINISTIC_SYM)},
   { SYM("DIAGNOSTICS",              DIAGNOSTICS_SYM)},
   { SYM("DIRECTORY",                DIRECTORY_SYM)},

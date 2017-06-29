@@ -328,7 +328,6 @@ static int port= 0;
 static uint my_end_arg;
 static const char* sock= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32)
 static char *shared_memory_base_name= 0;
@@ -1550,9 +1549,6 @@ static struct my_option my_long_options[] =
    "prefix for the file names.",
    &output_file, &output_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
    &filter_server_id, &filter_server_id, 0, GET_ULONG,
@@ -1775,19 +1771,6 @@ static void usage()
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -1914,16 +1897,6 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     usage();
     exit(0);
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqlbinlog: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
-    break;
 
   }
   if (tty_password)

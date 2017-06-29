@@ -211,10 +211,6 @@ select CURTIME() from t1;
 CURTIME()
 select DATABASE() from t1;
 DATABASE()
-select ENCRYPT("test") from t1;
-ENCRYPT("test")
-Warnings:
-Warning	1287	'ENCRYPT' is deprecated and will be removed in a future release. Please use AES_ENCRYPT instead
 select LAST_INSERT_ID() from t1;
 LAST_INSERT_ID()
 select RAND() from t1;

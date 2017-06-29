@@ -130,7 +130,7 @@ static bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
              opt_include_master_host_port= 0,
              opt_events= 0, opt_comments_used= 0,
              opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-             opt_secure_auth= TRUE, opt_network_timeout= 0,
+             opt_network_timeout= 0,
              stats_tables_included= 0, column_statistics= false;
 static bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -546,9 +546,6 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 
   {"tab",'T',
@@ -678,25 +675,11 @@ static void short_usage_sub(void)
 
 static void usage(void)
 {
-  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
@@ -1003,16 +986,6 @@ get_one_option(int optid, const struct my_option *opt,
     /* Store the supplied list of errors into an array. */
     if (parse_ignore_error())
       exit(EX_EOM);
-    break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqldump: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   return 0;

@@ -382,7 +382,6 @@
 #include "current_thd.h"                // current_thd
 #include "debug_sync.h"                 // debug_sync_end
 #include "derror.h"
-#include "des_key_file.h"               // load_des_key_file
 #include "errmsg.h"                     // init_client_errs
 #include "event_data_objects.h"         // init_scheduler_psi_keys
 #include "events.h"                     // Events
@@ -682,9 +681,6 @@ static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
 static PSI_mutex_key key_LOCK_slave_net_timeout;
 static PSI_mutex_key key_LOCK_uuid_generator;
-#ifdef HAVE_OPENSSL
-static PSI_mutex_key key_LOCK_des_key_file;
-#endif /* HAVE_OPENSSL */
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
 static PSI_mutex_key key_LOCK_mandatory_roles;
@@ -775,7 +771,7 @@ LEX_STRING opt_init_connect, opt_init_slave;
 LEX_STRING opt_mandatory_roles;
 bool opt_mandatory_roles_cache= false;
 bool opt_always_activate_granted_roles= false;
-bool opt_bin_log, opt_ignore_builtin_innodb= 0;
+bool opt_bin_log;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 bool opt_log_queries_not_using_indexes= 0;
@@ -848,7 +844,6 @@ bool opt_require_secure_transport= 0;
 bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
-bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
 bool opt_log_slow_admin_statements= 0;
 bool opt_log_slow_slave_statements= 0;
@@ -1123,9 +1118,6 @@ mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_mutex_t LOCK_offline_mode;
-#ifdef HAVE_OPENSSL
-mysql_mutex_t LOCK_des_key_file;
-#endif
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
@@ -1387,7 +1379,6 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
 
 #ifdef HAVE_OPENSSL
-char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 SSL *ssl_acceptor;
 #endif /* HAVE_OPENSSL */
@@ -2068,9 +2059,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_manager);
   mysql_mutex_destroy(&LOCK_crypt);
   mysql_mutex_destroy(&LOCK_user_conn);
-#ifdef HAVE_OPENSSL
-  mysql_mutex_destroy(&LOCK_des_key_file);
-#endif
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -3789,10 +3777,6 @@ static int init_thread_environment()
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_mandatory_roles,
                    &LOCK_mandatory_roles, MY_MUTEX_INIT_FAST);
-#ifdef HAVE_OPENSSL
-  mysql_mutex_init(key_LOCK_des_key_file,
-                   &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_cond_init(key_COND_manager, &COND_manager);
@@ -4032,8 +4016,6 @@ static int init_ssl_communication()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
-  if (des_key_file)
-    load_des_key_file(des_key_file);
 #ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
@@ -4585,8 +4567,6 @@ static int init_server_components()
   if (ha_init_errors())
     DBUG_RETURN(1);
 
-  if (opt_ignore_builtin_innodb)
-    LogErr(WARNING_LEVEL, ER_INNODB_CANNOT_BE_IGNORED);
   if (gtid_server_init())
   {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
@@ -6537,12 +6517,6 @@ struct my_option my_long_options[]=
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-#ifdef HAVE_OPENSSL
-  {"des-key-file", 0,
-   "Load keys for des_encrypt() and des_encrypt from given file.",
-   &des_key_file, &des_key_file, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif /* HAVE_OPENSSL */
   {"disconnect-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &disconnect_slave_event_count, &disconnect_slave_event_count,
@@ -7828,10 +7802,8 @@ static int mysql_init_variables()
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
-  opt_ignore_builtin_innodb= 0;
   opt_general_logname= opt_binlog_index_name= opt_slow_logname= NULL;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
-  opt_secure_auth= 0;
   opt_myisam_log= 0;
   mqh_used= 0;
   cleanup_done= 0;
@@ -7940,7 +7912,6 @@ static int mysql_init_variables()
   /* Always true */
   have_compress= SHOW_OPTION_YES;
 #ifdef HAVE_OPENSSL
-  des_key_file = 0;
   ssl_acceptor_fd= 0;
 #endif /* HAVE_OPENSSL */
 #if defined (_WIN32)
@@ -8466,14 +8437,6 @@ mysqld_get_one_option(int optid,
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
-  case OPT_SECURE_AUTH:
-    push_deprecated_warn_no_replacement(NULL, "--secure-auth");
-    if (!opt_secure_auth)
-    {
-      LogErr(ERROR_LEVEL, ER_SECURE_AUTH_VALUE_UNSUPPORTED);
-      return 1;
-    }
-    break;
   case OPT_PFS_INSTRUMENT:
     {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -8664,11 +8627,6 @@ static bool check_ghost_options()
   if (global_system_variables.old_passwords == 1)
   {
     LogErr(ERROR_LEVEL, ER_OLD_PASSWORDS_NO_MIDDLE_GROUND);
-    return true;
-  }
-  if (!opt_secure_auth)
-  {
-    LogErr(ERROR_LEVEL, ER_SECURE_AUTH_VALUE_UNSUPPORTED);
     return true;
   }
 
@@ -9495,11 +9453,6 @@ Gtid_set::key_gtid_executed_free_intervals_mutex;
 static PSI_mutex_info all_server_mutexes[]=
 {
   { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0, 0},
-
-#ifdef HAVE_OPENSSL
-  { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL, 0},
-#endif /* HAVE_OPENSSL */
-
   { &key_BINLOG_LOCK_commit, "MYSQL_BIN_LOG::LOCK_commit", 0, 0},
   { &key_BINLOG_LOCK_commit_queue, "MYSQL_BIN_LOG::LOCK_commit_queue", 0, 0},
   { &key_BINLOG_LOCK_done, "MYSQL_BIN_LOG::LOCK_done", 0, 0},
@@ -9705,7 +9658,6 @@ static PSI_thread_info all_server_threads[]=
 PSI_file_key key_file_binlog;
 PSI_file_key key_file_binlog_index;
 PSI_file_key key_file_dbopt;
-PSI_file_key key_file_des_key_file;
 PSI_file_key key_file_ERRMSG;
 PSI_file_key key_select_to_file;
 PSI_file_key key_file_fileparser;
@@ -9740,7 +9692,6 @@ static PSI_file_info all_server_files[]=
   { &key_file_io_cache, "io_cache", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
-  { &key_file_des_key_file, "des_key_file", 0},
   { &key_file_ERRMSG, "ERRMSG", 0},
   { &key_select_to_file, "select_to_file", 0},
   { &key_file_fileparser, "file_parser", 0},

@@ -137,7 +137,6 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
 extern bool opt_help;
 extern bool opt_verbose;
-extern bool opt_ignore_builtin_innodb;
 extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
 extern bool opt_initialize;
@@ -174,7 +173,6 @@ extern bool opt_enable_named_pipe;
 extern bool opt_enable_shared_memory;
 #endif
 extern bool opt_allow_suspicious_udfs;
-extern bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern bool sp_automatic_privileges, opt_noacl;
@@ -420,7 +418,6 @@ extern PSI_thread_key key_thread_parser_service;
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;
 extern PSI_file_key key_file_dbopt;
-extern PSI_file_key key_file_des_key_file;
 extern PSI_file_key key_file_ERRMSG;
 extern PSI_file_key key_select_to_file;
 extern PSI_file_key key_file_fileparser;
@@ -625,10 +622,6 @@ extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_default_password_lifetime;
-#ifdef HAVE_OPENSSL
-extern char* des_key_file;
-extern mysql_mutex_t LOCK_des_key_file;
-#endif
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
