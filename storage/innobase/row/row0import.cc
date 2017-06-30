@@ -2260,7 +2260,7 @@ row_import_discard_changes(
 	table->ibd_file_missing = TRUE;
 
 	err = fil_close_tablespace(trx, table->space);
-        ut_a(err == DB_SUCCESS);
+        ut_a(err == DB_TABLESPACE_NOT_FOUND);
 }
 
 /*****************************************************************//**

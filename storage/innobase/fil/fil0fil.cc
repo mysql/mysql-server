@@ -1453,6 +1453,8 @@ fil_space_create(
 	ut_ad(fsp_flags_is_valid(flags));
 	ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
 
+	ib::info() << "CREATE: " << id << " -> " << name;
+
 	DBUG_EXECUTE_IF("fil_space_create_failure", return(nullptr););
 
 	/* Must set back to active before returning from function. */
@@ -4699,13 +4701,14 @@ fil_node_complete_io(
 @param[in]	is_read		I/O type */
 static
 void
-fil_report_invalid_page_access(
+fil_report_invalid_page_access_low(
 	page_no_t	block_offset,
 	space_id_t	space_id,
 	const char*	space_name,
 	ulint		byte_offset,
 	ulint		len,
-	bool		is_read)
+	bool		is_read,
+	int		line)
 {
 	ib::error()
 		<< "Trying to access page number " << block_offset << " in"
@@ -4719,12 +4722,16 @@ fil_report_invalid_page_access(
 
 	ib::error() << "Server exits"
 #ifdef UNIV_DEBUG
-		<< " at " << __FILE__ << "[" << __LINE__ << "]"
-#endif
+		<< " at " << "fil0fil.cc" << "[" << line << "]"
+#endif /* UNIV_DEBUG */
 		<< ".";
 
 	_exit(1);
 }
+
+#define fil_report_invalid_page_access(b, s, n, o, l, t)		\
+	fil_report_invalid_page_access_low(				\
+		(b), (s), (n), (o), (l), (t), __LINE__)
 
 /** Set encryption information for IORequest.
 @param[in,out]	req_type	IO request
@@ -4962,7 +4969,15 @@ fil_io(
 
 			return(DB_TABLESPACE_DELETED);
 
+		} else  if (req_type.ignore_missing()) {
+
+			mutex_exit(&fil_system->mutex);
+
+			return(DB_ERROR);
+
 		} else {
+
+			ib::error() << "SIZE: " << f.size;
 
 			/* This is a hard error. */
 			fil_report_invalid_page_access(
@@ -7202,6 +7217,9 @@ fil_tablespace_redo_delete(
 
 	const auto	names = tablespace_files->find(page_id.space());
 
+	recv_sys->deleted.insert(page_id.space());
+	recv_sys->missing_ids.erase(page_id.space());
+
 	if (names == nullptr) {
 
 		/* No files map to this tablespace ID. The drop must
@@ -7221,9 +7239,6 @@ fil_tablespace_redo_delete(
 	fil_space_free(page_id.space(), false);
 
 	tablespace_files->erase(page_id.space());
-
-	recv_sys->deleted.insert(page_id.space());
-	recv_sys->missing_ids.erase(page_id.space());
 
 	return(ptr);
 }
@@ -7340,6 +7355,8 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 			space_id = mach_read_from_4(
 				reinterpret_cast<byte*>(buf));
+
+			ib::info() << "****** " << space_id << ", " << filename;
 
 			size_t	n_files = tablespace_files->add(
 				space_id, filename);
