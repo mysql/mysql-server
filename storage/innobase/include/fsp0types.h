@@ -383,6 +383,7 @@ to raise the level to 256 then you will need to fix some assertions that
 impose the 7 bit restriction. e.g., mach_write_to_3() */
 #define	TRX_SYS_N_RSEGS			128
 
+#define FSP_MIN_UNDO_TABLESPACES	2
 #define FSP_MAX_UNDO_TABLESPACES	(TRX_SYS_N_RSEGS - 1)
 #define FSP_MAX_ROLLBACK_SEGMENTS	(TRX_SYS_N_RSEGS)
 

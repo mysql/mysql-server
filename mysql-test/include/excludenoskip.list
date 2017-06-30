@@ -75,13 +75,6 @@ run_ndbapitest_result.inc
 # will cause duplicate test runs leading to increased test execution time.
 not_log_bin.inc
 
-# 4.2 Reason for inclusion: Tests should run only with supported tablespace
-# value and skip on others. However, this can be handled using a custom
-# bootstrap file, and below files can be removed from the excluded list once
-# the same is implemented.
-have_undo_tablespaces.inc
-have_no_undo_tablespaces.inc
-
 # 4.3 Tests are run only on Dev builds compiled with -DWITH_DEBUG=1 option
 # Additional references for more details:
 # https://dev.mysql.com/doc/internals/en/cmake-build-types.html

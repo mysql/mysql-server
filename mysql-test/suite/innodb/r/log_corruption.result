@@ -8,7 +8,8 @@
 # thus we cannot determine if the redo log is logically clean.
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
-# --innodb-force-recovery=6 (skip the entire redo log)
+# Start with innodb-force-recovery=5
+# Start with --innodb-force-recovery=6 (skip the entire redo log)
 # valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM

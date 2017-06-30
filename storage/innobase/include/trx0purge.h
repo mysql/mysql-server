@@ -189,24 +189,6 @@ namespace undo {
 		return(dict_sys_t::log_space_first_id - space_id);
 	}
 
-	/** Build a standard undo tablespace name from a space_id.
-	@param[in]	space_id	id of the undo tablespace.
-	@return tablespace name of the undo tablespace file */
-	char* make_space_name(space_id_t space_id);
-
-	/** Build a standard undo tablespace file name from a space_id.
-	@param[in]	space_id	id of the undo tablespace.
-	@return file_name of the undo tablespace file */
-	char* make_file_name(space_id_t space_id);
-
-	/** Populate log file name based on space_id
-	@param[in]	space_id	id of the undo tablespace.
-	@param[in]	log_file_name	name of the log file
-	@return DB_SUCCESS or error code */
-	dberr_t populate_log_file_name(
-		space_id_t	space_id,
-		char*&		log_file_name);
-
 	/** An undo::Tablespace object is used to easily convert between
 	undo_space_id and undo_space_num and to create the automatic file_name
 	and space name.  In addition, it is used in undo::Tablespaces to track
@@ -223,6 +205,7 @@ namespace undo {
 			m_num(undo::id2num(id)),
 			m_space_name(),
 			m_file_name(),
+			m_log_file_name(),
 			m_rsegs()
 		{
 			/* This object is used to track rollback segments
@@ -241,9 +224,15 @@ namespace undo {
 				ut_free(m_space_name);
 				m_space_name = nullptr;
 			}
+
 			if (m_file_name != nullptr) {
 				ut_free(m_file_name);
 				m_file_name = nullptr;
+			}
+
+			if (m_log_file_name != nullptr) {
+				ut_free(m_log_file_name);
+				m_log_file_name = nullptr;
 			}
 
 			/* Clear the cached rollback segments.  */
@@ -252,6 +241,11 @@ namespace undo {
 				m_rsegs = nullptr;
 			}
 		};
+
+		/** Build a standard undo tablespace name from a space_id.
+		@param[in]	space_id	id of the undo tablespace.
+		@return tablespace name of the undo tablespace file */
+		char* make_space_name(space_id_t space_id);
 
 		/** Get the undo tablespace name. Make it if not yet made.
 		NOTE: This is only called from stack objects so there is no
@@ -267,6 +261,11 @@ namespace undo {
 			return(m_space_name);
 		}
 
+		/** Build a standard undo tablespace file name from a space_id.
+		@param[in]	space_id	id of the undo tablespace.
+		@return file_name of the undo tablespace file */
+		char* make_file_name(space_id_t space_id);
+
 		/** Get the undo space filename. Make it if not yet made.
 		NOTE: This is only called from stack objects so there is no
 		race condition. If it is ever called from a shared object
@@ -279,6 +278,25 @@ namespace undo {
 			}
 
 			return(m_file_name);
+		}
+
+		/** Build a log file name based on space_id
+		@param[in]	space_id	id of the undo tablespace.
+		@return DB_SUCCESS or error code */
+		char* make_log_file_name(space_id_t space_id);
+
+		/** Get the undo log filename. Make it if not yet made.
+		NOTE: This is only called from stack objects so there is no
+		race condition. If it is ever called from a shared object
+		like undo::spaces, then it must be protected by the caller.
+		@return tablespace filename created from the space_id */
+		char* log_file_name()
+		{
+			if (m_log_file_name == nullptr) {
+				m_log_file_name = make_log_file_name(m_id);
+			}
+
+			return(m_log_file_name);
 		}
 
 		/** Get the undo tablespace ID.
@@ -323,6 +341,10 @@ namespace undo {
 		/** The tablespace file name, auto-generated when needed
 		from the space number. */
 		char*		m_file_name;
+
+		/** The tablespace log file name, auto-generated when needed
+		from the space number. */
+		char*		m_log_file_name;
 
 		/** List of rollback segments within this tablespace.
 		This is not always used. Must call init_rsegs to use it. */

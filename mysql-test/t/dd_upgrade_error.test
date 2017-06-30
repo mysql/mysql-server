@@ -1,8 +1,6 @@
 --echo # This test scripts covers upgrade of tables, views, tablespaces,
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
---source include/have_undo_tablespaces.inc
-
 --disable_query_log
 call mtr.add_suppression("Plugin * after shutdown");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
