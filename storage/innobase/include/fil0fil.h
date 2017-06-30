@@ -1475,4 +1475,18 @@ fil_node_fetch(
 void
 fil_node_release(space_id_t space_id);
 
+/** Generate redo log for swapping two .ibd files
+@param[in]	old_table	old table
+@param[in]	new_table	new table
+@param[in]	tmp_name	temporary table name
+@param[in,out]	mtr		mini-transaction
+@return innodb error code */
+dberr_t
+fil_mtr_rename_log(
+	const dict_table_t*	old_table,
+	const dict_table_t*	new_table,
+	const char*		tmp_name,
+	mtr_t*			mtr)
+	MY_ATTRIBUTE((warn_unused_result));
+
 #endif /* fil0fil_h */

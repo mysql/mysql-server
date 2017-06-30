@@ -2496,7 +2496,9 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 
 	for (const auto& space : *recv_sys->spaces) {
 
-		fil_tablespace_open_for_recovery(space.first);
+		if (space.first != TRX_SYS_SPACE) {
+			fil_tablespace_open_for_recovery(space.first);
+		}
 
 		for (auto pages : space.second.m_pages) {
 

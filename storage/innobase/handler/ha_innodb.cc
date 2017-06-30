@@ -4193,7 +4193,7 @@ innodb_init_params()
 
 	/* The default dir for data files is the datadir of MySQL */
 
-	srv_data_home = innobase_data_home_dir
+	srv_data_home = innobase_data_home_dir != nullptr
 			? innobase_data_home_dir : default_path;
 
 	if (srv_undo_dir == nullptr) {
@@ -4869,7 +4869,14 @@ innobase_init_files(
 
 	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
-	err = srv_start(create, innobase_scan_directories);
+	auto	scan_directories = innobase_scan_directories;
+
+	if (scan_directories == nullptr || strlen(scan_directories) == 0) {
+
+		scan_directories = srv_data_home;
+	}
+
+	err = srv_start(create, scan_directories);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -22211,8 +22218,8 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
 
 static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
-  "List of directories to scan for missing tablespace files.",
-  NULL, NULL, "");
+  "List of directories 'dir1;dir2;..;dirN' to scan for tablespace files. Default is to scan innodb-data-home-dir",
+  NULL, NULL, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),

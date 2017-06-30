@@ -780,7 +780,7 @@ srv_undo_tablespace_fixup(
 }
 
 /** Open an undo tablespace.
-@param[in]	space_id	tablespace ID
+@param[in]	space_id	Undo tablespace ID
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -794,7 +794,6 @@ srv_undo_tablespace_open(space_id_t space_id)
 	undo::Tablespace	undo_space(space_id);
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
-	fil_space_t*		space;
 
 	/* See if the previous name in the file map is correct. */
 	std::string	recover_name = fil_system_open_fetch(space_id);
@@ -812,7 +811,8 @@ srv_undo_tablespace_open(space_id_t space_id)
 	}
 
 	/* Check if it was already opened during redo recovery. */
-	space = fil_space_get(space_id);
+	fil_space_t*	space = fil_space_get(space_id);
+
 	if (space != nullptr) {
 
 		const auto&	file = space->files.front();
@@ -1147,7 +1147,6 @@ srv_undo_tablespaces_construct(bool create_new_db)
 	ut_a(!srv_read_only_mode);
 	ut_a(!srv_force_recovery);
 
-	Space_Ids::const_iterator	it;
 	for (auto space_id : undo::s_under_construction) {
 
 		/* Enable undo log encryption if it's ON. */
@@ -1924,17 +1923,10 @@ srv_start(bool create_new_db, const char* scan_directories)
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
-	if (!create_new_db
-	    && scan_directories != nullptr
-	    && strlen(scan_directories) > 0) {
+	err = fil_scan_for_tablespaces(scan_directories);
 
-		dberr_t	err;
-
-		err = fil_scan_for_tablespaces(scan_directories);
-
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
 	}
 
 	if (!srv_read_only_mode) {

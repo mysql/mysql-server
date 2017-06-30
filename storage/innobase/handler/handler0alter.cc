@@ -9019,6 +9019,25 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 			DBUG_ASSERT(ctx->need_rebuild());
 
+                        /* Check for any possible problems for any
+			file operations that will be performed in
+			commit_cache_rebuild(), and if none, generate
+			the redo log for these operations. */
+
+			error = fil_mtr_rename_log(
+				ctx->old_table,
+				ctx->new_table,
+				ctx->tmp_name, &mtr);
+
+			if (error != DB_SUCCESS) {
+				/* Out of memory or a problem will occur
+				when renaming files. */
+				fail = true;
+				my_error_innodb(
+					error, ctx->old_table->name.m_name,
+					ctx->old_table->flags);
+			}
+
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
