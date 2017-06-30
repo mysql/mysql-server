@@ -270,7 +270,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     jamEntry();
 
     {
-      signal->theData[0] = 12002;
+      signal->theData[0] = DumpStateOrd::LgmanDumpUndoStateLocalLog;
       EXECUTE_DIRECT(LGMAN, GSN_DUMP_STATE_ORD, signal, 1, 0);
     }
 

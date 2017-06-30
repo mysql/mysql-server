@@ -32,6 +32,7 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/CallbackSignal.hpp>
 #include <signaldata/UndoLogLevel.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
@@ -941,8 +942,11 @@ Lgman::execNODE_FAILREP(Signal* signal)
 void
 Lgman::execDUMP_STATE_ORD(Signal* signal){
   jamNoBlock();  /* Due to bug#20135976 */
-  if (signal->theData[0] == 12001 || signal->theData[0] == 12002)
+  if (signal->theData[0] == DumpStateOrd::LgmanDumpUndoStateClusterLog || 
+      signal->theData[0] == DumpStateOrd::LgmanDumpUndoStateLocalLog)
   {
+    const bool clusterLog = (signal->theData[0] == 
+                             DumpStateOrd::LgmanDumpUndoStateClusterLog);
     char tmp[1024];
     Ptr<Logfile_group> ptr;
     m_logfile_group_list.first(ptr);
@@ -958,7 +962,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                            ptr.p->m_last_synced_lsn, ptr.p->m_last_lcp_lsn,
                            !ptr.p->m_log_buffer_waiters.isEmpty(),
                            !ptr.p->m_log_sync_waiters.isEmpty());
-      if (signal->theData[0] == 12001)
+      if (clusterLog)
         infoEvent("%s", tmp);
       ndbout_c("%s", tmp);
 
@@ -968,7 +972,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                            ptr.p->m_callback_buffer_words,
                            ptr.p->m_free_buffer_words,
                            ptr.p->m_free_log_words);
-      if (signal->theData[0] == 12001)
+      if (clusterLog)
         infoEvent("%s", tmp);
       ndbout_c("%s", tmp);
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
@@ -981,7 +985,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                              "  head(waiters).sz: %u %u",
                              waiter.p->m_size,
                              FREE_BUFFER_MARGIN(this, ptr));
-        if (signal->theData[0] == 12001)
+        if (clusterLog)
           infoEvent("%s", tmp);
         ndbout_c("%s", tmp);
       }
@@ -996,7 +1000,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                              ptr.p->m_last_synced_lsn,
                              waiter.i,
                              waiter.p->m_sync_lsn);
-        if (signal->theData[0] == 12001)
+        if (clusterLog)
           infoEvent("%s", tmp);
         ndbout_c("%s", tmp);
 	
@@ -1010,7 +1014,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
       m_logfile_group_list.next(ptr);
     }
   }
-  if (signal->theData[0] == 12003)
+  if (signal->theData[0] == DumpStateOrd::LgmanCheckCallbacksClear)
   {
     bool crash = false;
     Ptr<Logfile_group> ptr;
@@ -1027,7 +1031,7 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
     if (crash)
     {
       ndbout_c("Detected logfile-group with non zero m_callback_buffer_words");
-      signal->theData[0] = 12002;
+      signal->theData[0] = DumpStateOrd::LgmanDumpUndoStateLocalLog;
       execDUMP_STATE_ORD(signal);
       ndbrequire(false);
     }
