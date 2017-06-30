@@ -703,18 +703,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 {}
 
 
-
-/**
-  Set max_length/decimals of function if function is fixed point and
-  result length/precision depends on argument ones.
-
-  @param item    Argument array.
-  @param nitems  Number of arguments in the array.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;

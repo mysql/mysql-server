@@ -7842,7 +7842,7 @@ void Item::aggregate_char_length(Item **args, uint nitems)
 
 
 /**
-  Set ::max_length and ::decimals of function if function is floating point and
+  Set max_length and decimals of function if function is floating point and
   result length/precision depends on argument ones.
 
   @param item    Argument array.
@@ -7876,6 +7876,7 @@ void Item::aggregate_float_properties(Item **item, uint nitems)
   this->max_length= maxl;
   this->decimals= decimals_cnt;
 }
+
 
 /**
   Set precision and decimals of function when this depends on arguments'
