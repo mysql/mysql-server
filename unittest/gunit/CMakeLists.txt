@@ -317,7 +317,6 @@ SET(TESTS
   my_thread
   mysys_base64
   mysys_lf
-  mysys_my_b_vprintf
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
