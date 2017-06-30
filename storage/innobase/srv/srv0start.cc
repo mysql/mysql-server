@@ -2439,8 +2439,6 @@ files_checked:
 		    && fil_check_missing_tablespaces()) {
 
 			ib::error()
-				<< "Use --innodb-scan-directories to find the"
-				<< " the tablespace files. If that fails then use"
 				<< " --innodb-force-recvovery=1 to ignore"
 				<< " this and to permanently lose all changes"
 				<< " to the missing tablespace(s)";

@@ -246,7 +246,7 @@ private:
 };
 
 /** Tablespace ID to filename mapping that was recovered by scanning the
-directories if --innobase-scan-directories was set. */
+directories. */
 static Tablespace_files*	tablespace_files;
 
 /** The tablespace memory cache; also the totality of logs (the log
@@ -4916,7 +4916,7 @@ fil_io(
 				break;
 
 			} else {
-				cur_page_no -= file->size;
+				cur_page_no -= f.size;
 			}
 		}
 
@@ -6148,17 +6148,16 @@ fil_node_fetch(
 
 	mutex_enter(&fil_system->mutex);
 
-	auto	space = fil_space_get(space_id);
+	auto	space = fil_space_get_by_id(space_id);
 
 	/* Skip spaces that are being dropped. */
-	if (space == nullptr || space->stop_new_ops) {
-		return;
-	}
+	if (space != nullptr && !space->stop_new_ops) {
 
-	++space->n_pending_ops;
+		++space->n_pending_ops;
 
-	for (const auto& file : space->files) {
-		files->push_back(file);
+		for (const auto& file : space->files) {
+			files->push_back(file);
+		}
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -6171,8 +6170,9 @@ fil_node_release(space_id_t space_id)
 {
 	mutex_enter(&fil_system->mutex);
 
-	auto	space = fil_space_get(space_id);
+	auto	space = fil_space_get_by_id(space_id);
 
+	/* Tablespace could have been dropped before fil_node_fetch() call. */
 	if (space != nullptr) {
 		ut_a(!space->stop_new_ops);
 
