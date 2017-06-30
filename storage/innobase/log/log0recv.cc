@@ -2500,14 +2500,13 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 
 	for (const auto& space : *recv_sys->spaces) {
 
-		if (space.first != TRX_SYS_SPACE) {
+		if (space.first != TRX_SYS_SPACE
+		    && !fil_tablespace_open_for_recovery(space.first)) {
 
-                        bool    success;
+			/* Tablespace was dropped. */
+			ut_ad(!fil_tablespace_lookup_for_recovery(space.first));
 
-			success  = fil_tablespace_open_for_recovery(
-                                space.first);
-
-                        ut_a(success);
+			continue;
 		}
 
 		for (auto pages : space.second.m_pages) {

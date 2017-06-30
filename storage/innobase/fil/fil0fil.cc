@@ -6685,6 +6685,27 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 	}
 }
 
+/** Lookup the tablespace ID.
+@param[in]	space_id		Tablespace ID to lookup
+@return true if the space ID is known. */
+bool
+fil_tablespace_lookup_for_recovery(space_id_t space_id)
+{
+	ut_ad(recv_recovery_is_on());
+
+	/* Single threaded code, no need to acquire mutex. */
+	const auto	names = tablespace_files->find(space_id);
+
+	if (names == nullptr) {
+		return(false);
+	}
+
+	/* Check that it wasn't deleted. */
+	const auto&	end = recv_sys->deleted.end();
+
+	return(recv_sys->deleted.find(space_id) == end);
+}
+
 /** Open a tablespace that has a redo log record to apply.
 @param[in]	space_id		Space id
 @return true if the open was successful */
@@ -6692,6 +6713,12 @@ bool
 fil_tablespace_open_for_recovery(space_id_t space_id)
 {
 	ut_ad(recv_recovery_is_on());
+
+	/* File could have been deleted. */
+	if (!fil_tablespace_lookup_for_recovery(space_id)) {
+
+		return(false);
+	}
 
 	/* There must be a mapping from the space ID to a file. */
 	const auto	names = tablespace_files->find(space_id);
@@ -6722,26 +6749,6 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 	}
 
 	return(false);
-}
-
-/** Lookup the tablespace ID.
-@param[in]	space_id		Tablespace ID to lookup
-@return true if the space ID is known. */
-bool
-fil_tablespace_lookup_for_recovery(space_id_t space_id)
-{
-	ut_ad(recv_recovery_is_on());
-
-	/* Single threaded code, no need to acquire mutex. */
-	const auto	names = tablespace_files->find(space_id);
-
-	if (names == nullptr) {
-		return(false);
-	}
-
-	const auto&	end = recv_sys->deleted.end();
-
-	return(recv_sys->deleted.find(space_id) == end);
 }
 
 /** This function should be called after recovery has completed.
@@ -6899,6 +6906,8 @@ fil_tablespace_redo_create(
 	ut_a(names->size() == 1);
 
 	/* It's possible that the tablespace file was renamed later. */
+
+	ib::info() << "REDO CREATE: " << page_id.space() << ", " << name;
 
 	if (names->front().compare(name) == 0) {
 		bool	success;
@@ -7238,6 +7247,8 @@ fil_tablespace_redo_delete(
 
 	fil_space_free(page_id.space(), false);
 
+	ib::info() << "REDO DELETE: " << page_id.space() << ", " << name;
+
 	tablespace_files->erase(page_id.space());
 
 	return(ptr);
@@ -7289,7 +7300,6 @@ fil_tokenize_paths(
 				cur_path.c_str(), &exists, &type) && exists) {
 
 				if (type == OS_FILE_TYPE_DIR) {
-
 
 					dirs.push_back(cur_path);
 

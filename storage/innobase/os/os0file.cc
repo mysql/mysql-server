@@ -4064,7 +4064,12 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 
 			Path	path(current.m_path);
 
-			path.append("/");
+			if (path.back() != '/' && path.back() != '\\') {
+				path += OS_PATH_SEPARATOR;
+			}
+
+			os_normalize_path(dirent->d_name);
+
 			path.append(dirent->d_name);
 
 			if (is_directory(path)) {
