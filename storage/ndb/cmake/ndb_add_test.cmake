@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 INCLUDE(cmake_parse_arguments)
 
-MACRO(NDB_ADD_TEST)
+FUNCTION(NDB_ADD_TEST)
   # Parse arguments passed to ADD_TEST
   MYSQL_PARSE_ARGUMENTS(ARG
     "LIBS"
@@ -59,4 +59,4 @@ MACRO(NDB_ADD_TEST)
   # Link the unit test program with mytap(and thus implicitly mysys)
   TARGET_LINK_LIBRARIES(${EXEC} mytap)
 
-ENDMACRO()
+ENDFUNCTION()
