@@ -2540,31 +2540,6 @@ fil_op_write_log(
 	}
 }
  
-/** Write redo log for renaming a file.
-@param[in]	space_id	tablespace id
-@param[in]	old_name	tablespace file name
-@param[in]	new_name	tablespace file name after renaming
-@param[in,out]	mtr		mini-transaction */
-static
-void
-fil_name_write_rename(
-	space_id_t	space_id,
-	const char*	old_name,
-	const char*	new_name,
-	mtr_t*		mtr)
-{
-	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
-	ut_ad(!fsp_is_undo_tablespace(space_id));
-
-	/* Note: A checkpoint can take place here. */
-
-	fil_op_write_log(
-		MLOG_FILE_RENAME, space_id, old_name, new_name, 0, mtr);
-
-	/* Note: A checkpoint can take place here too before we
-	have physically renamed the file. */
-}
-
 #endif /* !UNIV_HOTBACKUP */
 
 /** Deletes an IBD tablespace, either general or single-table.
@@ -2990,8 +2965,10 @@ fil_make_filepath(
 
 		if ((len > suffix_len)
 		   && (full_name[len - suffix_len] == suffix[0])) {
+
 			/* Another suffix exists, make it the one requested. */
-			memcpy(&full_name[len - suffix_len], suffix, suffix_len);
+			memcpy(&full_name[len - suffix_len],
+			       suffix, suffix_len);
 
 		} else {
 			/* No previous suffix, add it. */
@@ -3002,6 +2979,39 @@ fil_make_filepath(
 	}
 
 	return(full_name);
+}
+
+/** Write redo log for renaming a file.
+@param[in]	space_id	tablespace id
+@param[in]	old_name	tablespace file name
+@param[in]	new_name	tablespace file name after renaming
+@param[in,out]	mtr		mini-transaction */
+static
+void
+fil_name_write_rename(
+	space_id_t	space_id,
+	const char*	old_name,
+	const char*	new_name,
+	mtr_t*		mtr)
+{
+	ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+	ut_ad(!fsp_is_undo_tablespace(space_id));
+
+	/* Note: A checkpoint can take place here. */
+
+	DBUG_EXECUTE_IF(
+		"ib_crash_rename_log_1",
+		DBUG_SUICIDE(););
+
+	fil_op_write_log(
+		MLOG_FILE_RENAME, space_id, old_name, new_name, 0, mtr);
+
+	DBUG_EXECUTE_IF(
+		"ib_crash_rename_log_2",
+		DBUG_SUICIDE(););
+
+	/* Note: A checkpoint can take place here too before we
+	have physically renamed the file. */
 }
 
 /** Test if a tablespace file can be renamed to a new filepath by checking
@@ -3206,6 +3216,20 @@ retry:
 	char*	new_space_name = mem_strdup(new_name);
 	char*	old_space_name = space->name;
 
+#ifndef UNIV_HOTBACKUP
+	if (!recv_recovery_on) {
+		mtr_t	mtr;
+
+		mtr.start();
+
+		fil_name_write_rename(id, old_file_name, new_file_name, &mtr);
+
+		mtr.commit();
+
+		//log_mutex_enter();
+	}
+#endif /* !UNIV_HOTBACKUP */
+
 	ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != nullptr);
 	ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != nullptr);
 
@@ -3233,6 +3257,12 @@ retry:
 	if (success) {
 		file.name = new_file_name;
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!recv_recovery_on) {
+		//log_mutex_exit();
+	}
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(space->name == old_space_name);
 
