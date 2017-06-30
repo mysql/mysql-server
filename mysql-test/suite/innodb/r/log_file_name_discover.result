@@ -14,15 +14,8 @@ INSERT INTO t2 VALUES(1);
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
 # Kill the server
-"Removing tablespaces.open.* files"
-"Restarting with --innodb-scan-directories=."
-# restart: --innodb-scan-directories=.;
+# restart
 SELECT * FROM t2;
 c
 DROP TABLE t2;
-call mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
