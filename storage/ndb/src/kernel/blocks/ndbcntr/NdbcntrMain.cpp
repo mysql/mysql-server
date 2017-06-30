@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     jamEntry();
 
     {
-      signal->theData[0] = 12002;
+      signal->theData[0] = DumpStateOrd::LgmanDumpUndoStateLocalLog;
       EXECUTE_DIRECT(LGMAN, GSN_DUMP_STATE_ORD, signal, 1, 0);
     }
 
