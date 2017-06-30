@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/StartFragReq.hpp>
 #include <signaldata/ExecFragReq.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #define JAM_FILE_ID 442
 
@@ -1362,7 +1363,7 @@ DblqhProxy::sendSTART_RECCONF(Signal* signal, Uint32 ssId)
     /**
      * There should be no disk-ops in flight here...check it
      */
-    signal->theData[0] = 12003;
+    signal->theData[0] = DumpStateOrd::LgmanCheckCallbacksClear;
     sendSignal(LGMAN_REF, GSN_DUMP_STATE_ORD, signal, 1, JBB);
 
     ndbrequire(ss.phaseToSend ==
