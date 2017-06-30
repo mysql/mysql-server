@@ -73,28 +73,28 @@ struct buf_page_desc_t{
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
-#define I_S_PAGE_TYPE_INDEX		1
+constexpr size_t I_S_PAGE_TYPE_INDEX = 1;
 
 /** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+constexpr auto I_S_PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
 
 /** R-tree index page */
-#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
+constexpr auto I_S_PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
 
 /** Change buffer B-tree page */
-#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
+constexpr auto I_S_PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
 
 /** SDI B-tree page */
-#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
+constexpr auto I_S_PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
 
-#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
+constexpr auto I_S_PAGE_TYPE_LAST = I_S_PAGE_TYPE_SDI;
 
-#define I_S_PAGE_TYPE_BITS		5
+constexpr auto I_S_PAGE_TYPE_BITS = 5;
 
 /* Check if we can hold all page types */
-#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
-# error i_s_page_type[] is too large
-#endif
+static_assert(
+        I_S_PAGE_TYPE_LAST < (1 << I_S_PAGE_TYPE_BITS),
+        "i_s_page_type[] is too large");
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {

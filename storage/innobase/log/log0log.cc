@@ -173,11 +173,17 @@ log_downgrade()
 
 	log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (dest_offset % univ_page_size.physical()),
-		OS_FILE_LOG_BLOCK_SIZE, buf, group);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, true,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (dest_offset % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf, group);
+
+        ut_a(err == DB_SUCCESS);
+
 }
 
 /** Extends the log buffer.
@@ -1003,11 +1009,16 @@ log_group_file_header_flush(
 
 	ut_ad(!log_sys->disable_redo_writes);
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (dest_offset % univ_page_size.physical()),
-	       OS_FILE_LOG_BLOCK_SIZE, buf, group);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, true,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (dest_offset % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf, group);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 }
@@ -1033,9 +1044,12 @@ log_read_encryption()
 	log_block_buf = static_cast<byte*>(
 		ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
 
-	fil_io(IORequestLogRead, true, page_id, univ_page_size,
-	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+	err = fil_io(
+                IORequestLogRead, true, page_id, univ_page_size,
+                LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+        ut_a(err == DB_SUCCESS);
 
 	if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END,
 		   ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) == 0) {
@@ -1165,11 +1179,16 @@ log_write_encryption(
 
 	srv_stats.os_log_pending_writes.inc();
 
-	fil_io(IORequestLogWrite, true,
-	       page_id,
-	       univ_page_size,
-	       LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
-	       OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, true,
+                page_id,
+                univ_page_size,
+                LOG_CHECKPOINT_1 + OS_FILE_LOG_BLOCK_SIZE,
+                OS_FILE_LOG_BLOCK_SIZE, log_block_buf, NULL);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 	log_write_mutex_exit();
@@ -1376,11 +1395,16 @@ loop:
 
 	ut_ad(!log_sys->disable_redo_writes);
 
-	fil_io(IORequestLogWrite, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
-	       group);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, true,
+                page_id_t(group->space_id, page_no),
+                univ_page_size,
+                (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
+                group);
+
+        ut_a(err == DB_SUCCESS);
 
 	srv_stats.os_log_pending_writes.dec();
 
@@ -1927,13 +1951,17 @@ log_group_checkpoint(
 	added with 1, as we want to distinguish between a normal log
 	file write and a checkpoint field write */
 
-	fil_io(IORequestLogWrite, false,
-	       page_id_t(group->space_id, 0),
-	       univ_page_size,
-	       (log_sys->next_checkpoint_no & 1)
-	       ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
-	       OS_FILE_LOG_BLOCK_SIZE,
-	       buf, (byte*) group + 1);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogWrite, false,
+                page_id_t(group->space_id, 0),
+                univ_page_size,
+                (log_sys->next_checkpoint_no & 1)
+                ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
+                OS_FILE_LOG_BLOCK_SIZE, buf, (byte*) group + 1);
+
+        ut_a(err == DB_SUCCESS);
 
 	ut_ad(((ulint) group & 0x1UL) == 0);
 }
@@ -1995,12 +2023,17 @@ log_group_header_read(
 
 	MONITOR_INC(MONITOR_LOG_IO);
 
-	fil_io(IORequestLogRead, true,
-		page_id_t(group->space_id, static_cast<page_no_t>(
-				header / univ_page_size.physical())),
-		univ_page_size,
-		static_cast<page_no_t>(header % univ_page_size.physical()),
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogRead, true,
+                page_id_t(group->space_id, static_cast<page_no_t>(
+                                header / univ_page_size.physical())),
+                univ_page_size,
+                static_cast<page_no_t>(header % univ_page_size.physical()),
 		OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
+
+        ut_a(err == DB_SUCCESS);
 }
 
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
@@ -2546,7 +2579,10 @@ loop:
 	}
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn(lsn);
+                dberr_t err;
+
+		err = fil_write_flushed_lsn(lsn);
+                ut_a(err == DB_SUCCESS);
 	}
 
 	fil_close_all_files();

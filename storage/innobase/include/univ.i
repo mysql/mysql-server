@@ -315,7 +315,7 @@ limit both with this same constant. */
 /** Minimum page size InnoDB currently supports. */
 #define UNIV_PAGE_SIZE_MIN	(1 << UNIV_PAGE_SIZE_SHIFT_MIN)
 /** Maximum page size InnoDB currently supports. */
-#define UNIV_PAGE_SIZE_MAX	(1 << UNIV_PAGE_SIZE_SHIFT_MAX)
+constexpr size_t UNIV_PAGE_SIZE_MAX = (1 << UNIV_PAGE_SIZE_SHIFT_MAX);
 /** Default page size for InnoDB tablespaces. */
 #define UNIV_PAGE_SIZE_DEF	(1 << UNIV_PAGE_SIZE_SHIFT_DEF)
 /** Original 16k page size for InnoDB tablespaces. */
@@ -446,8 +446,9 @@ typedef long int		lint;
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
+
 /** The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	ULINT32_MASK
+constexpr uint32_t ULINT32_UNDEFINED = ULINT32_MASK;
 
 /** Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))

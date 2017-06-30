@@ -2259,7 +2259,8 @@ row_import_discard_changes(
 
 	table->ibd_file_missing = TRUE;
 
-	fil_close_tablespace(trx, table->space);
+	err = fil_close_tablespace(trx, table->space);
+        ut_a(err == DB_SUCCESS);
 }
 
 /*****************************************************************//**

@@ -2370,7 +2370,7 @@ fil_paths_equal(const char* lhs, const char* rhs)
 /** Fetch the file name opened for a space_id during recovery
 from the file map.
 @param[in]	space_id	undo tablespace id
-@return file name that was opened */
+@return file name that was opened, empty string if space id not found. */
 std::string
 fil_system_open_fetch(space_id_t space_id)
 {
@@ -4090,10 +4090,12 @@ fil_space_for_table_exists_in_mem(
 
 			clone_mark_abort(true);
 
-			fil_rename_tablespace(
+			bool	success = fil_rename_tablespace(
 				fnamespace->id,
 				fnamespace->files.front().name,
 				tmp_name, nullptr);
+
+			ut_a(success);
 
 			clone_mark_active();
 		}
@@ -4103,9 +4105,10 @@ fil_space_for_table_exists_in_mem(
 
 		clone_mark_abort(true);
 
-		fil_rename_tablespace(
-			id, space->files.front().name,
-			name, nullptr);
+		bool	success = fil_rename_tablespace(
+			id, space->files.front().name, name, nullptr);
+
+		ut_a(success);
 
 		clone_mark_active();
 
@@ -4803,12 +4806,15 @@ fil_io(
 	ut_ad(byte_offset < UNIV_PAGE_SIZE);
 	ut_ad(!page_size.is_compressed() || byte_offset == 0);
 	ut_ad(UNIV_PAGE_SIZE == (ulong)(1 << UNIV_PAGE_SIZE_SHIFT));
-#if (1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX
-# error "(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX"
-#endif
-#if (1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN
-# error "(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN"
-#endif
+
+	static_assert(
+		(1 << UNIV_PAGE_SIZE_SHIFT_MAX) == UNIV_PAGE_SIZE_MAX,
+		"(1 << UNIV_PAGE_SIZE_SHIFT_MAX) != UNIV_PAGE_SIZE_MAX");
+
+	static_assert(
+		(1 << UNIV_PAGE_SIZE_SHIFT_MIN) == UNIV_PAGE_SIZE_MIN,
+		"(1 << UNIV_PAGE_SIZE_SHIFT_MIN) != UNIV_PAGE_SIZE_MIN");
+
 	ut_ad(fil_validate_skip());
 
 #ifndef UNIV_HOTBACKUP
@@ -6633,33 +6639,34 @@ finish:
 @param[in,out]	space		Tablespace instance */
 static
 void
-fil_tablespace_encryption_init(fil_space_t* space)
+fil_tablespace_encryption_init(const fil_space_t* space)
 {
 	for (auto& key : *recv_sys->keys) {
 
-		if (key.space_id == space->id) {
-
-			dberr_t	err;
-
-			err = fil_set_encryption(
-				space->id, Encryption::AES, key.ptr, key.iv);
-
-			if (err != DB_SUCCESS) {
-
-				ib::error()
-					<< "Can't set encryption information"
-					<< " for tablespace" << space->name
-					<< "!";
-			}
-
-			ut_free(key.iv);
-			ut_free(key.ptr);
-
-			key.iv = nullptr;
-			key.ptr = nullptr;
-
-			key.space_id = std::numeric_limits<space_id_t>::max();
+		if (key.space_id != space->id) {
+			continue;
 		}
+
+		dberr_t	err;
+
+		err = fil_set_encryption(
+			space->id, Encryption::AES, key.ptr, key.iv);
+
+		if (err != DB_SUCCESS) {
+
+			ib::error()
+				<< "Can't set encryption information"
+				<< " for tablespace" << space->name
+				<< "!";
+		}
+
+		ut_free(key.iv);
+		ut_free(key.ptr);
+
+		key.iv = nullptr;
+		key.ptr = nullptr;
+
+		key.space_id = std::numeric_limits<space_id_t>::max();
 	}
 }
 

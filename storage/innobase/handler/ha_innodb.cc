@@ -4828,8 +4828,11 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 				predefined_flags, dict_sys_t::dd_space_name,
 				filename)
 		   == DB_SUCCESS) {
+
 		/* Set fil_space_t::size, which is 0 initially. */
-		fil_space_get_size(space_id);
+		ulint   size = fil_space_get_size(space_id);
+                ut_a(size != ULINT_UNDEFINED);
+
 	} else {
 		fail = true;
 	}
@@ -21057,7 +21060,9 @@ checkpoint_now_set(
 			fil_flush_file_spaces(to_int(FIL_TYPE_LOG));
 		}
 
-		fil_write_flushed_lsn(log_sys->lsn);
+		dberr_t err = fil_write_flushed_lsn(log_sys->lsn);
+
+                ut_a(err == DB_SUCCESS);
 	}
 }
 

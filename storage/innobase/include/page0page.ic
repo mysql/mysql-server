@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -407,24 +407,31 @@ page_rec_is_user_rec_low(
 	ulint	offset)	/*!< in: record offset on page */
 {
 	ut_ad(offset >= PAGE_NEW_INFIMUM);
-#if PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM
-# error "PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM"
-#endif
-#if PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM
-# error "PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM"
-#endif
-#if PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM
-# error "PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM"
-#endif
-#if PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM
-# error "PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM"
-#endif
-#if PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END
-# error "PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END"
-#endif
-#if PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END
-# error "PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END"
-#endif
+
+        static_assert(
+                PAGE_OLD_INFIMUM >= PAGE_NEW_INFIMUM,
+                "PAGE_OLD_INFIMUM < PAGE_NEW_INFIMUM");
+
+        static_assert(
+                PAGE_OLD_SUPREMUM >= PAGE_NEW_SUPREMUM,
+                "PAGE_OLD_SUPREMUM < PAGE_NEW_SUPREMUM");
+
+        static_assert(
+                PAGE_NEW_INFIMUM <= PAGE_OLD_SUPREMUM,
+                "PAGE_NEW_INFIMUM > PAGE_OLD_SUPREMUM");
+
+        static_assert(
+                PAGE_OLD_INFIMUM <= PAGE_NEW_SUPREMUM,
+                "PAGE_OLD_INFIMUM > PAGE_NEW_SUPREMUM");
+
+        static_assert(
+                PAGE_NEW_SUPREMUM <= PAGE_OLD_SUPREMUM_END,
+                "PAGE_NEW_SUPREMUM > PAGE_OLD_SUPREMUM_END");
+
+        static_assert(
+                PAGE_OLD_SUPREMUM <= PAGE_NEW_SUPREMUM_END,
+                "PAGE_OLD_SUPREMUM > PAGE_NEW_SUPREMUM_END");
+
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
 	return(offset != PAGE_NEW_SUPREMUM

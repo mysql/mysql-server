@@ -2365,7 +2365,8 @@ files_checked:
 
 		flushed_lsn = log_get_lsn();
 
-		fil_write_flushed_lsn(flushed_lsn);
+		err = fil_write_flushed_lsn(flushed_lsn);
+                ut_a(err == DB_SUCCESS);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, flushed_lsn, logfile0);
@@ -2502,7 +2503,8 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn(flushed_lsn);
+			err = fil_write_flushed_lsn(flushed_lsn);
+                        ut_a(err == DB_SUCCESS);
 
 			RECOVERY_CRASH(4);
 
@@ -2701,9 +2703,12 @@ files_checked:
 	server could crash in middle of key rotation. Some tablespace
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
-	if (!srv_read_only_mode && !create_new_db
+	if (!srv_read_only_mode
+            && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		fil_encryption_rotate();
+
+		bool    success = fil_encryption_rotate();
+                ut_a(success);
 	}
 
 	/* Create the SYS_VIRTUAL system table */

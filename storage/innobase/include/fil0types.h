@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,29 +83,38 @@ static const ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
 static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for RTREE Split Sequence Number */
-#define FIL_RTREE_SPLIT_SEQ_NUM		FIL_PAGE_FILE_FLUSH_LSN
+constexpr ulint FIL_RTREE_SPLIT_SEQ_NUM = FIL_PAGE_FILE_FLUSH_LSN;
 
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for storing SDI Index Root page
 numbers only in Page numbers 1 & 2. This doesn't conflict with
 FIL_RTREE_SPLIT_SEQ_NUM because it is used only in R-tree pages which can
 start only from page number 4 */
-#define FIL_SDI_ROOT_PAGE_NUM		FIL_PAGE_FILE_FLUSH_LSN
+constexpr ulint FIL_SDI_ROOT_PAGE_NUM = FIL_PAGE_FILE_FLUSH_LSN;
 
 /** starting from 4.1.x this contains the space id of the page */
-#define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID	34
+constexpr ulint FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID = 34;
 
 /** alias for space id */
 #define FIL_PAGE_SPACE_ID		FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
 
 /** start of the data on the page */
-#define FIL_PAGE_DATA			38U
+constexpr ulint FIL_PAGE_DATA = 38;
 
 /** File page trailer */
 /** the low 4 bytes of this are used to store the page checksum, the
 last 4 bytes should be identical to the last 4 bytes of FIL_PAGE_LSN */
-#define FIL_PAGE_END_LSN_OLD_CHKSUM	8
+constexpr ulint FIL_PAGE_END_LSN_OLD_CHKSUM = 8;
 
 /** size of the page trailer */
-#define FIL_PAGE_DATA_END		8
+constexpr ulint FIL_PAGE_DATA_END = 8;
+
+/** First in address is the page offset. */
+constexpr size_t FIL_ADDR_PAGE = 0;
+
+/** Then comes 2-byte byte offset within page.*/
+constexpr size_t FIL_ADDR_BYTE = 4;
+
+/** Address size is 6 bytes. */
+constexpr size_t FIL_ADDR_SIZE = 6;
 
 #endif /* fil0types_h */

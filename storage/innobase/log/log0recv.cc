@@ -853,12 +853,16 @@ recv_log_recover_5_7(lsn_t lsn)
 		". Please follow the instructions at "
 		REFMAN "upgrading.html";
 
-	fil_io(IORequestLogRead, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
-			% univ_page_size.physical()),
-	       OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
+        dberr_t err;
+
+	err = fil_io(
+                IORequestLogRead, true,
+                page_id_t(group->space_id, page_no), univ_page_size,
+                (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
+                         % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
+
+        ut_a(err == DB_SUCCESS);
 
 	if (log_block_calc_checksum(buf) != log_block_get_checksum(buf)) {
 
@@ -2497,7 +2501,13 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 	for (const auto& space : *recv_sys->spaces) {
 
 		if (space.first != TRX_SYS_SPACE) {
-			fil_tablespace_open_for_recovery(space.first);
+
+                        bool    success;
+
+			success  = fil_tablespace_open_for_recovery(
+                                space.first);
+
+                        ut_a(success);
 		}
 
 		for (auto pages : space.second.m_pages) {
@@ -2673,16 +2683,18 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 
 	if (page_size.is_compressed()) {
 
-		error = fil_io(
+		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.physical(),
 			block->page.zip.data, NULL);
 	} else {
-		error = fil_io(
+		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.logical(),
 			block->frame, NULL);
 	}
+
+        ut_a(err == DB_SUCCESS);
 }
 
 /** Applies log records in the hash table to a backup. */
@@ -3505,11 +3517,16 @@ recv_read_log_seg(
 		const page_no_t	page_no = static_cast<page_no_t>(
 			source_offset / univ_page_size.physical());
 
-		fil_io(IORequestLogRead, true,
-		       page_id_t(group->space_id, page_no),
-		       univ_page_size,
-		       (ulint) (source_offset % univ_page_size.physical()),
-		       len, buf, NULL);
+                dberr_t 
+
+		err = fil_io(
+                        IORequestLogRead, true,
+                        page_id_t(group->space_id, page_no),
+                        univ_page_size,
+                        (ulint) (source_offset % univ_page_size.physical()),
+                        len, buf, NULL);
+
+                ut_a(err == DB_SUCCESS);
 
 		start_lsn += len;
 		buf += len;
@@ -3670,8 +3687,11 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
-	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
+	err = fil_io(
+                IORequestLogRead, true, page_id, univ_page_size, 0,
+                LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
+
+        ut_a(err == DB_SUCCESS);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
 		(byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
@@ -3707,9 +3727,12 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		       + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
 
 		/* Write to the log file to wipe over the label */
-		fil_io(IORequestLogWrite, true, page_id,
-		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
-		       max_cp_group);
+		err = fil_io(
+                        IORequestLogWrite, true, page_id,
+                        univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
+                        max_cp_group);
+
+                ut_a(err == DB_SUCCESS);
 
 	} else if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
 		(byte*)LOG_HEADER_CREATOR_CLONE,
