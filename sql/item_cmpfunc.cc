@@ -23,6 +23,7 @@
 
 #include "sql/item_cmpfunc.h"
 
+#include <array>
 #include <limits.h>
 #include <math.h>
 #include <algorithm>
@@ -44,6 +45,7 @@
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"    // current_thd
 #include "sql/field.h"
+#include "sql/histograms/histogram.h"
 #include "sql/histograms/value_map.h"
 #include "sql/item_json_func.h" // json_value, get_json_atom_wrapper
 #include "sql/item_subselect.h" // Item_subselect
@@ -67,6 +69,7 @@
 #include "sql/sql_time.h"       // str_to_datetime
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
+
 
 using std::min;
 using std::max;
@@ -150,6 +153,13 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 }
 
 
+static void write_histogram_to_trace(THD *thd, Item_func *item,
+                                     const double selectivity)
+{
+  Opt_trace_object obj(&thd->opt_trace);
+  obj.add("condition", item).add("histogram_selectivity", selectivity);
+}
+
 /**
   @brief Aggregates field types from the array of items.
 
@@ -224,6 +234,29 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
            c1.collation->name,c1.derivation_name(),
            c2.collation->name,c2.derivation_name(),
            fname);
+}
+
+
+static bool get_histogram_selectivity(THD *thd, Field *field,
+                                      Item **args, size_t arg_count,
+                                      histograms::enum_operator op,
+                                      Item_func *item_func,
+                                      TABLE_SHARE *table_share,
+                                      double *selectivity)
+{
+  const histograms::Histogram *histogram=
+    table_share->find_histogram(field->field_index);
+  if (histogram != nullptr)
+  {
+    if (!histogram->get_selectivity(args, arg_count, op, selectivity))
+    {
+      if (unlikely(thd->opt_trace.is_started()))
+        write_histogram_to_trace(thd, item_func, *selectivity);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 
@@ -326,12 +359,12 @@ Item_bool_func* Le_creator::create(Item *a, Item *b) const
   return new Item_func_le(a, b);
 }
 
-float Item_func_not::get_filtering_effect(table_map filter_for_table,
+float Item_func_not::get_filtering_effect(THD *thd, table_map filter_for_table,
                                           table_map read_tables,
                                           const MY_BITMAP *fields_to_ignore,
                                           double rows_in_table)
 {
-  const float filter= args[0]->get_filtering_effect(filter_for_table,
+  const float filter= args[0]->get_filtering_effect(thd, filter_for_table,
                                                     read_tables,
                                                     fields_to_ignore,
                                                     rows_in_table);
@@ -818,11 +851,11 @@ bool Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
 /**
   Parse date provided in a string to a MYSQL_TIME.
 
-  @param[in]   thd        Thread handle
-  @param[in]   str        A string to convert
-  @param[in]   warn_type  Type of the timestamp for issuing the warning
-  @param[in]   warn_name  Field name for issuing the warning
-  @param[out]  l_time     The MYSQL_TIME objects is initialized.
+  @param[in]   thd           Thread handle
+  @param[in]   str           A string to convert
+  @param[in]   warn_type     Type of the timestamp for issuing the warning
+  @param[in]   warn_name     Field name for issuing the warning
+  @param[out]  l_time        The MYSQL_TIME objects is initialized.
 
   Parses a date provided in the string str into a MYSQL_TIME object. If the
   string contains an incorrect date or doesn't correspond to a date at all
@@ -2490,7 +2523,7 @@ longlong Item_func_equal::val_int()
   return cmp.compare();
 }
 
-float Item_func_ne::get_filtering_effect(table_map filter_for_table,
+float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -2499,6 +2532,12 @@ float Item_func_ne::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::NOT_EQUALS_TO,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
                                                          COND_FILTER_EQUALITY);
@@ -2511,7 +2550,7 @@ longlong Item_func_ne::val_int()
   return value != 0 && !null_value ? 1 : 0;
 }
 
-float Item_func_equal::get_filtering_effect(table_map filter_for_table,
+float Item_func_equal::get_filtering_effect(THD*, table_map filter_for_table,
                                             table_map read_tables,
                                             const MY_BITMAP *fields_to_ignore,
                                             double rows_in_table)
@@ -2525,7 +2564,7 @@ float Item_func_equal::get_filtering_effect(table_map filter_for_table,
                                                   COND_FILTER_EQUALITY);
 }
 
-float Item_func_ge::get_filtering_effect(table_map filter_for_table,
+float Item_func_ge::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -2534,12 +2573,18 @@ float Item_func_ge::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::GREATER_THAN_OR_EQUAL,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_INEQUALITY);
 }
 
-float Item_func_lt::get_filtering_effect(table_map filter_for_table,
+float Item_func_lt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -2548,12 +2593,18 @@ float Item_func_lt::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::LESS_THAN,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_INEQUALITY);
 }
 
-float Item_func_le::get_filtering_effect(table_map filter_for_table,
+float Item_func_le::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -2562,12 +2613,18 @@ float Item_func_le::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::LESS_THAN_OR_EQUAL,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_INEQUALITY);
 }
 
-float Item_func_gt::get_filtering_effect(table_map filter_for_table,
+float Item_func_gt::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -2576,6 +2633,12 @@ float Item_func_gt::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::GREATER_THAN,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_INEQUALITY);
@@ -3058,7 +3121,7 @@ bool Item_func_between::resolve_type(THD *thd)
 }
 
 float
-Item_func_between::get_filtering_effect(table_map filter_for_table,
+Item_func_between::get_filtering_effect(THD *thd, table_map filter_for_table,
                                         table_map read_tables,
                                         const MY_BITMAP *fields_to_ignore,
                                         double rows_in_table)
@@ -3067,6 +3130,15 @@ Item_func_between::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  histograms::enum_operator op=
+    (negated ? histograms::enum_operator::NOT_BETWEEN :
+               histograms::enum_operator::BETWEEN);
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count, op,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   const float filter=
     fld->get_cond_filter_default_probability(rows_in_table,
@@ -4999,7 +5071,7 @@ Item_func_in::get_single_col_filtering_effect(Item_ident *fieldref,
 
 }
 
-float Item_func_in::get_filtering_effect(table_map filter_for_table,
+float Item_func_in::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -5092,8 +5164,22 @@ float Item_func_in::get_filtering_effect(table_map filter_for_table,
       hand side are identical.
     */
     DBUG_ASSERT(args[0]->type() == FIELD_ITEM || args[0]->type() == REF_ITEM);
-    Item_ident *fieldref= static_cast<Item_ident*>(args[0]);
 
+    if (args[0]->type() == FIELD_ITEM)
+    {
+      const Item_field *item_field= down_cast<const Item_field*>(args[0]);
+      histograms::enum_operator op=
+        (negated ? histograms::enum_operator::NOT_IN_LIST :
+                   histograms::enum_operator::IN_LIST);
+
+      double selectivity;
+      if (!get_histogram_selectivity(thd, item_field->field, args, arg_count,
+                                     op, this, item_field->field->orig_table->s,
+                                     &selectivity))
+        return static_cast<float>(selectivity);
+    }
+
+    Item_ident *fieldref= static_cast<Item_ident*>(args[0]);
     const float tmp_filt= get_single_col_filtering_effect(fieldref,
                                                           filter_for_table,
                                                           fields_to_ignore,
@@ -5964,7 +6050,7 @@ void Item_cond::neg_arguments(THD *thd)
 }
 
 
-float Item_cond_and::get_filtering_effect(table_map filter_for_table,
+float Item_cond_and::get_filtering_effect(THD *thd, table_map filter_for_table,
                                           table_map read_tables,
                                           const MY_BITMAP *fields_to_ignore,
                                           double rows_in_table)
@@ -5981,7 +6067,7 @@ float Item_cond_and::get_filtering_effect(table_map filter_for_table,
        P(A and B ...) = P(A) * P(B) * ...
   */
   while ((item= it++))
-    filter*= item->get_filtering_effect(filter_for_table,
+    filter*= item->get_filtering_effect(thd, filter_for_table,
                                         read_tables,
                                         fields_to_ignore,
                                         rows_in_table);
@@ -6026,7 +6112,7 @@ longlong Item_cond_and::val_int()
 }
 
 
-float Item_cond_or::get_filtering_effect(table_map filter_for_table,
+float Item_cond_or::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -6040,7 +6126,7 @@ float Item_cond_or::get_filtering_effect(table_map filter_for_table,
   while ((item= it++))
   {
     const float cur_filter=
-      item->get_filtering_effect(filter_for_table, read_tables,
+      item->get_filtering_effect(thd, filter_for_table, read_tables,
                                  fields_to_ignore, rows_in_table);
     /*
       Calculated as "Disjunction of independent events":
@@ -6099,7 +6185,8 @@ void Item_func_isnull::update_used_tables()
 }
 
 
-float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
+float Item_func_isnull::get_filtering_effect(THD *thd,
+                                             table_map filter_for_table,
                                              table_map read_tables,
                                              const MY_BITMAP *fields_to_ignore,
                                              double rows_in_table)
@@ -6108,6 +6195,12 @@ float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::IS_NULL,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);
@@ -6182,7 +6275,7 @@ void Item_is_not_null_test::update_used_tables()
 }
 
 float
-Item_func_isnotnull::get_filtering_effect(table_map filter_for_table,
+Item_func_isnotnull::get_filtering_effect(THD *thd, table_map filter_for_table,
                                           table_map read_tables,
                                           const MY_BITMAP *fields_to_ignore,
                                           double rows_in_table)
@@ -6191,6 +6284,12 @@ Item_func_isnotnull::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::IS_NOT_NULL,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return 1.0f - fld->get_cond_filter_default_probability(rows_in_table,
                                                          COND_FILTER_EQUALITY);
@@ -6211,7 +6310,7 @@ void Item_func_isnotnull::print(String *str, enum_query_type query_type)
 }
 
 
-float Item_func_like::get_filtering_effect(table_map filter_for_table,
+float Item_func_like::get_filtering_effect(THD*, table_map filter_for_table,
                                            table_map read_tables,
                                            const MY_BITMAP *fields_to_ignore,
                                            double rows_in_table)
@@ -6574,7 +6673,7 @@ void Item_func_regex::cleanup()
 }
 
 
-float Item_func_xor::get_filtering_effect(table_map filter_for_table,
+float Item_func_xor::get_filtering_effect(THD *thd, table_map filter_for_table,
                                           table_map read_tables,
                                           const MY_BITMAP *fields_to_ignore,
                                           double rows_in_table)
@@ -6582,13 +6681,13 @@ float Item_func_xor::get_filtering_effect(table_map filter_for_table,
   DBUG_ASSERT(arg_count == 2);
 
   const float filter0=
-    args[0]->get_filtering_effect(filter_for_table, read_tables,
+    args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
                                   fields_to_ignore, rows_in_table);
   if (filter0 == COND_FILTER_ALLPASS)
     return COND_FILTER_ALLPASS;
 
   const float filter1=
-    args[1]->get_filtering_effect(filter_for_table, read_tables,
+    args[1]->get_filtering_effect(thd, filter_for_table, read_tables,
                                   fields_to_ignore, rows_in_table);
 
   if (filter1 == COND_FILTER_ALLPASS)
@@ -7061,7 +7160,7 @@ bool Item_equal::fix_fields(THD *thd, Item**)
   'filter_for_table', the predicates on all these fields will
   contribute to the filtering effect.
 */
-float Item_equal::get_filtering_effect(table_map filter_for_table,
+float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
                                        table_map read_tables,
                                        const MY_BITMAP *fields_to_ignore,
                                        double rows_in_table)
@@ -7142,6 +7241,33 @@ float Item_equal::get_filtering_effect(table_map filter_for_table,
           */
           if (cur_filter >= 1.0)
             cur_filter= 1.0f;
+        }
+        else if (const_item)
+        {
+          /*
+            If index statistics is not available, see if we can use any
+            available histogram statistics.
+          */
+          const histograms::Histogram *histogram=
+            cur_field->field->orig_table->s->find_histogram(
+              cur_field->field->field_index);
+          if (histogram != nullptr)
+          {
+            std::array<Item*, 2> items {{cur_field, const_item}};
+            double selectivity;
+            if (!histogram->get_selectivity(items.data(), items.size(),
+                                            histograms::enum_operator::EQUALS_TO,
+                                            &selectivity))
+            {
+              if (unlikely(thd->opt_trace.is_started()))
+              {
+                Item_func_eq *eq_func=
+                  new (thd->mem_root) Item_func_eq(cur_field, const_item);
+                write_histogram_to_trace(thd, eq_func, selectivity);
+              }
+              cur_filter= static_cast<float>(selectivity);
+            }
+          }
         }
 
         filter*= cur_filter;
@@ -7525,7 +7651,7 @@ Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
   return this;
 }
 
-float Item_func_eq::get_filtering_effect(table_map filter_for_table,
+float Item_func_eq::get_filtering_effect(THD *thd, table_map filter_for_table,
                                          table_map read_tables,
                                          const MY_BITMAP *fields_to_ignore,
                                          double rows_in_table)
@@ -7534,6 +7660,12 @@ float Item_func_eq::get_filtering_effect(table_map filter_for_table,
     contributes_to_filter(read_tables, filter_for_table, fields_to_ignore);
   if (!fld)
     return COND_FILTER_ALLPASS;
+
+  double selectivity;
+  if (!get_histogram_selectivity(thd, fld->field, args, arg_count,
+                                 histograms::enum_operator::EQUALS_TO,
+                                 this, fld->field->orig_table->s, &selectivity))
+    return static_cast<float>(selectivity);
 
   return fld->get_cond_filter_default_probability(rows_in_table,
                                                   COND_FILTER_EQUALITY);

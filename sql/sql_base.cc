@@ -549,6 +549,75 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
 
 
 /**
+  Read any existing histogram statistics from the data dictionary and
+  store a copy of them in the TABLE_SHARE.
+
+  @param thd Thread handler
+  @param share The table share where to store the histograms
+  @param schema Schema definition
+  @param table_def Table definition
+
+  @retval true on error
+  @retval false on success
+*/
+static bool read_histograms(THD *thd, TABLE_SHARE *share,
+                            const dd::Schema *schema,
+                            const dd::Abstract_table *table_def)
+{
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  MDL_request_list mdl_requests;
+  for (const auto column : table_def->columns())
+  {
+    if (column->is_hidden())
+      continue;
+
+    MDL_request *request= new (thd->mem_root) MDL_request;
+    dd::String_type mdl_key=
+      dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
+                                            column->name());
+    MDL_REQUEST_INIT(request, MDL_key::COLUMN_STATISTICS, "", mdl_key.c_str(),
+                     MDL_SHARED_READ, MDL_STATEMENT);
+    mdl_requests.push_front(request);
+  }
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true; /* purecov: deadcode */
+
+  for (const auto column : table_def->columns())
+  {
+    if (column->is_hidden())
+      continue;
+
+    const histograms::Histogram *histogram= nullptr;
+    if (histograms::find_histogram(thd, schema->name().c_str(),
+                                   table_def->name().c_str(),
+                                   column->name().c_str(),
+                                   &histogram))
+    {
+      // Any error is reported by the dictionary subsystem.
+      return true; /* purecov: deadcode */
+    }
+
+    if (histogram != nullptr)
+    {
+      /*
+        Make a clone of the histogram so it survives together with the
+        TABLE_SHARE in case the original histogram is thrown out of the
+        dictionary cache.
+      */
+      const histograms::Histogram *histogram_copy=
+        histogram->clone(&share->mem_root);
+      share->m_histograms->emplace(column->ordinal_position() - 1,
+                                   histogram_copy);
+    }
+  }
+
+  return false;
+}
+
+
+/**
   Get the TABLE_SHARE for a table.
 
   Get a table definition from the table definition cache. If the share
@@ -712,6 +781,17 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
       open_table_err=
         open_table_def(thd, share,
                        *dynamic_cast<const dd::Table*>(abstract_table));
+
+      /*
+        Read any existing histogram statistics from the data dictionary and
+        store a copy of them in the TABLE_SHARE.
+
+        We need to do this outside the protection of LOCK_open, since the data
+        dictionary might have to open tables in order to read histogram data
+        (such recursion will not work).
+      */
+      if (!open_table_err && read_histograms(thd, share, sch, abstract_table))
+        open_table_err= true; /* purecov: deadcode */
     }
   }
 
@@ -3450,6 +3530,7 @@ share_found:
       // Error is reported by the dictionary subsystem.
       goto err_lock;
     }
+
 
     /* make a new table */
     if (!(table= (TABLE*) my_malloc(key_memory_TABLE,

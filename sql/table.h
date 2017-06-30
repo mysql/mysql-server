@@ -64,6 +64,11 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+namespace histograms
+{
+  class Histogram;
+};
+
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class COND_EQUAL;
@@ -630,6 +635,23 @@ typedef I_P_List <Wait_for_flush,
 struct TABLE_SHARE
 {
   TABLE_SHARE() {}                    /* Remove gcc warning */
+
+  /*
+    A map of [uint, Histogram] values, where the key is the field index. The
+    map is populated with any histogram statistics when it is loaded/created.
+  */
+  malloc_unordered_map<uint, const histograms::Histogram*> *m_histograms
+  { nullptr };
+
+  /**
+    Find the histogram for the given field index.
+
+    @param field_index the index of the field we want to find a histogram for
+
+    @retval nullptr if no histogram is found
+    @retval a pointer to a histogram if one is found
+  */
+  const histograms::Histogram* find_histogram(uint field_index);
 
   /** Category of this table. */
   TABLE_CATEGORY table_category;

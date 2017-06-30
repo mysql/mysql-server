@@ -1558,6 +1558,7 @@ public:
     Calculate the filter contribution that is relevant for table
     'filter_for_table' for this item.
 
+    @param thd               Thread handler
     @param filter_for_table  The table we are calculating filter effect for
     @param read_tables       Tables earlier in the join sequence.
                              Predicates for table 'filter_for_table' that
@@ -1575,7 +1576,8 @@ public:
                              Item contributes with.
   */
   virtual float
-  get_filtering_effect(table_map filter_for_table MY_ATTRIBUTE((unused)),
+  get_filtering_effect(THD *thd MY_ATTRIBUTE((unused)),
+                       table_map filter_for_table MY_ATTRIBUTE((unused)),
                        table_map read_tables MY_ATTRIBUTE((unused)),
                        const MY_BITMAP
                        *fields_to_ignore MY_ATTRIBUTE((unused)),
@@ -1600,7 +1602,15 @@ public:
     return true;
   }
 
+  /**
+    Convert a non-temporal type to date
+  */
+  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
+  /**
+    Convert a non-temporal type to time
+  */
+  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 protected:
   /* Helper functions, see item_sum.cc */
   String *val_string_from_real(String *str);
@@ -1711,10 +1721,7 @@ protected:
   */
   bool get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
 
-  /**
-    Convert a non-temporal type to date
-  */
-  bool get_date_from_non_temporal(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+
 
   /**
     Convert val_str() to time in MYSQL_TIME
@@ -1745,11 +1752,6 @@ protected:
     Convert a numeric type to time
   */
   bool get_time_from_numeric(MYSQL_TIME *ltime);
-
-  /**
-    Convert a non-temporal type to time
-  */
-  bool get_time_from_non_temporal(MYSQL_TIME *ltime);
 
 public:
 
@@ -3401,7 +3403,7 @@ public:
   }
 #endif
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;

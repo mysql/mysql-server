@@ -237,7 +237,7 @@ eval select EVENT_NAME from performance_schema.events_waits_current
   order by THREAD_ID, EVENT_ID;
 eval select (count(*) > 5) as has_waits from performance_schema.events_waits_history
   where THREAD_ID = $con1_thread_id;
-eval select (count(*) > 15) as has_waits from performance_schema.events_waits_history_long
+eval select (count(*) > 16) as has_waits from performance_schema.events_waits_history_long
   where THREAD_ID = $con1_thread_id;
 
 echo "=========================== Waits user 2";
@@ -667,7 +667,7 @@ eval select EVENT_NAME from performance_schema.events_waits_current
   order by THREAD_ID, EVENT_ID;
 eval select (count(*) > 5) as has_waits from performance_schema.events_waits_history
   where THREAD_ID = $con1_thread_id;
-eval select (count(*) > 15) as has_waits from performance_schema.events_waits_history_long
+eval select (count(*) > 16) as has_waits from performance_schema.events_waits_history_long
   where THREAD_ID = $con1_thread_id;
 
 echo "=========================== Waits user 2";

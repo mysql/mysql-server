@@ -3364,7 +3364,7 @@ public:
       FTS_DOCID_IN_RESULT;
   }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;

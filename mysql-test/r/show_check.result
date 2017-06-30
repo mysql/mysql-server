@@ -271,6 +271,7 @@ create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
+mysql	column_statistics	0	0
 mysql	column_type_elements	0	0
 mysql	columns	0	0
 mysql	foreign_key_column_usage	0	0

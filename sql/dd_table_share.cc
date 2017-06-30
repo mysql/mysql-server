@@ -292,6 +292,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share, const dd::Table *table_d
     }
   }
 
+  share->m_histograms=
+    new malloc_unordered_map<uint,
+                             const histograms::Histogram*>(PSI_INSTRUMENT_ME);
 
   // Setup other fields =====================================================
   /* Allocate handler */

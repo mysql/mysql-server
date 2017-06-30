@@ -118,9 +118,11 @@ public:
     @param db_name  name of the database this histogram represents
     @param tbl_name name of the table this histogram represents
     @param col_name name of the column this histogram represents
+    @param data_type the type of data that this histogram contains
   */
   Singleton(MEM_ROOT *mem_root, const std::string &db_name,
-            const std::string &tbl_name, const std::string &col_name);
+            const std::string &tbl_name, const std::string &col_name,
+            Value_map_type data_type);
 
   /**
     Singleton copy-constructor
@@ -179,6 +181,42 @@ public:
     @return a copy of the histogram allocated on the provided MEM_ROOT.
   */
   Histogram *clone(MEM_ROOT *mem_root) const override;
+
+  /**
+    Find the number of values equal to 'value'.
+
+    This function will estimate the number of values that is equal to the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_equal_to_selectivity(const T& value) const;
+
+  /**
+    Find the number of values less than 'value'.
+
+    This function will estimate the number of values that is less than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_less_than_selectivity(const T& value) const;
+
+  /**
+    Find the number of values greater than 'value'.
+
+    This function will estimate the number of values that is greater than the
+    provided value.
+
+    @param value The value to estimate the selectivity for.
+
+    @return the selectivity between 0.0 and 1.0 inclusive.
+  */
+  double get_greater_than_selectivity(const T& value) const;
 private:
   /**
     Add value to a JSON bucket
@@ -203,6 +241,7 @@ private:
   */
   static bool create_json_bucket(const std::pair<T, double> &bucket,
                                  Json_array *json_bucket);
+
 
 protected:
   /**

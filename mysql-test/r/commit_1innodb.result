@@ -803,7 +803,7 @@ SUCCESS
 
 # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 3, 2);
+call p_verify_status_increment(3, 2, 3, 2);
 SUCCESS
 
 commit;
@@ -881,7 +881,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 test.t3	check	status	OK
-call p_verify_status_increment(6, 0, 6, 0);
+call p_verify_status_increment(8, 0, 6, 0);
 SUCCESS
 
 commit;

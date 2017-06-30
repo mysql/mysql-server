@@ -2172,6 +2172,9 @@ explain select * from t1 where s1 > any (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2414,6 +2417,9 @@ explain select * from t1 where s1 > any (select max(s2) from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2666,6 +2672,9 @@ explain select * from t1 where s1 in (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2767,6 +2776,9 @@ explain select * from t1 where s1 in (select s2 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -2946,6 +2958,9 @@ explain select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -3047,6 +3062,9 @@ explain select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.705,
@@ -3563,6 +3581,9 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8073,
@@ -3664,6 +3685,9 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8073,
@@ -3862,6 +3886,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.3333,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.8013,
@@ -3889,6 +3916,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8013,
@@ -3911,6 +3941,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 3,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.3333,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -3936,6 +3969,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 3,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 0.3333,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -3959,6 +3995,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 3,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 0.3333,
                                         "access_type": "scan",
                                         "using_join_cache": true,
                                         "buffers_needed": 1,
@@ -4003,6 +4042,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 3,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.3333,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -4033,6 +4075,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8013,
@@ -4055,6 +4100,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.3333,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.8013,
@@ -4083,6 +4131,9 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.3333,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 1,
@@ -4658,6 +4709,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -4759,6 +4813,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -4796,6 +4853,9 @@ concat(c1,'y') IN
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 3,
                             "cost": 0.8013,
@@ -4938,6 +4998,9 @@ concat(c1,'y') IN
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 3,
                       "cost": 0.8013,
@@ -4975,6 +5038,9 @@ concat(c1,'y') IN
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 3,
                             "cost": 0.8013,
@@ -5363,6 +5429,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.6004,
@@ -5386,6 +5455,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -5483,6 +5555,9 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -5519,6 +5594,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.6004,
@@ -5572,6 +5650,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -5598,6 +5679,9 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -5621,6 +5705,9 @@ trace
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 1,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 1,
                                         "cost": 0.6004,
@@ -5635,6 +5722,9 @@ trace
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 1,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 1,
                                         "cost": 0.6004,
@@ -5671,6 +5761,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -5699,6 +5792,9 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.6004,
@@ -5713,6 +5809,9 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.6004,
@@ -5876,6 +5975,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.6004,
@@ -5899,6 +6001,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -5996,6 +6101,9 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -6032,6 +6140,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.6004,
@@ -6085,6 +6196,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -6111,6 +6225,9 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 1,
+                              "filtering_effect": [
+                              ] /* filtering_effect */,
+                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -6134,6 +6251,9 @@ trace
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 1,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 1,
                                         "cost": 0.6004,
@@ -6148,6 +6268,9 @@ trace
                                     "considered_access_paths": [
                                       {
                                         "rows_to_scan": 1,
+                                        "filtering_effect": [
+                                        ] /* filtering_effect */,
+                                        "final_filtering_effect": 1,
                                         "access_type": "scan",
                                         "resulting_rows": 1,
                                         "cost": 0.6004,
@@ -6184,6 +6307,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 1,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -6212,6 +6338,9 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.6004,
@@ -6226,6 +6355,9 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 1,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.6004,
@@ -6376,6 +6508,9 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.5,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -6659,6 +6794,9 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7011,
@@ -6878,6 +7016,9 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.5,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -6904,6 +7045,9 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7011,
@@ -7640,6 +7784,9 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "d"
@@ -7851,6 +7998,9 @@ delete t6 from t5, t6 where d>7000	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "d"
@@ -8227,6 +8377,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,
@@ -8249,6 +8402,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.25,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -8272,6 +8428,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                                 "considered_access_paths": [
                                   {
                                     "rows_to_scan": 4,
+                                    "filtering_effect": [
+                                    ] /* filtering_effect */,
+                                    "final_filtering_effect": 0.25,
                                     "access_type": "scan",
                                     "using_join_cache": true,
                                     "buffers_needed": 1,
@@ -8308,6 +8467,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.25,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.9188,
@@ -8332,6 +8494,9 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 4,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.25,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 1,
@@ -9192,6 +9357,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,
@@ -9214,6 +9382,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 4,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.25,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -9237,6 +9408,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                                 "considered_access_paths": [
                                   {
                                     "rows_to_scan": 4,
+                                    "filtering_effect": [
+                                    ] /* filtering_effect */,
+                                    "final_filtering_effect": 0.25,
                                     "access_type": "scan",
                                     "using_join_cache": true,
                                     "buffers_needed": 1,
@@ -9273,6 +9447,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.25,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.9188,
@@ -9297,6 +9474,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 4,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.25,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 1,
@@ -11261,6 +11441,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 8,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.125,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 1.3376,
@@ -11288,6 +11471,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,
@@ -11310,6 +11496,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 8,
+                          "filtering_effect": [
+                          ] /* filtering_effect */,
+                          "final_filtering_effect": 0.125,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -11333,6 +11522,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                                 "considered_access_paths": [
                                   {
                                     "rows_to_scan": 8,
+                                    "filtering_effect": [
+                                    ] /* filtering_effect */,
+                                    "final_filtering_effect": 0.125,
                                     "access_type": "scan",
                                     "using_join_cache": true,
                                     "buffers_needed": 1,
@@ -11376,6 +11568,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 8,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.125,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 1.3376,
@@ -11404,6 +11599,9 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 8,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.125,
                             "access_type": "scan",
                             "using_join_cache": true,
                             "buffers_needed": 1,
@@ -12215,6 +12413,9 @@ explain select * from v1 where id="b"	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.5,
                       "access_type": "scan",
                       "resulting_rows": 1,
                       "cost": 0.7126,
@@ -12423,6 +12624,9 @@ explain select * from v1 where id="b"	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 3,
+                            "filtering_effect": [
+                            ] /* filtering_effect */,
+                            "final_filtering_effect": 0.3333,
                             "access_type": "scan",
                             "resulting_rows": 1,
                             "cost": 0.8126,

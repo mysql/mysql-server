@@ -425,7 +425,7 @@ CALL clear_transaction_tables();
 
 --connection con1
 SET SESSION AUTOCOMMIT = 0;
-SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
+SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY event_id;
 
 --echo
 --echo #
@@ -434,17 +434,17 @@ SELECT * FROM performance_schema.events_transactions_current ORDER BY event_id;
 INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 
 --echo
---echo ## Expect 0 transactions in events_transactions_current
+--echo ## Expect 1 transaction in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
 
 --connection con1
 COMMIT;
 
 --echo
---echo ## Expect 0 transactions in events_transactions_history
+--echo ## Expect 10 transactions in events_transactions_history
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 10);
 
 --echo
 --echo #
@@ -457,9 +457,9 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', 
 INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 
 --echo
---echo ## Expect 0 transactions in events_transactions_current
+--echo ## Expect 1 transaction in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
 
 --echo
 --echo ## Now transactional. Transaction should be started.

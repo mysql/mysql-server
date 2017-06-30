@@ -8081,7 +8081,7 @@ void Item_field::print(String *str, enum_query_type query_type)
   implicitly means "WHERE field <> 0". The filtering effect is
   therefore identical to that of Item_func_ne.
 */
-float Item_field::get_filtering_effect(table_map filter_for_table,
+float Item_field::get_filtering_effect(THD*, table_map filter_for_table,
                                        table_map,
                                        const MY_BITMAP *fields_to_ignore,
                                        double rows_in_table)
@@ -9731,7 +9731,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
       const char *field_name= field->field_name;
       MYSQL_TIME field_time, item_time;
       get_mysql_time_from_str(thd, field_result, type, field_name, &field_time);
-      get_mysql_time_from_str(thd, item_result, type, field_name,  &item_time);
+      get_mysql_time_from_str(thd, item_result, type, field_name, &item_time);
 
       return my_time_compare(&field_time, &item_time);
     }

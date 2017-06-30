@@ -5141,7 +5141,7 @@ insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
   (6,7),(7,4),(5,3);
 
 let $nesting= 26;
-let $should_work_nesting= 5;
+let $should_work_nesting= 4;
 let $start= select sum(a),a from t1 where a> ( select sum(a) from t1 ;
 let $end= )group by a ;
 let $start_app= where a> ( select sum(a) from t1 ;

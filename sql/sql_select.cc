@@ -2934,7 +2934,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
                                    (tab->ref().key != -1) ? tab->position()->key : NULL,
                                    tab->prefix_tables() & ~tab->table_ref->map(),
                                    tab->position()->rows_fetched,
-                                   false) : COND_FILTER_ALLPASS;
+                                   false, false,
+                                   trace_refine_table) : COND_FILTER_ALLPASS;
     }
 
     DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||

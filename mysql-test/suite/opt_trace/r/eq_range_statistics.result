@@ -202,6 +202,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 5,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
@@ -402,6 +405,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
@@ -610,6 +616,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
@@ -818,6 +827,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
@@ -1025,6 +1037,9 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     },
                     {
                       "rows_to_scan": 3,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"
@@ -1216,6 +1231,9 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 1,
+                      "filtering_effect": [
+                      ] /* filtering_effect */,
+                      "final_filtering_effect": 0.2977,
                       "access_type": "range",
                       "range_details": {
                         "used_index": "a"

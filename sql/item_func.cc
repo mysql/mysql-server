@@ -7945,7 +7945,7 @@ bool Item_func_match::init_search(THD *thd)
 }
 
 
-float Item_func_match::get_filtering_effect(table_map filter_for_table,
+float Item_func_match::get_filtering_effect(THD*, table_map filter_for_table,
                                             table_map read_tables,
                                             const MY_BITMAP *fields_to_ignore,
                                             double rows_in_table)

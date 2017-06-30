@@ -1403,6 +1403,19 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
           DBUG_ASSERT(false); /* purecov: deadcode */
           break;
       }
+
+      if (!res)
+      {
+        /*
+          If a histogram was added, updated or removed, we will request the old
+          TABLE_SHARE to go away from the table definition cache. This is
+          beacuse histogram data is cached in the TABLE_SHARE, so we want new
+          transactions to fetch the updated data into the TABLE_SHARE before
+          using it again.
+        */
+        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                         table->table_name, false);
+      }
     }
   }
 

@@ -50,6 +50,7 @@
 #include "sql/dd/types/trigger.h"
 
 #include "sql/histograms/histogram.h"
+#include "sql/histograms/value_map.h"
 
 class Json_wrapper;
 
@@ -436,7 +437,8 @@ inline void set_attributes(dd::Column_statistics *obj,
   obj->set_table_name("table");
   obj->set_column_name("column");
 
-  histograms::Value_map<longlong> value_map(&my_charset_numeric);
+  histograms::Value_map<longlong> value_map(&my_charset_numeric,
+                                            histograms::Value_map_type::INT);
   value_map.add_values(100, 10);
   value_map.add_values(-1, 10);
   value_map.add_values(1, 10);

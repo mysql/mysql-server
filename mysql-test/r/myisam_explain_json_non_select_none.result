@@ -63,9 +63,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 Handler_update	3
 
@@ -132,10 +134,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < 10)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
+Handler_read_key	1
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -214,10 +218,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 1)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	1
 Handler_read_rnd_next	4
 
 DROP TABLE t1;
@@ -341,9 +347,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = 1)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 Handler_update	1
 
@@ -468,9 +476,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` = 1)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 Handler_update	1
 
@@ -596,9 +606,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	5
 Handler_update	3
 
@@ -731,9 +743,11 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`a` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	11
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	11
 Handler_update	2
 
@@ -917,9 +931,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`b`))))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	15
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	19
 Handler_update	2
 
@@ -1042,9 +1058,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	16
 Handler_update	3
 
@@ -1189,11 +1207,13 @@ Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 Handler_read_rnd	3
 Handler_read_rnd_next	9
 Handler_update	3
@@ -1320,9 +1340,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` where (`test`.`t11`.`a` > 1)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	12
 Handler_update	2
 
@@ -1389,10 +1411,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 1) limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	2
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	1
 Handler_read_rnd_next	2
 
 DROP TABLE t1;
@@ -1432,8 +1456,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 
 DROP TABLE t1;
 #13
@@ -1472,8 +1498,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 
 DROP TABLE t1;
 #14
@@ -1560,11 +1588,11 @@ Warnings:
 Note	1003	/* select#1 */ select '3' AS `a`,'3' AS `b` from `test`.`t1` where 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #15
@@ -1649,10 +1677,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` < 3)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #16
@@ -1712,10 +1740,11 @@ Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) or
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 
 INSERT INTO t1 VALUES (1), (2), (3);
 #
@@ -1804,11 +1833,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -1892,10 +1922,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
 Handler_read_first	1
+Handler_read_key	1
 
 DROP TABLE t1;
 #18
@@ -1967,12 +1999,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd_next	11
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	3
 Handler_read_rnd	1
 Handler_read_rnd_next	11
 Sort_rows	10
@@ -2196,13 +2230,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`a3` AS `a3`,`test`.`t3`.`b3` AS `b3` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b3` = `test`.`t1`.`b1`) and (`test`.`t3`.`a3` = `test`.`t2`.`b2`) and (`test`.`t2`.`a2` = `test`.`t1`.`a1`))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	6
+Handler_read_key	12
 Handler_read_next	3
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	8
-Handler_read_key	6
+Handler_read_key	12
 Handler_read_next	3
 Handler_read_rnd	5
 Handler_read_rnd_next	4
@@ -2331,9 +2365,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	10
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	10
 Handler_update	3
 
@@ -2462,10 +2498,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	30
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
+Handler_read_key	2
 Handler_read_rnd_next	30
 
 SET @@optimizer_switch= @save_optimizer_switch;
@@ -2589,10 +2627,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a2` > 2) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`a2`))))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	30
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
+Handler_read_key	2
 Handler_read_rnd_next	30
 
 DROP TABLE t1, t2;
@@ -2657,9 +2697,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	6
 Handler_update	5
 
@@ -2726,9 +2768,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 
 DROP TABLE t1;
 #24
@@ -2822,11 +2866,13 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -2911,9 +2957,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -3043,9 +3091,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	8
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	8
 Handler_write	3
 
@@ -3131,9 +3181,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	4
 Handler_write	3
 
@@ -3164,6 +3216,7 @@ EXPLAIN
 }
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -3193,6 +3246,7 @@ EXPLAIN
 }
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -3286,11 +3340,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1;
 #30
@@ -3378,12 +3432,14 @@ Warning	1739	Cannot use range access on index 'i' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
+Handler_read_key	2
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	8
@@ -3473,10 +3529,12 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -3574,11 +3632,13 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 
 DROP TABLE t1, t2;
@@ -3665,12 +3725,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -3760,6 +3822,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -3767,6 +3830,7 @@ Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -3863,7 +3927,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
 Sort_range	1
@@ -3871,7 +3935,7 @@ Sort_rows	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	2
+Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
 Sort_range	1
@@ -3972,11 +4036,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
-Handler_read_key	1
+Handler_read_key	3
 
 DROP TABLE t1, t2;
 #37
@@ -4051,12 +4115,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
+Handler_read_key	3
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Sort_rows	26
@@ -4149,11 +4215,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	5
+Handler_read_key	3
 Handler_read_last	1
 Handler_read_prev	4
 
@@ -4251,10 +4319,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd	1
 Handler_update	1
 
@@ -4346,11 +4414,13 @@ Warning	1739	Cannot use range access on index 'i' due to type or collation conve
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Handler_update	5
@@ -4441,9 +4511,11 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	26
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Handler_update	1
@@ -4543,10 +4615,12 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	4
 Handler_read_next	4
 Handler_read_rnd	5
 Handler_update	5
@@ -4635,11 +4709,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -4729,12 +4805,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
@@ -4831,14 +4909,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`key1` AS `key1`,`test`.`t2`.`key2` AS `key2` from `test`.`t2` where ((`test`.`t2`.`key1` < 13) or (`test`.`t2`.`key2` < 14)) order by `test`.`t2`.`key1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
 Sort_range	1
 Sort_rows	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
@@ -4941,10 +5019,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` desc limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	3
 Handler_read_rnd	1
 Handler_update	1
 
@@ -5021,11 +5099,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a`,`test`.`t2`.`b` desc limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd_next	27
 Sort_rows	5
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd	5
 Handler_read_rnd_next	27
 Handler_update	4
@@ -5120,10 +5200,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` order by `test`.`t2`.`a` desc,`test`.`t2`.`b` desc limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_last	1
 Handler_read_prev	4
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_last	1
 Handler_read_prev	4
 Handler_read_rnd	5
@@ -5228,13 +5310,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_next	2
 Sort_range	1
 Sort_rows	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
@@ -5330,14 +5412,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`c1_idx` AS `c1_idx`,`test`.`t1`.`c2` AS `c2` from `test`.`t1` where (`test`.`t1`.`c1_idx` = 'y') order by `test`.`t1`.`pk` desc limit 2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_next	2
 Sort_range	1
 Sort_rows	2
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	2
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
 Sort_range	1
@@ -5427,11 +5509,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 34)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
@@ -5563,10 +5645,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	5
 Handler_read_rnd_next	4
 
 #
@@ -5694,10 +5778,12 @@ Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	5
 Handler_read_rnd_next	4
 
 DROP TABLE t1, t2;
@@ -5850,12 +5936,12 @@ Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`f4`) from `test`.`t2` where (`test`.`t2`.`f3` = `test`.`t1`.`f1`)) AS `(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1)` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_next	2
 Handler_read_rnd_next	3
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	6
 Handler_read_next	2
 Handler_read_rnd_next	3
 Handler_update	2
@@ -6015,9 +6101,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd	1
 Handler_read_rnd_next	8
 Handler_write	2
@@ -6175,9 +6263,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	3
 Handler_read_rnd	2
 Handler_read_rnd_next	18
 Handler_update	1
@@ -6269,11 +6359,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	2
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
+Handler_read_key	2
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -6424,12 +6516,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -6581,12 +6673,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -6634,6 +6726,7 @@ Note	1003	/* select#1 */ select NULL AS `NULL`
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
+Handler_read_key	2
 Handler_write	1
 
 DROP TABLE t1;
@@ -6677,10 +6770,12 @@ Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
+Handler_read_key	3
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
@@ -6897,14 +6992,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_update	1
 Handler_write	1
@@ -7174,14 +7269,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -7450,14 +7545,14 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	5
 Handler_read_rnd_next	8
 Handler_write	1
 Sort_rows	3
@@ -7587,10 +7682,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 
 # used key is modified & Using filesort
 #
@@ -7681,11 +7776,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (`test`.`t1`.`a` > 10) order by (`test`.`t1`.`a` + 20)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Sort_range	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	1
+Handler_read_key	2
 Sort_range	1
 
 DROP TABLE t1;

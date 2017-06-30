@@ -285,6 +285,7 @@ private:
   {
     field[pos]= new_field;
     new_field->table= this;
+    new_field->orig_table= this;
     static const char *table_name= "Fake";
     new_field->table_name= &table_name;
     new_field->field_index= pos;

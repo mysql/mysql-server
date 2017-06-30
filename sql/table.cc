@@ -65,6 +65,7 @@
 #include "sql/derror.h"                  // ER_THD
 #include "sql/error_handler.h"           // Strict_error_handler
 #include "sql/field.h"
+#include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"            // and_conds
 #include "sql/item_create.h"
@@ -560,6 +561,9 @@ void TABLE_SHARE::destroy()
     mysql_mutex_destroy(&LOCK_ha_data);
   delete name_hash;
   name_hash= nullptr;
+
+  delete m_histograms;
+  m_histograms= nullptr;
 
   plugin_unlock(NULL, db_plugin);
   db_plugin= NULL;
@@ -4147,6 +4151,18 @@ end:
   }
 
   return result;
+}
+
+const histograms::Histogram* TABLE_SHARE::find_histogram(uint field_index)
+{
+  if (m_histograms == nullptr)
+    return nullptr;
+
+  const auto found= m_histograms->find(field_index);
+  if (found == m_histograms->end())
+    return nullptr;
+
+  return found->second;
 }
 
 

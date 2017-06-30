@@ -547,7 +547,7 @@ public:
   void top_level_item() override {}
   Item *neg_transformer(THD *thd) override;
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -565,7 +565,7 @@ public:
   Item *neg_transformer(THD *) override;
   void print(String *str, enum_query_type query_type) override;
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -780,7 +780,7 @@ public:
   Item *equality_substitution_transformer(uchar *arg) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -803,7 +803,7 @@ public:
   const char *func_name() const override { return "<=>"; }
   Item *neg_transformer(THD *) override { return nullptr; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -822,7 +822,7 @@ public:
   Item *negated_item() override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -840,7 +840,7 @@ public:
   Item *negated_item() override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -859,7 +859,7 @@ public:
   Item *negated_item() override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -878,7 +878,7 @@ public:
   Item *negated_item() override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -896,7 +896,7 @@ public:
   const char *func_name() const override { return "<>"; }
   Item *negated_item() override;
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -977,7 +977,7 @@ public:
   uint decimal_precision() const override { return 1; }
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -1745,7 +1745,7 @@ public:
   { return cmp_collation.collation; }
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -1837,7 +1837,7 @@ public:
   /* Optimize case of not_null_column IS NULL */
   void update_used_tables() override;
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -1903,7 +1903,7 @@ public:
   { return args[0]->collation.collation; }
   void top_level_item() override { abort_on_null= true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -1955,7 +1955,7 @@ public:
   */
   bool escape_is_evaluated() const { return escape_evaluated; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -2191,7 +2191,7 @@ public:
 
   Item *equality_substitution_transformer(uchar *arg) override;
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -2255,7 +2255,7 @@ public:
   Item *neg_transformer(THD *thd) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
@@ -2285,7 +2285,7 @@ public:
   Item *neg_transformer(THD *thd) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
-  float get_filtering_effect(table_map filter_for_table,
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;

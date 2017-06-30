@@ -220,7 +220,7 @@ idle
 has_waits
 1
 has_waits
-1
+0
 "=========================== Waits user 2"
 EVENT_NAME
 idle
@@ -615,7 +615,7 @@ idle
 has_waits
 1
 has_waits
-1
+0
 "=========================== Waits user 2"
 EVENT_NAME
 idle
