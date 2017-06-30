@@ -4979,7 +4979,7 @@ error_handled:
 
 			if (clust_index->online_log) {
 				ut_ad(ctx->online);
-				row_log_abort_sec(clust_index);
+				row_log_free(clust_index->online_log);
 				clust_index->online_status
 					= ONLINE_INDEX_COMPLETE;
 			}
