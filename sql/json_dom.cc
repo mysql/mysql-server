@@ -1421,10 +1421,28 @@ bool double_quote(const char *cptr, size_t length, String *buf)
   if (buf->append('"'))
     return true;                              /* purecov: inspected */
 
-  for (size_t i= 0; i < length; i++)
+  size_t i, last_i;
+
+  for (i= 0, last_i= 0; i < length; i++)
   {
-    char esc[2]= {'\\', cptr[i]};
+    const unsigned char c= static_cast<unsigned char>(cptr[i]);
+
+    /*
+       We assume that most characters do not need quoting, so append segments of
+       such characters with memcpy().
+    */
+    if (c > 0x1f && c != '"' && c != '\\')
+      continue;
+
+    /* Append previously processed characters that did not need quoting */
+    DBUG_ASSERT(i >= last_i);
+    if (buf->append(cptr + last_i, i - last_i))
+      return true;
+
+    last_i= i + 1;
+
     bool done= true;
+    char esc[2]= {'\\', cptr[i]};
     switch (cptr[i])
     {
     case '"' :
@@ -1454,9 +1472,10 @@ bool double_quote(const char *cptr, size_t length, String *buf)
       if (buf->append(esc[0]) || buf->append(esc[1]))
         return true;                          /* purecov: inspected */
     }
-    else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
-             (cptr[i] < 0x1f))
+    else
     {
+      DBUG_ASSERT(((cptr[i] & ~0x7f) == 0) && // bit 8 not set
+                  (cptr[i] < 0x1f));
       /*
         Unprintable control character, use hex a hexadecimal number.
         The meaning of such a number determined by ISO/IEC 10646.
@@ -1466,11 +1485,12 @@ bool double_quote(const char *cptr, size_t length, String *buf)
           buf->append(_dig_vec_lower[(cptr[i] & 0x0f)]))
         return true;                          /* purecov: inspected */
     }
-    else if (buf->append(cptr[i]))
-    {
-      return true;                            /* purecov: inspected */
-    }
   }
+
+  DBUG_ASSERT(i >= last_i);
+  if (buf->append(cptr + last_i, i - last_i))
+    return true;
+
   return buf->append('"');
 }
 
