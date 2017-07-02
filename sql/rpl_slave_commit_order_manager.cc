@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,16 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   {
     mysql_cond_init(key_commit_order_manager_cond, &m_workers[i].cond);
     m_workers[i].status= OCS_FINISH;
+  }
+}
+
+Commit_order_manager::~Commit_order_manager()
+{
+  mysql_mutex_destroy(&m_mutex);
+
+  for (uint32 i= 0; i < m_workers.size(); i++)
+  {
+    mysql_cond_destroy(&m_workers[i].cond);
   }
 }
 
