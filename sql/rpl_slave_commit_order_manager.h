@@ -129,6 +129,10 @@ private:
   }
 
   uint32 queue_front() { return queue_head; }
+
+  // Copy constructor is not implemented
+  Commit_order_manager(const Commit_order_manager&);
+  Commit_order_manager& operator=(const Commit_order_manager&);
 };
 
 /**
