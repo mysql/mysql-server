@@ -2491,6 +2491,14 @@ public:
 	void remove(
 		persistent_type_t	type);
 
+	/** Serialize the metadata to a buffer
+	@param[in]	metadata	metadata to serialize
+	@param[out]	buffer		buffer to store the serialized metadata
+	@return the length of serialized metadata */
+	ulint write(
+		PersistentTableMetadata&metadata,
+		byte*			buffer);
+
 private:
 	/** A map to store all persisters needed */
 	persisters_t	m_persisters;

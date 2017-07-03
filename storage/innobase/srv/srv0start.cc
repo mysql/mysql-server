@@ -47,6 +47,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "buf0buf.h"
 #include "buf0dump.h"
+#include "current_thd.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0dict.h"
@@ -111,6 +112,9 @@ Created 2/16/1996 Heikki Tuuri
 
 extern bool srv_lzo_disabled;
 #endif /* HAVE_LZO1X */
+
+/** fil_space_t::flags for hard-coded tablespaces */
+extern ulint		predefined_flags;
 
 /** Recovered persistent metadata */
 static MetadataRecover* srv_dict_metadata;
@@ -1699,15 +1703,6 @@ srv_prepare_to_delete_redo_log_files(
 	ulint	count = 0;
 
 	do {
-		/* Write back all dirty metadata first. To resize the logs
-		files to smaller ones, we will do the checkpoint at last,
-		if we write back there, it could be found that the new log
-		group was not big enough for the new redo logs, thus a
-		cascade checkpoint would be invoked, which is unexpected.
-		There should be no concurrent DML, so no need to require
-		dict_persist::lock. */
-		dict_persist_to_dd_table_buffer();
-
 		/* Clean the buffer pool. */
 		buf_flush_sync_all_buf_pools();
 
@@ -2453,6 +2448,34 @@ files_checked:
 		    && !recv_sys->found_corrupt_log
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
+
+			if (!srv_dict_metadata->empty()) {
+				/* Open this table in case srv_dict_metadata
+				should be applied to this table before
+				checkpoint. And because DD is not fully up yet,
+				the table can be opened by internal APIs. */
+				fil_space_t*	space =
+					fil_space_acquire_silent(
+						dict_sys_t::space_id);
+				if (space == nullptr) {
+					dberr_t error = fil_ibd_open(
+						true, FIL_TYPE_TABLESPACE,
+						dict_sys_t::space_id,
+						predefined_flags,
+						dict_sys_t::dd_space_name,
+						dict_sys_t::dd_space_file_name);
+					if (error != DB_SUCCESS) {
+						return(srv_init_abort(
+							DB_ERROR));
+					}
+				} else {
+					fil_space_release(space);
+				}
+
+				dict_persist->table_buffer = UT_NEW_NOKEY(
+					DDTableBuffer());
+				srv_dict_metadata->store();
+			}
 
 			/* Prepare to replace the redo log files. */
 

@@ -392,6 +392,17 @@ public:
 	table objects */
 	void apply();
 
+	/** Store the collected persistent dynamic metadata to
+	mysql.innodb_dynamic_metadata */
+	void store();
+
+	/** If there is any metadata to be applied
+	@return	true if any metadata to be applied, otherwise false */
+	bool empty() const
+	{
+		return(m_tables.empty());
+	}
+
 private:
 
 	/** Get the dynamic metadata of a specified table,

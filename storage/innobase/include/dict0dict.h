@@ -1719,6 +1719,9 @@ private:
 	and two tuples used in this class */
 	void init();
 
+	/** Open the mysql.innodb_dynamic_metadata when DD is not fully up */
+	void open();
+
 	/** Create the search and replace tuples */
 	void create_tuples();
 

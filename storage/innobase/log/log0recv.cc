@@ -377,6 +377,40 @@ MetadataRecover::apply()
 	}
 }
 
+/** Store the collected persistent dynamic metadata to
+mysql.innodb_dynamic_metadata */
+void
+MetadataRecover::store()
+{
+	ut_ad(dict_sys->dynamic_metadata != nullptr);
+	ut_ad(dict_persist->table_buffer != nullptr);
+
+	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
+
+	if (empty()) {
+		return;
+	}
+
+	mutex_enter(&dict_persist->mutex);
+
+	for (auto meta : m_tables) {
+		table_id_t		table_id = meta.first;
+		PersistentTableMetadata*metadata = meta.second;
+		byte			buffer[REC_MAX_DATA_SIZE];
+		ulint			size;
+
+		size = dict_persist->persisters->write(*metadata, buffer);
+
+		dberr_t	error = table_buffer->replace(
+			table_id, metadata->get_version(), buffer, size);
+		if (error != DB_SUCCESS) {
+			ut_ad(0);
+		}
+	}
+
+	mutex_exit(&dict_persist->mutex);
+}
+
 /** Creates the recovery system. */
 void
 recv_sys_create()

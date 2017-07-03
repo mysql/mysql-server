@@ -5943,28 +5943,11 @@ dict_table_persist_to_dd_table_buffer_low(
 	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
 	PersistentTableMetadata	metadata(table->id, table->version);
 	byte			buffer[REC_MAX_DATA_SIZE];
-	ulint			size = 0;
-	byte*			pos = buffer;
-	persistent_type_t	type;
+	ulint			size;
 
 	dict_init_dynamic_metadata(table, &metadata);
 
-	/* Write all the persistent metadata of the table as a blob */
-	for (type = static_cast<persistent_type_t>(PM_SMALLEST_TYPE + 1);
-	     type < PM_BIGGEST_TYPE;
-	     type = static_cast<persistent_type_t>(type + 1)) {
-
-		ut_ad(size <= REC_MAX_DATA_SIZE);
-
-		Persister*	persister =
-			dict_persist->persisters->get(type);
-		ulint		consumed =
-			persister->write(metadata, pos,
-					 REC_MAX_DATA_SIZE - size);
-
-		pos += consumed;
-		size += consumed;
-	}
+	size = dict_persist->persisters->write(metadata, buffer);
 
 	dberr_t error = table_buffer->replace(
 		table->id, table->version, buffer, size);
@@ -6010,10 +5993,7 @@ dict_persist_to_dd_table_buffer(void)
 {
 	bool	persisted = false;
 
-	if (dict_sys == NULL) {
-		/* We don't have dict_sys now, so just return.
-		This only happen during recovery.
-		TODO: remove in WL#7488 */
+	if (dict_sys == nullptr) {
 		return(persisted);
 	}
 
@@ -6975,8 +6955,14 @@ DDTableBuffer::create_tuples()
 void
 DDTableBuffer::init()
 {
-	ut_ad(dict_table_is_comp(dict_sys->dynamic_metadata));
-	m_index = dict_sys->dynamic_metadata->first_index();
+	if (dict_sys->dynamic_metadata != nullptr) {
+		ut_ad(dict_table_is_comp(dict_sys->dynamic_metadata));
+		m_index = dict_sys->dynamic_metadata->first_index();
+	} else {
+		open();
+		dict_sys->dynamic_metadata = m_index->table;
+	}
+
 	ut_ad(m_index->next() == NULL);
 	ut_ad(m_index->n_uniq == 1);
 	ut_ad(N_FIELDS == m_index->n_fields);
@@ -6990,6 +6976,86 @@ DDTableBuffer::init()
 	m_dynamic_heap = mem_heap_create(1000);
 
 	create_tuples();
+}
+
+/** Open the mysql.innodb_dynamic_metadata when DD is not fully up */
+void
+DDTableBuffer::open()
+{
+	ut_ad(dict_sys->dynamic_metadata == nullptr);
+
+	dict_table_t*	table = nullptr;
+	/* Keep it the same with definition of mysql/innodb_dynamic_metadata */
+	const char*	table_name = "mysql/innodb_dynamic_metadata";
+	const char*	table_id_name = "table_id";
+	const char*	version_name = "version";
+	const char*	metadata_name = "metadata";
+	const unsigned	table_id = 32;
+	const unsigned	index_id = 88;
+	unsigned	root;
+	mem_heap_t*	heap = mem_heap_create(256);
+
+	switch(univ_page_size.physical()) {
+	case 4096:
+		root = 114;
+		break;
+	case 8192:
+		root = 96;
+		break;
+	case 16384:
+		root = 92;
+		break;
+	case 32768:
+		root = 91;
+		break;
+	case 65536:
+		root = 90;
+		break;
+	default:
+		ut_ad(0);
+	}
+
+	mutex_enter(&dict_sys->mutex);
+
+	table = dict_mem_table_create(
+		table_name, dict_sys_t::space_id, N_USER_COLS, 0, 0, 0);
+
+	table->id = table_id;
+	table->is_dd_table = true;
+	table->dd_space_id = dict_sys_t::dd_space_id;
+	table->flags |= DICT_TF_COMPACT | (1 << DICT_TF_POS_SHARED_SPACE)
+			| (1 << DICT_TF_POS_ATOMIC_BLOBS);
+
+	dict_mem_table_add_col(
+		table, heap, table_id_name, DATA_INT, 1800, 8);
+	dict_mem_table_add_col(
+		table, heap, version_name, DATA_INT, 1800, 8);
+	dict_mem_table_add_col(
+		table, heap, metadata_name, DATA_BLOB, 4130300, 10);
+
+	dict_table_add_system_columns(table, heap);
+
+	m_index = dict_mem_index_create(
+		table_name, "PRIMARY", dict_sys_t::space_id,
+		DICT_CLUSTERED | DICT_UNIQUE, 1);
+
+	dict_index_add_col(m_index, table, &table->cols[0], 0, true);
+
+	m_index->id = index_id;
+	m_index->n_uniq = 1;
+
+	dberr_t err = dict_index_add_to_cache(table, m_index, root, false);
+	if (err != DB_SUCCESS) {
+		ut_ad(0);
+	}
+
+	dict_table_add_to_cache(table, true, heap);
+
+	m_index = table->first_index();
+
+	table->acquire();
+
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Initialize the id field of tuple
@@ -7648,6 +7714,36 @@ Persisters::remove(
 		UT_DELETE(iter->second);
 		m_persisters.erase(iter);
 	}
+}
+
+/** Serialize the metadata to a buffer
+@param[in]	metadata	metadata to serialize
+@param[out]	buffer		buffer to store the serialized metadata
+@return the length of serialized metadata */
+ulint
+Persisters::write(
+	PersistentTableMetadata&metadata,
+	byte*			buffer)
+{
+	ulint			size = 0;
+	byte*			pos = buffer;
+	persistent_type_t	type;
+
+	for (type = static_cast<persistent_type_t>(PM_SMALLEST_TYPE + 1);
+	     type < PM_BIGGEST_TYPE;
+	     type = static_cast<persistent_type_t>(type + 1)) {
+
+		ut_ad(size <= REC_MAX_DATA_SIZE);
+
+		Persister*	persister = get(type);
+		ulint		consumed = persister->write(
+			metadata, pos, REC_MAX_DATA_SIZE - size);
+
+		pos += consumed;
+		size += consumed;
+	}
+
+	return(size);
 }
 
 /** Close SDI table.

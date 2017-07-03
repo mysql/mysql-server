@@ -153,7 +153,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 
 /** fil_space_t::flags for hard-coded tablespaces */
-static ulint			predefined_flags;
+ulint			predefined_flags;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -3852,27 +3852,24 @@ innobase_dict_recover(
 	case DICT_RECOVERY_RESTART_SERVER:
 		/* Fall through */
 	case DICT_RECOVERY_INITIALIZE_SERVER:
+		if (dict_sys->dynamic_metadata == nullptr) {
+			dict_sys->dynamic_metadata = dd_table_open_on_name(
+				thd, NULL, "mysql/innodb_dynamic_metadata",
+			false, DICT_ERR_IGNORE_NONE);
+			dict_persist->table_buffer =
+				UT_NEW_NOKEY(DDTableBuffer());
+		}
+
 		dict_sys->table_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_table_stats",
 			false, DICT_ERR_IGNORE_NONE);
 		dict_sys->index_stats = dd_table_open_on_name(
 			thd, NULL, "mysql/innodb_index_stats",
 			false, DICT_ERR_IGNORE_NONE);
-		/* Open this table first, to make sure the metadata of
-		this table would only be applied by metadata_applier and
-		dict_table_load_dynamic_metadata() would not be called
-		twice on this table */
 		dict_sys->ddl_log = dd_table_open_on_name(
-			thd, NULL, "mysql/innodb_ddl_log",
-			false, DICT_ERR_IGNORE_NONE);
-		dict_sys->dynamic_metadata = dd_table_open_on_name(
-			thd, NULL, "mysql/innodb_dynamic_metadata",
-			false, DICT_ERR_IGNORE_NONE);
-
+                        thd, NULL, "mysql/innodb_ddl_log",
+                        false, DICT_ERR_IGNORE_NONE);
 		log_ddl = UT_NEW_NOKEY(LogDDL());
-
-		dict_persist->table_buffer =
-			UT_NEW_NOKEY(DDTableBuffer());
 	}
 
 	switch (dict_recovery_mode) {
@@ -14260,7 +14257,9 @@ ha_innobase::get_se_private_data(
 		}
 
 		dd::Properties& p = i->se_private_data();
-
+if (n_tables == 32) {
+ib::info() << "Table name " << data.name << " id " << n_tables << " pages: " << n_pages;
+}
 		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
