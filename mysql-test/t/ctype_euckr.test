@@ -144,7 +144,10 @@ WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '20' AND 'FF')
 ORDER BY head, tail;
 DROP TEMPORARY TABLE head, tail;
 SHOW CREATE TABLE t1;
+# Set max_error_count to contain number of warnings in result file.
+SET @@session.max_error_count = 64;
 UPDATE t1 SET a=unhex(code) ORDER BY code;
+SET @@session.max_error_count = default;
 SELECT COUNT(*) FROM t1 WHERE a<>'';
 #
 # Display all characters that have upper or lower case mapping.

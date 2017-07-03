@@ -462,7 +462,7 @@ public:
                                         HA_CREATE_INFO *info,
                                         uint start_no);
   char *find_duplicate_field();
-  char *find_duplicate_name();
+  const char *find_duplicate_name();
   bool check_engine_mix(handlerton *engine_type, bool default_engine);
   bool check_range_constants(THD *thd);
   bool check_list_constants(THD *thd);

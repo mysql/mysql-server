@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
@@ -78,8 +78,6 @@ static mysql_service_status_t test_component_sys_var_service_str_init()
 */
 static mysql_service_status_t test_component_sys_var_service_str_deinit()
 {
-  outfile= fopen(filename, "a+");
-
   char *var_value;
   size_t len=0;
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-ADD_EXECUTABLE(keyring-test
+MYSQL_ADD_EXECUTABLE(keyring-test
                ./keyring-test.cc
                ../common/keyring_key.cc
                ../common/keys_container.cc
@@ -26,6 +26,8 @@ ADD_EXECUTABLE(keyring-test
                ../checker/checker_ver_1_0.cc
                ../checker/checker_ver_2_0.cc
                ../checker/checker.cc
-               ../file_io.cc)
-TARGET_LINK_LIBRARIES(keyring-test strings dbug regex mysys sql)
-TARGET_LINK_LIBRARIES(keyring-test binlog rpl master slave)
+               ../file_io.cc
+               SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(keyring-test strings dbug regex mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(keyring-test sql_main sql_gis binlog rpl master slave)
+TARGET_LINK_LIBRARIES(keyring-test sql_main)

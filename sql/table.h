@@ -3676,6 +3676,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           MEM_ROOT *mem_root);
 void free_table_share(TABLE_SHARE *share);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
+Ident_name_check check_db_name(const char *name, size_t length);
 Ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                            bool preserve_lettercase);
 bool check_column_name(const char *name);

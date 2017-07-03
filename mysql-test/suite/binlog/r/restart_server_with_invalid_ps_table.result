@@ -1,4 +1,0 @@
-DROP TABLE performance_schema.events_errors_summary_by_user_by_error;
-# restart
-select * from performance_schema.events_errors_summary_by_user_by_error;
-ERROR 42S02: Table 'performance_schema.events_errors_summary_by_user_by_error' doesn't exist

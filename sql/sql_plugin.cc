@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mutex_lock.h"        // Mutex_lock
+#include "mutex_lock.h"        // MUTEX_LOCK
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -58,6 +58,7 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
+#include "mysql/plugin_clone.h"
 #include "mysql/plugin_group_replication.h"
 #include "mysql/plugin_keyring.h"
 #include "mysql/plugin_validate_password.h"
@@ -333,7 +334,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
   { C_STRING_WITH_LEN("GROUP REPLICATION") },
-  { C_STRING_WITH_LEN("KEYRING") }
+  { C_STRING_WITH_LEN("KEYRING") },
+  { C_STRING_WITH_LEN("CLONE") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -380,7 +382,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
-  MYSQL_KEYRING_INTERFACE_VERSION
+  MYSQL_KEYRING_INTERFACE_VERSION,
+  MYSQL_CLONE_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -394,7 +397,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
-  MYSQL_KEYRING_INTERFACE_VERSION
+  MYSQL_KEYRING_INTERFACE_VERSION,
+  MYSQL_CLONE_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -2909,7 +2913,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   /* Initialize all Sys_var_charptr variables here. */
 
   // @@session.session_track_system_variables
-  thd->session_sysvar_res_mgr.init(&thd->variables.track_sysvars_ptr, thd->charset());
+  thd->session_sysvar_res_mgr.init(&thd->variables.track_sysvars_ptr);
 
   DBUG_VOID_RETURN;
 }
@@ -2962,7 +2966,7 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
 
   if (enable_plugins)
   {
-    Mutex_lock plugin_lock(&LOCK_plugin);
+    MUTEX_LOCK(plugin_lock, &LOCK_plugin);
     unlock_variables(&thd->variables);
     size_t idx;
     if ((idx= thd->lex->plugins.size()))

@@ -1,1 +1,0 @@
---log_error=$MYSQLTEST_VARDIR/tmp/restart_server_with_invalid_ps_table.err

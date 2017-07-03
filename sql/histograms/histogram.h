@@ -398,11 +398,13 @@ bool update_histogram(THD *thd, TABLE_LIST *table,
 
   @param thd Thread handler.
   @param table The table where we should look for the columns.
+  @param original_table_def Original table definition.
   @param results A map where the result of each operation is stored.
 
   @return false on success, true on error.
 */
 bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         const dd::Table &original_table_def,
                          results_map &results);
 
 /**

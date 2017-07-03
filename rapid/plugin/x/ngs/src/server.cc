@@ -165,7 +165,7 @@ struct Copy_client_not_closed
 
 void Server::go_through_all_clients(ngs::function<void (Client_ptr)> callback)
 {
-  Mutex_lock lock_client_exit(m_client_exit_mutex);
+  MUTEX_LOCK(lock_client_exit, m_client_exit_mutex);
   std::vector<ngs::Client_ptr> client_list;
   Copy_client_not_closed matcher(client_list);
 

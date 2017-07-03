@@ -83,6 +83,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0stats.h"
+#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -520,6 +521,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
 	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
 	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_task_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
@@ -538,10 +542,13 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
 	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
 	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
@@ -622,6 +629,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
+	PSI_KEY(archiver_thread),
 	PSI_KEY(buf_dump_thread),
 	PSI_KEY(dict_stats_thread),
 	PSI_KEY(io_handler_thread),
@@ -653,7 +661,9 @@ static PSI_file_info	all_innodb_files[] = {
 	PSI_KEY(innodb_tablespace_open_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
-	PSI_KEY(innodb_temp_file)
+	PSI_KEY(innodb_temp_file),
+	PSI_KEY(innodb_arch_file),
+	PSI_KEY(innodb_clone_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
@@ -1137,21 +1147,25 @@ innobase_create_handler(
 	MEM_ROOT*	mem_root);
 
 
-/** Retrieve table statistics.
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in]	se_private_id	The internal id of the table
-@param[in]	flags		flags used to retrieve specific stats
-@param[in,out]	stats		structure to save the retrieved statistics
+/** Retrieve table satistics.
+@param[in]	db_name			database name
+@param[in]	table_name		table name
+@param[in]	se_private_id		The internal id of the table
+@param[in]	ts_se_private_data	Tablespace SE Private data
+@param[in]	tbl_se_private_data	Table SE private data
+@param[in]	flags			flags used to retrieve specific stats
+@param[in,out]	stats			structure to save the retrieved statistics
 @return false on success, true on failure */
 static
 bool
 innobase_get_table_statistics(
-	const char*	db_name,
-	const char*	table_name,
-	dd::Object_id	se_private_id,
-	uint		flags,
-	ha_statistics*	stats);
+	const char*		db_name,
+	const char*		table_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+	const dd::Properties&	tbl_se_private_data,
+	uint			flags,
+	ha_statistics*		stats);
 
 /** Retrieve index column cardinality.
 @param[in]		db_name			name of schema
@@ -3898,6 +3912,13 @@ innobase_dict_recover(
 			return(true);
 		}
 
+		/* Check and extend space files, if needed. */
+		if (fil_iterate_tablespace_files(false, nullptr,
+			fil_check_extend_space) != DB_SUCCESS) {
+
+			return(true);
+		}
+
 		srv_dict_recover_on_restart();
 success:
 		srv_start_threads(
@@ -4608,6 +4629,22 @@ innodb_init(
 		innobase_encryption_key_rotation;
 
 	innobase_hton->post_ddl = innobase_post_ddl;
+
+	/* Initialize handler clone interfaces for. */
+
+	innobase_hton->clone_interface.clone_begin
+		= innodb_clone_begin;
+	innobase_hton->clone_interface.clone_copy
+		= innodb_clone_copy;
+	innobase_hton->clone_interface.clone_end
+		= innodb_clone_end;
+
+	innobase_hton->clone_interface.clone_apply_begin
+		= innodb_clone_apply_begin;
+	innobase_hton->clone_interface.clone_apply
+		= innodb_clone_apply;
+	innobase_hton->clone_interface.clone_apply_end
+		= innodb_clone_apply_end;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -16359,21 +16396,177 @@ ha_innobase::info(
 	return(info_low(flag, false /* not ANALYZE */));
 }
 
-/** Retrieve table satistics.
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in]	se_private_id	The internal id of the table
+/** Get the autoincrement for the given table id which is
+not in the cache.
+@param[in]	se_private_id		InnoDB table id
+@param[in]	tbl_se_private_data	table SE private data
+@return autoincrement value for the given table_id. */
+static
+ib_uint64_t
+innodb_get_auto_increment_for_uncached(
+	dd::Object_id		se_private_id,
+	const dd::Properties	&tbl_se_private_data)
+{
+	uint64	autoinc = 0;
+	uint64	meta_autoinc = 0;
+
+	bool exists = tbl_se_private_data.exists(
+				dd_table_key_strings[DD_TABLE_AUTOINC]);
+
+	/** Get the auto_increment from the table SE private data. */
+	if (exists) {
+		tbl_se_private_data.get_uint64(
+			dd_table_key_strings[DD_TABLE_AUTOINC],
+			&autoinc);
+	}
+
+	/** Get the auto_increment value from innodb_dynamic_metadata
+	table. */
+	mutex_enter(&dict_persist->mutex);
+
+	DDTableBuffer*	table_buffer = dict_persist->table_buffer;
+
+	std::string*	readmeta = table_buffer->get(se_private_id);
+
+	if (readmeta->length() != 0) {
+		PersistentTableMetadata metadata(se_private_id);
+
+		dict_table_read_dynamic_metadata(
+			reinterpret_cast<const byte*>(readmeta->data()),
+			readmeta->length(), &metadata);
+
+		meta_autoinc = metadata.get_autoinc();
+	}
+
+	mutex_exit(&dict_persist->mutex);
+
+	UT_DELETE(readmeta);
+
+	return(std::max(meta_autoinc, autoinc));
+}
+
+/** Retrieves table statistics only for uncache table only.
+@param[in]	db_name			database name
+@param[in]	tbl_name		table name
+@param[in]	norm_name		tablespace name
+@param[in]	se_private_id		InnoDB table id
+@param[in]	ts_se_private_data	tablespace se private data
+@param[in]	tbl_se_private_data	table se private data
 @param[in]	flags		flags used to retrieve specific stats
 @param[in,out]	stats		structure to save the retrieved statistics
+@return true if the stats information filled successfully
+@return false if tablespace is missing or table doesn't have persistent
+stats. */
+static
+bool
+innodb_get_table_statistics_for_uncached(
+	const char*		db_name,
+	const char*		tbl_name,
+	const char*		norm_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+        const dd::Properties&	tbl_se_private_data,
+	ulint			flags,
+	ha_statistics*		stats)
+{
+
+	TableStatsRecord	stat_info;
+	space_id_t		space_id;
+
+	if (!row_search_table_stats(db_name, tbl_name, stat_info)) {
+		return(false);
+	}
+
+	/** Server passes dummy ts_se_private_data for file_per_table
+	tablespace. In that case, InnoDB should find the space_id using
+	the tablespace name. */
+	bool exists = ts_se_private_data.exists(
+				dd_space_key_strings[DD_SPACE_ID]);
+
+	if (exists) {
+		ts_se_private_data.get_uint32(
+				dd_space_key_strings[DD_SPACE_ID],
+				 &space_id);
+	} else {
+		space_id = fil_space_get_id_by_name(norm_name);
+
+		if (space_id == SPACE_UNKNOWN) {
+			return(false);
+		}
+	}
+
+	fil_space_t*	space;
+	ulint		fsp_flags;
+
+	space = fil_space_acquire(space_id);
+
+	/** Tablespace is missing in this case. */
+	if (space == NULL) {
+		return(false);
+	}
+
+	fsp_flags = space->flags;
+	page_size_t	page_size(fsp_flags);
+
+	if (flags & HA_STATUS_VARIABLE_EXTRA) {
+		ulint avail_space =
+			fsp_get_available_space_in_free_extents(space);
+		stats->delete_length = avail_space * 1024;
+	}
+
+	fil_space_release(space);
+
+	if (flags & HA_STATUS_AUTO) {
+		stats->auto_increment_value =
+			innodb_get_auto_increment_for_uncached(
+				se_private_id, tbl_se_private_data);
+	}
+
+	if (flags & HA_STATUS_TIME) {
+		stats->update_time = (time_t) NULL;
+	}
+
+	if (flags & HA_STATUS_VARIABLE) {
+		stats->records = static_cast<ha_rows>(stat_info.get_n_rows());
+		stats->data_file_length
+			= static_cast<ulonglong>(
+				stat_info.get_clustered_index_size())
+					* page_size.physical();
+		stats->index_file_length
+			= static_cast<ulonglong>(
+				stat_info.get_sum_of_other_index_size())
+				* page_size.physical();
+
+		if (stats->records == 0) {
+			stats->mean_rec_length = 0;
+		} else {
+			stats->mean_rec_length = static_cast<ulong>(
+				stats->data_file_length / stats->records);
+		}
+	}
+
+	return(true);
+}
+
+/** Retrieve table satistics.
+@param[in]	db_name			database name
+@param[in]	table_name		table name
+@param[in]	se_private_id		The internal id of the table
+@param[in]	ts_se_private_data	Tablespace SE Private data
+@param[in]	tbl_se_private_data	Table SE private data
+@param[in]	flags			flags used to retrieve specific stats
+@param[in,out]	stats			structure to save the retrieved statistics
 @return false on success, true on failure */
 static
 bool
 innobase_get_table_statistics(
-	const char*	db_name,
-	const char*	table_name,
-	dd::Object_id	se_private_id,
-	uint		flags,
-	ha_statistics*	stats)
+	const char*		db_name,
+	const char*		table_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+	const dd::Properties&	tbl_se_private_data,
+	uint			flags,
+	ha_statistics*		stats)
 {
 	char		norm_name[FN_REFLEN];
 	dict_table_t*	ib_table;
@@ -16389,11 +16582,28 @@ innobase_get_table_statistics(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
-					 false, DICT_ERR_IGNORE_NONE);
+	ib_table = dd_table_open_on_name_in_mem(norm_name,
+						false);
+	if (ib_table == nullptr) {
 
-	if (ib_table == NULL) {
-		return(true);
+		if (innodb_get_table_statistics_for_uncached(
+					db_name, table_name,
+                                        norm_name,
+					se_private_id,
+					ts_se_private_data,
+                                        tbl_se_private_data,
+                                        flags, stats)) {
+			return(false);
+		}
+
+		/** If the table doesn't have persistent stats then
+		load the table from disk. */
+		ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+						 false, DICT_ERR_IGNORE_NONE);
+
+		if (ib_table == nullptr) {
+			return(true);
+		}
 	}
 
 	if (flags & HA_STATUS_AUTO) {
@@ -16465,11 +16675,25 @@ innobase_get_index_column_cardinality(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
-					 false, DICT_ERR_IGNORE_NONE);
+	ib_table = dd_table_open_on_name_in_mem(norm_name,
+						false);
+	if (ib_table == nullptr) {
 
-	if (ib_table == NULL) {
-		return(failure);
+		if (row_search_index_stats(db_name, table_name,
+					       index_name,
+					       column_ordinal_position,
+					       cardinality)) {
+			return(false);
+		}
+
+		/** If the table doesn't have persistent stats then
+		load the table from disk. */
+		ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+						 false, DICT_ERR_IGNORE_NONE);
+
+		if (ib_table == nullptr) {
+			return(true);
+		}
 	}
 
 	for (const dict_index_t* index = UT_LIST_GET_FIRST(ib_table->indexes);
@@ -20504,12 +20728,6 @@ innodb_undo_tablespaces_update(
 		return;
 	}
 
-	if (target == 0) {
-		ib::info() << "Setting 'innodb_undo_tablespaces' to 0 is"
-			" deprecated and will not be supported in a future"
-			" release.";
-	}
-
 	if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
 		ib::warn() << "Failed to set innodb_undo_tablespaces to "
 			<< target << ".";
@@ -21698,8 +21916,8 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
   "Number of undo tablespaces to use. ",
   NULL, innodb_undo_tablespaces_update,
-  2L,				/* Default seting */
-  0L,				/* Minimum value */
+  FSP_MIN_UNDO_TABLESPACES,	/* Default seting */
+  FSP_MIN_UNDO_TABLESPACES,	/* Minimum value */
   FSP_MAX_UNDO_TABLESPACES, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_tablespace_size,

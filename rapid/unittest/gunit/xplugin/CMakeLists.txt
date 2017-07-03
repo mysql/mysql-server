@@ -82,8 +82,8 @@ FILE(
 
 SET(unit_tests_EXE xplugin_unit_tests)
 
-ADD_EXECUTABLE(${unit_tests_EXE}
-  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC}
+MYSQL_ADD_EXECUTABLE(${unit_tests_EXE}
+  ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC} ADD_TEST xplugin
 )
 
 ADD_DEPENDENCIES(${unit_tests_EXE} mysqlxtest)
@@ -116,6 +116,4 @@ TARGET_LINK_LIBRARIES(
   ${PROTOBUF_LIBRARY}
   ${GCOV_LDFLAGS}
 )
-
-ADD_TEST(xplugin ${unit_tests_EXE})
 

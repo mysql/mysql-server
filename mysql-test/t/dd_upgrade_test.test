@@ -236,7 +236,7 @@ EOF
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --innodb_undo_tablespaces=0 --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 

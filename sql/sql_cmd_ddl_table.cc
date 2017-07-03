@@ -115,8 +115,11 @@ bool Sql_cmd_create_table::execute(THD *thd)
     return true;
   }
 
-  if (create_table_precheck(thd, query_expression_tables, create_table))
-    return true;
+  if (!thd->is_plugin_fake_ddl())
+  {
+    if (create_table_precheck(thd, query_expression_tables, create_table))
+      return true;
+  }
 
   /* Might have been updated in create_table_precheck */
   create_info.alias= create_table->alias;

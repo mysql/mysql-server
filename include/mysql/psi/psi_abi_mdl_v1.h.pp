@@ -20,25 +20,9 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "psi_base.h"
-#include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
-struct PSI_placeholder
-{
-  int m_placeholder;
-};
-struct PSI_mdl_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
+#include "mysql/components/services/psi_mdl_bits.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 struct MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
@@ -75,6 +59,12 @@ typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
   uint src_line);
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);
+typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
+struct PSI_mdl_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
 struct PSI_mdl_service_v1
 {
   create_metadata_lock_v1_t create_metadata_lock;
@@ -84,5 +74,4 @@ struct PSI_mdl_service_v1
   end_metadata_wait_v1_t end_metadata_wait;
 };
 typedef struct PSI_mdl_service_v1 PSI_mdl_service_t;
-typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
 extern PSI_mdl_service_t *psi_mdl_service;

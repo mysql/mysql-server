@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -257,28 +257,38 @@ MACRO (MYSQL_CHECK_SSL)
 ENDMACRO()
 
 
-# Many executables will depend on libeay32.dll and ssleay32.dll at runtime.
-# In order to ensure we find the right version(s), we copy them into
-# the same directory as the executables.
-# NOTE: Using dlls will likely crash in malloc/free,
-#       see INSTALL.W32 which comes with the openssl sources.
-# So we should be linking static versions of the libraries.
-MACRO (COPY_OPENSSL_DLLS target_name)
+# If cmake is invoked with -DWITH_SSL=</path/to/custom/openssl>
+# and we discover that the installation has dynamic libraries,
+# then copy the dlls to runtime_output_directory, and add INSTALL them.
+# Currently only relevant for Windows.
+MACRO(MYSQL_CHECK_SSL_DLLS)
   IF (WIN32 AND WITH_SSL_PATH)
+    MESSAGE(STATUS "WITH_SSL_PATH ${WITH_SSL_PATH}")
     GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME_WE)
     FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
     FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
-    IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
-      ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
+    MESSAGE(STATUS "HAVE_CRYPTO_DLL ${HAVE_CRYPTO_DLL}")
+    MESSAGE(STATUS "HAVE_OPENSSL_DLL ${HAVE_OPENSSL_DLL}")
+    IF(HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
+      ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
+        "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
+        "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
-          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
+        "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
+        "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
         )
-      ADD_CUSTOM_TARGET(${target_name} ALL)
+      MESSAGE(STATUS
+        "INSTALL ${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll to ${INSTALL_BINDIR}")
+      MESSAGE(STATUS
+        "INSTALL ${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll to ${INSTALL_BINDIR}")
+      INSTALL(FILES
+        "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
+        "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
+        DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+    ELSE()
+      MESSAGE(STATUS "Cannot find SSL dynamic libraries")
     ENDIF()
   ENDIF()
 ENDMACRO()

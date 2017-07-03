@@ -61,7 +61,7 @@ Plugin_table table_mems_by_account_by_event_name::m_table_def(
   nullptr);
 
 PFS_engine_table_share table_mems_by_account_by_event_name::m_share = {
-  &pfs_readonly_acl,
+  &pfs_truncatable_acl,
   table_mems_by_account_by_event_name::create,
   NULL, /* write_row */
   table_mems_by_account_by_event_name::delete_all_rows,
@@ -69,7 +69,10 @@ PFS_engine_table_share table_mems_by_account_by_event_name::m_share = {
   sizeof(pos_mems_by_account_by_event_name),
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

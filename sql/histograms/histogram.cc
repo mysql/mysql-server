@@ -1141,37 +1141,11 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
 
 
 bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
+                         const dd::Table &table_definition,
                          results_map &results)
 {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, table.db, table.table_name,
-                   MDL_SHARED_READ_ONLY, MDL_TRANSACTION);
-
-  if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-  {
-    // error has already been reported
-    return true; /* purecov: deadcode */
-  }
-
-  dd::Table *table_def= nullptr;
-  if (thd->dd_client()->acquire_for_modification(table.db, table.table_name,
-                                                 &table_def))
-  {
-    // error has already been reported
-    return false; /* purecov: deadcode */
-  }
-
-  if (table_def == nullptr)
-  {
-    DBUG_ASSERT(false); /* purecov: deadcode */
-    return false;
-  }
-
   columns_set columns;
-  for (const auto &col : *table_def->columns())
+  for (const auto &col : table_definition.columns())
     columns.emplace(col->name().c_str());
 
   return drop_histograms(thd, table, columns, results);

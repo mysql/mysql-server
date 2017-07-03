@@ -3,6 +3,29 @@
 
 SET NAMES utf8;
 
+--echo
+--echo Flag unsupported aggregates as window functions
+--echo
+
+--error ER_NOT_SUPPORTED_YET
+select json_objectagg('a','3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select json_arrayagg('3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select group_concat('3') over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_or(3) over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_and(3) over ();
+
+--error ER_NOT_SUPPORTED_YET
+select bit_xor(3) over ();
+
+
 --echo Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);

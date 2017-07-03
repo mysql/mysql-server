@@ -16,9 +16,10 @@
 */
 
 #include <functional>
+#include <sstream>
+#include <string>
 
 #include "mysqldump_tool_chain_maker_options.h"
-#include <boost/algorithm/string.hpp>
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
@@ -26,8 +27,9 @@ using std::placeholders::_1;
 void Mysqldump_tool_chain_maker_options::parallel_schemas_callback(char*)
 {
   std::vector<std::string> schemas;
-  boost::split(schemas, m_parallel_schemas_string.value(),
-    boost::is_any_of(","), boost::token_compress_on);
+  std::istringstream schema_stream(m_parallel_schemas_string.value());
+  for (std::string schema; std::getline(schema_stream, schema, ','); )
+    schemas.push_back(schema);
   if (schemas.size() == 0)
     return;
   int threads= 0;

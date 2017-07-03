@@ -651,8 +651,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-# Add bundled yassl/taocrypt or system openssl.
+# Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()
+MYSQL_CHECK_SSL_DLLS()
+
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
 # Add libevent
@@ -839,6 +841,14 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "myisam.txt" EXCLUDE
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
+  )
+ENDIF()
+
+IF(UNIX)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./runtime_output_directory bin
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 ENDIF()
 

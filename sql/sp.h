@@ -221,8 +221,8 @@ db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
-enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
-                                      sp_name *name, st_sp_chistics *chistics);
+bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
+                       st_sp_chistics *chistics);
 
 enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
@@ -255,7 +255,7 @@ public:
           with keys used by MDL. So one can easily construct MDL_key from
           this key.
   */
-  uchar *m_key;
+  char *m_key;
   uint16 m_key_length;
   uint16 m_db_length;
 
@@ -324,8 +324,10 @@ sp_add_own_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 }
 
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
-void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
-                                  HASH *src, TABLE_LIST *belong_to_view);
+void sp_update_stmt_used_routines
+  (THD *thd, Query_tables_list *prelocking_ctx,
+   malloc_unordered_map<std::string, Sroutine_hash_entry*> *src,
+   TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   SQL_I_List<Sroutine_hash_entry> *src,
                                   TABLE_LIST *belong_to_view);

@@ -200,7 +200,7 @@ SET GLOBAL event_scheduler=0;
 #
 --exec echo "SHOW STATUS LIKE 'Ssl_cipher'; exit" > $MYSQLTEST_VARDIR/tmp/test.sql
 --error 1
---exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=UNKNOWN-CIPHER --ssl-mode=VERIFY_CA < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
 
 #
 # Bug#27669 mysqldump: SSL connection error when trying to connect

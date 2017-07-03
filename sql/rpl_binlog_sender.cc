@@ -370,8 +370,9 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     if (send_events(log_cache, end_pos))
       return 1;
 
-    m_thd->killed= DBUG_EVALUATE_IF("simulate_kill_dump", THD::KILL_CONNECTION,
-                                    m_thd->killed);
+    m_thd->killed.store(DBUG_EVALUATE_IF("simulate_kill_dump",
+                                         THD::KILL_CONNECTION,
+                                         m_thd->killed.load()));
 
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {

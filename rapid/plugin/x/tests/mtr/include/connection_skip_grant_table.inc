@@ -1,5 +1,4 @@
 ## This is test file for connection authentication using mysqlx.
-
 eval CREATE USER nonblank@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'nonblank';
 
@@ -18,24 +17,25 @@ EOF
 
 --echo Test starts here
 
---exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='nonblank' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --echo try login with valid user when server started with skip-grant-tables and mysqlx loaded
 --replace_regex /\.dll/.so/
+--let $wait_for_tcpsocket_status = undefined_value
 --let $restart_parameters = restart: --skip-grant-tables --plugin-load=$MYSQLXPLUGIN
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --echo Connection should success with valid password
---exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST $USER_CIPHER --socket=$MASTER_X_MYSOCK -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 --echo Connection should success with invalid password
---exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='blank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='blank' --socket=$MASTER_X_MYSOCK --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 FLUSH PRIVILEGES;
 
 --let $expected_error_msg= Invalid user or password \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USER_CIPHER -u nonblank --password='blank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST $USER_CIPHER --socket=$MASTER_X_MYSOCK -u nonblank --password='blank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 ##uninstall mysqlxplugin when server started with skip-grant-tables option and mysqlx loaded with super user
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp 2>&1
 
 ##cleanup
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp

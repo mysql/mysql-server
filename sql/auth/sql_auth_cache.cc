@@ -125,8 +125,10 @@ unique_ptr<malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_TABLE
   column_priv_hash;
 unique_ptr<malloc_unordered_multimap<string, unique_ptr_destroy_only<GRANT_NAME>>>
   proc_priv_hash, func_priv_hash;
-HASH db_cache;
-HASH acl_check_hosts;
+malloc_unordered_map<std::string, unique_ptr_my_free<acl_entry>>
+  db_cache{key_memory_acl_cache};
+collation_unordered_map<std::string, ACL_USER *>
+  *acl_check_hosts= nullptr;
 
 bool initialized=0;
 bool acl_cache_initialized= false;
@@ -1034,25 +1036,9 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
 }
 
 
-static const uchar* get_grant_db(const uchar *arg, size_t *length)
-{
-  const acl_entry *entry= pointer_cast<const acl_entry*>(arg);
-  *length=(uint) entry->length;
-  return (uchar*) entry->key;
-}
-
-
-static const uchar* check_get_key(const uchar *arg, size_t *length)
-{
-  const ACL_USER *buff= pointer_cast<const ACL_USER*>(arg);
-  *length=buff->host.get_host_len();
-  return (uchar*) buff->host.get_host();
-}
-
-
 void clear_and_init_db_cache()
 {
-  my_hash_reset(&db_cache);
+  db_cache.clear();
 }
 
 
@@ -1077,12 +1063,13 @@ insert_entry_in_db_cache(THD *thd, acl_entry *entry)
     In following cases release memory and return
     1. Could not lock cache : This is ok because db_cache
        second level cache anyways.
-    2. my_hash_insert returned error. This is likely because
-       someone already inserted a similar entry.
+    2. Someone already inserted a similar entry.
   */
-  if (!acl_cache_lock.lock(false) ||
-      my_hash_insert(&db_cache, (uchar *)entry))
-    my_free(entry);
+  unique_ptr_my_free<acl_entry> entry_ptr(entry);
+  if (acl_cache_lock.lock(false))
+    DBUG_VOID_RETURN;
+  db_cache.emplace(std::string(entry->key, entry->length),
+                   std::move(entry_ptr));
   DBUG_VOID_RETURN;
 }
 
@@ -1133,13 +1120,15 @@ ulong acl_get(THD *thd, const char *host, const char *ip,
     db=tmp_db;
   }
   key_length= (size_t) (end-key);
-  if (!db_is_pattern && (entry=(acl_entry*) my_hash_search(&db_cache,
-                                                           (uchar*) key,
-                                                           key_length)))
+  if (!db_is_pattern)
   {
-    db_access=entry->access;
-    DBUG_PRINT("exit", ("access: 0x%lx", db_access));
-    DBUG_RETURN(db_access);
+    const auto it= db_cache.find(std::string(key, key_length));
+    if (it != db_cache.end())
+    {
+      db_access= it->second->access;
+      DBUG_PRINT("exit", ("access: 0x%lx", db_access));
+      DBUG_RETURN(db_access);
+    }
   }
 
   /*
@@ -1201,10 +1190,8 @@ static void init_check_host(void)
 
   size_t acl_users_size= acl_users ? acl_users->size() : 0;
 
-  (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users_size, 0,
-                      check_get_key, nullptr, 0,
-                      key_memory_acl_mem);
+  acl_check_hosts= new collation_unordered_map<std::string, ACL_USER *>
+    (system_charset_info, key_memory_acl_mem);
   if (acl_users_size && !allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
@@ -1222,20 +1209,14 @@ static void init_check_host(void)
         if (acl == acl_wild_hosts->end())       // If new
           acl_wild_hosts->push_back(acl_user->host);
       }
-      else if (!my_hash_search(&acl_check_hosts,(uchar*)
-                               acl_user->host.get_host(),
-                               strlen(acl_user->host.get_host())))
+      else
       {
-        if (my_hash_insert(&acl_check_hosts,(uchar*) acl_user))
-        {                                       // End of memory
-          allow_all_hosts=1;                    // Should never happen
-          DBUG_VOID_RETURN;
-        }
+        // Will be ignored if there's already an entry.
+        acl_check_hosts->emplace(acl_user->host.get_host(), acl_user);
       }
     }
   }
   acl_wild_hosts->shrink_to_fit();
-  freeze_size(&acl_check_hosts.array);
   DBUG_VOID_RETURN;
 }
 
@@ -1252,7 +1233,8 @@ void rebuild_check_host(void)
 {
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
-  my_hash_free(&acl_check_hosts);
+  delete acl_check_hosts;
+  acl_check_hosts= nullptr;
   init_check_host();
 }
 
@@ -1565,10 +1547,6 @@ bool acl_init(bool dont_read_acl_tables)
   DBUG_ENTER("acl_init");
 
   init_acl_cache();
-
-  (void)my_hash_init(&db_cache, &my_charset_utf8_bin,
-                     0, 0, get_grant_db, my_free,
-                     0, key_memory_acl_cache);
 
   acl_cache_initialized= true;
 
@@ -2213,7 +2191,8 @@ void acl_free(bool end)
   acl_wild_hosts= NULL;
   delete acl_proxy_users;
   acl_proxy_users= NULL;
-  my_hash_free(&acl_check_hosts);
+  delete acl_check_hosts;
+  acl_check_hosts= nullptr;
   if (!end)
     clear_and_init_db_cache();
   else
@@ -2221,7 +2200,7 @@ void acl_free(bool end)
     shutdown_acl_cache();
     if (acl_cache_initialized == true)
     {
-      my_hash_free(&db_cache);
+      db_cache.clear();
       plugin_unlock(0, native_password_plugin);
       acl_cache_initialized= false;
     }
@@ -2550,7 +2529,8 @@ bool acl_reload(THD *thd)
   old_mem= move(global_acl_memory);
   delete acl_wild_hosts;
   acl_wild_hosts= NULL;
-  my_hash_free(&acl_check_hosts);
+  delete acl_check_hosts;
+  acl_check_hosts= NULL;
   old_dyn_priv_map=
     swap_dynamic_privileges_map(new User_to_dynamic_privileges_map());
   if ((return_val= acl_load(thd, tables)))

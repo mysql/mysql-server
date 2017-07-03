@@ -1,0 +1,182 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+# Table st1: stored column genarated on primary key
+CREATE TABLE st1 (c1 INT PRIMARY KEY);
+ALTER TABLE st1 ADD COLUMN (c2 INT GENERATED ALWAYS AS (c1+1) STORED, INDEX(c2));
+INSERT INTO st1(c1) VALUES(1);
+INSERT INTO st1(c1) VALUES(2);
+XA START 'xstatement';
+UPDATE st1 SET c1=3 WHERE c2=3;
+UPDATE st1 SET c1=4 WHERE c1=3;
+DELETE FROM st1 WHERE c2=5;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that st1 exists and has same values in both servers
+include/diff_tables.inc [master:st1, slave:st1]
+# Table st2: stored column as primary key
+[connection master]
+CREATE TABLE st2 (
+c1 VARCHAR(10),
+c2 CHAR(2) GENERATED ALWAYS AS (SUBSTRING(c1,1,2)) STORED PRIMARY KEY
+);
+INSERT INTO st2(c1) VALUES("abcd");
+INSERT INTO st2(c1) VALUES("efgh");
+XA START 'xstatement';
+UPDATE st2 SET c1="abgh" WHERE c1='abcd';
+UPDATE st2 SET c1="cdgh" WHERE c2='ef';
+DELETE FROM st2 WHERE c2='cd';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that st2 exists and has same values in both servers
+include/diff_tables.inc [master:st2, slave:st2]
+# Table st3: stored column as unique
+[connection master]
+CREATE TABLE st3 (
+c1 INT AUTO_INCREMENT PRIMARY KEY,
+c2 VARCHAR(10) NOT NULL,
+c3 VARCHAR(10) NOT NULL,
+c4 VARCHAR(21) AS (CONCAT(c2,c3)) STORED UNIQUE
+);
+INSERT INTO st3(c2,c3) VALUES('first','insert');
+INSERT INTO st3(c2,c3) VALUES('second','insert');
+INSERT INTO st3(c2,c3) VALUES('first','insert');
+ERROR 23000: Duplicate entry 'firstinsert' for key 'c4'
+XA START 'xstatement';
+UPDATE st3 SET c3='update' WHERE c2='first';
+UPDATE st3 SET c3='update' WHERE c2='second';
+DELETE FROM st3 WHERE c2='first';
+DELETE FROM st3 WHERE c3='update';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that st3 exists and has same values in both servers
+include/diff_tables.inc [master:st3, slave:st3]
+# Table st4: Stored column as foreign key
+[connection master]
+CREATE TABLE t1 (a INT, b INT GENERATED ALWAYS AS (a-10) STORED, PRIMARY KEY(b));
+CREATE TABLE st4 (
+c1 INT PRIMARY KEY,
+c2 INT GENERATED ALWAYS AS (c1%10) STORED,
+FOREIGN KEY(c2) REFERENCES t1(b)
+);
+INSERT INTO t1(a) VALUES(11);
+INSERT INTO t1(a) VALUES(12);
+INSERT INTO st4(c1) VALUES(31);
+INSERT INTO st4(c1) VALUES(32);
+XA START 'xstatement';
+UPDATE st4 SET c1=21 WHERE c2=1;
+DELETE FROM st4 WHERE c2=2;
+DELETE FROM st4 WHERE c1=21;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that st4 exists and has same values in both servers
+include/diff_tables.inc [master:st4, slave:st4]
+# Table vt1: virtual column genarated on primary key
+[connection master]
+CREATE TABLE vt1 (c1 DATE PRIMARY KEY, c2 INT AS (year(c1)) VIRTUAL);
+INSERT INTO vt1(c1) VALUES('2008-09-02');
+INSERT INTO vt1(c1) VALUES('1998-06-17');
+UPDATE vt1 SET c1='2009-09-02' WHERE c2=2008;
+XA START 'xstatement';
+UPDATE vt1 SET c1='1999-06-17' WHERE c1='1998-06-17';
+DELETE FROM vt1 WHERE c1='2009-09-02';
+DELETE FROM vt1 WHERE c2=1999;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that vt1 exists and has same values in both servers
+include/diff_tables.inc [master:vt1, slave:vt1]
+# Table  vt2: virtual column as unique key
+[connection master]
+CREATE TABLE vt2 (
+c1 TEXT, PRIMARY KEY(c1(20)),
+c2 TEXT GENERATED ALWAYS AS (SUBSTRING(c1, 1, 2)) VIRTUAL,
+UNIQUE(c2(2))
+);
+INSERT INTO vt2(c1) VALUES('first insert');
+INSERT INTO vt2(c1) VALUES('second insert');
+UPDATE vt2 SET c1='first update' WHERE c1='first insert';
+XA START 'xstatement';
+UPDATE vt2 SET c1='second update' WHERE c2='se';
+DELETE FROM vt2 WHERE c1='first update';
+DELETE FROM vt2 WHERE c2='se';
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that vt2 exists and has same values in both servers
+include/diff_tables.inc [master:vt2, slave:vt2]
+# Table vt3: Virtual Column with foreign keys
+[connection master]
+CREATE TABLE t2(
+a INT PRIMARY KEY,
+b INT GENERATED ALWAYS AS (a+1) VIRTUAL,
+INDEX(b)
+);
+CREATE TABLE vt3(
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES t2(a) ON UPDATE SET NULL ON DELETE RESTRICT,
+c INT AS (a*b) VIRTUAL
+);
+INSERT INTO t2(a) VALUES(1);
+INSERT INTO t2(a) VALUES(3);
+INSERT INTO vt3(a,b) VALUES(100,1),(200,3);
+UPDATE t2 SET a=2 WHERE b=4;
+UPDATE vt3 SET b=2 WHERE b IS NULL;
+UPDATE t2,vt3 SET vt3.a=t2.a WHERE t2.b=vt3.b;
+DELETE FROM t2 WHERE a=2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`vt3`, CONSTRAINT `vt3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON UPDATE SET NULL)
+XA START 'xstatement';
+DELETE FROM vt3 WHERE a=1;
+DELETE FROM vt3 WHERE c=100;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that vt3 exists and has same values in both servers
+include/diff_tables.inc [master:vt3, slave:vt3]
+# Table gt1: gt1: both stored and virtual columns
+[connection master]
+CREATE TABLE gt1 (a INT, b INT AS (a+1) STORED PRIMARY KEY);
+ALTER TABLE gt1 ADD COLUMN c INT GENERATED ALWAYS AS (b+1) VIRTUAL;
+ALTER TABLE gt1 ADD COLUMN d INT GENERATED  ALWAYS AS (c+10) STORED;
+INSERT INTO gt1(a) VALUES(5);
+INSERT INTO gt1(a) VALUES(4);
+INSERT INTO gt1(a) VALUES(3);
+INSERT INTO gt1(a) VALUES(2);
+INSERT INTO gt1(a) VALUES(1);
+UPDATE gt1 SET a=21 WHERE b=2;
+UPDATE gt1 SET a=22 WHERE c=4;
+UPDATE gt1 SET a=23 WHERE d=15;
+XA START 'xstatement';
+UPDATE gt1 SET a=24 WHERE a=4;
+DELETE FROM gt1 WHERE a=5;
+DELETE FROM gt1 WHERE b=24;
+DELETE FROM gt1 WHERE c=24;
+DELETE FROM gt1 WHERE d=33;
+XA END 'xstatement';
+XA PREPARE 'xstatement';
+XA COMMIT 'xstatement';
+include/sync_slave_sql_with_master.inc
+# check that gt1 exists and has same values in both servers
+include/diff_tables.inc [master:gt1, slave:gt1]
+# Clean Up
+[connection master]
+DROP TABLE st1,st2,st3,st4;
+DROP TABLE vt1,vt2,vt3;
+DROP TABLE gt1;
+DROP TABLE t1,t2;
+include/rpl_end.inc

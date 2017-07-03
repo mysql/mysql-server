@@ -830,7 +830,7 @@ innodb_conn_clean(
 				UT_LIST_REMOVE(conn_list, engine->conn_data,
 					       conn_data);
 
-				if (thd) {
+				if (thd && conn_data->thd ) {
 					handler_thd_attach(conn_data->thd,
 							   NULL);
 				}

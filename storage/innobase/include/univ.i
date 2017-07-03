@@ -129,7 +129,9 @@ defined, the rwlocks are simply not tracked. */
 # define UNIV_PFS_RWLOCK
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
 #  define UNIV_PFS_IO
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 # define UNIV_PFS_THREAD

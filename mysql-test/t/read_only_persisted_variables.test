@@ -228,7 +228,7 @@ CREATE USER wl9787;
 SET GLOBAL sort_buffer_size=256000;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET PERSIST max_heap_table_size=999424;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
@@ -237,7 +237,7 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl9787;
 --connection con1
 SET GLOBAL sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
@@ -253,15 +253,16 @@ REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM wl9787;
 --connection con1
 --echo # persisting static variables needs both SYSTEM_VARIABLES_ADMIN
        # and PERSIST_RO_VARIABLES_ADMIN
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default
 REVOKE PERSIST_RO_VARIABLES_ADMIN  ON *.* FROM wl9787;
-GRANT ALL ON *.* TO wl9787;
+GRANT SUPER ON *.* TO wl9787;
 
 --connection con1
---echo # persisting static variables needs SUPER access
+--echo # persisting static variables does not need SUPER access
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 
 --connection default

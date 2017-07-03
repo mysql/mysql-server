@@ -29,6 +29,7 @@ let $condition= ='3';
 source include/wait_show_condition.inc;
 --replace_column 3 'SLAVE_PORT'
 --replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
+--sorted_result
 source include/show_slave_hosts.inc;
 
 connection slave2;

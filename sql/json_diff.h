@@ -89,7 +89,12 @@ public:
   */
   Json_diff(const Json_seekable_path &path,
             enum_json_diff_operation operation,
-            Json_dom *value);
+            std::unique_ptr<Json_dom> value)
+    : m_path(), m_operation(operation), m_value(std::move(value))
+  {
+    for (const Json_path_leg *leg : path)
+      m_path.append(*leg);
+  }
 
   /// Get the path that is changed by this diff.
   const Json_path &path() const { return m_path; }

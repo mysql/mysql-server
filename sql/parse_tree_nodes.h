@@ -138,6 +138,7 @@ class Parse_tree_root : public Sql_alloc
   void operator=(const Parse_tree_root &)= delete;
 
 protected:
+  virtual ~Parse_tree_root() {};
   Parse_tree_root() {}
 
 public:
@@ -2916,6 +2917,8 @@ class PT_ddl_table_option : public Table_ddl_node
 {
 public:
   virtual ~PT_ddl_table_option()= 0; // Force abstract class declaration
+
+  virtual bool is_rename_table() const { return false; }
 };
 
 inline PT_ddl_table_option::~PT_ddl_table_option() {}
@@ -4158,6 +4161,8 @@ public:
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
+  bool is_rename_table() const override { return true; }
+
 private:
   const Table_ident * const m_ident;
 };
@@ -5093,7 +5098,7 @@ public:
       m_key_cache_name(key_cache_name)
   {}
 
-  Sql_cmd *make_cmd(THD *thd) override;;
+  Sql_cmd *make_cmd(THD *thd) override;
 
 private:
   Table_ident *m_table;

@@ -1148,6 +1148,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  PERSIST_ONLY_SYM              /* MYSQL */
 %token  HISTOGRAM_SYM                 /* MYSQL */
 %token  BUCKETS_SYM                   /* MYSQL */
+%token  REMOTE_SYM                    /* MYSQL */
+%token  CLONE_SYM                     /* MYSQL */
 %token  CUME_DIST_SYM                 /* SQL-2003-R */
 %token  DENSE_RANK_SYM                /* SQL-2003-R */
 %token  EXCLUDE_SYM                   /* SQL-2003-N */
@@ -1367,47 +1369,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <boolfunc2creator> comp_op
 
-%type <NONE>
-        change
-        show describe load flush
-        reset purge commit rollback savepoint release
-        slave master_def master_defs master_file_def slave_until_opts
-        start checksum filter_def filter_defs
-        kill
-        handler
-        opt_flush_lock flush_options_list
-        optional_braces
-        opt_to
-        table_to_table_list table_to_table
-        help
-        opt_extended_describe
-        prepare prepare_src execute deallocate
-        sp_suid
-        sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
-        opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
-        view_replace_or_algorithm view_replace
-        view_algorithm view_or_trigger_or_sp_or_event
-        definer_tail no_definer_tail
-        view_suid view_tail view_select
-        trigger_tail
-        sp_tail sf_tail udf_tail event_tail
-        install uninstall binlog_base64_event
-        server_options_list server_option
-        definer_opt no_definer definer get_diagnostics
-        alter_user_command
-        group_replication
-END_OF_INPUT
-
-%type <NONE> sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
-%type <NONE> sp_proc_stmt_statement sp_proc_stmt_return
-%type <NONE> sp_proc_stmt_if
-%type <NONE> sp_labeled_control sp_proc_stmt_unlabeled
-%type <NONE> sp_labeled_block sp_unlabeled_block
-%type <NONE> sp_proc_stmt_leave
-%type <NONE> sp_proc_stmt_iterate
-%type <NONE> sp_proc_stmt_open sp_proc_stmt_fetch sp_proc_stmt_close
-%type <NONE> case_stmt_specification simple_case_stmt searched_case_stmt
-
 %type <num>  sp_decl_idents sp_opt_inout sp_handler_type sp_hcond_list
 %type <spcondvalue> sp_cond sp_hcond sqlstate signal_value opt_signal_value
 %type <spblock> sp_decls sp_decl
@@ -1416,7 +1377,6 @@ END_OF_INPUT
 %type <num> index_hint_clause
 %type <filetype> data_or_xml
 
-%type <NONE> signal_stmt resignal_stmt
 %type <da_condition_item_name> signal_condition_information_item_name
 
 %type <diag_area> which_area;
@@ -1441,17 +1401,11 @@ END_OF_INPUT
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
+        opt_for_replication
         opt_full opt_extended
         opt_ignore_leaves
 
 %type <show_cmd_type> opt_show_cmd_type
-
-%type <NONE>
-        '-' '+' '*' '/' '%' '(' ')'
-        ',' '!' '{' '}' '&' '|' AND_SYM OR_SYM OR_OR_SYM BETWEEN_SYM CASE_SYM
-        THEN_SYM WHEN_SYM DIV_SYM MOD_SYM OR2_SYM AND_AND_SYM
-
-%type<NONE> SHOW DESC DESCRIBE describe_command
 
 /*
   A bit field of SLAVE_IO, SLAVE_SQL flags.
@@ -1929,6 +1883,7 @@ simple_statement:
         | change
         | check_table_stmt      { MAKE_CMD($1); }
         | checksum
+        | clone_stmt
         | commit
         | create
         | deallocate
@@ -13254,6 +13209,7 @@ role_or_ident_keyword:
         | CACHE_SYM             {}
         | CHARSET               {}
         | CHECKSUM_SYM          {}
+        | CLONE_SYM             {}
         | CLOSE_SYM             {}
         | COMMENT_SYM           {}
         | COMMIT_SYM            {}
@@ -13550,6 +13506,7 @@ role_or_label_keyword:
         | RELAY_LOG_FILE_SYM       {}
         | RELAY_LOG_POS_SYM        {}
         | RELAY_THREAD             {}
+        | REMOTE_SYM               {}
         | REORGANIZE_SYM           {}
         | REPEATABLE_SYM           {}
         | REPLICATE_DO_DB          {}
@@ -15516,6 +15473,36 @@ import_stmt:
               MYSQL_YYABORT;
             lex->sql_command= SQLCOM_IMPORT;
           }
+        ;
+
+/**************************************************************************
+
+Clone local/remote replica statements.
+
+**************************************************************************/
+
+clone_stmt:
+          CLONE_SYM LOCAL_SYM
+          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+          {
+            Lex->sql_command= SQLCOM_CLONE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_local($6.str);
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT;
+          }
+        | CLONE_SYM REMOTE_SYM opt_for_replication
+          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+          {
+            Lex->sql_command= SQLCOM_CLONE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_remote($3, $7.str);
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT;
+          }
+        ;
+
+opt_for_replication:
+          /* empty */         { $$= false; }
+        | FOR_SYM REPLICATION { $$= true; }
         ;
 
 /**

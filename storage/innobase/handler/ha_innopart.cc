@@ -3484,14 +3484,11 @@ ha_innopart::records_in_range(
 	set_partition(part_id);
 	index = m_prebuilt->index;
 
-	/* Only validate the first partition, to avoid too much overhead. */
-
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || index->is_corrupted()
 	    || !index->is_usable(m_prebuilt->trx)) {
 
 		n_rows = HA_POS_ERROR;
@@ -3550,6 +3547,16 @@ ha_innopart::records_in_range(
 		     part_id = m_part_info->get_next_used_partition(part_id)) {
 
 			index = m_part_share->get_index(part_id, keynr);
+			/* Individual partitions can be discarded
+			we need to check each partition */
+			if (index == NULL
+			    || dict_table_is_discarded(index->table)
+			    || !index->is_usable(m_prebuilt->trx)) {
+
+				n_rows = HA_POS_ERROR;
+				mem_heap_free(heap);
+				goto func_exit;
+			}
 			int64_t n = btr_estimate_n_rows_in_range(index,
 							       range_start,
 							       mode1,

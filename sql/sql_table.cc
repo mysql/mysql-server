@@ -2167,7 +2167,8 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   }
 
   histograms::results_map results;
-  bool histogram_error= histograms::drop_all_histograms(thd, *table, results);
+  bool histogram_error= histograms::drop_all_histograms(thd, *table, *table_def,
+                                                        results);
 
   DBUG_EXECUTE_IF("fail_after_drop_histograms",
                   {
@@ -4745,7 +4746,6 @@ static const char* generate_fk_name(const char *table_name,
   @param thd                 Thread handle.
   @param create_info         Create info from parser.
   @param alter_info          Alter_info structure describing ALTER TABLE.
-  @param db                  Database name.
   @param table_name          Table name.
   @param key_info_buffer     Array of indexes.
   @param key_count           Number of indexes.
@@ -4760,7 +4760,6 @@ static const char* generate_fk_name(const char *table_name,
 static bool prepare_foreign_key(THD *thd,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
-                                const char *db,
                                 const char *table_name,
                                 KEY *key_info_buffer,
                                 uint key_count,
@@ -4782,7 +4781,7 @@ static bool prepare_foreign_key(THD *thd,
   // not used and that generated columns are not used with
   // SET NULL and ON UPDATE CASCASE. Since this cannot change once
   // the FK has been made, it is enough to check it for new FKs.
-  if (fk_key->validate(thd, db, table_name, alter_info->create_list))
+  if (fk_key->validate(thd, table_name, alter_info->create_list))
     DBUG_RETURN(true);
 
   if (fk_key->name.str)
@@ -4805,33 +4804,20 @@ static bool prepare_foreign_key(THD *thd,
 
   fk_info->key_parts= fk_key->columns.size();
 
-  if (fk_key->ref_db.str)
+  /*
+    In --lower-case-table-names=2 mode we are to use lowercased versions of
+    parent db and table names for acquiring MDL and lookup, but still need
+    to store their original versions in the data-dictionary.
+  */
+  if (lower_case_table_names == 2)
   {
-    fk_info->ref_db= fk_key->ref_db;
-    if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
-    {
-      char buff[NAME_LEN + 1];
-      my_stpncpy(buff, fk_info->ref_db.str, NAME_LEN);
-      my_casedn_str(system_charset_info, buff);
-      fk_info->ref_db.str= sql_strdup(buff);
-      fk_info->ref_db.length= strlen(fk_info->ref_db.str);
-    }
+    fk_info->ref_db= fk_key->orig_ref_db;
+    fk_info->ref_table= fk_key->orig_ref_table;
   }
   else
   {
-    // No schema given, use table's schema
-    fk_info->ref_db.str= db;
-    fk_info->ref_db.length= strlen(db);
-  }
-
-  fk_info->ref_table= fk_key->ref_table;
-  if (lower_case_table_names == 1) // Store lowercase if LCTN = 1
-  {
-    char buff[NAME_LEN + 1];
-    my_stpncpy(buff, fk_info->ref_table.str, NAME_LEN);
-    my_casedn_str(system_charset_info, buff);
-    fk_info->ref_table.str= sql_strdup(buff);
-    fk_info->ref_table.length= strlen(fk_info->ref_table.str);
+    fk_info->ref_db= fk_key->ref_db;
+    fk_info->ref_table= fk_key->ref_table;
   }
 
   fk_info->delete_opt= fk_key->delete_opt;
@@ -5459,7 +5445,6 @@ bool mysql_prepare_create_table(THD *thd,
     if (key->type == KEYTYPE_FOREIGN)
     {
       if (prepare_foreign_key(thd, create_info, alter_info,
-                              error_schema_name,
                               error_table_name,
                               *key_info_buffer, *key_count,
                               fk_key_info_buffer, fk_number,
@@ -6453,7 +6438,11 @@ rename_histograms(THD *thd, const char *old_schema_name,
   @param alter_info the alter changes to be carried out by ALTER TABLE
   @param create_info the alter changes to be carried out by ALTER TABLE
   @param columns a list of columns to be changed or dropped
-  @param table_def the altered table (the new table definition, post altering)
+  @param original_table_def the table definition, pre altering. Note that the
+                            name returned by original_table_def->name() might
+                            not be the same as table->table_name, since this may
+                            be a backup table object with an auto-generated name
+  @param altered_table_def the table definition, post altering
 
   @return false on success, true on error
 */
@@ -6461,7 +6450,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
                                         Alter_info *alter_info,
                                         HA_CREATE_INFO *create_info,
                                         histograms::columns_set &columns,
-                                        const dd::Table *table_def)
+                                        const dd::Table *original_table_def,
+                                        const dd::Table *altered_table_def)
 {
   bool alter_drop_column=
     (alter_info->flags & (Alter_info::ALTER_DROP_COLUMN |
@@ -6470,11 +6460,13 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
     (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
     (create_info->used_fields & HA_CREATE_USED_CHARSET);
 
-  bool encryption_enabled=
-    (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
-    (create_info->encrypt_type.length > 0 &&
-     my_strcasecmp(system_charset_info, "n",
-                   create_info->encrypt_type.str) != 0);
+  bool encryption_enabled= false;
+  if (altered_table_def->options().exists("encrypt_type"))
+  {
+    encryption_enabled= 0 !=
+      my_strcasecmp(system_charset_info, "n",
+                    altered_table_def->options().value("encrypt_type").c_str());
+  }
 
   bool single_part_unique_index= false;
   /*
@@ -6483,7 +6475,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
   */
   if (alter_info->flags & Alter_info::ALTER_ADD_INDEX)
   {
-    for (const auto key : table_def->indexes())
+    for (const auto key : altered_table_def->indexes())
     {
       /*
         A key may have multiple elements, such as (DB_ROW_ID, column). So, check
@@ -6512,7 +6504,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
   */
   if (convert_character_set)
   {
-    for (const auto column : table_def->columns())
+    for (const auto column : altered_table_def->columns())
     {
       switch (column->type())
       {
@@ -6538,7 +6530,8 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
     histograms::results_map results;
     bool res;
     if (encryption_enabled)
-      res= histograms::drop_all_histograms(thd, *table, results);
+      res= histograms::drop_all_histograms(thd, *table, *original_table_def,
+                                           results);
     else
       res= histograms::drop_histograms(thd, *table, columns, results);
 
@@ -8771,7 +8764,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     if (alter_table_drop_histograms(thd, table_list, ha_alter_info->alter_info,
                                     ha_alter_info->create_info, columns,
-                                    altered_table_def))
+                                    table_def, altered_table_def))
       goto rollback;
 
     // Upgrade to EXCLUSIVE before commit.
@@ -11079,8 +11072,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, alter_ctx.new_db,
-                                   create_info, alter_info))
+      check_fk_parent_table_access(thd, create_info, alter_info))
     DBUG_RETURN(true);
 
   /*
@@ -12051,7 +12043,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       new_table is invalidated on commit.
     */
     if (alter_table_drop_histograms(thd, table_list, alter_info, create_info,
-                                    columns, new_table))
+                                    columns, backup_table, new_table))
       goto err_with_mdl; /* purecov: deadcode */
 
     if (backup_table->has_trigger())

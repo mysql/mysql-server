@@ -73,7 +73,10 @@ PFS_engine_table_share table_global_variables::m_share = {
   sizeof(pos_t),
   &m_table_lock,
   &m_table_def,
-  true /* perpetual */
+  true, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 PFS_engine_table *

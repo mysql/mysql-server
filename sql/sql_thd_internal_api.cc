@@ -55,7 +55,9 @@
 
 struct PSI_thread;
 
-int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
+int thd_init(THD *thd, char *stack_start,
+             bool bound MY_ATTRIBUTE((unused)),
+             PSI_thread_key psi_key MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("thd_init");
   // TODO: Purge threads currently terminate too late for them to be added.
@@ -68,7 +70,7 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
     Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
   }
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *psi;
   psi= PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
   if (bound)
@@ -76,7 +78,7 @@ int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
   thd->set_psi(psi);
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (!thd->system_thread)
   {

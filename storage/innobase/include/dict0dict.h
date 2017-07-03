@@ -180,6 +180,16 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table);
 
+/** Read persistent dynamic metadata stored in a buffer
+@param[in]	buffer		buffer to read
+@param[in]	size		size of data in buffer
+@param[in]	metadata	where we store the metadata from buffer */
+void
+dict_table_read_dynamic_metadata(
+	const byte*		buffer,
+	ulint			size,
+	PersistentTableMetadata*metadata);
+
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
 note that if !dict_table_has_atomic_blobs(table), no prefix
@@ -1541,6 +1551,9 @@ struct dict_sys_t{
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
+
+	/** Use maximum UINT value to indicate invalid space ID. */
+	static constexpr space_id_t	invalid_space_id = 0xFFFFFFFF;
 
 	/** The data dictionary tablespace ID. */
 	static constexpr space_id_t	space_id = 0xFFFFFFFE;

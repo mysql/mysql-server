@@ -748,12 +748,18 @@ fsp_init_file_page_low(
 	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 			block->page.id.space());
 
+	/* Reset FRAME LSN, which otherwise points to the LSN of the last
+	page that used this buffer block. This is needed by CLONE for
+	tracking dirty pages. */
+	memset(page + FIL_PAGE_LSN, 0, 8);
+
 	if (page_zip) {
 		memset(page_zip->data, 0, page_zip_get_size(page_zip));
 		memcpy(page_zip->data + FIL_PAGE_OFFSET,
 		       page + FIL_PAGE_OFFSET, 4);
 		memcpy(page_zip->data + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
 		       page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 4);
+		memcpy(page_zip->data + FIL_PAGE_LSN, page + FIL_PAGE_LSN, 8);
 	}
 }
 

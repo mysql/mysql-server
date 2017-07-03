@@ -64,8 +64,20 @@ if ($rpl_debug)
 #
 --let $_slave_master_file= query_get_value(SHOW SLAVE STATUS, Relay_Master_Log_File, 1)
 --let $_slave_master_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+if ($rpl_debug)
+{
+  --echo _saved_file='$_saved_file'
+  --echo _slave_master_file='$_slave_master_file'
+}
+
 if ($_slave_master_file == $_saved_file)
 {
+  if ($rpl_debug)
+  {
+    --echo _saved_pos='$_saved_pos'
+    --echo _slave_master_pos='$_slave_master_pos'
+  }
   if ($_slave_master_pos == $_saved_pos)
   {
     if ($rpl_debug)

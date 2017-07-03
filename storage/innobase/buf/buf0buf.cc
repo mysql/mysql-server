@@ -1229,6 +1229,11 @@ buf_pool_init_instance(
 
 	buf_pool->try_LRU_scan = TRUE;
 
+	/* Dirty Page Tracking is disabled by default. */
+	buf_pool->track_page_lsn = LSN_MAX;
+
+	buf_pool->max_lsn_io = 0;
+
 	/* Initialize the hazard pointer for flush_list batches */
 	new(&buf_pool->flush_hp)
 		FlushHp(buf_pool, &buf_pool->flush_list_mutex);

@@ -54,7 +54,7 @@ Page_pool::Page_pool(const Pool_config &pool_config)
 
 Page_pool::~Page_pool()
 {
-  Mutex_lock lock(m_mutex);
+  MUTEX_LOCK(lock, m_mutex);
   std::for_each(m_pages_list.begin(), m_pages_list.end(), ngs::free_array<char>);
   m_pages_list.clear();
 }
@@ -101,7 +101,7 @@ bool Page_pool::push_page(char *page_data)
 {
   if (m_pages_cache_max != 0)
   {
-    Mutex_lock lock(m_mutex);
+    MUTEX_LOCK(lock, m_mutex);
 
     if (m_pages_cached >= m_pages_cache_max)
       return false;
@@ -120,7 +120,7 @@ char *Page_pool::pop_page()
 {
   if (m_pages_cache_max != 0)
   {
-    Mutex_lock lock(m_mutex);
+    MUTEX_LOCK(lock, m_mutex);
 
     if (!m_pages_list.empty())
     {

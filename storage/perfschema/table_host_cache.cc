@@ -80,7 +80,10 @@ PFS_engine_table_share table_host_cache::m_share = {
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_table_def,
-  false /* perpetual */
+  false, /* perpetual */
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
 };
 
 bool

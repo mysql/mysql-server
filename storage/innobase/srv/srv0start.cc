@@ -78,10 +78,12 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "ut0mem.h"
 #ifndef UNIV_HOTBACKUP
+# include "arch0arch.h"
 # include "btr0pcur.h"
 # include "btr0sea.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
+# include "clone0api.h"
 # include "dict0boot.h"
 # include "dict0crea.h"
 # include "dict0load.h"
@@ -177,6 +179,7 @@ static char*	srv_monitor_file_name;
 
 /* Keys to register InnoDB threads with performance schema */
 #ifdef UNIV_PFS_THREAD
+mysql_pfs_key_t	archiver_thread_key;
 mysql_pfs_key_t	buf_dump_thread_key;
 mysql_pfs_key_t	buf_resize_thread_key;
 mysql_pfs_key_t	dict_stats_thread_key;
@@ -210,6 +213,9 @@ static PSI_stage_info*	srv_stages[] =
 	&srv_stage_alter_table_merge_sort,
 	&srv_stage_alter_table_read_pk_internal_sort,
 	&srv_stage_buffer_pool_load,
+	&srv_stage_clone_file_copy,
+	&srv_stage_clone_redo_copy,
+	&srv_stage_clone_page_copy,
 };
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
@@ -311,7 +317,7 @@ create_log_file(
 	ret = os_file_set_size(name, *file,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT,
-			       srv_read_only_mode);
+			       srv_read_only_mode, true);
 	if (!ret) {
 		ib::error() << "Cannot set log file " << name << " to size "
 			<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
@@ -506,7 +512,8 @@ create_log_files_rename(
 
 	fil_open_log_and_system_tablespace_files();
 
-	ib::warn() << "New log files created, LSN=" << lsn;
+	/* For cloned database it is normal to resize redo logs. */
+	ib::info() << "New log files created, LSN=" << lsn;
 }
 
 /*********************************************************************//**
@@ -545,14 +552,14 @@ dberr_t
 srv_undo_tablespace_create(
 	space_id_t	space_id)
 {
-	pfs_os_file_t	fh;
-	bool		ret;
-	dberr_t		err = DB_SUCCESS;
+	pfs_os_file_t		fh;
+	bool			ret;
+	dberr_t			err = DB_SUCCESS;
+	undo::Tablespace	undo_space(space_id);
+	char*			file_name = undo_space.file_name();
 
 	ut_a(!srv_read_only_mode);
 	ut_a(!srv_force_recovery);
-
-	char*	file_name = undo::make_file_name(space_id);
 
 	os_file_create_subdirs_if_needed(file_name);
 
@@ -566,14 +573,14 @@ srv_undo_tablespace_create(
 	ut_ad(err == DB_SUCCESS);
 
 	fh = os_file_create(
-		innodb_data_file_key,
-		file_name,
+		innodb_data_file_key, file_name,
 		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
 		OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
 	if (ret == FALSE) {
 		ib::error  stmt;
-		stmt << "Can't create UNDO tablespace " << file_name;
+		stmt << "Can't create UNDO tablespace "
+			<< undo_space.space_name();
 
 		if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
 			stmt << "since " << file_name << " already exists.";
@@ -586,8 +593,7 @@ srv_undo_tablespace_create(
 
 		/* We created the data file and now write it full of zeros */
 
-		ib::info() << "Creating UNDO Tablespace "
-			<< file_name;
+		ib::info() << "Creating UNDO Tablespace " << file_name;
 
 		ulint size_mb = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT >> 20;
@@ -600,7 +606,7 @@ srv_undo_tablespace_create(
 			file_name, fh,
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT,
-			srv_read_only_mode);
+			srv_read_only_mode, true);
 
 		if (!ret) {
 			ib::info() << "Error in creating " << file_name
@@ -618,8 +624,6 @@ srv_undo_tablespace_create(
 			undo::add_space_to_construction_list(space_id);
 		}
 	}
-
-	ut_free(file_name);
 
 	return(err);
 }
@@ -761,11 +765,15 @@ srv_undo_tablespace_fixup(
 		fil_space_close(space_id);
 
 		os_file_delete_if_exists(innodb_data_file_key,
-				undo_space.file_name(), NULL);
+					 undo_space.file_name(), NULL);
 
-		dberr_t	err = srv_undo_tablespace_create(space_id);
-		if (err != DB_SUCCESS) {
-			return(err);
+		/* If an old undo tablespace needs fixup before it is
+		upgraded, don't bother re-creating it. */
+		if (undo::is_reserved(space_id)) {
+			dberr_t	err = srv_undo_tablespace_create(space_id);
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
 		}
 	}
 
@@ -1025,7 +1033,7 @@ srv_undo_tablespaces_open(
 		}
 	}
 
-	if (srv_undo_tablespaces > 0) {
+	if (n_found_new + n_found_old) {
 		ib::info() << "Opened " << (n_found_new + n_found_old)
 			<< " existing undo tablespaces.";
 	}
@@ -1062,6 +1070,16 @@ srv_undo_tablespaces_create(
 			<< " has been set.  Using "
 			<< initial_undo_spaces
 			<< " existing undo tablespaces.";
+
+		if (initial_undo_spaces == 0) {
+			ib::error() << "Cannot continue InnoDB startup in "
+				<< (srv_read_only_mode
+				    ? "read_only" : "force_recovery")
+				<< " mode because there are no existing"
+				<< " undo tablespaces found.";
+			undo::spaces->x_unlock();
+			return(DB_ERROR);
+		}
 
 		srv_undo_tablespaces = static_cast<ulong>(initial_undo_spaces);
 
@@ -1234,7 +1252,8 @@ srv_undo_tablespaces_upgrade()
 
 		fil_space_close(undo_space.id());
 
-		os_file_delete(innodb_data_file_key, undo_space.file_name());
+		os_file_delete_if_exists(innodb_data_file_key,
+					 undo_space.file_name(), NULL);
 	}
 
 	/* Remove the tracking of these undo tablespaces from TRX_SYS page and
@@ -1277,28 +1296,15 @@ do this at a time since the server will synchronize changes to settings.
 dberr_t
 srv_undo_tablespaces_update(ulong target)
 {
-	if (target == 0) {
-		ut_ad(srv_undo_tablespaces > 0);
+	ut_ad(srv_undo_tablespaces >= FSP_MIN_UNDO_TABLESPACES);
+	ut_ad(target >= FSP_MIN_UNDO_TABLESPACES);
 
-		/* We will make sure that there is enough rollback segments
-		in the system tablespace and then switch to using them
-		for new transactions just by setting srv_undo_tablespaces
-		to 0 in the caller.  The old undo tablespaces will not
-		be deleted.  The rollback segments in them will just
-		stop being used as current transactions are committed
-		and purged. */
-		if (!trx_rseg_adjust_rollback_segments(
-				target, srv_rollback_segments)) {
-			return(DB_ERROR);
-		}
+	/* If target < srv_undo_tablespaces, the caller will set
+	srv_undo_tablespaces to the target. Then only undo tablespaces
+	up to the target will be used for new transactions.  The unused
+	tablespaces eventually become inactive but will not be deleted. */
 
-	} else if (target > srv_undo_tablespaces) {
-		/* If srv_undo_tablespaces == 0 and this succeeds, the
-		caller will set it to the new value and the independent
-		undo tablespaces will start being used for new transactions.
-		The system tablespace will no longer be used to get rollback
-		segments for new transactions. */
-
+	if (target > srv_undo_tablespaces) {
 		/* Create any that do not already exist. */
 		dberr_t	err = srv_undo_tablespaces_create(target);
 		if (err != DB_SUCCESS) {
@@ -1365,7 +1371,8 @@ srv_undo_tablespaces_init(bool create_new_db)
 {
 	dberr_t		err = DB_SUCCESS;
 
-	ut_a(srv_undo_tablespaces <= TRX_SYS_N_RSEGS);
+	ut_ad(srv_undo_tablespaces >= FSP_MIN_UNDO_TABLESPACES);
+	ut_ad(srv_undo_tablespaces <= FSP_MAX_UNDO_TABLESPACES);
 
 	undo_spaces_init();
 
@@ -1382,14 +1389,6 @@ srv_undo_tablespaces_init(bool create_new_db)
 	err = srv_undo_tablespaces_create(srv_undo_tablespaces);
 	if (err != DB_SUCCESS) {
 		return(err);
-	}
-
-	/* Complain about using the system tablespace for
-	rollback segments. */
-	if (srv_undo_tablespaces == 0) {
-		ib::info() << "Using the system tablespace"
-			<< " for all rollback-segments since"
-			<< " innodb_undo_tablespaces=0";
 	}
 
 	/* Finish building any undo tablespaces just created by adding
@@ -1617,6 +1616,12 @@ srv_shutdown_all_bg_threads()
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
+		/* Stop archiver thread. */
+		if (archiver_is_active) {
+
+			os_event_set(archiver_thread_event);
+		}
+
 		bool	active = os_thread_any_active();
 
 		os_thread_sleep(100000);
@@ -1718,17 +1723,17 @@ srv_prepare_to_delete_redo_log_files(
 		flushed_lsn = log_sys->lsn;
 
 		{
-			ib::warn	warning;
+			ib::info	info;
 			if (srv_log_file_size == 0) {
-				warning << "Upgrading redo log: ";
+				info << "Upgrading redo log: ";
 			} else {
-				warning << "Resizing redo log from "
-					<< n_files << "*"
-					<< srv_log_file_size << " to ";
+				info << "Resizing redo log from "
+				     << n_files << "*"
+				     << srv_log_file_size << " to ";
 			}
-			warning << srv_n_log_files << "*"
-				<< srv_log_file_size_requested
-				<< " pages, LSN=" << flushed_lsn;
+			info << srv_n_log_files << "*"
+			     << srv_log_file_size_requested
+			     << " pages, LSN=" << flushed_lsn;
 		}
 
 		/* Flush the old log files. */
@@ -1809,16 +1814,6 @@ srv_start(bool create_new_db, const char* scan_directories)
 			ib::error() << "Database upgrade cannot be"
 				" accomplished in read-only mode.";
 			return(srv_init_abort(DB_ERROR));
-		}
-
-		if (srv_undo_tablespaces == 0) {
-			/* For this upgrade, run as if there will be 2
-			undo tablespaces so that no changes need to be
-			made to the TRX_SYS page during the upgrade. */
-			ib::info() << "Database upgrade will use 2 undo"
-				" tablespaces instead of 0. Please set"
-				" innodb_undo_tablespaces=2 or higher.";
-			srv_undo_tablespaces = 2;
 		}
 	}
 
@@ -2045,6 +2040,8 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 	fsp_init();
 	log_init();
+	clone_init();
+	arch_init();
 
 	recv_sys_create();
 	recv_sys_init(buf_pool_get_curr_size());
@@ -2384,7 +2381,19 @@ files_checked:
 			respective file pages, for the last batch of
 			recv_group_scan_log_recs(). */
 
-			recv_apply_hashed_log_recs(true);
+			/* Don't allow IBUF operations for cloned database
+			recovery as it would add extra redo log and we may
+			not have enough margin. */
+			if (recv_sys->is_cloned_db) {
+
+				log_mutex_enter();
+				recv_apply_hashed_log_recs(false);
+				log_mutex_exit();
+
+			} else {
+
+				recv_apply_hashed_log_recs(true);
+			}
 
 			if (recv_sys->found_corrupt_log  == true) {
 				err = DB_ERROR;
@@ -2489,7 +2498,7 @@ files_checked:
 			/* Free the old log file space. */
 			log_group_close_all();
 
-			ib::warn() << "Starting to delete and rewrite log"
+			ib::info() << "Starting to delete and rewrite log"
 				" files.";
 
 			srv_log_file_size = srv_log_file_size_requested;
@@ -2505,6 +2514,26 @@ files_checked:
 			create_log_files_rename(
 				logfilename, dirnamelen, flushed_lsn,
 				logfile0);
+
+		} else if (recv_sys->is_cloned_db) {
+
+			/* Reset creator for log group */
+			log_group_t*	group;
+			group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+			log_mutex_enter();
+			log_group_header_read(group, 0);
+
+			lsn_t	start_lsn;
+			start_lsn = mach_read_from_8(log_sys->checkpoint_buf
+				+ LOG_HEADER_START_LSN);
+
+			log_group_header_read(group, LOG_CHECKPOINT_1);
+			log_mutex_exit();
+
+			log_write_mutex_enter();
+			log_group_file_header_flush(group, 0, start_lsn);
+			log_write_mutex_exit();
 		}
 
 		if (sum_of_new_sizes > 0) {
@@ -3086,6 +3115,8 @@ srv_shutdown()
 	btr_search_disable(true);
 
 	ibuf_close();
+	clone_free();
+	arch_free();
 	log_shutdown();
 	trx_sys_close();
 	lock_sys_close();

@@ -432,6 +432,44 @@ public:
 
 
 /**
+  Sql_cmd_clone_local implements the CLONE LOCAL ... statement.
+*/
+
+class Sql_cmd_clone_local : public Sql_cmd
+{
+  const char* clone_dir;
+
+public:
+  explicit Sql_cmd_clone_local(const char *clone_dir) : clone_dir(clone_dir) {}
+
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+
+  virtual bool execute(THD *thd);
+};
+
+
+/**
+  Sql_cmd_clone_remote implements the CLONE REMOTE ... statement.
+*/
+
+class Sql_cmd_clone_remote : public Sql_cmd
+{
+  const bool is_for_replication;
+  const char* clone_dir;
+
+public:
+  explicit Sql_cmd_clone_remote(const bool is_for_replication,
+                                const char *clone_dir)
+  : is_for_replication(is_for_replication),
+    clone_dir(clone_dir)
+  {}
+
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+
+  virtual bool execute(THD *thd);
+};
+
+/**
   Sql_cmd_show represents the SHOW COLUMNS/SHOW INDEX statements.
 */
 class Sql_cmd_show : public Sql_cmd

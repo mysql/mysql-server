@@ -89,32 +89,23 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 }
 
 
-bool Foreign_key_spec::validate(THD *thd,
-                                const char *db, const char *table_name,
+bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                                 List<Create_field> &table_fields) const
 {
   DBUG_ENTER("Foreign_key_spec::validate");
 
-  // Reject FKs to inaccessible DD tables. Use current schema unless
-  // defined explicitly.
-  const char *db_str= ref_db.str;
-  size_t db_length= ref_db.length;
-  if (db_str == nullptr)
-  {
-    db_str= db;
-    db_length= strlen(db);
-  }
-
+  // Reject FKs to inaccessible DD tables.
   const dd::Dictionary *dictionary= dd::get_dictionary();
   if (dictionary && !dictionary->is_dd_table_access_allowed(
                                thd->is_dd_system_thread(),
-                               true, db_str, db_length, ref_table.str))
+                               true, ref_db.str, ref_db.length,
+                               ref_table.str))
   {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
              ER_THD(thd,
-                    dictionary->table_type_error_code(db_str,
+                    dictionary->table_type_error_code(ref_db.str,
                                                       ref_table.str)),
-             db_str, ref_table.str);
+             ref_db.str, ref_table.str);
     DBUG_RETURN(true);
   }
 

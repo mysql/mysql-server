@@ -48,6 +48,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mutex_lock.h"                       // MUTEX_LOCK
 #include "sql_class.h"                        // THD
 
 namespace dd {
@@ -76,7 +77,7 @@ Object_id Storage_adapter::next_oid()
 template <typename T>
 size_t Storage_adapter::core_size()
 {
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   return m_core_registry.size<typename T::cache_partition_type>();
 }
 
@@ -86,7 +87,7 @@ template <typename T>
 Object_id Storage_adapter::core_get_id(const typename T::name_key_type &key)
 {
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
   {
@@ -104,7 +105,7 @@ void Storage_adapter::core_get(const K &key, const T **object)
   DBUG_ASSERT(object);
   *object= nullptr;
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
   {
@@ -193,7 +194,7 @@ void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
   DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
   Cache_element<typename T::cache_partition_type> *element= nullptr;
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
 
   // For unit tests, drop based on id to simulate behavior of persistent tables.
   // For storing core objects during bootstrap, drop based on names since id may
@@ -277,7 +278,7 @@ void Storage_adapter::core_store(THD *thd, T *object)
   // Need to clone since core registry takes ownership
   element->set_object(object->clone());
   element->recreate_keys();
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.put(element);
 }
 
@@ -380,7 +381,7 @@ bool Storage_adapter::core_sync(THD *thd,
     new Cache_element<typename T::cache_partition_type>();
   element->set_object(new_obj);
   element->recreate_keys();
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   m_core_registry.put(element);
   return false;
 }
@@ -389,7 +390,7 @@ bool Storage_adapter::core_sync(THD *thd,
 // Remove and delete all elements and objects from core storage.
 void Storage_adapter::erase_all()
 {
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   instance()->m_core_registry.erase_all();
 }
 
@@ -398,7 +399,7 @@ void Storage_adapter::erase_all()
 void Storage_adapter::dump()
 {
 #ifndef DBUG_OFF
-  Mutex_lock lock(&m_lock);
+  MUTEX_LOCK(lock, &m_lock);
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Storage adapter\n");
   m_core_registry.dump<dd::Tablespace>();

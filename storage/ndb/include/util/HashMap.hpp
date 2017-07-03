@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@
 #define NDB_HASHMAP_HPP
 
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <hash.h>
 
+#include <memory>
+#include <unordered_map>
 
 /*
   Default implementation for extracting key_ptr and
@@ -45,129 +45,97 @@ inline const void* HashMap__get_key(const void* key_ptr, size_t* key_length)
 template<typename K, typename T,
          const void* G(const void*, size_t*) = HashMap__get_key >
 class HashMap {
-  class Entry {
-  public:
-    K m_key;
-    T m_value;
-    Entry(const K& k, const T& v) : m_key(k), m_value(v) {};
+  static inline std::string get_key_string(const K& key)
+  {
+    if (G == HashMap__get_key)
+      return std::string(pointer_cast<const char *>(&key), sizeof(K));
+
+    size_t key_length = sizeof(K);
+    const char* key_ptr = pointer_cast<const char *>(G(&key, &key_length));
+    return std::string(key_ptr, key_length);
+  }
+
+  struct HashMap__hash {
+    size_t operator() (const K& key) const {
+       return hasher(get_key_string(key));
+    }
+    std::hash<std::string> hasher;
   };
 
-  HASH m_hash;
+  struct HashMap__equal_to {
+    bool operator() (const K& key1, const K& key2) const {
+      return get_key_string(key1) == get_key_string(key2);
+    }
+  };
 
-  static void free_element(void * ptr) {
-    Entry* entry = (Entry*)ptr;
-    delete entry;
-  }
+  typedef
+    std::unordered_map<K, std::unique_ptr<T>,
+                       HashMap__hash, HashMap__equal_to>
+    InternalHash;
 
-  /*
-    Callback function which is installed into 'my_hash'
-    and thus called once for each key in the hash that need to
-    be compared. Should return a pointer to where the key
-    start and the key's length.
-  */
-  static const uchar* _get_key(const uchar* ptr,
-                         size_t* key_length) {
-    const Entry * entry = reinterpret_cast<const Entry*>(ptr);
-    const void* key_ptr = G(&entry->m_key, key_length);
-    return (uchar*)key_ptr;
-  }
-
-  const void* get_key_ptr(const K* key, size_t *key_length) const {
-    if (G == HashMap__get_key)
-      return key;
-    return _get_key((const uchar*)key, key_length);
-  }
+  InternalHash m_hash;
 
 public:
-  HashMap(ulong initial_size = 1024) {
-
-    assert(my_init_done);
-
-    if (my_hash_init(&m_hash,
-                      &my_charset_bin, // charset
-                      initial_size,    // default_array_elements
-                      sizeof(K),       // key_length
-                      G == HashMap__get_key ? NULL : _get_key, // get_key,
-                      free_element,    // free_element
-                      HASH_UNIQUE,     // flags
-                      PSI_INSTRUMENT_ME
-                      ))
-      abort();
-  }
-
-  ~HashMap() {
-    my_hash_free(&m_hash);
+  HashMap(ulong initial_size = 1024)
+    : m_hash(initial_size, HashMap__hash(), HashMap__equal_to())
+  {
   }
 
   bool insert(const K& k, const T& v, bool replace = false) {
-    Entry* entry = new Entry(k, v);
-    if (my_hash_insert(&m_hash, (const uchar*)entry) != 0) {
-      // An entry already existed
-
-      delete entry;
-
-      T* p;
-      if (replace && search(k, &p)) {
-        *p = v;
+    // Note: This can be written simpler with try_emplace once we get to C++17.
+    std::unique_ptr<T> v_ptr(new T(v));
+    if (replace) {
+      auto it = m_hash.find(k);
+      if (it != m_hash.end()) {
+        it->second = std::move(v_ptr);
         return true;
       }
-      return false;
+      // Did not already exist, fall through to below.
     }
-    return true;
+    return m_hash.emplace(k, std::move(v_ptr)).second;
   }
 
   bool search(const K& k, T& v) const {
-    T* p;
-    if (!search(k, &p))
+    const auto it = m_hash.find(k);
+    if (it == m_hash.end())
       return false;
-    v = *p;
+    v = *it->second.get();
     return true;
   }
 
-  bool search(const K& k, T** v) const {
-    size_t key_length = sizeof(K);
-    const void *key = get_key_ptr(&k, &key_length);
-    Entry* entry= (Entry*)my_hash_search(&m_hash,
-                                         (const uchar*)key, key_length);
-    if (entry == NULL)
+  bool search(const K& k, const T** v) const {
+    auto it = m_hash.find(k);
+    if (it == m_hash.end())
       return false;
 
-    *v = &(entry->m_value);
+    *v = it->second.get();
+    return true;
+  }
+
+  bool search(const K& k, T** v) {
+    auto it = m_hash.find(k);
+    if (it == m_hash.end())
+      return false;
+
+    *v = it->second.get();
     return true;
   }
 
   bool remove(const K& k) {
-    size_t key_length = sizeof(K);
-    const void *key = get_key_ptr(&k, &key_length);
-    Entry* entry= (Entry*)my_hash_search(&m_hash,
-                                         (const uchar*)key, key_length);
-    if (entry == NULL)
-      return false;
-
-    if (my_hash_delete(&m_hash, (uchar*)entry))
-      return false;
-    return true;
-  }
-
-  bool remove(size_t i) {
-    Entry* entry = (Entry*)my_hash_element(&m_hash, (ulong)i);
-    if (entry == NULL)
-      return false;
-
-    if (my_hash_delete(&m_hash, (uchar*)entry))
-      return false;
-    return true;
+    return m_hash.erase(k) != 0;
   }
 
   size_t entries(void) const {
-    return m_hash.records;
+    return m_hash.size();
   }
 
-  T* value(size_t i) const {
-    Entry* entry = (Entry*)my_hash_element((HASH*)&m_hash, (ulong)i);
-    if (entry == NULL)
-      return NULL;
-    return &(entry->m_value);
+  // Forwarders to the underlying map.
+
+  typename InternalHash::iterator begin() { return m_hash.begin(); }
+  typename InternalHash::iterator end() { return m_hash.end(); }
+  typename InternalHash::iterator
+  erase(typename InternalHash::const_iterator pos) {
+    return m_hash.erase(pos);
   }
 
 };

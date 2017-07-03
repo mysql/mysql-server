@@ -128,7 +128,7 @@ Thd_ndb::init_open_tables()
 {
   count= 0;
   m_error= FALSE;
-  my_hash_reset(&open_tables);
+  open_tables.clear();
 }
 
 

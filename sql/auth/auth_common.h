@@ -758,7 +758,6 @@ bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd,
-                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
 bool check_readonly(THD *thd, bool err_if_readonly);

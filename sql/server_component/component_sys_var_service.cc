@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "item.h"
 #include "item_func.h"
@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 #include "persisted_variable.h"// Persisted_variables_cache
 #include "sql_show.h"
 #include <string>
-#include "pfs_memory_provider.h"
+#include "mysql/psi/mysql_memory.h"
 
 #define FREE_RECORD(sysvar)                                                 \
   my_free((void *)                                                             \
@@ -70,7 +70,7 @@ int mysql_add_sysvar(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
   /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-  if (my_hash_insert(get_system_variable_hash(), (uchar *) var))
+  if (!get_system_variable_hash()->emplace(to_string(var->name), var).second)
   {
     my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
                      var->name.str);
@@ -456,8 +456,6 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
 {
   try
   {
-    my_hash_value_type hash_value;
-    sys_var *sysvar;
     int result= 0;
     String com_sys_var_name;
 
@@ -468,14 +466,14 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
         com_sys_var_name.append(var_name))
       return true; // OOM
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-    hash_value= my_calc_hash(get_system_variable_hash(),
-                             (const uchar *) com_sys_var_name.c_ptr(),
-                             com_sys_var_name.length());
-    sysvar= reinterpret_cast<sys_var *>
-      (my_hash_search_using_hash_value(get_system_variable_hash(), hash_value,
-                                       (const uchar *)com_sys_var_name.c_ptr(),
-                                       com_sys_var_name.length()));
-    if (!sysvar)
+
+    sys_var *sysvar= nullptr;
+    if (get_system_variable_hash() != nullptr)
+    {
+      sysvar= find_or_nullptr(*get_system_variable_hash(),
+                              to_string(com_sys_var_name));
+    }
+    if (sysvar == nullptr)
     {
       my_message_local(ERROR_LEVEL, "variable name '%s' not found",
                        com_sys_var_name.c_ptr());
@@ -483,7 +481,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
       return true;
     }
 
-    result= my_hash_delete(get_system_variable_hash(), (uchar *) sysvar);
+    result= !get_system_variable_hash()->erase(to_string(sysvar->name));
     /* Update system_variable_hash version. */
     system_variable_hash_version++;
     mysql_rwlock_unlock(&LOCK_system_variables_hash);

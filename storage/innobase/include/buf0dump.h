@@ -60,4 +60,10 @@ again. */
 void
 buf_dump_thread();
 
+/** Generate the path to the buffer pool dump/load file.
+@param[out]	path		generated path
+@param[in]	path_size	size of 'path', used as in snprintf(3). */
+void
+buf_dump_generate_path(char* path, size_t path_size);
+
 #endif /* buf0dump_h */

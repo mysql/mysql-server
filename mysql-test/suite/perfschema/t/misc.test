@@ -101,7 +101,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 # Bug#44898 PerformanceSchema: can create a table in db performance_schema, cannot insert
 #
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_DBACCESS_DENIED_ERROR
 create table performance_schema.t1(a int);
 
 # The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE

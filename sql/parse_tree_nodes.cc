@@ -1247,8 +1247,76 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc)
   if (super::contextualize(pc))
     return true;
 
-  THD *thd= pc->thd;
-  LEX *lex= thd->lex;
+  THD *const thd= pc->thd;
+  LEX *const lex= thd->lex;
+
+  LEX_CSTRING db;
+  LEX_CSTRING orig_db;
+
+  if (m_referenced_table->db.str)
+  {
+    orig_db= m_referenced_table->db;
+
+    if (check_db_name(orig_db.str, orig_db.length) != Ident_name_check::OK)
+      return true;
+
+    if (lower_case_table_names)
+    {
+      char *db_str= thd->strmake(orig_db.str, orig_db.length);
+      if (db_str == nullptr)
+        return true; // OOM
+      db.length= my_casedn_str(files_charset_info, db_str);
+      db.str= db_str;
+    }
+    else
+      db= orig_db;
+  }
+  else
+  {
+    /*
+      Before 8.0 foreign key metadata was handled by SEs and they
+      assumed that parent table belongs to the same database as
+      child table unless FQTN was used (and connection's current
+      database was ignored). We keep behavior compatible even
+      though this is inconsistent with interpretation of non-FQTN
+      table names in other contexts.
+
+      If this is ALTER TABLE with RENAME TO <db_name.table_name>
+      clause we need to use name of the target database.
+    */
+    if (pc->alter_info->new_db_name.str)
+    {
+      db= orig_db= pc->alter_info->new_db_name;
+    }
+    else
+    {
+      TABLE_LIST *child_table= lex->select_lex->get_table_list();
+      db= orig_db= LEX_CSTRING{child_table->db, child_table->db_length};
+    }
+  }
+
+  Ident_name_check ident_check_status=
+    check_table_name(m_referenced_table->table.str,
+                     m_referenced_table->table.length);
+  if (ident_check_status != Ident_name_check::OK)
+  {
+    my_error(ER_WRONG_TABLE_NAME, MYF(0), m_referenced_table->table.str);
+    return true;
+  }
+
+  LEX_CSTRING table_name;
+
+  if (lower_case_table_names)
+  {
+    char *table_name_str= thd->strmake(m_referenced_table->table.str,
+                                       m_referenced_table->table.length);
+    if (table_name_str == nullptr)
+      return true; // OOM
+    table_name.length= my_casedn_str(files_charset_info, table_name_str);
+    table_name.str= table_name_str;
+  }
+  else
+    table_name= m_referenced_table->table;
 
   lex->key_create_info= default_key_create_info;
 
@@ -1264,7 +1332,9 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc)
     new (*THR_MALLOC) Foreign_key_spec(thd->mem_root,
                                        used_name,
                                        *m_columns,
-                                       m_referenced_table->db,
+                                       db,
+                                       orig_db,
+                                       table_name,
                                        m_referenced_table->table,
                                        m_ref_list,
                                        m_fk_delete_opt,
@@ -2067,9 +2137,27 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd)
     return NULL;
 
   if (m_opt_actions)
+  {
+    /*
+      Move RENAME TO <table_name> clauses to the head of array, so they are
+      processed before ADD FOREIGN KEY clauses. The latter need to know target
+      database name for proper contextualization.
+
+      Use stable sort to preserve order of other clauses which might be
+      sensitive to it.
+    */
+    std::stable_sort(m_opt_actions->begin(), m_opt_actions->end(),
+                     [] (const PT_ddl_table_option *lhs,
+                         const PT_ddl_table_option * rhs)
+                     {
+                       return lhs->is_rename_table() &&
+                              !rhs->is_rename_table();
+                     });
+
     for (auto *action : *m_opt_actions)
       if (action->contextualize(&pc))
         return NULL;
+  }
 
   if ((pc.create_info->used_fields & HA_CREATE_USED_ENGINE) &&
       !pc.create_info->db_type)

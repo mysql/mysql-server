@@ -34,8 +34,10 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "sync0sync.h"
 
-/** Keeps count of number of Performance Schema keys defined. */
-unsigned int mysql_pfs_key_t::s_count;
+#ifdef HAVE_PSI_INTERFACE
+/** To keep count of number of PS keys defined. */
+unsigned int mysql_pfs_key_t::s_count = 0;
+#endif /* HAVE_PSI_INTERFACE */
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register autoinc_mutex with performance schema */
@@ -70,6 +72,9 @@ mysql_pfs_key_t	log_sys_mutex_key;
 mysql_pfs_key_t	log_sys_write_mutex_key;
 mysql_pfs_key_t	log_cmdq_mutex_key;
 mysql_pfs_key_t	log_flush_order_mutex_key;
+mysql_pfs_key_t	log_sys_arch_mutex_key;
+mysql_pfs_key_t	page_sys_arch_mutex_key;
+mysql_pfs_key_t	page_sys_arch_oper_mutex_key;
 mysql_pfs_key_t	mutex_list_mutex_key;
 mysql_pfs_key_t	recalc_pool_mutex_key;
 mysql_pfs_key_t	page_cleaner_mutex_key;
@@ -116,6 +121,9 @@ mysql_pfs_key_t zip_pad_mutex_key;
 mysql_pfs_key_t row_drop_list_mutex_key;
 mysql_pfs_key_t file_open_mutex_key;
 mysql_pfs_key_t	master_key_id_mutex_key;
+mysql_pfs_key_t clone_sys_mutex_key;
+mysql_pfs_key_t clone_task_mutex_key;
+mysql_pfs_key_t clone_snapshot_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 

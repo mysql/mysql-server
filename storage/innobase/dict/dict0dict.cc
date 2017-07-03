@@ -42,6 +42,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mysqld.h"			// system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
+#include "clone0api.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -1842,8 +1843,12 @@ dict_table_rename_in_cache(
 			return(err);
 		}
 
+		clone_mark_abort(true);
+
 		bool	success = fil_rename_tablespace(
 			table->space, old_path, new_name, new_path);
+
+		clone_mark_active();
 
 		ut_free(old_path);
 		ut_free(new_path);
@@ -5765,7 +5770,6 @@ dict_table_apply_dynamic_metadata(
 @param[in]	buffer		buffer to read
 @param[in]	size		size of data in buffer
 @param[in]	metadata	where we store the metadata from buffer */
-static
 void
 dict_table_read_dynamic_metadata(
 	const byte*		buffer,

@@ -5494,10 +5494,8 @@ static Item**
 resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
 {
   DBUG_ENTER("resolve_ref_in_select_and_group");
-  Item **group_by_ref= NULL;
   Item **select_ref= NULL;
   ORDER *group_list= select->group_list.first;
-  bool ambiguous_fields= FALSE;
   uint counter;
   enum_resolution_type resolution;
 
@@ -5515,21 +5513,25 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
   if (select->having_fix_field && !ref->has_aggregation() && group_list)
   {
-    group_by_ref= find_field_in_group_list(ref, group_list);
-    
+    Item **group_by_ref= find_field_in_group_list(ref, group_list);
+
     /* Check if the fields found in SELECT and GROUP BY are the same field. */
     if (group_by_ref && (select_ref != not_found_item) &&
         !((*group_by_ref)->eq(*select_ref, 0)))
     {
-      ambiguous_fields= TRUE;
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER_THD(thd, ER_NON_UNIQ_ERROR), ref->full_name(),
                           thd->where);
-
     }
+
+    if (group_by_ref != nullptr)
+      DBUG_RETURN(group_by_ref);
   }
 
-  if (select_ref != not_found_item && (*select_ref)->has_wf())
+  if (select_ref == not_found_item)
+    DBUG_RETURN(not_found_item);
+
+  if ((*select_ref)->has_wf())
   {
     /*
       We can't reference an alias to a window function expr from within
@@ -5539,32 +5541,34 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     DBUG_RETURN(NULL);
   }
 
-  if (select_ref != not_found_item || group_by_ref)
-  {
-    if (select_ref != not_found_item && !ambiguous_fields)
-    {
-      DBUG_ASSERT(*select_ref != 0);
-      if (!select->base_ref_items[counter])
-      {
-        my_error(ER_ILLEGAL_REFERENCE, MYF(0),
-                 ref->item_name.ptr(), "forward reference in item list");
-        DBUG_RETURN(NULL);
-      }
-      /*
-       Assert if its an incorrect reference . We do not assert if its a outer
-       reference, as they get fixed later in fix_innner_refs function.
-      */
-      DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
+  /*
+    The pointer in base_ref_items is nullptr if the column reference
+    is a reference to itself, such as 'a' in:
 
-      DBUG_RETURN(&select->base_ref_items[counter]);
-    }
-    if (group_by_ref)
-      DBUG_RETURN(group_by_ref);
-    DBUG_ASSERT(FALSE);
-    DBUG_RETURN(NULL); /* So there is no compiler warning. */
+      SELECT (SELECT ... WHERE a = 1) AS a ...
+
+    Or if it's a reference to an expression that comes later in the
+    select list, such as 'b' in:
+
+      SELECT (SELECT ... WHERE b = 1) AS a, (SELECT ...) AS b ...
+
+    Raise an error if such invalid references are encountered.
+  */
+  if (select->base_ref_items[counter] == nullptr)
+  {
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0),
+             ref->item_name.ptr(), "forward reference in item list");
+    DBUG_RETURN(nullptr);
   }
 
-  DBUG_RETURN(not_found_item);
+  /*
+    Assert if it's an incorrect reference. We do not assert if it's an
+    outer reference, as they get fixed later in the fix_inner_refs()
+    function.
+  */
+  DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
+
+  DBUG_RETURN(&select->base_ref_items[counter]);
 }
 
 
@@ -7826,6 +7830,189 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
 
 
 /**
+  Set the maximum number of characters required by any of the items in args.
+*/
+void Item::aggregate_char_length(Item **args, uint nitems)
+{
+  uint32 char_length= 0;
+  for (uint i= 0; i < nitems; i++)
+    set_if_bigger(char_length, args[i]->max_char_length());
+  fix_char_length(char_length);
+}
+
+
+/**
+  Set max_length and decimals of function if function is floating point and
+  result length/precision depends on argument ones.
+
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_float_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == REAL_RESULT);
+  uint32 length= 0;
+  uint8 decimals_cnt= 0;
+  uint32 maxl= 0;
+  for (uint i=0 ; i < nitems; i++)
+  {
+    if (decimals_cnt != NOT_FIXED_DEC)
+    {
+      set_if_bigger(decimals_cnt, item[i]->decimals);
+      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
+    }
+    set_if_bigger(maxl, item[i]->max_length);
+  }
+  if (decimals_cnt != NOT_FIXED_DEC)
+  {
+    maxl= length;
+    length+= decimals_cnt;
+    if (length < maxl)  // If previous operation gave overflow
+      maxl= UINT_MAX32;
+    else
+      maxl= length;
+  }
+
+  this->max_length= maxl;
+  this->decimals= decimals_cnt;
+}
+
+
+/**
+  Set precision and decimals of function when this depends on arguments'
+  values for these quantities.
+ 
+  @param item    Argument array.
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_decimal_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == DECIMAL_RESULT);
+  int max_int_part= 0;
+  uint8 decimal_cnt= 0;
+  for (uint i=0 ; i < nitems ; i++)
+  {
+    set_if_bigger(decimal_cnt, item[i]->decimals);
+    set_if_bigger(max_int_part, item[i]->decimal_int_part());
+  }
+  int precision= min(max_int_part + decimal_cnt, DECIMAL_MAX_PRECISION);
+  set_data_type_decimal(precision, decimal_cnt);
+}
+
+
+/**
+  Set fractional seconds precision for temporal functions.
+
+  @param item    Argument array
+  @param nitems  Number of arguments in the array.
+*/
+void Item::aggregate_temporal_properties(Item **item, uint nitems)
+{
+  DBUG_ASSERT(result_type() == STRING_RESULT);
+  uint8 decimal_cnt= 0;
+
+  switch (data_type())
+  {
+    case MYSQL_TYPE_DATETIME:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_datetime(decimal_cnt);
+      break;
+
+    case MYSQL_TYPE_TIMESTAMP:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_timestamp(decimal_cnt);
+      break;
+
+    case MYSQL_TYPE_NEWDATE:
+      DBUG_ASSERT(false);
+      set_data_type_date();
+      set_data_type(MYSQL_TYPE_NEWDATE);
+      break;
+
+    case MYSQL_TYPE_DATE:
+      set_data_type_date();
+      break;
+
+    case MYSQL_TYPE_TIME:
+      for (uint i= 0; i < nitems; i++)
+        set_if_bigger(decimal_cnt, item[i]->time_precision());
+      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+      set_data_type_time(decimal_cnt);
+      break;
+
+    default:
+      DBUG_ASSERT(false);                           /* purecov: inspected */
+  }
+}
+
+
+/**
+  Aggregate string properties (character set, collation and maximum length) for
+  string function.q
+
+  @param field_type  Field type.
+  @param name        Name of function
+  @param items       Argument array.
+  @param nitems      Number of arguments.
+
+  @retval            False on success, true on error.
+*/
+bool Item::aggregate_string_properties(enum_field_types field_type,
+                                       const char *name,
+                                       Item **items, uint nitems)
+{
+  DBUG_ASSERT(result_type() == STRING_RESULT);
+  if (agg_item_charsets_for_string_result(collation, name, items, nitems, 1))
+    return true;
+  if (is_temporal_type(field_type))
+    aggregate_temporal_properties(items, nitems);
+  else
+  {
+    decimals= NOT_FIXED_DEC;
+    aggregate_char_length(items, nitems);
+  }
+  return false;
+}
+
+
+/**
+  This function is used to resolve type for numeric result type of CASE,
+  COALESCE, IF and LEAD/LAG. COALESCE is a CASE abbreviation according to the
+  standard.
+
+  @param result_type The desired result type
+  @param item        The arguments of func
+  @param nitems      The number of arguments
+*/
+void Item::aggregate_num_type(Item_result result_type,
+                              Item **item,
+                              uint nitems)
+{
+  switch (result_type)
+  {
+    case DECIMAL_RESULT:
+      aggregate_decimal_properties(item, nitems);
+      break;
+    case REAL_RESULT:
+      aggregate_float_properties(item, nitems);
+      break;
+    case INT_RESULT:
+    case STRING_RESULT:
+      aggregate_char_length(item, nitems);
+      decimals= 0;
+      break;
+    case ROW_RESULT:
+    default:
+      DBUG_ASSERT(0);
+  }
+}
+
+
+/**
   Cache item if needed.
 
   @param arg   != NULL <=> Cache this item.
@@ -8061,8 +8248,6 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
 bool Item_ref::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ENTER("Item_ref::fix_fields");
-
-  enum_parsing_context place= CTX_NONE;
   DBUG_ASSERT(fixed == 0);
   SELECT_LEX *current_sel= thd->lex->current_select();
 
@@ -8108,7 +8293,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         Item_subselect *prev_subselect_item=
           last_checked_context->select_lex->master_unit()->item;
         last_checked_context= outer_context;
-        place= prev_subselect_item->parsing_place;
+        const enum_parsing_context place= prev_subselect_item->parsing_place;
 
         /* Search in the SELECT and GROUP lists of the outer select. */
         if (select_alias_referencable(place) &&
@@ -8189,7 +8374,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
               /*
                 Due to cache, find_field_in_tables() can return field which
                 doesn't belong to provided outer_context. In this case we have
-                to find proper field context in order to fix field correcly.
+                to find proper field context in order to fix field correctly.
               */
               do
               {
@@ -8230,7 +8415,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
-                          thd->lex->current_select(), this, fld);
+                          current_sel, this, fld);
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
@@ -8267,24 +8452,33 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
     }
   }
 
-  DBUG_ASSERT(*ref);
   /*
-    Check if this is an incorrect reference in a group function or forward
-    reference. Do not issue an error if this is:
-      1. outer reference (will be fixed later by the fix_inner_refs function);
-      2. an unnamed reference inside an aggregate function.
+    The reference should be fixed at this point. Outer references will
+    be fixed later by the fix_inner_refs() function.
   */
-  if (!((*ref)->type() == REF_ITEM &&
-       ((Item_ref *)(*ref))->ref_type() == OUTER_REF) &&
-      (((*ref)->has_aggregation() && item_name.ptr() &&
-        !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
-          current_sel->having_fix_field)) ||
-       !(*ref)->fixed))
+  DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+
+  /*
+    Reject invalid references to aggregates.
+
+    1) We only accept references to aggregates in a HAVING clause.
+    (This restriction is not strictly necessary, but we don't want to
+    lift it without making sure that such queries are handled
+    correctly. Lifting the restriction will make bugs such as
+    bug#13633829 and bug#22588319 (aka bug#80116) affect a larger set
+    of queries.)
+
+    2) An aggregate cannot be referenced from the GROUP BY clause of
+    the query block where the aggregation happens, since grouping
+    happens before aggregation.
+  */
+  if (((*ref)->has_aggregation() && !current_sel->having_fix_field) ||  // 1
+      walk(&Item::has_aggregate_ref_in_group_by,                        // 2
+           enum_walk(WALK_POSTFIX | WALK_SUBQUERY),
+           nullptr))
   {
-    my_error(ER_ILLEGAL_REFERENCE, MYF(0),
-             item_name.ptr(), ((*ref)->has_aggregation() ?
-                    "reference to group function":
-                    "forward reference in item list"));
+    my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
+             "reference to group function");
     goto error;
   }
 
@@ -10887,87 +11081,6 @@ void Item_result_field::cleanup()
 }
 
 
-/**
-  Set char_length to the maximum number of characters required by any
-  of this function's or window function's arguments.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-void Item_result_field::count_only_length(Item **item, uint nitems)
-{
-  uint32 char_length= 0;
-  for (uint i= 0; i < nitems; i++)
-    set_if_bigger(char_length, item[i]->max_char_length());
-  fix_char_length(char_length);
-}
-
-
-/**
-  Count max_length and decimals for temporal functions or window functions.
-
-  @param item    Argument array
-  @param nitems  Number of arguments in the array.
-*/
-void Item_result_field::count_datetime_length(Item **item, uint nitems)
-{
-  unsigned_flag= false;
-  decimals= 0;
-  if (data_type() != MYSQL_TYPE_DATE)
-  {
-    for (uint i= 0; i < nitems; i++)
-      set_if_bigger(decimals,
-                    data_type() == MYSQL_TYPE_TIME ?
-                    item[i]->time_precision() : item[i]->datetime_precision());
-  }
-  set_if_smaller(decimals, DATETIME_MAX_DECIMALS);
-  uint len= decimals ? (decimals + 1) : 0;
-  switch (data_type())
-  {
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      len+= MAX_DATETIME_WIDTH;
-      break;
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
-      len+= MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-      len+= MAX_TIME_WIDTH;
-      break;
-    default:
-      DBUG_ASSERT(0);                           /* purecov: inspected */
-  }
-  fix_char_length(len);
-}
-
-
-/**
-  Calculate max_length and decimals for STRING_RESULT functions or window
-  functions.
-
-  @param field_type  Field type.
-  @param items       Argument array.
-  @param nitems      Number of arguments.
-
-  @retval            False on success, true on error.
-*/
-bool Item_result_field::count_string_result_length(enum_field_types field_type,
-                                                   Item **items, uint nitems)
-{
-  if (agg_item_charsets_for_string_result(collation, func_name(), items, nitems, 1))
-    return true;
-  if (is_temporal_type(field_type))
-    count_datetime_length(items, nitems);
-  else
-  {
-    decimals= NOT_FIXED_DEC;
-    count_only_length(items, nitems);
-  }
-  return false;
-}
-
-
 double Item_result_field::val_real_result()
 {
   double res;
@@ -11100,7 +11213,6 @@ bool Item_result_field::is_null_result()
     res= is_null();
   return res;
 }
-
 
 /**
   Helper method: Convert string to the given charset, then print.

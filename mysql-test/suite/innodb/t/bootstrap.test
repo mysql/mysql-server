@@ -25,7 +25,8 @@ EOF
 --exec echo "datadir = $bugdir/data" >> $bugdir/my.cnf
 --exec echo "innodb_data_home_dir = $bugdir/data" >> $bugdir/my.cnf
 
---echo # Start mysqld without the possibility to create innodb_undo_tablespaces
+--echo # Start mysqld without the possibility to create undo tablespaces
+--echo # because a directory exists named 'undo_002'.
 --mkdir $bugdir/data/undo_002
 # In scope of WL#9461,WL#9357, in place upgrade condition requires
 # mysql.plugin.frm file. Create the file manually here to allow

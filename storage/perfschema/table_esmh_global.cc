@@ -60,7 +60,11 @@ PFS_engine_table_share table_esmh_global::m_share = {
   sizeof(pos_t),
   &m_table_lock,
   &m_table_def,
-  false};
+  false,
+  PFS_engine_table_proxy(),
+  {0},
+  false /* m_in_purgatory */
+};
 
 bool
 PFS_index_esmh_global::match_bucket(ulong bucket_index)

@@ -59,24 +59,15 @@
 #include "table.h"
 #include "template_utils.h"
 
-static HASH system_variable_hash;
+using std::string;
+
+static collation_unordered_map<string, sys_var *> *system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);
 ulonglong system_variable_hash_version= 0;
 
-HASH *get_system_variable_hash(void)
+collation_unordered_map<string, sys_var *> *get_system_variable_hash(void)
 {
-    return &system_variable_hash;
-}
-
-/**
-  Return variable name and length for hashing of variables.
-*/
-
-static const uchar *get_sys_var_length(const uchar *arg, size_t *length)
-{
-  const sys_var *var= pointer_cast<const sys_var*>(arg);
-  *length= var->name.length;
-  return (uchar*) var->name.str;
+  return system_variable_hash;
 }
 
 sys_var_chain all_sys_vars = { NULL, NULL };
@@ -88,10 +79,8 @@ int sys_var_init()
   /* Must be already initialized. */
   DBUG_ASSERT(system_charset_info != NULL);
 
-  if (my_hash_init(&system_variable_hash, system_charset_info, 100,
-                   0, get_sys_var_length, nullptr, HASH_UNIQUE,
-                   PSI_INSTRUMENT_ME))
-    goto error;
+  system_variable_hash= new collation_unordered_map<string, sys_var *>
+    (system_charset_info, PSI_INSTRUMENT_ME);
 
   if (mysql_add_sys_var_chain(all_sys_vars.first))
     goto error;
@@ -124,7 +113,8 @@ void sys_var_end()
 {
   DBUG_ENTER("sys_var_end");
 
-  my_hash_free(&system_variable_hash);
+  delete system_variable_hash;
+  system_variable_hash= nullptr;
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
     var->cleanup();
@@ -537,8 +527,8 @@ int mysql_add_sys_var_chain(sys_var *first)
 
   for (var= first; var; var= var->next)
   {
-    /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
-    if (my_hash_insert(&system_variable_hash, (uchar*) var))
+    /* this fails if there is a conflicting variable name. */
+    if (!system_variable_hash->emplace(to_string(var->name), var).second)
     {
       my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
                        var->name.str);
@@ -552,7 +542,7 @@ int mysql_add_sys_var_chain(sys_var *first)
 
 error:
   for (; first != var; first= first->next)
-    my_hash_delete(&system_variable_hash, (uchar*) first);
+    system_variable_hash->erase(to_string(var->name));
   return 1;
 }
 
@@ -576,7 +566,7 @@ int mysql_del_sys_var_chain(sys_var *first)
   /* A write lock should be held on LOCK_system_variables_hash */
 
   for (sys_var *var= first; var; var= var->next)
-    result|= my_hash_delete(&system_variable_hash, (uchar*) var);
+    result|= !system_variable_hash->erase(to_string(var->name));
 
   /* Update system_variable_hash version. */
   system_variable_hash_version++;
@@ -605,7 +595,7 @@ static int show_cmp(const void *a, const void *b)
 */
 ulong get_system_variable_hash_records(void)
 {
-  return (system_variable_hash.records);
+  return (system_variable_hash->size());
 }
 
 /*
@@ -633,7 +623,7 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
 {
   DBUG_ASSERT(show_var_array != NULL);
   DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
-  int count= system_variable_hash.records;
+  int count= system_variable_hash->size();
   
   /* Resize array if necessary. */
   if (show_var_array->reserve(count+1))
@@ -641,9 +631,9 @@ bool enumerate_sys_vars(Show_var_array *show_var_array,
 
   if (show_var_array)
   {
-    for (int i= 0; i < count; i++)
+    for (const auto &key_and_value : *system_variable_hash)
     {
-      sys_var *sysvar= (sys_var*) my_hash_element(&system_variable_hash, i);
+      sys_var *sysvar= key_and_value.second;
 
       if (strict)
       {
@@ -710,8 +700,8 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
     This function is only called from the sql_plugin.cc.
     A lock on LOCK_system_variable_hash should be held
   */
-  var= (sys_var*) my_hash_search(&system_variable_hash,
-                              (uchar*) str, length ? length : strlen(str));
+  var= find_or_nullptr(*system_variable_hash,
+                       string(str, length ? length : strlen(str)));
 
   /* Don't show non-visible variables. */
   if (var && var->not_visible())
@@ -875,7 +865,7 @@ int set_var::resolve(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if (is_global_persist())
+  if (type == OPT_GLOBAL || type == OPT_PERSIST)
   {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
     Security_context *sctx= thd->security_context();
@@ -886,16 +876,22 @@ int set_var::resolve(THD *thd)
                "SUPER or SYSTEM_VARIABLES_ADMIN");
       DBUG_RETURN(1);
     }
-    if (type == OPT_PERSIST_ONLY)
+  }
+  if (type == OPT_PERSIST_ONLY)
+  {
+    Security_context *sctx= thd->security_context();
+    /*
+     user should have both SYSTEM_VARIABLES_ADMIN and "PERSIST_RO_VARIABLES_ADMIN"
+     privilege to persist read only variables
+    */
+    if (!(sctx->has_global_grant(
+          STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first &&
+          sctx->has_global_grant(
+          STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first))
     {
-      if (!sctx->check_access(SUPER_ACL) &&
-          !sctx->has_global_grant(
-            STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first)
-      {
-        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                 "SUPER or PERSIST_RO_VARIABLES_ADMIN");
-        DBUG_RETURN(1);
-      }
+      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
+               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
+      DBUG_RETURN(1);
     }
   }
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
@@ -975,8 +971,10 @@ int set_var::light_check(THD *thd)
     return 1;
 
   if ((type == OPT_PERSIST_ONLY) &&
-      !(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first))
+      !(sctx->has_global_grant(
+        STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN")).first &&
+        sctx->has_global_grant(
+        STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN")).first))
     return 1;
 
   if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||

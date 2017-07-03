@@ -572,6 +572,7 @@ Group_member_info_manager(Group_member_info* local_member_info)
 
 Group_member_info_manager::~Group_member_info_manager()
 {
+  mysql_mutex_destroy(&update_lock);
   clear_members();
   delete members;
 }

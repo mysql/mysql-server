@@ -285,7 +285,7 @@ static Log_event* next_event(Relay_log_info* rli);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
-                                  volatile uint *slave_running,
+                                  std::atomic<uint> *slave_running,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term,
                                   bool force= false);
@@ -1894,7 +1894,7 @@ static int
 terminate_slave_thread(THD *thd,
                        mysql_mutex_t *term_lock,
                        mysql_cond_t *term_cond,
-                       volatile uint *slave_running,
+                       std::atomic<uint> *slave_running,
                        ulong *stop_wait_timeout,
                        bool need_lock_term,
                        bool force)
@@ -1988,8 +1988,8 @@ bool start_slave_thread(
                         my_start_routine h_func, mysql_mutex_t *start_lock,
                         mysql_mutex_t *cond_lock,
                         mysql_cond_t *start_cond,
-                        volatile uint *slave_running,
-                        volatile ulong *slave_run_id,
+                        std::atomic<uint> *slave_running,
+                        std::atomic<ulong> *slave_run_id,
                         Master_info* mi)
 {
   bool is_error= false;
@@ -6818,6 +6818,9 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i)
 err:
   if (error && w)
   {
+    // Free the current submode object
+    delete w->current_mts_submode;
+    w->current_mts_submode= 0;
     delete w;
     /*
       Any failure after array inserted must follow with deletion
@@ -6907,6 +6910,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   {
     if ((error= slave_start_single_worker(rli, i)))
       goto err;
+    rli->slave_parallel_workers++;
   }
 
 end:
@@ -6919,7 +6923,6 @@ end:
     delete rli->workers_copy_pfs[i];
   rli->workers_copy_pfs.clear();
 
-  rli->slave_parallel_workers= n;
   // Effective end of the recovery right now when there is no gaps
   if (!error && rli->mts_recovery_group_cnt == 0)
   {

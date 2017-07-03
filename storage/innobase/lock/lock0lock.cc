@@ -1392,6 +1392,7 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 		lock_set_lock_and_trx_wait(lock, lock->trx);
 	}
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 	/*
 	  The performance schema THREAD_ID and EVENT_ID
@@ -1400,7 +1401,8 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 	PSI_THREAD_CALL(get_thread_event_id)(
 		& lock->m_psi_internal_thread_id,
 		& lock->m_psi_event_id);
-#endif
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
 	UT_LIST_ADD_LAST(lock->trx->lock.trx_locks, lock);
 }
@@ -3638,6 +3640,7 @@ lock_table_create(
 
 	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 	/*
 	  The performance schema THREAD_ID and EVENT_ID
@@ -3646,7 +3649,8 @@ lock_table_create(
 	PSI_THREAD_CALL(get_thread_event_id)(
 		& lock->m_psi_internal_thread_id,
 		& lock->m_psi_event_id);
-#endif
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
 	UT_LIST_ADD_LAST(trx->lock.trx_locks, lock);
 

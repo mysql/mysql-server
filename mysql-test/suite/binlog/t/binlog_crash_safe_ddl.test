@@ -29,6 +29,7 @@
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
+--source include/have_udf.inc
 
 # The part II related variable to describe a binlog file
 # with recorded CREATE USER. The file is created in the Ist part.

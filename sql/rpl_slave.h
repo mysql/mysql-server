@@ -18,6 +18,7 @@
 
 #include <limits.h>
 #include <sys/types.h>
+#include <atomic>
 
 #include "my_bitmap.h"
 #include "my_inttypes.h"
@@ -25,6 +26,7 @@
 #include "my_thread.h"                     // my_start_routine
 #include "mysql/psi/mysql_cond.h"          // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 
@@ -475,8 +477,8 @@ bool start_slave_thread(
                         mysql_mutex_t *start_lock,
                         mysql_mutex_t *cond_lock,
                         mysql_cond_t *start_cond,
-                        volatile uint *slave_running,
-                        volatile ulong *slave_run_id,
+                        std::atomic<uint> *slave_running,
+                        std::atomic<ulong> *slave_run_id,
                         Master_info *mi);
 
 bool show_slave_status(THD* thd, Master_info* mi);

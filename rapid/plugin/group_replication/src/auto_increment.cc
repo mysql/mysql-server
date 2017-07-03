@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,8 @@ reset_auto_increment_variables()
     group_replication_auto_increment_increment and
     group_replication_auto_increment_offset
   */
-  if (group_replication_auto_increment == current_server_increment &&
+  if (local_member_info != NULL && !local_member_info->in_primary_mode() &&
+      group_replication_auto_increment == current_server_increment &&
       group_replication_auto_offset == current_server_offset)
   {
     /* set to default values i.e. 1 */
@@ -64,7 +65,8 @@ set_auto_increment_variables(ulong increment, ulong offset)
   ulong current_server_increment= get_auto_increment_increment();
   ulong current_server_offset= get_auto_increment_offset();
 
-  if (current_server_increment == 1 &&
+  if (local_member_info != NULL && !local_member_info->in_primary_mode() &&
+      current_server_increment == 1 &&
       current_server_offset == 1)
   {
     /* set server auto_increment variables */

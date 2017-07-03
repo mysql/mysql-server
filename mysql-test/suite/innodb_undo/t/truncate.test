@@ -2,16 +2,16 @@
 # WL#6965: Truncate UNDO logs.
 #
 
+--source include/not_valgrind.inc
 --source include/have_innodb_max_16k.inc
 
 # The test is restarting the server to force undo truncation.
 --source include/big_test.inc
 
---let $restart_parameters="restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=3"
---source include/restart_mysqld.inc
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 SET GLOBAL innodb_undo_tablespaces=2;
+SET GLOBAL innodb_rollback_segments=3;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
 
 ################################################################################
 # Test-case will test following scenarios.

@@ -496,13 +496,15 @@ int opt_sum_query(THD *thd,
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
 
+
           /*
-            Set table row status to "not started" since original and
-            real read_set are different, i.e. some field values
-            from original read set could be unread.
+            Set table row status to "not started" unconditionally.  This will
+            prepare the table for regular access in the join execution
+            machinery if the opt_sum_query() optimization is aborted and cannot
+            be used.  The row status does not affect column values read into
+            record[0].
           */
-          if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
-            table->set_not_started();
+          table->set_not_started();
 
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);

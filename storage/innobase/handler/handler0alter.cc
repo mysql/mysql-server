@@ -92,6 +92,7 @@ Smart ALTER TABLE
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "dict0dd.h"
+#include "clone0api.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "partition_info.h"
@@ -1081,8 +1082,15 @@ ha_innobase::inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	DBUG_RETURN(inplace_alter_table_impl<dd::Table>(
-		altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
+	/* Don't allow database clone during in place operations */
+	clone_mark_abort(true);
+
+	auto ret = inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, old_dd_tab, new_dd_tab);
+
+	clone_mark_active();
+
+	DBUG_RETURN(ret);
 }
 
 /** Commit or rollback the changes made during
@@ -11441,6 +11449,7 @@ alter_part_factory::create_for_non_reorg(
 }
 
 
+#ifndef DBUG_OFF
 /** Check if the specified partition_state is of drop state
 @param[in]	s	The state to be checked
 @retval	true    if this is of a drop state
@@ -11453,6 +11462,7 @@ is_drop_state(partition_state s)
 	return(s == PART_TO_BE_DROPPED || s == PART_REORGED_DROPPED
 	       || s == PART_TO_BE_REORGED);
 }
+#endif
 
 /** Check if the specified partition_state is of common state
 @param[in]	s	The state to be checked

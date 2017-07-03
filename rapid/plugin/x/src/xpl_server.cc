@@ -219,7 +219,7 @@ void xpl::Server::on_client_closed(const ngs::Client_interface&)
 
 bool xpl::Server::will_accept_client(const ngs::Client_interface&)
 {
-  Mutex_lock lock(m_accepting_mutex);
+  MUTEX_LOCK(lock, m_accepting_mutex);
 
   ++m_num_of_connections;
 
@@ -607,7 +607,8 @@ bool xpl::Server::on_net_startup()
 
 ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 {
-  ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex()));
+  ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock(server().get_client_exit_mutex(),
+                                                  __FILE__, __LINE__));
   ngs::Client_ptr found_client = server().get_client_list().find(client_id);
 
   // Locking exit mutex of ensures that the client wont exit Client::run until
@@ -631,7 +632,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
     uint64_t mysql_session_id = 0;
 
     {
-      Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
+      MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
       ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
       is_session = NULL != session.get();
@@ -648,7 +649,7 @@ ngs::Error_code xpl::Server::kill_client(uint64_t client_id, Session &requester)
 
       bool is_killed = false;
       {
-        Mutex_lock lock_session_exit(xpl_client->get_session_exit_mutex());
+        MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
         ngs::shared_ptr<xpl::Session> session = xpl_client->get_session();
 
         if (session)

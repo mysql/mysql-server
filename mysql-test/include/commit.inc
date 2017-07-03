@@ -614,7 +614,7 @@ begin
 end|
 delimiter ;|
 --disable_warnings
-call p_verify_status_increment(4, 0, 2, 0);
+call p_verify_status_increment(6, 4, 2, 0);
 --enable_warnings
 
 --echo # 16. A function changes non-trans-table.
@@ -919,7 +919,7 @@ if ($have_debug)
 }
 
 create view v1 as select * from t2;
-call p_verify_status_increment(5, 0, 3, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 check table t1;
 call p_verify_status_increment(2, 0, 2, 0);
 --echo # Sic: after this bug is fixed, CHECK leaves no pending transaction
@@ -933,14 +933,14 @@ drop view v1;
 
 if (!$have_debug)
 {
-  --replace_regex /\(3/(X/
-  call p_verify_status_increment(3, 0, 3, 0);
+  --replace_regex /\(5/(X/
+  call p_verify_status_increment(5, 4, 3, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /4/X/
-  call p_verify_status_increment(4, 0, 3, 0);
+  --replace_regex /6/X/
+  call p_verify_status_increment(6, 4, 3, 0);
 }
 
 --enable_warnings

@@ -55,12 +55,10 @@ protected:
   @param json_text null-terminated string of JSON text
   @return a DOM representing the JSON document
 */
-static Json_dom *parse_json(const char *json_text)
+static Json_dom_ptr parse_json(const char *json_text)
 {
-  const char *msg;
-  size_t msg_offset;
   auto dom= Json_dom::parse(json_text, std::strlen(json_text),
-                            &msg, &msg_offset);
+                            nullptr, nullptr);
   EXPECT_NE(nullptr, dom);
   return dom;
 }

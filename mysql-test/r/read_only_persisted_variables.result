@@ -210,23 +210,26 @@ ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIA
 SET PERSIST max_heap_table_size=999424;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET PERSIST_ONLY ft_query_expansion_limit=80;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl9787;
 SET GLOBAL sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424;
 SET PERSIST_ONLY ft_query_expansion_limit=80;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or PERSIST_RO_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO wl9787;
 SET PERSIST_ONLY ft_query_expansion_limit=80;
 # revoke SYSTEM_VARIABLES_ADMIN
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM wl9787;
 # persisting static variables needs both SYSTEM_VARIABLES_ADMIN
 SET PERSIST_ONLY ft_query_expansion_limit=80;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
 REVOKE PERSIST_RO_VARIABLES_ADMIN  ON *.* FROM wl9787;
-GRANT ALL ON *.* TO wl9787;
-# persisting static variables needs SUPER access
+GRANT SUPER ON *.* TO wl9787;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# persisting static variables does not need SUPER access
 SET PERSIST_ONLY ft_query_expansion_limit=80;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
 # reset persisted variables
 RESET PERSIST;
 # test reset on readonly persisted variables

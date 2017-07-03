@@ -164,7 +164,7 @@ extern "C" void handle_fatal_signal(int sig)
   if (thd)
   {
     const char *kreason= "UNKNOWN";
-    switch (thd->killed) {
+    switch (thd->killed.load()) {
     case THD::NOT_KILLED:
       kreason= "NOT_KILLED";
       break;

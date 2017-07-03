@@ -4234,7 +4234,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
        binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
 static Sys_var_bool Sys_master_verify_checksum(
        "master_verify_checksum",
@@ -4708,20 +4708,6 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 }
 
 
-uchar *Sys_var_sql_log_bin::global_value_ptr(THD *thd, LEX_STRING *base)
-{
-  /* Reading GLOBAL SQL_LOG_BIN produces a deprecation warning. */
-  if (base != NULL)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX,
-                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
-                        "@@global.sql_log_bin", "the constant 1 "
-                        "(since @@global.sql_log_bin is always equal to 1)");
-
-  return Sys_var_bool::global_value_ptr(thd, base);
-}
-
-
 static Sys_var_tx_read_only Sys_tx_read_only(
        "tx_read_only", "Set default transaction access mode to read only.",
        UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
@@ -4990,9 +4976,9 @@ static bool check_sql_log_bin(sys_var *self, THD *thd, set_var *var)
   return FALSE;
 }
 
-static Sys_var_sql_log_bin Sys_log_binlog(
+static Sys_var_bool Sys_log_binlog(
        "sql_log_bin", "Controls whether logging to the binary log is done",
-       SESSION_VAR(sql_log_bin), NO_CMD_LINE, DEFAULT(TRUE),
+       SESSION_ONLY(sql_log_bin), NO_CMD_LINE, DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
        ON_UPDATE(fix_sql_log_bin_after_update));
 

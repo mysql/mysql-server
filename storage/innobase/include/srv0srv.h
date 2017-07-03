@@ -457,6 +457,7 @@ extern srv_stats_t	srv_stats;
 /* Keys to register InnoDB threads with performance schema */
 
 # ifdef UNIV_PFS_THREAD
+extern mysql_pfs_key_t	archiver_thread_key;
 extern mysql_pfs_key_t	buf_dump_thread_key;
 extern mysql_pfs_key_t	buf_resize_thread_key;
 extern mysql_pfs_key_t	dict_stats_thread_key;
@@ -511,6 +512,15 @@ extern PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort;
 
 /** Performance schema stage event for monitoring buffer pool load progress. */
 extern PSI_stage_info	srv_stage_buffer_pool_load;
+
+/** Performance schema stage event for monitoring clone file copy progress. */
+extern PSI_stage_info	srv_stage_clone_file_copy;
+
+/** Performance schema stage event for monitoring clone redo copy progress. */
+extern PSI_stage_info	srv_stage_clone_redo_copy;
+
+/** Performance schema stage event for monitoring clone page copy progress. */
+extern PSI_stage_info	srv_stage_clone_page_copy;
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #endif /* !UNIV_HOTBACKUP */
@@ -540,6 +550,15 @@ enum srv_unix_flush_t {
 				the integrity of the meta-data */
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
+
+inline
+bool
+srv_is_direct_io()
+{
+	return(srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+	       || srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC);
+}
+
 #else
 /** Alternatives for file i/o in Windows. @see innodb_flush_method_names. */
 enum srv_win_flush_t {
@@ -549,6 +568,14 @@ enum srv_win_flush_t {
 	SRV_WIN_IO_NORMAL,
 };
 extern enum srv_win_flush_t	srv_win_file_flush_method;
+
+inline
+bool
+srv_is_direct_io()
+{
+	return(srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED);
+}
+
 #endif /* _WIN32 */
 
 /** Alternatives for srv_force_recovery. Non-zero values are intended

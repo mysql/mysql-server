@@ -100,6 +100,7 @@
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group
 #include "rpl_slave.h"         // use_slave_mask
+#include "sp_head.h"           // sp_name
 #include "sql_base.h"          // close_thread_tables
 #include "sql_bitmap.h"
 #include "sql_cache.h"         // query_cache
@@ -3333,7 +3334,13 @@ int Log_event::apply_gtid_event(Relay_log_info *rli)
   */
   DBUG_ASSERT(rli->gaq->len > 0);
   Slave_job_group g= Slave_job_group();
-  rli->gaq->de_queue(&g);
+  rli->gaq->de_tail(&g);
+  /*
+    The rli->mts_groups_assigned is increased when adding the slave job
+    generated for the gtid into the (G)lobal (A)ssigned (Q)ueue. So we
+    decrease it here.
+  */
+  rli->mts_groups_assigned--;
 
   DBUG_RETURN(error);
 }
@@ -4007,29 +4014,31 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg)
   case SQLCOM_SET_PASSWORD:
   case SQLCOM_CREATE_TRIGGER:
   case SQLCOM_DROP_TRIGGER:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_CREATE_FUNCTION:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_EVENT:
+  case SQLCOM_DROP_EVENT:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_DROP_VIEW:
 
     DBUG_ASSERT(using_trans_arg || thd->slave_thread || lex->drop_if_exists);
 
     break;
-  /*
-    For the following commands is_sql_command_atomic_ddl() is true but
-    they are not yet atomic. They should not use trx cache unless this
-    is call from the slave applier for which fake using_trans_arg value
-    is provided.
 
-    TODO: remove a command from the list once it gets 2pc-readied.
-  */
-  case SQLCOM_CREATE_VIEW:
-  case SQLCOM_DROP_VIEW:
-  case SQLCOM_CREATE_SPFUNCTION:
-  case SQLCOM_DROP_FUNCTION:
-  case SQLCOM_ALTER_FUNCTION:
-  case SQLCOM_CREATE_PROCEDURE:
-  case SQLCOM_DROP_PROCEDURE:
-  case SQLCOM_ALTER_PROCEDURE:
-
-    DBUG_ASSERT(!using_trans_arg || thd->slave_thread);
+  case SQLCOM_CREATE_EVENT:
+    /*
+      trx cache is *not* used if event already exists and IF NOT EXISTS clause
+      is used in the statement or if call is from the slave applier.
+    */
+    DBUG_ASSERT(using_trans_arg || thd->slave_thread ||
+                (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS));
     break;
+
   default:
     break;
   }
@@ -8924,20 +8933,19 @@ Rows_log_event::next_record_scan(bool first_read)
     if (!first_read)
     {
       /*
-        if we fail to fetch next record corresponding to an index value, we
+        if we fail to fetch next record corresponding to a key value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      error= table->file->ha_index_next(table->record[0]);
+      error= table->file->ha_index_next_same(table->record[0], m_key,
+                                             m_key_info->key_length);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+      {
         /*
-          if we are out of rows for this particular key value
-          or we have jumped to the next key value, we reposition the
-          marker according to the next key value that we have in the
-          list.
+          if we are out of rows for this particular key value, we reposition the
+          marker according to the next key value that we have in the list.
          */
-        if ((error) ||
-            (key_cmp(m_key_info->key_part, m_key, m_key_info->key_length) != 0))
+        if (error)
         {
           if (m_itr != m_distinct_keys.end())
           {
@@ -8948,6 +8956,7 @@ Rows_log_event::next_record_scan(bool first_read)
           else
             error= HA_ERR_KEY_NOT_FOUND;
         }
+      }
     }
 
     if (first_read)
@@ -12591,6 +12600,17 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
 
+  /*
+    It is not necessary to do GTID related check if the error
+    'ER_SLAVE_INCIDENT' is ignored.
+  */
+  if (ignored_error_code(ER_SLAVE_INCIDENT))
+  {
+    DBUG_PRINT("info", ("Ignoring Incident"));
+    mysql_bin_log.gtid_end_transaction(thd);
+    DBUG_RETURN(0);
+  }
+
   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
   if (state == GTID_STATEMENT_EXECUTE)
   {
@@ -12617,12 +12637,6 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_RETURN(0);
   }
 
-  if (ignored_error_code(ER_SLAVE_INCIDENT))
-  {
-    DBUG_PRINT("info", ("Ignoring Incident"));
-    DBUG_RETURN(0);
-  }
-   
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER_THD(thd, ER_SLAVE_INCIDENT),
               description(),

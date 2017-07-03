@@ -24,6 +24,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_stage.h"
 #include "pfs_stage_provider.h"      // IWYU pragma: keep
 #include "pfs_statement_provider.h"  // IWYU pragma: keep
 
@@ -253,7 +254,9 @@ static inline void
 inline_mysql_end_statement(struct PSI_statement_locker *locker,
                            Diagnostics_area *stmt_da)
 {
+#ifdef HAVE_PSI_STAGE_INTERFACE
   PSI_STAGE_CALL(end_stage)();
+#endif /* HAVE_PSI_STAGE_INTERFACE */
   if (likely(locker != NULL))
   {
     PSI_STATEMENT_CALL(end_statement)(locker, stmt_da);

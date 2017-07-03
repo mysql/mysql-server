@@ -746,8 +746,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip)
   if (allow_all_hosts)
     return 0;
 
-  if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
-      (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
+  if ((host && acl_check_hosts->count(host) != 0) ||
+      (ip && acl_check_hosts->count(ip) != 0))
     return 0;                                   // Found host
 
   for (ACL_HOST_AND_IP *acl= acl_wild_hosts->begin();
@@ -1837,6 +1837,10 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   It transparently extracts the client plugin data, if embedded into
   a client authentication handshake packet, and handles plugin negotiation
   with the client, if necessary.
+
+  RETURN
+    -1          Protocol failure
+    >= 0        Success and also the packet length
 */
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
@@ -2096,7 +2100,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
       interval.day= acl_user->password_lifetime;
     else
     {
-      Mutex_lock lock(&LOCK_default_password_lifetime);
+      MUTEX_LOCK(lock, &LOCK_default_password_lifetime);
       interval.day= default_password_lifetime;
     }
     if (interval.day)
@@ -3004,8 +3008,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /*
     If first packet is a 0 byte then the client isn't sending any password
     else the client will send a password.
+
+    The original intention was that the password is a string[NUL] but this
+    never got enforced properly so now we have to accept that an empty packet
+    is a blank password, thus the check for pkt_len == 0 has to be made too.
   */
-  if (pkt_len == 1 && *pkt == 0)
+  if ((pkt_len == 0 || pkt_len == 1) && *pkt == 0)
   {
     info->password_used= PASSWORD_USED_NO;
     /*

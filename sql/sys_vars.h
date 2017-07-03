@@ -2199,29 +2199,6 @@ public:
   virtual bool session_update(THD *thd, set_var *var);
 };
 
-
-/**
-  Class representing the sql_log_bin system variable for controlling
-  whether logging to the binary log is done.
-*/
-
-class Sys_var_sql_log_bin: public Sys_var_bool
-{
-public:
-  Sys_var_sql_log_bin(const char *name_arg, const char *comment, int flag_args,
-                      ptrdiff_t off, size_t size, CMD_LINE getopt,
-                      bool def_val, PolyLock *lock,
-                      enum binlog_status_enum binlog_status_arg,
-                      on_check_function on_check_func,
-                      on_update_function on_update_func)
-    :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,
-                    def_val, lock, binlog_status_arg, on_check_func,
-                    on_update_func)
-  {}
-
-  uchar *global_value_ptr(THD *thd, LEX_STRING *base);
-};
-
 /**
    A class for @@global.binlog_checksum that has
    a specialized update method.
@@ -2233,9 +2210,11 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
-          enum binlog_status_enum binlog_status_arg)
+          enum binlog_status_enum binlog_status_arg,
+          on_check_function on_check_func=0
+          )
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
-                  values, def_val, lock, binlog_status_arg, NULL)
+                  values, def_val, lock, binlog_status_arg, on_check_func, NULL)
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };

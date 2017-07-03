@@ -1,11 +1,11 @@
 SET @start_global_value = @@global.max_error_count;
 SELECT @start_global_value;
 @start_global_value
-64
+1024
 SET @start_session_value = @@session.max_error_count;
 SELECT @start_session_value;
 @start_session_value
-64
+1024
 drop database if exists demo;
 create database demo;
 use demo;
@@ -136,8 +136,8 @@ drop database demo;
 SET @@global.max_error_count = @start_global_value;
 SELECT @@global.max_error_count;
 @@global.max_error_count
-64
+1024
 SET @@session.max_error_count = @start_session_value;
 SELECT @@session.max_error_count;
 @@session.max_error_count
-64
+1024

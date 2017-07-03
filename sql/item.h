@@ -1185,7 +1185,7 @@ public:
     set_data_type(MYSQL_TYPE_TIMESTAMP);
     collation.set_numeric();
     decimals= fsp;
-    max_length= MAX_DATE_WIDTH + fsp + (fsp > 0 ? 1 : 0);
+    max_length= MAX_DATETIME_WIDTH + fsp + (fsp > 0 ? 1 : 0);
   }
 
   /**
@@ -2210,6 +2210,17 @@ public:
   virtual Bool3 local_column(const SELECT_LEX*) const
   { return Bool3::false3(); }
 
+  /**
+    Check if an aggregate is referenced from within the GROUP BY
+    clause of the query block in which it is aggregated. Such
+    references will be rejected.
+    @see Item_ref::fix_fields()
+    @retval true   if this is an aggregate which is referenced from
+                   the GROUP BY clause of the aggregating query block
+    @retval false  otherwise
+  */
+  virtual bool has_aggregate_ref_in_group_by(uchar *) { return false; }
+
   virtual bool cache_const_expr_analyzer(uchar **cache_item);
   Item *cache_const_expr_transformer(uchar *item);
 
@@ -2519,6 +2530,16 @@ public:
     const Type t= type();
     return t == FUNC_ITEM || t == COND_ITEM;
   }
+
+  void aggregate_decimal_properties(Item **item, uint nitems);
+  void aggregate_float_properties(Item **item, uint nitems);
+  void aggregate_char_length(Item **args, uint nitems);
+  void aggregate_temporal_properties(Item **item, uint nitems);
+  bool aggregate_string_properties(enum_field_types field_type,
+                                   const char *name, Item **item,
+                                   uint nitems);
+  void aggregate_num_type(Item_result result_type, Item **item,
+                          uint nitems);
 
   /**
     This function applies only to Item_field objects referred to by an Item_ref
@@ -4468,10 +4489,6 @@ public:
   */
   virtual const char *func_name() const= 0;
   bool check_gcol_func_processor(uchar *) override { return false; }
-  void count_only_length(Item **item, uint nitems);
-  void count_datetime_length(Item **item, uint nitems);
-  bool count_string_result_length(enum_field_types field_type,
-                                  Item **item, uint nitems);
   bool mark_field_in_map(uchar *arg) override
   {
     bool rc= Item::mark_field_in_map(arg);

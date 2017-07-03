@@ -137,7 +137,7 @@ public:
   */
   bool add(my_thread_t thread, const void *plugin)
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     try
     {
       std::map<my_thread_t, const void*>::iterator it= collection.find(thread);
@@ -162,7 +162,7 @@ public:
   */
   unsigned int remove(my_thread_t thread)
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     std::map<my_thread_t, const void*>::iterator it= collection.find(thread);
     if (it != collection.end())
     {
@@ -181,7 +181,7 @@ public:
   */
   bool clear()
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     collection.clear();
     return false;
   }
@@ -191,7 +191,7 @@ public:
   */
   unsigned int size()
   {
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     return collection.size();    
   }
 
@@ -206,7 +206,7 @@ public:
       return size();
 
     unsigned int ret= 0;
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
     std::map<my_thread_t, const void*>::iterator it= collection.begin();
     for (; it != collection.end(); ++it)
     {
@@ -225,7 +225,7 @@ public:
   {
     std::list<my_thread_t> to_remove;
 
-    Mutex_lock lock(&LOCK_collection);
+    MUTEX_LOCK(lock, &LOCK_collection);
 
     for (std::map<my_thread_t, const void*>::iterator it= collection.begin();
          it != collection.end();
@@ -1307,7 +1307,7 @@ public:
   {
     if (thd->thread_id() == thread_id)
     {
-      Mutex_lock lock(&thd->LOCK_thd_data);
+      MUTEX_LOCK(lock, &thd->LOCK_thd_data);
       callback(thd, &input);
       return true;
     }

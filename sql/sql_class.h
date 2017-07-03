@@ -1262,7 +1262,7 @@ public:
     The mutex used with current_cond.
     @see current_cond
   */
-  mysql_mutex_t * volatile current_mutex;
+  std::atomic<mysql_mutex_t *> current_mutex;
   /**
     Pointer to the condition variable the thread owning this THD
     is currently waiting for. If the thread is not waiting, the
@@ -1272,7 +1272,7 @@ public:
     thread will broadcast on this condition variable so that the
     thread can be unstuck.
   */
-  mysql_cond_t * volatile current_cond;
+  std::atomic<mysql_cond_t *> current_cond;
   /**
     Condition variable used for waiting by the THR_LOCK.c subsystem.
   */
@@ -2292,7 +2292,7 @@ public:
     KILL_TIMEOUT=ER_QUERY_TIMEOUT,
     KILLED_NO_VALUE      /* means neither of the states */
   };
-  killed_state volatile killed;
+  std::atomic<killed_state> killed;
 
   /**
     When operation on DD tables is in progress then THD is set to kill immune
@@ -2552,7 +2552,7 @@ public:
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
-    mysql_mutex_assert_not_owner(current_mutex);
+    mysql_mutex_assert_not_owner(current_mutex.load());
     mysql_mutex_lock(&LOCK_current_cond);
     current_mutex= NULL;
     current_cond= NULL;

@@ -11,7 +11,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #ifndef PFS_PLUGIN_TABLE_SERVICE_H
 #define PFS_PLUGIN_TABLE_SERVICE_H
@@ -359,6 +359,7 @@ struct PFS_engine_table_proxy
   delete_row_values_t   delete_row_values;
   open_table_t          open_table;
   close_table_t         close_table;
+  PFS_engine_table_proxy()= default;
 };
 typedef struct PFS_engine_table_proxy PFS_engine_table_proxy;
 

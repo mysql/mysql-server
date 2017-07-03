@@ -58,8 +58,7 @@ int group_replication_before_server_shutdown(Server_state_param*)
 int group_replication_after_server_shutdown(Server_state_param*)
 {
   server_shutdown_status= true;
-  if (plugin_is_group_replication_running())
-    group_replication_stop();
+  plugin_group_replication_stop();
 
   return 0;
 }
