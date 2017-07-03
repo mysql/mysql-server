@@ -110,8 +110,6 @@ clusterj_jpa: Bug#26027722 UNKNOWN INITIAL CHARACTER SET
 # Problem with ndb_import and utf8
 ndb_import1: Bug#26027765 NDB_IMPORT FAILS WITH UTF8
 
-ndb_dd_basic: Bug#26124155 FAILURE OF NDB.NDB_DD_BASIC TEST
-
 ndb_dd_ddl: Bug #26187744 TABLESPACE IS NOT DROPPED PROPERLY WHEN ADD DATAFILE FAILS
 
 # Problem since DDL on tablespaces are not synchronized between mysqlds
