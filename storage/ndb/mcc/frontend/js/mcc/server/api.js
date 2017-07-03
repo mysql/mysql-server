@@ -45,6 +45,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      replyHandler: Closure for handling replies - check errMsg
  *      getHead: Create a message header block
  *      getSSH: Create an SSH block
+ *      hostHasCreds: Does HostStorage hold credentials
+ *      createSSHBlock: New function to create SSH part of message, exclusively for private key auth.
  *
  *  Internal data: 
  *      None
@@ -241,6 +243,7 @@ function hostInfoReq(hostname, onReply, onError) {
                     if (hosts[0]) {
                         if (hosts[0].getValue("key_auth")) {
                             //Remote host with its own credentials (PK).
+                            mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Host keys");
                             var msg = {
                                 head: getHead("hostInfoReq"),
                                 body: {
@@ -251,6 +254,7 @@ function hostInfoReq(hostname, onReply, onError) {
                             }
                         } else {
                             //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Host creds");
                             var msg = {
                                 head: getHead("hostInfoReq"),
                                 body: {
@@ -274,6 +278,7 @@ function hostInfoReq(hostname, onReply, onError) {
         } else {
             // Do it the old way.
             mcc.util.dbg("Host " + hostname + " has no creds.");
+            mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
                 var msg = {
@@ -312,14 +317,33 @@ function checkFileReq(hostname, path, filename, contents, overwrite,
             mcc.storage.hostStorage().getItems({name: hostname}).then(
                 function (hosts) {
                     if (hosts[0]) {
-                        var msg = {
-                            head: getHead("checkFileReq"),
-                            body: {
-                                ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
-                                    hosts[0].getValue("key_file")),
-                                file: {
-                                    hostName: hostname,
-                                    path: path
+                        if (hosts[0].getValue("key_auth")) {
+                            //Remote host with its own credentials (PK).
+                            mcc.util.dbg("Running checkFileReq for host " + hostname + " with Host keys");
+                            var msg = {
+                                head: getHead("checkFileReq"),
+                                body: {
+                                    ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                                        hosts[0].getValue("key_file")),
+                                    file: {
+                                        hostName: hostname,
+                                        path: path
+                                    }
+                                }
+                            }
+                        } else {
+                            //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running checkFileReq for host " + hostname + " with Host creds");
+                            var msg = {
+                                head: getHead("checkFileReq"),
+                                body: {
+                                    ssh: getSSH(hostname, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd")),
+                                    file: {
+                                        hostName: hostname,
+                                        path: path
+                                    }
                                 }
                             }
                         }
@@ -341,6 +365,7 @@ function checkFileReq(hostname, path, filename, contents, overwrite,
             );
         } else {
             // Get SSH info from cluster storage
+            mcc.util.dbg("Running checkFileReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
                 var msg = {
@@ -380,17 +405,36 @@ function createFileReq(hostname, path, filename, contents, overwrite,
             mcc.storage.hostStorage().getItems({name: hostname}).then(
                 function (hosts) {
                     if (hosts[0]) {
-                        var msg = {
-                            head: getHead("createFileReq"),
-                            body: {
-                                ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
-                                    hosts[0].getValue("key_file")),
-                                file: {
-                                    hostName: hostname,
-                                    path: path
+                        if (hosts[0].getValue("key_auth")) {
+                            //Remote host with its own credentials (PK).
+                            mcc.util.dbg("Running createFileReq for host " + hostname + " with Host keys");
+                            var msg = {
+                                head: getHead("createFileReq"),
+                                body: {
+                                    ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                                        hosts[0].getValue("key_file")),
+                                    file: {
+                                        hostName: hostname,
+                                        path: path
+                                    }
+                                }
+                            };
+                        } else {
+                            //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running createFileReq for host " + hostname + " with Host creds");
+                            var msg = {
+                                head: getHead("createFileReq"),
+                                body: {
+                                    ssh: getSSH(hostname, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd")),
+                                    file: {
+                                        hostName: hostname,
+                                        path: path
+                                    }
                                 }
                             }
-                        };
+                        }
 
                         if (filename) {
                             msg.body.file.name = filename;
@@ -409,6 +453,7 @@ function createFileReq(hostname, path, filename, contents, overwrite,
             );
         } else {
             // Get SSH info from cluster storage
+            mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
                 var msg = {
@@ -448,24 +493,49 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
             mcc.storage.hostStorage().getItems({name: hostname}).then(
                 function (hosts) {
                     if (hosts[0]) {
-                        var msg = {
-                            head: getHead("appendFileReq"),
-                            body: {
-                                ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
-                                    hosts[0].getValue("key_file")),
-                                sourceFile: {
-                                    hostName: hostname,
-                                    path: srcPath,
-                                    name: srcName
-                                },
-                                destinationFile: {
-                                    hostName: hostname,
-                                    path: destPath,
-                                    name: destName
+                        if (hosts[0].getValue("key_auth")) {
+                            mcc.util.dbg("Running appendFileReq for host " + hostname + " with Host keys");
+                            //Remote host with its own credentials (PK).
+                            var msg = {
+                                head: getHead("appendFileReq"),
+                                body: {
+                                    ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                                        hosts[0].getValue("key_file")),
+                                    sourceFile: {
+                                        hostName: hostname,
+                                        path: srcPath,
+                                        name: srcName
+                                    },
+                                    destinationFile: {
+                                        hostName: hostname,
+                                        path: destPath,
+                                        name: destName
+                                    }
+                                }
+                            };
+                        } else {
+                            //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running appendFileReq for host " + hostname + " with Host creds");
+                            var msg = {
+                                head: getHead("appendFileReq"),
+                                body: {
+                                    ssh: getSSH(hostname, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd")),
+                                    sourceFile: {
+                                        hostName: hostname,
+                                        path: srcPath,
+                                        name: srcName
+                                    },
+                                    destinationFile: {
+                                        hostName: hostname,
+                                        path: destPath,
+                                        name: destName
+                                    }
                                 }
                             }
-                        };
-                        
+                        }
+
                         // Call do_post, provide callbacks
                         do_post(msg).then(replyHandler(onReply, onError), 
                                 errorHandler(msg.head, onError));
@@ -474,6 +544,7 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
             );
         } else {
             // Get SSH info from cluster storage
+            mcc.util.dbg("Running appendFileReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
                 var msg = {
@@ -510,16 +581,34 @@ function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
             mcc.storage.hostStorage().getItems({name: hostname}).then(
                 function (hosts) {
                     if (hosts[0]) {
-                        var msg = {
-                            head: getHead("runMgmdCommandReq"),
-                            body: {
-                                ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
-                                    hosts[0].getValue("key_file")),
-                                hostName: hostname,
-                                port: port,
-                                mgmd_command: cmd
+                        if (hosts[0].getValue("key_auth")) {
+                            //Remote host with its own credentials (PK).
+                            mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Host keys");
+                            var msg = {
+                                head: getHead("runMgmdCommandReq"),
+                                body: {
+                                    ssh: createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                                        hosts[0].getValue("key_file")),
+                                    hostName: hostname,
+                                    port: port,
+                                    mgmd_command: cmd
+                                }
+                            };
+                        } else {
+                            //Remote host with its own credentials but not PK.
+                            mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Host creds");
+                            var msg = {
+                                head: getHead("runMgmdCommandReq"),
+                                body: {
+                                    ssh: getSSH(hostname, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd")),
+                                    hostName: hostname,
+                                    port: port,
+                                    mgmd_command: cmd
+                                }
                             }
-                        };
+                        }
                         
                         // Call do_post, provide callbacks
                         do_post(msg).then(replyHandler(onReply, onError), 
@@ -529,6 +618,7 @@ function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
             );
         } else {
             // Get SSH info from cluster storage
+            mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Cluster creds");
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
                 // Create message
                 var msg = {
@@ -576,12 +666,21 @@ function doReq(reqName, body, cluster, onReply, onError) {
             mcc.storage.hostStorage().getItems({name: hostName_fromBody}).then(
                 function (hosts) {
                     if (hosts[0]) {
-                        msg.body.ssh = createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
+                        if (hosts[0].getValue("key_auth")) {
+                            mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Host keys");
+                            msg.body.ssh = createSSHBlock(hosts[0].getValue("key_usr"), hosts[0].getValue("key_passp"),
                                     hosts[0].getValue("key_file"));
+                        } else {
+                            mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Host creds");
+                            msg.body.ssh = getSSH(hostName_fromBody, false, 
+                                            hosts[0].getValue("usr"),
+                                            hosts[0].getValue("usrpwd"))
+                        }
                     };
                 }
             );
         } else {
+            mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Cluster creds");
             msg.body.ssh = getSSH(cluster.getValue("ssh_keybased"), 
                                   cluster.getValue("ssh_user"),
                                   mcc.gui.getSSHPwd());
