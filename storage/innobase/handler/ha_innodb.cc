@@ -14257,9 +14257,7 @@ ha_innobase::get_se_private_data(
 		}
 
 		dd::Properties& p = i->se_private_data();
-if (n_tables == 32) {
-ib::info() << "Table name " << data.name << " id " << n_tables << " pages: " << n_pages;
-}
+
 		p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
 		p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
