@@ -1420,12 +1420,10 @@ typedef bool (*is_supported_system_table_t)(const char *db,
   Create SDI in a tablespace. This API should be used when upgrading
   a tablespace with no SDI or after invoking sdi_drop().
   @param[in]  tablespace     tablespace object
-  @param[in]  num_of_copies  number of SDI copies
   @retval     false          success
   @retval     true           failure
 */
-typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace,
-                             uint32 num_of_copies);
+typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
 
 /**
   Drop SDI in a tablespace. This API should be used only when
@@ -1440,13 +1438,11 @@ typedef bool (*sdi_drop_t)(const dd::Tablespace &tablespace);
   Get the SDI keys in a tablespace into vector.
   @param[in]      tablespace  tablespace object
   @param[in,out]  vector      vector of SDI Keys
-  @param[in]      copy_num    SDI copy to operate on
   @retval         false       success
   @retval         true        failure
 */
 typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
-                               dd::sdi_vector_t &vector,
-                               uint32 copy_num);
+                               dd::sdi_vector_t &vector);
 
 /**
   Retrieve SDI for a given SDI key.
@@ -1470,13 +1466,12 @@ typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
                               A non-null pointer must be passed in
   @param[in,out]  sdi_len     in: length of the memory allocated
                               out: actual length of SDI
-  @param[in]      copy_num    SDI copy to operate on
   @retval         false       success
   @retval         true        failure
 */
 typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
                           const dd::sdi_key_t *sdi_key,
-                          void *sdi, uint64 *sdi_len, uint32 copy_num);
+                          void *sdi, uint64 *sdi_len);
 
 /**
   Insert/Update SDI for a given SDI key.
@@ -1488,6 +1483,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @retval     true        failure
 */
 typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
+                          const dd::Table *table,
                           const dd::sdi_key_t *sdi_key,
                           const void *sdi, uint64 sdi_len);
 
@@ -1499,75 +1495,8 @@ typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
   @retval     true        failure
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
+                             const dd::Table *table,
                              const dd::sdi_key_t *sdi_key);
-
-/**
-  Flush the SDI copies.
-  @param[in]  tablespace  tablespace object
-  @retval     false       success
-  @retval     true        failure
-*/
-typedef bool (*sdi_flush_t)(const dd::Tablespace &tablespace);
-
-/**
-  Return the number of SDI copies stored in tablespace.
-  @param[in]  tablespace     tablespace object
-  @retval     0              if there are no SDI copies
-  @retval     MAX_SDI_COPIES if the SDI is present
-  @retval     UINT32_MAX     in case of failure
-*/
-typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
-
-
-/**
-  Store sdi for a dd:Schema object associated with table
-  @param[in]  sdi sdi json string
-  @param[in]  schema dd object
-  @param[in]  table table with which schema is associated
-  @return error status
-    @retval false if successful.
-    @retval true otherwise.
-*/
-typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
-                                   const LEX_CSTRING &sdi,
-                                   const dd::Schema *schema,
-                                   const dd::Table *table);
-
-/**
-  Store sdi for a dd::Table object.
-  @param[in]  sdi sdi json string
-  @param[in]  table dd object
-  @return error status
-    @retval false if successful.
-    @retval true otherwise.
-*/
-typedef bool (*store_table_sdi_t)(THD *thd, handlerton *hton,
-                                  const LEX_CSTRING &sdi,
-                                  const dd::Table *table,
-                                  const dd::Schema *schema);
-
-/**
-  Remove sdi for a dd::Schema object.
-  @param[in]  schema dd object
-  @return error status
-    @retval false if successful.
-    @retval true otherwise.
-*/
-typedef bool (*remove_schema_sdi_t)(THD *thd, handlerton *hton,
-                                    const dd::Schema *schema,
-                                    const dd::Table *table);
-
-
-/**
-  Remove sdi for a dd::Table object.
-  @param[in]  table dd object
-  @return error status
-    @retval false if successful.
-    @retval true otherwise.
-*/
-typedef bool (*remove_table_sdi_t)(THD *thd, handlerton *hton,
-                                   const dd::Table *table,
-                                   const dd::Schema *schema);
 
 /**
   Check if the DDSE is started in a way that leaves thd DD being read only.
@@ -1985,18 +1914,6 @@ struct handlerton
   sdi_get_t sdi_get;
   sdi_set_t sdi_set;
   sdi_delete_t sdi_delete;
-  sdi_flush_t sdi_flush;
-  sdi_get_num_copies_t sdi_get_num_copies;
-
-  /**
-    Function pointer variables for manipulating storing and removing SDI strings
-    in SE.
-   */
-  store_schema_sdi_t store_schema_sdi;
-  store_table_sdi_t store_table_sdi;
-
-  remove_schema_sdi_t remove_schema_sdi;
-  remove_table_sdi_t remove_table_sdi;
 
   /**
     Null-ended array of file extentions that exist for the storage engine.

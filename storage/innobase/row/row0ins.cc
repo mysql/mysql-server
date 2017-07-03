@@ -1584,7 +1584,8 @@ row_ins_check_foreign_constraint(
 	/* GAP locks are not needed on DD tables because serializability between different
 	DDL statements is achieved using metadata locks. So no concurrent changes to DD tables
 	when MDL is taken. */
-	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED) || table->is_dd_table;
+	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+		|| table->skip_gap_locks();
 
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
@@ -2147,7 +2148,7 @@ row_ins_scan_sec_index_for_duplicate(
 		found. This means it is possible for another transaction to
 		insert a duplicate key value but MDL protection on DD tables
 		will prevent insertion of duplicates into unique secondary indexes*/
-		const ulint		lock_type = index->table->is_dd_table
+		const ulint		lock_type = index->table->skip_gap_locks()
 			? LOCK_REC_NOT_GAP
 			: LOCK_ORDINARY;
 
@@ -2171,7 +2172,7 @@ row_ins_scan_sec_index_for_duplicate(
 #endif
 
 #if 1 // TODO: Remove this code after WL#9509. REPLACE will not be allowed on DD tables
-			if (index->table->is_dd_table) {
+			if (index->table->skip_gap_locks()) {
 				/* Only GAP lock is possible on supremum. */
 				if (page_rec_is_supremum(rec)) {
 					continue;
@@ -2187,7 +2188,7 @@ row_ins_scan_sec_index_for_duplicate(
 				lock_type, block, rec, index, offsets, thr);
 		} else {
 
-			if (index->table->is_dd_table) {
+			if (index->table->skip_gap_locks()) {
 				/* Only GAP lock is possible on supremum. */
 				if (page_rec_is_supremum(rec)) {
 					continue;
@@ -2397,7 +2398,7 @@ row_ins_duplicate_error_in_clust(
 
 			lock_type =
 				((trx->isolation_level <= TRX_ISO_READ_COMMITTED)
-				 || (cursor->index->table->is_dd_table))
+				 || (cursor->index->table->skip_gap_locks()))
 				? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
 			/* We set a lock on the possible duplicate: this
@@ -2884,13 +2885,11 @@ func_exit:
 	btr_pcur_close(&pcur);
 
 	DBUG_EXECUTE_IF("ib_sdi",
-		if (strncmp(index->table->name.m_name, "SDI", strlen("SDI")) == 0) {
-			ib::info() << "ib_sdi :row_ins_clust_index_entry_low: "
+		if (dict_table_is_sdi(index->table->id)) {
+			ib::info() << "ib_sdi: row_ins_clust_index_entry_low: "
 				<< index->name
 				<< " " << index->table->name
 				<< " return status: " << err;
-			ib::info() << "SATYA:row_ins_clust_index_entry_low: entry: ";
-			dtuple_print(stderr, entry);
 		}
 	);
 

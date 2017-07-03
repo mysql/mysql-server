@@ -1520,7 +1520,7 @@ static
 void
 srv_create_sdi_indexes()
 {
-	btr_sdi_create_indexes(SYSTEM_TABLE_SPACE, false);
+	btr_sdi_create_index(SYSTEM_TABLE_SPACE, false);
 }
 
 /****************************************************************//**

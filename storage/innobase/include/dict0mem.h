@@ -2138,6 +2138,10 @@ public:
 
 		return(false);
 	}
+
+	/* GAP locks are skipped for DD tables and SDI tables
+	@return true if table is DD table or SDI table, else false */
+	inline bool skip_gap_locks() const;
 };
 
 /** Persistent dynamic metadata type, there should be 1 to 1

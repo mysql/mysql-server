@@ -46,7 +46,6 @@
 #include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd.h"                    // dd::get_dictionary
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/sdi_file.h"              // dd::sdi_file::store
 #include "dd/types/table.h"           // dd::Table
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
@@ -835,18 +834,6 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   {
     LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
     goto err;
-  }
-
-  if (hton->store_schema_sdi == nullptr)
-  {
-    DBUG_ASSERT(hton->db_type != DB_TYPE_INNODB);
-
-    DBUG_ASSERT(hton->store_table_sdi == nullptr);
-    DBUG_ASSERT(hton->remove_schema_sdi == nullptr);
-    DBUG_ASSERT(hton->remove_table_sdi == nullptr);
-
-    hton->store_table_sdi= dd::sdi_file::store;
-    hton->remove_table_sdi= dd::sdi_file::remove;
   }
 
   /*

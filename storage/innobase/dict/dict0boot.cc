@@ -116,9 +116,12 @@ dict_hdr_get_new_id(
 		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
 		id++;
 
-		if (id >= dict_sdi_get_table_id(0, 1)) {
-			id = DICT_HDR_FIRST_ID;
-			ut_ad(0); // WL#7141 TODO: handle wrap-around
+		/* This means we are running out of table_ids and
+		entering into reserved range of table_ids for SDI
+		tables */
+		if (id >= dict_sdi_get_table_id(0)) {
+			ib::fatal() << "InnoDB is running out of table_ids"
+				<< " Please dump and reload the database";
 		}
 
 		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);

@@ -40,7 +40,6 @@ Smart ALTER TABLE
 #include "dd/dictionary.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/impl/properties_impl.h"
 #include "dd/types/table.h"
 #include "dd/types/index.h"
@@ -4454,7 +4453,7 @@ dd_prepare_inplace_alter_table(
 	THD*			thd,
 	const dict_table_t*	old_table,
 	dict_table_t*		new_table,
-	const Table*		 old_dd_tab,
+	const Table*		old_dd_tab,
 	Table*			new_dd_tab)
 {
 	if (new_table->is_temporary() || old_table == new_table) {
@@ -4465,6 +4464,8 @@ dd_prepare_inplace_alter_table(
 
 	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	bool	is_old_discarded = false;
 
 	if (dict_table_is_file_per_table(old_table)) {
 		dd::Object_id   old_space_id =
@@ -4487,6 +4488,8 @@ dd_prepare_inplace_alter_table(
 				 " tablespace ", old_dd_space->name().c_str());
 			return(true);
 		}
+
+		is_old_discarded = dd_tablespace_get_discard(old_dd_space);
 
 		if (client->drop(old_dd_space)) {
 			my_error(ER_INTERNAL_ERROR, MYF(0),
@@ -4514,6 +4517,29 @@ dd_prepare_inplace_alter_table(
 		}
 
 		new_table->dd_space_id = dd_space_id;
+		if (dict_table_is_file_per_table(old_table) && is_old_discarded) {
+			/* Get new dd::Tablespace object */
+			dd::Tablespace*         new_dd_space = nullptr;
+			char    name[FN_REFLEN];
+			snprintf(name, sizeof name, "%s.%u", dict_sys_t::file_per_table_name,
+				 new_table->space);
+
+			/* Acquire MDL */
+			if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+				ut_a(0);
+			}
+			if (client->acquire_for_modification(dd_space_id, &new_dd_space)) {
+				ut_a(0);
+			}
+			ut_ad(new_dd_space != NULL);
+
+			/* Set discard attribute */
+			dd_tablespace_set_discard(new_dd_space, true);
+
+			if (client->update(new_dd_space)) {
+				ut_ad(0);
+			}
+		}
 	}
 
 	return(false);

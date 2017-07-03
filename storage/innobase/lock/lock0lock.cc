@@ -2587,7 +2587,7 @@ lock_rec_inherit_to_gap(
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (!lock_rec_get_insert_intention(lock)
-		    && !lock->index->table->is_dd_table
+		    && !lock->index->table->skip_gap_locks()
 		    && !(lock->trx->skip_gap_locks()
 			 && lock_get_mode(lock) ==
 			 (lock->trx->duplicates ? LOCK_S : LOCK_X))) {
@@ -7375,9 +7375,9 @@ DeadlockChecker::search()
 			we find, we crash early to find the transactions
 			causing deadlock */
 			if ((lock->is_record_lock() && lock->index != nullptr
-			     && lock->index->table->is_dd_table)
+			     && lock->index->table->skip_gap_locks())
 			    || (m_wait_lock->is_record_lock() && m_wait_lock->index != nullptr
-				&& m_wait_lock->index->table->is_dd_table)) {
+				&& m_wait_lock->index->table->skip_gap_locks())) {
 				bool	dd_deadlock_found = true;
 				ut_ad(!dd_deadlock_found);
 			}

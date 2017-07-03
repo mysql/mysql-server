@@ -23,6 +23,11 @@
 #include "my_dbug.h"
 #include "sql_class.h"               // THD
 
+#ifndef DBUG_OFF
+#define ENTITY_FMT "(%s, %llu)"
+#define ENTITY_VAL(obj) (obj).name().c_str(), (obj).id()
+#endif /* !DBUG_OFF */
+
 /**
   @file
   @ingroup sdi
@@ -78,6 +83,12 @@ inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
                                    thd->variables.lock_wait_timeout));
 }
 
+template <typename T>
+const T& ptr_as_cref(const T *p)
+{
+  DBUG_ASSERT(p != nullptr);
+  return *p;
+}
 
 /**
   Class template which derives from Internal_error_handler and

@@ -143,6 +143,7 @@ ut_new_boot()
 		"dict0load",
 		"dict0mem",
 		"dict0priv",
+		"dict0sdi",
 		"dict0stats",
 		"dict0stats_bg",
 		"dict0types",
