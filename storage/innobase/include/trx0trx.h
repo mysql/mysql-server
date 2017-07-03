@@ -1076,6 +1076,8 @@ struct trx_t {
 
 	bool		ddl_operation; /*!< True if this trx involves dd table
 					change */
+	bool		ddl_must_flush; /*!< True if this trx involves dd table
+					change, and must flush */
 
 	/* Fields protected by the srv_conc_mutex. */
 	bool		declared_to_be_inside_innodb;

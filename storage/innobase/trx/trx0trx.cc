@@ -1815,7 +1815,13 @@ trx_flush_log_if_needed(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx->op_info = "flushing log";
-	trx_flush_log_if_needed_low(lsn);
+
+	if (trx->ddl_operation || trx->ddl_must_flush) {
+		log_write_up_to(lsn, true);
+	} else {
+		trx_flush_log_if_needed_low(lsn);
+	}
+
 	trx->op_info = "";
 }
 
@@ -1917,6 +1923,7 @@ trx_commit_in_memory(
 				written */
 {
 	trx->must_flush_log_later = false;
+	trx->ddl_must_flush = false;
 
 	if (trx_is_autocommit_non_locking(trx)) {
 		ut_ad(trx->id == 0);
@@ -2038,6 +2045,10 @@ trx_commit_in_memory(
 		} else if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = true;
+
+			/* if we need to flush log later, we must
+			remember the DDL operation */
+			trx->ddl_must_flush = trx->ddl_operation;
 		} else if (srv_flush_log_at_trx_commit == 0
 			   || thd_requested_durability(trx->mysql_thd)
 			   == HA_IGNORE_DURABILITY) {
@@ -2454,6 +2465,7 @@ trx_commit_complete_for_mysql(
 	trx_flush_log_if_needed(trx->commit_lsn, trx);
 
 	trx->must_flush_log_later = false;
+	trx->ddl_must_flush = false;
 }
 
 /**********************************************************************//**
@@ -2867,6 +2879,9 @@ trx_prepare(
 
 		We must not be holding any mutexes or latches here. */
 
+		/* We should trust trx->ddl_operation instead of
+		ddl_must_flush here */
+		trx->ddl_must_flush = false;
 		trx_flush_log_if_needed(lsn, trx);
 	}
 }
