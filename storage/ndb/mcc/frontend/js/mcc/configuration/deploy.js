@@ -1026,6 +1026,7 @@ function getStartProcessCommands(process) {
             fsc.addopt("--defaults-file", datadir+"my.cnf");
             fsc.addopt("--initialize-insecure");
             fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
+            mcc.util.dbg("Initializing (insecure) node " + nodeid + " ("+ptype+")");
             scmds.unshift(fsc);
         }
       
