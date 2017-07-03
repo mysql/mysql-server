@@ -325,6 +325,17 @@ create_query_string(THD *thd, String *buf)
 /**
   Create a new event.
 
+  Atomicity:
+    The operation to create an event is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary cache and event queues are
+    in sync with operation state. Cache and event queue does
+    not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
+
   @param[in,out]  thd            THD
   @param[in]      parse_data     Event's data from parsing stage
   @param[in]      if_not_exists  Whether IF NOT EXISTS was
@@ -342,8 +353,9 @@ bool
 Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
-  bool ret;
   bool event_already_exists;
+  bool event_added_to_event_queue= false;
+  std::unique_ptr<Event_queue_element> new_element(nullptr);
   DBUG_ENTER("Events::create_event");
 
   DBUG_EXECUTE_IF("thd_killed_injection",
@@ -379,64 +391,106 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-  /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
-                                         &event_already_exists)))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  if (db_repository->create_event(thd, parse_data, if_not_exists,
+                                  &event_already_exists))
   {
-    Event_queue_element *new_element;
-    bool dropped= 0;
+    /* On error conditions my_error() is called so no need to handle here */
+    goto err_with_rollback;
+  }
 
-    if (opt_event_scheduler != Events::EVENTS_DISABLED && !event_already_exists)
+  // Create event queue element.
+  if (opt_event_scheduler != Events::EVENTS_DISABLED && !event_already_exists)
+  {
+    new_element.reset(new Event_queue_element());
+    if (!new_element)
     {
-      if (!(new_element= new Event_queue_element()))
-        ret= true;                                // OOM
-      else if ((ret= db_repository->load_named_event(thd, parse_data->dbname,
-                                                     parse_data->name,
-                                                     new_element)))
-      {
-        if (!db_repository->drop_event(thd, parse_data->dbname, parse_data->name,
-                                       true))
-          dropped= 1;
-        delete new_element;
-      }
-      else
-      {
-        /* TODO: do not ignore the out parameter and a possible OOM error! */
-        bool created;
-        if (event_queue)
-          event_queue->create_event(thd, new_element, &created);
-      }
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Event_queue_element));
+      goto err_with_rollback;
     }
-    /*
-      binlog the create event unless it's been successfully dropped
-    */
-    if (!dropped)
+
+    if (db_repository->load_named_event(thd, parse_data->dbname,
+                                        parse_data->name, new_element.get()))
+      goto err_with_rollback;
+
+    // Add new event queue element in the events queue.
+    if (event_queue && event_queue->create_event(thd, new_element.get(),
+                                                 &event_added_to_event_queue))
     {
-      /* Binlog the create event. */
-      DBUG_ASSERT(thd->query().str && thd->query().length);
-      String log_query;
-      if (create_query_string(thd, &log_query))
-      {
-        LogErr(ERROR_LEVEL, ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG);
-        ret= true;
-      }
-      else
-      {
-        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
-        /*
-          If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
-          will be written into the binary log as the definer for the SQL thread.
-        */
-        ret= write_bin_log(thd, true, log_query.c_ptr(), log_query.length());
-      }
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
+      goto err_with_rollback;
+    }
+
+    // Release new_element ownership if it is added to the event queue.
+    if (event_added_to_event_queue)
+      new_element.release();
+  }
+
+  // Binlog the create event.
+  {
+    DBUG_ASSERT(thd->query().str && thd->query().length);
+    String log_query;
+    if (create_query_string(thd, &log_query))
+    {
+      LogErr(ERROR_LEVEL, ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG);
+      goto err_with_rollback;
+    }
+    else
+    {
+      thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+      /*
+        If the definer is not set or set to CURRENT_USER, the value of
+        CURRENT_USER will be written into the binary log as the definer for the
+        SQL thread.
+      */
+      if (write_bin_log(thd, true, log_query.c_ptr(), log_query.length(),
+                        !event_already_exists))
+        goto err_with_rollback;
     }
   }
-  DBUG_RETURN(ret);
+
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_create_event_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_with_rollback;
+
+  DBUG_RETURN(false);
+
+err_with_rollback:
+  DBUG_EXECUTE_IF("simulate_create_event_failure",
+                  my_error(ER_UNKNOWN_ERROR, MYF(0)););
+
+  if (event_added_to_event_queue)
+  {
+    // Event element is dellocated by the drop_event() method.
+    event_queue->drop_event(thd, parse_data->dbname, parse_data->name);
+  }
+
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(true);
 }
 
 
 /**
   Alter an event.
+
+  Atomicity:
+    The operation to update an event is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary cache and event queues are
+    in sync with operation state. Cache and event queue does
+    not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
 
   @param[in,out] thd         THD
   @param[in]     parse_data  Event's data from parsing stage
@@ -458,8 +512,7 @@ bool
 Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
-  int ret;
-  Event_queue_element *new_element;
+  std::unique_ptr<Event_queue_element> new_element(nullptr);
 
   DBUG_ENTER("Events::update_event");
 
@@ -507,48 +560,90 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   */
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
-  /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->update_event(thd, parse_data,
-                                         new_dbname, new_name)))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  if (db_repository->update_event(thd, parse_data, new_dbname, new_name))
   {
+    /* On error conditions my_error() is called so no need to handle here */
+    goto err_with_rollback;
+  }
+
+  if (opt_event_scheduler != Events::EVENTS_DISABLED)
+  {
+    // Create event queue element.
+    new_element.reset(new Event_queue_element());
+    if (!new_element)
+    {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(Event_queue_element));
+      goto err_with_rollback;
+    }
+
     LEX_STRING dbname= new_dbname ? *new_dbname : parse_data->dbname;
     LEX_STRING name= new_name ? *new_name : parse_data->name;
-
-    if (opt_event_scheduler != Events::EVENTS_DISABLED)
-    {
-      if (!(new_element= new Event_queue_element()))
-        ret= true;                                // OOM
-      else if ((ret= db_repository->load_named_event(thd, dbname, name,
-                                                   new_element)))
-        delete new_element;
-      else
-      {
-        /*
-          TODO: check if an update actually has inserted an entry
-          into the queue.
-          If not, and the element is ON COMPLETION NOT PRESERVE, delete
-          it right away.
-        */
-        if (event_queue)
-          event_queue->update_event(thd, parse_data->dbname, parse_data->name,
-                                    new_element);
-        /* Binlog the alter event. */
-        DBUG_ASSERT(thd->query().str && thd->query().length);
-
-        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
-        if (new_dbname)
-          thd->add_to_binlog_accessed_dbs(new_dbname->str);
-
-        ret= write_bin_log(thd, true, thd->query().str, thd->query().length);
-      }
-    }
+    if (db_repository->load_named_event(thd, dbname, name, new_element.get()))
+      goto err_with_rollback;
   }
-  DBUG_RETURN(ret);
+
+  /* Binlog the alter event. */
+  {
+    DBUG_ASSERT(thd->query().str && thd->query().length);
+
+    thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+    if (new_dbname)
+      thd->add_to_binlog_accessed_dbs(new_dbname->str);
+
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length, true))
+      goto err_with_rollback;
+  }
+
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_alter_event_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_with_rollback;
+
+  // Update element in event queue.
+  if (event_queue && new_element != nullptr)
+  {
+    /*
+      TODO: check if an update actually has inserted an entry into the queue.
+            If not, and the element is ON COMPLETION NOT PRESERVE, delete
+            it right away.
+    */
+    event_queue->update_event(thd, parse_data->dbname, parse_data->name,
+                              new_element.get());
+    new_element.release();
+  }
+
+  DBUG_RETURN(false);
+
+err_with_rollback:
+  DBUG_EXECUTE_IF("simulate_alter_event_failure",
+                  my_error(ER_UNKNOWN_ERROR, MYF(0)););
+
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(true);
 }
 
 
 /**
   Drops an event
+
+  Atomicity:
+    The operation to drop an event is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary cache and event queues are
+    in sync with operation state. Cache and event queue does
+    not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
 
   @param[in,out]  thd        THD
   @param[in]      dbname     Event's schema
@@ -574,7 +669,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
 bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 {
-  int ret;
   DBUG_ENTER("Events::drop_event");
 
   if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
@@ -584,23 +678,53 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   if (lock_object_name(thd, MDL_key::EVENT, dbname.str, name.str))
     DBUG_RETURN(true);
 
-  /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  bool event_exists;
+  if (db_repository->drop_event(thd, dbname, name, if_exists, &event_exists))
   {
-    if (event_queue)
-      event_queue->drop_event(thd, dbname, name);
-    /* Binlog the drop event. */
+    /* On error conditions my_error() is called so no need to handle here */
+    goto err_with_rollback;
+  }
+
+  // Binlog the drop event.
+  {
     DBUG_ASSERT(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
-    ret= write_bin_log(thd, true, thd->query().str, thd->query().length);
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                      event_exists))
+      goto err_with_rollback;
+  }
+
+  // Commit changes to the data-dictionary and binary log.
+  if (DBUG_EVALUATE_IF("simulate_drop_event_failure", true, false) ||
+      trans_commit_stmt(thd) || trans_commit(thd))
+    goto err_with_rollback;
+
+  if (event_queue)
+    event_queue->drop_event(thd, dbname, name);
+
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
     MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT),
                   dbname.str, dbname.length, name.str, name.length);
 #endif
-  }
-  DBUG_RETURN(ret);
+
+  DBUG_RETURN(false);
+
+err_with_rollback:
+  DBUG_EXECUTE_IF("simulate_drop_event_failure",
+                  my_error(ER_UNKNOWN_ERROR, MYF(0)););
+
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
+
+  DBUG_RETURN(true);
 }
 
 
@@ -1109,7 +1233,8 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
 
     for (const dd::Event *ev_obj : events)
     {
-      Event_queue_element *et= new (std::nothrow) Event_queue_element;
+      std::unique_ptr<Event_queue_element>
+        et(new (std::nothrow) Event_queue_element);
       if (et == nullptr)
       {
         LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_ERROR_GETTING_EVENT_OBJECT);
@@ -1119,17 +1244,18 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
       if (et->fill_event_info(thd, *ev_obj, schema_obj->name().c_str()))
       {
         LogErr(ERROR_LEVEL, ER_EVENT_SCHEDULER_GOT_BAD_DATA_FROM_TABLE);
-        delete et;
         DBUG_RETURN(true);
       }
       bool drop_event= et->m_dropped; // create_event may free et.
-      bool created; // Not used
-      if (event_queue->create_event(thd, et, &created))
+      bool created= false;
+      if (event_queue->create_event(thd, et.get(), &created))
       {
         /* Out of memory */
-        delete et;
         DBUG_RETURN(true);
       }
+      if (created)
+        et.release();
+
       if (drop_event)
       {
         /*

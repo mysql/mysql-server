@@ -221,8 +221,8 @@ db_load_routine(THD *thd, enum_sp_type type, const char *sp_db,
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer);
 
-enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
-                                      sp_name *name, st_sp_chistics *chistics);
+bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
+                       st_sp_chistics *chistics);
 
 enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 

@@ -160,6 +160,8 @@ SELECT * FROM mysql.procs_priv;
 SELECT upgrade_del_func();
 
 sync_slave_with_master;
+FLUSH PRIVILEGES;
+FLUSH TABLES;
 --replace_column 8 #
 SELECT * FROM mysql.procs_priv;
 SHOW GRANTS FOR 'create_rout_db'@'localhost';

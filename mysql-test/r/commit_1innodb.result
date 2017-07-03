@@ -572,7 +572,7 @@ begin
 insert t2 set a=2;
 return 2;
 end|
-call p_verify_status_increment(4, 0, 2, 0);
+call p_verify_status_increment(6, 4, 2, 0);
 SUCCESS
 
 # 16. A function changes non-trans-table.
@@ -862,7 +862,7 @@ call p_verify_status_increment(X, 4, 4, 0);
 SUCCESS
 
 create view v1 as select * from t2;
-call p_verify_status_increment(5, 0, 3, 0);
+call p_verify_status_increment(7, 4, 3, 0);
 SUCCESS
 
 check table t1;
@@ -889,7 +889,7 @@ call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 drop view v1;
-call p_verify_status_increment(X, 0, 3, 0);
+call p_verify_status_increment(X, 4, 3, 0);
 SUCCESS
 
 #
