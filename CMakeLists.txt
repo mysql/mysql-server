@@ -849,6 +849,8 @@ IF(UNIX)
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
      ./runtime_output_directory bin
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./library_output_directory lib
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 ENDIF()

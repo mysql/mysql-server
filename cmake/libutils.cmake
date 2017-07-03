@@ -248,11 +248,37 @@ MACRO(MERGE_LIBRARIES)
       ADD_VERSION_INFO(${TARGET} SHARED SRC)
     ENDIF()
     ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
+
+    # Collect all dynamic libraries in the same directory
+    SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+
     TARGET_LINK_LIBRARIES(${TARGET} ${LIBS})
     IF(ARG_OUTPUT_NAME)
       SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")
     ENDIF()
     SET_TARGET_PROPERTIES(${TARGET} PROPERTIES LINK_FLAGS "${export_link_flags}")
+    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+      ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+        COMMAND install_name_tool -change
+                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+                $<TARGET_SONAME_FILE:${TARGET}>
+        COMMAND install_name_tool -change
+                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+                $<TARGET_SONAME_FILE:${TARGET}>
+        COMMAND install_name_tool -id "$<TARGET_SONAME_FILE_NAME:${TARGET}>"
+                $<TARGET_SONAME_FILE:${TARGET}>
+        )
+      # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
+      # Create a symlink so that this works for Xcode also.
+      IF(NOT BUILD_IS_SINGLE_CONFIG)
+        ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E create_symlink
+                  $<TARGET_SONAME_FILE_DIR:${TARGET}> lib
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+          )
+      ENDIF()
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown library type")
   ENDIF()
