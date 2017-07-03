@@ -834,7 +834,7 @@ namespace undo {
 		err = os_file_write(
 			request, log_file_name, handle, log_buf, 0, sz);
 
-		ut_ad(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		os_file_flush(handle);
 		os_file_close(handle);
