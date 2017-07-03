@@ -2244,7 +2244,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "runtime_output_directory", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
