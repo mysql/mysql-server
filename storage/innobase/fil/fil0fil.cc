@@ -789,6 +789,7 @@ fil_node_create_low(
 
 	ut_a(space->id == TRX_SYS_SPACE
 	     || space->id == dict_sys_t::log_space_first_id
+	     || space->purpose == FIL_TYPE_TEMPORARY
 	     || space->files.size() == 1);
 
 	mutex_exit(&fil_system->mutex);
@@ -1918,6 +1919,7 @@ fil_close_all_files()
 		auto	space = it->second;
 
 		ut_a(space->id == TRX_SYS_SPACE
+		     || space->purpose == FIL_TYPE_TEMPORARY
 		     || space->id == dict_sys_t::log_space_first_id
 		     || space->files.size() == 1);
 
@@ -2210,6 +2212,7 @@ fil_check_pending_io(
 	}
 
 	ut_a(space->id == TRX_SYS_SPACE
+	     || space->purpose == FIL_TYPE_TEMPORARY
 	     || space->id == dict_sys_t::log_space_first_id
 	     || space->files.size() == 1);
 
@@ -4950,6 +4953,7 @@ fil_io(
 	if (space->files.size() > 1) {
 
 		ut_a(space->id == TRX_SYS_SPACE
+		     || space->purpose == FIL_TYPE_TEMPORARY
 		     || space->id == dict_sys_t::log_space_first_id);
 
 		for (auto& f : space->files) {
@@ -6724,16 +6728,26 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 	ut_ad(recv_recovery_is_on());
 
 	/* Single threaded code, no need to acquire mutex. */
+	const auto&	end = recv_sys->deleted.end();
 	const auto	names = tablespace_files->find(space_id);
+	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (names == nullptr) {
+
+		/* If it wasn't deleted after finding it on disk then
+		we tag it as missing. */
+
+		if (it == end) {
+
+			recv_sys->missing_ids.insert(space_id);
+		}
+
 		return(false);
 	}
 
 	/* Check that it wasn't deleted. */
-	const auto&	end = recv_sys->deleted.end();
 
-	return(recv_sys->deleted.find(space_id) == end);
+	return(it == end);
 }
 
 /** Open a tablespace that has a redo log record to apply.
@@ -6744,13 +6758,10 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 {
 	ut_ad(recv_recovery_is_on());
 
-	/* File could have been deleted. */
 	if (!fil_tablespace_lookup_for_recovery(space_id)) {
-
 		return(false);
 	}
 
-	/* There must be a mapping from the space ID to a file. */
 	const auto	names = tablespace_files->find(space_id);
 
 	/* Duplicates should have been sorted out before start of recovery. */
@@ -7398,12 +7409,20 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 			ib::info() << "****** " << space_id << ", " << filename;
 
-			size_t	n_files = tablespace_files->add(
-				space_id, filename);
+			if (space_id != 0) {
+				size_t	n_files = tablespace_files->add(
+					space_id, filename);
 
-			if (n_files > 1) {
+				if (n_files > 1) {
 
-				duplicates->insert(space_id);
+					duplicates->insert(space_id);
+				}
+
+			} else {
+
+				ib::error()
+					<< "'" << filename  << "' has a"
+					<< " tablespace ID of 0 - ignoring!";
 			}
 		}
 
@@ -7472,7 +7491,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 	if (!duplicates.empty()) {
 
-		ib::warn() << "Multiple files found for tablespace ID(s)";
+		ib::error() << "Multiple files found for tablespace ID(s)";
 
 		err = DB_FAIL;
 	} else {
@@ -7483,6 +7502,9 @@ fil_scan_for_tablespaces(const std::string& directories)
 	for (auto space_id : duplicates) {
 
 		const auto	names = tablespace_files->find(space_id);
+
+		/* Fixes the order in the mtr tests. */
+		std::sort(names->begin(), names->end());
 
 		ut_a(names->size() > 1);
 
@@ -7501,7 +7523,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 		oss << "]" << std::endl;
 
-		ib::warn() << oss.str();
+		ib::error() << oss.str();
 	}
 
 	return(err);

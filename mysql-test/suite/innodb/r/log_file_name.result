@@ -1,99 +1,55 @@
 # Test tablespace discovery during crash recovery
-# including the detection of duplicate tablespaces.
+# including the detection of duplicate and missing tablespaces
 # Clear old log file
 # restart
 # Do up some DDL and DML to recover
 SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
 SET GLOBAL innodb_checkpoint_disabled=1;
 BEGIN;
-INSERT INTO t3 VALUES (2008),(08),(25);
 INSERT INTO t1 VALUES (1964),(12),(25);
-RENAME TABLE t1 TO t2;
-UPDATE t2 SET a=2000 where a=1964;
+UPDATE t1 SET a=2000 where a=1964;
 COMMIT;
 # Kill the server
-# Fault 0 (no real fault): Orphan file with duplicate space_id.
-# Fault 1: Two dirty files with the same space_id.
-# Attempt to start mysqld. Recovery will fail
-# Remove orphaned file from fault 0
+# Server should never start when there are files with duplicate space IDs
+# Fault 1 tblespace files with duplicate space_id.
+# Attempt to start mysqld. Recovery will fail - duplicate space ID
+# Remove files with duplicate space ID from fault 1
 # Should startup fine
 # restart
-DROP TABLE t2;
-DROP TABLE t3;
+DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE t3(a INT PRIMARY KEY) ENGINE=InnoDB;
 SET GLOBAL innodb_checkpoint_disabled=1;
 BEGIN;
-INSERT INTO t3 VALUES (2008),(08),(25);
 INSERT INTO t1 VALUES (1964),(12),(25);
-RENAME TABLE t1 TO t2;
-UPDATE t2 SET a=2000 where a=1964;
 COMMIT;
 # Kill the server
-# Fault 2: Wrong space_id in a dirty file, and a missing file.
+# Fault 2: Dirty tablespaces with missing files
+# Attempt to start mysqld. Recovery will fail, missing tablespace file
+# Fault 3: Empty data file
 # Attempt to start mysqld. Recovery will fail
-# Fault 3: Wrong space_id in dirty file(s)
-# Swap t2.ibd and t3.ibd.
-# Attempt to start mysqld. Recovery will fail
-# Swap back t3.ibd, but hide t2.ibd.
-# Fault 4: Missing data file
-# Attempt to start mysqld. Recovery will fail
-# Fault 5: Empty data file
-# Attempt to start mysqld. Recovery will fail
-# Restore t2.ibd
+# Restore t1.ibd
 # restart
-SELECT * FROM t2;
+SELECT * FROM t1;
 a
 12
 25
-2000
-SELECT * FROM t3;
-a
-8
-25
-2008
+1964
 SHOW TABLES;
 Tables_in_test
-t2
-t3
-DROP TABLE t2,t3;
-CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
-ERROR HY000: Tablespace '`test`.`t0`' exists.
-# Remove the orphan file from fault 0.
-CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
-DROP TABLE t0;
+t1
+DROP TABLE t1;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 SET GLOBAL innodb_checkpoint_disabled=1;
-CREATE TABLE u1(a INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE u2(a INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE u3(a INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE u4(a INT PRIMARY KEY) ENGINE=InnoDB;
-INSERT INTO u4 VALUES(1);
-RENAME TABLE u4 TO u5;
-RENAME TABLE u5 TO u6;
-INSERT INTO u6 VALUES(2);
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(2008), (08), (25);
 # Kill the server
-# Fault 6: Check file exists use case during RENAME
-# Copy u6.ibd -> u4.ibd
-# We now have the original file and the final file (u4 -> u5 -> u6)
-# Recovery should should rename u4 -> u5 and abort on u5 -> u6
-# Attempt to start mysqld. Recovery will fail
-# Fix the problem by removing u5.ibd
-# Fault 7: Check all zero data file
-# Remove u1.ibd, u2.ibd & u3.ibd
-# Make the header page of u1.ibd consists of zero bytes
-# Write "" to u2.ibd
-# Attempt to start mysqld. Recovery will fail
-# Fault 8: Missing or wrong data file
-# Remove empty u2.ibd
-# Attempt to start mysqld. Recovery will fail
-# Remove empty u6.ibd
-# Attempt to start mysqld with force-recovery=1. Recovery will fail
+# Make the header page of t1.ibd consists of zero bytes
+".ibd files cannot have a space id of 0"
+# Should startup fine
 # restart
-DROP TABLE u1,u2,u3,u6;
+DROP TABLE t1;
 # List of files:
 SHOW TABLES;
 Tables_in_test
