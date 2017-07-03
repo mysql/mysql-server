@@ -6993,6 +6993,7 @@ DDTableBuffer::open()
 	const unsigned	table_id = 32;
 	const unsigned	index_id = 88;
 	unsigned	root;
+	ulint		prtype = 0;
 	mem_heap_t*	heap = mem_heap_create(256);
 
 	switch(univ_page_size.physical()) {
@@ -7026,12 +7027,20 @@ DDTableBuffer::open()
 	table->flags |= DICT_TF_COMPACT | (1 << DICT_TF_POS_SHARED_SPACE)
 			| (1 << DICT_TF_POS_ATOMIC_BLOBS);
 
+	prtype = dtype_form_prtype(
+		MYSQL_TYPE_LONGLONG | DATA_NOT_NULL | DATA_UNSIGNED
+		| DATA_BINARY_TYPE, 0);
+
 	dict_mem_table_add_col(
-		table, heap, table_id_name, DATA_INT, 1800, 8);
+		table, heap, table_id_name, DATA_INT, prtype, 8);
 	dict_mem_table_add_col(
-		table, heap, version_name, DATA_INT, 1800, 8);
+		table, heap, version_name, DATA_INT, prtype, 8);
+
+	prtype = dtype_form_prtype(
+		MYSQL_TYPE_BLOB | DATA_NOT_NULL | DATA_BINARY_TYPE, 63);
+
 	dict_mem_table_add_col(
-		table, heap, metadata_name, DATA_BLOB, 4130300, 10);
+		table, heap, metadata_name, DATA_BLOB, prtype, 10);
 
 	dict_table_add_system_columns(table, heap);
 
