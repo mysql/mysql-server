@@ -78,7 +78,7 @@ public:
   virtual bool match(row_session_connect_attrs *row);
 
 private:
-  PFS_key_processlist_id_int m_key_1;
+  PFS_key_processlist_id m_key_1;
   PFS_key_name m_key_2;
 };
 

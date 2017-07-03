@@ -1809,13 +1809,6 @@ PFS_key_processlist_id::match(const PFS_thread *pfs)
 }
 
 bool
-PFS_key_processlist_id_int::match(const PFS_thread *pfs)
-{
-  bool record_null = (pfs->m_processlist_id == 0);
-  return do_match(record_null, pfs->m_processlist_id);
-}
-
-bool
 PFS_key_engine_transaction_id::match(ulonglong engine_transaction_id)
 {
   return do_match(false, engine_transaction_id);
