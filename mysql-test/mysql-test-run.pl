@@ -109,7 +109,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
-my $mysql_version_extra;
+our $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -318,7 +318,7 @@ our $opt_user = "root";
 
 our $opt_valgrind= 0;
 my $opt_discover= 0;
-my $opt_sanitize= 0;
+our $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
