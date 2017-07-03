@@ -82,6 +82,8 @@ int main(int argc, char **argv)
   ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
 
+  mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
+
   if (handle_options(&argc, &argv, unittest_options, get_one_option))
     return EXIT_FAILURE;
   if (opt_use_tap)

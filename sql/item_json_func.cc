@@ -2038,8 +2038,8 @@ bool wrapped_top_level_item(Json_path *path MY_ATTRIBUTE((unused)),
     return false;
 
 #ifndef DBUG_OFF
-  for (size_t i= 0; i < path->leg_count(); i++)
-    DBUG_ASSERT(path->get_leg_at(i)->is_autowrap());
+  for (const Json_path_leg *leg : *path)
+    DBUG_ASSERT(leg->is_autowrap());
 #endif
 
   return true;
@@ -2365,9 +2365,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
       m_path.set(current_path);
 
       // the path must end in a cell identifier
-      size_t leg_count= m_path.leg_count();
-      if ((leg_count == 0) ||
-          (m_path.get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
+      if (m_path.leg_count() == 0 ||
+          m_path.last_leg()->get_type() != jpl_array_cell)
       {
         my_error(ER_INVALID_JSON_PATH_ARRAY_CELL, MYF(0));
         return error_json();
@@ -2466,10 +2465,8 @@ static bool clone_without_autowrapping(Json_path *source_path,
   Json_wrapper_vector hits(key_memory_JSON);
 
   target_path->clear();
-  size_t leg_count= source_path->leg_count();
-  for (size_t leg_idx= 0; leg_idx < leg_count; leg_idx++)
+  for (const Json_path_leg *path_leg : *source_path)
   {
-    const Json_path_leg *path_leg= source_path->get_leg_at(leg_idx);
     if (path_leg->is_autowrap())
     {
       /*
@@ -3429,7 +3426,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
     }
     else
     {
-      const Json_path_leg *last_leg= path.get_leg_at(path.leg_count() - 1);
+      const Json_path_leg *last_leg= path.last_leg();
       path.pop();
       hits.clear();
       if (dom->seek(path, &hits, false, true))

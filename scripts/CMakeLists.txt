@@ -15,7 +15,7 @@
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
- ADD_EXECUTABLE(comp_sql comp_sql.c)
+ MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.c SKIP_INSTALL)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 
@@ -35,7 +35,7 @@ IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
 ENDIF()
 
 IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)
-  ADD_EXECUTABLE(patch_file patch_file.cc)
+  MYSQL_ADD_EXECUTABLE(patch_file patch_file.cc SKIP_INSTALL)
   ADD_CUSTOM_TARGET(Check_mysql_system_tables_sql
     ALL
     patch_file ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql

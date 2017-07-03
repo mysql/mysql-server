@@ -109,7 +109,7 @@ char*	srv_data_home	= NULL;
 char*	srv_undo_dir = NULL;
 
 /** The number of tablespaces to use for rollback segments. */
-ulong	srv_undo_tablespaces = 0;
+ulong	srv_undo_tablespaces = FSP_MIN_UNDO_TABLESPACES;
 
 /* The number of rollback segments per tablespace */
 ulong	srv_rollback_segments = TRX_SYS_N_RSEGS;

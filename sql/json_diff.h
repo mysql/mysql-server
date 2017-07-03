@@ -92,8 +92,8 @@ public:
             std::unique_ptr<Json_dom> value)
     : m_path(), m_operation(operation), m_value(std::move(value))
   {
-    for (size_t i= 0; i < path.leg_count(); ++i)
-      m_path.append(*path.get_leg_at(i));
+    for (const Json_path_leg *leg : path)
+      m_path.append(*leg);
   }
 
   /// Get the path that is changed by this diff.

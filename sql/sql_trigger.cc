@@ -557,6 +557,12 @@ bool Sql_cmd_create_trigger::execute(THD *thd)
   result|= finalize_trigger_ddl(thd, m_trigger_table->db, table, stmt_query,
                                 !result);
 
+  DBUG_EXECUTE_IF("simulate_create_trigger_failure",
+                  {
+                    result= true;
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  });
+
   if (result)
   {
     trans_rollback_stmt(thd);
@@ -689,6 +695,12 @@ bool Sql_cmd_drop_trigger::execute(THD *thd)
     result= stmt_query.append(thd->query().str, thd->query().length);
 
   result|= finalize_trigger_ddl(thd, tables->db, table, stmt_query, !result);
+
+  DBUG_EXECUTE_IF("simulate_drop_trigger_failure",
+                  {
+                    result= true;
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  });
 
   if (result)
   {

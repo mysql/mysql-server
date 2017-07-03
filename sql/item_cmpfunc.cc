@@ -67,10 +67,6 @@
 using std::min;
 using std::max;
 
-static void fix_num_type_shared_for_case(Item_func *item_func,
-                                         Item_result result_type,
-                                         Item **item,
-                                         uint nitems);
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
@@ -3324,7 +3320,7 @@ bool Item_func_ifnull::resolve_type(THD *)
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (count_string_result_length(data_type(), args, 2))
+    if (aggregate_string_properties(data_type(), func_name(), args, 2))
       return true;
     break;
   case DECIMAL_RESULT:
@@ -3520,13 +3516,13 @@ bool Item_func_if::resolve_type(THD*)
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (count_string_result_length(data_type(), args + 1, 2))
+    if (aggregate_string_properties(data_type(), func_name(), args + 1, 2))
       return true;
   }
   else
   {
     collation.set_numeric(); // Number
-    fix_num_type_shared_for_case(this, cached_result_type, args + 1, 2);
+    aggregate_num_type(cached_result_type, args + 1, 2);
   }
   return false;
 }
@@ -3976,34 +3972,6 @@ static void change_item_tree_if_needed(THD *thd,
   thd->change_item_tree(place, new_value);
 }
 
-/**
-  This function is a shared part to resolve_type() for numeric result
-  type of CASE, COALESCE and IF.
-  COALESCE is a CASE abbreviation according to the standard.
- */
-static void fix_num_type_shared_for_case(Item_func *item_func,
-                                         Item_result result_type,
-                                         Item **item,
-                                         uint nitems)
-{
-  switch (result_type)
-  {
-  case DECIMAL_RESULT:
-    item_func->count_decimal_length(item, nitems);
-    break;
-  case REAL_RESULT:
-    item_func->count_real_length(item, nitems);
-    break;
-  case INT_RESULT:
-    item_func->count_only_length(item, nitems);
-    item_func->decimals= 0;
-    break;
-  case ROW_RESULT:
-  default:
-    DBUG_ASSERT(0);
-  }
-}
-
 bool Item_func_case::resolve_type(THD *thd)
 {
   Item **agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1));
@@ -4034,7 +4002,7 @@ bool Item_func_case::resolve_type(THD *thd)
   if (cached_result_type == STRING_RESULT)
   {
     /* Note: String result type is the same for CASE and COALESCE. */
-    if (count_string_result_length(data_type(), agg, nagg))
+    if (aggregate_string_properties(data_type(), func_name(), agg, nagg))
       return true;
     /*
       Copy all THEN and ELSE items back to args[] array.
@@ -4049,7 +4017,7 @@ bool Item_func_case::resolve_type(THD *thd)
   else
   {
     collation.set_numeric();
-    fix_num_type_shared_for_case(this, cached_result_type, agg, nagg);
+    aggregate_num_type(cached_result_type, agg, nagg);
   }
 
   /*
@@ -4309,13 +4277,13 @@ bool Item_func_coalesce::resolve_type(THD *)
   hybrid_type= Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT)
   {
-    if (count_string_result_length(data_type(), args, arg_count))
+    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
       return true;
   }
   else
   {
     collation.set_numeric(); // Number
-    fix_num_type_shared_for_case(this, hybrid_type, args, arg_count);
+    aggregate_num_type(hybrid_type, args, arg_count);
   }
 
   return false;

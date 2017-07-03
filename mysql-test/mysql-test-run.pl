@@ -979,6 +979,8 @@ sub run_worker ($) {
 
   $SIG{INT}= sub { exit(1); };
 
+  mtr_report("*** Running worker: $thread_num") if IS_WINDOWS;
+
   # Connect to server
   my $server = new IO::Socket::INET
     (
@@ -992,6 +994,7 @@ sub run_worker ($) {
   # --------------------------------------------------------------------------
   # Set worker name
   # --------------------------------------------------------------------------
+  mtr_report("*** Reserving ports for worker $thread_num") if IS_WINDOWS;
   report_option('name',"worker[$thread_num]");
 
   # --------------------------------------------------------------------------
@@ -1398,11 +1401,10 @@ sub command_line_setup {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$bindir/client_release",
-					 "$bindir/client_debug",
-					 vs_config_dirs('client', ''),
-					 "$bindir/client",
-					 "$bindir/bin");
+    $path_client_bindir=
+      mtr_path_exists(vs_config_dirs('runtime_output_directory', ''),
+		      "$bindir/client",
+		      "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
@@ -1993,10 +1995,21 @@ sub set_build_thread_ports($) {
                              ? $max_parallel + int($max_parallel / 2)
                              : 49);
 
+    if (IS_WINDOWS)
+    {
+      mtr_report("=> Build thread initial value: $build_thread");
+      mtr_report("=> Build thread upper limit value: $build_thread_upper");
+      mtr_report("=> Build threads per worker process: ".
+                 "$build_threads_per_thread");
+    }
+
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
-                                       $build_threads_per_thread);
+                                       $build_threads_per_thread, $thread);
+
+      mtr_report("=> Checking build thread $build_thread for worker $thread")
+        if IS_WINDOWS;
 
       if (!defined $build_thread)
       {
@@ -2231,7 +2244,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "libexec", "sbin", "bin"],
+		     ["sql", "runtime_output_directory", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
@@ -2412,6 +2425,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+			     "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
@@ -2430,12 +2444,9 @@ sub mysql_client_test_arguments(){
 
 sub mysqlxtest_arguments(){
   my $exe;
-  # mysql_client_test executable may _not_ exist
+  # mysqlxtest executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('plugin', 'mysqlxtest'),
-                             "$bindir/rapid/plugin/x/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Debug/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Release/mysqlxtest",
-                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
+			     "$path_client_bindir/mysqlxtest",
                              "$bindir/bin/mysqlxtest");
   return "" unless $exe;
 
@@ -2726,6 +2737,7 @@ sub environment_setup {
   # ----------------------------------------------------
   my $exe_bug25714=
       mtr_exe_maybe_exists(vs_config_dirs('testclients', 'bug25714'),
+			   "$path_client_bindir/bug25714",
                            "$basedir/testclients/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
@@ -2841,6 +2853,7 @@ sub environment_setup {
   # is needed when building with Xcode on OSX
   my $exe_mysql_tzinfo_to_sql= 
     mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+		   "$path_client_bindir/mysql_tzinfo_to_sql",
                    "$basedir/bin/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 

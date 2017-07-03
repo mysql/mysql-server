@@ -93,7 +93,7 @@ public:
                     LEX_STRING *new_dbname, LEX_STRING *new_name);
 
   bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
-                  bool drop_if_exists);
+                  bool drop_if_exists, bool *event_exists);
 
   bool drop_schema_events(THD *thd, const dd::Schema &schema);
 

@@ -916,16 +916,26 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_OPTIMIZE]|=         CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
-  sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_FUNCTION]|=     CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]|=   CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF |
+                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_CREATE_TRIGGER]|=   CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_TRIGGER]|=     CF_NEEDS_AUTOCOMMIT_OFF |
@@ -934,6 +944,12 @@ void init_update_queries(void)
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_EVENT]|=     CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -4162,7 +4178,7 @@ mysql_execute_command(THD *thd, bool first_level)
 
       /*
         Restore current user with GLOBAL_ACL privilege of SQL thread
-      */ 
+      */
       if (restore_backup_context)
       {
         DBUG_ASSERT(thd->slave_thread == 1);
@@ -4191,25 +4207,11 @@ mysql_execute_command(THD *thd, bool first_level)
         already puts on CREATE FUNCTION.
       */
       /* Conditionally writes to binlog */
-      enum_sp_return_code sp_result= sp_update_routine(thd, sp_type,
-                                                       lex->spname,
-                                                       &lex->sp_chistics);
-      if (thd->killed)
+      res= sp_update_routine(thd, sp_type, lex->spname, &lex->sp_chistics);
+      if (res || thd->killed)
         goto error;
-      switch (sp_result)
-      {
-      case SP_OK:
-	my_ok(thd);
-	break;
-      case SP_DOES_NOT_EXISTS:
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-                 SP_COM_STRING(lex), lex->spname->m_qname.str);
-	goto error;
-      default:
-	my_error(ER_SP_CANT_ALTER, MYF(0),
-                 SP_COM_STRING(lex), lex->spname->m_qname.str);
-	goto error;
-      }
+
+      my_ok(thd);
       break;
     }
   case SQLCOM_DROP_PROCEDURE:
@@ -4303,27 +4305,27 @@ mysql_execute_command(THD *thd, bool first_level)
       res= sp_result;
       switch (sp_result) {
       case SP_OK:
-	my_ok(thd);
-	break;
+        my_ok(thd);
+        break;
       case SP_DOES_NOT_EXISTS:
-	if (lex->drop_if_exists)
-	{
+        if (lex->drop_if_exists)
+        {
           res= write_bin_log(thd, true, thd->query().str, thd->query().length);
-	  push_warning_printf(thd, Sql_condition::SL_NOTE,
-			      ER_SP_DOES_NOT_EXIST,
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
+                              ER_SP_DOES_NOT_EXIST,
                               ER_THD(thd, ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
             my_ok(thd);
-	  break;
-	}
-	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
+          break;
+        }
+        my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_qname.str);
-	goto error;
+        goto error;
       default:
-	my_error(ER_SP_DROP_FAILED, MYF(0),
+        my_error(ER_SP_DROP_FAILED, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_qname.str);
-	goto error;
+        goto error;
       }
       break;
     }

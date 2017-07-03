@@ -100,6 +100,7 @@
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group
 #include "rpl_slave.h"         // use_slave_mask
+#include "sp_head.h"           // sp_name
 #include "sql_base.h"          // close_thread_tables
 #include "sql_bitmap.h"
 #include "sql_cache.h"         // query_cache
@@ -4013,29 +4014,31 @@ bool is_atomic_ddl(THD *thd, bool using_trans_arg)
   case SQLCOM_SET_PASSWORD:
   case SQLCOM_CREATE_TRIGGER:
   case SQLCOM_DROP_TRIGGER:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_CREATE_FUNCTION:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_EVENT:
+  case SQLCOM_DROP_EVENT:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_DROP_VIEW:
 
     DBUG_ASSERT(using_trans_arg || thd->slave_thread || lex->drop_if_exists);
 
     break;
-  /*
-    For the following commands is_sql_command_atomic_ddl() is true but
-    they are not yet atomic. They should not use trx cache unless this
-    is call from the slave applier for which fake using_trans_arg value
-    is provided.
 
-    TODO: remove a command from the list once it gets 2pc-readied.
-  */
-  case SQLCOM_CREATE_VIEW:
-  case SQLCOM_DROP_VIEW:
-  case SQLCOM_CREATE_SPFUNCTION:
-  case SQLCOM_DROP_FUNCTION:
-  case SQLCOM_ALTER_FUNCTION:
-  case SQLCOM_CREATE_PROCEDURE:
-  case SQLCOM_DROP_PROCEDURE:
-  case SQLCOM_ALTER_PROCEDURE:
-
-    DBUG_ASSERT(!using_trans_arg || thd->slave_thread);
+  case SQLCOM_CREATE_EVENT:
+    /*
+      trx cache is *not* used if event already exists and IF NOT EXISTS clause
+      is used in the statement or if call is from the slave applier.
+    */
+    DBUG_ASSERT(using_trans_arg || thd->slave_thread ||
+                (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS));
     break;
+
   default:
     break;
   }

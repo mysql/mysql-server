@@ -703,66 +703,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 {}
 
 
-
-/**
-  Set max_length/decimals of function if function is fixed point and
-  result length/precision depends on argument ones.
-
-  @param item    Argument array.
-  @param nitems  Number of arguments in the array.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
-void Item_func::count_decimal_length(Item **item, uint nitems)
-{
-  int max_int_part= 0;
-  decimals= 0;
-  for (uint i=0 ; i < nitems ; i++)
-  {
-    set_if_bigger(decimals, item[i]->decimals);
-    set_if_bigger(max_int_part, item[i]->decimal_int_part());
-  }
-  int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
-                                                               decimals,
-                                                               unsigned_flag));
-}
-
-/**
-  Set max_length/decimals of function if function is floating point and
-  result length/precision depends on argument ones.
-
-  @param item    Argument array.
-  @param nitems  Number of arguments in the array.
-*/
-
-void Item_func::count_real_length(Item **item, uint nitems)
-{
-  uint32 length= 0;
-  decimals= 0;
-  max_length= 0;
-  for (uint i=0 ; i < nitems; i++)
-  {
-    if (decimals != NOT_FIXED_DEC)
-    {
-      set_if_bigger(decimals, item[i]->decimals);
-      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
-    }
-    set_if_bigger(max_length, item[i]->max_length);
-  }
-  if (decimals != NOT_FIXED_DEC)
-  {
-    max_length= length;
-    length+= decimals;
-    if (length < max_length)  // If previous operation gave overflow
-      max_length= UINT_MAX32;
-    else
-      max_length= length;
-  }
-}
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
@@ -1168,10 +1108,10 @@ void Item_num_op::set_numeric_type(void)
       type codes, we should never get to here when both fields are temporal.
     */
     DBUG_ASSERT(!args[0]->is_temporal() || !args[1]->is_temporal());
-    count_real_length(args, arg_count);
-    max_length= float_length(decimals);
     set_data_type(MYSQL_TYPE_DOUBLE);
     hybrid_type= REAL_RESULT;
+    aggregate_float_properties(args, arg_count);
+    max_length= float_length(decimals);
   }
   else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT)
   {
@@ -3692,7 +3632,7 @@ bool Item_func_min_max::resolve_type(THD*)
   if (compare_as_dates && data_type() == MYSQL_TYPE_VARCHAR)
   {
     set_data_type(datetime_item->data_type());
-    count_datetime_length(args, arg_count);
+    aggregate_temporal_properties(args, arg_count);
     set_data_type(MYSQL_TYPE_VARCHAR);
   }
 

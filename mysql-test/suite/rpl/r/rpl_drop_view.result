@@ -15,9 +15,7 @@ drop view not_exist_view;
 ERROR 42S02: Unknown table 'test.not_exist_view'
 drop view v1, not_exist_view;
 ERROR 42S02: Unknown table 'test.not_exist_view'
-select * from v1;
-ERROR 42S02: Table 'test.v1' doesn't exist
-drop view v2, v3;
+drop view v1, v2, v3;
 include/sync_slave_sql_with_master.inc
 select * from v1;
 ERROR 42S02: Table 'test.v1' doesn't exist

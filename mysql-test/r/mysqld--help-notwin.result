@@ -1439,7 +1439,7 @@ max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
 max-digest-length 1024
-max-error-count 64
+max-error-count 1024
 max-execution-time 0
 max-heap-table-size 16777216
 max-join-size 18446744073709551615

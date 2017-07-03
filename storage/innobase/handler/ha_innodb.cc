@@ -20743,12 +20743,6 @@ innodb_undo_tablespaces_update(
 		return;
 	}
 
-	if (target == 0) {
-		ib::info() << "Setting 'innodb_undo_tablespaces' to 0 is"
-			" deprecated and will not be supported in a future"
-			" release.";
-	}
-
 	if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
 		ib::warn() << "Failed to set innodb_undo_tablespaces to "
 			<< target << ".";
@@ -21939,8 +21933,8 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
   "Number of undo tablespaces to use. ",
   NULL, innodb_undo_tablespaces_update,
-  2L,				/* Default seting */
-  0L,				/* Minimum value */
+  FSP_MIN_UNDO_TABLESPACES,	/* Default seting */
+  FSP_MIN_UNDO_TABLESPACES,	/* Minimum value */
   FSP_MAX_UNDO_TABLESPACES, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_tablespace_size,

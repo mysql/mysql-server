@@ -3533,8 +3533,8 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 /**
   Read first row (only) from a table.
 
-  This is never called for InnoDB tables, as these table types
-  has the HA_STATS_RECORDS_IS_EXACT set.
+  This is never called for tables whose storage engine do not contain exact
+  statistics on number of records, e.g. InnoDB.
 
   @note Since there is only one implementation for this function, it is
         non-virtual and does not call a protected inner function, like

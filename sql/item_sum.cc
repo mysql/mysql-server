@@ -6136,67 +6136,23 @@ bool Item_lead_lag::resolve_type(THD *thd)
 
   aggregate_type(make_array(args, arg_count));
   m_hybrid_type= Field::result_merge_type(data_type());
-  uint32 char_length;
+
   if (arg_count == 2)
-  {
     maybe_null=args[1]->maybe_null || args[0]->maybe_null;
+  else
+    maybe_null=true; // No default value provided, so we get NULLs
 
-    if (m_hybrid_type == DECIMAL_RESULT || m_hybrid_type == INT_RESULT)
-    {
-      /*
-        FIXME: Maybe we can reuse
-        fix_num_type_shared_for_case(this, m_hybrid_type, args, arg_count);
-        instead of the below by lifting its logic up from Item_func to
-        Item_result_field ?
-      */
-      int len0= (args[0]->max_char_length() - args[0]->decimals
-                 - (args[0]->unsigned_flag ? 0 : 1));
-
-      int len1= (args[1]->max_char_length() - args[1]->decimals
-                 - (args[1]->unsigned_flag ? 0 : 1));
-
-      char_length= max(len0, len1) + decimals + (unsigned_flag ? 0 : 1);
-      collation.set_numeric();
-    }
-    else
-    {
-      char_length= max(args[0]->max_char_length(), args[1]->max_char_length());
-    }
+  if (m_hybrid_type == STRING_RESULT)
+  {
+    if (aggregate_string_properties(data_type(), func_name(), args, arg_count))
+      return true;
   }
   else
   {
-    maybe_null=true; // No default value provided, so we get NULLs
-    decimals= args[0]->decimals;
-
-    if (m_hybrid_type == DECIMAL_RESULT || m_hybrid_type == INT_RESULT)
-    {
-      int len0= (args[0]->max_char_length() - args[0]->decimals
-                 - (args[0]->unsigned_flag ? 0 : 1));
-      char_length= len0 + decimals + (unsigned_flag ? 0 : 1);
-    }
-    else
-    {
-      char_length= args[0]->max_char_length();
-    }
+    collation.set_numeric(); // Number
+    aggregate_num_type(m_hybrid_type, args, arg_count);
   }
 
-  switch (m_hybrid_type) {
-    case STRING_RESULT:
-      if (count_string_result_length(data_type(), args, arg_count))
-        return true;
-      break;
-    case DECIMAL_RESULT:
-    case REAL_RESULT:
-      break;
-    case INT_RESULT:
-      decimals= 0;
-      break;
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
-  }
-
-  fix_char_length(char_length);
   if (orig_arg_count == 3) // restore args array
   {
     // agg_item_charsets can have changed args[1]:

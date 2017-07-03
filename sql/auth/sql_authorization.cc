@@ -5351,10 +5351,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 /**
   Grant EXECUTE,ALTER privilege for a stored procedure
 
-  @param thd The current thread.
-  @param sp_db
-  @param sp_name
-  @param is_proc
+  @param      thd                  The current thread.
+  @param      sp_db                DB of the stored procedure.
+  @param      sp_name              Name of the stored procedure
+  @param      is_proc              True if this is a SP rather than a function
 
   @return
     @retval FALSE Success

@@ -436,6 +436,18 @@ err:
 /**
   @brief Creating/altering VIEW procedure
 
+  Atomicity:
+    The operation to create, alter and create_or_replace a view is
+    atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary and table definition caches
+    are in sync with operation state. Cache do not contain any
+    stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
+
   @param thd thread handler
   @param views views to create
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
@@ -721,80 +733,92 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     }
   }
 
-  res= mysql_register_view(thd, view, mode);
-
-  if (res)
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-  }
-  else
-    res= trans_commit_stmt(thd) || trans_commit(thd);
+  if ((res= mysql_register_view(thd, view, mode)))
+    goto err_with_rollback;
 
   /*
-    View TABLE_SHARE must be removed from the table definition cache in order to
-    make ALTER VIEW work properly. Otherwise, we would not be able to detect
-    meta-data changes after ALTER VIEW.
+    View TABLE_SHARE must be removed from the table definition cache in order
+    to make ALTER VIEW work properly. Otherwise, we would not be able to
+    detect meta-data changes after ALTER VIEW.
   */
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
 
-  if (!res)
+  // Update metadata of views referencing "view".
   {
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
-
-    res= update_referencing_views_metadata(thd, view, true, nullptr);
-
-    if (!res && mysql_bin_log.is_open())
-    {
-      String buff;
-      const LEX_STRING command[3]=
-      {{ C_STRING_WITH_LEN("CREATE ") },
-        { C_STRING_WITH_LEN("ALTER ") },
-        { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
-
-      buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
-                  command[static_cast<int>(thd->lex->create_view_mode)].length);
-      view_store_options(thd, views, &buff);
-      buff.append(STRING_WITH_LEN("VIEW "));
-      /* Test if user supplied a db (ie: we did not use thd->db) */
-      if (views->db && views->db[0] &&
-          (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
-      {
-        append_identifier(thd, &buff, views->db,
-                          views->db_length);
-        buff.append('.');
-      }
-      append_identifier(thd, &buff, views->table_name,
-                        views->table_name_length);
-      if (view->derived_column_names())
-      {
-        int i= 0;
-        for (auto name : *view->derived_column_names())
-        {
-          buff.append(i++ ? ", " : "(");
-          append_identifier(thd, &buff, name.str, name.length);
-        }
-        buff.append(')');
-      }
-      buff.append(STRING_WITH_LEN(" AS "));
-      buff.append(views->source.str, views->source.length);
-
-      int errcode= query_error_code(thd, true);
-      thd->add_to_binlog_accessed_dbs(views->db);
-      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            buff.ptr(), buff.length(), false, false,
-                            false, errcode))
-        res= true;
-    }
+    Uncommitted_tables_guard uncommited_tables(thd);
+    uncommited_tables.add_table(view);
+    if ((res= update_referencing_views_metadata(thd, view, false,
+                                                &uncommited_tables)))
+      goto err_with_rollback;
   }
+
+  // Binlog CREATE/ALTER/CREATE OR REPLACE event.
+  if (mysql_bin_log.is_open())
+  {
+    String buff;
+    const LEX_STRING command[3]=
+    {{ C_STRING_WITH_LEN("CREATE ") },
+      { C_STRING_WITH_LEN("ALTER ") },
+      { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+
+    buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
+                command[static_cast<int>(thd->lex->create_view_mode)].length);
+    view_store_options(thd, views, &buff);
+    buff.append(STRING_WITH_LEN("VIEW "));
+    /* Test if user supplied a db (ie: we did not use thd->db) */
+    if (views->db && views->db[0] &&
+        (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
+    {
+      append_identifier(thd, &buff, views->db,
+                        views->db_length);
+      buff.append('.');
+    }
+    append_identifier(thd, &buff, views->table_name,
+                      views->table_name_length);
+    if (view->derived_column_names())
+    {
+      int i= 0;
+      for (auto name : *view->derived_column_names())
+      {
+        buff.append(i++ ? ", " : "(");
+        append_identifier(thd, &buff, name.str, name.length);
+      }
+      buff.append(')');
+    }
+    buff.append(STRING_WITH_LEN(" AS "));
+    buff.append(views->source.str, views->source.length);
+
+    int errcode= query_error_code(thd, true);
+    thd->add_to_binlog_accessed_dbs(views->db);
+    if ((res= thd->binlog_query(THD::STMT_QUERY_TYPE, buff.ptr(),
+                                buff.length(), true, false, false, errcode)))
+      goto err_with_rollback;
+  }
+
+  // Commit changes to the data-dictionary and binary log.
+  res= DBUG_EVALUATE_IF("simulate_create_view_failure", true, false) ||
+       trans_commit_stmt(thd) || trans_commit(thd);
+  if (res)
+    goto err_with_rollback;
+
   if (mode != enum_view_create_mode::VIEW_CREATE_NEW)
     query_cache.invalidate(thd, view, false);
-  if (res)
-    goto err;
 
   my_ok(thd);
   lex->link_first_table_back(view, link_to_local);
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
+
+err_with_rollback:
+  DBUG_EXECUTE_IF("simulate_create_view_failure",
+                  my_error(ER_UNKNOWN_ERROR, MYF(0)););
+
+  trans_rollback_stmt(thd);
+  /*
+    Full rollback in case we have THD::transaction_rollback_request
+    and to synchronize DD state in cache and on disk (as statement
+    rollback doesn't clear DD cache of modified uncommitted objects).
+  */
+  trans_rollback(thd);
 
 err:
   THD_STAGE_INFO(thd, stage_end);
@@ -1740,6 +1764,19 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 /**
   Drop view
 
+  Atomicity:
+    The operation to drop a view is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. Data-dictionary and table definition caches
+    are in sync with operation state. Cache do not contain any
+    stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between
+    the data-dictionary table and the binary log.
+    The partial execution of a drop view statement is not supported
+    any more with atomic drop view implementation.
+
   @param[in] thd   thread handler
   @param[in] views views to delete
 
@@ -1749,15 +1786,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *views)
 {
-  TABLE_LIST *view;
-  String non_existant_views;
-  const char *wrong_object_db= NULL;
-  const char *wrong_object_name= NULL;
-  bool error= false;
   bool some_views_deleted= false;
 
   DBUG_ENTER("mysql_drop_view");
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
     We can't allow dropping of unlocked view under LOCK TABLES since this
@@ -1773,7 +1804,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
   if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout, 0))
     DBUG_RETURN(true);
 
-  for (view= views; view; view= view->next_local)
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  // First check which views exist
+  String non_existant_views;
+  for (TABLE_LIST *view= views; view; view= view->next_local)
   {
     /*
       Either, the entity does not exist, in which case we will
@@ -1802,98 +1837,106 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
-
         non_existant_views.append(tbl_name);
       }
     }
-    else
+    else if (at->type() == dd::enum_table_type::BASE_TABLE)
     {
-      switch (at->type())
-      {
-      case dd::enum_table_type::BASE_TABLE:
-        if (!wrong_object_name)
-        {
-          wrong_object_db= view->db;
-          wrong_object_name= view->table_name;
-        }
-        break;
-      case dd::enum_table_type::SYSTEM_VIEW: // Fall through
-      case dd::enum_table_type::USER_VIEW:
-        {
-          thd->add_to_binlog_accessed_dbs(view->db);
-
-          /*
-            Remove view from DD tables and update metadata of other views
-            referecing view being dropped.
-          */
-          Disable_gtid_state_update_guard disabler(thd);
-
-          if (thd->dd_client()->drop(at))
-          {
-            trans_rollback_stmt(thd);
-            // Full rollback in case we have THD::transaction_rollback_request.
-            trans_rollback(thd);
-            error= true;
-          }
-          else
-            error= trans_commit_stmt(thd) || trans_commit(thd);
-
-          if (!error &&
-              update_referencing_views_metadata(thd, view, true, nullptr))
-          {
-            error= true;
-          }
-
-          some_views_deleted= true;
-
-          /*
-            For a view, there is a TABLE_SHARE object, but its
-            ref_count never goes above 1. Remove it from the table
-            definition cache, in case the view was cached.
-          */
-          tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
-                           false);
-          query_cache.invalidate(thd, view, false);
-          sp_cache_invalidate();
-
-          break;
-        }
-      default:
-        DBUG_ASSERT(false);
-      }
+      my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+      DBUG_RETURN(true);
     }
   }
-
-  /* If something goes wrong, set error as appropriate */
-  if (wrong_object_name)
-    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name,
-               "VIEW");
   if (non_existant_views.length())
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
-
-  /*
-    If there was an error, we write bin log only if views have been
-    deleted, then we return no matter what. Bin log is written without
-    clearing the error code.
-  */
-  if (error || wrong_object_name || non_existant_views.length())
   {
-    if (some_views_deleted)
-    {
-      int ret= commit_owned_gtid_by_partial_command(thd);
-      if (ret == 1)
-        (void) write_bin_log(thd, false, thd->query().str,
-                             thd->query().length);
-    }
-
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
     DBUG_RETURN(true);
   }
 
-  /*
-    Here, we know there was no error. Now, we write bin log with error
-    code cleared.
-  */
-  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+  // Then actually start dropping views.
+  for (TABLE_LIST *view= views; view; view= view->next_local)
+  {
+    DBUG_EXECUTE_IF("fail_while_acquiring_view_obj",
+                    DBUG_SET("+d,fail_while_acquiring_dd_object"););
+    /*
+      Either, the entity does not exist, in which case we will
+      issue a warning (if running with DROP ... IF EXISTS), or
+      we will fail with an error later due to views not existing.
+
+      Otherwise, the entity does indeed exist, and we must take
+      different actions depending on the table type.
+    */
+    const dd::Abstract_table *at= nullptr;
+    if (thd->dd_client()->acquire(view->db, view->table_name, &at))
+    {
+      DBUG_EXECUTE_IF("fail_while_acquiring_view_obj",
+                      DBUG_SET("-d,fail_while_acquiring_dd_object"););
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+      DBUG_RETURN(true);
+    }
+
+    if (at == nullptr)
+    {
+      DBUG_ASSERT(thd->lex->drop_if_exists);
+      continue; // Warning reported above.
+    }
+
+    DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
+                at->type() == dd::enum_table_type::USER_VIEW);
+
+    Uncommitted_tables_guard uncommitted_tables(thd);
+    /*
+      For a view, there is a TABLE_SHARE object, but its
+      ref_count never goes above 1. Remove it from the table
+      definition cache, in case the view was cached.
+    */
+    uncommitted_tables.add_table(view);
+
+    /*
+      Remove view from DD tables and update metadata of other views
+      referecing view being dropped.
+    */
+    if (thd->dd_client()->drop(at) ||
+        update_referencing_views_metadata(thd, view, false,
+                                          &uncommitted_tables))
+    {
+      trans_rollback_stmt(thd);
+      /*
+        Full rollback in case we have THD::transaction_rollback_request
+        and to synchronize DD state in cache and on disk (as statement
+        rollback doesn't clear DD cache of modified uncommitted objects).
+      */
+      trans_rollback(thd);
+      DBUG_RETURN(true);
+    }
+
+    thd->add_to_binlog_accessed_dbs(view->db);
+    some_views_deleted= true;
+
+    query_cache.invalidate(thd, view, false);
+  }
+
+  if (some_views_deleted)
+    sp_cache_invalidate();
+
+  if (write_bin_log(thd, false, thd->query().str, thd->query().length,
+                    some_views_deleted) ||
+      DBUG_EVALUATE_IF("simulate_drop_view_failure", true, false))
+  {
+    DBUG_EXECUTE_IF("simulate_drop_view_failure",
+                    my_error(ER_UNKNOWN_ERROR, MYF(0)););
+    trans_rollback_stmt(thd);
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd))
     DBUG_RETURN(true);
 
   my_ok(thd);

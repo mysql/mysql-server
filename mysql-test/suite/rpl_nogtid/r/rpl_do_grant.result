@@ -122,6 +122,8 @@ localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@lo
 SELECT upgrade_del_func();
 upgrade_del_func()
 INSIDE upgrade_del_func()
+FLUSH PRIVILEGES;
+FLUSH TABLES;
 SELECT * FROM mysql.procs_priv;
 Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
 localhost	bug42217_db	create_rout_db	upgrade_del_func	FUNCTION	create_rout_db@localhost	Execute,Alter Routine	#

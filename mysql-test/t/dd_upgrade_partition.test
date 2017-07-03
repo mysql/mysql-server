@@ -7,7 +7,6 @@
 # due to difference in path format.
 --source include/not_windows.inc
 --source include/not_valgrind.inc
---source include/have_undo_tablespaces.inc
 
 --disable_query_log
 call mtr.add_suppression("Resizing redo log from");

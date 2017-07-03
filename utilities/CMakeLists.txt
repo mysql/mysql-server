@@ -24,12 +24,13 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 SET(MYSQL_INSTALL_COMPONENT Server)
 
 IF(NOT CMAKE_CROSSCOMPILING)
- ADD_EXECUTABLE(comp_err comp_err.cc)
- TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
+  MYSQL_ADD_EXECUTABLE(comp_err comp_err.cc SKIP_INSTALL)
+  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
 ENDIF()
 
-ADD_EXECUTABLE(comp_client_err
-  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc)
+MYSQL_ADD_EXECUTABLE(comp_client_err
+  comp_client_err.cc ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
+  SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(comp_client_err mysys mysys_ssl)
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
@@ -75,9 +76,10 @@ ADD_DEFINITIONS(-DMUTEX_EVENT)
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
-COPY_OPENSSL_DLLS(copy_openssl_extra)
 IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
-  ADD_DEPENDENCIES(GenError copy_openssl_extra)
+  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
+  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
 

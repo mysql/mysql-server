@@ -31,7 +31,7 @@ class Commit_order_manager
 {
 public:
   Commit_order_manager(uint32 worker_numbers);
-  ~Commit_order_manager() {}
+  ~Commit_order_manager();
 
   /**
     Register the worker into commit order queue when coordinator dispatches a
@@ -129,6 +129,10 @@ private:
   }
 
   uint32 queue_front() { return queue_head; }
+
+  // Copy constructor is not implemented
+  Commit_order_manager(const Commit_order_manager&);
+  Commit_order_manager& operator=(const Commit_order_manager&);
 };
 
 /**
