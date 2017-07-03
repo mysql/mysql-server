@@ -14,8 +14,14 @@
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
-# Rebuild on OL5/RHEL5 needs following rpmbuild options:
-#  rpmbuild --define 'dist .el5' --define 'rhel 5' --define 'el5 1' mysql.spec
+# To build on OL5..OL7/RHEL5..RHEL7 you need one of the following
+# rpmbuild options:
+#   --define 'dist .el5' --define 'rhel 5' --define 'el5 1'  # OL5/RHEL5
+#   --define 'dist .el6' --define 'rhel 6' --define 'el6 1'  # OL6/RHEL6
+#   --define 'dist .el7' --define 'rhel 7' --define 'el7 1'  # OL7/RHEL7
+#
+# So to build for EL7/RHEL7 you would run the following:
+# $ rpmbuild -ba --define 'dist .el7' --define 'rhel 7' --define 'el7 1' mysql.spec
 
 # Install cmake28 from EPEL when building on OL5/RHEL5 and OL6/RHEL6.
 
