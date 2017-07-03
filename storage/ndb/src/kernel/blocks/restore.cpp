@@ -2646,10 +2646,15 @@ Restore::parse_fragment_header(Signal* signal, FilePtr file_ptr,
   }
   
   file_ptr.p->m_fragment_id = ntohl(fh->FragmentNo);
-  /**
-   * Temporary reset DBTUP's #disk attributes on table
-   */
-  c_tup->start_restore_lcp(file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+  if (file_ptr.p->m_current_file_index == 0)
+  {
+    jam();
+    /**
+     * Temporary reset DBTUP's #disk attributes on table
+     * Already done when coming for file not being the first.
+     */
+    c_tup->start_restore_lcp(file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+  }
 }
 
 const char*
