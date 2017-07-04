@@ -632,14 +632,15 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 
   const Uint32 nodeCount = restarter.getNumDbNodes();
   if(nodeCount < 2){
-    g_info << "SR4 - Needs atleast 2 nodes to test" << endl;
+    g_err << "SR4 - Needs atleast 2 nodes to test" << endl;
     return NDBT_OK;
   }
 
   Vector<int> nodeIds;
   for(i = 0; i<nodeCount; i++)
     nodeIds.push_back(restarter.getDbNodeId(i));
-  
+
+  i = 1;
   Uint32 currentRestartNodeIndex = 0;
   UtilTransactions utilTrans(*ctx->getTab());
   HugoTransactions hugoTrans(*ctx->getTab());
@@ -653,9 +654,9 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
   
-  while(i<=loops && result != NDBT_FAILED){
-    
-    g_info << "Loop " << i << "/"<< loops <<" started" << endl;
+  while(i<=loops && result != NDBT_FAILED)
+  {
+    g_err << "Loop " << i << "/"<< loops <<" started" << endl;
     /**
      * 1. Load data
      * 2. Restart 1 node -nostart
@@ -672,7 +673,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(hugoTrans.loadTable(pNdb, records) == 0);
 
     /*** 1 ***/
-    g_info << "1 - Stopping one node" << endl;
+    g_err << "1 - Stopping one node = " << nodeIds[currentRestartNodeIndex] << endl;
     CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
 				     false, 
 				     true,
@@ -682,7 +683,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     g_info << "Updating records..." << endl;
     CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
     
-    g_info << "Restarting cluster..." << endl;
+    g_err << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
     {
@@ -691,22 +692,27 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
 
-    g_info << "Verifying records..." << endl;
+    g_err << "Verifying records..." << endl;
     CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == records);
 
-    g_info << "2 - Stopping one node" << endl;
+    g_err << "2 - Stopping one node = " << nodeIds[currentRestartNodeIndex] << endl;
     CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
 				     false, 
 				     true,
 				     false) == 0);
-    currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
+    currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
 
-    g_info << "Deleting 50% of records..." << endl;
+    g_err << "Verifying records again..." << endl;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(hugoTrans.pkReadRecords(pNdb, records) == 0);
+    CHECK(count == records);
+
+    g_err << "Deleting 50% of records..." << endl;
     CHECK(hugoTrans.pkDelRecords(pNdb, records/2) == 0);
     
-    g_info << "Restarting cluster..." << endl;
+    g_err << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
     {
@@ -715,21 +721,27 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
 
-    g_info << "Verifying records..." << endl;
+    g_err << "Verifying records..." << endl;
     CHECK(hugoTrans.scanReadRecords(pNdb, records/2, 0, 64) == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == (records/2));
 
-    g_info << "3 - Stopping one node" << endl;
+    g_err << "3 - Stopping one node = " << nodeIds[currentRestartNodeIndex] << endl;
     CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
 				     false, 
 				     true,
 				     false) == 0);
     currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
-    g_info << "Deleting all records..." << endl;
+
+    g_err << "Verifying records again..." << endl;
+    CHECK(hugoTrans.scanReadRecords(pNdb, records/2, 0, 64) == 0);
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == (records/2));
+
+    g_err << "Deleting all records..." << endl;
     CHECK(utilTrans.clearTable(pNdb, records/2) == 0);
 
-    g_info << "Restarting cluster..." << endl;
+    g_err << "Restarting cluster..." << endl;
     CHECK(restarter.restartAll() == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
     {
@@ -738,10 +750,29 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
     
-    ndbout << "Verifying records..." << endl;
+    g_err << "Verifying records..." << endl;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == 0);
+
+    g_err << "4 - Stopping one node = " << nodeIds[currentRestartNodeIndex] << endl;
+    CHECK(restarter.restartOneDbNode(nodeIds[currentRestartNodeIndex],
+				     false,
+				     true,
+				     false) == 0);
+    currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
+
+    g_err << "Verifying records..." << endl;
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == 0);
     
+    CHECK(restarter.restartAll() == 0);
+    CHECK(restarter.waitClusterStarted(timeout) == 0);
+    {
+      int val = DumpStateOrd::DihMinTimeBetweenLCP;
+      CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
+    }
+    CHECK(pNdb->waitUntilReady(timeout) == 0);
+
     i++;
   }
 

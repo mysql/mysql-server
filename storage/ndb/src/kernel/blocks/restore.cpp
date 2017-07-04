@@ -1442,6 +1442,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
     return;
   }
   else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
+           maxGciCompleted > file_ptr.p->m_restored_gcp_id ||
            validFlag == 0)
   {
     jam();
@@ -1937,14 +1938,11 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     }
   }
 
-  for (int i = lcpCtlFilePtr->NumPartPairs - 1; i >= 0; i--)
+  for (Uint32 i = file_ptr.p->m_current_file_index + 1;
+       i < lcpCtlFilePtr->NumPartPairs;
+       i++)
   {
     jam();
-    if (file_ptr.p->m_current_file_index == Uint32(i))
-    {
-      DEB_HIGH_RES(("(%u)Skip file(%u)", instance(), i));
-      continue;
-    }
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[i];
 
@@ -1957,7 +1955,7 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     Uint32 part_id = partPair.startPart;
     for (Uint32 j = 0; j < partPair.numParts; j++)
     {
-      ndbrequire(file_ptr.p->m_part_state[part_id] != File::PART_ALL_ROWS);
+      ndbrequire(file_ptr.p->m_part_state[part_id] == File::PART_ALL_CHANGES);
       file_ptr.p->m_part_state[part_id] = File::PART_IGNORED;
       part_id++;
       if (part_id == file_ptr.p->m_max_parts)

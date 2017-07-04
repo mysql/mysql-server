@@ -6313,8 +6313,8 @@ Backup::check_if_in_page_range(Uint32 part_id,
   }
   else
   {
-    end_part = (start_part + num_parts) % BackupFormat::NDB_MAX_LCP_PARTS;
-    if (part_id < end_part)
+    end_part = start_part + num_parts;
+    if ((part_id + BackupFormat::NDB_MAX_LCP_PARTS) < end_part)
     {
       return true;
     }
