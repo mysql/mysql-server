@@ -4188,6 +4188,25 @@ private:
 };
 
 
+class PT_alter_table_rename_column final : public PT_alter_table_action
+{
+  typedef PT_alter_table_action super;
+
+public:
+  PT_alter_table_rename_column(const char *from, const char *to)
+    : super(Alter_info::ALTER_CHANGE_COLUMN), m_rename_column(from, to)
+  {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override
+  {
+    return super::contextualize(pc) ||
+            pc->alter_info->alter_list.push_back(&m_rename_column);
+  }
+
+private:
+  Alter_column m_rename_column;
+};
+
 class PT_alter_table_convert_to_charset final : public PT_alter_table_action
 {
   typedef PT_alter_table_action super;

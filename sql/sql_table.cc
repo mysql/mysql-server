@@ -9477,6 +9477,94 @@ static bool column_used_by_foreign_key(const dd::Table *src_table,
 }
 
 
+/// Set column default, drop default or rename column name.
+static bool alter_column_name_or_default(Alter_info *alter_info,
+                                         Create_field *def)
+{
+  DBUG_ENTER("alter_column_name_or_default");
+
+  // Check if ALTER TABLE has requested of such a change.
+  size_t i= 0;
+  const Alter_column *alter= nullptr;
+  while (i < alter_info->alter_list.size())
+  {
+    alter= alter_info->alter_list[i];
+    if (!my_strcasecmp(system_charset_info, def->field_name, alter->name))
+      break;
+    i++;
+  }
+
+  // Nothing changed.
+  if (i == alter_info->alter_list.size())
+    DBUG_RETURN(false);
+
+  // Setup the field.
+  switch (alter->change_type())
+  {
+  case Alter_column::Type::SET_DEFAULT:
+    {
+      DBUG_ASSERT(alter->def);
+
+      // Assign new default.
+      def->def= alter->def;
+
+      if (def->flags & BLOB_FLAG)
+      {
+        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->field_name);
+        DBUG_RETURN(true);
+      }
+
+      def->flags&= ~NO_DEFAULT_VALUE_FLAG;
+      /*
+        The defaults are explicitly altered for the TIMESTAMP/DATETIME
+        field, through SET DEFAULT. Hence, set the auto_flags member
+        appropriately.
+       */
+      if (real_type_with_now_as_default(def->sql_type))
+      {
+        DBUG_ASSERT((def->auto_flags &
+                     ~(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) == 0);
+        def->auto_flags&= ~Field::DEFAULT_NOW;
+      }
+    }
+    break;
+
+  case Alter_column::Type::DROP_DEFAULT:
+    {
+      DBUG_ASSERT(!alter->def);
+
+      if (def->flags & BLOB_FLAG)
+      {
+        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->field_name);
+        DBUG_RETURN(true);
+      }
+
+      // Mark field to have no default.
+      def->def= nullptr;
+      def->flags|= NO_DEFAULT_VALUE_FLAG;
+    }
+    break;
+
+  case Alter_column::Type::RENAME_COLUMN:
+    {
+      def->change= alter->name;
+      def->field_name= alter->m_new_name;
+    }
+    break;
+
+  default:
+    DBUG_ASSERT(0);
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  // Remove the element from to be altered column list.
+  alter_info->alter_list.erase(i);
+
+  DBUG_RETURN(false);
+}
+
+
 // Prepare Create_field and Key_spec objects for ALTER and upgrade.
 bool prepare_fields_and_keys(THD *thd,
                              const dd::Table *src_table,
@@ -9630,49 +9718,15 @@ bool prepare_fields_and_keys(THD *thd,
     else
     {
       /*
-        This field was not dropped and not changed, add it to the list
-        for the new table.
+        This field was not dropped and the definition is not changed, add
+        it to the list for the new table.
       */
       def= new (*THR_MALLOC) Create_field(field, field);
       new_create_list.push_back(def);
-      // Change default if ALTER
-      size_t i= 0;
-      const Alter_column *alter= NULL;
-      while (i < alter_info->alter_list.size())
-      {
-        alter= alter_info->alter_list[i];
-	if (!my_strcasecmp(system_charset_info,field->field_name, alter->name))
-	  break;
-        i++;
-      }
-      if (i < alter_info->alter_list.size())
-      {
-	if (def->flags & BLOB_FLAG)
-	{
-	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), field->field_name);
-          DBUG_RETURN(true);
-	}
 
-	if ((def->def=alter->def))              // Use new default
-        {
-          def->flags&= ~NO_DEFAULT_VALUE_FLAG;
-          /*
-            The defaults are explicitly altered for the TIMESTAMP/DATETIME
-            field, through SET DEFAULT. Hence, set the auto_flags member
-            appropriately.
-          */
-          if (real_type_with_now_as_default(def->sql_type))
-          {
-            DBUG_ASSERT((def->auto_flags &
-                         ~(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) == 0);
-            def->auto_flags&= ~Field::DEFAULT_NOW;
-          }
-        }
-        else
-          def->flags|= NO_DEFAULT_VALUE_FLAG;
-
-	alter_info->alter_list.erase(i);
-      }
+      // Change the column default OR rename just the column name.
+      if (alter_column_name_or_default(alter_info, def))
+        DBUG_RETURN(true);
     }
   }
   def_it.rewind();
@@ -11163,6 +11217,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     if (column->type == Alter_drop::COLUMN)
       columns.emplace(column->name);
+  }
+
+  const Alter_column *alter= nullptr;
+  uint i=0;
+  while (i < alter_info->alter_list.size())
+  {
+    alter= alter_info->alter_list[i];
+    if (alter->change_type() == Alter_column::Type::RENAME_COLUMN)
+      columns.emplace(alter->name);
+    i++;
   }
 
   Create_field *create_field;
