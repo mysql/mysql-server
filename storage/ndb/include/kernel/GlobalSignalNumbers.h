@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 824;
+const GlobalSignalNumber MAX_GSN = 825;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1170,4 +1170,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_INFO_GCP_STOP_TIMER         823
 
 #define GSN_CHECK_LCP_IDLE_ORD          824
+
+#define GSN_SET_LATEST_LCP_ID           825
 #endif

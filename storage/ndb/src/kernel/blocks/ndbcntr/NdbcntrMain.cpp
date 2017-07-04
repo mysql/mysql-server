@@ -1710,6 +1710,7 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 {
   c_start.m_lastGci = 0;
   c_start.m_lastGciNodeId = getOwnNodeId();
+  c_start.m_lastLcpId = 0;
 
   DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
   req->senderRef = reference();
@@ -1737,6 +1738,7 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtrSend());
   c_start.m_lastGci = conf->latest_gci;
+  c_start.m_lastLcpId = conf->latest_lcp_id;
 
   cdihStartType = ctypeOfStart;
   ph2ALab(signal);
@@ -1993,6 +1995,7 @@ Ndbcntr::sendCntrStartReq(Signal * signal)
   req->startType = ctypeOfStart;
   req->lastGci = c_start.m_lastGci;
   req->nodeId = getOwnNodeId();
+  req->lastLcpId = c_start.m_lastLcpId;
   sendSignal(calcNdbCntrBlockRef(cmasterNodeId), GSN_CNTR_START_REQ,
 	     signal, CntrStartReq::SignalLength, JBB);
 }
@@ -2025,6 +2028,7 @@ Ndbcntr::StartRecord::reset(){
   m_withoutLog.clear();
   m_waitTO.clear();
   m_lastGci = m_lastGciNodeId = 0;
+  m_lastLcpId = 0;
   m_startPartialTimeout = ~0;
   m_startPartitionedTimeout = ~0;
   m_startFailureTimeout = ~0;
@@ -2142,12 +2146,18 @@ void
 Ndbcntr::execCNTR_START_REQ(Signal * signal)
 {
   jamEntry();
-  const CntrStartReq * req = (CntrStartReq*)signal->getDataPtr();
+  CntrStartReq *req = (CntrStartReq*)signal->getDataPtr();
   
   const Uint32 nodeId = req->nodeId;
   const Uint32 lastGci = req->lastGci;
   const NodeState::StartType st = (NodeState::StartType)req->startType;
 
+  if (signal->getLength() == CntrStartReq::OldSignalLength)
+  {
+    jam();
+    req->lastLcpId = 0;
+  }
+  const Uint32 lastLcpId = req->lastLcpId;
   if(cmasterNodeId == 0){
     jam();
     // Has not completed READNODES yet
@@ -2161,7 +2171,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
     sendCntrStartRef(signal, nodeId, CntrStartRef::NotMaster);
     return;
   }
-  
+
   const NodeState & nodeState = getNodeState();
   switch(nodeState.startLevel){
   case NodeState::SL_NOTHING:
@@ -2236,6 +2246,17 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
       Uint32 i = c_start.m_logNodesCount++;
       c_start.m_logNodes[i].m_nodeId = nodeId;
       c_start.m_logNodes[i].m_lastGci = lastGci;
+
+      /**
+       * We will be the master, ensure that we don't start off with an LCP id
+       * that have already been used. This can potentially happen in a system
+       * restart where both nodes crashed in the same GCI, but one of the nodes
+       * had started up an LCP before crashing. No need to switch master, just
+       * ensure that the master uses an appropriate LCP id in its first LCP.
+       */
+      signal->theData[0] = nodeId;
+      signal->theData[1] = lastLcpId;
+      EXECUTE_DIRECT(DBDIH, GSN_SET_LATEST_LCP_ID, signal, 2);
     }
     break;
   case NodeState::ST_NODE_RESTART:

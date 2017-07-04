@@ -258,6 +258,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_NDB_STARTREQ, &Dbdih::execNDB_STARTREQ);
   addRecSignal(GSN_GETGCIREQ, &Dbdih::execGETGCIREQ);
   addRecSignal(GSN_GET_LATEST_GCI_REQ, &Dbdih::execGET_LATEST_GCI_REQ);
+  addRecSignal(GSN_SET_LATEST_LCP_ID, &Dbdih::execSET_LATEST_LCP_ID);
   addRecSignal(GSN_DIH_RESTARTREQ, &Dbdih::execDIH_RESTARTREQ);
   addRecSignal(GSN_START_RECCONF, &Dbdih::execSTART_RECCONF);
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);

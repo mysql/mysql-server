@@ -15396,6 +15396,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
       ref->tableId = fragptr.p->tabRef;
       ref->fragId = fragptr.p->fragId;
       ref->errorCode = tcConnectptr.p->errorCode;
+      ndbassert(false);
       sendSignal(tcConnectptr.p->clientBlockref, GSN_COPY_FRAGREF, signal,
                  CopyFragRef::SignalLength, JBB);
     }
@@ -16892,10 +16893,11 @@ void Dblqh::execSTART_NODE_LCP_REQ(Signal *signal)
 #endif
   Uint32 restorable_gci = signal->theData[1];
   c_keep_gci_for_lcp = restorable_gci;
-  DEB_LCP(("c_keep_gci_for_lcp = %u,"
+  DEB_LCP(("(%u)c_keep_gci_for_lcp = %u,"
            " current_gci = %u, restorable_gci = %u"
            ", cnewestCompletedGci = %u, "
            "backup_restorable_gci = %u",
+            instance(),
             c_keep_gci_for_lcp,
             current_gci,
             restorable_gci,

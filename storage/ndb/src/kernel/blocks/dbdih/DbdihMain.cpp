@@ -1558,6 +1558,22 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
   return;
 }//Dbdih::execDIH_RESTARTREQ()
 
+void Dbdih::execSET_LATEST_LCP_ID(Signal *signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  Uint32 latestLcpId = signal->theData[1];
+  if (latestLcpId > SYSFILE->latestLCP_ID)
+  {
+    jam();
+    g_eventLogger->info("Node %u saw more recent LCP id = %u, previously = %u",
+                        nodeId,
+                        latestLcpId,
+                        SYSFILE->latestLCP_ID);
+    ndbrequire(latestLcpId == (SYSFILE->latestLCP_ID + 1));
+    SYSFILE->latestLCP_ID = latestLcpId;
+  }
+}
+
 void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
 {
   Uint32 nodeId = signal->theData[0];
@@ -9240,6 +9256,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   DihRestartConf * conf = CAST_PTR(DihRestartConf, signal->getDataPtrSend());
   conf->unused = getOwnNodeId();
   conf->latest_gci = SYSFILE->lastCompletedGCI[getOwnNodeId()];
+  conf->latest_lcp_id = SYSFILE->latestLCP_ID;
   no_nodegroup_mask.copyto(NdbNodeBitmask::Size, conf->no_nodegroup_mask);
   sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal,
              DihRestartConf::SignalLength, JBB);
