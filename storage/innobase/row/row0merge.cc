@@ -147,6 +147,25 @@ public:
 
 			if (log_sys->check_flush_or_checkpoint) {
 				if (!(*mtr_committed)) {
+					/* Since the data of the tuple pk fields
+					are pointers of cluster rows. After mtr
+					committed, these pointer could be point
+					to invalid data. Then, we need to copy
+					all these data from cluster rows. */
+					idx_tuple_vec::iterator cp_it;
+					dtuple_t*		cp_tuple;
+					for (cp_it = it;
+					     cp_it != m_dtuple_vec->end();
+					     ++cp_it) {
+						cp_tuple = *cp_it;
+
+						for (ulint i = 1;
+						     i < dtuple_get_n_fields(cp_tuple);
+						     i++) {
+							dfield_dup(&cp_tuple->fields[i],
+								   row_heap);
+						}
+					}
 					btr_pcur_move_to_prev_on_page(pcur);
 					btr_pcur_store_position(pcur, scan_mtr);
 					mtr_commit(scan_mtr);
