@@ -3054,7 +3054,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
       else
       {
         jam();
-        if(((get_hb_count(nodePtr.i) + 1) % 60) == 0)
+        if(((get_hb_count(nodePtr.i) + 1) % 30) == 0)
         {
           jam();
 	  char buf[256];
@@ -3063,30 +3063,27 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
             jam();
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of node %d has not completed"
-                                 " in %d min - state = %d",
+                                 " in %d seconds - state = %d",
                                  nodePtr.i,
-                                 (get_hb_count(nodePtr.i)+1)/60,
+                                 get_hb_count(nodePtr.i),
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
-            if (((get_hb_count(nodePtr.i) + 1) % 300) == 0)
-            {
-              jam();
-              /**
-               * Also dump DIH nf-state
-               */
-              signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
-              signal->theData[1] = nodePtr.i;
-              sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
-            }
+
+            /**
+             * Also dump DIH nf-state
+             */
+            signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
+            signal->theData[1] = nodePtr.i;
+            sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
           }
           else
           {
             jam();
             BaseString::snprintf(buf, sizeof(buf),
                                  "Failure handling of api %u has not completed"
-                                 " in %d min - state = %d",
+                                 " in %d seconds - state = %d",
                                  nodePtr.i,
-                                 (get_hb_count(nodePtr.i)+1)/60,
+                                 get_hb_count(nodePtr.i),
                                  nodePtr.p->failState);
             warningEvent("%s", buf);
             if (nodePtr.p->failState == WAITING_FOR_API_FAILCONF)
