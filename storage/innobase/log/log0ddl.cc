@@ -297,6 +297,7 @@ DDLLogTable::DDLLogTable(trx_t*	trx)
 {
 	m_table = dict_sys->ddl_log;
 	m_trx = trx;
+	ut_ad(m_trx->ddl_operation);
 	m_heap = mem_heap_create(1000);
 	start_query_thread();
 }
@@ -892,6 +893,8 @@ LogDDL::writeFreeTreeLog(
 		return(DB_SUCCESS);
 	}
 
+	trx->ddl_operation = true;
+
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
@@ -906,6 +909,7 @@ LogDDL::writeFreeTreeLog(
 		scenario. The index will be dropped if ddl is rolled back */
 		err = insertFreeTreeLog(nullptr, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
+		trx->ddl_operation = true;
 
 		/* Delete this operation is the create trx is committed */
 		err = deleteById(trx, id);
@@ -937,6 +941,8 @@ LogDDL::insertFreeTreeLog(
 	} else {
 		trx_start_if_not_started(trx, true);
 	}
+
+	trx->ddl_operation = true;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -998,6 +1004,8 @@ LogDDL::writeDeleteSpaceLog(
 		return(DB_SUCCESS);
 	}
 
+	trx->ddl_operation = true;
+
 #ifdef UNIV_DEBUG
 	if (table != nullptr) {
 		ut_ad(dict_table_is_file_per_table(table));
@@ -1018,6 +1026,7 @@ LogDDL::writeDeleteSpaceLog(
 			nullptr, id, thread_id, space_id,
 			file_path, dict_locked);
 		ut_ad(err == DB_SUCCESS);
+		trx->ddl_operation = true;
 
 		err = deleteById(trx, id);
 		ut_ad(err == DB_SUCCESS);
@@ -1050,6 +1059,8 @@ LogDDL::insertDeleteSpaceLog(
 	} else {
 		trx_start_if_not_started(trx, true);
 	}
+
+	trx->ddl_operation = true;
 
 	if (dict_locked) {
 		mutex_exit(&dict_sys->mutex);
@@ -1116,6 +1127,8 @@ LogDDL::writeRenameSpaceLog(
 		return(DB_SUCCESS);
 	}
 
+	trx->ddl_operation = true;
+
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
@@ -1146,6 +1159,7 @@ LogDDL::insertRenameLog(
 {
 	trx_t*	trx = trx_allocate_for_background();
 	trx_start_internal(trx);
+	trx->ddl_operation = true;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	mutex_exit(&dict_sys->mutex);
@@ -1266,6 +1280,8 @@ LogDDL::writeRenameTableLog(
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
+	trx->ddl_operation = true;
+
 	dberr_t	err = insertRenameTableLog(id, thread_id, table->id,
 				      old_name, new_name);
 	ut_ad(err == DB_SUCCESS);
@@ -1293,6 +1309,7 @@ LogDDL::insertRenameTableLog(
 {
 	trx_t*	trx = trx_allocate_for_background();
 	trx_start_internal(trx);
+	trx->ddl_operation = true;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	mutex_exit(&dict_sys->mutex);
@@ -1344,6 +1361,7 @@ LogDDL::writeRemoveCacheLog(
 
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
+	trx->ddl_operation = true;
 
 	dberr_t	err = insertRemoveCacheLog(id, thread_id, table->id,
 				      table->name.m_name);
@@ -1370,6 +1388,7 @@ LogDDL::insertRemoveCacheLog(
 {
 	trx_t*	trx = trx_allocate_for_background();
 	trx_start_internal(trx);
+	trx->ddl_operation = true;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1817,6 +1836,7 @@ LogDDL::recover()
 
 	trx_t*	trx;
 	trx = trx_allocate_for_background();
+	trx->ddl_operation = true;
 	std::vector<ulint>	ids_list;
 
 	thread_local_ddl_log_replay = true;
