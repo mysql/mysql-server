@@ -21,10 +21,9 @@
 
 namespace my_b_vprintf_unittest {
 
-IO_CACHE info;
-
 void test1(const char *res, const char *fmt, ...)
 {
+  IO_CACHE info;
   va_list args;
   size_t len;
   init_io_cache(&info, -1, 0, WRITE_CACHE, 0 , 1 , MYF(0));
@@ -34,6 +33,7 @@ void test1(const char *res, const char *fmt, ...)
   va_end(args);
   EXPECT_EQ(len, strlen(res));
   EXPECT_STREQ((char *)(info.write_buffer), res);
+  end_io_cache(&info);
 }
 
 TEST(Mysys, Vprintf)
