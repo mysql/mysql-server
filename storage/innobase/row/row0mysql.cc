@@ -4108,8 +4108,9 @@ row_drop_table_from_cache(
 	is going to be destroyed below. */
 	trx->mod_tables.erase(table);
 
-	/* Remove SDI tables of the tablespace from cache */
 	if (!table->is_intrinsic()) {
+		btr_drop_ahi_for_table(table);
+		/* Remove SDI tables of the tablespace from cache */
 		dict_sdi_remove_from_cache(table->space, NULL, true);
 		dict_table_remove_from_cache(table);
 	} else {
@@ -4560,15 +4561,15 @@ row_drop_table_for_mysql(
 			NULL, table_name, IBD, false);
 	}
 
-	/* Drop adaptive hash index entries before
-	dropping table from cache. */
-	btr_drop_ahi_for_table(table);
-
 	/* Free the dict_table_t object. */
 	err = row_drop_table_from_cache(table, trx);
 	if (err != DB_SUCCESS) {
 		ut_ad(0);
 		goto funct_exit;
+	}
+
+	if (!is_temp) {
+		log_ddl->writeDropLog(trx, table_id);
 	}
 
 	/* Do not attempt to drop known-to-be-missing tablespaces,
@@ -4584,13 +4585,8 @@ row_drop_table_for_mysql(
 	}
 
 	ut_ad(file_per_table);
-	/* We can now drop the single-table tablespace. */
 	log_ddl->writeDeleteSpaceLog(
 		trx, nullptr, space_id, filepath, true, true);
-
-	if (!is_temp) {
-		log_ddl->writeDropLog(trx, table_id);
-	}
 
 funct_exit:
 

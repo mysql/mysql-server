@@ -1207,6 +1207,8 @@ LogDDL::writeDropLog(
 		return(DB_SUCCESS);
 	}
 
+	trx->ddl_operation = true;
+
 	ib_uint64_t	id = getNextId();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
