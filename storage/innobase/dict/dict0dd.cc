@@ -1229,7 +1229,7 @@ format_validate(
 					 innobase_hton_name,
 					 "COMPRESSION", "TEMPORARY");
 				invalid = true;
-			} else if (!is_implicit) {
+			} else if (!is_implicit && strict) {
 				my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 					 innobase_hton_name,
 					 "COMPRESSION", "TABLESPACE");

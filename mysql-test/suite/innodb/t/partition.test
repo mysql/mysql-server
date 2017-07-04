@@ -847,3 +847,41 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+
+
+--echo # Ignore incompatible options of a table which was created in not strict mode
+
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 0;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode = 0;
+
+CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
+
+SET SESSION innodb_strict_mode = 0;
+
+# To prevent the compression warning differences in different platform
+--disable_warnings
+
+ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
+
+ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
+
+OPTIMIZE TABLE t1;
+
+--enable_warnings
+
+SHOW CREATE TABLE t1;
+
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+
+--source include/restart_mysqld.inc
+
+CHECK TABLE t1;
+
+INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
+
+SELECT * FROM t1 ORDER BY a;
+
+DROP TABLE t1;
