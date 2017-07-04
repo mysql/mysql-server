@@ -2698,146 +2698,219 @@ Restore::parse_record(Signal* signal,
                       Uint32 len,
                       BackupFormat::RecordType header_type)
 {
-  Uint32 * const key_start = signal->getDataPtrSend()+24;
-  Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
-  Uint32 op_type;
-  Uint32 record_size = 0;
-
+  Uint32 page_no = data[1];
   data += 1;
-  bool rowid;
-  Uint32 keyLen;
-  Uint32 attrLen;
-  Local_key rowid_val;
-  Uint32 gci_id = 0;
-  Uint32 tableId = file_ptr.p->m_table_id;
-
   ndbrequire(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP);
+  if (page_no >= file_ptr.p->m_max_page_cnt)
   {
-    rowid = true;
-    rowid_val.m_page_no = data[0];
-    if (rowid_val.m_page_no >= file_ptr.p->m_max_page_cnt)
+    /**
+     * Page ignored since it is not part of this LCP.
+     * Can happen with multiple files used to restore coming
+     * from different LCPs.
+     */
+    jam();
+    return;
+  }
+  Uint32 part_id = c_backup->hash_lcp_part(page_no);
+  ndbrequire(part_id < MAX_LCP_PARTS_SUPPORTED);
+  /*
+  DEB_HIGH_RES(("(%u)parse_record, page_no: %u, part: %u,"
+                " state: %s, header_type: %s",
+                instance(),
+                page_no,
+                part_id,
+                get_state_string(Uint32(file_ptr.p->m_part_state[part_id])),
+                get_header_string(Uint32(header_type))));
+  */
+  switch (file_ptr.p->m_part_state[part_id])
+  {
+    case File::PART_IGNORED:
     {
-      /**
-       * Page ignored since it is not part of this LCP.
-       * Can happen with multiple files used to restore coming
-       * from different LCPs.
-       */
       jam();
+      /**
+       * The row is a perfectly ok row, but we will ignore since
+       * this part is handled by a later LCP data file.
+       */
       return;
     }
-    Uint32 part_id = c_backup->hash_lcp_part(rowid_val.m_page_no);
-    ndbrequire(part_id < MAX_LCP_PARTS_SUPPORTED);
-    /*
-    DEB_HIGH_RES(("(%u)parse_record, page_no: %u, part: %u,"
-                  " state: %s, header_type: %s",
-                  instance(),
-                  rowid_val.m_page_no,
-                  part_id,
-                  get_state_string(Uint32(file_ptr.p->m_part_state[part_id])),
-                  get_header_string(Uint32(header_type))));
-    */
-    switch (file_ptr.p->m_part_state[part_id])
+    case File::PART_ALL_ROWS:
     {
-      case File::PART_IGNORED:
-      {
-        jam();
-        /**
-         * The row is a perfectly ok row, but we will ignore since
-         * this part is handled by a later LCP data file.
-         */
-        return;
-      }
-      case File::PART_ALL_ROWS:
-      {
-        jam();
-        /**
-         * The data file contains all rows for this part, it contains no
-         * DELETE BY ROWID. This part will be ignored in earlier LCP data
-         * files restored, so we can safely use ZINSERT here as op_type.
-         */
-        op_type = ZINSERT;
-        ndbrequire(header_type == BackupFormat::INSERT_TYPE);
-        break;
-      }
-      case File::PART_ALL_CHANGES:
-      {
-        jam();
-        /**
-         * This is a row that changed during the LCP this data file records.
-         * The row could either exist or not dependent on if the operation
-         * that changed it was an INSERT or an UPDATE. It could also be a
-         * DELETE, in this case we only record the rowid and nothing more
-         * to indicate this rowid was deleted. We will discover this below.
-         */
-        op_type = ZWRITE;
-        ndbrequire(header_type != BackupFormat::INSERT_TYPE);
-        break;
-      }
-      default:
-      {
-        jam();
-        ndbrequire(false);
-        return; /* Silence compiler warnings */
-      }
-    }
-    if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
-    {
+      jam();
       /**
-       * We found a DELETE BY ROWID, this deletes the row in the rowid
-       * position, This can happen in parts where we record changes, we might
-       * have inserted the row in an earlier LCP data file, so we need to
-       * attempt to remove it here.
-       *
-       * For DELETE by ROWID there is no key and no ATTRINFO to send.
-       * The key is instead the rowid which is sent when the row id flag is
-       * set.
+       * The data file contains all rows for this part, it contains no
+       * DELETE BY ROWID. This part will be ignored in earlier LCP data
+       * files restored, so we can safely use ZINSERT here as op_type.
        */
-      jam();
-      rowid_val.m_page_idx = data[1];
-      ndbrequire(op_type == ZWRITE);
-      op_type = ZDELETE;
-      gci_id = data[2];
-      keyLen = 0;
-      attrLen = 0;
-      DEB_HIGH_RES(("(%u)DELETE_BY_ROWID, page_idx=%u, gci=%u",
-                     instance(),
-                     data[1],
-                     gci_id));
-      ndbrequire(len == 3);
+      ndbrequire(header_type == BackupFormat::INSERT_TYPE);
+      break;
     }
-    else if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
-    {
-      /* DELETE by PAGEID, a loop of DELETE by ROWID */
-      ndbrequire(op_type == ZWRITE);
-      op_type = ZDELETE;
-      record_size = data[1];
-      rowid_val.m_page_idx = 0;
-      gci_id = 0;
-      keyLen = 0;
-      attrLen = 0;
-      DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID, page_idx=0, rec_size=%u",
-                     instance(),
-                     data[1]));
-      ndbrequire(len == 2);
-    }
-    else if (header_type == BackupFormat::WRITE_TYPE ||
-             header_type == BackupFormat::INSERT_TYPE)
+    case File::PART_ALL_CHANGES:
     {
       jam();
-      rowid_val.m_page_idx = data[1];
-      keyLen = c_tup->read_lcp_keys(tableId, data+2, len - 3, key_start);
-      AttributeHeader::init(attr_start,
-                            AttributeHeader::READ_LCP, 4*(len - 3));
-      memcpy(attr_start + 1, data + 2, 4 * (len - 3));
-      attrLen = 1 + len - 3;
+      /**
+       * This is a row that changed during the LCP this data file records.
+       * The row could either exist or not dependent on if the operation
+       * that changed it was an INSERT or an UPDATE. It could also be a
+       * DELETE, in this case we only record the rowid and nothing more
+       * to indicate this rowid was deleted. We will discover this below.
+       */
+      ndbrequire(header_type != BackupFormat::INSERT_TYPE);
+      break;
     }
-    else
+    default:
     {
+      jam();
       ndbrequire(false);
       return; /* Silence compiler warnings */
     }
   }
+  if (header_type == BackupFormat::INSERT_TYPE)
+  {
+    /**
+     * This is a normal INSERT as part of our restore process.
+     * We install using a binary image saved in LCP file.
+     */
+    Uint32 * const key_start = signal->getDataPtrSend()+24;
+    Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+    Local_key rowid_val;
+    jam();
+    rowid_val.m_page_no = data[0];
+    rowid_val.m_page_idx = data[1];
+    Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
+                                         data+2,
+                                         len - 3,
+                                         key_start);
+    AttributeHeader::init(attr_start,
+                          AttributeHeader::READ_LCP, 4*(len - 3));
+    memcpy(attr_start + 1, data+2, 4 * (len - 3));
+    Uint32 attrLen = 1 + len - 3;
+    execute_operation(signal,
+                      file_ptr,
+                      keyLen,
+                      attrLen,
+                      ZINSERT,
+                      0,
+                      &rowid_val);
+    c_lqh->receive_attrinfo(signal, attr_start, attrLen);
+  }
+  else
+  {
+    if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE ||
+        header_type == BackupFormat::WRITE_TYPE)
+    {
+      Local_key rowid_val;
+      rowid_val.m_page_no = data[0];
+      rowid_val.m_page_idx = data[1];
+      jam();
+      Uint32 gci_id = 0;
+      if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
+      {
+        gci_id = data[2];
+      }
+      execute_operation(signal,
+                        file_ptr,
+                        0,
+                        0,
+                        ZDELETE,
+                        gci_id,
+                        &rowid_val);
+      if (header_type == BackupFormat::WRITE_TYPE)
+      {
+        /**
+         * We found a CHANGE record. This is written into the LCP file
+         * as part of an LCP where the part only records changes. In
+         * this case we might have already inserted the row in a previous
+         * LCP file. To simplify code we use a DELETE followed by a
+         * normal LCP insert. Otherwise we will have to complicate the
+         * TUP code to handle writes of LCP data.
+         *
+         * Normally there should be a smaller amount of those
+         * records, so the performance impact should not be
+         * very high.
+         */
+        DEB_HIGH_RES(("(%u)WRITE_TYPE, rowid(%u,%u), gci=%u",
+                       instance(),
+                       rowid_val.m_page_no,
+                       rowid_val.m_page_idx,
+                       gci_id));
+        Uint32 * const key_start = signal->getDataPtrSend()+24;
+        Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+        Uint32 keyLen = c_tup->read_lcp_keys(file_ptr.p->m_table_id,
+                                             data+2,
+                                             len - 3,
+                                             key_start);
+        AttributeHeader::init(attr_start,
+                              AttributeHeader::READ_LCP, 4*(len - 3));
+        memcpy(attr_start + 1, data+2, 4 * (len - 3));
+        Uint32 attrLen = 1 + len - 3;
+        execute_operation(signal,
+                          file_ptr,
+                          keyLen,
+                          attrLen,
+                          ZINSERT,
+                          gci_id,
+                          &rowid_val);
+        c_lqh->receive_attrinfo(signal, attr_start, attrLen);
+      }
+      else
+      {
+        /**
+         * We found a DELETE BY ROWID, this deletes the row in the rowid
+         * position, This can happen in parts where we record changes, we might
+         * have inserted the row in an earlier LCP data file, so we need to
+         * attempt to remove it here.
+         *
+         * For DELETE by ROWID there is no key and no ATTRINFO to send.
+         * The key is instead the rowid which is sent when the row id flag is
+         * set.
+         */
+        DEB_HIGH_RES(("(%u)DELETE_BY_ROWID, rowid(%u,%u), gci=%u",
+                       instance(),
+                       rowid_val.m_page_no,
+                       rowid_val.m_page_idx,
+                       gci_id));
+        ndbrequire(len == 3);
+      }
+    }
+    else
+    {
+      jam();
+      Local_key rowid_val;
+      DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID, page=%u, record_size=%u",
+                     instance(),
+                     data[0],
+                     data[1]));
+      ndbrequire(header_type == BackupFormat::DELETE_BY_PAGEID_TYPE);
+      ndbrequire(len == 2);
+      /* DELETE by PAGEID, a loop of DELETE by ROWID */
+      rowid_val.m_page_no = data[0];
+      rowid_val.m_page_idx = 0;
+      Uint32 record_size = data[1];
+      while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
+      {
+        jam();
+        execute_operation(signal,
+                          file_ptr,
+                          0,
+                          0,
+                          ZDELETE,
+                          0,
+                          &rowid_val);
+        rowid_val.m_page_idx += record_size;
+      }
+    }
+  }
+}
 
+void
+Restore::execute_operation(Signal *signal,
+                           FilePtr file_ptr,
+                           Uint32 keyLen,
+                           Uint32 attrLen,
+                           Uint32 op_type,
+                           Uint32 gci_id,
+                           Local_key *rowid_val)
+{
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
   /**
    * attrLen is not used for long lqhkeyreq, and should be zero for short
@@ -2852,7 +2925,8 @@ Restore::parse_record(Signal* signal,
    * In these cases no data is passed, and receiver will interpret signal as a
    * short signal, but no KEYINFO or ATTRINFO will be sent or expected.
    */
-  if(short_lqhkeyreq)
+  Uint32 * const key_start = signal->getDataPtrSend()+24;
+  if (short_lqhkeyreq)
   {
     ndbrequire(attrLen == 0);
     ndbassert(keyLen == 0);
@@ -2886,6 +2960,7 @@ Restore::parse_record(Signal* signal,
 
     if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
     {
+      Uint32 tableId = file_ptr.p->m_table_id;
       req->hashValue = calculate_hash(tableId, key_start);
     }
     else
@@ -2911,8 +2986,8 @@ Restore::parse_record(Signal* signal,
      * Need not set GCI flag here since we restore also the header part of
      * the row in this case.
      */
-    req->variableData[pos++] = rowid_val.m_page_no;
-    req->variableData[pos++] = rowid_val.m_page_idx;
+    req->variableData[pos++] = rowid_val->m_page_no;
+    req->variableData[pos++] = rowid_val->m_page_idx;
     LqhKeyReq::setGCIFlag(tmp, 0);
   }
   else
@@ -2921,30 +2996,13 @@ Restore::parse_record(Signal* signal,
      * We reuse the Node Restart Copy handling to perform
      * DELETE by ROWID. In this case we need to set the GCI of the record.
      */
-    req->variableData[pos++] = rowid_val.m_page_no;
-    req->variableData[pos++] = rowid_val.m_page_idx;
+    req->variableData[pos++] = rowid_val->m_page_no;
+    req->variableData[pos++] = rowid_val->m_page_idx;
     req->variableData[pos++] = gci_id;
     LqhKeyReq::setGCIFlag(tmp, 1);
     LqhKeyReq::setNrCopyFlag(tmp, 1);
   }
   req->requestInfo = tmp;
-  if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
-  {
-ndbrequire(short_lqhkeyreq);
-    jam();
-    while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
-    {
-      jam();
-      file_ptr.p->m_outstanding_operations++;
-      rowid_val.m_page_idx += record_size;
-      req->variableData[1] = rowid_val.m_page_idx;
-      EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
-		     LqhKeyReq::FixedSignalLength+pos);
-      rowid_val.m_page_idx += record_size;
-    }
-    return;
-  }
-  
   if (short_lqhkeyreq)
   {
     file_ptr.p->m_outstanding_operations++;

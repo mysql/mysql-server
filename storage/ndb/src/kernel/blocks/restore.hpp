@@ -217,6 +217,13 @@ private:
                     const Uint32*,
                     Uint32 len,
                     BackupFormat::RecordType type);
+  void execute_operation(Signal*,
+                         FilePtr,
+                         Uint32 keyLen,
+                         Uint32 attrLen,
+                         Uint32 op_type,
+                         Uint32 gci_id,
+                         Local_key *lkey);
   void parse_fragment_footer(Signal*, FilePtr, const Uint32*, Uint32 len);
   void parse_gcp_entry(Signal*, FilePtr, const Uint32*, Uint32 len);
   void close_file(Signal*, FilePtr, bool remove_flag = false);

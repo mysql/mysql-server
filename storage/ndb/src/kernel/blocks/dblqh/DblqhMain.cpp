@@ -7143,7 +7143,7 @@ Dblqh::continueACCKEYCONF(Signal * signal,
     else
     {
       jam();
-      warningEvent("Convering %d to ZUPDATE", op);
+      warningEvent("Converting %d to ZUPDATE", op);
       op = regTcPtr->operation = ZUPDATE;
     }
     if (regTcPtr->seqNoReplica == 0)
