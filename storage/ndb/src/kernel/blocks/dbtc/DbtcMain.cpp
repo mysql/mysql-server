@@ -7272,6 +7272,12 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
       if (c_ongoing_take_over_cnt == 0)
       {
         jam();
+        g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
+                            "on last transaction completion.",
+                            instance(),
+                            Uint32(localGcpPtr.p->gcpId >> 32),
+                            Uint32(localGcpPtr.p->gcpId));
+        
         gcpTcfinished(signal, localGcpPtr.p->gcpId);
         unlinkGcp(localGcpPtr);
       }
@@ -9493,6 +9499,7 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
   Uint32 gci_lo = req->gci_lo;
   Uint32 gci_hi = req->gci_hi;
   tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
+  const bool nfhandling = (c_ongoing_take_over_cnt > 0);
 
   Ptr<GcpRecord> gcpPtr;
   if (cfirstgcp != RNIL) {
@@ -9504,26 +9511,39 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
     {
       jam();
       bool empty = gcpPtr.p->firstApiConnect == RNIL;
-      bool nfhandling = c_ongoing_take_over_cnt;
 
-      if (empty && nfhandling)
+      if (nfhandling)
       {
         jam();
-        ndbout_c("NOT returning gcpTcfinished due to nfhandling %u/%u",
-                 gci_hi, gci_lo);
-      }
+        g_eventLogger->info("DBTC %u: GCP completion %u/%u waiting "
+                            "for node failure handling (%u) to complete "
+                            "(empty=%u)",
+                            instance(),
+                            gci_hi,
+                            gci_lo,
+                            c_ongoing_take_over_cnt,
+                            empty);
 
-      if (!empty || c_ongoing_take_over_cnt)
-      {
-        jam();
         gcpPtr.p->gcpNomoretransRec = ZTRUE;
-      } else {
-        jam();
-        gcpTcfinished(signal, tcheckGcpId);
-        unlinkGcp(gcpPtr);
-      }//if
+      }
+      else
+      {
+        if (!empty)
+        {
+          jam();
+          /* Wait for transactions in GCP to commit + complete */
+          gcpPtr.p->gcpNomoretransRec = ZTRUE;
+        }
+        else
+        {
+          jam();
+          /* All transactions completed, no nfhandling, complete it now */
+          gcpTcfinished(signal, tcheckGcpId);
+          unlinkGcp(gcpPtr);
+        }
+      }
     }
-    else if (c_ongoing_take_over_cnt == 0)
+    else if (!nfhandling)
     {
       jam();
       /*------------------------------------------------------------*/
@@ -9539,26 +9559,36 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
       goto outoforder;
     }
   }
-  else if (c_ongoing_take_over_cnt == 0)
+  else if (!nfhandling)
   {
     jam();
     gcpTcfinished(signal, tcheckGcpId);
   }
   else
   {
+    g_eventLogger->info("DBTC %u: GCP completion %u/%u waiting "
+                        "for node failure handling (%u) to complete. "
+                        "Seizing record for GCP.",
+                        instance(),
+                        gci_hi,
+                        gci_lo,
+                        c_ongoing_take_over_cnt);
 seize:
     jam();
-    ndbout_c("execGCP_NOMORETRANS(%u/%u) c_ongoing_take_over_cnt -> seize",
-             gci_hi, gci_lo);
     seizeGcp(gcpPtr, tcheckGcpId);
     gcpPtr.p->gcpNomoretransRec = ZTRUE;
   }
   return;
   
 outoforder:
-  printf("ooo: execGCP_NOMORETRANS tcheckGcpId: %u/%u cfirstgcp: %u/%u",
-         gci_hi, gci_lo,
-         Uint32(gcpPtr.p->gcpId >> 32), Uint32(gcpPtr.p->gcpId));
+  g_eventLogger->info("DBTC %u: GCP completion %u/%u waiting "
+                      "for node failure handling (%u) to complete. "
+                      "GCP received out of order.  First GCP %u/%u",
+                      instance(),
+                      gci_hi, gci_lo,
+                      c_ongoing_take_over_cnt,
+                      Uint32(gcpPtr.p->gcpId >> 32),
+                      Uint32(gcpPtr.p->gcpId));
 
   if (tcheckGcpId < gcpPtr.p->gcpId)
   {
@@ -9575,7 +9605,10 @@ outoforder:
     tmp.p->lastApiConnect = RNIL;
     tmp.p->gcpNomoretransRec = ZTRUE;
     cfirstgcp = tmp.i;
-    ndbout_c("LINK FIRST");
+    g_eventLogger->info("DBTC %u: Out of order GCP %u/%u linked first",
+                        instance(),
+                        gci_hi,
+                        gci_lo);
     return;
   }
   else
@@ -9586,7 +9619,10 @@ outoforder:
       jam();
       if (gcpPtr.p->nextGcp == RNIL)
       {
-        printf("nextGcp == RNIL -> ");
+        g_eventLogger->info("DBTC %u: Out of order GCP %u/%u linked last",
+                            instance(),
+                            gci_hi,
+                            gci_lo);
         goto seize;
       }
 
@@ -9599,7 +9635,10 @@ outoforder:
     {
       jam();
       gcpPtr.p->gcpNomoretransRec = ZTRUE;
-      ndbout_c("found");
+      g_eventLogger->info("DBTC %u: Out of order GCP %u/%u already linked",
+                          instance(),
+                          gci_hi,
+                          gci_lo);
       return;
     }
     ndbrequire(prev.i != gcpPtr.i); // checked earlier with initial "<"
@@ -9617,10 +9656,15 @@ outoforder:
     tmp.p->lastApiConnect = RNIL;
     tmp.p->gcpNomoretransRec = ZTRUE;
     prev.p->nextGcp = tmp.i;
-    ndbout_c("link middle %u/%u < %u/%u < %u/%u",
-             Uint32(prev.p->gcpId >> 32), Uint32(prev.p->gcpId),
-             gci_hi, gci_lo,
-             Uint32(gcpPtr.p->gcpId >> 32), Uint32(gcpPtr.p->gcpId));
+    g_eventLogger->info("DBTC %u: Out of order Gcp %u/%u linked mid-list. "
+                        "%u/%u < %u/%u < %u/%u",
+                        instance(),
+                        gci_hi, gci_lo,
+                        Uint32(prev.p->gcpId >> 32),
+                        Uint32(prev.p->gcpId),
+                        gci_hi, gci_lo,
+                        Uint32(gcpPtr.p->gcpId >> 32),
+                        Uint32(gcpPtr.p->gcpId));
     return;
   }
 }//Dbtc::execGCP_NOMORETRANS()
@@ -9710,6 +9754,10 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     }//if
     
     jam();
+    g_eventLogger->info("DBTC %u: Started failure handling for node %u",
+                        instance(),
+                        myHostPtr.i);
+    
     signal->theData[0] = myHostPtr.i;
     sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
     
@@ -9743,6 +9791,49 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
   }
 }//Dbtc::execNODE_FAILREP()
 
+static
+const char* getNFBitName(const Uint32 bit)
+{
+  switch (bit)
+  {
+  case Dbtc::HostRecord::NF_TAKEOVER: return "NF_TAKEOVER";
+  case Dbtc::HostRecord::NF_CHECK_SCAN: return "NF_CHECK_SCAN";
+  case Dbtc::HostRecord::NF_CHECK_TRANSACTION: return "NF_CHECK_TRANSACTION";
+  case Dbtc::HostRecord::NF_BLOCK_HANDLE: return "NF_BLOCK_HANDLE";
+  default:
+    return "Unknown";
+  }
+};
+
+static
+void getNFBitNames(char* buff, Uint32 buffLen, const Uint32 bits)
+{
+  Uint32 index = 1;
+  while (index < Dbtc::HostRecord::NF_NODE_FAIL_BITS)
+  {
+    if (bits & index)
+    {
+      Uint32 chars = BaseString::snprintf(buff,
+                                          buffLen,
+                                          "%s",
+                                          getNFBitName(index));
+      buff+= chars;
+      buffLen-= chars;
+      if (bits > (index << 1))
+      {
+        chars = BaseString::snprintf(buff,
+                                     buffLen,
+                                     ", ");
+        buff+= chars;
+        buffLen-= chars;
+      }
+    }
+
+    index = index << 1;
+  }
+}
+                       
+
 void
 Dbtc::checkNodeFailComplete(Signal* signal, 
 			    Uint32 failedNodeId,
@@ -9751,8 +9842,15 @@ Dbtc::checkNodeFailComplete(Signal* signal,
   hostptr.i = failedNodeId;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
   hostptr.p->m_nf_bits &= ~bit;
+
   if (hostptr.p->m_nf_bits == 0)
   {
+    g_eventLogger->info("DBTC %u: Step %s completed, failure handling for "
+                        "node %u complete.",
+                        instance(),
+                        getNFBitName(bit),
+                        failedNodeId);
+
     NFCompleteRep * const nfRep = (NFCompleteRep *)&signal->theData[0];
     nfRep->blockNo      = DBTC;
     nfRep->nodeId       = cownNodeid;
@@ -9774,6 +9872,20 @@ Dbtc::checkNodeFailComplete(Signal* signal,
       sendSignal(DBTC_REF, GSN_NF_COMPLETEREP, signal,
                  NFCompleteRep::SignalLength, JBB);
     }
+  }
+  else
+  {
+    char buffer[100];
+    getNFBitNames(buffer,
+                  sizeof(buffer),
+                  hostptr.p->m_nf_bits);
+    
+    g_eventLogger->info("DBTC %u: Step %s completed, failure handling "
+                        "for node %u waiting for %s.",
+                        instance(),
+                        getNFBitName(bit),
+                        failedNodeId,
+                        buffer);
   }
 
   CRASH_INSERTION(8058);
@@ -9961,7 +10073,7 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
       jam();
       if (tcNodeFailptr.p->queueList[i] == hostptr.i)
       {
-        g_eventLogger->info("DBTC instance %u: Removed node %u"
+        g_eventLogger->info("DBTC %u: Removed node %u"
           " from takeover queue, %u failed nodes remaining",
                             instance(),
                             hostptr.i,
@@ -9993,9 +10105,11 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
         tmpGcpPointer.p->firstApiConnect == RNIL)
     {
       jam();
-      ndbout_c("completing gcp %u/%u in execTAKE_OVERTCCONF",
-               Uint32(tmpGcpPointer.p->gcpId >> 32),
-               Uint32(tmpGcpPointer.p->gcpId));
+      g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
+                          "on node failure takeover completion.",
+                          instance(),
+                          Uint32(tmpGcpPointer.p->gcpId >> 32),
+                          Uint32(tmpGcpPointer.p->gcpId));
       gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
       unlinkGcp(tmpGcpPointer);
     }
@@ -10022,8 +10136,8 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
     /*       QUEUE THE TAKE OVER AND START IT AS SOON AS THE      */
     /*       PREVIOUS ARE COMPLETED.                              */
     /*------------------------------------------------------------*/
-    g_eventLogger->info("DBTC instance %u: Inserting failed node %u into"
-                        " takeover queue, length now=%u",
+    g_eventLogger->info("DBTC %u: Inserting failed node %u into"
+                        " takeover queue, length %u",
                         instance(),
                         failedNodeId,
                         tcNodeFailptr.p->queueIndex + 1);
@@ -10033,7 +10147,7 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
     return;
   }//if
   ndbrequire(instance() == 0 || instance() == TAKE_OVER_INSTANCE);
-  g_eventLogger->info("DBTC instance %u: Starting take over of node %u",
+  g_eventLogger->info("DBTC %u: Starting take over of node %u",
                       instance(),
                       failedNodeId);
   startTakeOverLab(signal, 0, failedNodeId);
@@ -10354,12 +10468,14 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   jamEntry();
   LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
 
-  if (ERROR_INSERTED(8102))
+  if (ERROR_INSERTED(8102) ||
+      ERROR_INSERTED(8118))
   {
     jam();
     if ((((LqhTransConf::OperationStatus)lqhTransConf->operationStatus) ==
          LqhTransConf::LastTransConf) &&
-        signal->getSendersBlockRef() != reference())
+        ((signal->getSendersBlockRef() != reference()) ||
+         ERROR_INSERTED(8118)))
     {
       jam();
       ndbout_c("Delaying final LQH_TRANSCONF from Lqh @ node %u",
@@ -10734,7 +10850,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
      * one more attempt on the same TC instance.
      */
     jam();
-    g_eventLogger->info("DBTC instance %u: Continuing take over of "
+    g_eventLogger->info("DBTC %u: Continuing take over of "
                         "DBTC instance %u in node %u",
                         instance(),
                         tcNodeFailptr.p->takeOverInstanceId,
@@ -10753,7 +10869,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
      * with the next instance.
      */
     jam();
-    g_eventLogger->info("DBTC instance %u: Completed take over of "
+    g_eventLogger->info("DBTC %u: Completed take over of "
                         "DBTC instance %u in failed node %u,"
                         " continuing with the next instance",
                         instance(),
@@ -10772,7 +10888,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
   tcNodeFailptr.p->takeOverProcState[TtakeOverInd] = ZTAKE_OVER_IDLE;
   tcNodeFailptr.p->completedTakeOver++;
 
-  g_eventLogger->info("DBTC instance %u: Completed take over"
+  g_eventLogger->info("DBTC %u: Completed take over"
                       " of failed node %u",
                       instance(),
                       tcNodeFailptr.p->takeOverNode);
@@ -10804,7 +10920,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
         tcNodeFailptr.p->queueList[i] = tcNodeFailptr.p->queueList[i+1];
       }//for
       tcNodeFailptr.p->queueIndex--;
-      g_eventLogger->info("DBTC instance %u: Starting next DBTC node"
+      g_eventLogger->info("DBTC %u: Starting next DBTC node"
                           " take over for failed node %u,"
                           " %u failed nodes remaining in takeover queue",
                           instance(),
