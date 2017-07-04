@@ -109,7 +109,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
-my $mysql_version_extra;
+our $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -318,7 +318,7 @@ our $opt_user = "root";
 
 our $opt_valgrind= 0;
 my $opt_discover= 0;
-my $opt_sanitize= 0;
+our $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
@@ -979,8 +979,6 @@ sub run_worker ($) {
 
   $SIG{INT}= sub { exit(1); };
 
-  mtr_report("*** Running worker: $thread_num") if IS_WINDOWS;
-
   # Connect to server
   my $server = new IO::Socket::INET
     (
@@ -994,7 +992,6 @@ sub run_worker ($) {
   # --------------------------------------------------------------------------
   # Set worker name
   # --------------------------------------------------------------------------
-  mtr_report("*** Reserving ports for worker $thread_num") if IS_WINDOWS;
   report_option('name',"worker[$thread_num]");
 
   # --------------------------------------------------------------------------
@@ -1995,21 +1992,10 @@ sub set_build_thread_ports($) {
                              ? $max_parallel + int($max_parallel / 2)
                              : 49);
 
-    if (IS_WINDOWS)
-    {
-      mtr_report("=> Build thread initial value: $build_thread");
-      mtr_report("=> Build thread upper limit value: $build_thread_upper");
-      mtr_report("=> Build threads per worker process: ".
-                 "$build_threads_per_thread");
-    }
-
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
-                                       $build_threads_per_thread, $thread);
-
-      mtr_report("=> Checking build thread $build_thread for worker $thread")
-        if IS_WINDOWS;
+                                       $build_threads_per_thread);
 
       if (!defined $build_thread)
       {
@@ -2244,7 +2230,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "runtime_output_directory", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 

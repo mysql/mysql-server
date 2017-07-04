@@ -44,6 +44,7 @@
 #include "mysqld.h"                           // key_file_sdi
 #include "sql_class.h"                        // THD
 #include "sql_table.h"                        // build_tablename
+#include "strfunc.h"                          // lex_cstring_handle
 #include "transaction.h"                      // trans_rollback
 
 namespace dd {
@@ -512,9 +513,27 @@ bool add_sdi_info(THD *thd)
 
   // Add sdi info
   thd->push_internal_handler(&error_handler);
-  for (const dd::Tablespace* t : tablespaces)
+  for (const dd::Tablespace* ts : tablespaces)
   {
-    (void)dd::sdi::store(thd, t);
+    plugin_ref pr= ha_resolve_by_name_raw(thd,
+                                          lex_cstring_handle(ts->engine()));
+    handlerton *hton= nullptr;
+
+    if (pr)
+      hton= plugin_data<handlerton*>(pr);
+    else
+      sql_print_error("Error in resolving Engine name for tablespace %s "
+                      "with engine %s", ts->name().c_str(),
+                      ts->engine().c_str());
+
+    if (hton && hton->sdi_create)
+    {
+      // Error handling not possible at this stage, upgrade should complete.
+      if (hton->sdi_create(*ts))
+        sql_print_error("Error in creating SDI for %s tablespace",
+                        ts->name().c_str());
+      (void)dd::sdi::store(thd, ts);
+    }
   }
   thd->pop_internal_handler();
 
@@ -1197,9 +1216,6 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
     return true;
   }
 
-  // Reset flag
-  set_allow_sdi_creation(true);
-
   /*
     Migrate meta data of plugin table to DD.
     It is used in plugin initialization.
@@ -1209,6 +1225,10 @@ bool do_pre_checks_and_initialize_dd(THD *thd)
     terminate(thd);
     return true;
   }
+
+  // Reset flag
+  set_allow_sdi_creation(true);
+
 
   return false;
 }

@@ -65,7 +65,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/types/tablespace.h"
 #include "dd/types/index.h"
 #include "dd/types/partition.h"
@@ -152,6 +151,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
 #include "dict0upgrade.h"
 #include "dict0load.h"
+#include "dict0sdi.h"
 
 /** fil_space_t::flags for hard-coded tablespaces */
 static ulint			predefined_flags;
@@ -720,8 +720,8 @@ static ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_memc_sdi_get,
 	(ib_cb_t) ib_memc_sdi_delete,
 	(ib_cb_t) ib_memc_sdi_set,
-	(ib_cb_t) ib_memc_sdi_create_copies,
-	(ib_cb_t) ib_memc_sdi_drop_copies,
+	(ib_cb_t) ib_memc_sdi_create,
+	(ib_cb_t) ib_memc_sdi_drop,
 	(ib_cb_t) ib_memc_sdi_get_keys,
 #endif /* UNIV_MEMCACHED_SDI */
 	(ib_cb_t) ib_trx_read_only,
@@ -1187,156 +1187,6 @@ innobase_get_index_column_cardinality(
 	uint		column_ordinal_position,
 	dd::Object_id	se_private_id,
 	ulonglong*	cardinality);
-
-/** Create SDI in a tablespace. This API should be used when
-upgrading a tablespace with no SDI.
-@param[in]	tablespace	tablespace object
-@param[in]	num_of_copies	Number of SDI copies
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_create(
-	const dd::Tablespace&	tablespace,
-	uint32			num_of_copies);
-
-/** Drop SDI in a tablespace. This API should be used only
-when SDI is corrupted.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_drop(
-	const dd::Tablespace&	tablespace);
-
-/** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace	tablespace object
-@param[in,out]	vector		vector to hold SDI keys
-@param[in]	copy_num	the SDI copy to operate on
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get_keys(
-	const dd::Tablespace&	tablespace,
-	dd::sdi_vector_t&	vector,
-	uint32			copy_num);
-
-/** Retrieve SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
-				out: actual length of SDI
-@param[in]	copy_num	the copy from which SDI has to retrieved
-@retval		false		success
-@retval		true		incase of failures like record not found,
-				sdi_len is UINT64MAX_T, else sdi_len is
-				actual length of SDI */
-static
-bool
-innobase_sdi_get(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	void*			sdi,
-	uint64*			sdi_len,
-	uint32			copy_num);
-
-/** Insert/Update SDI in tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_set(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	const void*		sdi,
-	uint64			sdi_len);
-
-/** Delete SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_delete(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key);
-
-/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
-will be flushed before transaction commit.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_flush(
-	const dd::Tablespace&	tablespace);
-
-/** Return the number of SDI copies stored in a tablespace.
-@param[in]	tablespace	tablespace object
-@retval		0		if there are no SDI copies
-@retval		MAX_SDI_COPIES	if the SDI is present
-@retval		UINT32_MAX	in case of failure */
-static
-uint32
-innobase_sdi_get_num_copies(
-	const dd::Tablespace&	tablespace);
-
-/** Store sdi for a dd:Schema object associated with table
-@param[in,out]  thd     connection thread
-@param[in]      sdi     serialized dictionary information JSON string
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_store_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const LEX_CSTRING&	sdi,
-	const dd::Schema*	schema,
-	const dd::Table*	table);
-
-/** Remove serialized dictionary information for a schema.
-@param[in,out]  thd     connection thread
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Schema*	schema,
-	const dd::Table*	table);
-
-/** Remove serialized dictionary information for a table.
-@param[in,out]  thd     connection thread
-@param[in]      table   dd object
-@param[in]      schema  schema with which table is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_table_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Table*	table,
-	const dd::Schema*	schema);
 
 /** Perform post-commit/rollback cleanup after DDL statement. */
 static
@@ -4611,19 +4461,12 @@ innodb_init(
 	innobase_hton->is_dict_readonly=
 		innobase_is_dict_readonly;
 
-	innobase_hton->sdi_create = innobase_sdi_create;
-	innobase_hton->sdi_drop = innobase_sdi_drop;
-	innobase_hton->sdi_get_keys = innobase_sdi_get_keys;
-	innobase_hton->sdi_get = innobase_sdi_get;
-	innobase_hton->sdi_set = innobase_sdi_set;
-	innobase_hton->sdi_delete = innobase_sdi_delete;
-	innobase_hton->sdi_flush = innobase_sdi_flush;
-	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
-
-	innobase_hton->store_schema_sdi = innodb_store_schema_sdi;
-	innobase_hton->store_table_sdi = dd::sdi_tablespace::store;
-	innobase_hton->remove_schema_sdi = innodb_remove_schema_sdi;
-	innobase_hton->remove_table_sdi = innodb_remove_table_sdi;
+	innobase_hton->sdi_create = dict_sdi_create;
+	innobase_hton->sdi_drop = dict_sdi_drop;
+	innobase_hton->sdi_get_keys = dict_sdi_get_keys;
+	innobase_hton->sdi_get = dict_sdi_get;
+	innobase_hton->sdi_set = dict_sdi_set;
+	innobase_hton->sdi_delete = dict_sdi_delete;
 
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
@@ -4789,6 +4632,7 @@ dd_create_hardcoded(space_id_t space_id, const char* filename)
 		mtr.commit();
 
 		if (ret) {
+			btr_sdi_create_index(space_id, false);
 			return(false);
 		}
 	}
@@ -4807,14 +4651,18 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 {
 	bool		fail = false;
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
+	ulint		mysql_flags = FSP_FLAGS_SET_SDI(predefined_flags);
 
 	if (space != nullptr) {
 
+		/* ADD SDI flag presence in predefined flags of mysql
+		tablespace. */
+
 		/* The tablespace was already opened up by redo log apply. */
-		ut_ad(space->flags == predefined_flags);
+		ut_ad(space->flags == mysql_flags);
 
 		if (strstr(space->files.front().name, filename) != 0
-		    && space->flags == predefined_flags) {
+		    && space->flags == mysql_flags) {
 
 			fil_space_open_if_needed(space);
 
@@ -4825,7 +4673,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 		fil_space_release(space);
 
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
-				predefined_flags, dict_sys_t::dd_space_name,
+				mysql_flags, dict_sys_t::dd_space_name,
 				filename)
 		   == DB_SUCCESS) {
 
@@ -5687,336 +5535,6 @@ innobase_kill_connection(
 	}
 
 	DBUG_VOID_RETURN;
-}
-
-/** Check for existence of SDI copies in a tablespace
-@param[in]	tablespace	tablespace object
-@param[in,out]	space_id	space_id from tablespace object
-@return DB_SUCESS if number of SDI copies is MAX_SDI_COPIES,
-else return DB_ERROR */
-static
-dberr_t
-innobase_sdi_check_existence(
-	const dd::Tablespace&	tablespace,
-	uint32*			space_id)
-{
-	if (tablespace.se_private_data().get_uint32("id", space_id)) {
-		/* error, attribute not found */
-		ut_ad(0);
-		return(DB_ERROR);
-	}
-
-	ut_ad(check_trx_exists(current_thd) != NULL);
-
-	uint32_t	num_of_sdi = innobase_sdi_get_num_copies(tablespace);
-	return(num_of_sdi != MAX_SDI_COPIES ? DB_ERROR : DB_SUCCESS);
-}
-
-/** Create SDI in a tablespace. This API should be used when
-upgrading a tablespace with no SDI. InnoDB will always create
-MAX_SDI_COPIES only.
-@param[in]	tablespace	tablespace object
-@param[in]	num_of_copies	Number of SDI copies
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_create(
-	const dd::Tablespace&	tablespace,
-	uint32			num_of_copies)
-{
-	if (num_of_copies != MAX_SDI_COPIES) {
-		return(true);
-	}
-
-	uint32	space_id;
-	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
-		/* error, attribute not found */
-		ut_ad(0);
-		return(true);
-	}
-
-	dberr_t	err = ib_sdi_create_copies(space_id, num_of_copies);
-
-	return(err != DB_SUCCESS);
-}
-
-/** Drop SDI in a tablespace. This API should be used only
-when SDI is corrupted.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_drop(
-	const dd::Tablespace&	tablespace)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	dberr_t	err = ib_sdi_drop_copies(space_id);
-	return(err != DB_SUCCESS);
-}
-
-/** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace	tablespace object
-@param[in,out]	vector		vector to hold SDI keys
-@param[in]	copy_num	the SDI copy to operate on
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get_keys(
-	const dd::Tablespace&	tablespace,
-	dd::sdi_vector_t&	vector,
-	uint32			copy_num)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	ib_sdi_vector	ib_vector;
-	ib_vector.sdi_vector = &vector;
-
-	trx_t*	trx = check_trx_exists(current_thd);
-
-	dberr_t	err = ib_sdi_get_keys(space_id, &ib_vector,
-				      copy_num, trx);
-
-	return(err != DB_SUCCESS);
-}
-
-/** Retrieve SDI from tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
-				out: actual length of SDI
-@param[in]	copy_num	the copy from which SDI has to retrieved
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	void*			sdi,
-	uint64*			sdi_len,
-	uint32			copy_num)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-
-	dberr_t	err = ib_sdi_get(
-		space_id, &ib_sdi_key,
-		sdi, reinterpret_cast<uint64_t*>(sdi_len),
-		copy_num, trx);
-	return(err != DB_SUCCESS);
-}
-
-/** Insert/Update SDI in tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_set(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	const void*		sdi,
-	uint64			sdi_len)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-	/* TODO: To be determined if the rollback to savepoint is needed around
-	SDI modification. */
-	trx_savept_t	savept = trx_savept_take(trx);
-
-	dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 0, trx);
-	if (err == DB_SUCCESS) {
-		err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 1, trx);
-	}
-
-	if (err != DB_SUCCESS) {
-		trx_rollback_to_savepoint(trx, &savept);
-		return(true);
-	} else {
-		return(false);
-	}
-}
-
-/** Delete SDI from tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_delete(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-	/* TODO: To be determined if the rollback to savepoint is needed around
-	SDI modification. */
-	trx_savept_t	savept = trx_savept_take(trx);
-
-	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, 0, trx);
-	if (err == DB_SUCCESS) {
-		err = ib_sdi_delete(space_id, &ib_sdi_key, 1, trx);
-	}
-
-	if (err != DB_SUCCESS) {
-		trx_rollback_to_savepoint(trx, &savept);
-		return(true);
-	} else {
-		return(false);
-	}
-}
-
-/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
-will be flushed before transaction commit.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_flush(
-	const dd::Tablespace&	tablespace)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	ib_sdi_flush(space_id);
-	return(false);
-}
-
-/** Return the number of SDI copies stored in a tablespace.
-@param[in]	tablespace	tablespace object
-@retval		0		if there are no SDI copies
-@retval		MAX_SDI_COPIES	if the SDI is present
-@retval		UINT32_MAX	in case of failure */
-static
-uint32
-innobase_sdi_get_num_copies(
-	const dd::Tablespace&	tablespace)
-{
-	uint32	space_id;
-	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
-		ut_ad(0);
-		return(UINT32_MAX);
-	}
-
-	return(ib_sdi_get_num_copies(space_id));
-}
-
-/** Store sdi for a dd:Schema object associated with table
-@param[in,out]  thd     connection thread
-@param[in]	sdi	SDI json string
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_store_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const LEX_CSTRING&	sdi,
-	const dd::Schema*	schema,
-	const dd::Table*	table)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
-}
-
-/** Remove serialized dictionary information for a schema.
-@param[in,out]  thd     connection thread
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Schema*	schema,
-	const dd::Table*	table)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
-}
-
-/** Remove serialized dictionary information for a table.
-@param[in,out]  thd     connection thread
-@param[in]      table   dd object
-@param[in]      schema  schema with which table is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_table_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Table*	table,
-	const dd::Schema*	schema)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
 }
 
 /*************************************************************************//**
@@ -13923,7 +13441,7 @@ ha_innobase::get_se_private_data(
 	/* TODO: Once SYS_* tables have been removed, no need for 18 here */
 	static uint	n_indexes = 18;
 	/* Keep this the same as the one in is_gap_page() */
-	static uint	n_pages = 3;
+	static uint	n_pages = 4;
 
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
@@ -14882,7 +14400,7 @@ innobase_create_tablespace(
 		goto cleanup;
 	}
 
-	err = btr_sdi_create_indexes(tablespace.space_id(), true);
+	err = btr_sdi_create_index(tablespace.space_id(), true);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
@@ -14920,6 +14438,7 @@ innobase_drop_tablespace(
 	dberr_t		err;
 	int		error = 0;
 	space_id_t	space_id = SPACE_UNKNOWN;
+	MDL_ticket*	sdi_mdl = nullptr;
 
 	DBUG_ENTER("innobase_drop_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -14950,6 +14469,17 @@ innobase_drop_tablespace(
 	++trx->will_lock;
 
 	trx_start_if_not_started(trx, true);
+
+	/* Acquire Exclusive MDL on SDI table of tablespace.
+	This is to prevent concurrent purge on SDI table */
+	err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		trx_rollback_for_mysql(trx);
+		trx_free_for_mysql(trx);
+		DBUG_RETURN(error);
+	}
+
 	row_mysql_lock_data_dictionary(trx);
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES */
@@ -14968,6 +14498,7 @@ innobase_drop_tablespace(
 		/* OK if the physical file is mising.
 		We deleted the metadata. */
 	case DB_SUCCESS:
+		dict_sdi_remove_from_cache(space_id, nullptr, true);
 		innobase_commit_low(trx);
 		break;
 	default:

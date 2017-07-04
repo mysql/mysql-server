@@ -10808,6 +10808,9 @@ ER_DDL_IN_PROGRESS
 ER_TOO_MANY_CONCURRENT_CLONES
   eng "Too many concurrent clone operations. Maximum allowed - %d."
 
+ER_SDI_OPERATION_FAILED
+  eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
+
 #
 #  End of 8.0 error messages.
 #

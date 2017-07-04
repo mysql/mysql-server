@@ -63,6 +63,7 @@ SET(INNOBASE_SOURCES
 	dict/dict0dd.cc
 	dict/dict0load.cc
 	dict/dict0mem.cc
+	dict/dict0sdi.cc
 	dict/dict0stats.cc
 	dict/dict0stats_bg.cc
 	dict/dict0upgrade.cc

@@ -42,6 +42,10 @@ Created 12/18/1995 Heikki Tuuri
 /** Offset of the space header within a file page */
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA
 
+/** The number of bytes required to store SDI root page number(4)
+and SDI version(4) at Page 0 */
+#define FSP_SDI_HEADER_LEN	8
+
 /* The data structures in files are defined just as byte strings in C */
 typedef	byte	fsp_header_t;
 typedef	byte	xdes_t;
@@ -868,33 +872,27 @@ fsp_get_space_header(
 	mtr_t*			mtr);
 
 /** Retrieve tablespace dictionary index root page number stored in the
-page 1.
+page 0
 @param[in]	space		tablespace id
-@param[in]	copy_num	sdi index copy number
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction
 @return root page num of the tablespace dictionary index copy */
 page_no_t
 fsp_sdi_get_root_page_num(
 	space_id_t		space,
-	uint32_t		copy_num,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
-/** Write SDI Index root page num to page 1 or 2 of tablespace
-@param[in]	space		tablespace id
-@param[in]	page_num	page number in tablespace.
+/** Write SDI Index root page num to page 0 of tablespace.
+@param[in,out]	page		page 0 frame
 @param[in]	page_size	size of page
-@param[in]	root_page_num_0	root page number of SDI copy 0
-@param[in]	root_page_num_1	root page number of SDI copy 1
+@param[in]	root_page_num	root page number of SDI
 @param[in,out]	mtr		mini-transaction */
 void
 fsp_sdi_write_root_to_page(
-	space_id_t		space,
-	page_no_t		page_num,
+	page_t*			page,
 	const page_size_t&	page_size,
-	page_no_t		root_page_num_0,
-	page_no_t		root_page_num_1,
+	page_no_t		root_page_num,
 	mtr_t*			mtr);
 
 #include "fsp0fsp.ic"
@@ -997,5 +995,20 @@ or inode page
 inline
 bool
 fsp_is_inode_page(page_no_t page);
+
+/** Get the offset of SDI root page number in page 0
+@param[in]	page_size	page size
+@return offset on success, else 0 */
+inline
+ulint
+fsp_header_get_sdi_offset(
+	const page_size_t&	page_size);
+
+/** Determine if the tablespace contians an SDI.
+@param[in]	space_id	Tablespace id
+@retval		false		if there is no SDI
+@retval		true		if SDI is present */
+bool
+fsp_has_sdi(space_id_t space_id);
 
 #endif
