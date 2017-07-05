@@ -378,6 +378,7 @@ End of 5.1 tests
 # Bug #35269: mysqlcheck behaves different depending on order of parameters
 #
 WARNING: --fix-table-names is deprecated and will be removed in a future version
+mysqlcheck doesn't support multiple contradicting commands.
 #
 # Bug#11755431 47205: MAP 'REPAIR TABLE' TO RECREATE +ANALYZE FOR
 #              ENGINES NOT SUPPORTING NATIVE
