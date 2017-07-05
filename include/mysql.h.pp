@@ -363,6 +363,7 @@ enum mysql_option
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE
+  , MYSQL_OPT_RETRY_COUNT = 237
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

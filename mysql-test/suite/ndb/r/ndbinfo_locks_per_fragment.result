@@ -1,0 +1,856 @@
+use ndbinfo;
+create table test.t1 (a int primary key, b int, c int, unique(b), key(c)) engine=ndb;
+create view frag_locks as 
+select fq_name = 'test/def/t1' as main_tab,
+type, 
+sum(ex_req) as ex_reqs, 
+sum(ex_imm_ok) as ex_imm_oks, 
+sum(ex_wait_ok) as ex_wait_oks, 
+sum(ex_wait_fail) as ex_wait_fails,
+sum(sh_req) as sh_reqs, 
+sum(sh_imm_ok) as sh_imm_oks, 
+sum(sh_wait_ok) as sh_wait_oks, 
+sum(sh_wait_fail) as sh_wait_fails
+from locks_per_fragment
+where 
+fq_name = 'test/def/t1' or
+parent_fq_name = 'test/def/t1'
+    group by
+main_tab, type;
+No locks taken
+select * from frag_locks;
+main_tab	type	ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fails
+0	Unique hash index	0	0	0	0	0	0	0	0
+1	User table	0	0	0	0	0	0	0	0
+create table baseline as select * from frag_locks;
+create table current like baseline;
+create view baseline_diff as
+select c.ex_reqs - b.ex_reqs as ex_reqs,
+c.ex_imm_oks - b.ex_imm_oks as ex_imm_oks,
+c.ex_wait_oks - b.ex_wait_oks as ex_wait_oks,
+c.ex_wait_fails - b.ex_wait_fails as ex_wait_fails,
+c.sh_reqs - b.sh_reqs as sh_reqs,
+c.sh_imm_oks - b.sh_imm_oks as sh_imm_oks,
+c.sh_wait_oks - b.sh_wait_oks as sh_wait_oks,
+c.sh_wait_fails - b.sh_wait_fails as sh_wait_fail,
+c.type,
+c.main_tab
+from baseline b join current c on 
+b.type = c.type and
+b.main_tab = c.main_tab
+order by main_tab desc;
+Start testing
+Insert some data
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5), (6,6,6), (7,7,7), (8,8,8);
+Expect :
+1.  NoOfReplicas(2) * NumRows * Exclusive row locks immediately claimed on user table
+2.  NoOfReplicas(2) * NumRows * Exclusive row locks immediately claimed on unique index table
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+16	16	0	0	0	0	0	0	User table	1
+16	16	0	0	0	0	0	0	Unique hash index	0
+Read committed by PK
+select * from test.t1 where a=7;
+a	b	c
+7	7	7
+Expect : 
+1.  No increments
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Read shared by PK
+select * from test.t1 where a=7 lock in share mode;
+a	b	c
+7	7	7
+Expect : 
+1.  1 sh lock on TAB
+2.  No effect on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Read exclusive by PK
+select * from test.t1 where a=7 for update;
+a	b	c
+7	7	7
+Expect : 
+1.  1 ex lock on TAB
+2.  No effect on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Update by PK
+update test.t1 set c=50 where a=5;
+Expect : 
+1.  2 * 2 ex locks on TAB
+2.  No effect on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Update by PK, UK affected
+update test.t1 set b=50 where a=5;
+Expect : 
+1.  2 * 1 ex on TAB
+Extra tab read here?
+2.  2 * 2 * ex on UI table (Delete old row, Insert new)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+3	3	0	0	0	0	0	0	User table	1
+4	4	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Delete by PK
+delete from test.t1 where a=5;
+Expect : 
+1.  2 * 1 * ex on TAB
+2.  2 * 1 * ex on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Read committed by UK
+select * from test.t1 where b=3;
+a	b	c
+3	3	3
+Expect:
+1.  1 * SH on TAB (upgrade)
+2.  1 * SH on UI (upgrade)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	1	1	0	0	Unique hash index	0
+****************************************************
+Read shared by UK
+select * from test.t1 where b=3 lock in share mode;
+a	b	c
+3	3	3
+Expect:
+1.  1 * SH on TAB
+2.  1 * SH on TAB
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	1	1	0	0	Unique hash index	0
+****************************************************
+Read exclusive by UK
+select * from test.t1 where b=3 for update;
+a	b	c
+3	3	3
+Expect:
+1.  1 * EX on TAB
+2.  1 * EX on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+1	1	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Update by UK, not affecting UK value
+update test.t1 set c=30 where b=3;
+Expect:
+1.  2 * 1 EX on TAB
+2.  1 * EX on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+1	1	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Update by UK, affecting UK value
+update test.t1 set b=30 where b=3;
+Expect:
+1.  1 + 2 * 1  EX on TAB
+2.  1 + 2 * 2  EX on UI
+Due to : Ex read by UK -> Ex read of PK -> 
+Update T by PK (*NR) -> 
+Delete + Insert of UI by PK (*NR)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+3	3	0	0	0	0	0	0	User table	1
+5	5	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Delete by UK
+delete from test.t1 where b=30;
+Expect:
+1.  1 + 2 * 1 EX on TAB
+2.  1 + 2 * 1 EX on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+3	3	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with no locks
+select * from test.t1 order by a;
+a	b	c
+1	1	1
+2	2	2
+4	4	4
+6	6	6
+7	7	7
+8	8	8
+Expect : No locking
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with shared lock, held on no rows
+select * from test.t1 where a%1234 = 1233 lock in share mode;
+a	b	c
+Expect : Lock taken on each row, but not held
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	6	6	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with shared lock, held on 1 row
+select * from test.t1 where a%1234 = 8 lock in share mode;
+a	b	c
+8	8	8
+Expect : Lock taken on each row, one held via takeover
+x+1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	7	7	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with shared lock, held on all rows
+select * from test.t1 where a%1234 > 0 order by a lock in share mode;
+a	b	c
+1	1	1
+2	2	2
+4	4	4
+6	6	6
+7	7	7
+8	8	8
+Expect : Lock taken on each row, all held via takeover
+2x
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	12	12	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with exclusive lock, held on no rows
+select * from test.t1 where a%1234 = 1233 for update;
+a	b	c
+Expect : Lock taken on each row, but not held
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+6	6	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with exclusive lock, held on 1 row
+select * from test.t1 where a%1234 = 8 for update;
+a	b	c
+8	8	8
+Expect : Lock taken on each row, one held via takeover
+x+1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+7	7	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+OI scan (Primary) with exclusive lock, held on all rows
+select * from test.t1 where a%1234 > 0 order by a for update;
+a	b	c
+1	1	1
+2	2	2
+4	4	4
+6	6	6
+7	7	7
+8	8	8
+Expect : Lock taken on each row, all held via takeover
+2x
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+12	12	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Multiple locks from a single transaction on one row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+Upgrade
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+commit;
+Expect : 3 * Ex lock + 3 * Sh lock
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+3	3	0	0	3	3	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+****************
+Show lock Delays
+****************
+SH <- EX PK
+Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get an exclusive lock from a separate 
+transaction, PK read
+select * from test.t1 where a=1 for update;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+Exclusive lock successfully claimed after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	0	1	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+SH <- EX SCAN
+Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get an exclusive lock from a separate 
+transaction, OI scan
+select * from test.t1 where a % 1245 = 1 for update;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+x - 1 EX locks taken immediately
+1 EX lock taken after wait
+1 EX lock taken immediately (Takeover) 
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+7	6	1	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+EX <- SH UI
+Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get a shared lock from a separate 
+transaction, UK read
+select * from test.t1 where b=1 lock in share mode;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+Shared lock immediately claimed on UI
+Shared lock successfully claimed on TAB after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	1	0	User table	1
+0	0	0	0	1	1	0	0	Unique hash index	0
+****************************************************
+SH <- EX UI
+Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get an exclusive lock from a separate 
+transaction, UK read
+select * from test.t1 where b = 1 for update;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+Ex lock immediately claimed on UI
+Ex lock successfully claimed on TAB after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	0	1	0	0	0	0	0	User table	1
+1	1	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+EX <- SH PK
+Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get a shared lock from a separate 
+transaction, PK read
+select * from test.t1 where a=1 lock in share mode;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+Shared lock successfully claimed after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	1	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+EX <- SH SCAN
+Take and hold exclusive lock on a row
+begin;
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+Attempt to get a shared lock from a separate 
+transaction, OI scan
+select * from test.t1 where a % 1245 = 1 lock in share mode;;
+Give request a chance to be registered and wait
+Rollback lock holder, allowing con2 to get lock
+rollback;
+a	b	c
+1	1	1
+Expect :
+x - 1 SH locks taken immediately
+1 SH lock taken after wait
+1 SH lock taken immediately (Takeover) 
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	7	6	1	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+*******************
+Lock claim failures
+*******************
+Take and hold shared lock on a row
+begin;
+select * from test.t1 where a=1 lock in share mode;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+SH <- EX PK
+Attempt to get an exclusive lock from a separate 
+transaction, PK read
+select * from test.t1 where a=1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+Exclusive lock claim failed after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	0	0	1	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+SH <- EX UK
+Attempt to get an exclusive lock from a separate 
+transaction, UK read
+select * from test.t1 where b=1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+EX immediate on unique key
+EX failed on TAB
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	0	0	1	0	0	0	0	User table	1
+1	1	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+SH <- EX OI Scan
+Attempt to get an exclusive lock from a separate 
+transaction, OI scan
+select * from test.t1 where a % 1234 =1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+x -1 EX immediate on TAB
+1 EX failed on TAB
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+6	5	0	1	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Escalate 'holding' lock to EX
+select * from test.t1 where a=1 for update;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+EX <- SH PK
+Attempt to get a shared lock from a separate 
+transaction, PK read
+select * from test.t1 where a=1 lock in share mode;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+Shared lock claim failed after some delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	0	1	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+EX <- SH UK
+Attempt to get a shared lock from a separate 
+transaction, UK read
+select * from test.t1 where b=1 lock in share mode;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+SH immediate on unique key
+SH failed on TAB
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	0	1	User table	1
+0	0	0	0	1	1	0	0	Unique hash index	0
+****************************************************
+EX <- SH OI Scan
+Attempt to get a shared lock from a separate 
+transaction, OI scan
+select * from test.t1 where a % 1234 =1 lock in share mode;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+x -1 SH immediate on TAB
+1 SH failed on TAB
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	6	5	0	1	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Escalate 'holding' lock to EX on UI too
+select * from test.t1 where b=1 for update;
+a	b	c
+1	1	1
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+1	1	0	0	0	0	0	0	Unique hash index	0
+EX UK <- SH UK
+Attempt to get a shared lock from a separate 
+transaction, UK read
+select * from test.t1 where b=1 lock in share mode;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+SH failed on UK
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	1	0	0	1	Unique hash index	0
+****************************************************
+EX UK <- EX UK
+Attempt to get an exclusive lock from a separate 
+transaction, UK read
+select * from test.t1 where b=1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expect :
+EX failed on UK
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+1	0	0	1	0	0	0	0	Unique hash index	0
+****************************************************
+rollback;
+*******************
+Row existence cases
+*******************
+Show table content
+select * from test.t1 order by a;
+a	b	c
+1	1	1
+2	2	2
+4	4	4
+6	6	6
+7	7	7
+8	8	8
+SH PK read of non existing row
+select * from test.t1 where a=1234 lock in share mode;
+a	b	c
+Expect : Nothing
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+EX PK read of non existing row
+select * from test.t1 where a=1234 for update;
+a	b	c
+Expect : Nothing
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Update of non existing row
+update test.t1 set c=1234 where a=1234;
+Expect : Nothing
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Delete of non existing row
+delete from test.t1 where a=1234;
+Expect : Nothing
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Insert of existing row
+insert into test.t1 values (1,1,1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+Expect : Nothing
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+*************
+Special cases
+*************
+Existing row is deleted, other transaction waiting
+for lock...
+Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+Attempt to read the row by PK
+select * from test.t1 where a =1 lock in share mode;;
+Give request a chance to be registered and wait
+Commit the delete
+commit;
+a	b	c
+Expect 1 SH lock on TAB, after delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	1	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+insert into test.t1 values (1,1,1);
+Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+4	4	0	0	0	0	0	0	User table	1
+4	4	0	0	0	0	0	0	Unique hash index	0
+Attempt to read the row by UK
+select * from test.t1 where b=1 lock in share mode;;
+Give request a chance to be registered and wait
+Commit the delete
+commit;
+a	b	c
+Expect 1 SH lock on Unique, after delay
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	0	0	0	0	User table	1
+0	0	0	0	1	0	1	0	Unique hash index	0
+****************************************************
+insert into test.t1 values (1,1,1);
+Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+4	4	0	0	0	0	0	0	User table	1
+4	4	0	0	0	0	0	0	Unique hash index	0
+Attempt to read the row by OI scan
+select * from test.t1 where a % 1234 = 1 lock in share mode;;
+Give request a chance to be registered and wait
+Commit the delete
+commit;
+a	b	c
+Expect :
+x - 1 SH locks immediately claimed
+1 SH lock claimed after wait 
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	6	5	1	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+insert into test.t1 values (1,1,1);
+Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+4	4	0	0	0	0	0	0	User table	1
+4	4	0	0	0	0	0	0	Unique hash index	0
+Attempt to insert a similar row
+insert into test.t1 values (1,1,1);;
+Give request a chance to be registered and wait
+Commit the delete
+commit;
+Expect same as row never existed :
+1 EX locks on TAB ok after wait (Insert, primary)
+1 EX lock on TAB ok immediate (replica)
+or wait @ replica
+2 EX locks on UI immediate (Insert)
+delete from current;
+insert into current select * from frag_locks;
+expect 2 ex_reqs, either immediate or wait
+select ex_reqs, 
+(ex_imm_oks + ex_wait_oks),
+ex_wait_fails,
+sh_reqs, sh_imm_oks, sh_wait_oks, sh_wait_fail,
+main_tab, type from baseline_diff order by main_tab desc;
+ex_reqs	(ex_imm_oks + ex_wait_oks)	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	main_tab	type
+2	2	0	0	0	0	0	1	User table
+2	2	0	0	0	0	0	0	Unique hash index
+delete from baseline;
+insert into baseline select * from current;
+****************************************************
+Prepare a delete on a row
+begin;
+delete from test.t1 where a=1;
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+Attempt to delete the row from another transaction
+delete from test.t1 where a=1;;
+Give request a chance to be registered and wait
+Commit the first delete
+commit;
+Expect :
+1 EX lock wait ok
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	0	1	0	0	0	0	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Prepare to insert a new row
+begin;
+insert into test.t1 values (27, 27, 27);
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+Attempt to read the row from another transaction
+(PK SH)
+select * from test.t1 where a=27 lock in share mode;;
+Give request a chance to be registered and wait
+Abort the insert
+rollback;
+a	b	c
+Expect :
+1 SH lock wait ok
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	0	1	0	User table	1
+0	0	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+Prepare to insert a new row
+begin;
+insert into test.t1 values (27, 27, 27);
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+Attempt to insert the same row from another transaction
+(PK SH)
+insert into test.t1 values (27, 27, 27);;
+Give request a chance to be registered and wait
+Abort the first insert
+rollback;
+Expect :
+1 EX lock wait ok on TAB (prim)
+1 EX lock immed on TAB (backup)
+2 EX lock immed ok on UI
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	1	1	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	Unique hash index	0
+****************************************************
+****************************************************
+Show elapsed time added to totals
+****************************************************
+Timeout case
+begin;
+select * from test.t1 where a=2 lock in share mode;
+a	b	c
+2	2	2
+begin;
+select * from test.t1 where a=2 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+Show no extra 'ok' time, and some extra 'fail' time
+Expect 0 ok_millis, > 0 fail_millis
+ok_millis	fail_millis
+0	1
+****************************************************
+Ok wait case
+****************************************************
+Expect > 0 ok_millis, 0 fail_millis
+ok_millis	fail_millis
+1	0
+drop table test.t1;
+delete from current;
+delete from baseline;
+*****
+Blobs
+*****
+create table test.t1 (a int primary key, b text, c int) engine=ndb;
+insert into baseline select * from frag_locks;
+insert into test.t1 values (1,repeat('BJC', 300), 1);
+Show insert lock footprint across main and
+parts tables :
+- Blob uses extra ops on main table row
+to set length etc...
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+4	4	0	0	0	0	0	0	User table	1
+2	2	0	0	0	0	0	0	User table	0
+****************************************************
+Show Blob read by PK Committed read
+select a, length(b) from test.t1 where a=1;
+a	length(b)
+1	900
+Expect SH on main table (Upgrade)
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+Show Blob read by PK Shared
+select a, length(b) from test.t1 where a=1 lock in share mode;
+a	length(b)
+1	900
+Expect SH on main table
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+Show Blob read by PK Exclusive
+select a, length(b) from test.t1 where a=1 for update;
+a	length(b)
+1	900
+Expect EX on main table
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+1	1	0	0	0	0	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+Show Blob read by scan Committed read, no rows returned
+select a, length(b) from test.t1 where c != 1;
+a	length(b)
+Expect SH on main table
++ Nothing on parts table
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	0	0	0	0	User table	0
+****************************************************
+Show Blob read by scan Committed read, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1;
+a	length(b)
+1	900
+Expect SH on main table
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	1	1	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+Show Blob read by scan shared, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1 lock in share mode;
+a	length(b)
+1	900
+Expect 2* SH on main table
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+0	0	0	0	2	2	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+Show Blob read by scan exlusive, 1 row returned
+select a, length(b) from test.t1 where c % 1234 = 1 for update;
+a	length(b)
+1	900
+Expect 2* EX on main table
++ SH on parts table (SimpleRead)
+ex_reqs	ex_imm_oks	ex_wait_oks	ex_wait_fails	sh_reqs	sh_imm_oks	sh_wait_oks	sh_wait_fail	type	main_tab
+2	2	0	0	0	0	0	0	User table	1
+0	0	0	0	1	1	0	0	User table	0
+****************************************************
+drop view baseline_diff;
+drop table current;
+drop table baseline;
+drop view frag_locks;
+drop table test.t1;

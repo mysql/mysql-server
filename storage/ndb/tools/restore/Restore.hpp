@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,6 +124,7 @@ class AttributeS {
 public:
   AttributeDesc * Desc;
   AttributeData Data;
+  void printAttributeValue() const;
 };
 
 class TupleS {
@@ -370,6 +371,7 @@ protected:
 public:
   bool readHeader();
   bool validateFooter();
+  bool validateBackupFile();
 
   const char * getPath() const { return m_path;}
   const char * getFilename() const { return m_fileName;}
@@ -383,7 +385,7 @@ public:
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
-
+  static const Uint32 BUFFER_SIZE = 128*1024;
 private:
   void
   twiddle_atribute(const AttributeDesc * const attr_desc,
@@ -451,6 +453,7 @@ public:
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
+  bool validateRestoreDataIterator();
 
   const TupleS *getNextTuple(int & res);
   TableS *getCurrentTable();
@@ -518,6 +521,7 @@ public:
   }
   Uint32 size() const { return m_values.size(); }
   const AttributeS * operator[](int i) const { return m_values[i];}
+  void printSqlLog() const;
 };
 
 class RestoreLogIterator : public BackupFile {

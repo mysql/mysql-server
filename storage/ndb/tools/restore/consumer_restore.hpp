@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,10 +59,15 @@ public:
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
                 int backup_nodeid,
-                Uint32 parallelism=1) :
+                Uint32 parallelism,
+                int ndb_connect_retry_delay,
+                int ndb_connect_retries
+                ) :
     m_ndb(NULL),
     m_cluster_connection(NULL),
     m_ndb_connectstring(ndb_connectstring),
+    m_ndb_connect_retry_delay(ndb_connect_retry_delay),
+    m_ndb_connect_retries(ndb_connect_retries),
     m_ndb_nodeid(ndb_nodeid)
   {
     m_nodegroup_map = ng_map;
@@ -129,7 +134,6 @@ public:
   virtual bool report_data(unsigned node_id, unsigned backup_id);
   virtual bool report_log(unsigned node_id, unsigned backup_id);
   virtual bool report_completed(unsigned node_id, unsigned backup_id);
-  void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
                   uint data_len, uint *new_data_len);
   bool search_replace(char *search_str, char **new_data,
@@ -205,6 +209,8 @@ public:
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
   const char* m_ndb_connectstring;
+  int m_ndb_connect_retry_delay;
+  int m_ndb_connect_retries;
   int m_ndb_nodeid;
   bool m_restore;
   bool m_restore_meta;

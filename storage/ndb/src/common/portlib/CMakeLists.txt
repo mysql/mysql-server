@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,17 +31,7 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbGetRUsage.cpp NdbLockCpuUtil.c)
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${LIBSOCKET})
 
-ADD_EXECUTABLE(NdbDir-t
-  NdbDir.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/util/basestring_vsnprintf.c)
-SET_TARGET_PROPERTIES(NdbDir-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_NDBDIR")
-TARGET_LINK_LIBRARIES(NdbDir-t ndbportlib)
+NDB_ADD_TEST(NdbDir-t NdbDir.cpp ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/util/basestring_vsnprintf.c
+             LIBS ndbportlib)
 
-ADD_EXECUTABLE(NdbGetInAddr-t NdbTCP.cpp)
-SET_TARGET_PROPERTIES(NdbGetInAddr-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_NDBGETINADDR")
-TARGET_LINK_LIBRARIES(NdbGetInAddr-t ${LIBSOCKET} ${LIBNSL})
-
-
-
+NDB_ADD_TEST(NdbGetInAddr-t NdbTCP.cpp LIBS ${LIBSOCKET} ${LIBNSL})

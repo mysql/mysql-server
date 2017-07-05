@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     ndbd_malloc_impl.cpp
     ndbd_malloc.cpp
     Pool.cpp
-    WOPool.cpp
-    RWPool.cpp
     DynArr256.cpp
     LockQueue.cpp
     GlobalData.cpp
@@ -41,6 +39,8 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     ArenaPool.cpp
     mt_thr_config.cpp
 )
+#    WOPool.cpp
+#    RWPool.cpp
 
 ADD_CONVENIENCE_LIBRARY(ndbsched
     TimeQueue.cpp
@@ -68,16 +68,10 @@ ADD_CONVENIENCE_LIBRARY(ndbtest
     ../blocks/dbtup/tuppage.cpp
 )
 
-ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
-SET_TARGET_PROPERTIES(mt_thr_config-t
-                      PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
-TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
+NDB_ADD_TEST(mt_thr_config-t mt_thr_config.cpp LIBS ndbgeneral)
 
-FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel)
-  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
-  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
-  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
-                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList)
+  NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp" LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDFOREACH(testprog)
 
 # Todo : Fix
@@ -89,7 +83,5 @@ ENDFOREACH(testprog)
 #ENDFOREACH(testprog)
 
 IF(WITH_NDBMTD)
-  ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
-  TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
-                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+  NDB_ADD_TEST(mt-send-t mt-send-t.cpp LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDIF()

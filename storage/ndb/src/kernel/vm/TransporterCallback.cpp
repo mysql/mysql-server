@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,8 +46,8 @@ SectionSegmentPool g_sectionSegmentPool;
 /* Instance debugging vars
  * Set from DBTC
  */
-int ErrorSignalReceive= 0;
-int ErrorMaxSegmentsToSeize= 0;
+Uint32 ErrorSignalReceive= 0;      //Block to inject signal errors into
+Uint32 ErrorMaxSegmentsToSeize= 0;
 
 /**
  * This variable controls if ErrorSignalReceive/ErrorMaxSegmentsToSeize
@@ -101,9 +101,9 @@ class TransporterCallbackKernelNonMT :
   {
     return globalTransporterRegistry.has_data_to_send(node);
   }
-  void reset_send_buffer(NodeId node, bool should_be_empty)
+  void reset_send_buffer(NodeId node)
   {
-    globalTransporterRegistry.reset_send_buffer(node, should_be_empty);
+    globalTransporterRegistry.reset_send_buffer(node);
   }
 };
 static TransporterCallbackKernelNonMT myTransporterCallback;
@@ -167,7 +167,25 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   bzero(secPtr, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
-  ErrorImportActive = true;
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /**
+   * Track sections seized as part of receiving signal with
+   * 1 as 'special' block number for receiver
+   */
+  setResOwner(0x1 << 16 | header->theVerId_signalNumber);
+#endif
+
+#if defined(ERROR_INSERT)
+  if (secCount > 0)
+  {
+    const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
+    if (unlikely(ErrorSignalReceive == receiverBlock))
+    {
+      ErrorImportActive = true;
+    }
+  }
+#endif
+
   switch(secCount){
   case 3:
     ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
@@ -176,7 +194,9 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   case 1:
     ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }
+#if defined(ERROR_INSERT)
   ErrorImportActive = false;
+#endif
 
   /**
    * Check that we haven't received a too long signal

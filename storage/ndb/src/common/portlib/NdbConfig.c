@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #include <ndb_global.h>
 #include <NdbConfig.h>
 #include <NdbEnv.h>
-#include <NdbMem.h>
 #include <NdbHost.h>
 #include <basestring_vsnprintf.h>
 
@@ -54,7 +53,7 @@ NdbConfig_AllocHomePath(int _len)
   int path_len;
   const char *path= NdbConfig_get_path(&path_len);
   int len= _len+path_len;
-  char *buf= NdbMem_Allocate(len);
+  char *buf= malloc(len);
   basestring_snprintf(buf, len, "%s%s", path, DIR_SEPARATOR);
   return buf;
 }
@@ -73,7 +72,7 @@ NdbConfig_NdbCfgName(int with_ndb_home){
     buf= NdbConfig_AllocHomePath(PATH_MAX);
     len= (int)strlen(buf);
   } else
-    buf= NdbMem_Allocate(PATH_MAX);
+    buf= malloc(PATH_MAX);
   basestring_snprintf(buf+len, PATH_MAX, "Ndb.cfg");
   return buf;
 }
@@ -91,6 +90,7 @@ char *get_prefix_buf(int len, int node_id)
   tmp_buf[sizeof(tmp_buf)-1]= 0;
 
   buf= NdbConfig_AllocHomePath(len+(int)strlen(tmp_buf));
+  require(len > 0); // avoid buffer overflow
   strcat(buf, tmp_buf);
   return buf;
 }

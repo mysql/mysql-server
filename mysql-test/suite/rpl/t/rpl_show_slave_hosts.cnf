@@ -11,7 +11,6 @@ report-user=
 [mysqld.3]
 server_id=3
 report-host=slave2
-slave-net-timeout=5
 
 [ENV]
 SLAVE_MYPORT2=		@mysqld.3.port

@@ -167,6 +167,19 @@ enum mysql_option
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE
+#ifndef MCP_BUG22389653
+/*
+  The option value 'MYSQL_OPT_RETRY_COUNT' is added to allow
+  libmysql clients to configure the retry count using the C
+  API, mysql_options(). This new option is an MCP addition.
+  NOTE! Using a high hardcoded value for the option to avoid
+  that it changes in case new option(s) are added to the version
+  which this version of MySQL Cluster is based on. The value does
+  not need to be same between major versions but should not fluctuate
+  betwen minor version numbers.
+*/
+  , MYSQL_OPT_RETRY_COUNT = 237 // Hardcoded
+#endif
 };
 
 /**

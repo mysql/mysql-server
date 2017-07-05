@@ -95,6 +95,9 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   mysql_socket_setfd(&vio->mysql_socket, sd);
   vio->localhost= flags & VIO_LOCALHOST;
   vio->read_timeout= vio->write_timeout= -1;
+#ifndef MCP_BUG22389653
+  vio->retry_count= 1;
+#endif
   if ((flags & VIO_BUFFERED_READ) &&
       !(vio->read_buffer= (char*)my_malloc(key_memory_vio_read_buffer,
                                            VIO_READ_BUFFER_SIZE, MYF(MY_WME))))

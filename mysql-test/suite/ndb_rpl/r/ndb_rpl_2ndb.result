@@ -34,7 +34,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -49,7 +49,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -126,7 +126,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -141,7 +141,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -234,7 +234,7 @@ t1	CREATE TABLE `t1` (
   `u` int(11) DEFAULT NULL,
   `v` char(16) DEFAULT 'default',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 SELECT * 
 FROM t1
 ORDER BY id;
@@ -333,7 +333,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;

@@ -1,0 +1,17 @@
+#
+# Bug#24444878 MYSQLD CRASHED DURING UNIQUE KEY CREATION
+#              WITH AN ERROR "VOID HA_NDBCLUSTER
+#
+create table t1(
+a int primary key,
+b int
+) engine=ndb;
+insert into t1 values (1,1);
+# Set debug variable to make get_metadata() fail during
+# the alter
+set global debug='+d,ndb_get_metadata_fail';
+# Run alter which will fail due to the debug variable
+alter table t1 add unique(b);
+ERROR HY000: Table definition has changed, please retry transaction
+set global debug='';
+drop table t1;

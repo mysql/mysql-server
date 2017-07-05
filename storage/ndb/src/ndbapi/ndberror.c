@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,7 +133,8 @@ ErrorBundle ErrorCodes[] = {
    */
   {  286, DMEC, NR, "Node failure caused abort of transaction" }, 
   {  250, DMEC, NR, "Node where lock was held crashed, restart scan transaction" },
-  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },  
+  {  499, DMEC, NR, "Scan take over error, restart scan transaction" },
+  {  631, DMEC, NR, "Scan take over error, restart scan transaction" },
   { 1204, DMEC, NR, "Temporary failure, distribution changed" },
   { 4002, DMEC, NR, "Send to NDB failed" },
   { 4007, DMEC, NR, "Send to ndbd node failed" },
@@ -196,6 +197,7 @@ ErrorBundle ErrorCodes[] = {
   { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
   { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
   { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  { 21033, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - No parent row found" },
   /* DropFKRef + DropFKImplRef */
   { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
   { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
@@ -204,7 +206,7 @@ ErrorBundle ErrorCodes[] = {
   { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
   { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
   /* Referential integrity */
-  { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
+  { 21080, HA_ERR_ROW_IS_REFERENCED, AE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
   /* Drop index */
   { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
   { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },
@@ -277,6 +279,8 @@ ErrorBundle ErrorCodes[] = {
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
   { 899,  DMEC, TR, "Rowid already allocated" },
+  { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
+  { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
@@ -298,7 +302,7 @@ ErrorBundle ErrorCodes[] = {
    */
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
-  { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
+  { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase DataMemory)" },
   { 633,  HA_ERR_INDEX_FILE_FULL, IS,
     "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
@@ -310,10 +314,13 @@ ErrorBundle ErrorCodes[] = {
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
-  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
+  { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out of extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
   { 1603, HA_ERR_RECORD_FILE_FULL, IS,
     "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
+  { 1604, DMEC, IS, "Error -1 from get_page" },
+  { 1605, HA_ERR_RECORD_FILE_FULL, IS, "Out of page request records when allocating disk record" },
+  { 1606, HA_ERR_RECORD_FILE_FULL, IS, "Out of extent records when allocating disk record" },
 
   /**
    * TimeoutExpired 
@@ -323,6 +330,8 @@ ErrorBundle ErrorCodes[] = {
   { 296,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout */
   { 297,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Time-out in NDB, probably caused by deadlock" }, /* Scan trans timeout, temporary!! */
   { 237,  HA_ERR_LOCK_WAIT_TIMEOUT, TO, "Transaction had timed out when trying to commit it" },
+  { 5024, DMEC, TO, "Time-out due to node shutdown not starting in time" },
+  { 5025, DMEC, TO, "Time-out due to node shutdown not completing in time" },
   
   /**
    * OverloadError
@@ -356,6 +365,7 @@ ErrorBundle ErrorCodes[] = {
   { 230,  DMEC, IE, "230" },
   { 232,  DMEC, IE, "232" },
   { 238,  DMEC, IE, "238" },
+  { 240,  DMEC, IE, "Invalid data encountered during foreign key trigger execution" },
   { 271,  DMEC, IE, "Simple Read transaction without any attributes to read" },
   { 272,  DMEC, IE, "Update operation without any attributes to update" },
   { 276,  DMEC, IE, "276" },
@@ -365,7 +375,6 @@ ErrorBundle ErrorCodes[] = {
   { 290,  DMEC, IE, "Corrupt key in TC, unable to xfrm" },
   { 293,  DMEC, IE, "Inconsistent trigger state in TC block" },
   { 292,  DMEC, IE, "Inconsistent index state in TC block" },
-  { 631,  DMEC, IE, "631" },
   { 632,  DMEC, IE, "632" },
   { 706,  DMEC, IE, "Inconsistency during table creation" },
   { 781,  DMEC, IE, "Invalid schema transaction key from NDB API" },
@@ -438,6 +447,7 @@ ErrorBundle ErrorCodes[] = {
   { 322,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node already in nodegroup" },
   { 323,  DMEC, AE, "Invalid nodegroup id, nodegroup already existing" },
   { 324,  DMEC, AE, "Invalid node(s) specified for new nodegroup, no node in nodegroup is started" },
+  { 325,  DMEC, AE, "Invalid node(s) specified for new nodegroup, node ID invalid or undefined" },
   { 417,  DMEC, AE, "Bad operation reference - double unlock" },
 
   /** 
@@ -589,11 +599,14 @@ ErrorBundle ErrorCodes[] = {
   { 792,  DMEC, SE, "Default value for primary key column not supported" },
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   { 796,  DMEC, SE, "Out of schema transaction memory" },
+  { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
+  { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
 
   /**
    * FunctionNotImplemented
    */
   { 4003, DMEC, NI, "Function not implemented yet" },
+  { 797,  DMEC, NI, "Wrong fragment count for fully replicated table" },
 
   /**
    * Backup error codes
@@ -726,12 +739,14 @@ ErrorBundle ErrorCodes[] = {
   { 4328, DMEC, AE, "Disk memory attributes not yet supported" },
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
+  { 4342, DMEC, AE, "Scan defined but not prepared" },
 
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },
   { 4402, DMEC, AE, "No schema operation defined before calling execute" },
   { 4410, DMEC, AE, "Schema transaction is already started" },
   { 4411, DMEC, AE, "Schema transaction not possible until upgrade complete" },
+  { 4412, DMEC, AE, "Schema transaction is not started" },
 
   { 4501, DMEC, AE, "Insert in hash table failed when getting table information from Ndb" },
   { 4502, DMEC, AE, "GetValue not allowed in Update operation" },

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,19 @@ void ndb_socket_close(ndb_socket_t sock, bool with_reset = false)
   }
 
   my_socket_close(sock);
+}
+
+// Create ndb_socket_t given ndb_native_socket_t
+static inline
+ndb_socket_t ndb_socket_create_from_native(ndb_native_socket_t native_socket)
+{
+  ndb_socket_t s;
+#ifdef _WIN32
+  s.s = native_socket;
+#else
+  s.fd = native_socket;
+#endif
+  return s;
 }
 
 C_MODE_START

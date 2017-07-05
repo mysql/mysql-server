@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
+import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
@@ -140,7 +141,8 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -170,11 +172,11 @@ public class NdbRecordOperationImpl implements Operation {
             this.autoIncrement = true;
             this.autoIncrementColumnId = autoIncrementColumn.getColumnId();
         }
-        logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
+        if (logger.isDetailEnabled())
+            logger.detail("autoIncrement for " + storeTable.getName() + " is: " + autoIncrement);
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.valueBufferSize = ndbRecordValues.getBufferSize();
-        this.valueBuffer = ndbRecordValues.newBuffer();
         this.storeColumns = ndbRecordValues.storeColumns;
         this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
         this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
@@ -323,8 +325,17 @@ public class NdbRecordOperationImpl implements Operation {
         this.mask = new byte[1 + (numberOfColumns/8)];
     }
 
+    public void allocateValueBuffer(boolean initialize) {
+        this.valueBuffer = ndbRecordValues.newBuffer(initialize);
+    }
+
     public void allocateValueBuffer() {
-        this.valueBuffer = ndbRecordValues.newBuffer();
+        allocateValueBuffer(true);
+    }
+
+    public void returnValueBuffer() {
+        ndbRecordValues.returnBuffer(this.valueBuffer);
+        this.valueBuffer = null;
     }
 
     protected void activateBlobs() {

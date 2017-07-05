@@ -426,7 +426,7 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
             char *addr_str = Ndb_inet_ntop(AF_INET,
                                            static_cast<void*>(&conn_addr),
                                            addr_buf,
-                                           (socklen_t)sizeof(addr_buf));
+                                           sizeof(addr_buf));
             row.write_string(addr_str);
           }
           else
@@ -675,6 +675,47 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
     }
   }
+  if (arg == 9994 ||  /* Block send to node X */
+      arg == 9995)    /* Unblock send to node X */
+  {
+    bool block = (arg == 9994);
+    TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
+    assert(recvdata != 0);
+    for (Uint32 n = 1; n < signal->getLength(); n++)
+    {
+      Uint32 nodeId = signal->theData[n];
+      if (!handles_this_node(nodeId))
+        continue;
+
+      if ((nodeId > 0) &&
+          (nodeId < MAX_NODES))
+      {
+        g_eventLogger->info("TRPMAN : Send to %u is %sblocked",
+                            nodeId, 
+                            (globalTransporterRegistry.
+                             isSendBlocked(nodeId)?"":"not "));
+        if (block)
+        {
+          g_eventLogger->info("TRPMAN : Blocking send to node %u", nodeId);
+          globalTransporterRegistry.blockSend(*recvdata, nodeId);
+        }
+        else
+        {
+          g_eventLogger->info("TRPMAN : Unblocking send to node %u", 
+                              nodeId);
+
+          globalTransporterRegistry.unblockSend(*recvdata, nodeId);
+        }
+      }
+      else
+      {
+        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
+                 arg, nodeId);
+      }
+    }
+
+  }
+
 #endif
 }
 

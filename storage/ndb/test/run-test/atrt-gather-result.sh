@@ -1,6 +1,5 @@
 #!/bin/sh
-
-# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,10 +42,13 @@ else
 # as part of the result from a faulty test in autotest. The first line
 # also keeps the BACKUP files as part of a faulty test case. These lines
 # can be used in special autotest runs when a the file contents are
-# needed to debug issues in test cases.
+# needed to debug issues in test cases. Also added lines that can be used
+# to retain LCP files.
 #
 #    rsync -a "$1" .
 #    rsync -a --exclude='BACKUP' "$1" .
+#    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$1" .
+#    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$1" .
     rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$1" .
     shift
   done

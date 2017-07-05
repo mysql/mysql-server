@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -53,9 +53,7 @@ private:
 
   /** The private constructor is used only by ndb_cluster_connection.
       It allocates and initializes an NdbWaitGroup with an initial array 
-      of Ndb objects.
-      In the version 1 API, the initial size is the fixed maximum size.
-      In the version 2 API, the array will grow as needed.
+      of Ndb objects. The array will grow beyond the initial size as needed.
   */
   NdbWaitGroup(Ndb_cluster_connection *conn, int initial_size);
 
@@ -63,8 +61,6 @@ private:
   ~NdbWaitGroup();
 
 public:
-
-  /****** VERSION 2 API *******/
 
   /** Push an Ndb object onto the wait queue.
       This is thread-safe: multiple threads can call push().
@@ -99,10 +95,6 @@ public:
   */
   Ndb * pop();
 
-
-
-  /****** COMMON API *********/
-
   /** Wake up the thread that is currently waiting on this group.
       This can be used by other threads to signal a condition to the
       waiting thread.
@@ -110,44 +102,16 @@ public:
   */
   void wakeup();
 
-  
-  /****** VERSION 1 API *********/
-
-  /** Add an Ndb object to the group. 
-       
-      Returns true on success, false on error.  Error could be that the Ndb
-      is created from the wrong Ndb_cluster_connection, or is already in the
-      group, or that the group is full.
-  */
-  bool addNdb(Ndb *);
-
-  /** wait for Ndbs to be ready.
-      arrayhead (OUT): on return will hold the list of ready Ndbs.
-      The call will return when:
-        (a) at least min_ready Ndbs are ready for polling, or
-        (b) timeout milliseconds have elapsed, or
-        (c) another thread has called NdbWaitGroup::wakeup()
-
-     The return value is the number of Ndb objects ready for polling, or -1
-     if a timeout occured.
-
-      On return, arrayHead is set to point to the first element of
-      the array of Ndb object pointers that are ready for polling, and those
-      objects are implicitly no longer in the group.  These Ndb *'s must be
-      read from arrayHead before before any further calls to addNdb().
-  */
-  int wait(Ndb ** & arrayHead, Uint32 timeout_millis, int min_ready = 1 );
 
 private:  /* private instance variables */
    Ndb **m_array;
-   Int32 m_pos;
    Uint32 m_array_size, m_pos_return;
    Uint32 m_pos_new, m_pos_wait, m_pos_ready;
 
    MultiNdbWakeupHandler *m_multiWaitHandler;
    Ndb **m_overflow;
    Int32 m_overflow_size, m_pos_overflow;
-   Int32 m_nodeId, m_active_version;
+   Int32 m_nodeId;
 
    Ndb_cluster_connection *m_conn;
    Ndb *m_wakeNdb;

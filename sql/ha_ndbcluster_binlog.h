@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ static const char *ha_ndb_ext=".ndb";
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
-extern native_mutex_t ndbcluster_mutex;
 extern HASH ndbcluster_open_tables;
 
 /*
@@ -46,7 +45,6 @@ void ndbcluster_binlog_init(handlerton* hton);
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
-                                   uint key_len,
                                    const char *db,
                                    const char *table_name,
                                    TABLE * table);
@@ -63,7 +61,8 @@ int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
                                  const char * db, const char * tabname);
 void ndb_rep_event_name(String *event_name,
-                        const char *db, const char *tbl, my_bool full);
+                        const char *db, const char *tbl,
+                        bool full, bool allow_hardcoded_name = true);
 #ifdef HAVE_NDB_BINLOG
 int
 ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
@@ -81,27 +80,18 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                                          const st_conflict_fn_def* conflict_fn,
                                          const st_conflict_fn_arg* args,
                                          Uint32 num_args,
-                                         bool do_set_binlog_flags,
                                          Uint32 binlog_flags);
 int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id,
-                                   bool do_set_binlog_flags);
+                                   uint server_id);
 #endif
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
 
-
-/*
-  Setup function for the ndb binlog component. The function should be
-  called on startup until it succeeds(to allow initial setup) and with
-  regular intervals afterwards to reconnect after a lost cluster
-  connection
-*/
-bool ndb_binlog_setup(THD *thd);
+int ndbcluster_binlog_end();
 
 /*
   Will return true when the ndb binlog component is properly setup

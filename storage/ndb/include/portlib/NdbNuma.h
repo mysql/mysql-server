@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,16 +29,6 @@ extern "C" {
  * NOTE: Not thread safe
  */
 int NdbNuma_setInterleaved();
-
-#if TODO
-/**
- * Set memory policy that memory allocation should be performed
- *   using interleaving over numa-nodes corresponding to cpu's
- *
- * NOTE: Not thread safe
- */
-int NdbNuma_setInterleavedOnCpus(unsigned cpu[], unsigned len);
-#endif
 
 #ifdef	__cplusplus
 }

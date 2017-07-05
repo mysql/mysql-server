@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +25,12 @@ printCREATE_FRAGMENTATION_REQ(FILE * output, const Uint32 * theData,
   fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " fragmentationType: %x\n", sig->fragmentationType);
   fprintf(output, " noOfFragments: %x\n", sig->noOfFragments);
+  fprintf(output, " partitionBalance: %d\n", sig->partitionBalance);
   if (sig->primaryTableId == RNIL)
     fprintf(output, " primaryTableId: none\n");
   else
     fprintf(output, " primaryTableId: %x\n", sig->primaryTableId);
+  fprintf(output, " partitionCount: %x\n", sig->partitionCount);
   return true;
 }
 

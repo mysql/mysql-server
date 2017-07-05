@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,6 @@
 #include "Dbtup.hpp"
 
 #define JAM_FILE_ID 429
-
-
-#if ZPAGE_STATE_POS != 0
-#error "PROBLEM!"
-#endif
 
 struct UndoPage
 {
@@ -55,7 +50,7 @@ Undo_buffer::Undo_buffer(Ndbd_mem_manager* mm)
 }
 
 Uint32 *
-Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
+Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked)
 {
   UndoPage* page;
   assert(words);
@@ -64,9 +59,10 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
 #endif
   if (m_first_free == RNIL)
   {
-    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
+    page= (UndoPage*)m_mm->alloc_page(RT_DBTUP_COPY_PAGE,
                                       &m_first_free,
-                                      Ndbd_mem_manager::NDB_ZONE_ANY);
+                                      Ndbd_mem_manager::NDB_ZONE_LE_32,
+                                      locked);
     if(page == 0)
       return 0;
     page->m_words_used= 0;
@@ -79,7 +75,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   if (words + pos > UndoPage::DATA_WORDS)
   {
     m_first_free= RNIL;
-    return alloc_copy_tuple(dst, words);
+    return alloc_copy_tuple(dst, words, locked);
   }
   
   dst->m_page_no = m_first_free;
@@ -123,7 +119,7 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     else 
     {
       //ndbout_c("returning page");
-      m_mm->release_page(RG_DATAMEM, key->m_page_no);
+      m_mm->release_page(RT_DBTUP_COPY_PAGE, key->m_page_no);
     }
   }
   key->setNull();

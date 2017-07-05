@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 */
 
 #include <base64.h>
-#include <mysql_version.h>
 
 /*
   Decode a base64 string into data
@@ -33,19 +32,12 @@ static inline
 int ndb_base64_decode(const char *src, size_t src_len,
                       void *dst, const char **end_ptr)
 {
-#ifndef MYSQL_VERSION_ID
-#error "Need MYSQL_VERSION_ID defined"
-#endif
 
   return base64_decode(src, src_len, dst, end_ptr
-#if MYSQL_VERSION_ID >= 50603
   // Signature of base64_decode changed to be extended
   // with a "flags" argument in 5.6.3, no flags needed for
   // vanilla base64_decode so ignore it in this impl.
                        , 0);
-#else
-                       );
-#endif
 }
 
 #endif

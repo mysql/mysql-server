@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -585,7 +585,7 @@ SegmentSubPool::checkInvariants()
   return true;
 }
 
-#ifdef TAP_TEST
+#ifdef TEST_SEGMENTLIST
 
 #undef JAM_FILE_ID
 
@@ -609,7 +609,7 @@ SectionSegmentPool g_sectionSegmentPool;
 
 /* Static function */
 void
-SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
+SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 {
   printf("SectionSegmentPool::handleOutOfSegments called");
 }
@@ -1013,7 +1013,7 @@ TAPTEST(SegmentList)
    * 
    * Will print "OK" in success case and return 0
    */
-
+  ndb_init();
   g_sectionSegmentPool.setSize(NUM_SEGMENTS);
 
   printf("g_sectionSegmentPool size is %u\n",
@@ -1040,10 +1040,12 @@ TAPTEST(SegmentList)
 
     printf("\nOK\n");
 
+    ndb_end(0);
     return 1;
   } while(0);
 
   printf("\nFAILED\n");
+  ndb_end(0);
   return 0;
 }
 

@@ -851,6 +851,7 @@ ALTER TABLE ndb_binlog_index
   ADD COLUMN next_position BIGINT UNSIGNED NOT NULL;
 ALTER TABLE ndb_binlog_index
   ADD COLUMN next_file VARCHAR(255) NOT NULL;
+ALTER TABLE ndb_binlog_index ENGINE=InnoDB STATS_PERSISTENT=0;
 
 --
 -- Check for non-empty host table and issue a warning

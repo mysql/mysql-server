@@ -25,8 +25,8 @@ JOIN  external_nolog t2 ON (t1.ext_id = t2.id)
 GROUP BY mkey, string_value, ext_size
 ORDER BY mkey;
 mkey	string_value	ext_size	total_parts
-t10	NULL	15000	15000
+t10	NULL	10800	10800
 t9	NULL	15000	15000
-test8	NULL	160153	160153
+test8	NULL	120153	120153
 test8c	NULL	13951	13951
 test_set	NULL	13949	13949

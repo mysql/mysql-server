@@ -1,0 +1,32 @@
+use ndbinfo;
+Small test to show server-specific nature of server view
+create table test.t1 (a int primary key, b int) engine=ndb;
+insert into test.t1 values (1,1), (2,2);
+Lock a row from each server...
+Server0
+begin;
+select * from test.t1 where a=1 for update;
+a	b
+1	1
+Server1
+begin;
+select * from test.t1 where a=2 for update;
+a	b
+2	2
+Show content of server_locks vs cluster_locks
+select count(1) from ndbinfo.cluster_locks;
+count(1)
+2
+select count(1) from ndbinfo.server_locks;
+count(1)
+1
+select count(1) from ndbinfo.cluster_locks;
+count(1)
+2
+select count(1) from ndbinfo.server_locks;
+count(1)
+1
+Finished
+rollback;
+rollback;
+drop table test.t1;

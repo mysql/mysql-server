@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifdef TAP_TEST
+#ifdef TEST_LHLEVEL
 
-#include <ndb_global.h>
+#include <ndb_global.h>  /* defines __STDC_LIMIT_MACROS for stdint.h */
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <NdbTap.hpp>
@@ -26,10 +27,6 @@
 #include "md5_hash.hpp"
 #include "random.h"
 #include "LHLevel.hpp"
-
-#ifndef UINT32_MAX
-#define UINT32_MAX (4294967295U)
-#endif
 
 #define BUCKSIZE 3
 

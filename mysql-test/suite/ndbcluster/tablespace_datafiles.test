@@ -1,0 +1,39 @@
+--source include/have_ndb.inc
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+# Create tablespace
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 1M
+  ENGINE NDB;
+
+# Add an extra datafile
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat'
+  INITIAL_SIZE = 4M
+  ENGINE=NDB;
+
+# Drop datafile from tablespace
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat'
+  ENGINE=NDB;
+
+# Drop second datafile from NDB
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat'
+  ENGINE=NDB;
+
+# Drop tablespace
+DROP TABLESPACE ts1
+  ENGINE=NDB;
+
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+

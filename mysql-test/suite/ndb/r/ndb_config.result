@@ -1,16 +1,16 @@
 == 1 ==
 ndb_mgmd,3,localhost mysqld,49,localhost mysqld,16,localhost mysqld,32,localhost mysqld,48,localhost mysqld,63,localhost mysqld,127,localhost mysqld,192,localhost mysqld,228,localhost mysqld,229,localhost mysqld,230,localhost mysqld,231,localhost mysqld,232,localhost mysqld,233,localhost mysqld,255,localhost ndbd,1,localhost ndbd,2,localhost
 == 2 ==
-1,localhost,20971520,8388608 2,localhost,20971520,8388608
+1,localhost,31457280,0 2,localhost,31457280,0
 == 3 ==
-1 localhost 20971520 8388608
-2 localhost 20971520 8388608
+1 localhost 31457280 0
+2 localhost 31457280 0
 == 4 ==
 1 2
 == 5 ==
 ndb_mgmd,3,localhost mysqld,4, mysqld,5, mysqld,6, mysqld,7, mysqld,8, mysqld,9, mysqld,10, mysqld,63, mysqld,127, mysqld,192, mysqld,228, mysqld,255, ndbd,1,localhost ndbd,2,localhost
 == 6 ==
-ndb_mgmd,5,localhost,, mysqld,6,localhost,, ndbd,1,localhost,52428800,26214400 ndbd,2,localhost,52428800,36700160 ndbd,3,localhost,52428800,52428800 ndbd,4,localhost,52428800,52428800
+ndb_mgmd,5,localhost,, mysqld,6,localhost,, ndbd,1,localhost,0,47185920 ndbd,2,localhost,0,57671680 ndbd,3,localhost,0,73400320 ndbd,4,localhost,0,73400320
 == 7 ==
 ndb_mgmd,5,localhost mysqld,6, mysqld,7, mysqld,8, mysqld,9, mysqld,10, ndbd,1,localhost ndbd,2,localhost ndbd,3,localhost ndbd,4,localhost
 == 8 ==
@@ -30,8 +30,6 @@ tcp,3,4,55,3 tcp,3,5,55,3 tcp,3,6,55,3 tcp,4,5,55,4 tcp,4,6,55,4 tcp,5,6,55,5 tc
 == 16 == bug44689
 192.168.0.1 192.168.0.1 192.168.0.1 192.168.0.2 192.168.0.3 192.168.0.4
 == 17 == bug49400
- WARNING  -- at line 5: [MGM] Id is deprecated, use NodeId instead
- WARNING  -- at line 9: [DB] Id is deprecated, use NodeId instead
  ERROR    -- at line 25: TCP connection is a duplicate of the existing TCP link from line 14
  ERROR    -- at line 25: Could not store section of configuration file.
 == 18 == bug56185
@@ -56,3 +54,20 @@ Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 3,ndb_mgmd,1048576 4,mysqld,2097152 5,mysqld,0 1,ndbd,3145728 2,ndbd,4194304
 == 23 == bug18366909
 1,localhost,,0 2,localhost,12345,1
+== 24 == Bug 21280428
+Unknown query option: ByteOrder
+Unknown query option: MaxNoOfIndexes
+Unknown query option: NoOfDiskPagesToDiskDuringRestartTUP
+Unknown query option: NoOfDiskPagesToDiskAfterRestartTUP
+Unknown query option: NoOfDiskPagesToDiskDuringRestartACC
+Unknown query option: NoOfDiskPagesToDiskAfterRestartACC
+Unknown query option: DiskCheckpointSpeed
+Unknown query option: DiskCheckpointSpeedInRestart
+Unknown query option: ReservedSendBufferMemory
+Unknown query option: MaxNoOfSavedEvents
+Unknown query option: Id
+Unknown query option: Discless
+ ERROR    -- at line 15: [tcp] Parameter PortNumber not configurable by user
+ ERROR    -- at line 15: Could not parse name-value pair in config file.
+== 25 == Bug25675643
+cluster1

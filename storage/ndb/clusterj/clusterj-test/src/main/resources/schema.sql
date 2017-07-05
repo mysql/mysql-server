@@ -1,3 +1,21 @@
+-- Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights
+-- reserved.
+--
+-- This program is free software; you can redistribute it and/or
+-- modify it under the terms of the GNU General Public License
+-- as published by the Free Software Foundation; version 2 of
+-- the License.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+-- 02110-1301  USA
+--
 # the first statement is a drop table for the test table
 drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
@@ -335,10 +353,10 @@ create table stringtypes (
  string_null_both varchar(20),
  string_null_none varchar(300),
 
- string_not_null_hash varchar(300),
- string_not_null_btree varchar(20),
- string_not_null_both varchar(300),
- string_not_null_none varchar(20),
+ string_not_null_hash varchar(300) not null default '0',
+ string_not_null_btree varchar(20) not null default '0',
+ string_not_null_both varchar(300) not null default '0',
+ string_not_null_none varchar(20) not null default '0',
  unique key idx_string_null_hash (string_null_hash) using hash,
  key idx_string_null_btree (string_null_btree),
  unique key idx_string_null_both (string_null_both),
@@ -633,14 +651,29 @@ drop table if exists timestamptypes;
 create table timestamptypes (
  id int not null primary key,
 
- timestamp_not_null_hash timestamp not null,
- timestamp_not_null_btree timestamp not null,
- timestamp_not_null_both timestamp not null,
- timestamp_not_null_none timestamp not null,
+ timestamp_not_null_hash timestamp not null  default '2001-01-01 00:00:00',
+ timestamp_not_null_btree timestamp not null default '2001-01-01 00:00:00',
+ timestamp_not_null_both timestamp not null  default '2001-01-01 00:00:00',
+ timestamp_not_null_none timestamp not null  default '2001-01-01 00:00:00',
 
  unique key idx_timestamp_not_null_hash (timestamp_not_null_hash) using hash,
  key idx_timestamp_not_null_btree (timestamp_not_null_btree),
  unique key idx_timestamp_not_null_both (timestamp_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists timestamp2types;
+create table timestamp2types (
+ id int not null primary key auto_increment,
+
+ timestampx timestamp    null,
+ timestamp0 timestamp(0) null,
+ timestamp1 timestamp(1) null,
+ timestamp2 timestamp(2) null,
+ timestamp3 timestamp(3) null,
+ timestamp4 timestamp(4) null,
+ timestamp5 timestamp(5) null,
+ timestamp6 timestamp(6) null
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
@@ -894,6 +927,18 @@ create table stress (
   f19 float not null,
   d19 double not null
   ) ENGINE=ndbcluster;
+
+drop table if exists `hope`;
+create table `hope` (
+  partition_id int,
+  id int,
+  int_col1 int NOT NULL,
+  int_col2 int NOT NULL,
+  str_col1 varchar(3000),
+  str_col2 varchar(3000),
+  str_col3 varchar(3000),
+  PRIMARY KEY (partition_id, id)
+  ) ENGINE=ndbcluster partition by key (partition_id);
 
 create database if not exists test2;
 use test2;

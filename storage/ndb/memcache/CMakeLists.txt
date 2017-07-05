@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,12 +98,6 @@ include_directories(${CMAKE_BINARY_DIR}/storage/ndb/memcache/include/)
 include_directories(AFTER ${MEMCACHED_INCLUDE_DIR})
 include_directories(AFTER ${BUNDLED_MEMCACHED})
 
-# Paths to libraries
-link_directories(${NDB_SOURCE_DIR}/src 
-                 ${NDB_SOURCE_DIR}/src/common/util
-                 ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached
-                )
-
 # Source files for this module 
 set(NDB_MEMCACHE_SOURCE_FILES
     src/ClusterConnectionPool.cc
@@ -148,6 +142,11 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/embedded_default_engine.c
 )
 
+# The sourced C files from storage/ndb/memcache/extra/memcached can't be built
+# with -Werror
+IF(CMAKE_C_FLAGS)
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ENDIF()
 
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
@@ -183,9 +182,10 @@ if(${HAVE_LIBDL})
     set(LIBDL "dl")
 endif()
 
-CHECK_CXX_SOURCE_RUNS("
-    main()  {
+CHECK_CXX_SOURCE_COMPILES("
+    int main()  {
       const char * f = __func__;
+      (void)f; // unused
       return 0;
     }"
     HAVE_FUNC_IN_CXX)
@@ -261,7 +261,7 @@ if(APPLE)
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
   set(FINAL_LINK_FLAGS "-shared")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS") 
-  set(FINAL_LINK_FLAGS "-G -lCrun")
+  set(FINAL_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 else()
   set(FINAL_LINK_FLAGS "")
 endif()

@@ -1,0 +1,169 @@
+-- source include/have_ndb.inc
+
+#
+# Create fully replicated table with non default partition balance
+#
+CREATE TABLE t1 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RP_BY_NODE' ENGINE=ndbcluster;
+drop table t1;
+
+CREATE TABLE t1 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RP_BY_LDM' ENGINE=ndbcluster;
+drop table t1;
+
+#
+# Create a normal table with primary key
+# use char PK for consistent hashing
+#
+CREATE TABLE t1 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+show create table t1;
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+insert into t1 values
+ ('1',1), ('2',2), ('3',3), ('4',4),
+ ('5',5), ('6',6), ('7',7), ('8',8);
+
+--sorted_result
+select * from t1;
+
+select partition_name, table_rows > 0
+from information_schema.partitions
+where table_name = 't1';
+
+#
+# Check single row lookups, these should always be local reads
+#
+create temporary table counters_at_startup
+select counter_name, sum(val) as val
+from ndbinfo.counters
+group by counter_name;
+
+select * from t1 where a = '1';
+select * from t1 where a = '2';
+select * from t1 where a = '3';
+
+#
+# Compare counters, this should be only local reads
+#
+select s1.counter_name, s2.val - s1.val as diff
+from counters_at_startup s1,
+     (select counter_name, sum(val) as val
+      from ndbinfo.counters
+      group by counter_name) s2
+where s1.counter_name = s2.counter_name
+  and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
+order by 1;
+drop table counters_at_startup;
+
+#
+# alters...
+#
+alter table t1 algorithm=inplace, reorganize partition;
+--error 1845
+alter table t1 algorithm=inplace, add partition partitions 1;
+--error 1296
+alter table t1 algorithm=copy, add partition partitions 1;
+alter table t1 algorithm=inplace, add column c int column_format dynamic;
+show create table t1;
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+--error 1478
+alter table t1 algorithm=copy, comment='NDB_TABLE=';
+
+alter table t1 algorithm=copy, comment='NDB_TABLE=READ_BACKUP=1';
+show create table t1;
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1';
+show create table t1;
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+alter table t1 algorithm=copy, comment='comment text';
+--let ndb_desc_opts= -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+show create table t1;
+
+drop table t1;
+
+###
+#
+# illegal alter tables
+#
+create table t1 (
+  x int primary key,
+  y blob,
+  z int,
+  unique key (z)
+) engine=ndbcluster;
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=FULLY_REPLICATED=1";
+alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+
+--error 1846
+alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
+
+drop table t1;
+
+###
+#
+# illegal creates
+#
+
+--error ER_GET_ERRMSG
+CREATE TABLE t2 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1'
+  ENGINE=ndbcluster
+  partition by key() partitions 2;
+show warnings;
+
+--error 1478
+CREATE TABLE t2 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (a,b),
+  key(b, a)
+) comment='NDB_TABLE=FULLY_REPLICATED=1,READ_BACKUP=0' ENGINE=ndbcluster;
+
+set session new = 1;
+--error 1296
+create table t2 (
+  a char(10) NOT NULL,
+  b int not null primary key,
+  unique (a,b),
+  key(b, a)
+)
+ENGINE=ndbcluster
+comment='NDB_TABLE=FULLY_REPLICATED=1'
+PARTITION BY HASH(b);
+
+create table t1 (
+  a char(10) NOT NULL primary key,
+  b int not null)
+  ENGINE=ndbcluster;
+alter table t1 algorithm=copy, comment='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM';
+drop table t1;

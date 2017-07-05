@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,9 +15,40 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
+  ${CMAKE_BINARY_DIR}/storage/ndb/tools)
+
+ADD_CONVENIENCE_LIBRARY(ndbtools
+  NdbImport.cpp
+  NdbImportImpl.cpp
+  NdbImportCsv.cpp
+  NdbImportCsvGram.cpp
+  NdbImportUtil.cpp)
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Suppress warnings for undefined identifiers in bison output
+  ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+                    COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.hpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
+)
+
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/NdbImportCsvGram.ypp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/NdbImportCsvGram.hpp
+  NdbImportCsv_yy
+)
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -69,6 +100,17 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
+MYSQL_ADD_EXECUTABLE(ndb_import
+  ndb_import.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_import ndbtools ndbclient_static regex)
+
+NDB_ADD_TEST(NdbImportUtil-t NdbImportUtil.cpp
+             LIBS ndbtools ndbclient_static regex)
+
+NDB_ADD_TEST(NdbImportCsv-t NdbImportCsv.cpp
+             LIBS ndbtools ndbclient_static regex)
+
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
   COMPONENT ClusterTools)
@@ -111,9 +153,24 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 
-IF (MYSQL_VERSION_ID LESS "50501")
-  # Don't build or install this program anymore in 5.5+
-  ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
+IF(NOT WIN32)
+IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF (HAVE_NCURSESW_1 OR HAVE_NCURSESW_2 OR HAVE_NCURSESW_3 OR HAVE_NCURSESW_4 OR HAVE_NCURSESW_5)
+    MESSAGE("-- Adding ndb_top executable")
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncursesw)
+    IF (NOT NCURSESW_LIB)
+      FIND_LIBRARY(NCURSESW_LIB
+                   NAMES ncurses)
+    ENDIF()
+    MYSQL_ADD_EXECUTABLE(ndb_top
+      ndb_top.cpp
+      COMPONENT ClusterTools)
+    TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+  ELSE()
+    MESSAGE(FATAL_ERROR "ndb_top executable could not be built, install ncursesw library")
+  ENDIF()
+ENDIF()
 ENDIF()
 
 # Install the ndb_dist_priv.sql script

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@
 #include <ndb_global.h>
 #include "NdbIndexStatImpl.hpp"
 
-#if ndb_index_stat_systables_sql
+/*
+ The SQL commands used for creating
+ the ndb index stat system tables:
 
 use mysql;
 
@@ -48,7 +50,7 @@ create table ndb_index_stat_sample (
     index_id, index_version, sample_version)
 ) engine=ndb;
 
-#endif
+*/
 
 // rest dumped from *.frm by tools/ndb_dump_frm_data
 

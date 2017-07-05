@@ -1,13 +1,12 @@
 # Run all default suites without specifying any replication mode. This will  run rpl tests in all 3 modes row, stmt and mixed
-# Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests-report
+perl mysql-test-run.pl --force --timer  --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal  --vardir=var-normal  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests-report
 
 
 # Run all default suites with embedded server
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded-server
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded-server
 
 # Run default suites with ps protocol
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps  --vardir=var-ps  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2
@@ -52,7 +51,7 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 
 #Run with Query Cache Enabled
 
-perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
+perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-QC.list --max-test-fail=100 --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
 
 # Run all tests under the suite interactive_utilities
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=var-interactive  --vardir=interactive-tests  --suite=interactive_utilities

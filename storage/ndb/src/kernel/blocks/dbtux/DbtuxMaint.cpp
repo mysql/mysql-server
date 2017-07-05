@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 void
 Dbtux::execTUX_MAINT_REQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   TuxMaintReq* const sig = (TuxMaintReq*)signal->getDataPtrSend();
   // ignore requests from redo log
   IndexPtr indexPtr;
@@ -99,7 +99,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   bool ok;
   switch (opCode) {
   case TuxMaintReq::OpAdd:
-    jam();
+    jamDebug();
     ok = searchToAdd(c_ctx, frag, searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -12,13 +7,17 @@ drop table if exists t1, t2, t3, t4;
 ##########
 # bug#5367
 create table t1 (p int not null primary key, u int not null, o int not null,
-unique (u), key(o)) engine=ndb;
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 create table t2 (p int not null primary key, u int not null, o int not null,
-unique (u), key(o)) engine=ndb;
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
-create table t3 (a int not null primary key, b int not null) engine=ndb;
-create table t4 (c int not null primary key, d int not null) engine=ndb;
+create table t3 (a int not null primary key, b int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t4 (c int not null primary key, d int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 insert into t1 values (1,1,1),(2,2,2),(3,3,3);
 insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
@@ -103,7 +102,8 @@ drop table if exists t;
 CREATE TABLE `i` (
   `col_int_key` int(11) DEFAULT NULL,
   KEY `col_int_key` (`col_int_key`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO `i` VALUES
    (37), (36), 
@@ -131,7 +131,8 @@ CREATE TABLE `v` (
   `col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   PRIMARY KEY (`pk`,`col_varchar_256`),
   KEY `col_int_key` (`col_int_key`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 INSERT INTO `v` VALUES
 ('you\'re','2009-07-16 09:36:26','hkovsqapozumxaaufxv',4,3,'ghkovsqapozumx','well','cgh',1,'2003-12-19 20:20:58',NULL,'zcghkovsqapozumx','for',38,'ozcghkovsq','up'),
@@ -157,7 +158,7 @@ set ndb_join_pushdown = off;
 set optimizer_switch= 'firstmatch=off';
 set optimizer_switch= 'materialization=off';
 
-explain extended
+explain
 SELECT pk, col_int_key
   FROM v AS table1 
   WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)

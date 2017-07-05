@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,19 +22,20 @@
 #include <NdbSleep.h>
 
 void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags);
-int desc_logfilegroup(Ndb *myndb, char* name);
-int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
-int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
-int desc_tablespace(Ndb *myndb,char* name);
-int desc_index(Ndb *myndb, char* name);
-int desc_table(Ndb *myndb,char* name);
-int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name);
+int desc_logfilegroup(Ndb *myndb, char const* name);
+int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char const* name);
+int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char const* name);
+int desc_tablespace(Ndb *myndb, char const* name);
+int desc_index(Ndb *myndb, char const* name);
+int desc_table(Ndb *myndb,char const* name);
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char const* name);
 
 static const char* _dbname = "TEST_DB";
 static const char* _tblname = NULL;
 static int _unqualified = 0;
 static int _partinfo = 0;
 static int _blobinfo = 0;
+static int _indexinfo = 0;
 static int _nodeinfo = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
@@ -49,18 +50,21 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "unqualified", 'u', "Use unqualified table names",
     (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "extra-partition-info", 'p', "Print more info per partition",
     (uchar**) &_partinfo, (uchar**) &_partinfo, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "retries", 'r', "Retry every second for # retries",
     (uchar**) &_retries, (uchar**) &_retries, 0,
-    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "blob-info", 'b', "Show information for hidden blob tables (requires -p)",
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "blob-info", 'b', "Show information for hidden blob tables",
     (uchar**) &_blobinfo, (uchar**) &_blobinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "extra-node-info", 'n', "Print node info for partitions (requires -p)",
     (uchar**) &_nodeinfo, (uchar**) &_nodeinfo, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "index-info", 'i', "Show information for indexes",
+    (uchar**) &_indexinfo, (uchar**) &_indexinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "table", 't', "Base table for index",
     (uchar**) &_tblname, (uchar**) &_tblname, 0,
@@ -95,7 +99,7 @@ int main(int argc, char** argv){
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
-  if(con.connect(12, 5, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
@@ -143,7 +147,7 @@ void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags)
   ndbout << "AutoGrow.filename_pattern: " << ags.filename_pattern << endl;
 }
 
-int desc_logfilegroup(Ndb *myndb, char* name)
+int desc_logfilegroup(Ndb *myndb, char const* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
   require(dict);
@@ -165,7 +169,7 @@ int desc_logfilegroup(Ndb *myndb, char* name)
   return 1;
 }
 
-int desc_tablespace(Ndb *myndb, char* name)
+int desc_tablespace(Ndb *myndb, char const* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
   require(dict);
@@ -183,7 +187,7 @@ int desc_tablespace(Ndb *myndb, char* name)
   return 1;
 }
 
-int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
+int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char const* name)
 {
   unsigned id;
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
@@ -220,7 +224,7 @@ int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
   return 1;
 }
 
-int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
+int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char const* name)
 {
   unsigned id;
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
@@ -255,7 +259,7 @@ int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
   return 1;
 }
 
-int desc_index(Ndb *myndb, char* name)
+int desc_index(Ndb *myndb, char const* name)
 {
   NdbDictionary::Dictionary * dict= myndb->getDictionary();
   NdbDictionary::Index const* pIndex;
@@ -269,13 +273,12 @@ int desc_index(Ndb *myndb, char* name)
   if (pIndex == NULL)
     return 0;
 
-  ndbout << "-- " << pIndex->getName() << " --" << endl;
+  ndbout << "-- " << _tblname << "/" << pIndex->getName() << " --" << endl;
   dict->print(ndbout, *pIndex);
-
   return 1;
 }
 
-int desc_table(Ndb *myndb, char* name)
+int desc_table(Ndb *myndb, char const* name)
 {
   NdbDictionary::Dictionary * dict= myndb->getDictionary();
   NdbDictionary::Table const* pTab;
@@ -290,22 +293,53 @@ int desc_table(Ndb *myndb, char* name)
   {
     print_part_info(myndb, pTab);
     ndbout << endl;
-    if (_blobinfo)
+  }
+
+  if (_indexinfo)
+  {
+    NdbDictionary::Dictionary::List list;
+    if (dict->listIndexes(list, *pTab) != -1)
     {
-      int noOfAttributes = pTab->getNoOfColumns();
-      for (int i = 0; i < noOfAttributes; i++)
+      list.sortByName();
+      _tblname = name;
+      for (unsigned i = 0; i < list.count; i++)
       {
-        const NdbDictionary::Column* column = pTab->getColumn(i);
-        if ((column->getType() == NdbDictionary::Column::Blob) || 
-          (column->getType() == NdbDictionary::Column::Text))
-        {
-          print_part_info(myndb, (NDBT_Table*) column->getBlobTable());
-          ndbout << endl;
-        }
+        NdbDictionary::Dictionary::List::Element& elt = list.elements[i];
+        desc_index(myndb, elt.name);
+        ndbout << endl;
       }
     }
   }
-	
+
+  if (_blobinfo)
+  {
+    int noOfAttributes = pTab->getNoOfColumns();
+    for (int i = 0; i < noOfAttributes; i++)
+    {
+      const NdbDictionary::Column* column = pTab->getColumn(i);
+      if ((column->getType() == NdbDictionary::Column::Blob) ||
+        (column->getType() == NdbDictionary::Column::Text))
+      {
+        NDBT_Table * blobTable= (NDBT_Table*) column->getBlobTable();
+
+        if(blobTable) /* blob table present */
+        {
+          /* The check is added because TINYBLOB/TINYTEXT columns do not
+           * have blob tables , in which case the variable blobTable is NULL.
+           * print_part_info is therefore called only for non-NULL values of
+           * blobTable.  */
+          desc_table(myndb, blobTable->getName());
+        }
+        else if(column -> getPartSize() > 0) /* blob table not present and part size greater than 0 */
+        {
+          ndbout << "Error: Blob table for column \"" << column -> getName() << "\" is not present" << endl;
+        }
+
+        ndbout << endl;
+      }
+    }
+  }
+
   return 1;
 }
 
@@ -361,7 +395,11 @@ void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
     if (pOp == NULL)
       break;
     
-    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead); 
+    int rs = pOp->readTuples(NdbOperation::LM_CommittedRead,
+                             0 /* scan_flags */,
+                             1 /* parallel */,
+                             0 /* batch */);
+
     if (rs != 0)
       break;
     
@@ -443,7 +481,7 @@ void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
   pTrans->close();
 }
 
-int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name)
+int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char const* name)
 {
   NdbDictionary::Dictionary *dict= myndb->getDictionary();
   require(dict);

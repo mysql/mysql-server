@@ -28,6 +28,4 @@ ADD_CONVENIENCE_LIBRARY(ndbmgmapi
             ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.c)
 TARGET_LINK_LIBRARIES(ndbmgmapi ndbconf ndbportlib)
 
-
-ADD_EXECUTABLE(mgmapi-t mgmapi-t.cpp)
-TARGET_LINK_LIBRARIES(mgmapi-t ndbmgmapi ndbgeneral)
+NDB_ADD_TEST(mgmapi-t mgmapi-t.cpp LIBS ndbmgmapi ndbgeneral)

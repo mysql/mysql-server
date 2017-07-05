@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -591,6 +591,7 @@ protected:
 
   int getFirstATTRINFOScan();
   int doSendScan(int ProcessorId);
+  void finaliseScan();
   int finaliseScanOldApi();
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId,
                       const Uint32 * readMask);
@@ -716,6 +717,12 @@ protected:
   
   ScanPruningState m_pruneState;
   Uint32 m_pruningKey;  // Can be distr key hash or actual partition id.
+
+  /**
+   * This flag indicates whether a scan operation was 
+   * succesfully finalised
+   */
+  bool  m_scanFinalisedOk;
 private:
   NdbScanOperation(const NdbScanOperation&); // Not impl.
   NdbScanOperation&operator=(const NdbScanOperation&);

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 # No need to run this test with embedded sinced
@@ -264,3 +259,8 @@ echo # Test 2/2 for Bug#16585497: abort backup with backup ID out of range;
 --error 255
 exec $mgm_cmd -e "ABORT BACKUP 1000000000000000000";
 
+--echo
+--echo # Bug #22328426: NEW TEST NDB_MGM_PROMPT FAILS WITH VALGRIND
+--echo # Test for Bug #18421338: SUPPORT SETTING THE PROMPT IN NDB_MGM
+--exec $mgm_cmd -e "prompt test-prompt>";
+--exec $mgm_cmd -e "prompt"

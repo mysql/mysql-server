@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,6 +168,7 @@ private:
   static Uint8 getScanIndFlag(const UintR & requestInfo);
   static Uint8 getOperationType(const UintR & requestInfo);
   static Uint8 getExecuteFlag(const UintR & requestInfo);
+  static Uint8 getReadCommittedBaseFlag(const UintR & TrequestInfo);
 
   static Uint16 getKeyLength(const UintR & requestInfo);
   static Uint8  getAIInTcKeyReq(const UintR & requestInfo);
@@ -198,6 +199,7 @@ private:
   static void setScanIndFlag(UintR & requestInfo, Uint32 flag);
   static void setExecuteFlag(UintR & requestInfo, Uint32 flag);  
   static void setOperationType(UintR & requestInfo, Uint32 type);
+  static void setReadCommittedBaseFlag(UintR & requestInfo, Uint32 flag);
   
   static void setKeyLength(UintR & requestInfo, Uint32 len);
   static void setAIInTcKeyReq(UintR & requestInfo, Uint32 len);
@@ -253,11 +255,21 @@ private:
  x = Coordinated Tx flag   - 1  Bit 16
  q = Queue on redo problem - 1  Bit 9
  D = deferred constraint   - 1  Bit 17
+ f = Disable FK constraint - 1  Bit 18
+
+ * Read committed base is using a bit that is only available
+ * in Long TCKEYREQ signals. So this feature is only available
+ * when using Long TCKEYREQ signals. Short TCKEYREQ are only
+ * used for backwards compatability against old nodes not
+ * supporting Read Committed base flag anyways and in special
+ * test cases that also don't use Read Committed base.
+
+ R = Read Committed base   - 1  Bit 20
 
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnbvcooopqlsyyeixD r              (Long TCKEYREQ)
+ dnbvcooopqlsyyeixDfrR             (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -290,6 +302,7 @@ private:
 #define TC_DEFERRED_CONSTAINTS_SHIFT (17)
 
 #define TC_DISABLE_FK_SHIFT (18)
+#define TC_READ_COMMITTED_BASE_SHIFT (20)
 
 /**
  * Scan Info
@@ -365,6 +378,12 @@ inline
 Uint8
 TcKeyReq::getExecuteFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> EXECUTE_SHIFT) & 1);
+}
+
+inline
+Uint8
+TcKeyReq::getReadCommittedBaseFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> TC_READ_COMMITTED_BASE_SHIFT) & 1);
 }
 
 inline
@@ -473,6 +492,14 @@ TcKeyReq::setExecuteFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setExecuteFlag");
   requestInfo &= ~(1 << EXECUTE_SHIFT);
   requestInfo |= (flag << EXECUTE_SHIFT);
+}
+
+inline
+void 
+TcKeyReq::setReadCommittedBaseFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setReadCommittedBaseFlag");
+  requestInfo &= ~(1 << TC_READ_COMMITTED_BASE_SHIFT);
+  requestInfo |= (flag << TC_READ_COMMITTED_BASE_SHIFT);
 }
 
 inline

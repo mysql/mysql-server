@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,8 @@ SimulatedBlock::MutexManager::release(Uint32 activeMutexPtrI){
 }
 
 void
-SimulatedBlock::MutexManager::getPtr(ActiveMutexPtr& ptr){
+SimulatedBlock::MutexManager::getPtr(ActiveMutexPtr& ptr) const
+{
   m_activeMutexes.getPtr(ptr);
 }
 
@@ -61,9 +62,10 @@ SimulatedBlock::MutexManager::reference() const {
 void
 SimulatedBlock::MutexManager::progError(int line, 
 					int err_code, 
-					const char* extra)
+					const char* extra,
+					const char* check)
 {
-  m_block.progError(line, err_code, extra); 
+  m_block.progError(line, err_code, extra, check);
 }
 
 void

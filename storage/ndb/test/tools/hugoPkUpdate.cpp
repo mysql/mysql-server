@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +20,6 @@
 #include <NdbOut.hpp>
 
 #include <NdbApi.hpp>
-#include <NdbMain.h>
 #include <NDBT.hpp> 
 #include <NDBT_Thread.hpp>
 #include <NDBT_Stats.hpp>

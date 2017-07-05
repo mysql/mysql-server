@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,13 +28,15 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-
+#include <ProcessInfo.hpp>
+#include <OwnProcessInfo.hpp>
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/ProcessInfoRep.hpp>
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
@@ -66,6 +68,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedDBNodes(0),
   minDbVersion(0),
   theClusterMgrThread(NULL),
+  m_process_info(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
   m_hbFrequency(0)
 {
@@ -94,6 +97,7 @@ ClusterMgr::~ClusterMgr()
   }
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
+  ProcessInfo::release(m_process_info);
   DBUG_VOID_RETURN;
 }
 
@@ -195,6 +199,8 @@ ClusterMgr::configure(Uint32 nodeId,
 
   theFacade.get_registry()->set_connect_backoff_max_time_in_ms(
     start_connect_backoff_max_time);
+
+  m_process_info = ProcessInfo::forNodeId(nodeId);
 }
 
 void
@@ -275,7 +281,7 @@ ClusterMgr::startup()
   for (Uint32 i = 0; i<3000; i++)
   {
     theFacade.request_connection_check();
-    start_poll();
+    prepare_poll();
     do_poll(0);
     complete_poll();
 
@@ -324,7 +330,7 @@ ClusterMgr::threadMain()
       NdbSleep_MilliSleep(minHeartBeatInterval/5);
       {
         /**
-         * start_poll does lock the trp_client and complete_poll
+         * prepare_poll does lock the trp_client and complete_poll
          * releases this lock. This means that this protects
          * against concurrent calls to send signals in ArbitMgr.
          * We do however need to protect also against concurrent
@@ -333,7 +339,7 @@ ClusterMgr::threadMain()
          * poll.
          */
         Guard g(clusterMgrThreadMutex);
-        start_poll();
+        prepare_poll();
         do_poll(0);
         complete_poll();
       }
@@ -532,7 +538,22 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      safe_noflush_sendSignal(&tSignal, aNodeId);
+
+      // Send signal without delay, otherwise, Suma buffers may
+      // overflow, resulting into the API node being disconnected.
+      // SUB_GCP_COMPLETE_ACK will be sent per node per epoch, with
+      // minimum interval of TimeBetweenEpochs.
+      safe_sendSignal(&tSignal, aNodeId);
+
+      /**
+       * Note:
+       * After fixing #Bug#22705935 'sendSignal() flush optimization isses',
+       * we could likely just as well have used safe_noflush_sendSignal() above.
+       * (and several other places)
+       * That patch ensures that any buffered signals sent while 
+       * delivering signals are flushed as soon as we have processed the 
+       * chunk of signals to be delivered.
+       */ 
     }
     break;
   }
@@ -572,7 +593,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
 }
 
 ClusterMgr::Node::Node()
-  : hbFrequency(0), hbCounter(0)
+  : hbFrequency(0), hbCounter(0), processInfoSent(0)
 {
 }
 
@@ -640,6 +661,45 @@ ClusterMgr::recalcMinDbVersion()
 
   minDbVersion = newMinDbVersion;
 }
+
+/******************************************************************************
+ * Send PROCESSINFO_REP
+ ******************************************************************************/
+void
+ClusterMgr::sendProcessInfoReport(NodeId nodeId)
+{
+  LinearSectionPtr ptr[3];
+  LinearSectionPtr & pathSection = ptr[ProcessInfoRep::PathSectionNum];
+  LinearSectionPtr & hostSection = ptr[ProcessInfoRep::HostSectionNum];
+  BlockReference ownRef = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+  NdbApiSignal signal(ownRef);
+  int nsections = 0;
+  signal.theVerId_signalNumber = GSN_PROCESSINFO_REP;
+  signal.theReceiversBlockNumber = QMGR;
+  signal.theTrace  = 0;
+  signal.theLength = ProcessInfoRep::SignalLength;
+
+  ProcessInfoRep * report = CAST_PTR(ProcessInfoRep, signal.getDataPtrSend());
+  m_process_info->buildProcessInfoReport(report);
+
+  const char * uri_path = m_process_info->getUriPath();
+  pathSection.p = (Uint32 *) uri_path;
+  pathSection.sz = ProcessInfo::UriPathLengthInWords;
+  if(uri_path[0])
+  {
+    nsections = 1;
+  }
+
+  const char * hostAddress = m_process_info->getHostAddress();
+  if(hostAddress[0])
+  {
+    nsections = 2;
+    hostSection.p = (Uint32 *) hostAddress;
+    hostSection.sz = ProcessInfo::AddressStringLengthInWords;
+  }
+  safe_noflush_sendSignal(&signal, nodeId, ptr, nsections);
+}
+
 
 /******************************************************************************
  * API_REGREQ and friends
@@ -818,6 +878,15 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     }
   }
 
+  /* Send ProcessInfo Report to a newly connected DB node */
+  if ( cm_node.m_info.m_type == NodeInfo::DB &&
+       ndbd_supports_processinfo(cm_node.m_info.m_version) &&
+       (! cm_node.processInfoSent) )
+  {
+    sendProcessInfoReport(nodeId);
+    cm_node.processInfoSent = true;
+  }
+
   // Distribute signal to all threads/blocks
   // TODO only if state changed...
   theFacade.for_each(this, signal, ptr);
@@ -908,6 +977,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
   cm_node.hbFrequency = 0;
+  cm_node.processInfoSent = false;
 
   assert(theNode.is_connected() == false);
 
@@ -937,7 +1007,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
-  raw_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
   DBUG_VOID_RETURN;
 }
 
@@ -963,7 +1033,6 @@ void
 ClusterMgr::reportDisconnected(NodeId nodeId)
 {
   assert(nodeId > 0 && nodeId < MAX_NODES);
-  assert(noOfConnectedNodes > 0);
 
   /**
    * We know that we have trp_client lock
@@ -981,7 +1050,7 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
   DisconnectRep * rep = CAST_PTR(DisconnectRep, signal.getDataPtrSend());
   rep->nodeId = nodeId;
   rep->err = 0;
-  raw_sendSignal(&signal, getOwnNodeId());
+  safe_sendSignal(&signal, getOwnNodeId());
 }
 
 void
@@ -996,8 +1065,20 @@ ClusterMgr::execDISCONNECT_REP(const NdbApiSignal* sig,
   trp_node & theNode = cm_node;
 
   bool node_failrep = theNode.m_node_fail_rep;
+  bool node_connected = theNode.is_connected();
   set_node_dead(theNode);
   theNode.set_connected(false);
+
+  /**
+   * Remaining processing should only be done if the node
+   * actually completed connecting...
+   */
+  if (!node_connected)
+  {
+    return;
+  }
+
+  assert(noOfConnectedNodes > 0);
 
   noOfConnectedNodes--;
   if (noOfConnectedNodes == 0)
@@ -1219,6 +1300,24 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
   out << "<<" << endl;
 }
 
+void
+ClusterMgr::setProcessInfoUri(const char * scheme, const char * address_string,
+                              int port, const char * path)
+{
+  Guard g(clusterMgrThreadMutex);
+
+  m_process_info->setUriScheme(scheme);
+  m_process_info->setHostAddress(address_string);
+  m_process_info->setPort(port);
+  m_process_info->setUriPath(path);
+
+  /* Set flag to resend ProcessInfo Report */
+  for(int i = 1; i < MAX_NODES ; i++)
+  {
+    Node & node = theNodes[i];
+    if(node.is_connected()) node.processInfoSent = false;
+  }
+}
 
 /******************************************************************************
  * Arbitrator

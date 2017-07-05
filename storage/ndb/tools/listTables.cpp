@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,11 +31,15 @@
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
-static int _unqualified = 0;
+static int _fully_qualified = 0;
 static int _parsable = 0;
 static int show_temp_status = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
+
+static void
+fatal(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static void
 fatal(char const* fmt, ...)
@@ -52,6 +56,10 @@ fatal(char const* fmt, ...)
     NDBT_ProgramExit(NDBT_FAILED);
     exit(1);
 }
+
+static void
+fatal_dict(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static void
 fatal_dict(char const* fmt, ...)
@@ -73,12 +81,24 @@ static void
 list(const char * tabname, 
      NdbDictionary::Object::Type type)
 {
+    /**
+     * Display fully qualified table names if --fully-qualified is set to 1.
+     *
+     * useFq passed to listObjects() and listIndexes() below in this context
+     * actually behaves like 'unqualified'.
+     * useFq == true : Strip off the database and schema (and tableid) and
+     * return the table/index name
+     * useFq == false : Return the full name
+     * (database/schema/[tableid/]indexname|tablename)
+     */
+    bool useFq = !_fully_qualified;
+
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
-	if (dic->listObjects(list, type) == -1)
+	if (dic->listObjects(list, type, useFq) == -1)
 	    fatal_dict("listObjects");
     } else {
-	if (dic->listIndexes(list, tabname) == -1)
+	if (dic->listIndexes(list, tabname, useFq) == -1)
 	    fatal_dict("listIndexes");
     }
     if (!_parsable)
@@ -157,6 +177,12 @@ list(const char * tabname,
             break;
         case NdbDictionary::Object::FKChildTrigger:
             strcpy(type, "FKChildTrigger");
+            break;
+        case NdbDictionary::Object::HashMap:
+            strcpy(type, "HashMap");
+            break;
+        case NdbDictionary::Object::FullyReplicatedTrigger:
+            strcpy(type, "FullyRepTrigger");
             break;
         default:
 	  sprintf(type, "%d", (int)elt.type);
@@ -277,9 +303,9 @@ static struct my_option my_long_options[] =
   { "type", 't', "type",
     (uchar**) &_type, (uchar**) &_type, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "unqualified", 'u', "Use unqualified table names",
-    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "fully-qualified", 'f', "Show fully qualified table names",
+    (uchar**) &_fully_qualified, (uchar**) &_fully_qualified, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
     (uchar**) &_parsable, (uchar**) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
@@ -307,6 +333,7 @@ int main(int argc, char** argv){
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_show_tables.trace";
 #endif
+  bool using_default_database = false;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
@@ -328,7 +355,7 @@ int main(int argc, char** argv){
     fatal("Unable to create cluster connection");
 
   ndb_cluster_connection->set_name("ndb_show_tables");
-  if (ndb_cluster_connection->connect(12,5,1))
+  if (ndb_cluster_connection->connect(opt_connect_retries - 1, opt_connect_retry_delay, 1))
     fatal("Unable to connect to management server.\n - Error: '%d: %s'",
           ndb_cluster_connection->get_latest_error(),
           ndb_cluster_connection->get_latest_error_msg());
@@ -339,12 +366,24 @@ int main(int argc, char** argv){
   if (ndb->init() != 0)
     fatal("init");
   if (_dbname == 0 && _tabname != 0)
+  {
     _dbname = "TEST_DB";
+    using_default_database = true;
+  }
   ndb->setDatabaseName(_dbname);
   dic = ndb->getDictionary();
   if( argc >0){
     if(!dic->getTable(_tabname)){
-      ndbout << _tabname << ": not found -" << dic->getNdbError() << endl;
+      if( using_default_database )
+      {
+        ndbout << "Please specify database name using the -d option. "
+               << "Use option --help for more details." << endl;
+      }
+      else
+      {
+        ndbout << "Table " << _tabname << ": not found - "
+               << dic->getNdbError() << endl;
+      }
       return NDBT_ProgramExit(NDBT_FAILED);
     }
   }

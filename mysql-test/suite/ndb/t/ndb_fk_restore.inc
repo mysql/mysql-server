@@ -13,7 +13,9 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
 -- enable_query_log
 
 -- echo # show meta
+--disable_warnings
 show create table t2;
+--enable_warnings
 -- source ndb_show_tables_result.inc
 -- replace_regex /_[0-9]+/_XX/ /[0-9]+\/[0-9]+/XX\/XX/
 -- sorted_result
@@ -75,7 +77,9 @@ if ($rebuild_indexes) {
 
 -- echo # show meta
 if (!$disable_indexes) {
+--disable_warnings
 show create table t2;
+--enable_warnings
 }
 -- source ndb_show_tables_result.inc
 -- replace_regex /_[0-9]+/_XX/ /[0-9]+\/[0-9]+/XX\/XX/

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#ifdef TEST_MGMCONFIG
 
 #include <ndb_global.h>
 #include "InitConfigFileParser.hpp"
@@ -283,7 +285,7 @@ diff_config(void)
 }
 
 
-void
+static void
 print_restart_info(void)
 {
   Vector<const char*> initial_node;
@@ -389,14 +391,14 @@ test_param_values(void)
   {
     ndbout_c("testing %s", t->param);
     {
-      const Config* c =
-        create_config("[ndbd]", "NoOfReplicas=1",
+ const Config* c =
+   create_config("[ndbd]", "NoOfReplicas=1",
                       t->param,
-                      "[ndb_mgmd]", "HostName=localhost",
-                      "[mysqld]", NULL);
+                 "[ndb_mgmd]", "HostName=localhost",
+                 "[mysqld]", NULL);
       if (t->result)
       {
-        CHECK(c);
+  CHECK(c);
         delete c;
       }
       else
@@ -462,6 +464,61 @@ test_hostname_mycnf(void)
   }
 }
 
+static void
+test_config_values_index_iter(void)
+{
+
+  /*
+    Create a small config and iterate over the ConfigValues
+    by index, printing each value found.
+   */
+  const Config* c =
+    create_config("[ndbd]", "NoOfReplicas=1",
+                  "[ndb_mgmd]", "HostName=localhost",
+                  "[mysqld]", NULL);
+  CHECK(c);
+
+  class ConfigValues& values = c->values()->m_config;
+
+  Uint32 i = 0;
+  while(true)
+  {
+    ConfigValues::Entry entry;
+    i = values.getNextEntryByIndex(i, &entry);
+    if (i == 0)
+    {
+      // No more values, break loop
+      break;
+    }
+
+    switch (entry.m_type)
+    {
+    case ConfigValues::InvalidType:
+      fprintf(stderr, "INTERNAL ERROR, found entry with InvalidType\n");
+      abort();
+    break;
+
+    case ConfigValues::IntType:
+      fprintf(stderr, "[%u]: %u\n", entry.m_key, entry.m_int);
+      break;
+
+    case ConfigValues::Int64Type:
+      fprintf(stderr, "[%u]: %llu\n", entry.m_key, entry.m_int64);
+      break;
+
+    case ConfigValues::StringType:
+      fprintf(stderr, "[%u]: %s\n", entry.m_key, entry.m_string);
+      break;
+
+    case ConfigValues::SectionType:
+      fprintf(stderr, "[%u]: section\n", entry.m_key);
+      break;
+    }
+  };
+
+  delete c;
+}
+
 #include <NdbTap.hpp>
 
 #include <EventLogger.hpp>
@@ -476,9 +533,11 @@ TAPTEST(MgmConfig)
   checksum_config();
   test_param_values();
   test_hostname_mycnf();
-#if 0
-  print_restart_info();
-#endif
+  test_config_values_index_iter();
+  if (false)
+    print_restart_info();
   ndb_end(0);
   return 1; // OK
 }
+
+#endif

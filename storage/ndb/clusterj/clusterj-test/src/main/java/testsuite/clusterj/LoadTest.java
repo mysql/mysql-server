@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,10 +162,14 @@ public class LoadTest extends AbstractClusterJModelTest {
         // Employee 1000 does not exist
         DynamicEmployee e = session.newInstance(DynamicEmployee.class, 10000);
         session.load(e);
-        errorIfNotEqual("loadNotFound dynamic after load found mismatch", null, session.found(e));
+        errorIfNotEqual("loadNotFound dynamic after load session.found(e)", null, session.found(e));
+        errorIfNotEqual("loadNofFound dynamic after load mismatch in id", 10000, e.get(0));
         session.flush();
-        errorIfNotEqual("loadNotFound dynamic after flush found mismatch", false, session.found(e));
+        errorIfNotEqual("loadNotFound dynamic after load, flush session.found(e)", false, session.found(e));
+        errorIfNotEqual("loadNofFound dynamic after load mismatch in id", 10000, e.get(0));
         tx.commit();
+        errorIfNotEqual("loadNotFound dynamic after load, flush, commit session.found(e)", false, session.found(e));
+        errorIfNotEqual("loadNofFound dynamic after load, flush, commit mismatch in id", 10000, e.get(0));
     }
 
     /** Found should return true if row exists.

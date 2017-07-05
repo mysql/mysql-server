@@ -3099,6 +3099,7 @@ runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
           CHK_RET_FAILED(res.startAll() == 0);
           ndbout_c("  wait cluster started");
           CHK_RET_FAILED(res.waitClusterStarted() == 0);
+          CHK_NDB_READY(pNdb);
           ndbout_c("  cluster started");
         }
         CHK_RET_FAILED(res.insertErrorInAllNodes(0) == 0);
@@ -3249,7 +3250,7 @@ runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
       {
         CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
         NdbSleep_MilliSleep(300);
-        CHK_RET_FAILED(res.insertErrorInNode(nodeId, errorno) == 0);
+        CHK_RET_FAILED(res.insertErrorInNode(nodeId, 0) == 0);
       }
       else
       {
@@ -3705,7 +3706,8 @@ TESTCASE("DeferredMixedLoad",
   FINALIZER(createPkIndex_Drop);
 }
 TESTCASE("DeferredMixedLoadError",
-         "Test mixed load of DML with deferred indexes")
+         "Test mixed load of DML with deferred indexes. "
+         "Need --skip-ndb-optimized-node-selection")
 {
   TC_PROPERTY("LoggedIndexes", Uint32(0));
   TC_PROPERTY("OrderedIndex", Uint32(0));

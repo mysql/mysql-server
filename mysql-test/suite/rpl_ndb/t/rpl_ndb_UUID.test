@@ -1,14 +1,21 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ########################################################
 # By JBM 2005-02-15 Wrapped to allow reuse of test code#
 ########################################################
 --source include/have_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source include/master-slave.inc
+
+connection slave;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
+
 let $engine_type=NDB;
 --source extra/rpl_tests/rpl_row_UUID.test
+
+connection slave;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+connection master;
+--source suite/ndb/include/restore_ndb_read_backup.inc
+
 --source include/rpl_end.inc

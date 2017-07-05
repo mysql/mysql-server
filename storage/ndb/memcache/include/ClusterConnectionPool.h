@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2017 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -80,12 +80,6 @@ public:
 
 
 /* Inline functions */
-
-inline void ClusterConnectionPool::setMainConnection(Ndb_cluster_connection *c) {
-  main_conn = c;
-  pool_size = 1;
-  pool_connections[0] = c;
-}
 
 inline Ndb_cluster_connection * ClusterConnectionPool::getPooledConnection(int i) const {
   return pool_connections[i % pool_size];

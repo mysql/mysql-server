@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
 {
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  jamEntry();
+  jamEntryDebug();
   regOperPtr.i = signal->theData[0];
   c_operation_pool.getPtr(regOperPtr);
   regTabPtr.i = signal->theData[1];
@@ -52,14 +52,14 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
    * It can be done here since seize/release always succeeds.
    * The count is only used under -DERROR_INSERT via DUMP.
    */
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   BlockReference apiBlockref = signal->theData[5];
 #endif
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
   {
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     SectionHandle handle(this);
@@ -74,15 +74,15 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
     break;
   }
   case ZCOPY_PROCEDURE:
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, +1);
 #endif
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
-    jam();
-#if defined VM_TRACE || defined ERROR_INSERT
+    jamDebug();
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
     storedProcCountNonAPI(apiBlockref, -1);
 #endif
     deleteScanProcedure(signal, regOperPtr.p);

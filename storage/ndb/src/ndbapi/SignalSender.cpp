@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ SignalSender::~SignalSender(){
 
 int SignalSender::lock()
 {
-  start_poll();
+  prepare_poll();
   assert(m_locked == false);
   m_locked = true;
   return 0;
@@ -387,7 +387,6 @@ SignalSender::find_alive_node(const NodeBitmask& mask)
 }
 
 
-#if __SUNPRO_CC != 0x560
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
 template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
                                                            FindConfirmedNode&);
@@ -395,6 +394,5 @@ template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
                                                        FindAliveNode&);
 template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
                                                            FindConnectedNode&);
-#endif
 template class Vector<SimpleSignal*>;
   

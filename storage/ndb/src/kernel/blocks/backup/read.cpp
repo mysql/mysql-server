@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include <util/ndbzio.h>
 
 #define JAM_FILE_ID 476
-
+static const Uint32 MaxReadWords = 32768;
 
 bool readHeader(ndbzio_stream*, BackupFormat::FileHeader *);
 bool readFragHeader(ndbzio_stream*, BackupFormat::DataFile::FragmentHeader *);
@@ -38,10 +38,12 @@ NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &);
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentFooter &); 
 
+bool readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret);
 bool readTableList(ndbzio_stream*, BackupFormat::CtlFile::TableList **);
 bool readTableDesc(ndbzio_stream*, BackupFormat::CtlFile::TableDescription **);
 bool readGCPEntry(ndbzio_stream*, BackupFormat::CtlFile::GCPEntry **);
 
+NdbOut & operator<<(NdbOut&, const BackupFormat::LCPCtlFile &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
@@ -51,13 +53,19 @@ Int32 readLogEntry(ndbzio_stream*, Uint32**);
 static Uint32 recNo;
 static Uint32 logEntryNo;
 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
 int
 main(int argc, const char * argv[]){
 
   ndb_init();
   if(argc <= 1){
     printf("Usage: %s <filename>\n", argv[0]);
-    exit(1);
+    ndb_end_and_exit(1);
   }
 
   ndbzio_stream fo;
@@ -68,7 +76,7 @@ main(int argc, const char * argv[]){
   {
     ndbout_c("Failed to open file '%s', error: %d",
              argv[1], r);
-    exit(1);
+    ndb_end_and_exit(1);
   }
 
   ndbzio_stream* f = &fo;
@@ -76,7 +84,7 @@ main(int argc, const char * argv[]){
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
     ndbout << "Invalid file!" << endl;
-    exit(1);
+    ndb_end_and_exit(1);
   }	
   ndbout << fileHeader << endl;
 
@@ -189,7 +197,7 @@ main(int argc, const char * argv[]){
       ndbout << (* tabDesc) << endl;
     }
 
-    while(!f->z_eof){
+    {
       BackupFormat::DataFile::FragmentHeader fragHeader;
       if(!readFragHeader(f, &fragHeader))
 	break;
@@ -213,13 +221,24 @@ main(int argc, const char * argv[]){
     }
     break;
   }
+  case BackupFormat::LCP_CTL_FILE:
+  {
+    BackupFormat::LCPCtlFile lcpCtlFilePtr;
+    if (!readLCPCtlFile(f, &lcpCtlFilePtr))
+    {
+      ndbout << "Invalid LCP Control file!" << endl;
+      break;
+    }
+    ndbout << lcpCtlFilePtr << endl;
+    break;
+  }
   default:
     ndbout << "Unsupported file type for printer: " 
 	   << fileHeader.FileType << endl;
     break;
   }
   ndbzclose(f);
-  return 0;
+  ndb_end_and_exit(0);
 }
 
 #define RETURN_FALSE() { ndbout_c("false: %d", __LINE__); abort(); return false; }
@@ -235,7 +254,8 @@ aread(void * buf, size_t sz, size_t n, ndbzio_stream* f)
   unsigned r = ndbzread(f, buf, (unsigned)(sz * n), &error);
   if (error || r != (sz * n))
   {
-    printf("Failed to read!!");
+    printf("\nFailed to read!!, r = %u, error = %d\n", r, error);
+    abort();
     exit(1);
   }
   return r / sz;
@@ -262,9 +282,9 @@ readHeader(ndbzio_stream* f, BackupFormat::FileHeader * dst){
   }
 
   dst->BackupVersion = ntohl(dst->BackupVersion);
-  if(dst->BackupVersion >= NDB_VERSION)
+  if(dst->BackupVersion > NDB_VERSION)
   {
-    printf("incorrect versions, file: 0x%x expect: 0x%x\n", dst->NdbVersion, NDB_VERSION);
+    printf("incorrect versions, file: 0x%x expect: 0x%x\n", dst->BackupVersion, NDB_VERSION);
     RETURN_FALSE();
   }
 
@@ -338,11 +358,12 @@ readFragFooter(ndbzio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
 
 
 static union {
-  Uint32 buf[8192];
+  Uint32 buf[MaxReadWords];
   BackupFormat::CtlFile::TableList TableList;
   BackupFormat::CtlFile::GCPEntry GcpEntry;
   BackupFormat::CtlFile::TableDescription TableDescription;
   BackupFormat::LogFile::LogEntry LogEntry;
+  BackupFormat::LCPCtlFile LCPCtlFile;
 } theData;
 
 Int32
@@ -351,7 +372,8 @@ readRecord(ndbzio_stream* f, Uint32 **dst){
   if(aread(&len, 1, 4, f) != 4)
     RETURN_FALSE();
 
-  len = ntohl(len);
+  Uint32 header = ntohl(len);
+  len = header & 0xFFFF;
   
   if(aread(theData.buf, 4, len, f) != len)
   {
@@ -359,9 +381,15 @@ readRecord(ndbzio_stream* f, Uint32 **dst){
   }
 
   if(len > 0)
+  {
+    ndbout_c("RecNo: %u: Header: %x, page(%u,%u)",
+             recNo, header, theData.buf[0], theData.buf[1]);
     recNo++;
+  }
   else
+  {
     ndbout_c("Found %d records", recNo);
+  }
   
   * dst = &theData.buf[0];
 
@@ -422,10 +450,11 @@ NdbOut & operator<<(NdbOut& ndbout,
   ndbout << "ChecksumType: " << hf.ChecksumType << endl;
   
   return ndbout;
-} 
-NdbOut & operator<<(NdbOut& ndbout, 
-		    const BackupFormat::DataFile::FragmentFooter & hf){
-  
+}
+
+NdbOut & operator<<(NdbOut& ndbout,
+                    const BackupFormat::DataFile::FragmentFooter & hf){
+
   ndbout << "-- Fragment footer:" << endl;
   ndbout << "SectionType: " << hf.SectionType << endl;
   ndbout << "SectionLength: " << hf.SectionLength << endl;
@@ -433,9 +462,104 @@ NdbOut & operator<<(NdbOut& ndbout,
   ndbout << "FragmentNo: " << hf.FragmentNo << endl;
   ndbout << "NoOfRecords: " << hf.NoOfRecords << endl;
   ndbout << "Checksum: " << hf.Checksum << endl;
-  
+
+  return ndbout;
+}
+
+NdbOut & operator<<(NdbOut& ndbout, 
+                   const BackupFormat::LCPCtlFile & lcf)
+{
+  ndbout << "-- LCP Control file part:" << endl;
+  ndbout << "Checksum: " << hex << lcf.Checksum << endl;
+  ndbout << "ValidFlag: " << lcf.ValidFlag << endl;
+  ndbout << "TableId: " << lcf.TableId << endl;
+  ndbout << "FragmentId: " << lcf.FragmentId << endl;
+  ndbout << "CreateTableVersion: " << lcf.CreateTableVersion << endl;
+  ndbout << "CreateGci: " << lcf.CreateGci << endl;
+  ndbout << "MaxGciCompleted: " << lcf.MaxGciCompleted << endl;
+  ndbout << "MaxGciWritten: " << lcf.MaxGciWritten << endl;
+  ndbout << "LcpId: " << lcf.LcpId << endl;
+  ndbout << "LocalLcpId: " << lcf.LocalLcpId << endl;
+  ndbout << "MaxPageCount: " << lcf.MaxPageCount << endl;
+  ndbout << "MaxNumberDataFiles: " << lcf.MaxNumberDataFiles << endl;
+  ndbout << "LastDataFileNumber: " << lcf.LastDataFileNumber << endl;
+  ndbout << "MaxPartPairs: " << lcf.MaxPartPairs << endl;
+  ndbout << "NumPartPairs: " << lcf.NumPartPairs << endl;
+  for (Uint32 i = 0; i < lcf.NumPartPairs; i++)
+  {
+    ndbout << "Pair[" << i << "]: StartPart: "
+           << lcf.partPairs[i].startPart << " NumParts: "
+           << lcf.partPairs[i].numParts << endl;
+  }
   return ndbout;
 } 
+
+Uint32 decompress_part_pairs(
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+  Uint32 num_parts)
+{
+  static unsigned char c_part_array[BackupFormat::NDB_MAX_LCP_PARTS * 4];
+  Uint32 total_parts = 0;
+  unsigned char *part_array = (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  memcpy(c_part_array, part_array, 3 * num_parts);
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    Uint32 part_0 = c_part_array[0];
+    Uint32 part_1 = c_part_array[1];
+    Uint32 part_2 = c_part_array[2];
+    Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
+    Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    lcpCtlFilePtr->partPairs[part].startPart = startPart;
+    lcpCtlFilePtr->partPairs[part].numParts = numParts;
+    total_parts += numParts;
+  }
+  return total_parts;
+}
+
+bool 
+readLCPCtlFile(ndbzio_stream* f, BackupFormat::LCPCtlFile *ret)
+
+{
+  char * dst = (char*)&theData.LCPCtlFile.Checksum;
+  size_t sz = sizeof(BackupFormat::LCPCtlFile) -
+              sizeof(BackupFormat::FileHeader);
+
+  if(aread(dst, sz, 1, f) != 1)
+    RETURN_FALSE();
+
+  theData.LCPCtlFile.Checksum = ntohl(theData.LCPCtlFile.Checksum);
+  theData.LCPCtlFile.ValidFlag = ntohl(theData.LCPCtlFile.ValidFlag);
+  theData.LCPCtlFile.TableId = ntohl(theData.LCPCtlFile.TableId);
+  theData.LCPCtlFile.FragmentId = ntohl(theData.LCPCtlFile.FragmentId);
+  theData.LCPCtlFile.CreateTableVersion =
+    ntohl(theData.LCPCtlFile.CreateTableVersion);
+  theData.LCPCtlFile.CreateGci = ntohl(theData.LCPCtlFile.CreateGci);
+  theData.LCPCtlFile.MaxGciCompleted =
+    ntohl(theData.LCPCtlFile.MaxGciCompleted);
+  theData.LCPCtlFile.MaxGciWritten =
+    ntohl(theData.LCPCtlFile.MaxGciWritten);
+  theData.LCPCtlFile.LcpId = ntohl(theData.LCPCtlFile.LcpId);
+  theData.LCPCtlFile.LocalLcpId = ntohl(theData.LCPCtlFile.LocalLcpId);
+  theData.LCPCtlFile.MaxPageCount = ntohl(theData.LCPCtlFile.MaxPageCount);
+  theData.LCPCtlFile.MaxNumberDataFiles =
+    ntohl(theData.LCPCtlFile.MaxNumberDataFiles);
+  theData.LCPCtlFile.LastDataFileNumber =
+    ntohl(theData.LCPCtlFile.LastDataFileNumber);
+  theData.LCPCtlFile.MaxPartPairs = ntohl(theData.LCPCtlFile.MaxPartPairs);
+  theData.LCPCtlFile.NumPartPairs = ntohl(theData.LCPCtlFile.NumPartPairs);
+
+  decompress_part_pairs(&theData.LCPCtlFile, theData.LCPCtlFile.NumPartPairs);
+  if (theData.LCPCtlFile.NumPartPairs > 1)
+  {
+    sz = sizeof(BackupFormat::PartPair) *
+         (theData.LCPCtlFile.NumPartPairs - 1);
+    dst = (char*)&theData.LCPCtlFile.partPairs[1];
+    if(aread(dst, sz, 1, f) != 1)
+      RETURN_FALSE();
+  }
+  *ret = theData.LCPCtlFile;
+  return true;
+}
 
 bool 
 readTableList(ndbzio_stream* f, BackupFormat::CtlFile::TableList **ret){
@@ -550,6 +674,19 @@ operator<<(NdbOut& ndbout, const BackupFormat::CtlFile::TableDescription & hf){
 	
       }
       break;
+    case SimpleProperties::BinaryValue:
+      if(it.getValueLen() < sizeof(buf))
+      {
+	ndbout << "Key: " << it.getKey()
+	       << " binary value len = " << it.getValueLen() << endl;
+
+      }
+      else
+      {
+	ndbout << "Key: " << it.getKey()
+	       << " value(" << it.getValueLen() << ") : " 
+	       << "\"" << "<TOO LONG>" << "\"" << endl;
+      }
     default:
       ndbout << "Unknown type for key: " << it.getKey() 
 	     << " type: " << it.getValueType() << endl;

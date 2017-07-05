@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, CustomTriggerId, CustomTriggerId),
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
+  DTIMAP(Table, PartitionBalance, PartitionBalance),
   DTIMAP2(Table, FragmentCount, FragmentCount, 0, MAX_NDB_PARTITIONS),
   DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
   DTIMAPB(Table, ReplicaData, ReplicaData, 0, MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
@@ -76,6 +77,10 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, TableStorageType, TableStorageType),
   DTIMAP(Table, ExtraRowGCIBits, ExtraRowGCIBits),
   DTIMAP(Table, ExtraRowAuthorBits, ExtraRowAuthorBits),
+  DTIMAP(Table, ReadBackupFlag, ReadBackupFlag),
+  DTIMAP(Table, FullyReplicatedFlag, FullyReplicatedFlag),
+  DTIMAP(Table, PartitionCount, PartitionCount),
+  DTIMAP(Table, FullyReplicatedTriggerId, FullyReplicatedTriggerId),
   DTIBREAK(AttributeName)
 };
 
@@ -165,7 +170,9 @@ DictTabInfo::Table::init(){
   memset(ReplicaData, 0, sizeof(ReplicaData));
   memset(RangeListData, 0, sizeof(RangeListData));
   memset(TablespaceData, 0, sizeof(TablespaceData));
+  PartitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
   FragmentCount = 0;
+  PartitionCount = 0;
   TablespaceId = RNIL;
   TablespaceVersion = ~0;
   MaxRowsLow = 0;
@@ -190,6 +197,11 @@ DictTabInfo::Table::init(){
 
   ExtraRowGCIBits = 0;
   ExtraRowAuthorBits = 0;
+
+  ReadBackupFlag = 0;
+  FullyReplicatedFlag = 0;
+  FullyReplicatedTriggerId = RNIL;
+  PartitionCount = 0;
 }
 
 void

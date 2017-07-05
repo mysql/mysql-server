@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,19 @@
 */
 
 #include "DynArr256.hpp"
+#include "pc.hpp"
 #include <stdio.h>
 #include <assert.h>
 #include <NdbOut.hpp>
+
+/**
+ * Trick to be able to use ERROR_INSERTED macro inside DynArr256 and
+ * DynArr256Pool by directing to member function implemented inline in
+ * DynArr256.hpp where cerrorInsert is not hidden by below macro definition.
+ */
+#ifdef ERROR_INSERT
+#define cerrorInsert get_ERROR_INSERT_VALUE()
+#endif
 
 #define DA256_BITS  5
 #define DA256_MASK 31
@@ -90,7 +100,7 @@ Uint32 DA256Page::last_free() const
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
 #define UNIT_TEST
 #include "NdbTap.hpp"
 #endif
@@ -284,6 +294,12 @@ DynArr256::set(Uint32 pos)
 #endif
     if (ptrI == RNIL)
     {
+      if(ERROR_INSERTED(3005))
+      {
+        // Demonstrate Bug#25851801 7.6.2(DMR2):: COMPLETE CLUSTER CRASHED DURING UNIQUE KEY CREATION ...
+        // Simulate m_pool.seize() failed.
+        return 0;
+      }
       if (unlikely((ptrI = m_pool.seize()) == RNIL))
       {
 	return 0;
@@ -442,13 +458,20 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
   {
     if (iter.m_sz == 0 ||
         iter.m_pos < trunc_pos ||
-        m_head.m_sz == 0)
+        m_head.m_sz == 0 ||
+        m_head.m_no_of_nodes == 0)
     {
+      if (m_head.m_sz == 1 && m_head.m_ptr_i == RNIL)
+      {
+        assert(m_head.m_no_of_nodes == 0);
+        m_head.m_sz = 0;
+      }
       return 0;
     }
 
     Uint32* refPtr;
     Uint32 ptrI = iter.m_ptr_i[iter.m_sz];
+    assert(ptrI != RNIL);
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = (ptrI & DA256_MASK) ;
     DA256Page* page = memroot + page_no;
@@ -648,7 +671,7 @@ DynArr256Pool::seize()
   if (ff == RNIL)
   { 
     Uint32 page_no;
-    if (likely((page = (DA256Page*)m_ctx.alloc_page(type_id, &page_no)) != 0))
+    if (likely((page = (DA256Page*)m_ctx.alloc_page27(type_id, &page_no)) != 0))
     {
       initpage(page, page_no, type_id);
       m_pg_count++;
@@ -1087,7 +1110,7 @@ usage(FILE *f, int argc, char **argv)
 
 # include "test_context.hpp"
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
 static
 char* flatten(int argc, char** argv) /* NOT MT-SAFE */
 {
@@ -1109,7 +1132,7 @@ char* flatten(int argc, char** argv) /* NOT MT-SAFE */
 int
 main(int argc, char** argv)
 {
-#ifndef TAP_TEST
+#ifndef TEST_DYNARR256
   verbose = 1;
   if (argc == 1) {
     usage(stderr, argc, argv);
@@ -1133,7 +1156,7 @@ main(int argc, char** argv)
   DynArr256::Head head;
   DynArr256 arr(pool, head);
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
   if (argc == 1)
   {
     char *argv[2] = { (char*)"dummy", NULL };
@@ -1192,7 +1215,7 @@ main(int argc, char** argv)
            allocatednodes, maxallocatednodes,
            releasednodes);
 
-#ifdef TAP_TEST
+#ifdef TEST_DYNARR256
   ok(allocatednodes == releasednodes &&
      allocatedpages == releasedpages,
      "release");

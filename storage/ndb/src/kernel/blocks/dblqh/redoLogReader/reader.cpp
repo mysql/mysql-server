@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 
 void usage(const char * prg);
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords);
-void readArguments(int argc, const char** argv);
+void readArguments(int argc, char** argv);
 void doExit();
 
 FILE * f= 0;
@@ -61,7 +61,14 @@ Uint32 *redoLogPage;
 
 unsigned NO_MBYTE_IN_FILE = 16;
 
-NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read a redo log file", 16384) { 
+inline void ndb_end_and_exit(int exitcode)
+{
+  ndb_end(0);
+  exit(exitcode);
+}
+
+int main(int argc, char** argv)
+{
   ndb_init();
   Int32 wordIndex = 0;
   Uint32 oldWordIndex = 0;
@@ -82,7 +89,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   f = fopen(fileName, "rb");
   if(!f){
     perror("Error: open file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
   {
@@ -95,13 +102,14 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
     }
   }
   
-  Uint32 tmpFileOffset = startAtMbyte * PAGESIZE * NO_PAGES_IN_MBYTE * sizeof(Uint32);
+  const Uint32 tmpFileOffset =
+      startAtMbyte * REDOLOG_PAGESIZE * REDOLOG_PAGES_IN_MBYTE * sizeof(Uint32);
   if (fseek(f, tmpFileOffset, FROM_BEGINNING)) {
     perror("Error: Move in file");
-    exit(RETURN_ERROR);
+    ndb_end_and_exit(RETURN_ERROR);
   }
 
-  redoLogPage = new Uint32[PAGESIZE*NO_PAGES_IN_MBYTE];
+  redoLogPage = new Uint32[REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE];
   Uint32 words_from_previous_page = 0;
 
   // Loop for every mbyte.
@@ -109,15 +117,15 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   for (Uint32 j = startAtMbyte; j < NO_MBYTE_IN_FILE && !lastPage; j++) {
 
     ndbout_c("mb: %d", j);
-    readFromFile(f, redoLogPage, PAGESIZE*NO_PAGES_IN_MBYTE);
+    readFromFile(f, redoLogPage, REDOLOG_PAGESIZE*REDOLOG_PAGES_IN_MBYTE);
 
     words_from_previous_page = 0;
 
     // Loop for every page.
-    for (int i = 0; i < NO_PAGES_IN_MBYTE; i++) 
+    for (int i = 0; i < REDOLOG_PAGES_IN_MBYTE; i++)
     {
       wordIndex = 0;
-      thePageHeader = (PageHeader *) &redoLogPage[i*PAGESIZE];
+      thePageHeader = (PageHeader *) &redoLogPage[i*REDOLOG_PAGESIZE];
       // Print out mbyte number, page number and page index.
       ndbout << j << ":" << i << ":" << wordIndex << endl 
 	     << " " << j*32 + i << ":" << wordIndex << " ";
@@ -137,12 +145,12 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	}
 	
 	Uint32 checkSum = 37;
-	for (int ps = 1; ps < PAGESIZE; ps++)
-	  checkSum = redoLogPage[i*PAGESIZE+ps] ^ checkSum;
+        for (int ps = 1; ps < REDOLOG_PAGESIZE; ps++)
+          checkSum = redoLogPage[i*REDOLOG_PAGESIZE+ps] ^ checkSum;
 
-	if (checkSum != redoLogPage[i*PAGESIZE]){
+        if (checkSum != redoLogPage[i*REDOLOG_PAGESIZE]){
 	  ndbout_c("WRONG CHECKSUM: checksum = 0x%x expected: 0x%x",
-                   redoLogPage[i*PAGESIZE],
+                   redoLogPage[i*REDOLOG_PAGESIZE],
                    checkSum);
 	  //doExit();
 	}
@@ -166,7 +174,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 
 
       wordIndex = thePageHeader->getLogRecordSize() - words_from_previous_page;
-      Uint32 *redoLogPagePos = redoLogPage + i*PAGESIZE;
+      Uint32 *redoLogPagePos = redoLogPage + i*REDOLOG_PAGESIZE;
       if (words_from_previous_page)
       {
 	memmove(redoLogPagePos + wordIndex,
@@ -178,9 +186,9 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	if (words_from_previous_page)
 	{
 	  // Print out mbyte number, page number and word index.
-	  ndbout << j << ":" << i-1 << ":" << PAGESIZE-words_from_previous_page << endl 
+          ndbout << j << ":" << i-1 << ":" << REDOLOG_PAGESIZE-words_from_previous_page << endl
 		 << j << ":" << i   << ":" << wordIndex+words_from_previous_page << endl 
-		 << " " << j*32 + i-1 << ":" << PAGESIZE-words_from_previous_page << " ";
+                 << " " << j*32 + i-1 << ":" << REDOLOG_PAGESIZE-words_from_previous_page << " ";
 	  words_from_previous_page = 0;
 	}
 	else
@@ -189,7 +197,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
           ndbout_c("mb: %u fp: %u pos: %u",
                    j, (j*32 + i), wordIndex);
 	}
-	redoLogPagePos = redoLogPage + i*PAGESIZE + wordIndex;
+        redoLogPagePos = redoLogPage + i*REDOLOG_PAGESIZE + wordIndex;
 	oldWordIndex = wordIndex;
 	recordType = *redoLogPagePos;
 	switch(recordType) {
@@ -212,7 +220,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	case ZNEXT_LOG_RECORD_TYPE:
 	  nlRecord = (NextLogRecord *) redoLogPagePos;
 	  wordIndex += nlRecord->getLogRecordSize(wordIndex);
-	  if (wordIndex <= PAGESIZE) {
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*nlRecord);
 	    if (theCheckFlag) {
 	      if(!nlRecord->check()) {
@@ -226,7 +234,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	case ZCOMPLETED_GCI_TYPE:
 	  cGCIrecord = (CompletedGCIRecord *) redoLogPagePos;
 	  wordIndex += cGCIrecord->getLogRecordSize();
-	  if (wordIndex <= PAGESIZE) {
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*cGCIrecord);
 	    if (theCheckFlag) {
 	      if(!cGCIrecord->check()) {
@@ -239,8 +247,8 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 
 	case ZPREP_OP_TYPE:
 	  poRecord = (PrepareOperationRecord *) redoLogPagePos;
-	  wordIndex += poRecord->getLogRecordSize(PAGESIZE-wordIndex);
-	  if (wordIndex <= PAGESIZE) {
+          wordIndex += poRecord->getLogRecordSize(REDOLOG_PAGESIZE-wordIndex);
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*poRecord);
 	    if (theCheckFlag) {
 	      if(!poRecord->check()) {
@@ -254,7 +262,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	case ZCOMMIT_TYPE:
 	  ctRecord = (CommitTransactionRecord *) redoLogPagePos;
 	  wordIndex += ctRecord->getLogRecordSize();
-	  if (wordIndex <= PAGESIZE) {
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*ctRecord);
 	    if (theCheckFlag) {
 	      if(!ctRecord->check()) {
@@ -268,7 +276,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	case ZINVALID_COMMIT_TYPE:
 	  ictRecord = (InvalidCommitTransactionRecord *) redoLogPagePos;
 	  wordIndex += ictRecord->getLogRecordSize();
-	  if (wordIndex <= PAGESIZE) {
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*ictRecord);
 	    if (theCheckFlag) {
 	      if(!ictRecord->check()) {
@@ -282,13 +290,13 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	case ZNEXT_MBYTE_TYPE:
 	  nmRecord = (NextMbyteRecord *) redoLogPagePos;
 	  if (thePrintFlag) ndbout << (*nmRecord);
-	  i = NO_PAGES_IN_MBYTE;
+          i = REDOLOG_PAGES_IN_MBYTE;
 	  break;
 	
 	case ZABORT_TYPE:
 	  atRecord = (AbortTransactionRecord *) redoLogPagePos;
 	  wordIndex += atRecord->getLogRecordSize();
-	  if (wordIndex <= PAGESIZE) {
+          if (wordIndex <= REDOLOG_PAGESIZE) {
 	    if (thePrintFlag) ndbout << (*atRecord);
 	    if (theCheckFlag) {
 	      if(!atRecord->check()) {
@@ -308,8 +316,8 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	  ndbout << " ------ERROR: UNKNOWN RECORD TYPE------" << endl;
 
 	  // Print out remaining data in this page
-	  for (int k = wordIndex; k < PAGESIZE; k++){
-	    Uint32 unknown = redoLogPage[i*PAGESIZE + k];
+          for (int k = wordIndex; k < REDOLOG_PAGESIZE; k++){
+            Uint32 unknown = redoLogPage[i*REDOLOG_PAGESIZE + k];
 	    ndbout_c("%-30d%-12u%-12x", k, unknown, unknown);
 	  }
 	  
@@ -322,7 +330,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
             wordIndex = lastWord;
           }
 	}
-      } while(wordIndex < (Int32)lastWord && i < NO_PAGES_IN_MBYTE);
+      } while(wordIndex < (Int32)lastWord && i < REDOLOG_PAGES_IN_MBYTE);
 
 
       if (false && lastPage)
@@ -330,17 +338,17 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
 	if (theDumpFlag)
 	{
 	  ndbout << " ------PAGE END: DUMPING REST OF PAGE------" << endl;
-	  for (int k = wordIndex > PAGESIZE ? oldWordIndex : wordIndex;
-	       k < PAGESIZE; k++)
+          for (int k = wordIndex > REDOLOG_PAGESIZE ? oldWordIndex : wordIndex;
+               k < REDOLOG_PAGESIZE; k++)
 	  {
-	    Uint32 word = redoLogPage[i*PAGESIZE + k];
+            Uint32 word = redoLogPage[i*REDOLOG_PAGESIZE + k];
 	    ndbout_c("%-30d%-12u%-12x", k, word, word);
 	  }
 	}
 	break;
       }
-      if (wordIndex > PAGESIZE) {
-	words_from_previous_page = PAGESIZE - oldWordIndex;
+      if (wordIndex > REDOLOG_PAGESIZE) {
+        words_from_previous_page = REDOLOG_PAGESIZE - oldWordIndex;
 	ndbout << " ----------- Record continues on next page -----------" << endl;
       } else {
 	wordIndex = 0;
@@ -355,7 +363,7 @@ NDB_COMMAND(redoLogFileReader,  "redoLogFileReader", "redoLogFileReader", "Read 
   }//for
   fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_OK);
+  ndb_end_and_exit(RETURN_OK);
 }
 
 static
@@ -405,7 +413,7 @@ void usage(const char * prg){
 	 << endl << endl;
   
 }
-void readArguments(int argc, const char** argv)
+void readArguments(int argc, char** argv)
 {
   if(argc < 2 ){
     usage(argv[0]);
@@ -472,5 +480,5 @@ void doExit() {
   ndbout << "Error in redoLogReader(). Exiting!" << endl;
   if (f) fclose(f);
   delete [] redoLogPage;
-  exit(RETURN_ERROR);
+  ndb_end_and_exit(RETURN_ERROR);
 }

@@ -1,10 +1,14 @@
 drop table if exists t1, t2, t3, t4;
 create table t1 (p int not null primary key, u int not null, o int not null,
-unique (u), key(o)) engine=ndb;
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 create table t2 (p int not null primary key, u int not null, o int not null,
-unique (u), key(o)) engine=ndb;
-create table t3 (a int not null primary key, b int not null) engine=ndb;
-create table t4 (c int not null primary key, d int not null) engine=ndb;
+unique (u), key(o)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t3 (a int not null primary key, b int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table t4 (c int not null primary key, d int not null) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1 values (1,1,1),(2,2,2),(3,3,3);
 insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
 insert into t3 values (1,10), (2,10), (3,30), (4, 30);
@@ -107,7 +111,8 @@ End of 5.1 tests
 CREATE TABLE `i` (
 `col_int_key` int(11) DEFAULT NULL,
 KEY `col_int_key` (`col_int_key`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO `i` VALUES
 (37), (36), 
 (8), (16), (42), (6), (8),
@@ -133,7 +138,8 @@ CREATE TABLE `v` (
 `col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
 PRIMARY KEY (`pk`,`col_varchar_256`),
 KEY `col_int_key` (`col_int_key`)
-) ENGINE=ndbcluster;
+) ENGINE=ndbcluster
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO `v` VALUES
 ('you\'re','2009-07-16 09:36:26','hkovsqapozumxaaufxv',4,3,'ghkovsqapozumx','well','cgh',1,'2003-12-19 20:20:58',NULL,'zcghkovsqapozumx','for',38,'ozcghkovsq','up'),
 ('how','2009-04-19 21:37:41','something',16,4,'I','fozcghkovsqapozumxaaufx','ofozcghkovsqapoz',16,NULL,NULL,'to','gofozcg',50,'dgofozcghk','back'),
@@ -157,7 +163,7 @@ test.v	analyze	status	OK
 set ndb_join_pushdown = off;
 set optimizer_switch= 'firstmatch=off';
 set optimizer_switch= 'materialization=off';
-explain extended
+explain
 SELECT pk, col_int_key
 FROM v AS table1 
 WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
@@ -166,7 +172,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using where with pushed condition (`test`.`table1`.`col_int_key` is not null)
 1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	col_int_key	col_int_key	5	test.table1.col_int_key	1	100.00	Start temporary; End temporary
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1s`.`col_int_key` = `test`.`table1`.`col_int_key`)
 SELECT pk, col_int_key
 FROM v AS table1 

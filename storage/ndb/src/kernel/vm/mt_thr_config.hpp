@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,8 +85,16 @@ protected:
   {
     unsigned m_type;
     unsigned m_no; // within type
-    enum BType { B_UNBOUND, B_CPU_BOUND, B_CPUSET_BOUND } m_bind_type;
+    enum BType
+    {
+      B_UNBOUND,
+      B_CPU_BIND,
+      B_CPU_BIND_EXCLUSIVE,
+      B_CPUSET_BIND,
+      B_CPUSET_EXCLUSIVE_BIND
+    } m_bind_type;
     unsigned m_bind_no; // cpu_no/cpuset_no
+    unsigned m_thread_prio; // Between 0 and 10, 11 means not used
     unsigned m_realtime; //0 = no realtime, 1 = realtime
     unsigned m_spintime; //0 = no spinning, > 0 spintime in microseconds
   };
@@ -102,9 +110,7 @@ protected:
   BaseString m_print_string;
 
   void add(T_Type, unsigned realtime, unsigned spintime);
-  Uint32 find_type(char *&);
-  int find_spec(char *&, T_Type, unsigned real_time, unsigned spin_time);
-  int find_next(char *&);
+  int handle_spec(char *ptr, unsigned real_time, unsigned spin_time);
 
   unsigned createCpuSet(const SparseBitmask&);
   int do_bindings(bool allow_too_few_cpus);
@@ -116,16 +122,9 @@ protected:
 public:
   struct Entries
   {
-    const char * m_name;
     unsigned m_type;
     unsigned m_min_cnt;
     unsigned m_max_cnt;
-  };
-
-  struct Param
-  {
-    const char * name;
-    enum { S_UNSIGNED, S_BITMASK } type;
   };
 };
 
@@ -139,6 +138,20 @@ public:
   const char * getName(const unsigned short list[], unsigned cnt) const;
   void appendInfo(BaseString&, const unsigned short list[], unsigned cnt) const;
   void appendInfoSendThread(BaseString&, unsigned instance_no) const;
+
+  int do_thread_prio_io(NdbThread*, unsigned &thread_prio);
+  int do_thread_prio_watchdog(NdbThread*, unsigned &thread_prio);
+  int do_thread_prio_send(NdbThread*,
+                          unsigned instance,
+                          unsigned &thread_prio);
+  int do_thread_prio(NdbThread*,
+                     const unsigned short list[],
+                     unsigned cnt,
+                     unsigned &thread_prio);
+  int do_thread_prio(NdbThread*,
+                     const T_Thread* thr,
+                     unsigned &thread_prio);
+
   int do_bind(NdbThread*, const unsigned short list[], unsigned cnt);
   int do_bind_io(NdbThread*);
   int do_bind_watchdog(NdbThread*);

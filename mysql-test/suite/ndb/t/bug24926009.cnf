@@ -1,0 +1,33 @@
+#copied from ndb_share.cnf
+
+!include ../my.cnf
+
+[cluster_config.1]
+#Setting up 4 mysqld's:
+mysqld=,,,
+
+[mysqld]
+ndb-cluster-connection-pool=1
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=49
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=16
+
+[mysqld.3.1]
+ndb-cluster-connection-pool-nodeids=32
+
+[mysqld.4.1]
+ndb-cluster-connection-pool-nodeids=48
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MYSQLD1_SOCK=                  @mysqld.1.1.socket
+MYSQLD1_PORT=                  @mysqld.1.1.port
+MYSQLD2_SOCK=                  @mysqld.2.1.socket
+MYSQLD2_PORT=                  @mysqld.2.1.port
+MYSQLD3_SOCK=                  @mysqld.3.1.socket
+MYSQLD3_PORT=                  @mysqld.3.1.port
+MYSQLD4_SOCK=                  @mysqld.4.1.socket
+MYSQLD4_PORT=                  @mysqld.4.1.port

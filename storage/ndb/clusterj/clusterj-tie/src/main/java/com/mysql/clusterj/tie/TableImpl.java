@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package com.mysql.clusterj.tie;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,12 @@ class TableImpl implements Table {
 
     /** The TableConst wrapped by this */
     protected TableConst ndbTable;
+
+    /** The projected column names */
+    protected String[] projectedColumnNames;
+
+    /** The projection key */
+    protected String key;
 
     /** The table name */
     private String tableName;
@@ -118,22 +125,8 @@ class TableImpl implements Table {
                 maximumColumnId = columnId;
             }
         }
-        // iterate columns again and construct layout of record in memory
-        offsets = new int[maximumColumnId + 1];
-        lengths = new int[maximumColumnId + 1];
-        int offset = 0;
-        for (int i = 0; i < noOfColumns; ++i) {
-            ColumnImpl columnImpl = columnImpls[i];
-            int columnId = columnImpl.getColumnId();
-            int columnSpace = columnImpl.getColumnSpace();
-            lengths[columnId] = columnSpace;
-            offsets[columnId] = offset;
-            offset += columnSpace;
-            if (columnSpace > maximumColumnLength ) {
-                maximumColumnLength = columnSpace;
-            }
-        }
-        bufferSize = offset;
+        projectedColumnNames = columnNames;
+        key = tableName;
         this.primaryKeyColumnNames = 
             primaryKeyColumnNameList.toArray(new String[primaryKeyColumnNameList.size()]);
         this.partitionKeyColumnNames = 
@@ -150,6 +143,10 @@ class TableImpl implements Table {
 
     public String getName() {
         return tableName;
+    }
+
+    public String getKey() {
+        return key;
     }
 
     public String[] getPrimaryKeyColumnNames() {
@@ -172,6 +169,33 @@ class TableImpl implements Table {
 
     public String[] getColumnNames() {
         return columnNames;
+    }
+
+    public String[] getProjectedColumnNames() {
+        return projectedColumnNames;
+    }
+
+    /** DomainTypeHandler has determined that this is a projection. Set the
+     * projectedColumnNames and create a key for the TableImpl that includes
+     * a projection indicator for each column in the projection.
+     * For example, a table "test" with six columns in which the first column
+     * and the last are projected, the key would be test100001.
+     */
+    public void setProjectedColumnNames(String[] names) {
+        projectedColumnNames = names;
+        StringBuffer buffer = new StringBuffer(tableName);
+        char found = 'x';
+        for (int i = 0; i < columnNames.length; ++i) {
+            found = '0';
+            for (int j = 0; j < projectedColumnNames.length; ++j) {
+                if (columnNames[i].equals(projectedColumnNames[j])) {
+                    found = '1';
+                    break;
+                }
+            }
+            buffer.append(found);
+        }
+        key = buffer.toString();
     }
 
     public int getMaximumColumnId() {

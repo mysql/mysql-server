@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,18 +76,20 @@ NdbRestarter::restartOneDbNode(int _nodeId,
 			       bool inital,
 			       bool nostart,
 			       bool abort,
-                               bool force)
+                              bool force,
+                              bool captureError)
 {
   return restartNodes(&_nodeId, 1,
                       (inital ? NRRF_INITIAL : 0) |
                       (nostart ? NRRF_NOSTART : 0) |
                       (abort ? NRRF_ABORT : 0) |
-                      (force ? NRRF_FORCE : 0));
+                      (force ? NRRF_FORCE : 0),
+                      captureError);
 }
 
 int
 NdbRestarter::restartNodes(int * nodes, int cnt,
-                           Uint32 flags)
+                           Uint32 flags, bool captureError)
 {
   if (!isConnected())
     return -1;
@@ -105,10 +107,16 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
      * ndb_mgm_restart4 returned error, one reason could
      * be that the node have not stopped fast enough!
      * Check status of the node to see if it's on the 
-     * way down. If that's the case ignore the error
+     * way down. If that's the case ignore the error.
+     *
+     * Bug #11757421 is a special case where the
+     * error code and description is required in
+     * the test case. The call to getStatus()
+     * overwrites the error and is thus avoided
+     * by adding an option to capture the error.
      */ 
 
-    if (getStatus() != 0)
+    if (!captureError && getStatus() != 0)
       return -1;
 
     g_info << "ndb_mgm_restart4 returned with error, checking node state"
@@ -168,10 +176,14 @@ NdbRestarter::getMasterNodeId(){
 int
 NdbRestarter::getNodeGroup(int nodeId){
   if (!isConnected())
+  {
     return -1;
+  }
   
   if (getStatus() != 0)
+  {
     return -1;
+  }
   
   for(unsigned i = 0; i < ndbNodes.size(); i++)
   {
@@ -180,7 +192,6 @@ NdbRestarter::getNodeGroup(int nodeId){
       return ndbNodes[i].node_group;
     }
   }
-  
   return -1;
 }
 
@@ -252,8 +263,11 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
-  for(unsigned i = 0; i < ndbNodes.size(); i++){
-    if(ndbNodes[i].node_id == nodeId){
+  for (unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    if (ndbNodes[i].node_id == nodeId &&
+        ndbNodes[i].node_group <= MAX_NDB_NODE_GROUPS)
+    {
       node_group = ndbNodes[i].node_group;
       break;
     }
@@ -685,6 +699,37 @@ int NdbRestarter::restartAll(bool initial,
   return 0;
 }
 
+
+int NdbRestarter::restartAll3(bool initial,
+           bool nostart,
+           bool abort,
+                             bool force)
+{
+  /*
+   * This function has been added since restartAll
+   * and restartAll2 both include handling various
+   * cases of restart failure. Some cases such as
+   * Bug #11757421 require the handling of failures
+   * to be done in the test itself as the error
+   * returned is of interest.
+   */
+
+  if (!isConnected())
+      return -1;
+
+  int unused;
+  if (ndb_mgm_restart4(handle, 0, NULL, initial, 1, abort,
+                       force, &unused) <= 0)
+  {
+    MGMERR(handle);
+    g_err  << "Could not stop nodes" << endl;
+    return -1;
+  }
+
+  return 0;
+
+}
+
 int NdbRestarter::startAll(){
   if (!isConnected())
     return -1;
@@ -729,6 +774,25 @@ int NdbRestarter::insertErrorInNode(int _nodeId, int _error){
   return 0;
 }
 
+int NdbRestarter::insertErrorInNodes(const int * _nodes, int _num_nodes, int _error)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertErrorInNode(_nodes[i], _error) == -1)
+      result = -1;
+  }
+  return result;
+}
+
 int NdbRestarter::insertErrorInAllNodes(int _error){
   if (!isConnected())
     return -1;
@@ -763,6 +827,25 @@ NdbRestarter::insertError2InNode(int _nodeId, int _error, int extra){
     g_err << "Error: " << reply.message << endl;
   }
   return 0;
+}
+
+int NdbRestarter::insertError2InNodes(const int * _nodes, int _num_nodes, int _error, int extra)
+{
+  if (!isConnected())
+    return -1;
+
+  if (getStatus() != 0)
+    return -1;
+
+  int result = 0;
+
+  for(int i = 0; i < _num_nodes ; i++)
+  {
+    g_debug << "inserting error in node " << _nodes[i] << endl;
+    if (insertError2InNode(_nodes[i], _error, extra) == -1)
+      result = -1;
+  }
+  return result;
 }
 
 int NdbRestarter::insertError2InAllNodes(int _error, int extra){
@@ -890,6 +973,45 @@ NdbRestarter::getNode(NodeSelector type)
 void
 NdbRestarter::setReconnect(bool val){
   m_reconnect= val;
+}
+
+bool
+in_node_list(const int *dead_nodes, int num_dead_nodes, int nodeId)
+{
+  for (int i = 0; i < num_dead_nodes; i++)
+  {
+    if (dead_nodes[i] == nodeId)
+      return true;
+  }
+  return false;
+}
+
+bool
+NdbRestarter::checkClusterState(const int *dead_nodes, int num_dead_nodes)
+{
+  if (getStatus() != 0)
+    return false;
+
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
+  {
+    if (in_node_list(dead_nodes, num_dead_nodes, ndbNodes[n].node_id))
+    {
+      if (ndbNodes[n].node_status == NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d started, expected dead", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+    else
+    {
+      if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED)
+      {
+        ndbout_c("Node %d dead, expected started", ndbNodes[n].node_id);
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 int

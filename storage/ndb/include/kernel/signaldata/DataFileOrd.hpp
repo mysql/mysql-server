@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,11 +27,12 @@ struct DataFileOrd {
     MapFileNo = 3,
     FreeDataFile = 4
   };
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
   Uint32 ret; // expected return
   Uint32 cmd;
   Uint32 file_no;
   Uint32 fd;
+  Uint32 version;
 };
 
 

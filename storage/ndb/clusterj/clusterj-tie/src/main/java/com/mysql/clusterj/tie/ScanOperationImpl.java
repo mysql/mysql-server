@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
     public ScanFilter getScanFilter(QueryExecutionContext context) {
         NdbScanFilter ndbScanFilter = NdbScanFilter.create(ndbScanOperation);
         handleError(ndbScanFilter, ndbScanOperation);
-        ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter);
+        ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter, clusterTransaction.getBufferManager());
         context.addFilter(scanFilter);
         return scanFilter;
     }

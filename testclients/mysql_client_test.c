@@ -19721,6 +19721,34 @@ static void test_wl6797()
   mysql_stmt_close(stmt);
 }
 
+#ifndef MCP_BUG22389653
+/**
+  BUG#22336527: MYSQL_REAL_CONNECT CAN FAIL WITH SYSTEM ERROR: 4
+*/
+
+static void test_bug22336527()
+{
+  int        rc;
+  MYSQL      *l_mysql;
+  uint       opt_before= 10;
+
+  myheader("test_bug22336527");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  rc= mysql_options(l_mysql, MYSQL_OPT_RETRY_COUNT, &opt_before);
+  DIE_UNLESS(rc == 0);
+
+  /* retry count should be 10 */
+  DIE_UNLESS(l_mysql->options.extension->retry_count == opt_before);
+
+  /* clean up */
+  mysql_close(l_mysql);
+}
+#endif
+
 
 static void test_wl6791()
 {
@@ -21223,6 +21251,9 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug17512527", test_bug17512527},
   { "test_bug20810928", test_bug20810928 },
+#ifndef MCP_BUG22389653
+  { "test_bug22336527", test_bug22336527 },
+#endif
   { "test_wl8016", test_wl8016},
   { "test_bug20645725", test_bug20645725 },
   { "test_bug20444737", test_bug20444737},

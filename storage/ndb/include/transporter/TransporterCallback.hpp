@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,11 +210,8 @@ public:
 
   /**
    * Called to completely empty the send buffer for a node (ie. disconnect).
-   *
-   * Can be called to check that no one has written to the sendbuffer
-   * since it was reset last time by using the "should_be_emtpy" flag
    */
-  virtual void reset_send_buffer(NodeId node, bool should_be_empty=false) = 0;
+  virtual void reset_send_buffer(NodeId node) = 0;
 
   virtual ~TransporterCallback() { };
 };

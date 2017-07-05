@@ -1,0 +1,67 @@
+-- source include/have_ndb.inc
+
+# Turn on ndb_read_backup for this test since it tests
+# the ndb_read_backup functionality
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = ON;
+
+create table t1 (a bigint, primary key (a)) engine=ndb;
+show create table t1;
+drop table t1;
+
+create table t1 (a bigint, primary key (a)) engine=ndb
+  comment="junk";
+show create table t1;
+
+create table t2 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+show create table t2;
+drop table t2;
+
+create table t2 (a bigint, primary key (a)) engine=ndb
+  comment="before NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM after";
+show create table t2;
+
+create table t3 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+show create table t3;
+
+create table t4 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+show create table t4;
+
+create table t5 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+show create table t5;
+
+--let ndb_desc_opts= -d test t1 t2 t3 t4 t5
+--source suite/ndb/include/ndb_desc_print.inc
+
+drop table t1, t2, t3, t4, t5;
+
+# Restore ndb_read_backup value
+set @@global.ndb_read_backup = @save_ndb_read_backup;
+
+set @save_ndb_fully_replicated = @@global.ndb_fully_replicated;
+set @@global.ndb_fully_replicated = ON;
+
+create table t1 (a bigint, primary key (a)) engine=ndb;
+show create table t1;
+drop table t1;
+
+create table t1 (a bigint, primary key (a)) engine=ndb
+  comment="junk";
+show create table t1;
+
+create table t2 (a bigint, primary key (a)) engine=ndb
+  comment="before NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM after";
+show create table t2;
+
+create table t5 (a bigint, primary key (a)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+show create table t5;
+
+drop table t1, t2, t5;
+
+# Restore ndb_fully_replicated value
+set @@global.ndb_fully_replicated = @save_ndb_fully_replicated;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,8 +63,6 @@ void Dbtup::initData()
   // Records with constant sizes
   init_list_sizes();
   cpackedListIndex = 0;
-
-  m_minFreePages = 0;
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
@@ -86,7 +84,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
 
   addRecSignal(GSN_DEBUG_SIG, &Dbtup::execDEBUG_SIG);
   addRecSignal(GSN_CONTINUEB, &Dbtup::execCONTINUEB);
-  addRecSignal(GSN_LCP_FRAG_ORD, &Dbtup::execLCP_FRAG_ORD);
   addRecSignal(GSN_NODE_FAILREP, &Dbtup::execNODE_FAILREP);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtup::execDUMP_STATE_ORD);
@@ -106,7 +103,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   addRecSignal(GSN_TUP_ABORTREQ, &Dbtup::execTUP_ABORTREQ);
   addRecSignal(GSN_NDB_STTOR, &Dbtup::execNDB_STTOR);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
-  addRecSignal(GSN_NODE_STATE_REP, &Dbtup::execNODE_STATE_REP, true);
 
   // Trigger Signals
   addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtup::execCREATE_TRIG_IMPL_REQ);
@@ -135,6 +131,12 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   // Drop table
   addRecSignal(GSN_FSREMOVEREF, &Dbtup::execFSREMOVEREF, true);
   addRecSignal(GSN_FSREMOVECONF, &Dbtup::execFSREMOVECONF, true);
+  addRecSignal(GSN_FSOPENREF, &Dbtup::execFSOPENREF, true);
+  addRecSignal(GSN_FSOPENCONF, &Dbtup::execFSOPENCONF, true);
+  addRecSignal(GSN_FSREADREF, &Dbtup::execFSREADREF, true);
+  addRecSignal(GSN_FSREADCONF, &Dbtup::execFSREADCONF, true);
+  addRecSignal(GSN_FSCLOSEREF, &Dbtup::execFSCLOSEREF, true);
+  addRecSignal(GSN_FSCLOSECONF, &Dbtup::execFSCLOSECONF, true);
 
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbtup::execDROP_FRAG_REQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbtup::execSUB_GCP_COMPLETE_REP);
@@ -162,36 +164,21 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     ce.m_flags = 0;
   }
   { // 1
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 2
-    CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOGSYNC_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::drop_table_logsync_callback);
-    ce.m_flags = 0;
-  }
-  { // 3
-    CallbackEntry& ce = m_callbackEntry[UNDO_CREATETABLE_CALLBACK];
-    ce.m_function = safe_cast(&Dbtup::undo_createtable_callback);
-    ce.m_flags = 0;
-  }
-  { // 4
     CallbackEntry& ce = m_callbackEntry[DROP_TABLE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_table_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 5
+  { // 2
     CallbackEntry& ce = m_callbackEntry[DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::drop_fragment_free_extent_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 6
+  { // 3
     CallbackEntry& ce = m_callbackEntry[NR_DELETE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::nr_delete_log_buffer_callback);
     ce.m_flags = 0;
   }
-  { // 7
+  { // 4
     CallbackEntry& ce = m_callbackEntry[DISK_PAGE_LOG_BUFFER_CALLBACK];
     ce.m_function = safe_cast(&Dbtup::disk_page_log_buffer_callback);
     ce.m_flags = CALLBACK_ACK;
@@ -240,6 +227,7 @@ Dbtup::~Dbtup()
 
 Dbtup::Apply_undo::Apply_undo()
 {
+  m_in_intermediate_log_record = false;
   m_type = 0;
   m_len = 0;
   m_ptr = 0;
@@ -341,7 +329,11 @@ void Dbtup::execCONTINUEB(Signal* signal)
     handle.getSection(ssptr, 0);
     ::copy(c_proxy_undo_data, ssptr);
     releaseSections(handle);
-    disk_restart_undo(signal, lsn, type, c_proxy_undo_data, len);
+    disk_restart_undo(signal,
+                      lsn,
+                      type,
+                      c_proxy_undo_data,
+                      len);
     return;
   }
 
@@ -413,7 +405,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noOfStoredProc;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_STORED_PROC, 
 					&noOfStoredProc));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_NO_TRIGGERS, 
 					&noOfTriggers));
 
 
@@ -451,7 +443,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   allocCopyProcedure();
 
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
-  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_DB_NO_TRIGGERS);
+  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_TUP_NO_TRIGGERS);
 
   c_extent_hash.setSize(1024); // 4k
   
@@ -486,7 +478,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
   ScanOpPtr lcp;
   ndbrequire(c_scanOpPool.seize(lcp));
   new (lcp.p) ScanOp();
-  c_lcp_scan_op= lcp.i;
+  c_lcp_scan_op = lcp.i;
 
   czero = 0;
   cminusOne = czero - 1;
@@ -514,7 +506,12 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
                               &val);
     c_crashOnCorruptedTuple = val ? true : false;
   }
-
+  /**
+   * Set up read buffer used by Drop Table
+   */
+  NewVARIABLE *bat = allocateBat(1);
+  bat[0].WA = &m_read_ctl_file_data[0];
+  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
 }
 
 void Dbtup::initRecords() 
@@ -529,6 +526,7 @@ void Dbtup::initRecords()
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);
+  c_allow_alloc_spare_page=false;
 
   fragoperrec = (Fragoperrec*)allocRecord("Fragoperrec",
 					  sizeof(Fragoperrec),
@@ -683,7 +681,7 @@ void Dbtup::initializeDefaultValuesFrag()
    */
   seizeFragrecord(DefaultValuesFragment);
   DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
-  DefaultValuesFragment.p->m_undo_complete= false;
+  DefaultValuesFragment.p->m_undo_complete= 0;
   DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;
@@ -919,33 +917,4 @@ void Dbtup::execNODE_FAILREP(Signal* signal)
       (void) elementsCleaned; // Remove compiler warning
     }//if
   }//for
-}
-
-extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
-
-void
-Dbtup::execNODE_STATE_REP(Signal* signal)
-{
-  jamEntry();
-  const NodeStateRep* rep = CAST_CONSTPTR(NodeStateRep,
-                                          signal->getDataPtr());
-
-  if (rep->nodeState.startLevel == NodeState::SL_STARTED)
-  {
-    jam();
-
-    const ndb_mgm_configuration_iterator * p =
-      m_ctx.m_config.getOwnConfigIterator();
-    ndbrequire(p != 0);
-
-    Uint32 free_pct = 5;
-    ndb_mgm_get_int_parameter(p, CFG_DB_FREE_PCT, &free_pct);
-
-    Uint32 accpages = compute_acc_32kpages(p);
-
-    Resource_limit rl;
-    m_ctx.m_mm.get_resource_limit(RG_DATAMEM, rl);
-    m_minFreePages = ((rl.m_min - accpages) * free_pct) / 100;
-  }
-  SimulatedBlock::execNODE_STATE_REP(signal);
 }

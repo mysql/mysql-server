@@ -1,3 +1,5 @@
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = OFF;
 SET default_storage_engine=ndbcluster;
 SET ndb_use_exact_count=1;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -441,7 +443,7 @@ gc	geometrycollection	YES		NULL
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
-Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable online ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -1008,7 +1010,7 @@ gc	geometrycollection	YES		NULL
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
 Warnings:
-Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'fid' to DYNAMIC to enable online ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -1133,3 +1135,4 @@ MBROverlaps(@horiz1, @point2)
 NULL
 DROP TABLE t1;
 End of 5.0 tests
+set @@global.ndb_read_backup = @save_ndb_read_backup;

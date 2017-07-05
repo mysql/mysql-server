@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <kernel/ndb_limits.h>
 #include "ndb_conflict.h"
 #include "partitioning/partition_handler.h"
+#include "ndb_table_map.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -54,24 +55,22 @@ class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
 
-typedef enum ndb_index_type {
+enum NDB_INDEX_TYPE {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
   PRIMARY_KEY_ORDERED_INDEX = 2,
   UNIQUE_INDEX = 3,
   UNIQUE_ORDERED_INDEX = 4,
   ORDERED_INDEX = 5
-} NDB_INDEX_TYPE;
+};
 
-typedef enum ndb_index_status {
-  UNDEFINED = 0,
-  ACTIVE = 1,
-  TO_BE_DROPPED = 2
-} NDB_INDEX_STATUS;
-
-typedef struct ndb_index_data {
+struct NDB_INDEX_DATA {
   NDB_INDEX_TYPE type;
-  NDB_INDEX_STATUS status;  
+  enum {
+    UNDEFINED = 0,
+    ACTIVE = 1,
+    TO_BE_DROPPED = 2
+  } status;
   const NdbDictionary::Index *index;
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
@@ -85,7 +84,7 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_record_key;
   NdbRecord *ndb_unique_record_key;
   NdbRecord *ndb_unique_record_row;
-} NDB_INDEX_DATA;
+};
 
 // Wrapper class for list to hold NDBFKs
 class Ndb_fk_list :public List<NdbDictionary::ForeignKey>
@@ -97,11 +96,6 @@ public:
   }
 };
 
-typedef enum ndb_write_op {
-  NDB_INSERT = 0,
-  NDB_UPDATE = 1,
-  NDB_PK_UPDATE = 2
-} NDB_WRITE_OP;
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
@@ -137,10 +131,10 @@ struct st_ndb_status {
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
+  const char * system_name;
 };
 
 int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
-
 
 class ha_ndbcluster: public handler, public Partition_handler
 {
@@ -197,6 +191,8 @@ class ha_ndbcluster: public handler, public Partition_handler
                                       uint *flags, Cost_estimate *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags, Cost_estimate *cost);
+
+  virtual void append_create_info(String *packet);
 private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
                        uint *bufsz, uint *flags,
@@ -227,6 +223,7 @@ public:
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);
+  void update_comment_info(HA_CREATE_INFO *create_info, const NdbDictionary::Table *tab);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;
@@ -361,6 +358,12 @@ enum_alter_inplace_result
   check_if_supported_inplace_alter(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info);
 
+bool parse_comment_changes(NdbDictionary::Table *new_tab,
+                           const NdbDictionary::Table *old_tab,
+                           HA_CREATE_INFO *create_info,
+                           THD *thd,
+                           bool & max_rows_changed) const;
+
 bool prepare_inplace_alter_table(TABLE *altered_table,
                                     Alter_inplace_info *ha_alter_info);
 
@@ -375,12 +378,15 @@ void notify_table_changed();
 
 private:
   void prepare_for_alter();
-  /*
-  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-		handler_add_index **add);
-  */
-  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+  void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
+
+  enum_alter_inplace_result
+    check_inplace_alter_supported(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info);
+  void
+    check_implicit_column_format_change(TABLE *altered_table,
+                                        Alter_inplace_info *ha_alter_info);
   
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);
@@ -419,17 +425,18 @@ private:
                    NDB_INDEX_TYPE idx_type, uint idx_no) const;
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
-  int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
-  void renumber_indexes(Ndb *ndb, TABLE *tab);
+  int open_indexes(Ndb *ndb, TABLE *tab);
+  void release_indexes(NdbDictionary::Dictionary* dict, int invalidate);
+  void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
-  int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
+  int add_index_handle(NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
   int get_fk_data(THD *thd, Ndb *ndb);
-  void release_fk_data(THD *thd);
+  void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
@@ -439,6 +446,7 @@ private:
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
+  void append_dependents_to_changed_tables(List<NDB_SHARE>&, MEM_ROOT*);
   static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
                                      const NdbDictionary::Table*,
                                      int drop_flags, bool skip_related);
@@ -487,6 +495,13 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
+
+  enum NDB_WRITE_OP {
+    NDB_INSERT = 0,
+    NDB_UPDATE = 1,
+    NDB_PK_UPDATE = 2
+  };
+
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);
@@ -496,16 +511,16 @@ private:
   int next_result(uchar *buf); 
   int close_scan();
   void unpack_record(uchar *dst_row, const uchar *src_row);
-
+  void unpack_record_and_set_generated_fields(TABLE *, uchar *dst_row,
+                                              const uchar *src_row);
   void set_dbname(const char *pathname);
   void set_tabname(const char *pathname);
 
   const NdbDictionary::Column *get_hidden_key_column() {
-    return m_table->getColumn(table_share->fields);
+    return m_table->getColumn(m_table_map->get_hidden_key_column());
   }
   const NdbDictionary::Column *get_partition_id_column() {
-    Uint32 index= table_share->fields + (table_share->primary_key == MAX_KEY);
-    return m_table->getColumn(index);
+    return m_table->getColumn(m_table_map->get_partition_id_column());
   }
 
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
@@ -621,6 +636,7 @@ private:
   void set_part_info(partition_info *part_info, bool early);
   /* End of Partition_handler API */
 
+  Ndb_table_map* m_table_map;
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
   const NdbDictionary::Table *m_table;
@@ -744,9 +760,12 @@ private:
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-extern int ndbcluster_terminating;
 
-#include "ndb_util_thread.h"
-extern Ndb_util_thread ndb_util_thread;
+// Global handler synchronization
+extern mysql_mutex_t ndbcluster_mutex;
+extern mysql_cond_t  ndbcluster_cond;
+
+extern int ndb_setup_complete;
+
 
 int ndb_to_mysql_error(const NdbError *ndberr);

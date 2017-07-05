@@ -1,4 +1,8 @@
+create table ab(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine = ndb;
 create table ba(ks int primary key, st int, lp int) engine = ndb;
+insert into ab values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
+update ab set a3=111 where a2=1;
+update ab set a1=222, a4=222 where a2=2;
 insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
 update ba set lp=40 where ks=4;
 delete from ba where ks=2;
@@ -6,19 +10,35 @@ flush logs;
 flush logs;
 flush logs;
 flush logs;
+flush logs;
+flush logs;
 delete from ba;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM `test`.`ba` WHERE   @1=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=222   @2=2   @4=222   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`ab` SET   @2=1   @3=111   @5=1
 INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
 INSERT INTO `test`.`ba` SET   @1=4   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -28,15 +48,29 @@ delete from ba;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	OFF
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM `test`.`ba` WHERE   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=111   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=222   @2=2   @3=2   @4=222   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
 INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -46,15 +80,29 @@ delete from ba;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM `test`.`ba` WHERE   @1=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
 INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ab` WHERE   @1=2   @2=2   @4=2   @5=2 SET   @1=222   @2=2   @4=222   @5=2
+UPDATE `test`.`ab` WHERE   @2=1   @3=1   @5=1 SET   @2=1   @3=111   @5=1
 UPDATE `test`.`ba` WHERE   @1=4   @3=4 SET   @1=4   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -64,25 +112,191 @@ delete from ba;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	OFF
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM `test`.`ba` WHERE   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
 INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ab` WHERE   @1=1   @2=1   @3=1   @4=1   @5=1 SET   @1=1   @2=1   @3=111   @4=1   @5=1
+UPDATE `test`.`ab` WHERE   @1=2   @2=2   @3=2   @4=2   @5=2 SET   @1=222   @2=2   @3=2   @4=222   @5=2
 UPDATE `test`.`ba` WHERE   @1=4   @2=4   @3=4 SET   @1=4   @2=4   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
 select * from ba order by ks;
 ks	st	lp
 1	1	1
 3	3	3
 4	4	40
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	ON
+ndb_log_updated_only	ON
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM `test`.`ba` WHERE   @1=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @3=111
+UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @4=222
+UPDATE `test`.`ba` WHERE   @1=4 SET   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+delete from ba;
+show variables like 'ndb_log_update%';
+Variable_name	Value
+ndb_log_update_as_write	OFF
+ndb_log_update_minimal	ON
+ndb_log_updated_only	OFF
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+DELETE FROM `test`.`ba` WHERE   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ab` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`ab` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`ab` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`ab` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @1=1   @3=111   @4=1
+UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @3=2   @4=222
+UPDATE `test`.`ba` WHERE   @1=4 SET   @2=4   @3=40
+select * from ab order by a2,a4;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+delete from ab;
+select * from ba order by ks;
+ks	st	lp
+1	1	1
+3	3	3
+4	4	40
+delete from ba;
+drop table ab;
 drop table ba;
+CREATE TABLE mysql.ndb_replication
+(db VARBINARY(63),
+table_name VARBINARY(63),
+server_id INT UNSIGNED,
+binlog_type INT UNSIGNED,
+conflict_fn VARBINARY(128),
+PRIMARY KEY USING HASH (db,table_name,server_id))
+ENGINE=NDB PARTITION BY KEY(db,table_name);
+insert into mysql.ndb_replication values("test", "t1", 0, 6, NULL);
+insert into mysql.ndb_replication values("test", "t2", 0, 7, NULL);
+insert into mysql.ndb_replication values("test", "t3", 0, 8, NULL);
+insert into mysql.ndb_replication values("test", "t4", 0, 9, NULL);
+create table t1(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine=ndb;
+create table t2(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine=ndb;
+create table t3(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine=ndb;
+create table t4(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine=ndb;
+insert into t1 values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
+insert into t2 values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
+insert into t3 values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
+insert into t4 values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
+update t1 set a3=111 where a2=1;
+update t1 set a1=222, a4=222 where a2=2;
+update t2 set a3=111 where a2=1;
+update t2 set a1=222, a4=222 where a2=2;
+update t3 set a3=111 where a2=1;
+update t3 set a1=222, a4=222 where a2=2;
+update t4 set a3=111 where a2=1;
+update t4 set a1=222, a4=222 where a2=2;
+flush logs;
+select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
+txt
+INSERT INTO `test`.`t1` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`t1` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`t1` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`t1` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`t2` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`t2` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`t2` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`t2` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`t3` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`t3` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`t3` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`t3` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+INSERT INTO `test`.`t4` SET   @1=1   @2=1   @3=1   @4=1   @5=1
+INSERT INTO `test`.`t4` SET   @1=2   @2=2   @3=2   @4=2   @5=2
+INSERT INTO `test`.`t4` SET   @1=3   @2=3   @3=3   @4=3   @5=3
+INSERT INTO `test`.`t4` SET   @1=4   @2=4   @3=4   @4=4   @5=4
+UPDATE `test`.`t1` WHERE   @1=2   @2=2   @4=2   @5=2 SET   @1=222   @2=2   @4=222   @5=2
+UPDATE `test`.`t1` WHERE   @2=1   @3=1   @5=1 SET   @2=1   @3=111   @5=1
+UPDATE `test`.`t2` WHERE   @1=1   @2=1   @3=1   @4=1   @5=1 SET   @1=1   @2=1   @3=111   @4=1   @5=1
+UPDATE `test`.`t2` WHERE   @1=2   @2=2   @3=2   @4=2   @5=2 SET   @1=222   @2=2   @3=2   @4=222   @5=2
+UPDATE `test`.`t3` WHERE   @2=1   @5=1 SET   @3=111
+UPDATE `test`.`t3` WHERE   @2=2   @5=2 SET   @1=222   @4=222
+UPDATE `test`.`t4` WHERE   @2=1   @5=1 SET   @1=1   @3=111   @4=1
+UPDATE `test`.`t4` WHERE   @2=2   @5=2 SET   @1=222   @3=2   @4=222
+delete from t1;
+delete from t2;
+delete from t3;
+delete from t4;
+select * from t1 order by a2,a5;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+select * from t2 order by a2,a5;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+select * from t3 order by a2,a5;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+select * from t4 order by a2,a5;
+a1	a2	a3	a4	a5
+1	1	111	1	1
+222	2	2	222	2
+3	3	3	3	3
+4	4	4	4	4
+drop table t1, t2, t3, t4;
+drop table mysql.ndb_replication;
 reset master;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
 insert into bah values (1,1,1);
@@ -100,6 +314,7 @@ reset master;
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 CREATE TABLE `t1` (
 `charId` varchar(60) NOT NULL,
@@ -122,6 +337,7 @@ reset master;
 show variables like '%log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
+ndb_log_update_minimal	OFF
 ndb_log_updated_only	ON
 create table t1 (pk int not null primary key, name varchar(256)) engine = ndb;
 FLUSH LOGS;

@@ -1,0 +1,195 @@
+#
+# Fragment type: HashMapPartition
+# PartitionCount: 8
+# FragmentCount: 8
+# PartitionBalance: FOR_RP_BY_LDM
+# Table options:
+# HashMap: DEFAULT-HASHMAP-3840-8
+
+set @old_new = @@global.new;
+set @old_ndb_read_backup = @@global.ndb_read_backup;
+set @old_ndb_fully_replicated = @@global.ndb_fully_replicated;
+
+set @@new = 1;
+
+set global ndb_read_backup = 1;
+set global ndb_fully_replicated = 1;
+
+# Turn of fully replicated when using user defined partitioning
+set global ndb_fully_replicated = 0;
+
+CREATE TABLE t01 (x int primary key, y int) engine=ndb
+  partition by list(x) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3));
+
+ALTER TABLE t01 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+let $ndb_desc_opts= -i -d test t01;
+source suite/ndb/include/ndb_desc_print.inc;
+
+CREATE TABLE t02 (x int primary key, y int, unique key (y)) engine=ndb
+  partition by list(x) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3));
+let $ndb_desc_opts= -i -d test t02;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--error 1846
+ALTER TABLE t02 ALGORITHM=INPLACE, ADD PARTITION (partition p4 values in (4));
+show warnings;
+
+--error 1521
+ALTER TABLE t02 ALGORITHM=INPLACE, DROP PARTITION p0;
+show warnings;
+
+set global ndb_fully_replicated = 1;
+
+
+CREATE TABLE t03 (x int primary key) engine=ndb;
+let $ndb_desc_opts= -d test t03;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--error 1845
+ALTER TABLE t03 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+show warnings;
+
+--error 1846
+ALTER TABLE t03 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+show warnings;
+
+#
+# Blob tables
+#
+CREATE TABLE t04 (x int primary key) engine=ndb;
+ALTER TABLE t04 ALGORITHM=COPY, ADD COLUMN y blob;
+let $ndb_desc_opts= -b -d test t04;
+source suite/ndb/include/ndb_desc_print.inc;
+
+CREATE TABLE t05 (x int primary key, y blob) engine=ndb;
+let $ndb_desc_opts= -b -d test t05;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--error 1845
+ALTER TABLE t05 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+show warnings;
+
+--error 1846
+ALTER TABLE t05 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+show warnings;
+
+CREATE TABLE t06 (x int primary key, y int) engine=ndb;
+ALTER TABLE t06 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+let $ndb_desc_opts= -i -d test t06;
+source suite/ndb/include/ndb_desc_print.inc;
+
+CREATE TABLE t07 (x int primary key, y int, unique key (y)) engine=ndb;
+let $ndb_desc_opts= -i -d test t07;
+source suite/ndb/include/ndb_desc_print.inc;
+
+--error 1845
+ALTER TABLE t07 ALGORITHM=INPLACE, ADD PARTITION PARTITIONS 1;
+show warnings;
+
+--error 1846
+ALTER TABLE t07 ALGORITHM=INPLACE, COALESCE PARTITION 2;
+show warnings;
+
+CREATE TABLE t10 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
+let $ndb_desc_opts= -b -i -d test t10;
+source suite/ndb/include/ndb_desc_print.inc;
+
+set global ndb_fully_replicated=0;
+CREATE TABLE t12 (x int primary key, y blob, z int, unique key (z)) engine=ndb partition by key(x) partitions 4;
+let $ndb_desc_opts= -b -i -d test t12;
+source suite/ndb/include/ndb_desc_print.inc;
+
+set global ndb_fully_replicated=0;
+CREATE TABLE t11 (x int primary key, y blob, z int, unique key (z)) engine=ndb;
+let $ndb_desc_opts= -b -i -d test t11;
+source suite/ndb/include/ndb_desc_print.inc;
+
+exec $NDB_MGM --verbose=0 -e"create nodegroup 5,6";
+
+set global ndb_fully_replicated=0; # FR fails user defined partitioning
+
+CREATE TABLE t08 (x int primary key, y int) engine=ndb
+  partition by list(x) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3));
+
+ALTER TABLE t08 ALGORITHM=INPLACE, ADD UNIQUE KEY (y);
+let $ndb_desc_opts= -i -d test t08;
+source suite/ndb/include/ndb_desc_print.inc;
+
+CREATE TABLE t09 (x int primary key, y int, unique key (y)) engine=ndb
+  partition by list(x) (
+    partition p0 values in (0),
+    partition p1 values in (1),
+    partition p2 values in (2),
+    partition p3 values in (3));
+let $ndb_desc_opts= -i -d test t09;
+source suite/ndb/include/ndb_desc_print.inc;
+
+set global ndb_fully_replicated=1; # FR fails user defined partitioning
+
+alter table t03 algorithm=inplace, reorganize partition;
+let $ndb_desc_opts= -d test t03;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t04 algorithm=inplace, reorganize partition;
+let $ndb_desc_opts= -b -d test t04;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t05 algorithm=inplace, reorganize partition;
+let $ndb_desc_opts= -b -d test t05;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t06 algorithm=inplace, reorganize partition;
+# Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# Use commented row below instead when bug fixed.
+#let $ndb_desc_opts= -i -d test t06;
+let $ndb_desc_opts= -d test t06;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t07 algorithm=inplace, reorganize partition;
+# Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# Use commented row below instead when bug fixed.
+#let $ndb_desc_opts= -i -d test t07;
+let $ndb_desc_opts= -d test t07;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t10 algorithm=inplace, reorganize partition;
+# Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# Use commented row below instead when bug fixed.
+#let $ndb_desc_opts= -b -i -d test t10;
+let $ndb_desc_opts= -b -d test t10;
+source suite/ndb/include/ndb_desc_print.inc;
+
+alter table t11 algorithm=inplace, reorganize partition;
+# Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
+# Use commented row below instead when bug fixed.
+#let $ndb_desc_opts= -b -i -d test t11;
+let $ndb_desc_opts= -b -d test t11;
+source suite/ndb/include/ndb_desc_print.inc;
+
+set global ndb_fully_replicated = 0;
+
+--error 1296
+alter table t12 algorithm=inplace, add partition partitions 4;
+show warnings;
+
+alter table t12 algorithm=copy, add partition partitions 4;
+let $ndb_desc_opts= -b -i -d test t12;
+source suite/ndb/include/ndb_desc_print.inc;
+
+drop tables t01,t02,t03,t04,t05,t06,t07,t08,t09,t10,t11,t12;
+
+set global new = @old_new;
+set global ndb_read_backup = @old_ndb_read_backup;
+set global ndb_fully_replicated = @old_ndb_fully_replicated;

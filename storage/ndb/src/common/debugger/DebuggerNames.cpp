@@ -89,7 +89,10 @@ initBlockNames(const char * dst[],
 
   for(i = 0; i<len; i++){
     const int index = src[i].number - MIN_BLOCK_NO;
-    if((index < 0 && index >= NO_OF_BLOCKS) || dst[index] != 0){
+    if(index < 0 ||             // Too small
+       index >= NO_OF_BLOCKS || // Too large
+       dst[index] != 0)         // Already occupied
+    {
       fprintf(stderr, 
 	      "Invalid block name definition: %d %s\n",
 	      src[i].number, src[i].name);

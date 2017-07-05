@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 --source suite/ndb_memcache/include/misc_tables.inc
@@ -25,6 +20,7 @@ if($r == 0) {
 # Here are some values
 our $val_50 = "ABCDEFGHIJKLMNOPQRSTabcdefghijklmnopqrst123456789_";
 our $val_40 = "Riga,Stockholm,Helsinki,Oslo,Copenhagen_";
+our $val_180 = $val_50 . $val_40 . $val_50 . $val_40;
 our $val_100k = $val_50 x 2000;
 our $val_60k  = $val_40 x 1500;
 our $val_13949 = "." x 13949;
@@ -157,9 +153,9 @@ sub run_test() {
     . substr($r2, -10));
 
   # Now append a very large value to it 
-  $mc->append("bxx:test8", $val_100k) || $mc->fail("t43 append failed");
+  $mc->append("bxx:test8", $val_60k) || $mc->fail("t43 append failed");
   my $r4 = $mc->get("bxx:test8");
-  ($r4 eq $r3 . $val_100k) || $mc->fail("t44 results unexpected");
+  ($r4 eq $r3 . $val_60k) || $mc->fail("t44 results unexpected");
 
   # Take a value 1 less than a complete part, and append one character to it
   # This tests the "update-only" optimization in append
@@ -184,11 +180,11 @@ sub run_test() {
   print  "Passed APPEND stress test\n";
 
   # PREPEND stress test.
-  $mc->add("bxx:t10", $val_50);
-  for my $i (2 .. 300) {
-    $mc->prepend("bxx:t10", $val_50);
+  $mc->add("bxx:t10", $val_180);
+  for my $i (2 .. 60) {
+    $mc->prepend("bxx:t10", $val_180);
     my $r = $mc->get("bxx:t10");
-    ($r eq $val_50 x $i) || $mc->fail("t49 results unexpected at iteration $i");
+    ($r eq $val_180 x $i) || $mc->fail("t49 results unexpected at iteration $i");
   } 
   print  "Passed PREPEND stress test\n";
 

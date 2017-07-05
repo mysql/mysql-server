@@ -20,7 +20,7 @@ SHOW CREATE TABLE tndb;
 Table	Create Table
 tndb	CREATE TABLE `tndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 [on master]
 ==== Single-engine transactions ====
 ---- autocommitted ----

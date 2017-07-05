@@ -61,7 +61,17 @@ IF(UNIX)
   ENDIF()
 
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
-  
+
+  CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/mysql.spec @ONLY)
+
+  SET(SPECFILENAME "mysql.${VERSION}.spec")
+  IF("${VERSION}" MATCHES "-ndb-")
+    STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
+    SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
+  ENDIF()
+  CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
+
+
   SET(bindir ${prefix}/${INSTALL_BINDIR})
   SET(sbindir ${prefix}/${INSTALL_SBINDIR})
   SET(scriptdir ${prefix}/${INSTALL_SCRIPTDIR})

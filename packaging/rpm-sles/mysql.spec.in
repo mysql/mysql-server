@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +17,7 @@
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
-# Pass --define 'with_cluster 1' to build with cluster support
-%{?with_cluster: %global cluster 1}
+%global cluster 1
 
 # By default, a build will include the bundeled "yaSSL" library for SSL.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
@@ -77,7 +76,7 @@
 Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @MYSQL_NO_DASH_VERSION@
+Version:        @MYSQL_RPM_VERSION@
 Release:        1%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
@@ -251,6 +250,10 @@ MySQL database server, and MySQL embedded server.
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 Requires:       %{name}-server >= %{min}
+%if 0%{?cluster}
+Requires:       %{name}-data-node%{?_isa} >= %{min}
+Requires:       %{name}-management-server%{?_isa} >= %{min}
+%endif
 %if 0%{?commercial}
 Provides:       MySQL-test-advanced = %{version}-%{release}
 Obsoletes:      MySQL-test-advanced < %{version}-%{release}
@@ -421,7 +424,7 @@ Summary:        Web-based graphical configuration installer for MySQL Cluster
 Group:          Applications/Databases
 Requires:       %{name}-server%{?_isa} = %{version}-%{release}
 Requires:       python-paramiko
-Requires:       python2-crypto
+Requires:       python-pycrypto
 %description    auto-installer
 This package contains the MySQL Cluster web-based graphical
 configuration installer, which can be used to set up and start or stop
@@ -443,6 +446,7 @@ Requires:       %{name}-ndbclient%{?_isa} = %{version}-%{release}
 This package contains the development header files and libraries
 necessary to develop client applications for MySQL NDB storage engine.
 
+%if 0%{?ndb_nodejs_extras_path:1}
 %package        nodejs
 Summary:        Set of Node.js adapters for MySQL Cluster
 Group:          Applications/Databases
@@ -451,6 +455,7 @@ This package contains MySQL NoSQL Connector for JavaScript, a set of
 Node.js adapters for MySQL Cluster and MySQL Server, which make it
 possible to write JavaScript applications for Node.js using MySQL
 data.
+%endif
 
 %package        java
 Summary:        MySQL Cluster Connector for Java
@@ -516,6 +521,12 @@ mkdir debug
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
 %endif
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
+%endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -550,6 +561,12 @@ mkdir release
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+%endif
+%if 0%{?ndb_nodejs_path:1}
+           -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
+%endif
+%if 0%{?ndb_nodejs_extras_path:1}
+           -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
@@ -913,6 +930,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_drop_table
 %attr(755, root, root) %{_bindir}/ndb_error_reporter
 %attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_import
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_move_data
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
@@ -927,6 +945,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_setup.py
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
@@ -939,10 +958,13 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
@@ -951,8 +973,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
-%attr(644, root, root) %{_mandir}/man1/ndbd_redo_log_reader.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
 %endif #cluster
 
@@ -1114,7 +1137,7 @@ fi
 %files ndbclient
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.0.0
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
 
 %files ndbclient-devel
 %defattr(-, root, root, -)
@@ -1122,12 +1145,12 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libndbclient_static.a
 %{_libdir}/mysql/libndbclient.so
 
+%if 0%{?ndb_nodejs_extras_path:1}
 %files nodejs
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %{_datadir}/mysql/nodejs/
-%exclude %{_datadir}/mysql/nodejs/test/
-%exclude %{_datadir}/mysql/nodejs/perftest/
+%endif
 
 %files java
 %defattr(-, root, root, -)

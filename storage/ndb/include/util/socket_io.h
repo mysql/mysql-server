@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +41,9 @@ extern "C" {
   int println_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
                      const char *, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   int vprint_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
-                    const char *, va_list);
+                    const char *, va_list) ATTRIBUTE_FORMAT(printf, 4, 0);
   int vprintln_socket(NDB_SOCKET_TYPE, int timeout_ms, int *time,
-                      const char *, va_list);
+                      const char *, va_list) ATTRIBUTE_FORMAT(printf, 4, 0);
 
 #ifdef  __cplusplus
 }

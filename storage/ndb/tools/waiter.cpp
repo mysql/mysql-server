@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include <time.h>
 
 #include <mgmapi.h>
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
@@ -199,7 +198,7 @@ getStatus(){
       MGMERR(handle);
       retries++;
       ndb_mgm_disconnect(handle);
-      if (ndb_mgm_connect(handle,0,0,1)) {
+      if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
         MGMERR(handle);
         g_err  << "Reconnect failed" << endl;
         break;
@@ -291,7 +290,7 @@ waitClusterStatus(const char* _addr,
     g_err  << "Connectstring " << _addr << " invalid" << endl;
     return -1;
   }
-  if (ndb_mgm_connect(handle,0,0,1)) {
+  if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
     MGMERR(handle);
     g_err  << "Connection to " << _addr << " failed" << endl;
     return -1;

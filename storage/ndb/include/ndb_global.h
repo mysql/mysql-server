@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -293,12 +293,13 @@ extern "C" {
  * require is like a normal assert, only it's always on (eg. in release)
  */
 C_MODE_START
-/** see below */
-typedef int(*RequirePrinter)(const char *fmt, ...);
+typedef int(*RequirePrinter)(const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 void require_failed(int exitcode, RequirePrinter p,
                     const char* expr, const char* file, int line)
                     ATTRIBUTE_NORETURN;
-int ndbout_printer(const char * fmt, ...);
+int ndbout_printer(const char * fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 C_MODE_END
 /*
  *  this allows for an exit() call if exitcode is not zero

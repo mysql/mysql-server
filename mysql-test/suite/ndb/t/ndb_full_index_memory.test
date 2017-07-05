@@ -1,0 +1,35 @@
+call mtr.add_suppression("The table 't1' is full");
+
+create table t1(x int primary key) engine=ndbcluster;
+
+# Node 1 can use 95% of index memory (MinFreePct=5)
+# Node 2 can use 90% of index memory (MinFreePct=10)
+
+# Stop node 2 so it is possible to use 95% of index memory
+--exec $NDB_MGM --verbose=0 -e "2 restart -n"
+--exec $NDB_WAITER --not-started --wait-nodes=2 >> $NDB_TOOLS_OUTPUT
+
+# Avoid problem with too large transactions.
+set ndb_use_transactions=0;
+
+# Use up all available index memory (95%)
+--disable_query_log
+insert into t1 values (0), (1);
+set @n=1;
+while (!$mysql_errno)
+{
+  set @n= 2 * @n;
+--error 0,1114
+  insert into t1 select @n + x from t1;
+}
+--enable_query_log
+
+# Start node 2, during restart it can use all index memory (100%).
+--exec $NDB_MGM --verbose=0 -e "2 start"
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+# Now after restart node 2 have no usable memory free.
+# DBACC shrink will need a sparse page but will not get it.
+delete from t1;
+
+drop table t1;

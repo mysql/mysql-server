@@ -106,6 +106,9 @@ struct st_mysql_options_extention {
   my_bool unused0;                              /* Former ssl_enforce */
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
+#ifndef MCP_BUG22389653
+  unsigned int retry_count;
+#endif
   unsigned int ssl_mode;
 };
 

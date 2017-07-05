@@ -16,6 +16,9 @@
 # Bug #23290879 - For reasons unknown to man this test fails randomly only on Windows
 -- source include/not_windows.inc
 
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 use test;
 --disable_warnings
 DROP TABLE IF EXISTS t1;

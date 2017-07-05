@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,13 +18,14 @@
 #ifndef NDB_ROPE_HPP
 #define NDB_ROPE_HPP
 
+#include "ArrayPool.hpp"
 #include "DataBuffer.hpp"
 
 #define JAM_FILE_ID 316
 
 
-typedef DataBuffer<7> RopeBase;
-typedef DataBuffer<7>::DataBufferPool RopePool;
+typedef DataBuffer<7,ArrayPool<DataBufferSegment<7> > > RopeBase;
+typedef RopeBase::DataBufferPool RopePool;
 
 struct RopeHandle {
   RopeHandle() { m_hash = 0; }

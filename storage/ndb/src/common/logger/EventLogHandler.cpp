@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010,2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,20 @@ setup_eventlogging(const char* source_name)
   if (error != ERROR_SUCCESS)
   {
     // Could neither create or open key
-    fprintf(stderr, "Could neither create or open key '%s', error: %u\n",
-            sub_key, error);
+    if (error == ERROR_ACCESS_DENIED)
+    {
+      fprintf(stderr, "WARNING: Could not create or access the registry key needed for the application\n"
+          "to log to the Windows EventLog. Run the application with sufficient\n"
+          "privileges once to create the key, or add the key manually, or turn off\n"
+          "logging for that application. [HKLM] key '%s', error: %u\n", sub_key, error);
+    }
+    else
+    {
+      fprintf(stderr, "WARNING: Could neither create or open key '%s', error: %u\n",
+          sub_key, error);
+
+    }
+
     return false;
   }
 

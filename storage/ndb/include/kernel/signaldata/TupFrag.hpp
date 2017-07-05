@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ class TupFragReq {
   friend class Dblqh;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLength = 12 );
 private:
   Uint32 userPtr;
   Uint32 userRef;
@@ -47,6 +47,7 @@ private:
   Uint32 minRowsHigh;
   Uint32 tablespaceid;
   Uint32 changeMask;
+  Uint32 partitionId;
 };
 
 class TupFragConf {

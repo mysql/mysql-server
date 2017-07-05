@@ -427,7 +427,7 @@ c1	c2	c3	c4	c5	c6	c7
 *** Add column on master that is a Extra on Slave ***
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 Warnings:
-Warning	1478	Converted FIXED field 'c6' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c6' to DYNAMIC to enable online ADD COLUMN
 ********************************************************
 *** Expect slave to fail with Error ER_DUP_FIELDNAME ***
 ********************************************************
@@ -490,7 +490,7 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
 *** Show table on Slave ****
@@ -505,7 +505,7 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=NOLOGGING=1'
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
 *** DROP TABLE t16 ***

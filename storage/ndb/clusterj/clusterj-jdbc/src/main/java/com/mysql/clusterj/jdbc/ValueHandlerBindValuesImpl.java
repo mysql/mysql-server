@@ -639,4 +639,9 @@ public class ValueHandlerBindValuesImpl implements ValueHandlerBatching {
         }
     }
 
+    @Override
+    public boolean wasReleased() {
+        return this.bindValues == null;
+    }
+
 }

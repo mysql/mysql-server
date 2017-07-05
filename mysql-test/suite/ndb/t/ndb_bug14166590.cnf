@@ -2,3 +2,4 @@
 
 [mysqld.1.1]
 ndb-cluster-connection-pool=1
+ndb-cluster-connection-pool-nodeids=49

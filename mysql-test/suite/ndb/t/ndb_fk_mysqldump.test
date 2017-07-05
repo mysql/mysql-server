@@ -30,9 +30,11 @@ create table product_order (
   foreign key (customer_id) references customer(id))
 engine=ndb;
 
+--disable_warnings
 show create table product;
 show create table customer;
 show create table product_order;
+--enable_warnings
 
 insert into product values (1,1,5);
 insert into customer value (1);
@@ -49,8 +51,10 @@ drop table product_order, customer, product;
 
 --exec $MYSQL test < $dump_file
 
+--disable_warnings
 show create table product;
 show create table customer;
 show create table product_order;
+--enable_warnings
 
 drop table product_order, customer, product;

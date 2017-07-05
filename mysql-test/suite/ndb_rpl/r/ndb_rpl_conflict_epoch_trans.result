@@ -996,12 +996,47 @@ a	b
 Allow propagation to Primary
 PRIMARY:
 Expect:
-- Delete-Delete conflict did not result in rejection of Secondary transaction
-Therefore related row from Secondary Deleting transaction (73) is present
+- NDB$EPOCH_TRANS :
+- Will not detect delete-delete conflict, so first
+Secondary transaction will apply row 73.
 - Unrelated transaction from Secondary (84) is present
 - Following insert on delete-delete conflict row (77) is not in conflict,
 so both it and the related row from the same transaction (80) are present
+This applies whether the following insert is in the same or a different
+epoch
+Divergence:
+- Primary will have 73,84,77,80
+- Secondary will have 73,84,80, no 77
 
+- NDB$EPOCH_TRANS2 :
+- Will detect delete-delete conflict, so first 
+Secondary transaction will not apply (no row 73)
+77 and 73 will be refreshed (DEL)
+- Unrelated transaction from Secondary (84) is present and applied
+84 will be reflected (INS)
+- Following insert on delete-delete conflict row (77) will be found in 
+conflict iff this transaction is in the same epoch as the first 
+conflicting transaction.  If it is in a different epoch then it will
+not be found in conflict, as there will be no state available to 
+use.
+- If it is in-conflict, then 77 and 80 will be refreshed (DEL)
+Result on both should be :
+84
+- If it is not in-conflict, then 77 and 80 will be reflected (INS)
+Result on both should be :
+84, 77, 80
+No divergence
+select @primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH_TRANS has stable results independent of
+epoch boundaries: 
 select * from test.t1 order by a;
 a	b
 1	11
@@ -1021,13 +1056,20 @@ ndb_conflict_trans_reject_count
 ndb_epoch_delete_delete_count
 1
 Now sync with Secondary to show outcomes
-NDB$EPOCH_TRANS will have divergence as the Primary delete of
-row 77 took out the newly inserted row 77.
-NDB$EPOCH2_TRANS will have no divergence as the Secondary insert
-is reflected after the Primary delete, and re-inserts the value.
 start slave;
 SECONDARY:
 
+select @secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch);
+@secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
+1
+EPOCH_TRANS has stable results independent of
+epoch boundaries: 
 select * from test.t1 order by a;
 a	b
 1	11
@@ -1039,6 +1081,126 @@ a	b
 73	A superb year
 80	Poor
 84	A good vintage
+PRIMARY
+Cleanup
+delete from test.t1 where a != 6;
+PRIMARY
+Transactional Delete testcase
+STOP slave on SECONDARY
+stop slave;
+PRIMARY
+Primary updates row with pk 6
+update test.t1 set b="Pentland" where a=6;
+PRIMARY content
+Row 6 updated
+select * from test.t1 order by a;
+a	b
+6	Pentland
+SECONDARY
+Transaction deleting pk 6, inserting pk 7
+begin;
+delete from test.t1 where a = 6;
+insert into test.t1 values (7, "Mendip");
+commit;
+Optionally flush logs
+Transaction deleting pk 7, inserting pk 8
+begin;
+delete from test.t1 where a = 7;
+insert into test.t1 values (8, "Ochil");
+commit;
+SECONDARY content
+Rows 6 + 7 deleted.  Row 8 present.
+select * from test.t1 order by a;
+a	b
+8	Ochil
+Sync SECONDARY -> PRIMARY
+Expected Behaviour
+EPOCH_TRANS
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction, [delete of 7
++ insert of 8] behaviour depends on whether it
+arrives in the same or a different epoch.
+Same epoch : 
+Will conflict with refreshed row 7, and so will
+not be applied.  Row 8 will be refreshed (DEL)
+Different epoch :
+Will not conflict with Not-present row 7, and so
+will be applied.
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+Same epoch :
+- Refresh (DEL) 8 from PRIMARY
+Different epoch :
+- Nothing
+
+Results (no divergence) :
+Same epoch :
+PRIMARY : 6
+SECONDARY : 6
+Diff epoch :
+PRIMARY : 6,8
+SECONDARY : 6,8
+
+
+EPOCH_TRANS2
+
+1.  Conflict between Primary update to 6 + Secondary
+[Delete of 6 + Insert of 7] is detected by Primary
+and transaction is not applied at the Primary.
+Rows 6 (INS) and 7 (DEL) are refreshed.  Row 6 has its 
+epoch updated.
+
+2.  Following Secondary transaction [delete of 7 + 
+insert of 8] will conflict with the first 
+transaction as EPOCH_TRANS2 does not allow
+a delete of an already deleted row.
+Row 7 will be refreshed (DEL) and row 8 will be 
+refreshed (DEL)
+
+3.  On the Secondary, the observed sequence will be :
+- Update 6 from PRIMARY : (Idempotent insert)
+- Refresh (INS) 6 from PRIMARY
+- Refresh (DEL) 7 from PRIMARY
+- [Refresh (DEL) 7 from PRIMARY] - diff epoch
+- Refresh (DEL) 8 from PRIMARY
+
+Results (no divergence) :
+PRIMARY : 6
+SECONDARY : 6
+
+PRIMARY content 
+select @primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+Restart SECONDARY Slave
+START SLAVE;
+Sync PRIMARY -> SECONDARY
+SECONDARY content
+select @secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans);
+@secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
+1
+STABILISE
 drop table mysql.ndb_replication;
 drop table test.t1;
 drop table test.t2;

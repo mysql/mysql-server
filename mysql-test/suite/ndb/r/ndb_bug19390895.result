@@ -5,7 +5,8 @@ c1 char(255),
 c2 char(255),
 key k1(b, c1, c2)
 )
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 insert into t1(a,b,c1,c2) values
 (0, 0, 0, 0),
 (1, 1, 1, 1),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,6 +271,7 @@ static int mgmd_main(int argc, char** argv)
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+      fprintf(stderr, "CRITICAL: Out of memory, couldn't create MgmtSrvr\n");
       mgmd_exit(1);
     }
 
@@ -292,6 +293,7 @@ static int mgmd_main(int argc, char** argv)
       NodeId localNodeId= mgm->getOwnNodeId();
       if (localNodeId == 0) {
         g_eventLogger->error("Couldn't get own node id");
+        fprintf(stderr, "ERROR: Couldn't get own node id\n");
         delete mgm;
         mgmd_exit(1);
       }
@@ -302,6 +304,8 @@ static int mgmd_main(int argc, char** argv)
       {
         g_eventLogger->error("Couldn't start as daemon, error: '%s'",
                              ndb_daemon_error);
+        fprintf(stderr, "Couldn't start as daemon, error: '%s' \n",
+                ndb_daemon_error);
         mgmd_exit(1);
       }
     }
@@ -319,7 +323,7 @@ static int mgmd_main(int argc, char** argv)
         con_str.appfmt("host=%s:%d", opts.bind_address, port);
       else
         con_str.appfmt("localhost:%d", port);
-      Ndb_mgmclient com(con_str.c_str(), 1);
+      Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
       while(!g_StopServer){
         if (!read_and_execute(&com, "ndb_mgm> ", 1))
           g_StopServer = true;

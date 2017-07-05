@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,6 @@ static const Uint32 g_ndbrec_c_offset=offsetof(my_record, m_c);
 static const Uint32 g_ndbrec_c_nb_offset=2;
 static const Uint32 g_ndbrec_d_offset=offsetof(my_record, m_d);
 static const Uint32 g_ndbrec_d_nb_offset=3;
-static const Uint32 g_ndbrecord_bytes=sizeof(my_record);
 
 static NdbTransaction* g_con = 0;
 static NdbOperation* g_op = 0;

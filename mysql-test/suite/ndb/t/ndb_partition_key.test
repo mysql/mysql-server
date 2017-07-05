@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -73,7 +68,9 @@ source show_attributes.inc;
 # result should not contain (PARTITION P0 ... etc) since this is what shows up in
 # mysqldump, and we don't want that info there
 #
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 DROP TABLE t1;
 
@@ -109,29 +106,39 @@ create table t1 (a int primary key)
 engine=ndb
 partition by key(a)
 (partition p0, partition p1);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
-alter table t1 engine=heap;
+alter table t1 engine=innodb;
 show create table t1;
 
 alter table t1 engine=ndb;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
-alter table t1 engine=heap remove partitioning;
+alter table t1 engine=innodb remove partitioning;
 show create table t1;
 
 alter table t1 engine=ndb
 partition by key(a)
 (partition p0, partition p1 engine = ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 alter table t1
 partition by key (a)
 (partition p0 engine=ndb, partition p1 engine=ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 alter table t1 remove partitioning;
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 # after bug#31931 was fixed
 # this is OK, since the storage engine is specified
@@ -145,7 +152,9 @@ alter table t1
 engine=ndb
 partition by key(a)
 (partition p0 engine=ndb, partition p1 engine = ndb);
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 drop table t1;
 

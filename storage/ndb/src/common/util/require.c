@@ -1,6 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,15 +20,16 @@
 void require_failed(int exitcode, RequirePrinter printer,
                     const char* expr, const char* file, int line)
 {
-#define FMT "%s:%d: require(%s) failed\n", file, line, expr
   if (!printer)
   {
-    fprintf(stderr, FMT);
+    // Print directly to stderr
+    fprintf(stderr, "%s:%d: require(%s) failed\n", file, line, expr);
     fflush(stderr);
   }
   else
   {
-    printer(FMT);
+    // Print using the provided printer callback function
+    printer("%s:%d: require(%s) failed\n", file, line, expr);
   }
 #ifdef _WIN32
   DebugBreak();

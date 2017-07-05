@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,32 +27,22 @@
  * KeyTable2 is DLHashTable2 with hardcoded Uint32 key named "key".
  */
 template <typename P, typename T>
-class KeyTableImpl : public DLHashTableImpl<P, T> {
+class KeyTable : public DLHashTable<P, T> {
 public:
-  KeyTableImpl(P & pool) :
-    DLHashTableImpl<P, T>(pool) {
+  KeyTable(P & pool) :
+    DLHashTable<P, T>(pool) {
   }
 
   bool find(Ptr<T>& ptr, const T& rec) const {
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+    return DLHashTable<P, T>::find(ptr, rec);
   }
 
   bool find(Ptr<T>& ptr, Uint32 key) const {
     T rec;
     rec.key = key;
-    return DLHashTableImpl<P, T>::find(ptr, rec);
+    return DLHashTable<P, T>::find(ptr, rec);
   }
 };
-
-// Specializations
-
-template <typename T>
-class KeyTable : public KeyTableImpl<ArrayPool<T>, T>
-{
-public:
-  KeyTable(ArrayPool<T> & p) : KeyTableImpl<ArrayPool<T>, T>(p) {}
-};
-
 
 #undef JAM_FILE_ID
 

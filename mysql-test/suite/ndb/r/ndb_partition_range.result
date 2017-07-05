@@ -164,7 +164,7 @@ INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL, '2009-05-15');
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
-ALTER TABLE t1 ENGINE=MYISAM;
+ALTER TABLE t1 ENGINE=INNODB;
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
 0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
@@ -253,7 +253,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 a int not null PRIMARY KEY,
 b int not null,
-c int not null)
+c int not null) engine=ndb
 partition by list(a)
 partitions 2
 (partition x123 values in (1,5,6),

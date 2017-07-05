@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 ###############################################
 #                                             #
 #   Prepared Statements test on NDB tables    #
@@ -25,6 +20,9 @@ set ndb_join_pushdown = false;
 
 -- source include/have_ndb.inc
 let $type= 'NDB' ;
+# Query cache could affect the result column names of
+# prepared statements. Hence, skipping this test.
+--source include/have_query_cache_disabled.inc
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 

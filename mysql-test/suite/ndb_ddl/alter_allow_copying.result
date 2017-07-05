@@ -1,0 +1,32 @@
+select @@ndb_allow_copying_alter_table;
+@@ndb_allow_copying_alter_table
+1
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t1
+modify column b varchar(255);
+ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+set @@ndb_allow_copying_alter_table = 0;
+ALTER TABLE t1
+ALGORITHM=COPY,
+modify column b varchar(255);
+set @@ndb_allow_copying_alter_table = default;
+select @@ndb_allow_copying_alter_table;
+@@ndb_allow_copying_alter_table
+1
+set @@ndb_allow_copying_alter_table = 0;
+set @@ndb_use_copying_alter_table = 1;
+ALTER TABLE t1
+add column c int;
+ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+ALTER TABLE t1
+modify column b varchar(255);
+ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+ALTER TABLE t1
+ALGORITHM=INPLACE,
+add column c int COLUMN_FORMAT DYNAMIC;
+ALTER TABLE t1
+ALGORITHM=COPY,
+add column d int;
+set @@ndb_use_copying_alter_table = default;
+set @@ndb_allow_copying_alter_table = default;
+== verify_mysql_dd.inc ==

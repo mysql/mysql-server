@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -285,19 +285,41 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
      * each logpart keeps up to 3 logfiles open at any given time...
      *   (bound)
      * make sure noIdleFiles is atleast 4 times #logparts
+     * In addition the LCP execution can have up to 4 files open in each
+     * LDM thread. In the LCP prepare phase we can have up to 2 files
+     * (2 CTL files first, then 1 CTL file and finally 1 CTL file and
+     *  1 data file). The LCP execution runs in parallel and can also
+     * have 2 open files (1 CTL file and 1 data file). With the
+     * introduction of Partial LCP the execution phase could even have
+     * 9 files open at a time and thus we can have up to 11 threads open
+     * at any time per LDM thread only to handle LCP execution.
+     *
+     * In addition ensure that we have at least 10 more open files
+     * available for the remainder of the tasks we need to handle.
      */
     Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
     ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
     Uint32 logfiles = 4 * logParts;
+    Uint32 numLDMthreads = getLqhWorkers();
+    if (numLDMthreads == 0)
+    {
+      jam();
+      numLDMthreads = 1;
+    }
+    logfiles += ((numLDMthreads * 11) + 10);
     if (noIdleFiles < logfiles)
     {
+      jam();
       noIdleFiles = logfiles;
     }
   }
 
-  // Make sure at least "noIdleFiles" files can be created
+  // Make sure at least "noIdleFiles" files can be created and a few more
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
-    m_maxFiles = noIdleFiles;
+  {
+    jam();
+    m_maxFiles = noIdleFiles + 2;
+  }
 
   // Create idle AsyncFiles
   for (Uint32 i = 0; i < noIdleFiles; i++)
@@ -360,6 +382,46 @@ Ndbfs::execSTTOR(Signal* signal)
   if(signal->theData[1] == 0){ // StartPhase 0
     jam();
     
+    if (ERROR_INSERTED(2000) || ERROR_INSERTED(2001))
+    {
+      // Save(2000) or restore(2001) FileSystemPath/ndb_XX_fs/
+      BaseString& fs_path = m_base_path[FsOpenReq::BP_FS];
+      unsigned i = fs_path.length() - strlen(DIR_SEPARATOR);
+      BaseString saved_path(fs_path.c_str(), i);
+      const char * ending_separator = fs_path.c_str() + i;
+      ndbrequire(strcmp(ending_separator, DIR_SEPARATOR)==0);
+      saved_path.append(".saved");
+      saved_path.append(ending_separator);
+      BaseString& from_dir = (ERROR_INSERTED(2000) ? fs_path : saved_path);
+      BaseString& to_dir = (ERROR_INSERTED(2000) ? saved_path : fs_path);
+
+      const bool only_contents = true;
+      if (NdbDir::remove_recursive(to_dir.c_str(), !only_contents))
+      {
+        g_eventLogger->info("Cleaned destination file system at %s", to_dir.c_str());
+      }
+      else
+      {
+        g_eventLogger->warning("Failed cleaning file system at %s", to_dir.c_str());
+      }
+      if (access(to_dir.c_str(), F_OK) == 0 || errno != ENOENT)
+      {
+        g_eventLogger->error("Destination file system at %s should not be there (errno %d)!",
+                             to_dir.c_str(),
+                             errno);
+        ndbrequire(!"Destination file system already there during file system saving or restoring");
+      }
+      if (rename(from_dir.c_str(), to_dir.c_str()) == -1)
+      {
+        g_eventLogger->error("Failed renaming %s file system to %s while %s (errno %d)",
+          from_dir.c_str(),
+          to_dir.c_str(),
+          (ERROR_INSERTED(2000) ? "saving" : "restoring"),
+          errno);
+        ndbrequire(!"Failed renaming file system while saving ot restoring");
+      }
+      SET_ERROR_INSERT_VALUE2(ERROR_INSERT_EXTRA, 0);
+    }
     do_mkdir(m_base_path[FsOpenReq::BP_FS].c_str());
     
     // close all open files
@@ -420,7 +482,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     jam();
     Uint32 cnt = 16; // 512k
     Ptr<GlobalPage> page_ptr;
-    m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, 1);
     if(cnt == 0)
     {
       file->m_page_ptr.setNull();
@@ -434,7 +496,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       return;
     }
     m_shared_page_pool.getPtr(page_ptr);
-    file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+    file->set_buffer(RT_NDBFS_INIT_FILE_PAGE, page_ptr, cnt);
   } 
   else if (fsOpenReq->fileFlags & FsOpenReq::OM_WRITE_BUFFER)
   {
@@ -593,6 +655,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)
   {
+    jam();
     SegmentedSectionPtr secPtr;
     ndbrequire(handle.getSection(secPtr, 0));
     ndbrequire(signal->getLength() + secPtr.sz < NDB_ARRAY_SIZE(theData));
@@ -720,7 +783,20 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       break;
       // make it a writev or readv
     }//case
-      
+
+    case FsReadWriteReq::fsFormatMemAddress:
+    {
+      jam();
+      const Uint32 memoryOffset = fsRWReq->data.memoryAddress.memoryOffset;
+      const Uint32 fileOffset = fsRWReq->data.memoryAddress.fileOffset;
+      const Uint32 sz = fsRWReq->data.memoryAddress.size;
+
+      request->par.readWrite.pages[0].buf = &tWA[memoryOffset];
+      request->par.readWrite.pages[0].size = sz;
+      request->par.readWrite.pages[0].offset = (off_t)(fileOffset);
+      request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
+      break;
+    }
     default: {
       jam();
       errorCode = FsRef::fsErrInvalidParameters;
@@ -812,9 +888,15 @@ Ndbfs::execFSREADREQ(Signal* signal)
   jamEntry();
   FsReadWriteReq * req = (FsReadWriteReq *)signal->getDataPtr();
   if (FsReadWriteReq::getPartialReadFlag(req->operationFlag))
+  {
+    jam();
     readWriteRequest( Request::readPartial, signal );
+  }
   else
+  {
+    jam();
     readWriteRequest( Request::read, signal );
+  }
 }
 
 /*
@@ -1000,7 +1082,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   Uint32 cnt = (req->buffer_size + 32768 - 1) / 32768;
   Uint32 save = cnt;
   Ptr<GlobalPage> page_ptr;
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &page_ptr.i, &cnt, cnt);
+  m_ctx.m_mm.alloc_pages(RT_NDBFS_BUILD_INDEX_PAGE, &page_ptr.i, &cnt, cnt);
   if(cnt == 0)
   {
     file->m_page_ptr.setNull();
@@ -1013,7 +1095,7 @@ Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
   ndbrequire(cnt == save);
 
   m_shared_page_pool.getPtr(page_ptr);
-  file->set_buffer(RT_DBTUP_PAGE, page_ptr, cnt);
+  file->set_buffer(RT_NDBFS_BUILD_INDEX_PAGE, page_ptr, cnt);
 
   memcpy(&request->par.build.m_req, req, sizeof(* req));
   request->action = Request::buildindx;
@@ -1059,6 +1141,8 @@ Ndbfs::createAsyncFile()
                (long) file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
+    ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
+              m_maxFiles, theFiles.size());
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
@@ -1293,7 +1377,9 @@ Ndbfs::report(Request * request, Signal* signal)
 
       fsConf->filePointer = request->theFilePointer;
       fsConf->fileInfo = request->m_fileinfo;
-      sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBA);
+      fsConf->file_size_hi = request->m_file_size_hi;
+      fsConf->file_size_lo = request->m_file_size_lo;
+      sendSignal(ref, GSN_FSOPENCONF, signal, 5, JBA);
       break;
     }
     case Request:: closeRemove:
@@ -1383,7 +1469,7 @@ bool
 Ndbfs::scanIPC(Signal* signal)
 {
    Request* request = theFromThreads.tryReadChannel();
-   jam();
+   jamDebug();
    if (request) {
       jam();
       report(request, signal);
@@ -1550,7 +1636,7 @@ Ndbfs::execCONTINUEB(Signal* signal)
 void
 Ndbfs::execSEND_PACKED(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   if (scanningInProgress == false && scanIPC(signal))
   {
     jam();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -202,7 +202,7 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
 	int val)
 {
   int actual = 0, defval = 0;
-  SOCKET_SIZE_TYPE len = sizeof(actual);
+  socket_len_t len = sizeof(actual);
 
   my_getsockopt(fd, level, optval, (char*)&defval, &len);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
  */
 
 #include <ndb_global.h>
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <NdbTest.hpp>
@@ -566,6 +565,7 @@ createTable(int storageType)
     const Uint32 numPartitions= numReplicas * numNgs * numFragsPerNode;
     
     tab.setFragmentCount(numPartitions);
+    tab.setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
     for (Uint32 i=0; i<numPartitions; i++)
     {
       frag_ng_mappings[i]= i % numNgs;
@@ -815,7 +815,7 @@ private:
   Tup& operator=(const Tup&);
 };
 
-static Tup* g_tups;
+static Tup* g_tups = 0;
 
 static void
 setUDpartId(const Tup& tup, NdbOperation* op)
@@ -850,6 +850,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
     v.m_len = 0;
     delete [] v.m_val;
     v.m_val = 0;
+    delete [] v.m_buf;
     v.m_buf = new char [1];
   } else {
     if (keepsize && v.m_val != 0)
@@ -863,6 +864,7 @@ calcBval(const Bcol& b, Bval& v, bool keepsize)
     for (unsigned i = 0; i < v.m_len; i++)
       v.m_val[i] = 'a' + urandom(26);
     v.m_val[v.m_len] = 0;
+    delete [] v.m_buf;
     v.m_buf = new char [v.m_len];
   }
   v.m_buflen = v.m_len;
@@ -4207,7 +4209,10 @@ testmain()
   {
     dropTable();
   }
+  delete [] g_tups;
+  g_tups = 0;
   delete g_ndb;
+  g_ndb = 0;
   return 0;
 }
 
@@ -4324,6 +4329,7 @@ testperf()
     CHK(g_con->execute(Rollback) == 0);
     DBG(t1.time());
     g_opr = 0;
+    g_ndb->closeTransaction(g_con);
     g_con = 0;
   }
   // insert text (one trans)
@@ -4344,6 +4350,7 @@ testperf()
     DBG(t2.time());
     g_bh1 = 0;
     g_opr = 0;
+    g_ndb->closeTransaction(g_con);
     g_con = 0;
   }
   // insert overhead
@@ -4511,6 +4518,7 @@ testperf()
     g_dic->dropTable(tab.getName());
   }
   delete g_ndb;
+  g_ndb = 0;
   return 0;
 }
 
@@ -4639,13 +4647,15 @@ bugtest_27018()
 
 struct bug27370_data {
   bug27370_data() :
-    m_ndb(NULL)
+    m_ndb(NULL), m_writebuf(NULL), m_key_row(NULL)
   {
   }
 
   ~bug27370_data()
   {
     delete m_ndb;
+    delete [] m_writebuf;
+    delete [] m_key_row;
   }
 
   Ndb *m_ndb;
@@ -4751,8 +4761,8 @@ bugtest_27370()
   g_ndb->closeTransaction(g_con);
   g_con= NULL;
 
-  pthread_t thread_handle;
-  CHK(pthread_create(&thread_handle, NULL, bugtest_27370_thread, &data) == 0);
+  my_thread_handle thread_handle;
+  CHK(my_thread_create(&thread_handle, NULL, bugtest_27370_thread, &data) == 0);
 
   DBG("bug test 27370 - PK blob reads");
   Uint32 seen_updates= 0;
@@ -4859,12 +4869,11 @@ bugtest_27370()
 
   data.m_thread_stop= true;
   void *thread_return;
-  CHK(pthread_join(thread_handle, &thread_return) == 0);
+  CHK(my_thread_join(&thread_handle, &thread_return) == 0);
   DBG("bug 27370 - thread return status: " <<
       (thread_return ? (char *)thread_return : "<null>"));
   CHK(thread_return == 0);
 
-  delete [] data.m_key_row;
   g_con= NULL;
   g_const_opr= NULL;
   g_bh1= NULL;
@@ -4968,7 +4977,7 @@ static struct {
   { 62321, bugtest_62321 }
 };
 
-NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   // log the invocation
@@ -5220,8 +5229,10 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
   delete g_ncc;
   g_ncc = 0;
 success:
+  ndb_end(0);
   return NDBT_ProgramExit(NDBT_OK);
 wrongargs:
+  ndb_end(0);
   return NDBT_ProgramExit(NDBT_WRONGARGS);
 }
 

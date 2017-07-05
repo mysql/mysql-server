@@ -1,6 +1,20 @@
 #!/bin/sh
-# Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
-# This file is public domain and comes with NO WARRANTY of any kind
+#
+# Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
 
 # MySQL daemon start/stop script.
 
@@ -88,6 +102,7 @@ datadir_set=
 #
 # Use LSB init script functions for printing messages, if possible
 #
+[ "x$(uname -s)" = "xLinux" ] && export SYSTEMD_NO_WRAP=1 
 lsb_functions="/lib/lsb/init-functions"
 if test -f $lsb_functions ; then
   . $lsb_functions

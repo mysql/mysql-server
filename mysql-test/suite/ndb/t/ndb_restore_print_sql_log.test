@@ -1,0 +1,247 @@
+# BUG #13511949 - NDB_RESTORE --PRINT-LOG DOES NOT PRODUCE VALID SQL
+
+--echo BUG #13511949
+--echo "NDB_RESTORE --PRINT-LOG DOES NOT PRODUCE VALID SQL"
+
+-- source include/have_ndb.inc
+-- source have_ndb_error_insert.inc
+
+create table t1
+ (id1 int unsigned not null,
+  id2 int unsigned not null,
+  id3 char(10),
+  id4 varchar(10),
+  id5 binary(10),
+  id6 varbinary(10),
+  id7 datetime,
+  id8 date,
+  id9 time,
+  primary key(id1,id2)
+ )engine=ndbcluster;
+
+create table t2
+ (id1 int primary key
+)engine=ndbcluster;
+
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+#Start backup with wait started so test does not wait indefinitely
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+
+--echo "Logged queries:"
+insert into t1 values(1,1,'abc','def','ghi','jkl','2016-05-25 12:42:45','2016-05-25','12:42:45');
+update t1 set id5='def' where id1<2 and id2=1;
+update t1 set id3='mno' where id1=1 and id2>0;
+delete from t1 where id1 is not null and id4 like 'd%';
+
+#Remove error previously introduced
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+#Retrieve backup ID
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+
+#Check if backup is complete. The table will be dropped
+#only when the backup is complete. Thus, the test attempts
+#to drop the table at intervals of 1 second and eventually
+#times out after 60 such intervals if the backup is not
+#yet completed
+--disable_warnings
+let $mysql_errno=1;
+let $i=60;
+while ($mysql_errno)
+{
+  sleep 1;
+  dec $i;
+  if (!$i)
+  {
+    --die Timeout while wating for backup to complete;
+  }
+  --error 0,1051
+  drop table t2;
+}
+--enable_warnings
+--echo
+--echo "Restore with --print-sql-log option"
+--let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 2 $NDB_BACKUPS-$the_backup_id
+
+drop table t1;
+--disable_warnings
+drop table if exists t2;
+--enable_warnings
+
+#Case with hidden PK where --print-sql-log option is not allowed
+--echo
+--echo "No primary key declared"
+create table t3
+ (id1 int,
+  id2 int
+ )engine=ndbcluster;
+
+create table t4
+(id1 int primary key
+)engine=ndbcluster;
+
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+#Start backup with wait started so test does not wait indefinitely
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+
+--echo "Logged queries:"
+insert into t3 values(1,2);
+insert into t3 values(2,3);
+update t3 set id2=5 where id1=1;
+delete from t3;
+
+#Remove error previously introduced
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--disable_warnings
+#Check if backup is complete. The table will be dropped
+#only when the backup is complete. Thus, the test attempts
+#to drop the table at intervals of 1 second and eventually
+#times out after 60 such intervals if the backup is not
+#yet completed
+let $mysql_errno=1;
+let $i=60;
+while ($mysql_errno)
+{
+  sleep 1;
+  dec $i;
+  if (!$i)
+  {
+    --die Timeout while wating for backup to complete;
+  }
+  --error 0,1051
+  drop table t4;
+}
+--enable_warnings
+#Retrieve backup ID
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+--echo
+--echo "Restore with --print-sql-log option"
+--let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--error 1
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+
+drop table t3;
+--disable_warnings
+drop table if exists t4;
+--enable_warnings
+
+#Case where both --print-sql-log and --print-log options are passed
+--echo
+create table t5
+ (id1 int primary key,
+  id2 int
+ )engine=ndbcluster;
+
+create table t6
+ (id1 int primary key
+)engine=ndbcluster;
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+#Start backup with wait started so test does not wait indefinitely
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+
+--echo "Logged queries:"
+insert into t5 values(1000,2000);
+update t5 set id2=5000 where id1=1000;
+delete from t5;
+
+#Remove error previously introduced
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+#Check if backup is complete. The table will be dropped
+#only when the backup is complete. Thus, the test attempts
+#to drop the table at intervals of 1 second and eventually
+#times out after 60 such intervals if the backup is not
+#yet completed
+--disable_warnings
+let $mysql_errno=1;
+let $i=60;
+while ($mysql_errno)
+{
+  sleep 1;
+  dec $i;
+  if (!$i)
+  {
+    --die Timeout while wating for backup to complete;
+  }
+  --error 0,1051
+  drop table t6;
+}
+--enable_warnings
+#Retrieve backup ID
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+--echo
+--echo "Restore with --print-sql-log and --print-log options"
+--let ndb_restore_opts= --print-sql-log --print-log --verbose=0 --core-file=0
+--error 1
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+
+drop table t5;
+--disable_warnings
+drop table if exists t6;
+--enable_warnings
+
+#Case where table contains column of type blob
+--echo
+--echo "Table contains column of type blob"
+create table t7
+ (id1 int primary key,
+  id2 blob
+ )engine=ndbcluster;
+
+create table t8
+(id1 int primary key
+)engine=ndbcluster;
+
+#Introduce error to ensure that backup halts
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+#Start backup with wait started so test does not wait indefinitely
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+
+--echo "Logged queries:"
+insert into t7 values(1,'a');
+
+#Remove error previously introduced
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--disable_warnings
+#Check if backup is complete. The table will be dropped
+#only when the backup is complete. Thus, the test attempts
+#to drop the table at intervals of 1 second and eventually
+#times out after 60 such intervals if the backup is not
+#yet completed
+let $mysql_errno=1;
+let $i=60;
+while ($mysql_errno)
+{
+  sleep 1;
+  dec $i;
+  if (!$i)
+  {
+    --die Timeout while wating for backup to complete;
+  }
+  --error 0,1051
+  drop table t8;
+}
+--enable_warnings
+#Retrieve backup ID
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+--echo
+--echo "Restore with --print-sql-log option"
+--let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--error 1
+--exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+
+drop table t7;
+--disable_warnings
+drop table if exists t8;
+--enable_warnings

@@ -30,20 +30,11 @@ let $_db = `SELECT IF(INSTR('$list_table_name', '.'),
                       'ndb_ddl_test')`; # Default to ndb_ddl_test
 let $_name = `SELECT SUBSTRING_INDEX('$list_table_name', '.', -1)`;
 
-# Create a view on top of  ndbinfo.ndb$dict_obj_info (as otherwise
-# the dollar sign is evaluated as a dollar-variable and there seem
-# to be no way to escape it)
-CREATE VIEW test.ndbinfo_dict_obj_info as
-  SELECT id, type, version, state, parent_obj_type, parent_obj_id, fq_name
-    FROM ndbinfo.ndb$dict_obj_info;
-
 let $table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
                    WHERE fq_name = '$_db/def/$_name'`;
 eval INSERT INTO $create_table_name
   SELECT * FROM test.ndbinfo_dict_obj_info
     WHERE parent_obj_id = $table_id;
-
-DROP VIEW test.ndbinfo_dict_obj_info;
 
 # Show the object list
 #eval select * from $create_table_name;

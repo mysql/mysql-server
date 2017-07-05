@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@ import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
-import com.mysql.clusterj.core.SessionFactoryImpl;
 
 @org.junit.Ignore("test requires specific connection pooling setup")
 public class ConnectionPoolTest extends AbstractClusterJTest {
@@ -206,6 +205,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
+    @org.junit.Ignore("testNegativeConnectionPoolIllegalNodeids takes too long")
     public void testNegativeConnectionPoolIllegalNodeids() {
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
@@ -243,9 +243,9 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
-    private void checkSessions(String where, SessionFactory sessionFactory1, Integer[] expected) {
-        SessionFactoryImpl sessionFactoryImpl = (SessionFactoryImpl)sessionFactory1;
-        List<Integer> connectionCounts = sessionFactoryImpl.getConnectionPoolSessionCounts();
+    private void checkSessions(String where, SessionFactory sessionFactory, Integer[] expected) {
+        List<Integer> connectionCounts = sessionFactory.getConnectionPoolSessionCounts();
+        if (getDebug()) System.out.println("connection counts: " + connectionCounts.toString());
         if (expected.length != connectionCounts.size()) {
             error(where + " wrong number of connections in pool\n"
                     + "Expected: " + Arrays.toString(expected)

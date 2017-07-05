@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core;
 
+import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
@@ -26,11 +27,10 @@ import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
-
+import com.mysql.clusterj.SessionFactory.State;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
-
 import com.mysql.clusterj.core.metadata.DomainTypeHandlerFactoryImpl;
 
 import com.mysql.clusterj.core.store.Db;
@@ -44,7 +44,6 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +55,12 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(SessionFactoryImpl.class);
+
+    /** My class loader */
+    static final ClassLoader SESSION_FACTORY_IMPL_CLASS_LOADER = SessionFactoryImpl.class.getClassLoader();
+
+    /** The status of this session factory */
+    protected State state;
 
     /** The properties */
     protected Map<?, ?> props;
@@ -75,6 +80,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     long CLUSTER_CONNECT_AUTO_INCREMENT_STEP;
     long CLUSTER_CONNECT_AUTO_INCREMENT_START;
     int[] CLUSTER_BYTE_BUFFER_POOL_SIZES;
+    int CLUSTER_RECONNECT_TIMEOUT;
 
 
     /** Node ids obtained from the property PROPERTY_CONNECTION_POOL_NODEIDS */
@@ -110,7 +116,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     protected ClusterConnectionService getClusterConnectionService() {
         return ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
-                    CLUSTER_CONNECTION_SERVICE);
+                    CLUSTER_CONNECTION_SERVICE, SESSION_FACTORY_IMPL_CLASS_LOADER);
     }
 
     /** The smart value handler factory */
@@ -162,6 +168,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         this.key = getSessionFactoryKey(props);
         this.connectionPoolSize = getIntProperty(props, 
                 PROPERTY_CONNECTION_POOL_SIZE, DEFAULT_PROPERTY_CONNECTION_POOL_SIZE);
+        CLUSTER_RECONNECT_TIMEOUT = getIntProperty(props,
+                PROPERTY_CONNECTION_RECONNECT_TIMEOUT, DEFAULT_PROPERTY_CONNECTION_RECONNECT_TIMEOUT);
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
         CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
@@ -188,18 +196,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         CLUSTER_CONNECTION_SERVICE = getStringProperty(props, PROPERTY_CLUSTER_CONNECTION_SERVICE);
         CLUSTER_BYTE_BUFFER_POOL_SIZES = getByteBufferPoolSizes(props);
         createClusterConnectionPool();
-        // now get a Session and complete a transaction to make sure that the cluster is ready
-        try {
-            Session session = getSession(null);
-            session.currentTransaction().begin();
-            session.currentTransaction().commit();
-            session.close();
-        } catch (Exception e) {
-            if (e instanceof ClusterJException) {
-                logger.warn(local.message("ERR_Session_Factory_Impl_Failed_To_Complete_Transaction"));
-                throw (ClusterJException)e;
-            }
-        }
+        // now get a Session for each connection in the pool and
+        // complete a transaction to make sure that each connection is ready
+        verifyConnectionPool();
+        state = State.Open;
     }
 
     protected void createClusterConnectionPool() {
@@ -252,9 +252,38 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         }
     }
 
+    protected void verifyConnectionPool() {
+        List<Integer> sessionCounts = null;
+        String msg;
+        try {
+            List<Session> sessions = new ArrayList<Session>(pooledConnections.size());
+            for (int i = 0; i < pooledConnections.size(); ++i) {
+                sessions.add(getSession(null, true));
+            }
+            sessionCounts = getConnectionPoolSessionCounts();
+            for (Session session: sessions) {
+                session.currentTransaction().begin();
+                session.currentTransaction().commit();
+                session.close();
+            }
+        } catch (RuntimeException e) {
+            msg = local.message("ERR_Session_Factory_Impl_Failed_To_Complete_Transaction");
+            logger.warn(msg);
+            throw e;
+        }
+        // verify that the session counts were correct
+        for (Integer count: sessionCounts) {
+            if (count != 1) {
+                msg = local.message("ERR_Session_Counts_Wrong_Creating_Factory",
+                        sessionCounts.toString());
+                logger.warn(msg);
+                throw new ClusterJFatalInternalException(msg);
+            }
+        }
+    }
+
     protected ClusterConnection createClusterConnection(
             ClusterConnectionService service, Map<?, ?> props, int nodeId) {
-        int[] byteBufferPoolSizes = getByteBufferPoolSizes(props);
         ClusterConnection result = null;
         try {
             result = service.create(CLUSTER_CONNECT_STRING, nodeId, CLUSTER_CONNECT_TIMEOUT_MGM);
@@ -304,7 +333,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @return the session
      */
     public Session getSession() {
-        return getSession(null);
+        return getSession(null, false);
+    }
+
+    public Session getSession(Map properties) {
+        return getSession(null, false);
     }
 
     /** Get a session to use with the cluster, overriding some properties.
@@ -313,11 +346,14 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param properties overriding some properties for this session
      * @return the session
      */
-    public Session getSession(Map properties) {
-        ClusterConnection clusterConnection = getClusterConnectionFromPool();
+    public Session getSession(Map properties, boolean internal) {
         try {
             Db db = null;
             synchronized(this) {
+                if (!(State.Open.equals(state)) && !internal) {
+                    throw new ClusterJUserException(local.message("ERR_SessionFactory_not_open"));
+                }
+                ClusterConnection clusterConnection = getClusterConnectionFromPool();
                 checkConnection(clusterConnection);
                 db = clusterConnection.createDb(CLUSTER_DATABASE, CLUSTER_MAX_TRANSACTIONS);
             }
@@ -409,12 +445,8 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     public <T> DomainTypeHandler<T> getDomainTypeHandler(T object, Dictionary dictionary) {
         Class<T> cls = getClassForProxy(object);
-        DomainTypeHandler<T> result = getDomainTypeHandler(cls);
-        if (result != null) {
-            return result;
-        } else {
-            return getDomainTypeHandler(cls, dictionary);
-        }
+        DomainTypeHandler<T> result = getDomainTypeHandler(cls, dictionary);
+        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -536,7 +568,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     public synchronized void close() {
-        // we have to close all of the cluster connections
+        // close all of the cluster connections
         for (ClusterConnection clusterConnection: pooledConnections) {
             clusterConnection.close();
         }
@@ -545,6 +577,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // now remove this from the map
             sessionFactoryMap.remove(key);
         }
+        state = State.Closed;
     }
 
     public void setDomainTypeHandlerFactory(DomainTypeHandlerFactory domainTypeHandlerFactory) {
@@ -574,13 +607,136 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for table " + tableName
                             + " for class " + cls.getName());
                     dictionary.removeCachedTable(tableName);
+                    for (ClusterConnection clusterConnection: pooledConnections) {
+                        clusterConnection.unloadSchema(tableName);
+                    }
                 }
-            }
-            for (ClusterConnection clusterConnection: pooledConnections) {
-                clusterConnection.unloadSchema(tableName);
             }
             return tableName;
         }
     }
+    protected ThreadGroup threadGroup = new ThreadGroup("Reconnect");
 
+    protected Thread reconnectThread;
+
+    /** Shut down the session factory by closing all pooled cluster connections
+     * and restarting.
+     * @since 7.5.7
+     * @param cjde the exception that initiated the reconnection
+     */
+    public void checkConnection(ClusterJDatastoreException cjde) {
+        if (CLUSTER_RECONNECT_TIMEOUT == 0) {
+            return;
+        } else {
+            reconnect(CLUSTER_RECONNECT_TIMEOUT);
+        }
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** Get the current state of this session factory.
+     * @since 7.5.7
+     * @see SessionFactory.State
+     */
+    public State currentState() {
+        return state;
+    }
+
+    /** Reconnect this session factory using the default timeout value.
+     * @since 7.5.7
+     */
+    public void reconnect() {
+        reconnect(CLUSTER_RECONNECT_TIMEOUT);
+    }
+
+    /** Reconnect this session factory using the specified timeout value.
+     * @since 7.5.7
+     */
+    public void reconnect(int timeout) {
+        logger.warn(local.message("WARN_Reconnect", getConnectionPoolSessionCounts().toString()));
+        synchronized(this) {
+            // if already restarting, do nothing
+            if (State.Reconnecting.equals(state)) {
+                logger.warn(local.message("WARN_Reconnect_already"));
+                return;
+            }
+            CLUSTER_RECONNECT_TIMEOUT = timeout;
+            if (timeout == 0) {
+                logger.warn(local.message("WARN_Reconnect_timeout0"));
+                return;
+            }
+            // set the reconnect timeout to the current value
+            CLUSTER_RECONNECT_TIMEOUT = timeout;
+            // set the state of this session factory to reconnecting
+            state = State.Reconnecting;
+            // create a thread to manage the reconnect operation
+            // create thread group
+            threadGroup = new ThreadGroup("Stuff");
+            // create reconnect thread
+            reconnectThread = new Thread(threadGroup, new ReconnectThread(this));
+            reconnectThread.start();
+            logger.warn(local.message("WARN_Reconnect_started"));
+        }
+    }
+
+    protected static int countSessions(SessionFactoryImpl factory) {
+        return countSessions(factory.getConnectionPoolSessionCounts());
+    }
+
+    protected static int countSessions(List<Integer> sessionCounts) {
+        int result = 0;
+        for (int i: sessionCounts) {
+            result += i;
+        }
+        return result;
+    }
+
+    protected static class ReconnectThread implements Runnable {
+        SessionFactoryImpl factory;
+        ReconnectThread(SessionFactoryImpl factory) {
+            this.factory = factory;
+        }
+        public void run() {
+            List<Integer> sessionCounts = factory.getConnectionPoolSessionCounts();
+            boolean done = false;
+            int iterations = factory.CLUSTER_RECONNECT_TIMEOUT;
+            while (!done && iterations-- > 0) {
+                done = countSessions(sessionCounts) == 0;
+                if (!done) {
+                    logger.info(local.message("INFO_Reconnect_wait", sessionCounts.toString()));
+                    sleep(1000);
+                    sessionCounts = factory.getConnectionPoolSessionCounts();
+                }
+            }
+            if (!done) {
+                // timed out waiting for sessions to close
+                logger.warn(local.message("WARN_Reconnect_timeout", sessionCounts.toString()));
+            }
+            logger.warn(local.message("WARN_Reconnect_closing"));
+            // mark all cluster connections as closing
+            for (ClusterConnection clusterConnection: factory.pooledConnections) {
+                clusterConnection.closing();
+            }
+            // wait for connections to close on their own
+            sleep(1000);
+            // hard close connections that didn't close on their own
+            for (ClusterConnection clusterConnection: factory.pooledConnections) {
+                clusterConnection.close();
+            }
+            factory.pooledConnections.clear();
+            logger.warn(local.message("WARN_Reconnect_creating"));
+            factory.createClusterConnectionPool();
+            factory.verifyConnectionPool();
+            logger.warn(local.message("WARN_Reconnect_reopening"));
+            synchronized(factory) {
+                factory.state = State.Open;
+            }
+        }
+    }
 }

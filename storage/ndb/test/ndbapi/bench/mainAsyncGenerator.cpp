@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 
 #include <NdbSleep.h>
 #include <NdbThread.h>
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbEnv.h>
 #include <NdbTest.hpp>
@@ -87,7 +86,7 @@ static void usage(const char *prog)
 
 static
 int
-parse_args(int argc, const char **argv)
+parse_args(int argc, char **argv)
 {
    int i;
 
@@ -318,8 +317,7 @@ threadRoutine(void *arg)
   return NULL;
 }
 
-NDB_COMMAND(DbAsyncGenerator, "DbAsyncGenerator",
-	    "DbAsyncGenerator", "DbAsyncGenerator", 65535)
+int main(int argc, char** argv)
 {
   ndb_init();
   int i;

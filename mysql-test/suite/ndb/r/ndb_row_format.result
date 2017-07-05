@@ -11,6 +11,8 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	Row format FIXED incompatible with dynamic attribute b
 ForceVarPart: 0
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 7

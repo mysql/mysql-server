@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,6 +160,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   theCommitIndicator	= 0;
   theSimpleIndicator	= 0;
   theDirtyIndicator	= 0;
+  theReadCommittedBaseIndicator = 0;
   theInterpretIndicator	= 0;
   theDistrKeyIndicator_  = 0;
   theScanInfo        	= 0;

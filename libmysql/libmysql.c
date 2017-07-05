@@ -1103,7 +1103,11 @@ void my_net_local_init(NET *net)
   net->max_packet=   (uint) local_net_buffer_length;
   my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
   my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
+#ifndef MCP_BUG22389653
+  my_net_set_retry_count(net, 1);
+#else
   net->retry_count=  1;
+#endif
   net->max_packet_size= MY_MAX(local_net_buffer_length, local_max_allowed_packet);
 }
 

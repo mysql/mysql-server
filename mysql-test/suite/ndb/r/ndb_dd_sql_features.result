@@ -436,7 +436,8 @@ select length(@x0),length(@b2),length(@d2) from dual;
 length(@x0)	length(@b2)	length(@d2)
 256	20000	30000
 CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(1000), a3 BLOB)
-TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+TABLESPACE ts1 STORAGE DISK  ENGINE=NDB
+COMMENT="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 INSERT INTO test.t1 values(1,@vc1,@d1);
 INSERT INTO test.t1 values(2,@vc2,@d2);
 explain SELECT * from test.t1 WHERE a1 = 1;

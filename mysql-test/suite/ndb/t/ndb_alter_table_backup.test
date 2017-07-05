@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################
 # Author: Guangbao
 # Date: 2007-10-31
@@ -30,7 +25,9 @@ DROP TABLE IF EXISTS t1;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 DROP TABLE t1;
 
@@ -43,7 +40,9 @@ DROP TABLE t1;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 DROP TABLE t1;
 # End of 5.1 Test Case

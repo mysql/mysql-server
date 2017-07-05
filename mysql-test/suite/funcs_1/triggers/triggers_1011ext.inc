@@ -5,6 +5,9 @@
 #======================================================================
 # WL#4084: enable disabled parts, 2007-11-15, hhunger
 
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
 USE test;
 --source suite/funcs_1/include/tb3.inc
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +24,8 @@
 #define INVALID_ERROR_NUMBER 5007
 #define INVALID_TRACE_NUMBER 5008
 #define INVALID_BLOCK_NAME 5010
+#define WAIT_FOR_NDBD_TO_START_SHUTDOWN_FAILED 5024
+#define WAIT_FOR_NDBD_SHUTDOWN_FAILED 5025
 #define NODE_SHUTDOWN_IN_PROGESS 5026
 #define SYSTEM_SHUTDOWN_IN_PROGRESS 5027
 #define NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH 5028

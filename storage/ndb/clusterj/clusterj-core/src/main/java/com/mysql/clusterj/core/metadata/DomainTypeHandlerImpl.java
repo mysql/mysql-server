@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.DynamicObjectDelegate;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
+import com.mysql.clusterj.annotation.Projection;
 
 import com.mysql.clusterj.core.CacheManager;
 
@@ -131,7 +132,12 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                         "ERR_No_Persistence_Capable_Annotation", name));
             }
             this.tableName = persistenceCapable.table();
+            if (tableName.length() == 0) {
+                throw new ClusterJUserException(local.message(
+                        "ERR_No_TableAnnotation", name));
+            }
         }
+        List<String> columnNamesUsed = new ArrayList<String>();
         this.table = getTable(dictionary);
         if (table == null) {
             throw new ClusterJUserException(local.message("ERR_Get_NdbTable", name, tableName));
@@ -305,6 +311,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 if (columnNames[columnNumber].equals(columnName)) {
                     fieldNumberToColumnNumberMap[fieldNumber] = columnNumber;
                     found = true;
+                    columnNamesUsed.add(columnNames[columnNumber]);
                     break;
                 }
             }
@@ -313,6 +320,12 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 fieldNumberToColumnNumberMap[fieldNumber] = --transientFieldNumber;
                 transientFieldHandlerList.add((DomainFieldHandlerImpl) fieldHandler);
             }
+        }
+        // if projection, get list of projected fields and give them to the Table instance
+        if (cls.getAnnotation(Projection.class) != null) {
+            String[] projectedColumnNames = new String[columnNamesUsed.size()];
+            columnNamesUsed.toArray(projectedColumnNames);
+            table.setProjectedColumnNames(projectedColumnNames);
         }
         numberOfTransientFields = 0 - transientFieldNumber;
         transientFieldHandlers = 

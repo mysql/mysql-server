@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,13 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
  */
 void
 NdbCondition_ComputeAbsTime(struct timespec * dst, unsigned ms);
+
+/**
+ * compute an absolute time suitable for use with NdbCondition_WaitTimeoutAbs
+ * and store it in <em>dst</em> <em>ms</em> specifies nanoseconds from now
+ */
+void
+NdbCondition_ComputeAbsTime_ns(struct timespec * dst, Uint64 ns);
 
 /**
  * Signal a condition

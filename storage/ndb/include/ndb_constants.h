@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,5 +153,20 @@
 #define NDB_FK_CASCADE     2
 #define NDB_FK_SET_NULL    3
 #define NDB_FK_SET_DEFAULT 4
+
+/**
+ * Defines for FragmentCount specifier
+ */
+#define NDB_PARTITION_BALANCE_SPECIFIC             ~Uint32(0)
+#define NDB_PARTITION_BALANCE_FOR_RP_BY_LDM        ~Uint32(1)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM        ~Uint32(2)
+#define NDB_PARTITION_BALANCE_FOR_RP_BY_NODE       ~Uint32(3)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_NODE       ~Uint32(4)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2    ~Uint32(5)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3    ~Uint32(6)
+#define NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4    ~Uint32(7)
+
+#define NDB_DEFAULT_PARTITION_BALANCE \
+            NDB_PARTITION_BALANCE_FOR_RP_BY_LDM
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ static NdbTableImpl * f_altered_table = 0;
 
 // If we are linked with libstdc++ then thread safe
 // initialization of the shared table objects can be simplified
-#if HAVE_CXXABI_H
+#ifdef HAVE_CXXABI_H
 #include <my_pthread.h>
 
 static my_pthread_once_t once_control = MY_PTHREAD_ONCE_INIT;
@@ -42,7 +42,7 @@ void init_static_variables( void )
 #else
 extern NdbMutex *g_ndb_connection_mutex;
 static int ndb_dict_cache_count = 0;
-#endif // HAVE_CXXABI_H
+#endif
 
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
@@ -113,7 +113,7 @@ LocalDictCache::drop(const char * name){
 GlobalDictCache::GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::GlobalDictCache");
   // Initialize static variables
-#if HAVE_CXXABI_H
+#ifdef HAVE_CXXABI_H
   my_pthread_once(&once_control, init_static_variables);
 #else
   NdbMutex_Lock(g_ndb_connection_mutex);
@@ -123,7 +123,7 @@ GlobalDictCache::GlobalDictCache(){
     f_altered_table = new NdbTableImpl();
   ndb_dict_cache_count++;
   NdbMutex_Unlock(g_ndb_connection_mutex);
-#endif // HAVE_CXXABI_H
+#endif
   m_tableHash.createHashTable();
   m_waitForTableCondition = NdbCondition_Create();
   DBUG_VOID_RETURN;
@@ -131,7 +131,7 @@ GlobalDictCache::GlobalDictCache(){
 
 GlobalDictCache::~GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::~GlobalDictCache");
-#if !HAVE_CXXABI_H
+#ifndef HAVE_CXXABI_H
   NdbMutex_Lock(g_ndb_connection_mutex);
   if (--ndb_dict_cache_count == 0)
   {
@@ -147,7 +147,7 @@ GlobalDictCache::~GlobalDictCache(){
     }
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
-#endif // !HAVE_CXXABI_H
+#endif
   NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
   while(curr != 0){
     Vector<TableVersion> * vers = curr->theData;
