@@ -7602,6 +7602,10 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_rename_key($3.str, $5.str);
           }
+        | RENAME COLUMN_SYM ident TO_SYM ident
+          {
+            $$= NEW_PTN PT_alter_table_rename_column($3.str, $5.str);
+          }
         | CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
           {
             $$= NEW_PTN PT_alter_table_convert_to_charset($4, $5);
