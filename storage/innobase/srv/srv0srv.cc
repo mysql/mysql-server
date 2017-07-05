@@ -109,7 +109,7 @@ char*	srv_data_home	= NULL;
 char*	srv_undo_dir = NULL;
 
 /** The number of tablespaces to use for rollback segments. */
-ulong	srv_undo_tablespaces = 0;
+ulong	srv_undo_tablespaces = FSP_MIN_UNDO_TABLESPACES;
 
 /* The number of rollback segments per tablespace */
 ulong	srv_rollback_segments = TRX_SYS_N_RSEGS;
@@ -635,6 +635,18 @@ PSI_stage_info	srv_stage_alter_table_read_pk_internal_sort
 /** Performance schema stage event for monitoring buffer pool load progress. */
 PSI_stage_info	srv_stage_buffer_pool_load
 	= {0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring clone file copy progress. */
+PSI_stage_info srv_stage_clone_file_copy
+	= {0, "clone (file copy)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring clone redo copy progress. */
+PSI_stage_info srv_stage_clone_redo_copy
+	= {0, "clone (redo copy)", PSI_FLAG_STAGE_PROGRESS};
+
+/** Performance schema stage event for monitoring clone page copy progress. */
+PSI_stage_info srv_stage_clone_page_copy
+	= {0, "clone (page copy)", PSI_FLAG_STAGE_PROGRESS};
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /*********************************************************************//**
@@ -2770,7 +2782,18 @@ srv_purge_coordinator_suspend(
 			&& purge_sys->state == PURGE_STATE_STOP);
 
 		if (!stop) {
-			ut_a(purge_sys->n_stop == 0);
+			bool	check = true;
+			DBUG_EXECUTE_IF("skip_purge_check_shutdown",
+				if (srv_shutdown_state != SRV_SHUTDOWN_NONE
+				    && purge_sys->state == PURGE_STATE_STOP
+				    && srv_fast_shutdown != 0) {
+					check = false;
+				};
+			);
+
+			if (check) {
+				ut_a(purge_sys->n_stop == 0);
+			}
 			purge_sys->running = true;
 		} else {
 			ut_a(purge_sys->n_stop > 0);

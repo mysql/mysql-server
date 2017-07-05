@@ -3076,6 +3076,34 @@ ha_innopart::set_dd_discard_attribute(
 		dd::Properties& p = dd_part->table().se_private_data();
 		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
+		/* Get Tablespace object */
+		dd::Tablespace*		dd_space = nullptr;
+		THD*			thd = ha_thd();
+		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
+
+		char    name[FN_REFLEN];
+		snprintf(name, sizeof name, "%s.%u", dict_sys_t::file_per_table_name,
+			 table->space);
+
+		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+			ut_a(false);
+		}
+
+		if (client->acquire_for_modification(dd_space_id, &dd_space)) {
+			ut_a(false);
+		}
+
+		ut_a(dd_space != NULL);
+
+		dd_tablespace_set_discard(dd_space, discard);
+
+		if (client->update(dd_space)) {
+			ut_a(false);
+		}
+
 		const dict_index_t* index = table->first_index();
 		for (auto dd_index : *dd_part->indexes()) {
 			ut_ad(index != NULL);

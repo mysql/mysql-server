@@ -65,54 +65,64 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
 #define FIVE_NULL_ARGS  FOUR_NULL_ARGS, NULL_ARG
 #define CREATE_ITEM(X, ARGS) item= new (thd()->mem_root)X(POS(), ARGS)
 
-  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL);
-  CREATE_ITEM(Item_func_internal_table_rows, FOUR_NULL_ARGS);
+  // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL);
+  CREATE_ITEM(Item_func_internal_table_rows,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_avg_row_length, FOUR_NULL_ARGS);
+  // INTERNAL_AVG_ROW_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_avg_row_length,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_data_length, FOUR_NULL_ARGS);
+  // INTERNAL_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_data_length,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_max_data_length, FOUR_NULL_ARGS);
+  // INTERNAL_MAX_DATA_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_max_data_length,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_index_length, FOUR_NULL_ARGS);
+  // INTERNAL_INDEX_LENGTH(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_index_length,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_data_free, FOUR_NULL_ARGS);
+  // INTERNAL_DATA_FREE(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_data_free,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_auto_increment, FOUR_NULL_ARGS);
+  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_auto_increment,
+              prepare_null_list(null_list, null, 6));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_update_time, FOUR_NULL_ARGS);
+  // INTERNAL_UPDATE_TIME(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_update_time,
+              prepare_null_list(null_list, null, 5));
   MYSQL_TIME ldate;
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_check_time, FOUR_NULL_ARGS);
+  // INTERNAL_CHECK_TIME(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_check_time,
+              prepare_null_list(null_list, null, 5));
   item->get_date(&ldate, 0);
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL)
-  CREATE_ITEM(Item_func_internal_checksum, FOUR_NULL_ARGS);
+  // INTERNAL_CHECKSUM(NULL, NULL, NULL, NULL, NULL)
+  CREATE_ITEM(Item_func_internal_checksum,
+              prepare_null_list(null_list, null, 5));
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 

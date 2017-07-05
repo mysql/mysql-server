@@ -160,8 +160,6 @@ table_host_cache::table_host_cache()
 void
 table_host_cache::materialize(THD *thd)
 {
-  Host_entry *current;
-  Host_entry *first;
   uint size;
   uint index;
   row_host_cache *rows;
@@ -189,15 +187,14 @@ table_host_cache::materialize(THD *thd)
   index = 0;
   row = rows;
 
-  first = hostname_cache_first();
-  current = first;
-
-  while ((current != NULL) && (index < size))
   {
-    make_row(current, row);
-    index++;
-    row++;
-    current = current->next();
+    auto end = hostname_cache_end();
+    for (auto it = hostname_cache_begin(); it != end; ++it)
+    {
+      make_row(it->get(), row);
+      index++;
+      row++;
+    }
   }
 
   m_all_rows = rows;

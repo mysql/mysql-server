@@ -50,6 +50,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
+#include "clone0api.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 ulong		srv_max_purge_lag = 0;
@@ -645,7 +646,7 @@ namespace undo {
 	/** Build a standard undo tablespace name from a space_id.
 	@param[in]	space_id	id of the undo tablespace.
 	@return tablespace name of the undo tablespace file */
-	char* make_space_name(space_id_t space_id)
+	char* Tablespace::make_space_name(space_id_t space_id)
 	{
 		/* 8.0 undo tablespace names have an extra '_' */
 		bool	old = (id2num(space_id) == space_id);
@@ -667,7 +668,7 @@ namespace undo {
 	reserved range, else it will be like 'undo001'.
 	@param[in]	space_id	id of the undo tablespace.
 	@return file_name of the undo tablespace file */
-	char* make_file_name(space_id_t space_id)
+	char* Tablespace::make_file_name(space_id_t space_id)
 	{
 		/* 8.0 undo tablespace names have an extra '_' */
 		size_t	len = strlen(srv_undo_dir);
@@ -703,41 +704,32 @@ namespace undo {
 
 	/** Populate log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
-	@param[in]	log_file_name	name of the log file
 	@return DB_SUCCESS or error code */
-	dberr_t populate_log_file_name(
-		space_id_t	space_id,
-		char*&		log_file_name)
+	char* Tablespace::make_log_file_name(space_id_t space_id)
 	{
-		ulint log_file_name_sz =
+		size_t	size =
 			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
 			+ strlen(undo::s_log_prefix)
 			+ strlen(undo::s_log_ext);
 
-		log_file_name = new (std::nothrow) char[log_file_name_sz];
-		if (log_file_name == 0) {
-			return(DB_OUT_OF_MEMORY);
+		char*	name = static_cast<char*>(ut_malloc_nokey(size));
+
+		memset(name, 0, size);
+
+		strcpy(name, srv_log_group_home_dir);
+		ulint	len = strlen(name);
+
+		if (name[len - 1] != OS_PATH_SEPARATOR) {
+
+			name[len] = OS_PATH_SEPARATOR;
+			len = strlen(name);
 		}
 
-		memset(log_file_name, 0, log_file_name_sz);
+		snprintf(name + len, size - len,
+			 "%s%lu_%s", undo::s_log_prefix,
+			 (ulong) id2num(space_id), s_log_ext);
 
-		strcpy(log_file_name, srv_log_group_home_dir);
-		ulint	log_file_name_len = strlen(log_file_name);
-
-		if (log_file_name[log_file_name_len - 1]
-				!= OS_PATH_SEPARATOR) {
-
-			log_file_name[log_file_name_len]
-				= OS_PATH_SEPARATOR;
-			log_file_name_len = strlen(log_file_name);
-		}
-
-		snprintf(log_file_name + log_file_name_len,
-			    log_file_name_sz - log_file_name_len,
-			    "%s%lu_%s", undo::s_log_prefix,
-			    (ulong) id2num(space_id), s_log_ext);
-
-		return(DB_SUCCESS);
+		return(name);
 	}
 
 	/** Create the truncate log file.
@@ -746,18 +738,12 @@ namespace undo {
 	dberr_t start_logging(space_id_t space_id)
 	{
 		dberr_t	err;
-		char*	log_file_name;
-
-		/* Create the log file name using the pre-decided
-		prefix/suffix and table id of undo tablepsace to truncate. */
-		err = populate_log_file_name(space_id, log_file_name);
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
 
 		/* Delete the log file if it exists. */
-		os_file_delete_if_exists(
-			innodb_log_file_key, log_file_name, NULL);
+		os_file_delete_if_exists(innodb_log_file_key,
+					 log_file_name, NULL);
 
 		/* Create the log file, open it and write 0 to indicate
 		init phase. */
@@ -766,7 +752,6 @@ namespace undo {
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
-			delete[] log_file_name;
 			return(DB_IO_ERROR);
 		}
 
@@ -774,7 +759,6 @@ namespace undo {
 		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
 		if (buf == NULL) {
 			os_file_close(handle);
-			delete[] log_file_name;
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -790,9 +774,7 @@ namespace undo {
 
 		os_file_flush(handle);
 		os_file_close(handle);
-
 		ut_free(buf);
-		delete[] log_file_name;
 
 		return(err);
 	}
@@ -807,21 +789,14 @@ namespace undo {
 	void done_logging(space_id_t space_id)
 	{
 		dberr_t		err;
-		char*		log_file_name;
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
 		bool		exist;
 		os_file_type_t	type;
-
-		/* Create the log file name using the pre-decided
-		prefix/suffix and table id of undo tablepsace to truncate. */
-		err = populate_log_file_name(space_id, log_file_name);
-		if (err != DB_SUCCESS) {
-			return;
-		}
 
 		/* If this file does not exist, there is nothing to do. */
 		os_file_status(log_file_name, &exist, &type);
 		if (!exist) {
-			delete[] log_file_name;
 			return;
 		}
 
@@ -836,7 +811,6 @@ namespace undo {
 
 		if (!ret) {
 			os_file_delete(innodb_log_file_key, log_file_name);
-			delete[] log_file_name;
 			return;
 		}
 
@@ -845,7 +819,6 @@ namespace undo {
 		if (buf == NULL) {
 			os_file_close(handle);
 			os_file_delete(innodb_log_file_key, log_file_name);
-			delete[] log_file_name;
 			return;
 		}
 
@@ -861,14 +834,13 @@ namespace undo {
 		err = os_file_write(
 			request, log_file_name, handle, log_buf, 0, sz);
 
-		ut_ad(err == DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		os_file_flush(handle);
 		os_file_close(handle);
 
 		ut_free(buf);
 		os_file_delete(innodb_log_file_key, log_file_name);
-		delete[] log_file_name;
 	}
 
 	/** Check if TRUNCATE_DDL_LOG file exist.
@@ -876,21 +848,15 @@ namespace undo {
 	@return true if exist else false. */
 	bool is_active_truncate_log_present(space_id_t space_id)
 	{
-		dberr_t		err;
-		char*		log_file_name;
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
 
-		/* Step-1: Populate log file name. */
-		err = populate_log_file_name(space_id, log_file_name);
-		if (err != DB_SUCCESS) {
-			return(false);
-		}
-
-		/* Step-2: Check for existence of the file. */
+		/* Check for existence of the file. */
 		bool		exist;
 		os_file_type_t	type;
 		os_file_status(log_file_name, &exist, &type);
 
-		/* Step-3: If file exists, check it for presence of magic
+		/* If file exists, check it for presence of magic
 		number.  If found, then delete the file and report file
 		doesn't exist as presence of magic number suggest that
 		truncate action was complete. */
@@ -905,7 +871,6 @@ namespace undo {
 			if (!ret) {
 				os_file_delete(innodb_log_file_key,
 					       log_file_name);
-				delete[] log_file_name;
 				return(false);
 			}
 
@@ -915,7 +880,6 @@ namespace undo {
 				os_file_close(handle);
 				os_file_delete(innodb_log_file_key,
 					       log_file_name);
-				delete[] log_file_name;
 				return(false);
 			}
 
@@ -939,12 +903,10 @@ namespace undo {
 					<< log_file_name << "' : "
 					<< ut_strerr(err);
 
-				os_file_delete(
-					innodb_log_file_key, log_file_name);
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
 
 				ut_free(buf);
-
-				delete[] log_file_name;
 
 				return(false);
 			}
@@ -957,12 +919,9 @@ namespace undo {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,
 					       log_file_name);
-				delete[] log_file_name;
 				return(false);
 			}
 		}
-
-		delete[] log_file_name;
 
 		return(exist);
 	}
@@ -1025,15 +984,15 @@ void
 trx_purge_mark_undo_for_truncate(
 	undo::Truncate*	undo_trunc)
 {
+	/* We need at least 2 active UNDO tablespaces so that if one undo
+	tablespace is being truncated the server will continue to operate.
+	The minimum is now 2 so assert that we have at least 2. */
+	ut_a(undo::spaces->size() >= FSP_MIN_UNDO_TABLESPACES);
+
 	/* Return immediately if
 	     * truncate is disabled or
-	     * there are less than 2 active UNDO tablespaces or
-	     * an undo tablespace is currently marked for truncate.
-	Even if one UNDO tablespace is being truncated the server should
-	continue to operate. */
-	if (!srv_undo_log_truncate
-	    || undo::spaces->size() < 2
-	    || undo_trunc->is_marked()) {
+	     * an undo tablespace is currently marked for truncate. */
+	if (!srv_undo_log_truncate || undo_trunc->is_marked()) {
 		return;
 	}
 
@@ -1397,7 +1356,13 @@ trx_purge_truncate_history(
 	undo::spaces->s_unlock();
 	for (i = 0; i < n_spaces; i++) {
 		trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
-		trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+
+		/* Don't truncate if concurrent clone in progress. */
+		if (clone_mark_abort(false)) {
+
+			trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
+			clone_mark_active();
+		}
 	}
 }
 

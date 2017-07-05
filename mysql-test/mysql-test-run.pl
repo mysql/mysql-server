@@ -49,29 +49,6 @@ BEGIN {
   }
 }
 
-BEGIN {
-  # Check backward compatibility support
-  # By setting the environment variable MTR_VERSION
-  # it's possible to use a previous version of
-  # mysql-test-run.pl
-  my $version= $ENV{MTR_VERSION} || 2;
-  if ( $version == 1 )
-  {
-    print "ERROR: Version 1 of mysql-test-run is not supported!\n";
-    exit(1);
-  }
-  elsif ( $version == 2 )
-  {
-    # This is the current version, just continue
-    ;
-  }
-  else
-  {
-    print "ERROR: Version $version of mysql-test-run does not exist!\n";
-    exit(1);
-  }
-}
-
 use lib "lib";
 
 use Cwd;
@@ -109,7 +86,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
-my $mysql_version_extra;
+our $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -318,7 +295,7 @@ our $opt_user = "root";
 
 our $opt_valgrind= 0;
 my $opt_discover= 0;
-my $opt_sanitize= 0;
+our $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
@@ -1398,11 +1375,10 @@ sub command_line_setup {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$bindir/client_release",
-					 "$bindir/client_debug",
-					 vs_config_dirs('client', ''),
-					 "$bindir/client",
-					 "$bindir/bin");
+    $path_client_bindir=
+      mtr_path_exists(vs_config_dirs('runtime_output_directory', ''),
+		      "$bindir/client",
+		      "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
@@ -2231,7 +2207,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
@@ -2412,6 +2388,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+			     "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
@@ -2430,12 +2407,9 @@ sub mysql_client_test_arguments(){
 
 sub mysqlxtest_arguments(){
   my $exe;
-  # mysql_client_test executable may _not_ exist
+  # mysqlxtest executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('plugin', 'mysqlxtest'),
-                             "$bindir/rapid/plugin/x/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Debug/mysqlxtest",
-                             "$bindir/rapid/plugin/x/Release/mysqlxtest",
-                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
+			     "$path_client_bindir/mysqlxtest",
                              "$bindir/bin/mysqlxtest");
   return "" unless $exe;
 
@@ -2726,6 +2700,7 @@ sub environment_setup {
   # ----------------------------------------------------
   my $exe_bug25714=
       mtr_exe_maybe_exists(vs_config_dirs('testclients', 'bug25714'),
+			   "$path_client_bindir/bug25714",
                            "$basedir/testclients/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
@@ -2841,6 +2816,7 @@ sub environment_setup {
   # is needed when building with Xcode on OSX
   my $exe_mysql_tzinfo_to_sql= 
     mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
+		   "$path_client_bindir/mysql_tzinfo_to_sql",
                    "$basedir/bin/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 

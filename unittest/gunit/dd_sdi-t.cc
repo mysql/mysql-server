@@ -369,11 +369,11 @@ template <typename AP>
 void api_test(const AP &ap)
 {
   typedef typename AP::element_type T;
-  dd::sdi_t sdi= api_serialize(ap.get());
+  dd::Sdi_type sdi= api_serialize(ap.get());
   std::unique_ptr<T> d(dd::create_object<T>());
   dd::deserialize(nullptr, sdi, d.get());
 
-  dd::sdi_t d_sdi= api_serialize(d.get());
+  dd::Sdi_type d_sdi= api_serialize(d.get());
 
   EXPECT_EQ(d_sdi.size(), sdi.size());
   EXPECT_EQ(d_sdi, sdi);
@@ -552,7 +552,7 @@ TEST(SdiTest, Utf8Filename)
   dd::Table_impl x{};
   x.set_name("\xe0\xa0\x80");
   x.set_id(42);
-  dd::String_type path= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
+  dd::String_type path= dd::sdi_file::sdi_filename(x.id(), x.name(), "foobar");
   std::replace(path.begin(), path.end(), '\\', '/');
   EXPECT_EQ("./foobar/@0800_42.sdi", path);
 }
@@ -569,7 +569,7 @@ TEST(SdiTest, Utf8FilenameTrunc)
   dd::Table_impl x{};
   x.set_name(name);
   x.set_id(42);
-  dd::String_type fn= dd::sdi_file::sdi_filename<dd::Table>(&x, "foobar");
+  dd::String_type fn= dd::sdi_file::sdi_filename(x.id(), x.name(), "foobar");
   std::replace(fn.begin(), fn.end(), '\\', '/');
   EXPECT_EQ(96u, fn.length());
   EXPECT_EQ("./foobar/@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800@0800_42.sdi", fn);

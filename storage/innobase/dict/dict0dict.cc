@@ -42,6 +42,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mysqld.h"			// system_charset_info
 #include "que0types.h"
 #include "row0sel.h"
+#include "clone0api.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -89,6 +90,7 @@ extern uint	ibuf_debug;
 #include "sync0sync.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+#include "ha_innodb.h"
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
@@ -1098,11 +1100,10 @@ dict_table_open_on_id(
 
 		/* The table is SDI table */
 		space_id_t	space_id = dict_sdi_get_space_id(table_id);
-		uint32_t	copy_num = dict_sdi_get_copy_num(table_id);
 
 		/* Create in-memory table oject for SDI table */
 		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
-			space_id, copy_num, false, 0);
+			space_id, false, 0, false);
 
 		if (sdi_index == NULL) {
 			if (!dict_locked) {
@@ -1842,8 +1843,12 @@ dict_table_rename_in_cache(
 			return(err);
 		}
 
+		clone_mark_abort(true);
+
 		bool	success = fil_rename_tablespace(
 			table->space, old_path, new_name, new_path);
+
+		clone_mark_active();
 
 		ut_free(old_path);
 		ut_free(new_path);
@@ -5800,7 +5805,6 @@ dict_table_apply_dynamic_metadata(
 @param[in]	buffer		buffer to read
 @param[in]	size		size of data in buffer
 @param[in]	metadata	where we store the metadata from buffer */
-static
 void
 dict_table_read_dynamic_metadata(
 	const byte*		buffer,
@@ -7692,7 +7696,6 @@ Persisters::remove(
 
 /** Close SDI table.
 @param[in]	table		the in-meory SDI table object */
-UNIV_INLINE
 void
 dict_sdi_close_table(
 	dict_table_t*	table)
@@ -7701,22 +7704,15 @@ dict_sdi_close_table(
 	dict_table_close(table, true, false);
 }
 
-/* TODO: Remove this function after WL#7412. This function is
-use only in IMPORT/EXPORT as of now. */
-
 /** Retrieve in-memory index for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	space_id_t	tablespace_id,
-	uint32_t	copy_num)
+	space_id_t	tablespace_id)
 {
-	ut_ad(copy_num < MAX_SDI_COPIES);
-
 	dict_table_t*	table = dd_table_open_on_id(
-		dict_sdi_get_table_id(tablespace_id, copy_num), nullptr,
+		dict_sdi_get_table_id(tablespace_id), nullptr,
 		nullptr, true, true);
 
 	if (table != NULL) {
@@ -7728,64 +7724,68 @@ dict_sdi_get_index(
 
 /** Retrieve in-memory table object for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @param[in]	dict_locked	true if dict_sys mutex is acquired
+@param[in]	is_create	true if we are creating index
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
 	space_id_t	tablespace_id,
-	uint32_t	copy_num,
-	bool	dict_locked)
+	bool		dict_locked,
+	bool		is_create)
 {
-	ut_ad(copy_num < MAX_SDI_COPIES);
+	if (is_create) {
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
 
+		dict_sdi_create_idx_in_mem(tablespace_id, false, 0, true);
+
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
+	}
 	dict_table_t*   table = dd_table_open_on_id(
-		dict_sdi_get_table_id(tablespace_id, copy_num),
+		dict_sdi_get_table_id(tablespace_id),
 		NULL, NULL, dict_locked, true);
 
 	return(table);
 }
 
-/* TODO: WL#7141 Check if we can disable the locking on the SDI tables
-altogether. If purge or rollback needs to access the SDI table, it can create
-the SDI table object for the table_id on demand. */
-
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablespace_id
-@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	sdi_table	sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
 dict_sdi_remove_from_cache(
 	space_id_t	space_id,
-	dict_table_t**	sdi_tables,
+	dict_table_t*	sdi_table,
 	bool		dict_locked)
 {
-	if (space_id == SYSTEM_TABLE_SPACE) {
-		return;
+	if (sdi_table == NULL) {
+		/* Remove SDI table from table cache */
+		/* We already have MDL protection on tablespace as well
+		as MDL on SDI table */
+		sdi_table = dd_table_open_on_id_in_mem(
+			dict_sdi_get_table_id(space_id),
+			dict_locked);
+		if (sdi_table) {
+			dd_table_close(sdi_table, nullptr, nullptr,
+				       dict_locked);
+		}
+	} else {
+		dd_table_close(sdi_table, nullptr, nullptr,
+			       dict_locked);
 	}
 
-	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
-
-		dict_table_t*	sdi_table;
-
-		if (sdi_tables == NULL || sdi_tables[copy_num] ==  NULL) {
-			/* Remove SDI table from table cache for copy 0. */
-			/* TODO: newDD: Need MDL lock? */
-			sdi_table = dd_table_open_on_id_in_mem(
-				dict_sdi_get_table_id(space_id, copy_num),
-				dict_locked);
-			if (sdi_table) {
-				dd_table_close(sdi_table, nullptr, nullptr,
-					       dict_locked);
-			}
-		} else {
-			dd_table_close(sdi_tables[copy_num], nullptr, nullptr,
-				       dict_locked);
-			sdi_table = sdi_tables[copy_num];
+	if (sdi_table) {
+		if (!dict_locked) {
+			mutex_enter(&dict_sys->mutex);
 		}
 
-		if (sdi_table) {
-			dict_table_remove_from_cache(sdi_table);
+		dict_table_remove_from_cache(sdi_table);
+
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
 		}
 	}
 }
@@ -7908,4 +7908,119 @@ dict_table_is_system(table_id_t table_id)
 		}
 	}
 	return(false);
+}
+
+/** Acquire exclusive MDL on SDI tables. This is acquired to
+prevent concurrent DROP table/tablespace when there is purge
+happening on SDI table records. Purge will acquired shared
+MDL on SDI table.
+
+Exclusive MDL is transactional(released on trx commit). So
+for successful acquistion, there should be valid thd with
+trx associated.
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_exclusive_mdl(
+	THD*		thd,
+	space_id_t	space_id,
+	MDL_ticket**	sdi_mdl)
+{
+	/* Exclusive MDL always need trx context and is
+	released on trx commit. So check if thd & trx
+	exists */
+	ut_ad(thd != nullptr);
+	ut_ad(check_trx_exists(current_thd) != NULL);
+	ut_ad(sdi_mdl != nullptr);
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	char		tbl_buf[NAME_LEN + 1];
+	const char*	db_buf = "dummy_sdi_db";
+
+	snprintf(tbl_buf, sizeof(tbl_buf),
+		 "SDI_" SPACE_ID_PF, space_id);
+
+	if (dd::acquire_exclusive_table_mdl(
+		thd, db_buf, tbl_buf, false, sdi_mdl)) {
+		/* MDL failure can happen with lower timeout
+		values chosen by user */
+		return(DB_LOCK_WAIT_TIMEOUT);
+	}
+
+	/* MDL creation failed */
+	if (*sdi_mdl == nullptr) {
+		ut_ad(0);
+		return(DB_LOCK_WAIT_TIMEOUT);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Acquire shared MDL on SDI tables. This is acquired by purge to
+prevent concurrent DROP table/tablespace.
+DROP table/tablespace will acquire exclusive MDL on SDI table
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+MDL should be released by caller
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_shared_mdl(
+	THD*		thd,
+	space_id_t	space_id,
+	MDL_ticket**	sdi_mdl)
+{
+	ut_ad(sdi_mdl != nullptr);
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	char		tbl_buf[NAME_LEN + 1];
+	const char*	db_buf = "dummy_sdi_db";
+
+	snprintf(tbl_buf, sizeof(tbl_buf),
+		 "SDI_" SPACE_ID_PF, space_id);
+
+	if (dd::acquire_shared_table_mdl(
+		thd, db_buf, tbl_buf, false, sdi_mdl)) {
+		/* MDL failure can happen with lower timeout
+		values chosen by user */
+		return(DB_LOCK_WAIT_TIMEOUT);
+	}
+
+	/* MDL creation failed */
+	if (*sdi_mdl == nullptr) {
+		ut_ad(0);
+		return(DB_LOCK_WAIT_TIMEOUT);
+	}
+
+	return(DB_SUCCESS);
 }

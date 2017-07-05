@@ -57,20 +57,20 @@ MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
 TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
 
 IF(WITH_UNIT_TESTS AND FALSE)
-  ADD_EXECUTABLE(mi_test1 mi_test1.c)
+  MYSQL_ADD_EXECUTABLE(mi_test1 mi_test1.c SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test1 ${MYISAM_NOPFS} mysys_ssl)
   SET_TARGET_PROPERTIES(mi_test1 PROPERTIES LINKER_LANGUAGE CXX)
 
-  ADD_EXECUTABLE(mi_test2 mi_test2.c)
+  MYSQL_ADD_EXECUTABLE(mi_test2 mi_test2.c SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test2 myisam)
 
-  ADD_EXECUTABLE(mi_test3 mi_test3.c)
+  MYSQL_ADD_EXECUTABLE(mi_test3 mi_test3.c SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(mi_test3  myisam)
 
-  ADD_EXECUTABLE(sp_test sp_test.c)
+  MYSQL_ADD_EXECUTABLE(sp_test sp_test.c SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(sp_test myisam)
 
-  ADD_EXECUTABLE(rt_test rt_test.c)
+  MYSQL_ADD_EXECUTABLE(rt_test rt_test.c SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(rt_test myisam)
 ENDIF()
   

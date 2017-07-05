@@ -7,7 +7,7 @@
 ALTER TABLE performance_schema.replication_applier_configuration
   ADD COLUMN foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.replication_applier_configuration;
 
 -- error ER_DBACCESS_DENIED_ERROR

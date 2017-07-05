@@ -52,6 +52,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "clone0api.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
@@ -509,6 +510,9 @@ struct Fil_Open {
 	/** Read the state from disk
 	@param[in]	recovery	true if called from crash recovery */
 	void from_file(bool recovery);
+
+	/** Read tablespaces from data directory */
+	void from_current_dir();
 
 	/** Convert to a string */
 	std::string to_string() const;
@@ -2049,6 +2053,8 @@ fil_space_create(
 
 	DBUG_EXECUTE_IF("fil_space_create_failure", return(NULL););
 
+	/* Must set back to active before returning from function. */
+	clone_mark_abort(true);
 	mutex_enter(&fil_system->mutex);
 
 	/* Look for a matching tablespace. */
@@ -2060,6 +2066,7 @@ fil_space_create(
 		ib::warn() << "Tablespace '" << name << "' exists in the"
 			" cache with id " << space->id << " != " << id;
 
+		clone_mark_active();
 		return(NULL);
 	}
 
@@ -2071,6 +2078,7 @@ fil_space_create(
 			<< " to the tablespace memory cache, but tablespace '"
 			<< name << "' already exists in the cache!";
 		mutex_exit(&fil_system->mutex);
+		clone_mark_active();
 		return(NULL);
 	}
 
@@ -2134,6 +2142,7 @@ fil_space_create(
 
 	mutex_exit(&fil_system->mutex);
 
+	clone_mark_active();
 	return(space);
 }
 
@@ -2609,6 +2618,61 @@ fil_close_log_files(
 	mutex_exit(&fil_system->mutex);
 }
 
+/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
+returning the nodes via callback function cbk.
+@param[in]	include_log	include log files
+@param[in]	context		callback function context
+@param[in]	callback	callback function
+@return any error returned by the callback function. */
+dberr_t
+fil_iterate_tablespace_files(
+	bool		include_log,
+	void*		context,
+	fil_node_cbk_t*	callback)
+{
+	fil_space_t*	space;
+	dberr_t		err = DB_SUCCESS;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = UT_LIST_GET_FIRST(fil_system->space_list);
+
+	while (space != nullptr) {
+		fil_node_t*	node;
+
+		if (space->purpose != FIL_TYPE_TABLESPACE) {
+
+			if (!include_log || space->purpose != FIL_TYPE_LOG) {
+
+				space = UT_LIST_GET_NEXT(space_list, space);
+				continue;
+			}
+		}
+
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != nullptr;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+
+			err = callback(node, context);
+
+			if (err != DB_SUCCESS) {
+
+				break;
+			}
+		}
+
+		if (err != DB_SUCCESS) {
+
+			break;
+		}
+
+		space = UT_LIST_GET_NEXT(space_list, space);
+	}
+
+	mutex_exit(&fil_system->mutex);
+	return(err);
+}
+
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
@@ -3010,10 +3074,12 @@ fil_op_replay_rename(
 	new_table[namend - new_name - dirlen] = '/';
 #endif /* OS_PATH_SEPARATOR != '/' */
 
+	clone_mark_abort(true);
 	if (!fil_rename_tablespace(space_id, name, new_table, new_name)) {
 
 		ut_error;
 	}
+	clone_mark_active();
 
 	ut_free(new_table);
 	return(true);
@@ -3410,6 +3476,8 @@ fil_delete_tablespace(
 		}
 	}
 
+	/* Must set back to active before returning from function. */
+	clone_mark_abort(true);
 	mutex_enter(&fil_system->mutex);
 
 	/* Double check the sanity of pending ops after reacquiring
@@ -3448,6 +3516,8 @@ fil_delete_tablespace(
 	fil_system->m_open.enter();
 	fil_system->m_open.deleted(id);
 	fil_system->m_open.exit();
+
+	clone_mark_active();
 
 	return(err);
 }
@@ -3518,7 +3588,8 @@ fil_truncate_tablespace(
 		os_offset_t	size = size_in_pages * UNIV_PAGE_SIZE;
 
 		success = os_file_set_size(
-			node->name, node->handle, size, srv_read_only_mode);
+			node->name, node->handle, size,
+			srv_read_only_mode, true);
 
 		if (success) {
 			space->stop_new_ops = false;
@@ -3628,6 +3699,13 @@ fil_discard_tablespace(
 
 	default:
 		ut_error;
+	}
+
+	/* Set SDI tables that ibd is missing */
+	dict_table_t*	sdi_table = dict_sdi_get_table(id, true, false);
+	if (sdi_table) {
+		sdi_table->ibd_file_missing = true;
+		dict_sdi_close_table(sdi_table);
 	}
 
 	/* Remove all insert buffer entries for the tablespace */
@@ -3806,6 +3884,7 @@ fil_rename_tablespace(
 	ut_a(id != 0);
 
 	ut_ad(strchr(new_name, '/') != NULL);
+
 retry:
 	count++;
 
@@ -3832,7 +3911,6 @@ retry:
 			<< "' in a rename operation should have that id.";
 
 		mutex_exit(&fil_system->mutex);
-
 		return(false);
 
 	} else if (count > 25000) {
@@ -4120,13 +4198,15 @@ fil_ibd_create(
 		atomic_write = false;
 
 		success = os_file_set_size(
-			path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
+			path, file, size * UNIV_PAGE_SIZE,
+			srv_read_only_mode, true);
 	}
 #else
 	atomic_write = false;
 
 	success = os_file_set_size(
-		path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
+		path, file, size * UNIV_PAGE_SIZE,
+		srv_read_only_mode, true);
 
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
@@ -4876,18 +4956,22 @@ fil_space_for_table_exists_in_mem(
 			tmp_name = dict_mem_create_temporary_tablename(
 				heap, name, table_id);
 
+			clone_mark_abort(true);
 			fil_rename_tablespace(
 				fnamespace->id,
 				UT_LIST_GET_FIRST(fnamespace->chain)->name,
 				tmp_name, NULL);
+			clone_mark_active();
 		}
 
 		DBUG_EXECUTE_IF("ib_crash_after_adjust_one_fil_space",
 				DBUG_SUICIDE(););
 
+		clone_mark_abort(true);
 		fil_rename_tablespace(
 			id, UT_LIST_GET_FIRST(space->chain)->name,
 			name, NULL);
+		clone_mark_active();
 
 		DBUG_EXECUTE_IF("ib_crash_after_adjust_fil_space",
 				DBUG_SUICIDE(););
@@ -5179,8 +5263,10 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = static_cast<page_no_t>(
-			(end - node_start) / page_size);
+		pages_added = static_cast<page_no_t>(end / page_size);
+
+		ut_a(pages_added >= node->size);
+		pages_added -= node->size;
 
 	} else {
 		success = true;
@@ -5514,7 +5600,6 @@ fil_report_invalid_page_access(
 @param[in,out]	req_type	IO request
 @param[in]	page_id		page id
 @param[in]	space		table space */
-inline
 void
 fil_io_set_encryption(
 	IORequest&		req_type,
@@ -5544,6 +5629,11 @@ fil_io_set_encryption(
 		req_type.clear_encrypted();
 		return;
 	}
+
+	/* Make any active clone operation to abort, in case
+	log encryption is set after clone operation is started. */
+	clone_mark_abort(true);
+	clone_mark_active();
 
 	req_type.encryption_key(space->encryption_key,
 				space->encryption_klen,
@@ -8061,6 +8151,31 @@ Fil_Open::parse(std::istream& is, lsn_t& max_lsn, bool recovery)
 	return(true);
 }
 
+/** Read tablespaces from data directory */
+void
+Fil_Open::from_current_dir()
+{
+	/* Scan data directory to find all tablespaces */
+	fil_scan_for_tablespaces(".");
+
+	for (const auto& space : fil_scanned->m_spaces) {
+
+		if (space.first == TRX_SYS_SPACE){
+
+			continue;
+		}
+
+		for (const auto& file : space.second.m_files) {
+
+			load(space.first, file.m_name,
+			     file.m_state, file.m_open_lsn);
+		}
+	}
+
+	UT_DELETE(fil_scanned);
+	fil_scanned = nullptr;
+}
+
 /** Read the state from disk
 @param[in]	recovery	true if called from crash recovery */
 void
@@ -8796,7 +8911,13 @@ void
 fil_tablespace_open_init_for_recovery(bool recovery)
 {
 	/* Single threaded mode, no need to acquire mutex. */
-	fil_system->m_open.from_file(recovery);
+	if (recv_sys->is_cloned_db) {
+
+		fil_system->m_open.from_current_dir();
+	} else {
+
+		fil_system->m_open.from_file(recovery);
+	}
 }
 
 /** Lookup the space ID.
@@ -8991,24 +9112,23 @@ fil_tokenize_paths(
 
 			os_normalize_path(dir.data());
 
-			/* Convert to the absolute path of the
-			directory. Required to filter out the
-			duplicate entries. */
+			/* Don't convert to absolute  path as the same would
+			be loaded to innodb tablespace node. Otherwise,
+			it could mistmatch with DD node path.
+			abs_path = Fil_Open::get_path(dir.data(), ""); */
 
-			std::string	abs_path;
-
-			abs_path = Fil_Open::get_path(dir.data(), "");
+			std::string	cur_path(dir.data());
 
 			os_file_type_t	type;
 			bool		exists;
 
 			if (os_file_status(
-				abs_path.c_str(), &exists, &type) && exists) {
+				cur_path.c_str(), &exists, &type) && exists) {
 
 				if (type == OS_FILE_TYPE_DIR) {
 
 
-					dirs.push_back(abs_path);
+					dirs.push_back(cur_path);
 
 				} else {
 					ib::warn()
@@ -9159,6 +9279,60 @@ fil_scan_for_tablespaces(const std::string& directories)
 		}
 
 		ib::warn() << oss.str();
+	}
+
+	return(err);
+}
+
+/** Callback to check tablespace size with space header size and extend
+@param[in]	node	file node
+@param[in]	context	callers context, currently unused
+@return	error code */
+dberr_t
+fil_check_extend_space(
+	fil_node_t*	node,
+	void* 		context MY_ATTRIBUTE((unused)))
+{
+	dberr_t	err = DB_SUCCESS;
+	bool	open_node = !node->is_open;
+
+	if (recv_sys == nullptr || !recv_sys->is_cloned_db) {
+
+		return(DB_SUCCESS);
+	}
+
+	if (open_node && !fil_node_open_file(node, false)) {
+
+		return(DB_CANNOT_OPEN_FILE);
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	fil_space_t*	space = node->space;
+
+	if (space->size < space->size_in_header) {
+
+		ib::info() << "Extending space: " << space->name
+			   << " from size " << space->size
+			   << " pages to " << space->size_in_header
+			   << " pages as stored in space header.";
+
+		if(!fil_space_extend(space, space->size_in_header)) {
+
+			ib::error() << "Failed to extend tablespace."
+				    << " Check for free space in disk"
+				    << " and try again.";
+
+			err = DB_OUT_OF_FILE_SPACE;
+		}
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	/* Close node if it was opened by current function */
+	if (open_node) {
+
+		fil_node_close_file(node, false);
 	}
 
 	return(err);

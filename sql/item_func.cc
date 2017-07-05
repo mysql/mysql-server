@@ -58,7 +58,7 @@
 #include "log_event.h"
 #include "m_string.h"
 #include "mdl.h"
-#include "mutex_lock.h"
+#include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -703,66 +703,6 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 {}
 
 
-
-/**
-  Set max_length/decimals of function if function is fixed point and
-  result length/precision depends on argument ones.
-
-  @param item    Argument array.
-  @param nitems  Number of arguments in the array.
-
-  This function doesn't set unsigned_flag. Call agg_result_type()
-  first to do that.
-*/
-
-void Item_func::count_decimal_length(Item **item, uint nitems)
-{
-  int max_int_part= 0;
-  decimals= 0;
-  for (uint i=0 ; i < nitems ; i++)
-  {
-    set_if_bigger(decimals, item[i]->decimals);
-    set_if_bigger(max_int_part, item[i]->decimal_int_part());
-  }
-  int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
-  fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
-                                                               decimals,
-                                                               unsigned_flag));
-}
-
-/**
-  Set max_length/decimals of function if function is floating point and
-  result length/precision depends on argument ones.
-
-  @param item    Argument array.
-  @param nitems  Number of arguments in the array.
-*/
-
-void Item_func::count_real_length(Item **item, uint nitems)
-{
-  uint32 length= 0;
-  decimals= 0;
-  max_length= 0;
-  for (uint i=0 ; i < nitems; i++)
-  {
-    if (decimals != NOT_FIXED_DEC)
-    {
-      set_if_bigger(decimals, item[i]->decimals);
-      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
-    }
-    set_if_bigger(max_length, item[i]->max_length);
-  }
-  if (decimals != NOT_FIXED_DEC)
-  {
-    max_length= length;
-    length+= decimals;
-    if (length < max_length)  // If previous operation gave overflow
-      max_length= UINT_MAX32;
-    else
-      max_length= length;
-  }
-}
-
 void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
@@ -1168,10 +1108,10 @@ void Item_num_op::set_numeric_type(void)
       type codes, we should never get to here when both fields are temporal.
     */
     DBUG_ASSERT(!args[0]->is_temporal() || !args[1]->is_temporal());
-    count_real_length(args, arg_count);
-    max_length= float_length(decimals);
     set_data_type(MYSQL_TYPE_DOUBLE);
     hybrid_type= REAL_RESULT;
+    aggregate_float_properties(args, arg_count);
+    max_length= float_length(decimals);
   }
   else if (r0 == DECIMAL_RESULT || r1 == DECIMAL_RESULT)
   {
@@ -3692,7 +3632,7 @@ bool Item_func_min_max::resolve_type(THD*)
   if (compare_as_dates && data_type() == MYSQL_TYPE_VARCHAR)
   {
     set_data_type(datetime_item->data_type());
-    count_datetime_length(args, arg_count);
+    aggregate_temporal_properties(args, arg_count);
     set_data_type(MYSQL_TYPE_VARCHAR);
   }
 
@@ -7597,7 +7537,7 @@ longlong Item_func_get_system_var::get_sys_var_safe(THD *thd)
 {
   T value;
   {
-    Mutex_lock lock(&LOCK_global_system_variables);
+    MUTEX_LOCK(lock, &LOCK_global_system_variables);
     value= *pointer_cast<T *>(var->value_ptr(thd, var_type, &component));
   }
   cache_present|= GET_SYS_VAR_CACHE_LONG;
@@ -8931,10 +8871,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   res= Item_func::fix_fields(thd, ref);
 
-  /* These is reset/set by Item_func::fix_fields. */
-  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
-    const_item_cache= false;
-
   if (res)
     DBUG_RETURN(res);
 
@@ -8968,9 +8904,6 @@ void Item_func_sp::update_used_tables()
 {
   Item_func::update_used_tables();
 
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
-
   /* This is reset by Item_func::update_used_tables(). */
   set_stored_program();
 }
@@ -8988,8 +8921,6 @@ void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
             doesn't reference any tables.
   */
   used_tables_cache|= PARAM_TABLE_BIT;
-
-  const_item_cache= used_tables_cache == 0;
 }
 
 
@@ -9644,9 +9575,16 @@ static ulonglong get_statistics_from_cache(
   String schema_name;
   String table_name;
   String engine_name;
+  String ts_se_private_data;
+  String tbl_se_private_data;
   String *schema_name_ptr=args[0]->val_str(&schema_name);
   String *table_name_ptr=args[1]->val_str(&table_name);
   String *engine_name_ptr=args[2]->val_str(&engine_name);
+  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *tbl_se_private_data_ptr= nullptr;
+  if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
+    tbl_se_private_data_ptr= args[5]->val_str(&tbl_se_private_data);
+
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr)
   {
@@ -9666,12 +9604,18 @@ static ulonglong get_statistics_from_cache(
   // Read the statistic value from cache.
   THD *thd= current_thd;
   dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
-  ulonglong result= thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
-                                                      *schema_name_ptr,
-                                                      *table_name_ptr,
-                                                      *engine_name_ptr,
-                                                      se_private_id,
-                                                      stype);
+  ulonglong result=
+    thd->lex->m_IS_dyn_stat_cache.read_stat(thd,
+                *schema_name_ptr,
+                *table_name_ptr,
+                *engine_name_ptr,
+                se_private_id,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr),
+                (tbl_se_private_data_ptr ?
+                 tbl_se_private_data_ptr->c_ptr_safe() : nullptr),
+                stype);
+
   DBUG_RETURN(result);
 }
 
@@ -9878,6 +9822,8 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             column_ordinal_position - 1,
             *engine_name_ptr,
             se_private_id,
+            nullptr,
+            nullptr,
             dd::info_schema::enum_statistics_type::INDEX_COLUMN_CARDINALITY);
 
   if (result == (ulonglong) -1)

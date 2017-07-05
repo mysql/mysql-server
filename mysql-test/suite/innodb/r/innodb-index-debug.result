@@ -102,6 +102,10 @@ t1	CREATE TABLE `t1` (
   `k3` char(200) DEFAULT NULL,
   PRIMARY KEY (`k1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1023 DEFAULT CHARSET=utf8mb4
+SET DEBUG_SYNC='RESET';
+# SDI output shouldn't show new column "k4" because
+# ALTER failed
+# restart
 drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';

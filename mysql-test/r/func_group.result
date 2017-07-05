@@ -1939,3 +1939,79 @@ FROM t1 t GROUP BY t1.a)
 0
 0
 DROP TABLE t1;
+#
+# Bug#25738624: ASSERTION `FALSE' FAILED IN SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE e1(pk INT, col_date DATE);
+CREATE TABLE b1(i INT);
+CREATE TABLE bb4(col_int_key INT, KEY(col_int_key)) ENGINE=MYISAM;
+INSERT INTO bb4 VALUES(4);
+UPDATE IGNORE e1 AS outr1, b1 AS outr2 SET outr1.col_date =
+JSON_SET(outr1.col_date, CONCAT('$','[',1,']','.','cdate'), '2007-07-12')
+WHERE outr1.pk <= ANY ( SELECT DISTINCT innr1.col_int_key AS y FROM bb4
+AS innr2 LEFT JOIN bb4 AS innr1 ON (innr2.col_int_key <> innr1.col_int_key)
+WHERE innr1.col_int_key= 4);
+DROP TABLE e1, b1, bb4;
+CREATE TABLE t1(pk INT, KEY(pk)) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+SELECT MIN(i2.pk) FROM t1 i1 LEFT JOIN t1 i2 ON (i1.pk != i2.pk)
+WHERE i2.pk = 1;
+MIN(i2.pk)
+NULL
+DROP TABLE t1;
+# End of test for bug#25738624
+#
+# Bug#25541454: ASSERT `FALSE' FAILED IN READ_SYSTEM / JOIN_READ_CONST_TABLE AT SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,1,2);
+CREATE TABLE t3 (
+col_int int(11) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (3,9,1);
+CREATE TABLE t4 (
+col_int_key int(11) DEFAULT NULL,
+col_int int(11) DEFAULT NULL,
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+SELECT (
+SELECT MIN(subquery1_t1.col_int_key)
+FROM t3 AS subquery1_t1
+RIGHT JOIN t1 AS subquery1_t2
+STRAIGHT_JOIN t4 AS subquery1_t3
+ON (subquery1_t3.pk = subquery1_t2.col_int_key)
+ON (subquery1_t3.col_int_key = subquery1_t2.col_int)
+WHERE subquery1_t1.col_int_key >= table1.col_int
+AND subquery1_t3.pk > table1.pk
+)
+FROM t2 AS table1;
+(
+SELECT MIN(subquery1_t1.col_int_key)
+FROM t3 AS subquery1_t1
+RIGHT JOIN t1 AS subquery1_t2
+STRAIGHT_JOIN t4 AS subquery1_t3
+ON (subquery1_t3.pk = subquery1_t2.col_int_key)
+ON (subquery1_t3.col_int_key = subquery1_t2.col_int)
+WHERE subquery1_t1.col_int_k
+NULL
+DROP TABLE t1, t2, t3, t4;
+# End of test for bug#25541454

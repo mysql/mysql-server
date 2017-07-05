@@ -561,9 +561,9 @@ serialize_json_array(const THD *thd, const Json_array *array, String *dest,
   if (dest->fill(dest->length() + size * entry_size, 0))
     return FAILURE;                             /* purecov: inspected */
 
-  for (uint32 i= 0; i < size; i++)
+  for (const auto &child : *array)
   {
-    const Json_dom *elt= (*array)[i];
+    const Json_dom *elt= child.get();
     if (!attempt_inline_value(elt, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
@@ -647,26 +647,24 @@ serialize_json_object(const THD *thd, const Json_object *object, String *dest,
   dest->fill(dest->length() + size * value_entry_size, 0);
 
   // Add the actual keys.
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (dest->append(it->first.c_str(), it->first.length()))
+    if (dest->append(member.first.c_str(), member.first.length()))
       return FAILURE;                         /* purecov: inspected */
   }
 
   // Add the values, and update the value entries accordingly.
   size_t entry_pos= start_of_value_entries;
-  for (Json_object::const_iterator it= object->begin(); it != object->end();
-       ++it)
+  for (const auto &member : *object)
   {
-    if (!attempt_inline_value(it->second, dest, entry_pos, large))
+    const Json_dom *child= member.second.get();
+    if (!attempt_inline_value(child, dest, entry_pos, large))
     {
       size_t offset= dest->length() - start_pos;
       if (is_too_big_for_json(offset, large))
         return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res= serialize_json_value(thd, it->second, entry_pos, dest, depth,
-                                !large);
+      res= serialize_json_value(thd, child, entry_pos, dest, depth, !large);
       if (res != OK)
         return res;
     }
@@ -946,56 +944,6 @@ serialize_json_value(const THD *thd, const Json_dom *dom, size_t type_pos,
 }
 
 
-// Constructor for literals and errors.
-Value::Value(enum_type t)
-  : m_data(nullptr), m_element_count(), m_length(), m_field_type(), m_type(t),
-    m_large()
-{
-  DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
-              t == ERROR);
-}
-
-
-// Constructor for int and uint.
-Value::Value(enum_type t, int64 val)
-  : m_int_value(val), m_element_count(), m_length(), m_field_type(), m_type(t),
-    m_large()
-{
-  DBUG_ASSERT(t == INT || t == UINT);
-}
-
-
-// Constructor for double.
-Value::Value(double d)
-  : m_double_value(d), m_element_count(), m_length(), m_field_type(),
-    m_type(DOUBLE), m_large()
-{}
-
-
-// Constructor for string.
-Value::Value(const char *data, uint32 len)
-  : m_data(data), m_element_count(), m_length(len), m_field_type(),
-    m_type(STRING), m_large()
-{}
-
-
-// Constructor for arrays and objects.
-Value::Value(enum_type t, const char *data, uint32 bytes,
-             uint32 element_count, bool large)
-  : m_data(data), m_element_count(element_count), m_length(bytes),
-    m_field_type(), m_type(t), m_large(large)
-{
-  DBUG_ASSERT(t == ARRAY || t == OBJECT);
-}
-
-
-// Constructor for opaque values.
-Value::Value(enum_field_types ft, const char *data, uint32 len)
-  : m_data(data), m_element_count(), m_length(len), m_field_type(ft),
-    m_type(OPAQUE), m_large()
-{}
-
-
 bool Value::is_valid() const
 {
   switch (m_type)
@@ -1040,80 +988,6 @@ bool Value::is_valid() const
     // This is a valid scalar value.
     return true;
   }
-}
-
-
-/**
-  Get a pointer to the beginning of the STRING or OPAQUE data
-  represented by this instance.
-*/
-const char *Value::get_data() const
-{
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
-  return m_data;
-}
-
-
-/**
-  Get the length in bytes of the STRING or OPAQUE value represented by
-  this instance.
-*/
-uint32 Value::get_data_length() const
-{
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
-  return m_length;
-}
-
-
-/**
-  Get the value of an INT.
-*/
-int64 Value::get_int64() const
-{
-  DBUG_ASSERT(m_type == INT);
-  return m_int_value;
-}
-
-
-/**
-  Get the value of a UINT.
-*/
-uint64 Value::get_uint64() const
-{
-  DBUG_ASSERT(m_type == UINT);
-  return static_cast<uint64>(m_int_value);
-}
-
-
-/**
-  Get the value of a DOUBLE.
-*/
-double Value::get_double() const
-{
-  DBUG_ASSERT(m_type == DOUBLE);
-  return m_double_value;
-}
-
-
-/**
-  Get the number of elements in an array, or the number of members in
-  an object.
-*/
-uint32 Value::element_count() const
-{
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
-  return m_element_count;
-}
-
-
-/**
-  Get the MySQL field type of an opaque value. Identifies the type of
-  the value stored in the data portion of an opaque value.
-*/
-enum_field_types Value::field_type() const
-{
-  DBUG_ASSERT(m_type == OPAQUE);
-  return m_field_type;
 }
 
 

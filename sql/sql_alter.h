@@ -64,19 +64,50 @@ public:
 
 
 /**
-  Class representing SET DEFAULT and DROP DEFAULT clauses in
-  ALTER TABLE statement.
+  Class representing SET DEFAULT, DROP DEFAULT and RENAME
+  COLUMN clause in ALTER TABLE statement.
 */
 
 class Alter_column : public Sql_alloc
 {
 public:
+  /// The column name being altered.
   const char *name;
+
+  /// The default value supplied.
   Item *def;
 
+  /// The new colum name.
+  const char *m_new_name;
+
+  enum class Type { SET_DEFAULT, DROP_DEFAULT, RENAME_COLUMN };
+
+public:
+
+  /// Type of change requested in ALTER TABLE.
+  inline Type change_type() const
+  { return m_type; }
+
+  /// Constructor used when changing field DEFAULT value.
   Alter_column(const char *par_name, Item *literal)
-    :name(par_name), def(literal)
+    :name(par_name), def(literal), m_new_name(nullptr)
+  {
+    if (def)
+      m_type= Type::SET_DEFAULT;
+    else
+      m_type= Type::DROP_DEFAULT;
+  }
+
+  /// Constructor used while renaming field name.
+  Alter_column(const char *old_name, const char *new_name)
+    :name(old_name),
+     def(nullptr),
+     m_new_name(new_name),
+     m_type(Type::RENAME_COLUMN)
   { }
+
+private:
+  Type m_type;
 };
 
 

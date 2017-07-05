@@ -34,6 +34,9 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
 SET(INNOBASE_SOURCES
 	api/api0api.cc
 	api/api0misc.cc
+	arch/arch0arch.cc
+	arch/arch0page.cc
+	arch/arch0log.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
 	btr/btr0pcur.cc
@@ -46,6 +49,12 @@ SET(INNOBASE_SOURCES
 	buf/buf0flu.cc
 	buf/buf0lru.cc
 	buf/buf0rea.cc
+	clone/clone0api.cc
+	clone/clone0clone.cc
+	clone/clone0copy.cc
+	clone/clone0apply.cc
+	clone/clone0desc.cc
+	clone/clone0snapshot.cc
 	data/data0data.cc
 	data/data0type.cc
 	dict/dict0boot.cc
@@ -54,6 +63,7 @@ SET(INNOBASE_SOURCES
 	dict/dict0dd.cc
 	dict/dict0load.cc
 	dict/dict0mem.cc
+	dict/dict0sdi.cc
 	dict/dict0stats.cc
 	dict/dict0stats_bg.cc
 	dict/dict0upgrade.cc

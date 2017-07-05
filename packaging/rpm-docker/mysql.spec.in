@@ -198,6 +198,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
 	component_example_component3.so component_log_sink_test.so \
 	component_test_string_service_charset.so component_test_string_service_long.so \
 	component_test_string_service.so qa_auth_interface.so \
+	component_pfs_example.so \
     component_pfs_example_component_population.so pfs_example_plugin_employee.so \
 	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
 	test_udf_services.so test_security_context.so test_services_plugin_registry.so \
@@ -346,6 +347,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so

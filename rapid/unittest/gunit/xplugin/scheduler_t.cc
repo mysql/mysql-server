@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ struct Result_collector
   void task(const T& value)
   {
     {
-      Mutex_lock lock(m_result_mutex);
+      MUTEX_LOCK(lock, m_result_mutex);
 
       m_result.push_back(value);
     }
@@ -49,7 +49,7 @@ struct Result_collector
 
   void wait(size_t task_count)
   {
-    Mutex_lock lock(m_check_task_count_mutex);
+    MUTEX_LOCK(lock, m_check_task_count_mutex);
 
     while (m_result.size() != task_count)
       m_check_task_count_cond.wait(m_check_task_count_mutex);

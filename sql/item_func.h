@@ -279,8 +279,6 @@ public:
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
-  void count_real_length(Item **item, uint nitems);
-  void count_decimal_length(Item **item, uint nitems);
   bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
@@ -2359,9 +2357,9 @@ public:
 class Item_func_internal_table_rows : public Item_int_func
 {
 public:
-  Item_func_internal_table_rows(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_table_rows(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_table_rows"; }
@@ -2376,9 +2374,9 @@ public:
 class Item_func_internal_avg_row_length : public Item_int_func
 {
 public:
-  Item_func_internal_avg_row_length(const POS &pos,
-                                    Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_avg_row_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_avg_row_length"; }
@@ -2393,9 +2391,9 @@ public:
 class Item_func_internal_data_length : public Item_int_func
 {
 public:
-  Item_func_internal_data_length(const POS &pos,
-                                 Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_data_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_length"; }
@@ -2410,9 +2408,9 @@ public:
 class Item_func_internal_max_data_length : public Item_int_func
 {
 public:
-  Item_func_internal_max_data_length(const POS &pos,
-                                     Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_max_data_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_max_data_length"; }
@@ -2427,9 +2425,9 @@ public:
 class Item_func_internal_index_length : public Item_int_func
 {
 public:
-  Item_func_internal_index_length(const POS &pos,
-                                  Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_index_length(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_index_length"; }
@@ -2444,9 +2442,9 @@ public:
 class Item_func_internal_data_free : public Item_int_func
 {
 public:
-  Item_func_internal_data_free(const POS &pos,
-                               Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_data_free(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_data_free"; }
@@ -2461,9 +2459,9 @@ public:
 class Item_func_internal_auto_increment : public Item_int_func
 {
 public:
-  Item_func_internal_auto_increment(const POS &pos,
-                                    Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_auto_increment(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_auto_increment"; }
@@ -2478,9 +2476,9 @@ public:
 class Item_func_internal_checksum : public Item_int_func
 {
 public:
-  Item_func_internal_checksum(const POS &pos,
-                              Item *a, Item *b, Item *c, Item *d)
-    : Item_int_func(pos, a, b, c, d)
+  Item_func_internal_checksum(
+    const POS &pos, PT_item_list *list)
+    : Item_int_func(pos, list)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_checksum"; }
@@ -3531,6 +3529,21 @@ public:
     return sp_result_field;
   }
 
+  /**
+    Ensure that deterministic functions are not evaluated in preparation phase
+    by returning false before tables are locked and true after they are locked.
+    (can_be_evaluated_now() handles this because a function has the
+    has_subquery() property).
+
+     @retval true if tables are locked for deterministic functions
+     @retval false Otherwise
+  */
+  bool const_item() const override
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
 };
 
 

@@ -175,10 +175,7 @@ SET(CLIENT_SOURCES
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  SET_SOURCE_FILES_PROPERTIES(
-    ../sql-common/client_authentication.cc
-    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
-  )
+  LIST(APPEND CLIENT_SOURCES "${OPENSSL_APPLINK_C}")
 ENDIF()
 
 #
@@ -313,7 +310,8 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 # from @CLIENT_API_FUNCTIONS@ are declared by <mysql.h>. It will fail
 # to run if not all of these symbols are exported by the library.
 #
-ADD_EXECUTABLE(libmysql_api_test ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+MYSQL_ADD_EXECUTABLE(libmysql_api_test
+  ${CMAKE_CURRENT_BINARY_DIR}/api_test.c SKIP_INSTALL)
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})

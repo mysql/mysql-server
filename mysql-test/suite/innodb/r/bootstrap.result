@@ -2,7 +2,8 @@
 # Bug#16691130 - ASSERT WHEN INNODB_LOG_GROUP_HOME_DIR DOES NOT EXIST
 # Bug#16418661 - CHANGING NAME IN FOR INNODB_DATA_FILE_PATH SHOULD NOT SUCCEED WITH LOG FILES
 # Write tmp/log_file/my.cnf
-# Start mysqld without the possibility to create innodb_undo_tablespaces
+# Start mysqld without the possibility to create undo tablespaces
+# because a directory exists named 'undo_002'.
 undo_002
 # Start mysqld to create tablespaces according to my.cnf
 # Backup the datadir

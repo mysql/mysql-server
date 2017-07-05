@@ -1278,7 +1278,7 @@ void THD::awake(THD::killed_state state_to_set)
       However, there is still a small chance of failure on platforms with
       instruction or memory write reordering.
     */
-    if (current_cond && current_mutex)
+    if (current_cond.load() && current_mutex.load())
     {
       DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
                       {

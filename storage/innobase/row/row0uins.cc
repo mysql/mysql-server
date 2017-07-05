@@ -155,12 +155,6 @@ retry:
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 
-	/* If table is SDI table, we will try to flush as early
-	as possible. */
-	if (dict_table_is_sdi(node->table->id)) {
-		buf_flush_sync_all_buf_pools();
-	}
-
 	return(err);
 }
 

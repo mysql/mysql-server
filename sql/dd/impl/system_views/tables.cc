@@ -107,43 +107,53 @@ Tables_dynamic::Tables_dynamic()
   m_target_def.add_field(FIELD_TABLE_ROWS, "TABLE_ROWS",
                          "INTERNAL_TABLE_ROWS(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_AVG_ROW_LENGTH, "AVG_ROW_LENGTH",
                          "INTERNAL_AVG_ROW_LENGTH(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_DATA_LENGTH, "DATA_LENGTH",
                          "INTERNAL_DATA_LENGTH(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_MAX_DATA_LENGTH, "MAX_DATA_LENGTH",
                          "INTERNAL_MAX_DATA_LENGTH(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_INDEX_LENGTH, "INDEX_LENGTH",
                          "INTERNAL_INDEX_LENGTH(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_DATA_FREE, "DATA_FREE",
                          "INTERNAL_DATA_FREE(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_AUTO_INCREMENT, "AUTO_INCREMENT",
                          "INTERNAL_AUTO_INCREMENT(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, "
+                         "ts.se_private_data, tbl.se_private_data)");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
                          "INTERNAL_UPDATE_TIME(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_CHECK_TIME, "CHECK_TIME",
                          "INTERNAL_CHECK_TIME(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
   m_target_def.add_field(FIELD_CHECKSUM, "CHECKSUM",
                          "INTERNAL_CHECKSUM(sch.name, tbl.name,"
                          "  IF(IFNULL(tbl.partition_type,'')='',tbl.engine,''),"
-                         "     tbl.se_private_id)");
+                         "     tbl.se_private_id, ts.se_private_data)");
+
+  /*
+    Supply mysql.tablespaces.se_private_data to internal functions
+    INTERNAL_*(), which is used by SE to read the SE specific tablespace
+    metadata when fetching table dynamic statistics. E.g., InnoDB would
+    read the SE specific space_id from se_private_data column.
+  */
+  m_target_def.add_from("LEFT JOIN mysql.tablespaces ts ON "
+                        "tbl.tablespace_id=ts.id");
 }
 
 }

@@ -55,11 +55,9 @@ Created 1/8/1996 Heikki Tuuri
 /* Maximum hardcoded dictionary tables. */
 #define DICT_MAX_DD_TABLES	1024
 
-/** The Maximum number of SDI Indexes in a tablespace
-Note: Increasing this will not increase number of SDI copies stored
-in tablespace because we only have limited space in Page 0 & 1 to
-store the SDI Index root page numbers */
-const ulint	MAX_SDI_COPIES	= 2;
+/** SDI version. Written on Page 1 & 2 at FIL_PAGE_FILE_FLUSH_LSN offset. */
+const uint32_t	SDI_VERSION = 1;
+
 /** Space id of system tablespace */
 const space_id_t	SYSTEM_TABLE_SPACE = TRX_SYS_SPACE;
 
@@ -179,6 +177,16 @@ to DDTableBuffer.
 void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table);
+
+/** Read persistent dynamic metadata stored in a buffer
+@param[in]	buffer		buffer to read
+@param[in]	size		size of data in buffer
+@param[in]	metadata	where we store the metadata from buffer */
+void
+dict_table_read_dynamic_metadata(
+	const byte*		buffer,
+	ulint			size,
+	PersistentTableMetadata*metadata);
 
 /**********************************************************************//**
 Determine bytes of column prefix to be stored in the undo log. Please
@@ -1542,6 +1550,9 @@ struct dict_sys_t{
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
 
+	/** Use maximum UINT value to indicate invalid space ID. */
+	static constexpr space_id_t	invalid_space_id = 0xFFFFFFFF;
+
 	/** The data dictionary tablespace ID. */
 	static constexpr space_id_t	space_id = 0xFFFFFFFE;
 
@@ -2048,32 +2059,30 @@ dict_table_have_virtual_index(
 
 /** Retrieve in-memory index for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	space_id_t	tablespace_id,
-	uint32_t	copy_num);
+	space_id_t	tablespace_id);
 
 /** Retrieve in-memory table object for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
-@param[in]	copy_num	SDI table copy
 @param[in]	dict_locked	true if dict_sys mutex is acquired
+@param[in]	is_create	true when creating SDI Index
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
 	space_id_t	tablespace_id,
-	uint32_t	copy_num,
-	bool		dict_locked);
+	bool		dict_locked,
+	bool		is_create);
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablespace_id
-@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	sdi_table	SDI table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void
 dict_sdi_remove_from_cache(
 	space_id_t	space_id,
-	dict_table_t**	sdi_tables,
+	dict_table_t*	sdi_table,
 	bool		dict_locked);
 
 /** Check if the index is SDI index
@@ -2092,13 +2101,71 @@ bool
 dict_table_is_sdi(
 	uint64_t	table_id);
 
-/** Extract SDI copy number from table id
-@param[in]	table_id	InnoDB table id
-@return SDI copy number */
-UNIV_INLINE
-uint32_t
-dict_sdi_get_copy_num(
-	table_id_t	table_id);
+/** Close SDI table.
+@param[in]	table		the in-meory SDI table object */
+void
+dict_sdi_close_table(
+	dict_table_t*	table);
+
+/** Acquire exclusive MDL on SDI tables. This is acquired to
+prevent concurrent DROP table/tablespace when there is purge
+happening on SDI table records. Purge will acquired shared
+MDL on SDI table.
+
+Exclusive MDL is transactional(released on trx commit). So
+for successful acquistion, there should be valid thd with
+trx associated.
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dd_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_exclusive_mdl(
+        THD*		thd,
+        space_id_t	space_id,
+        MDL_ticket**	sdi_mdl);
+
+/** Acquire shared MDL on SDI tables. This is acquired by purge to
+prevent concurrent DROP table/tablespace.
+DROP table/tablespace will acquire exclusive MDL on SDI table
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innobase_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+MDL should be released by caller
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
+dberr_t
+dd_sdi_acquire_shared_mdl(
+        THD*		thd,
+        space_id_t	space_id,
+        MDL_ticket**	sdi_mdl);
 
 /** Check whether the dict_table_t is a partition.
 A partitioned table on the SQL level is composed of InnoDB tables,

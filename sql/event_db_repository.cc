@@ -71,12 +71,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 {
   DBUG_ENTER("Event_db_repository::create_event");
   sp_head *sp= thd->lex->sphead;
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
-
   DBUG_ASSERT(sp);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema= nullptr;
   const dd::Event *event= nullptr;
   if (thd->dd_client()->acquire(parse_data->dbname.str, &schema) ||
@@ -106,19 +102,11 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(true);
   }
 
-  if (dd::create_event(thd, *schema,
-                       parse_data->name.str,
-                       sp->m_body.str, sp->m_body_utf8.str,
-                       thd->lex->definer,
-                       parse_data))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  DBUG_RETURN(dd::create_event(thd, *schema,
+                               parse_data->name.str,
+                               sp->m_body.str, sp->m_body_utf8.str,
+                               thd->lex->definer,
+                               parse_data));
 }
 
 
@@ -144,8 +132,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 {
   DBUG_ENTER("Event_db_repository::update_event");
   sp_head *sp= thd->lex->sphead;
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
 
   /* None or both must be set */
   DBUG_ASSERT((new_dbname && new_name) || new_dbname == new_name);
@@ -153,8 +139,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   DBUG_PRINT("info", ("dbname: %s", parse_data->dbname.str));
   DBUG_PRINT("info", ("name: %s", parse_data->name.str));
   DBUG_PRINT("info", ("user: %s", parse_data->definer.str));
-
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* first look whether we overwrite */
   if (new_name)
@@ -200,19 +184,15 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ASSERT(schema != nullptr); // Must exist if event exists.
 
   // Update Event in the data dictionary with altered event object attributes.
-  if (dd::update_event(thd, event, *schema, new_schema,
-                       new_name != nullptr ? new_name->str : "",
-                       (parse_data->body_changed) ? sp->m_body.str : event->definition(),
-                       (parse_data->body_changed) ? sp->m_body_utf8.str :
-                                                    event->definition_utf8(),
-                       thd->lex->definer, parse_data))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  bool ret=
+    dd::update_event(thd, event, *schema, new_schema,
+                     new_name != nullptr ? new_name->str : "",
+                     (parse_data->body_changed) ? sp->m_body.str :
+                                                  event->definition(),
+                     (parse_data->body_changed) ? sp->m_body_utf8.str :
+                                                  event->definition_utf8(),
+                     thd->lex->definer, parse_data);
+  DBUG_RETURN(ret);
 }
 
 
@@ -225,6 +205,8 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   @param[in]     drop_if_exists DROP IF EXISTS clause was specified.
                                 If set, and the event does not exist,
                                 the error is downgraded to a warning.
+  @param[out]   event_exists    Set to true if event exists. Set to
+                                false otherwise.
 
   @retval false success
   @retval true error (reported)
@@ -232,11 +214,9 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 
 bool
 Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
-                                bool drop_if_exists)
+                                bool drop_if_exists, bool *event_exists)
 {
   DBUG_ENTER("Event_db_repository::drop_event");
-  // Turn off autocommit.
-  Disable_autocommit_guard autocommit_guard(thd);
   /*
     Turn off row binlogging of this statement and use statement-based
     so that all supporting tables are updated for CREATE EVENT command.
@@ -248,7 +228,6 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   DBUG_PRINT("enter", ("%s@%s", db.str, name.str));
 
   const dd::Event *event_ptr= nullptr;
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   if (thd->dd_client()->acquire(db.str, name.str, &event_ptr))
   {
     // Error is reported by the dictionary subsystem.
@@ -257,6 +236,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 
   if (event_ptr == nullptr)
   {
+    *event_exists= false;
+
     // Event not found
     if (!drop_if_exists)
     {
@@ -270,15 +251,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     DBUG_RETURN(false);
   }
 
-  if (thd->dd_client()->drop(event_ptr))
-  {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
+  *event_exists= true;
+  DBUG_RETURN(thd->dd_client()->drop(event_ptr));
 }
 
 

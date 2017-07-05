@@ -145,7 +145,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -163,7 +163,7 @@ void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buf
   Server_ref server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)
@@ -226,7 +226,7 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
   Server_ref server(get_instance());
   if (server)
   {
-    ngs::unique_ptr<Mutex_lock> lock(new Mutex_lock((*server)->server().get_client_exit_mutex()));
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client)

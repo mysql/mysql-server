@@ -997,19 +997,18 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   @param object The object to look for the member in.
   @param member_name Name of the member to look after
 
-  @return The member if one was found, NULL otherwise.
+  @return The member if one was found, nullptr otherwise.
 */
 const Json_dom *Item_func_geomfromgeojson::
 my_find_member_ncase(const Json_object *object, const char *member_name)
 {
-  Json_object::const_iterator itr;
-  for (itr= object->begin(); itr != object->end(); ++itr)
+  for (const auto &member : *object)
   {
-    if (native_strcasecmp(member_name, itr->first.c_str()) == 0)
-      return itr->second;
+    if (native_strcasecmp(member_name, member.first.c_str()) == 0)
+      return member.second.get();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 

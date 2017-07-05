@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -212,7 +212,7 @@ ENDMACRO()
 MACRO(MERGE_LIBRARIES)
   MYSQL_PARSE_ARGUMENTS(ARG
     "EXPORTS;OUTPUT_NAME;COMPONENT"
-    "STATIC;SHARED;MODULE;NOINSTALL"
+    "STATIC;SHARED;MODULE;SKIP_INSTALL"
     ${ARGN}
   )
   LIST(GET ARG_DEFAULT_ARGS 0 TARGET) 
@@ -245,7 +245,7 @@ MACRO(MERGE_LIBRARIES)
       ENDFOREACH()
     ENDIF()
     CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
-    IF(NOT ARG_NOINSTALL)
+    IF(NOT ARG_SKIP_INSTALL)
       ADD_VERSION_INFO(${TARGET} SHARED SRC)
     ENDIF()
     ADD_LIBRARY(${TARGET} ${LIBTYPE} ${SRC})
@@ -256,7 +256,7 @@ MACRO(MERGE_LIBRARIES)
   ELSE()
     MESSAGE(FATAL_ERROR "Unknown library type")
   ENDIF()
-  IF(NOT ARG_NOINSTALL)
+  IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)
       SET(COMP COMPONENT ${ARG_COMPONENT}) 
     ENDIF()

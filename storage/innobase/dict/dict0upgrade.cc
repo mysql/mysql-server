@@ -152,28 +152,22 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
   }
 }
 
-/** Get server id for a InnoDB tablespace object
+/** Get Server Tablespace object for a InnoDB table. The tablespace is
+acquired with MDL and for modification, so the caller can update the
+dd::Tablespace object returned.
 @param[in]	thd		server thread object
+@param[in,out]	dd_client	dictionary client to retrieve tablespace
+				object
 @param[in]	ib_table	InnoDB table
-@param[in,out]	dd_space_id	Tablespace id (server-id) from DD
-@retval		true		Retrieval failure
-@retval		false		Success */
-static bool dd_upgrade_get_server_id(THD* thd, dict_table_t* ib_table,
-                                     dd::Object_id* dd_space_id) {
-  dd::cache::Dictionary_client* dd_client = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-
-  const dd::Tablespace* ts_obj = NULL;
-
+@return dd::Tablespace object or nullptr */
+static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
+                                     dd::cache::Dictionary_client* dd_client,
+                                     dict_table_t* ib_table) {
   char name[MAX_FULL_NAME_LEN];
 
+  dd::Tablespace*	ts_obj = nullptr;
   ut_ad(ib_table->space != SPACE_UNKNOWN);
-
-  if (ib_table->space == 0) {
-    /* table belongs to system tablespace. */
-    *dd_space_id = dict_sys_t::dd_sys_space_id;
-    return (false);
-  }
+  ut_ad(ib_table->space != SYSTEM_TABLE_SPACE);
 
   if (dict_table_is_file_per_table(ib_table)) {
     std::ostringstream	tablespace_name;
@@ -188,20 +182,18 @@ static bool dd_upgrade_get_server_id(THD* thd, dict_table_t* ib_table,
   DBUG_EXECUTE_IF("dd_upgrade",
                   ib::info() << "The derived tablespace name is: " << name;);
 
+  /* MDL on tablespace name */
+  if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+    ut_a(false);
+  }
+
   /* For file per table tablespaces and general tablesapces, we will get
   the tablespace object and then get space_id. */
-  if (dd_client->acquire<dd::Tablespace>(name, &ts_obj)) {
-    return (true);
+  if (dd_client->acquire_for_modification(name, &ts_obj)) {
+    ut_a(false);
   }
 
-  /* We found valid tablespace, return id from dd::Tablespace object */
-  if (ts_obj) {
-    *dd_space_id = ts_obj->id();
-  } else {
-    return (true);
-  }
-
-  return (false);
+  return(ts_obj);
 }
 
 /** Get field from Server table object
@@ -680,12 +672,47 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
     /* Set table id */
     part_obj->set_se_private_id(part_table->id);
 
+    /* Set DATADIRECTORY attribute in se_private_data */
+    if (DICT_TF_HAS_DATA_DIR(part_table->flags)) {
+      ut_ad(dict_table_is_file_per_table(part_table));
+      part_obj->se_private_data().set_bool(
+          dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+    }
+
+    /* Set Discarded attribute in DD table se_private_data */
+    if (dict_table_is_discarded(part_table)) {
+      part_obj->se_private_data().set_bool(
+          dd_table_key_strings[DD_TABLE_DISCARD], true);
+    }
+
     dd::Object_id dd_space_id;
-#ifdef UNIV_DEBUG
-    bool failure =
-#endif /* UNIV_DEBUG */
-    dd_upgrade_get_server_id(thd, part_table, &dd_space_id);
-    ut_ad(!failure);
+
+    if (part_table->space == SYSTEM_TABLE_SPACE) {
+      dd_space_id = dict_sys_t::dd_sys_space_id;
+      /* Tables in system tablespace cannot be discarded. */
+      ut_ad(!dict_table_is_discarded(part_table));
+    } else {
+      dd::cache::Dictionary_client* dd_client = dd::get_dd_client(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+      dd::Tablespace* dd_space =
+          dd_upgrade_get_tablespace(thd, dd_client, part_table);
+      ut_ad(dd_space != nullptr);
+
+      if (dd_space == nullptr) {
+        dict_table_close(part_table, false, false);
+        return (true);
+      }
+
+      dd_space_id = dd_space->id();
+      /* If table is discarded, set discarded attribute in tablespace
+      object */
+      if (dict_table_is_discarded(part_table)) {
+	dd_tablespace_set_discard(dd_space, true);
+        if (dd_client->update(dd_space)) {
+          ut_ad(0);
+        }
+      }
+    }
 
     dd_set_table_options(&part_obj->table(), part_table);
 
@@ -809,14 +836,47 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
   }
 
   dd::Object_id dd_space_id;
-  failure = dd_upgrade_get_server_id(thd, ib_table, &dd_space_id);
+  if (ib_table->space == SYSTEM_TABLE_SPACE) {
+    dd_space_id = dict_sys_t::dd_sys_space_id;
+    /* Tables in system tablespace cannot be discarded. */
+    ut_ad(!dict_table_is_discarded(ib_table));
+  } else {
+    dd::cache::Dictionary_client* dd_client = dd::get_dd_client(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+    dd::Tablespace* dd_space =
+        dd_upgrade_get_tablespace(thd, dd_client, ib_table);
+    ut_ad(dd_space != nullptr);
 
-  if (failure) {
-    dict_table_close(ib_table, false, false);
-    return (true);
+    if (dd_space == nullptr) {
+      dict_table_close(ib_table, false, false);
+      return (true);
+    }
+
+    dd_space_id = dd_space->id();
+    /* If table is discarded, set discarded attribute in tablespace
+    object */
+    if (dict_table_is_discarded(ib_table)) {
+      dd_tablespace_set_discard(dd_space, true);
+      if (dd_client->update(dd_space)) {
+        ut_ad(0);
+      }
+    }
   }
 
   dd_table->set_se_private_id(ib_table->id);
+
+  /* Set DATADIRECTORY attribute in se_private_data */
+  if (DICT_TF_HAS_DATA_DIR(ib_table->flags)) {
+    ut_ad(dict_table_is_file_per_table(ib_table));
+    dd_table->se_private_data().set_bool(
+        dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
+  }
+
+  /* Set Discarded attribute in DD table se_private_data */
+  if (dict_table_is_discarded(ib_table)) {
+    dd_table->se_private_data().set_bool(
+        dd_table_key_strings[DD_TABLE_DISCARD], true);
+  }
 
   /* Set row_type */
   dd_upgrade_set_row_type(ib_table, dd_table);

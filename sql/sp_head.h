@@ -538,8 +538,11 @@ public:
     set are not linked in one list. Because of this we are able save memory
     by using for this set same objects that are used in 'sroutines' sets
     for statements of which this stored routine consists.
+
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
   */
-  HASH m_sroutines;
+  malloc_unordered_map<std::string, Sroutine_hash_entry*> m_sroutines;
 
   /*
     Security context for stored routine which should be run under

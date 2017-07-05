@@ -33,7 +33,6 @@ Data dictionary interface */
 #include "dd/dictionary.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/dd_table.h"
 #include "dd/dd_schema.h"
 #include "dd/types/table.h"
@@ -68,7 +67,7 @@ enum dd_table_keys {
 	DD_TABLE_DATA_DIRECTORY,
 	/** Dynamic metadata version */
 	DD_TABLE_VERSION,
-	/** Disacard flag */
+	/** Discard flag */
 	DD_TABLE_DISCARD,
 	/** Sentinel */
 	DD_TABLE__LAST
@@ -80,6 +79,8 @@ enum dd_space_keys {
 	DD_SPACE_FLAGS,
 	/** Tablespace identifier */
 	DD_SPACE_ID,
+	/** Discard attribute */
+	DD_SPACE_DISCARD,
 	/** Sentinel */
 	DD_SPACE__LAST
 };
@@ -107,7 +108,8 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 @see dd_space_keys */
 const char* const dd_space_key_strings[DD_SPACE__LAST] = {
 	"flags",
-	"id"
+	"id",
+	"discard"
 };
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
@@ -956,5 +958,23 @@ dd_get_referenced_table(
 	dict_table_t**	table,
 	MDL_ticket**	mdl,
 	mem_heap_t*	heap);
+
+/** Set Discard attribute in se_private_data of tablespace
+@param[in,out]	dd_space	dd::Tablespace object
+@param[in]	discard		true if discarded, else false */
+void
+dd_tablespace_set_discard(
+	dd::Tablespace*		dd_space,
+	bool			discard);
+
+/** Get discard attribute value stored in se_private_dat of tablespace
+@param[in]	dd_space	dd::Tablespace object
+@retval		true		if Tablespace is discarded
+@retval		false		if attribute doesn't exist or if the
+				tablespace is not discarded */
+bool
+dd_tablespace_get_discard(
+	const dd::Tablespace*	dd_space);
+
 #include "dict0dd.ic"
 #endif

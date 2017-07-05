@@ -4,7 +4,7 @@
 alter table performance_schema.global_variables
   add column foo integer;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 truncate table performance_schema.global_variables;
 
 -- error ER_DBACCESS_DENIED_ERROR

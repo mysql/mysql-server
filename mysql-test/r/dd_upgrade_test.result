@@ -751,6 +751,39 @@ optimize table sakila.film_text;
 Table	Op	Msg_type	Msg_text
 sakila.film_text	optimize	status	OK
 # Stop the server
+# Check if .ibds have SDI after upgrade
+# Check SDI from vt2.ibd
+# Check SDI from t_json.ibd
+# Check SDI from t_gen_stored.ibd
+# Check SDI from t_dynamic.ibd
+# Check SDI from t_compressed3.ibd
+# Check SDI from t_compressed2.ibd
+# Check SDI from t_compressed.ibd
+# Check SDI from t_blob_myisam.ibd
+# Check SDI from t_blob.ibd
+# Check SDI from opening_lines.ibd
+# Check SDI from jemp.ibd
+# Check SDI from geom.ibd
+# Check SDI from store.ibd
+# Check SDI from staff.ibd
+# Check SDI from rental.ibd
+# Check SDI from payment.ibd
+# Check SDI from language.ibd
+# Check SDI from inventory.ibd
+# Check SDI from film_text.ibd
+# Check SDI from film_category.ibd
+# Check SDI from film_actor.ibd
+# Check SDI from film.ibd
+# Check SDI from customer.ibd
+# Check SDI from country.ibd
+# Check SDI from city.ibd
+# Check SDI from category.ibd
+# Check SDI from address.ibd
+# Check SDI from actor.ibd
+# Check SDI from mysql.ibd
+# Check SDI from ibdata1
+# Check SDI from test_tablespace_3.ibd
+# Check SDI from test_tablespace_2.ibd
 # Remove copied files
 # Restart the server with default options.
 # restart

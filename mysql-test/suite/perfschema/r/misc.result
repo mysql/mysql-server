@@ -52,7 +52,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 WHERE object_schema='test';
 object_schema	object_name
 create table performance_schema.t1(a int);
-ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
 object_schema	object_name

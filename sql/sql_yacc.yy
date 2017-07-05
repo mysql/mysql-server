@@ -1148,6 +1148,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  PERSIST_ONLY_SYM              /* MYSQL */
 %token  HISTOGRAM_SYM                 /* MYSQL */
 %token  BUCKETS_SYM                   /* MYSQL */
+%token  REMOTE_SYM                    /* MYSQL */
+%token  CLONE_SYM                     /* MYSQL */
 %token  CUME_DIST_SYM                 /* SQL-2003-R */
 %token  DENSE_RANK_SYM                /* SQL-2003-R */
 %token  EXCLUDE_SYM                   /* SQL-2003-N */
@@ -1399,6 +1401,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
+        opt_for_replication
         opt_full opt_extended
         opt_ignore_leaves
 
@@ -1880,6 +1883,7 @@ simple_statement:
         | change
         | check_table_stmt      { MAKE_CMD($1); }
         | checksum
+        | clone_stmt
         | commit
         | create
         | deallocate
@@ -7598,6 +7602,10 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_rename_key($3.str, $5.str);
           }
+        | RENAME COLUMN_SYM ident TO_SYM ident
+          {
+            $$= NEW_PTN PT_alter_table_rename_column($3.str, $5.str);
+          }
         | CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
           {
             $$= NEW_PTN PT_alter_table_convert_to_charset($4, $5);
@@ -13205,6 +13213,7 @@ role_or_ident_keyword:
         | CACHE_SYM             {}
         | CHARSET               {}
         | CHECKSUM_SYM          {}
+        | CLONE_SYM             {}
         | CLOSE_SYM             {}
         | COMMENT_SYM           {}
         | COMMIT_SYM            {}
@@ -13501,6 +13510,7 @@ role_or_label_keyword:
         | RELAY_LOG_FILE_SYM       {}
         | RELAY_LOG_POS_SYM        {}
         | RELAY_THREAD             {}
+        | REMOTE_SYM               {}
         | REORGANIZE_SYM           {}
         | REPEATABLE_SYM           {}
         | REPLICATE_DO_DB          {}
@@ -15467,6 +15477,36 @@ import_stmt:
               MYSQL_YYABORT;
             lex->sql_command= SQLCOM_IMPORT;
           }
+        ;
+
+/**************************************************************************
+
+Clone local/remote replica statements.
+
+**************************************************************************/
+
+clone_stmt:
+          CLONE_SYM LOCAL_SYM
+          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+          {
+            Lex->sql_command= SQLCOM_CLONE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_local($6.str);
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT;
+          }
+        | CLONE_SYM REMOTE_SYM opt_for_replication
+          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+          {
+            Lex->sql_command= SQLCOM_CLONE;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_remote($3, $7.str);
+            if (Lex->m_sql_cmd == nullptr)
+              MYSQL_YYABORT;
+          }
+        ;
+
+opt_for_replication:
+          /* empty */         { $$= false; }
+        | FOR_SYM REPLICATION { $$= true; }
         ;
 
 /**

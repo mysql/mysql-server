@@ -279,6 +279,92 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
 
 
 /**
+  Helper method to mark all views state as invalid.
+
+  If operation is drop operation then view referencing it becomes invalid.
+  This method is called to mark state of all the referencing views as invalid
+  in such case.
+
+  @tparam         T                   Type of object (View_table/View_routine)
+                                      to fetch view names from.
+  @param          thd                 Current thread.
+  @param          db                  Database name.
+  @param          tbl_or_sf_name      Base table/ View/ Stored function name.
+  @param          views_list          TABLE_LIST objects of the referencing
+                                      views.
+  @param          commit_dd_changes   Indicates whether changes to DD need
+                                      to be committed.
+
+  @retval     false           Success.
+  @retval     true            Failure.
+
+*/
+
+template <typename T>
+static bool mark_all_views_invalid(THD *thd, const char *db,
+                                   const char *tbl_or_sf_name,
+                                   std::vector<TABLE_LIST *> *views_list,
+                                   bool commit_dd_changes)
+{
+  DBUG_ENTER("mark_all_views_invalid");
+  DBUG_ASSERT(!views_list->empty());
+
+  // Acquire lock on all the views.
+  MDL_request_list mdl_requests;
+  for (auto view : *views_list)
+  {
+    MDL_request *schema_request= new (thd->mem_root) MDL_request;;
+    MDL_REQUEST_INIT(schema_request,
+                     MDL_key::SCHEMA, view->db, "",
+                     MDL_INTENTION_EXCLUSIVE,
+                     MDL_STATEMENT);
+    mdl_requests.push_front(schema_request);
+    mdl_requests.push_front(&view->mdl_request);
+  }
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
+
+  /*
+    In the time gap of listing referencing views and acquiring MDL lock on them
+    if any view definition is updated or dropped then it should not be
+    considered for state update.
+    Hence preparing updated list of view tables after acquiring the lock.
+  */
+  std::vector<TABLE_LIST *> updated_views_list;
+  if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &updated_views_list))
+    DBUG_RETURN(true);
+  if (updated_views_list.empty())
+    DBUG_RETURN(false);
+
+  // Update state of the views as invalid.
+  for (auto view : *views_list)
+  {
+    // Update status of the view if it is listed in the updated_views_list.
+    bool update_status= false;
+    for (auto vw : updated_views_list)
+    {
+      if (!strcmp(view->get_db_name(), vw->get_db_name()) &&
+          !strcmp(view->get_table_name(), vw->get_table_name()))
+      {
+        update_status= true;
+        break;
+      }
+    }
+
+    // Update Table.options.view_valid as false(invalid).
+    if (update_status &&
+        dd::update_view_status(thd, view->get_db_name(),
+                               view->get_table_name(), false,
+                               commit_dd_changes))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
   Helper method to
     - Mark view as invalid if DDL operation leaves the view in
       invalid state.
@@ -339,38 +425,15 @@ static bool open_views_and_update_metadata(
 
   for (auto view : *views)
   {
-    const bool mark_view_as_invalid=
-      (thd->lex->sql_command == SQLCOM_DROP_TABLE    ||
-       thd->lex->sql_command == SQLCOM_DROP_VIEW     ||
-       thd->lex->sql_command == SQLCOM_DROP_FUNCTION ||
-       thd->lex->sql_command == SQLCOM_DROP_DB);
-
     View_metadata_updater_context vw_metadata_update_context(thd);
+
+    View_metadata_updater_error_handler error_handler;
+    thd->push_internal_handler(&error_handler);
+
 
     // This needs to be after View_metadata_updater_context so that
     // objects are released before metadata locks are dropped.
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-    // If operation is drop operation then view referencing it becomes
-    // invalid. Hence mark all view as invalid.
-    if (mark_view_as_invalid)
-    {
-      // Acquire MDL lock on the table.
-      if (lock_table_names(thd, view, nullptr,
-                           thd->variables.lock_wait_timeout, 0))
-        DBUG_RETURN(true);
-
-      // Update Table.options.view_valid as false(invalid)
-      if (dd::update_view_status(thd, view->get_db_name(),
-                                 view->get_table_name(), false,
-                                 commit_dd_changes))
-        DBUG_RETURN(true);
-
-      continue;
-    }
-
-    View_metadata_updater_error_handler error_handler;
-    thd->push_internal_handler(&error_handler);
 
     /*
       Open view.
@@ -595,6 +658,24 @@ static bool update_view_metadata(THD *thd,
     std::vector<TABLE_LIST *> views;
     if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &views))
       return true;
+    if (views.empty())
+      return false;
+
+    DEBUG_SYNC(thd, "after_preparing_view_tables_list");
+
+    bool is_drop_operation=
+      (thd->lex->sql_command == SQLCOM_DROP_TABLE    ||
+       thd->lex->sql_command == SQLCOM_DROP_VIEW     ||
+       thd->lex->sql_command == SQLCOM_DROP_FUNCTION ||
+       thd->lex->sql_command == SQLCOM_DROP_DB);
+
+    // If operation is drop operation then view referencing it becomes invalid.
+    // Hence mark all view as invalid.
+    if (is_drop_operation)
+        return mark_all_views_invalid<T>(thd, db, tbl_or_sf_name,
+                                         &views,
+                                         commit_dd_changes);
+
 
     /*
        Open views and update views metadata.
@@ -660,10 +741,17 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname)
   DBUG_ENTER("update_referencing_views_metadata");
   DBUG_ASSERT(spname);
 
+  /*
+    Updates to view metatdata for DDL on stored routines does not include
+    any changes to non-atomic SE. Hence transaction is not committed in
+    the update_view_metadata().
+  */
+  Uncommitted_tables_guard uncommitted_tables(thd);
   DBUG_RETURN(update_view_metadata<dd::View_routine>(thd,
                                                      spname->m_db.str,
                                                      spname->m_name.str,
-                                                     true, nullptr));
+                                                     false,
+                                                     &uncommitted_tables));
 }
 
 

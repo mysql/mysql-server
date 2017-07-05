@@ -69,19 +69,6 @@ DROP USER u1@h, u2@h;
 --echo #
 SET GTID_NEXT = 'ANONYMOUS';
 
-CREATE VIEW v1 as SELECT 1;
-
-# Check-3: DROP VIEW
-SET GTID_NEXT = 'ANONYMOUS';
---error ER_BAD_TABLE_ERROR
-DROP VIEW v1, v2;
---echo #
---echo # When binlog is disabled, verify that we can set
---echo # GTID_NEXT to 'ANONYMOUS' after the partially failed
---echo # DROP USER statement consumed its 'ANONYMOUS' gtid.
---echo #
-SET GTID_NEXT = 'ANONYMOUS';
-
 DROP USER u1@h;
 SET GTID_NEXT = 'ANONYMOUS';
 DROP TABLE t2;

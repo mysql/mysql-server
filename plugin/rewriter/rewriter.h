@@ -18,8 +18,10 @@
 
 #include "my_config.h"
 
-#include <hash.h>
+#include <memory>
+#include <string>
 
+#include "map_helpers.h"
 #include "my_inttypes.h"
 #include "rule.h"
 
@@ -58,7 +60,7 @@ public:
     that fail to load, this number will be lower than the number of rows in
     the database.
   */
-  int get_number_loaded_rules() const { return m_digests.records; }
+  int get_number_loaded_rules() const { return m_digests.size(); }
 
   ~Rewriter();
 
@@ -86,7 +88,8 @@ private:
   Rewriter::Load_status m_refresh_status;
 
   /// The in-memory rules hash table.
-  HASH m_digests;
+  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>>
+    m_digests{PSI_INSTRUMENT_ME};
 
   /// Loads the rule retrieved from the database in the hash table.
   bool load_rule(MYSQL_THD thd, Persisted_rule *diskrule);

@@ -39,6 +39,16 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   }
 }
 
+Commit_order_manager::~Commit_order_manager()
+{
+  mysql_mutex_destroy(&m_mutex);
+
+  for (uint32 i= 0; i < m_workers.size(); i++)
+  {
+    mysql_cond_destroy(&m_workers[i].cond);
+  }
+}
+
 void Commit_order_manager::register_trx(Slave_worker *worker)
 {
   DBUG_ENTER("Commit_order_manager::register_trx");

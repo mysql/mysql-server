@@ -1136,7 +1136,6 @@ mysql_cond_t COND_server_started;
 mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
-mysql_mutex_t LOCK_group_replication_handler;
 #if !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -1438,7 +1437,6 @@ static void server_components_initialized()
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
-
 /**
   Initializes component infrastructure by bootstrapping core component
   subsystem.
@@ -1613,7 +1611,7 @@ public:
         killing_thd->kill_immunizer == NULL)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
-      if (killing_thd->current_cond)
+      if (killing_thd->current_cond.load())
       {
         mysql_mutex_lock(killing_thd->current_mutex);
         mysql_cond_broadcast(killing_thd->current_cond);
@@ -2776,7 +2774,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 #ifdef HAVE_PSI_THREAD_INTERFACE
         // Delete the instrumentation for the signal thread.
         PSI_THREAD_CALL(delete_current_thread)();
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
         /*
           Kill the socket listener.
           The main thread will then set socket_listener_active= false,
@@ -3008,6 +3006,7 @@ SHOW_VAR com_status_vars[]= {
   {"change_repl_filter",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHANGE_REPLICATION_FILTER]),  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"check",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHECK]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"checksum",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CHECKSUM]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"clone",                (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CLONE]),                      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"commit",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_COMMIT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_db",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_DB]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"create_event",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_CREATE_EVENT]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3806,8 +3805,6 @@ static int init_thread_environment()
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
                   &COND_compress_gtid_table);
-  mysql_mutex_init(key_LOCK_group_replication_handler,
-                   &LOCK_group_replication_handler, MY_MUTEX_INIT_FAST);
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count,
@@ -5142,10 +5139,11 @@ int mysqld_main(int argc, char **argv)
     if available.
   */
 
+  void *service;
+
   if (psi_thread_hook != NULL)
   {
-    PSI_thread_service_t *service;
-    service= (PSI_thread_service_t*) psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
+    service= psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
     if (service != NULL)
     {
       set_psi_thread_service(service);
@@ -5154,8 +5152,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_mutex_hook != NULL)
   {
-    PSI_mutex_service_t *service;
-    service= (PSI_mutex_service_t*) psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
+    service= psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
     if (service != NULL)
     {
       set_psi_mutex_service(service);
@@ -5164,8 +5161,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_rwlock_hook != NULL)
   {
-    PSI_rwlock_service_t *service;
-    service= (PSI_rwlock_service_t*) psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
+    service= psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
     if (service != NULL)
     {
       set_psi_rwlock_service(service);
@@ -5174,8 +5170,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_cond_hook != NULL)
   {
-    PSI_cond_service_t *service;
-    service= (PSI_cond_service_t*) psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
+    service= psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
     if (service != NULL)
     {
       set_psi_cond_service(service);
@@ -5184,8 +5179,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_file_hook != NULL)
   {
-    PSI_file_service_t *service;
-    service= (PSI_file_service_t*) psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
+    service= psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
     if (service != NULL)
     {
       set_psi_file_service(service);
@@ -5194,8 +5188,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_socket_hook != NULL)
   {
-    PSI_socket_service_t *service;
-    service= (PSI_socket_service_t*) psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
+    service= psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
     if (service != NULL)
     {
       set_psi_socket_service(service);
@@ -5204,8 +5197,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_table_hook != NULL)
   {
-    PSI_table_service_t *service;
-    service= (PSI_table_service_t*) psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
+    service= psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
     if (service != NULL)
     {
       set_psi_table_service(service);
@@ -5214,8 +5206,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_mdl_hook != NULL)
   {
-    PSI_mdl_service_t *service;
-    service= (PSI_mdl_service_t*) psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
+    service= psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
     if (service != NULL)
     {
       set_psi_mdl_service(service);
@@ -5224,8 +5215,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_idle_hook != NULL)
   {
-    PSI_idle_service_t *service;
-    service= (PSI_idle_service_t*) psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
+    service= psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
     if (service != NULL)
     {
       set_psi_idle_service(service);
@@ -5234,8 +5224,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_stage_hook != NULL)
   {
-    PSI_stage_service_t *service;
-    service= (PSI_stage_service_t*) psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
+    service= psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
     if (service != NULL)
     {
       set_psi_stage_service(service);
@@ -5244,8 +5233,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_statement_hook != NULL)
   {
-    PSI_statement_service_t *service;
-    service= (PSI_statement_service_t*) psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
+    service= psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
     if (service != NULL)
     {
       set_psi_statement_service(service);
@@ -5254,8 +5242,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_transaction_hook != NULL)
   {
-    PSI_transaction_service_t *service;
-    service= (PSI_transaction_service_t*) psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
+    service= psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
     if (service != NULL)
     {
       set_psi_transaction_service(service);
@@ -5264,8 +5251,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_memory_hook != NULL)
   {
-    PSI_memory_service_t *service;
-    service= (PSI_memory_service_t*) psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
+    service= psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
     if (service != NULL)
     {
       set_psi_memory_service(service);
@@ -5274,8 +5260,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_error_hook != NULL)
   {
-    PSI_error_service_t *service;
-    service= (PSI_error_service_t*) psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
+    service= psi_error_hook->get_interface(PSI_CURRENT_ERROR_VERSION);
     if (service != NULL)
     {
       set_psi_error_service(service);
@@ -5284,8 +5269,7 @@ int mysqld_main(int argc, char **argv)
 
   if (psi_data_lock_hook != NULL)
   {
-    PSI_data_lock_service_t *service;
-    service= (PSI_data_lock_service_t*) psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
+    service= psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
     if (service != NULL)
     {
       set_psi_data_lock_service(service);
@@ -5298,10 +5282,13 @@ int mysqld_main(int argc, char **argv)
     server instruments.
   */
   init_server_psi_keys();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
   /* Instrument the main thread */
   PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   /*
     Now that some instrumentation is in place,
@@ -6002,7 +5989,7 @@ int mysqld_main(int argc, char **argv)
     to avoid recording events during the shutdown.
   */
   PSI_THREAD_CALL(delete_current_thread)();
-#endif
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   DBUG_PRINT("info", ("Waiting for shutdown proceed"));
   int ret= 0;
@@ -7971,6 +7958,23 @@ static int mysql_init_variables()
   // sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
+
+  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
+  char cmake_binary_dir[FN_REFLEN];
+  size_t dlen= 0;
+  dirname_part(cmake_binary_dir, mysql_home, &dlen);
+  if (dlen > 26U &&
+      (!strcmp(cmake_binary_dir + (dlen - 26), "/runtime_output_directory/") ||
+       !strcmp(cmake_binary_dir + (dlen - 26), "\\runtime_output_directory\\")))
+  {
+    mysql_home[strlen(mysql_home) - 1]= '\0';   // remove trailing
+    dirname_part(cmake_binary_dir, mysql_home, &dlen);
+    strcat(cmake_binary_dir, "sql\\");
+    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
+  }
+  // The sql_print_information below outputs nothing ??
+  // fprintf(stderr, "mysql_home %s\n", mysql_home);
+  // fflush(stderr);
 #else
   const char *tmpenv= getenv("MY_BASEDIR_VERSION");
   if (tmpenv != nullptr)
@@ -7991,6 +7995,15 @@ static int mysql_init_variables()
                               progdir);
       }
       strmake(mysql_home, progdir, sizeof(mysql_home) - 1);
+    }
+    else if (dlen > 26U &&
+             !strcmp(progdir + (dlen - 26), "/runtime_output_directory/"))
+    {
+      char cmake_binary_dir[FN_REFLEN];
+      progdir[strlen(progdir) - 1]= '\0';       // remove trailing "/"
+      dirname_part(cmake_binary_dir, progdir, &dlen);
+      strcat(cmake_binary_dir, "sql/");
+      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
     }
     else
     {
@@ -8766,6 +8779,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
   }
 
+  if (opt_noacl && !opt_help)
+    opt_disable_networking= true;
+
   if (opt_disable_networking)
     mysqld_port= 0;
 
@@ -9471,7 +9487,6 @@ PSI_cond_key key_object_loading_cond; // TODO need to initialize
 PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
-PSI_mutex_key key_LOCK_group_replication_handler;
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
 PSI_mutex_key
@@ -9560,7 +9575,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_group_replication_handler, "LOCK_group_replication_handler", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_GLOBAL, 0}
 };
 

@@ -71,9 +71,9 @@ public:
   THD *info_thd;
 
   bool inited;
-  volatile bool abort_slave;
-  volatile uint slave_running;
-  volatile ulong slave_run_id;
+  std::atomic<bool> abort_slave;
+  std::atomic<uint> slave_running;
+  std::atomic<ulong> slave_run_id;
 
 #ifndef DBUG_OFF
   int events_until_exit;

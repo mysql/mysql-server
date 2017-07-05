@@ -10796,6 +10796,21 @@ ER_MISSING_TABLESPACE_FILE
 ER_PERSIST_ONLY_ACCESS_DENIED_ERROR 42000
   eng "Access denied; you need %-.128s privileges for this operation"
 
+ER_CMD_NEED_SUPER
+  eng "You need the SUPER privilege for command '%-.192s'"
+
+ER_PATH_IN_DATADIR
+  eng "Path is within the current data directory '%-.192s'"
+
+ER_DDL_IN_PROGRESS
+  eng "Concurrent DDL is performed during the operation. Please try again."
+
+ER_TOO_MANY_CONCURRENT_CLONES
+  eng "Too many concurrent clone operations. Maximum allowed - %d."
+
+ER_SDI_OPERATION_FAILED
+  eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
+
 #
 #  End of 8.0 error messages.
 #
