@@ -3529,6 +3529,21 @@ public:
     return sp_result_field;
   }
 
+  /**
+    Ensure that deterministic functions are not evaluated in preparation phase
+    by returning false before tables are locked and true after they are locked.
+    (can_be_evaluated_now() handles this because a function has the
+    has_subquery() property).
+
+     @retval true if tables are locked for deterministic functions
+     @retval false Otherwise
+  */
+  bool const_item() const override
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
 };
 
 

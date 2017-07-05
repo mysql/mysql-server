@@ -4831,7 +4831,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t2` where ('1' = `sf_a_from_t1b_d`('1'))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t2` where 1
 FLUSH STATUS;
 START TRANSACTION;
 SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1');
@@ -4940,10 +4940,10 @@ Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select '2' AS `a`,'2' AS `b` from `test`.`t2` where ((2 = `sf_a_from_t1b_d`('1')))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where 0
 FLUSH STATUS;
 START TRANSACTION;
 SELECT * FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -4951,7 +4951,7 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 FLUSH STATUS;
 SET autocommit = 0;
@@ -4961,7 +4961,7 @@ a	b
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT * FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
@@ -5134,7 +5134,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p1	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select (`sf_add_1`('1') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('1') AS `sf_add_hello(b)` from `test`.`t2` where ('1' = `sf_a_from_t1b_d`('1'))
+Note	1003	/* select#1 */ select (`sf_add_1`('1') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('1') AS `sf_add_hello(b)` from `test`.`t2` where 1
 FLUSH STATUS;
 START TRANSACTION;
 SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1');
@@ -5243,10 +5243,10 @@ Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p2	const	PRIMARY	PRIMARY	4	const	#	100.00	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select (`sf_add_1`('2') - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`('2') AS `sf_add_hello(b)` from `test`.`t2` where ((2 = `sf_a_from_t1b_d`('1')))
+Note	1003	/* select#1 */ select (`sf_add_1`(`test`.`t2`.`a`) - 1) AS `sf_add_1(a) - 1`,`sf_add_hello`(`test`.`t2`.`b`) AS `sf_add_hello(b)` from `test`.`t2` where 0
 FLUSH STATUS;
 START TRANSACTION;
 SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
@@ -5254,7 +5254,7 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 FLUSH STATUS;
 SET autocommit = 0;
@@ -5264,7 +5264,7 @@ sf_add_1(a) - 1	sf_add_hello(b)
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 UNLOCK TABLES;
 EXPLAIN PARTITIONS SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2;
@@ -5613,7 +5613,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -5622,7 +5622,7 @@ UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 SELECT * FROM t2;
 a	b
@@ -5637,7 +5637,7 @@ UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 SELECT * FROM t2;
 a	b
@@ -6010,7 +6010,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6019,7 +6019,7 @@ UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 SELECT * FROM t2;
 a	b
@@ -6034,7 +6034,7 @@ UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 SELECT * FROM t2;
 a	b
@@ -6427,7 +6427,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where; Using temporary
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6436,7 +6436,7 @@ UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 SELECT * FROM t2;
 a	b
@@ -6451,7 +6451,7 @@ UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 SELECT * FROM t2;
 a	b
@@ -6818,7 +6818,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	p2	range	PRIMARY	PRIMARY	4	const	#	100.00	Using where
+1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 FLUSH STATUS;
@@ -6827,7 +6827,7 @@ DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	4
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_next	1
 SELECT * FROM t2;
 a	b
@@ -6842,7 +6842,7 @@ DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1') AND a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	8
 Handler_external_lock	26
-Handler_read_key	16
+Handler_read_key	15
 Handler_read_next	7
 SELECT * FROM t2;
 a	b
