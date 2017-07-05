@@ -2169,29 +2169,6 @@ dict_table_remove_from_cache_low(
 
 	ut_ad(dict_lru_validate());
 
-	if (lru_evict && table->drop_aborted) {
-		/* Do as dict_table_try_drop_aborted() does. */
-
-		trx_t* trx = trx_allocate_for_background();
-
-		ut_ad(mutex_own(&dict_sys->mutex));
-		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-		/* Mimic row_mysql_lock_data_dictionary(). */
-		trx->dict_operation_lock_mode = RW_X_LATCH;
-
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
-		/* Silence a debug assertion in row_merge_drop_indexes(). */
-		ut_d(table->acquire());
-		row_merge_drop_indexes(trx, table, TRUE);
-		ut_d(table->release());
-		ut_ad(table->get_ref_count() == 0);
-		trx_commit_for_mysql(trx);
-		trx->dict_operation_lock_mode = 0;
-		trx_free_for_background(trx);
-	}
-
 	/* Free virtual column template if any */
 	if (table->vc_templ != NULL) {
 		dict_free_vc_templ(table->vc_templ);
