@@ -69,6 +69,7 @@ PSI_thread_key key_GR_THD_applier_module_receiver,
                key_GR_THD_cert_broadcast,
                key_GR_THD_delayed_init,
                key_GR_THD_plugin_session,
+               key_GR_THD_group_partition_handler,
                key_GR_THD_recovery;
 
 PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
@@ -139,6 +140,7 @@ static PSI_thread_info all_group_replication_psi_thread_keys[]=
   {&key_GR_THD_cert_broadcast, "THD_certifier_broadcast", PSI_FLAG_GLOBAL},
   {&key_GR_THD_delayed_init, "THD_delayed_initialization", PSI_FLAG_GLOBAL},
   {&key_GR_THD_plugin_session, "THD_plugin_server_session", PSI_FLAG_GLOBAL},
+  {&key_GR_THD_group_partition_handler, "THD_group_partition_handler", PSI_FLAG_GLOBAL},
   {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_GLOBAL}
 };
 

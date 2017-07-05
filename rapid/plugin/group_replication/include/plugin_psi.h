@@ -121,6 +121,7 @@ extern PSI_thread_key
                key_GR_THD_cert_broadcast,
                key_GR_THD_delayed_init,
                key_GR_THD_plugin_session,
+               key_GR_THD_group_partition_handler,
                key_GR_THD_recovery;
 
 extern PSI_rwlock_key
