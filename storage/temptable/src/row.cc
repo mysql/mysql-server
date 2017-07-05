@@ -61,8 +61,6 @@ Result Row::copy_to_own_memory(const Columns& columns,
 
   const unsigned char* mysql_row = m_ptr;
 
-  m_data_is_in_mysql_memory = false;
-
   size_t buf_len = sizeof(size_t);
 
   for (const auto& column : columns) {
@@ -76,6 +74,8 @@ Result Row::copy_to_own_memory(const Columns& columns,
   }
 
   *reinterpret_cast<size_t*>(m_ptr) = buf_len;
+
+  m_data_is_in_mysql_memory = false;
 
   /* This is inside `m_ptr`. */
   Cell* cell = cells();
