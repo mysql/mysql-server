@@ -195,7 +195,7 @@ int Group_partition_handling::launch_partition_handler_thread()
     DBUG_RETURN(0);                /* purecov: inspected */
   }
 
-  if (mysql_thread_create(0,
+  if (mysql_thread_create(key_GR_THD_group_partition_handler,
                           &partition_trx_handler_pthd,
                           get_connection_attrib(),
                           launch_handler_thread,
