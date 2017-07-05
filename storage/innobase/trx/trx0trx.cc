@@ -2049,9 +2049,10 @@ trx_commit_in_memory(
 			/* if we need to flush log later, we must
 			remember the DDL operation */
 			trx->ddl_must_flush = trx->ddl_operation;
-		} else if (srv_flush_log_at_trx_commit == 0
-			   || thd_requested_durability(trx->mysql_thd)
-			   == HA_IGNORE_DURABILITY) {
+		} else if ((srv_flush_log_at_trx_commit == 0
+			    || thd_requested_durability(trx->mysql_thd)
+			    == HA_IGNORE_DURABILITY)
+			   && (!trx->ddl_operation)) {
 			/* Do nothing */
 		} else {
 			trx_flush_log_if_needed(lsn, trx);
