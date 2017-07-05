@@ -1773,7 +1773,14 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_current_file_page = 0;
   file_ptr.p->m_outstanding_reads = 0;
   file_ptr.p->m_outstanding_operations = 0;
+
   file_ptr.p->m_rows_restored = 0;
+  file_ptr.p->m_rows_restored_insert = 0;
+  file_ptr.p->m_rows_restored_delete = 0;
+  file_ptr.p->m_rows_restored_delete_failed = 0;
+  file_ptr.p->m_rows_restored_delete_page = 0;
+  file_ptr.p->m_rows_restored_write = 0;
+
   file_ptr.p->m_file_id = Uint32(~0);
   file_ptr.p->m_ctl_file_no = Uint32(~0);
   file_ptr.p->m_used_ctl_file_no = Uint32(~0);
@@ -1870,9 +1877,21 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
                         rows_per_sec);
 
     m_rows_restored+= file_ptr.p->m_rows_restored;
+
     m_millis_spent+= millis;
     m_frags_restored++;
   }
+
+  DEB_RES(("(%u)Restore: insert: %llu, write: %llu"
+           ", delete: %llu, delete_page: %llu"
+           ", delete_failed: %llu",
+           instance(),
+           file_ptr.p->m_rows_restored_insert,
+           file_ptr.p->m_rows_restored_write,
+           file_ptr.p->m_rows_restored_delete,
+           file_ptr.p->m_rows_restored_delete_page,
+           file_ptr.p->m_rows_restored_delete_failed));
+
   pages.release();
   if (statistics)
   {
@@ -2782,14 +2801,16 @@ Restore::parse_record(Signal* signal,
                                          key_start);
     AttributeHeader::init(attr_start,
                           AttributeHeader::READ_LCP, 4*(len - 3));
-    memcpy(attr_start + 1, data+2, 4 * (len - 3));
     Uint32 attrLen = 1 + len - 3;
+    file_ptr.p->m_rows_restored_insert++;
+    memcpy(attr_start + 1, data+2, 4 * (len - 3));
     execute_operation(signal,
                       file_ptr,
                       keyLen,
                       attrLen,
                       ZINSERT,
                       0,
+                      Uint32(BackupFormat::INSERT_TYPE),
                       &rowid_val);
     c_lqh->receive_attrinfo(signal, attr_start, attrLen);
   }
@@ -2803,9 +2824,17 @@ Restore::parse_record(Signal* signal,
       rowid_val.m_page_idx = data[1];
       jam();
       Uint32 gci_id = 0;
+      Uint32 sent_header_type;
       if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
       {
         gci_id = data[2];
+        sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_TYPE;
+        file_ptr.p->m_rows_restored_delete++;
+      }
+      else
+      {
+        sent_header_type = (Uint32)BackupFormat::DELETE_BY_ROWID_WRITE_TYPE;
+        file_ptr.p->m_rows_restored_write++;
       }
       execute_operation(signal,
                         file_ptr,
@@ -2813,6 +2842,7 @@ Restore::parse_record(Signal* signal,
                         0,
                         ZDELETE,
                         gci_id,
+                        sent_header_type,
                         &rowid_val);
       if (header_type == BackupFormat::WRITE_TYPE)
       {
@@ -2841,14 +2871,15 @@ Restore::parse_record(Signal* signal,
                                              key_start);
         AttributeHeader::init(attr_start,
                               AttributeHeader::READ_LCP, 4*(len - 3));
-        memcpy(attr_start + 1, data+2, 4 * (len - 3));
         Uint32 attrLen = 1 + len - 3;
+        memcpy(attr_start + 1, data+2, 4 * (len - 3));
         execute_operation(signal,
                           file_ptr,
                           keyLen,
                           attrLen,
                           ZINSERT,
                           gci_id,
+                          header_type,
                           &rowid_val);
         c_lqh->receive_attrinfo(signal, attr_start, attrLen);
       }
@@ -2886,6 +2917,8 @@ Restore::parse_record(Signal* signal,
       rowid_val.m_page_no = data[0];
       rowid_val.m_page_idx = 0;
       Uint32 record_size = data[1];
+      file_ptr.p->m_outstanding_operations++;
+      file_ptr.p->m_rows_restored_delete_page++;
       while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
       {
         jam();
@@ -2895,9 +2928,13 @@ Restore::parse_record(Signal* signal,
                           0,
                           ZDELETE,
                           0,
+                          header_type,
                           &rowid_val);
         rowid_val.m_page_idx += record_size;
       }
+      ndbrequire(file_ptr.p->m_outstanding_operations > 0);
+      file_ptr.p->m_outstanding_operations--;
+      check_restore_ready(signal, file_ptr);
     }
   }
 }
@@ -2909,6 +2946,7 @@ Restore::execute_operation(Signal *signal,
                            Uint32 attrLen,
                            Uint32 op_type,
                            Uint32 gci_id,
+                           Uint32 header_type,
                            Local_key *rowid_val)
 {
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
@@ -2970,7 +3008,7 @@ Restore::execute_operation(Signal *signal,
   }
   LqhKeyReq::setNoDiskFlag(tmp, 1);
   LqhKeyReq::setRowidFlag(tmp, 1);
-  req->clientConnectPtr = file_ptr.i;
+  req->clientConnectPtr = (file_ptr.i + (header_type << 28));
   req->tcBlockref = reference();
   req->savePointId = 0;
   req->tableSchemaVersion = file_ptr.p->m_table_id + 
@@ -3067,10 +3105,41 @@ Restore::execLQHKEYREF(Signal* signal)
 {
   FilePtr file_ptr;
   LqhKeyRef* ref = (LqhKeyRef*)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, ref->connectPtr);
+  BackupFormat::RecordType header_type =
+    (BackupFormat::RecordType)(ref->connectPtr >> 28);
+  m_file_pool.getPtr(file_ptr, (ref->connectPtr & 0x0FFFFFFF));
   
-  crash_during_restore(file_ptr, __LINE__, ref->errorCode);
-  ndbrequire(false);
+  ndbrequire(file_ptr.p->m_outstanding_operations > 0);
+  file_ptr.p->m_outstanding_operations--;
+  switch (header_type)
+  {
+    case BackupFormat::DELETE_BY_ROWID_TYPE:
+    {
+      jam();
+      break;
+    }
+    case BackupFormat::DELETE_BY_PAGEID_TYPE:
+    {
+      jam();
+      break;
+    }
+    case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE:
+    {
+      jam();
+      break;
+    }
+    case BackupFormat::INSERT_TYPE:
+    case BackupFormat::WRITE_TYPE:
+    default:
+    {
+      jam();
+      /* Should never fail unless we run out of memory which is also a bug */
+      jamLine(Uint16(header_type));
+      crash_during_restore(file_ptr, __LINE__, ref->errorCode);
+    }
+  }
+  file_ptr.p->m_rows_restored_delete_failed++;
+  check_restore_ready(signal, file_ptr);
 }
 
 void
@@ -3102,11 +3171,34 @@ Restore::execLQHKEYCONF(Signal* signal)
 {
   FilePtr file_ptr;
   LqhKeyConf * conf = (LqhKeyConf *)signal->getDataPtr();
-  m_file_pool.getPtr(file_ptr, conf->opPtr);
+  BackupFormat::RecordType header_type = (BackupFormat::RecordType)(conf->opPtr >> 28);
+  m_file_pool.getPtr(file_ptr, (conf->opPtr & 0x0FFFFFFF));
   
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;
-  file_ptr.p->m_rows_restored++;
+  switch (header_type)
+  {
+    case BackupFormat::INSERT_TYPE:
+      file_ptr.p->m_rows_restored++;
+      break;
+    case BackupFormat::WRITE_TYPE:
+      file_ptr.p->m_rows_restored++;
+      break;
+    case BackupFormat::DELETE_BY_ROWID_TYPE:
+    case BackupFormat::DELETE_BY_PAGEID_TYPE:
+    case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE:
+      ndbrequire(file_ptr.p->m_rows_restored > 0);
+      file_ptr.p->m_rows_restored--;
+      break;
+    default:
+      ndbrequire(false);
+  }
+  check_restore_ready(signal, file_ptr);
+}
+
+void
+Restore::check_restore_ready(Signal *signal, FilePtr file_ptr)
+{
   if (file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL)
   {
     jam();

@@ -131,7 +131,14 @@ private:
     Uint32 m_current_file_page;  // Where in file 
     Uint32 m_outstanding_reads;  // 
     Uint32 m_outstanding_operations;
+
     Uint64 m_rows_restored;
+    Uint64 m_rows_restored_insert;
+    Uint64 m_rows_restored_delete;
+    Uint64 m_rows_restored_delete_page;
+    Uint64 m_rows_restored_write;
+    Uint64 m_rows_restored_delete_failed;
+
     Uint64 m_restore_start_time;
     Uint32 m_restored_gcp_id;
     Uint32 m_restored_lcp_id;
@@ -194,6 +201,7 @@ private:
   Uint32 init_file(const struct RestoreLcpReq*, FilePtr);
   void release_file(FilePtr, bool statistics);
   Uint32 seize_file(FilePtr);
+  void check_restore_ready(Signal*, FilePtr);
 
   void step_file_number_forward(FilePtr);
   void step_file_number_back(FilePtr, Uint32);
@@ -223,6 +231,7 @@ private:
                          Uint32 attrLen,
                          Uint32 op_type,
                          Uint32 gci_id,
+                         Uint32 header_type,
                          Local_key *lkey);
   void parse_fragment_footer(Signal*, FilePtr, const Uint32*, Uint32 len);
   void parse_gcp_entry(Signal*, FilePtr, const Uint32*, Uint32 len);

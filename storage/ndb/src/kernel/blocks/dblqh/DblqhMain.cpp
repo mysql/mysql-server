@@ -6213,8 +6213,21 @@ void Dblqh::prepareContinueAfterBlockedLab(
   {
     if (TRACENR_FLAG)
       TRACENR(endl);
-    ndbassert(!LqhKeyReq::getNrCopyFlag(regTcPtr->reqinfo));
-    exec_acckeyreq(signal, tcConnectptr);
+    if (!LqhKeyReq::getNrCopyFlag(regTcPtr->reqinfo))
+    {
+      /* Normal path */
+      exec_acckeyreq(signal, tcConnectptr);
+    }
+    else
+    {
+      jam();
+      /**
+       * Delete by ROWID from RESTORE
+       */
+      ndbrequire(LqhKeyReq::getRowidFlag(regTcPtr->reqinfo));
+      ndbrequire(regTcPtr->operation == ZDELETE);
+      handle_nr_copy(signal, tcConnectptr);
+    }
   } 
   else if (activeCreat == Fragrecord::AC_NR_COPY)
   {
@@ -6400,50 +6413,55 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
        * is up to date.
        */
       jam();
-      ndbassert(op == ZINSERT);
+      ndbrequire(op == ZINSERT);
       if (TRACENR_FLAG)
 	TRACENR(" Changing from INSERT to ZUPDATE" << endl);
       regTcPtr.p->operation = ZUPDATE;
       goto run;
     }
-    else if (len > 0 && op == ZDELETE)
+    else if (op == ZDELETE)
     {
-      /**
-       * Case 4
-       * ------
-       *   We are performing DELETE by ROWID and the row id had an already
-       *   existing, we need to delete the row in this position.
-       */
-      jam();
-      ndbassert(regTcPtr.p->primKeyLen == 0);
-      if (TRACENR_FLAG)
-	TRACENR(" performing DELETE key: " 
-	       << dst[0] << endl); 
-
-      nr_copy_delete_row(signal, regTcPtr, &regTcPtr.p->m_row_id, len);
-      ndbassert(regTcPtr.p->m_nr_delete.m_cnt);
-      regTcPtr.p->m_nr_delete.m_cnt--; // No real op is run
-      if (regTcPtr.p->m_nr_delete.m_cnt)
+      ndbrequire(regTcPtr.p->primKeyLen == 0);
+      if (len > 0)
       {
-	jam();
-	return;
+        /**
+         * Case 4
+         * ------
+         *   We are performing DELETE by ROWID and the row id had an already
+         *   existing, we need to delete the row in this position.
+         */
+        jam();
+        if (TRACENR_FLAG)
+	  TRACENR(" performing DELETE key: " 
+	         << dst[0] << endl); 
+
+        nr_copy_delete_row(signal, regTcPtr, &regTcPtr.p->m_row_id, len);
+        ndbassert(regTcPtr.p->m_nr_delete.m_cnt);
+        regTcPtr.p->m_nr_delete.m_cnt--; // No real op is run
+        if (regTcPtr.p->m_nr_delete.m_cnt)
+        {
+	  jam();
+          /* Only happens with disk data in copy fragment phase */
+          ndbrequire(regTcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
+	  return;
+        }
+        packLqhkeyreqLab(signal);
+        return;
       }
-      packLqhkeyreqLab(signal, tcConnectptr);
-      return;
-    }
-    else if (len == 0 && op == ZDELETE)
-    {
-      /**
-       * Case 7
-       * ------
-       * We are performing a DELETE by ROWID and there was no row at this
-       * row id. We set the correct GCI in this row id.
-       */
-      jam();
-      if (TRACENR_FLAG)
-	TRACENR(" UPDATE_GCI" << endl); 
-      c_tup->nr_update_gci(fragPtr, &regTcPtr.p->m_row_id, regTcPtr.p->gci_hi);
-      goto update_gci_ignore;
+      else if (len == 0 && op == ZDELETE)
+      {
+        /**
+         * Case 7
+         * ------
+         * We are performing a DELETE by ROWID and there was no row at this
+         * row id. We set the correct GCI in this row id.
+         */
+        jam();
+        if (TRACENR_FLAG)
+	  TRACENR(" UPDATE_GCI" << endl);
+        c_tup->nr_update_gci(fragPtr, &regTcPtr.p->m_row_id, regTcPtr.p->gci_hi);
+        goto update_gci_ignore;
+      }
     }
     /* !match && op != ZDELETE */
     
@@ -6718,6 +6736,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
   if (ret)
   {
     ndbassert(ret == 1);
+    ndbrequire(regTcPtr.p->activeCreat == Fragrecord::AC_NR_COPY);
     Uint32 pos = regTcPtr.p->m_nr_delete.m_cnt - 1;
     memcpy(regTcPtr.p->m_nr_delete.m_disk_ref + pos, 
 	   signal->theData, sizeof(Local_key));

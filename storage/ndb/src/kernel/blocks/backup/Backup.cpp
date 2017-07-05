@@ -11125,10 +11125,10 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
     ndbrequire(decrement_parts < ptr.p->m_part_info[0].numParts);
     ptr.p->m_part_info[0].numParts -= decrement_parts;
     ptr.p->m_part_info[0].startPart = new_first_part;
-    DEB_LCP(("(%u)New first data file span is (%u,%u)",
-             instance(),
-             ptr.p->m_part_info[0].startPart,
-             ptr.p->m_part_info[0].numParts));
+    DEB_EXTRA_LCP(("(%u)New first data file span is (%u,%u)",
+                   instance(),
+                   ptr.p->m_part_info[0].startPart,
+                   ptr.p->m_part_info[0].numParts));
   }
 
   /**
@@ -12205,7 +12205,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
 #ifdef DEBUG_LCP
     if (deleteLcpFilePtr.p->firstFileId != RNIL)
     {
-      DEB_LCP(("(%u))TAGI Insert delete file in queue:"
+      DEB_LCP(("(%u)TAGI Insert delete file in queue:"
         " tab(%u,%u).%u, file(%u-%u,%u) GCI: %u, validFlag: %u",
         instance(),
         tableId,
@@ -12219,7 +12219,7 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     }
     else
     {
-      DEB_LCP(("(%u))TAGI Insert delete file in queue:"
+      DEB_LCP(("(%u)TAGI Insert delete file in queue:"
         " tab(%u,%u).%u, file(RNIL,%u) GCI: %u, validFlag: %u",
         instance(),
         tableId,
