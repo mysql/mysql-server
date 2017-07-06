@@ -203,9 +203,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -226,9 +223,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	4
-6	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -286,9 +280,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -309,9 +300,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	4
-6	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -369,9 +357,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -392,9 +377,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	4
-6	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -454,10 +436,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	0
-4	2
-5	7
-6	7
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 12;
 delete from tab1 where a = 13;
@@ -478,10 +456,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	0
-4	2
-5	4
-6	4
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 11;
 set global innodb_purge_run_now=ON;
@@ -541,9 +515,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -562,9 +533,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -616,9 +584,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -637,9 +602,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -691,9 +653,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 12;
 update tab1 set b='' where a = 13;
 update tab1 set b='' where a = 14;
@@ -712,9 +671,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	2
-5	7
-6	7
 update tab1 set b='' where a = 11;
 # check page merge happens (MERGE_THRESHOLD=50 causes merge here)
 SELECT name,count_reset FROM information_schema.innodb_metrics
@@ -867,10 +823,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	42
-5	2
-28	21
-29	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -905,10 +857,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	22
-5	2
-28	11
-29	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -995,10 +943,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	42
-5	2
-28	21
-29	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1033,10 +977,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	22
-5	2
-28	11
-29	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -1123,10 +1063,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	42
-5	2
-28	21
-29	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1161,10 +1097,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	22
-5	2
-28	11
-29	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;
@@ -1252,10 +1184,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	42
-5	2
-28	21
-29	21
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 33;
 delete from tab1 where a = 34;
@@ -1290,10 +1218,6 @@ INFORMATION_SCHEMA.INNODB_BUFFER_PAGE s2
 where s1.SPACE = s2.SPACE AND NAME like 'test/tab1%'
 and PAGE_TYPE = "INDEX" order by PAGE_NUMBER, NUMBER_RECORDS;
 PAGE_NUMBER	NUMBER_RECORDS
-4	22
-5	2
-28	11
-29	11
 set global innodb_purge_stop_now=ON;
 delete from tab1 where a = 32;
 set global innodb_purge_run_now=ON;

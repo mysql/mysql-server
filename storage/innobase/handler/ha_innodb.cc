@@ -13381,7 +13381,7 @@ ha_innobase::get_se_private_data(
 {
 	static uint	n_tables = 0;
 	static uint	n_indexes = 0;
-	static uint	n_pages = 3;
+	static uint	n_pages = 4;
 
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
