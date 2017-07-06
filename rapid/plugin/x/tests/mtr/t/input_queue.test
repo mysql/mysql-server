@@ -153,20 +153,18 @@ SET GLOBAL mysqlx_max_allowed_packet=1048597;
 
 
 -->quiet
--->echo While sending client could receive CR_BROKEN_PIPE network which could occur 
+-->echo While sending client could receive CR_BROKEN_PIPE network which could occur
 -->echo because xplugin stopped read ops
 -->expecterror 0,2007
 Mysqlx.Sql.StmtExecute {
         stmt: "SELECT 1; /* %A% */"
 }
--->noquiet
--->peerdisc 2000 5000
-
+-->recvresult
 EOF
 
 --echo Test case
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-input-queue.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-input-queue.tmp  
+--remove_file $MYSQL_TMP_DIR/mysqlx-input-queue.tmp
 
 --echo Cleanup
 DROP TABLE `first_table`;

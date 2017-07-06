@@ -29,10 +29,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
+#include "mysqlxclient/xdatetime.h"
+#include "mysqlxclient/xdecimal.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs_common/protocol_protobuf.h"
-#include "ngs_common/xdatetime.h"
-#include "ngs_common/xdecimal.h"
 
 using namespace ngs;
 
@@ -292,7 +292,7 @@ void Row_builder::add_decimal_field(const decimal_t * value)
   __decimal2string(value, &(str_buf)[0], &str_len, 0, 0, 0);
   str_buf.resize(str_len);
 
-  mysqlx::Decimal dec(str_buf);
+  xcl::Decimal dec(str_buf);
   std::string dec_bytes = dec.to_bytes();
 
   m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(dec_bytes.length()));
@@ -304,7 +304,7 @@ void Row_builder::add_decimal_field(const char * const value, size_t length)
   ADD_FIELD_HEADER();
 
   std::string dec_str(value, length);
-  mysqlx::Decimal dec(dec_str);
+  xcl::Decimal dec(dec_str);
   std::string dec_bytes = dec.to_bytes();
 
   m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(dec_bytes.length()));

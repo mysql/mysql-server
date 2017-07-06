@@ -24,8 +24,8 @@
 #include "ngs_common/bind.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/interface/sql_session_interface.h"
-#include "ngs/protocol_monitor.h"
-#include "protocol.h"
+#include "ngs/interface/protocol_monitor_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "xpl_resultset.h"
 
 namespace xpl {
@@ -50,12 +50,12 @@ inline Mysqlx::Notice::Warning::Level get_warning_level(
 }
 
 bool end_warning_row(xpl::Process_resultset::Row *row,
-                     ngs::Protocol_encoder &proto, bool skip_single_error,
+                     ngs::Protocol_encoder_interface &proto, bool skip_single_error,
                      std::string &last_error, unsigned int &num_errors) {
   typedef Mysqlx::Notice::Warning Warning;
 
   if (!last_error.empty()) {
-    proto.send_local_warning(last_error);
+    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL, last_error);
     last_error.clear();
   }
 
@@ -81,21 +81,24 @@ bool end_warning_row(xpl::Process_resultset::Row *row,
     }
   }
 
-  proto.send_local_warning(data);
+  proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL, data);
   return true;
 }
 
 inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
-                              ngs::Protocol_encoder *proto) {
+                              ngs::Protocol_encoder_interface *proto) {
   std::string data;
   notice.SerializeToString(&data);
-  proto->send_local_notice(
-      ngs::Protocol_encoder::k_notice_session_state_changed, data);
+  proto->send_notice(
+      ngs::Frame_type::SESSION_STATE_CHANGED,
+      ngs::Frame_scope::LOCAL,
+      data);
 }
+
 }  // namespace
 
 ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
-                              ngs::Protocol_encoder &proto,
+                              ngs::Protocol_encoder_interface &proto,
                               bool skip_single_error) {
   Process_resultset::Row row_data;
   static const std::string q = "SHOW WARNINGS";
@@ -109,15 +112,19 @@ ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
   return da.execute(q.data(), q.length(), &resultset);
 }
 
-ngs::Error_code send_account_expired(ngs::Protocol_encoder &proto) {
+
+ngs::Error_code send_account_expired(
+    ngs::Protocol_encoder_interface &proto) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::ACCOUNT_EXPIRED);
   send_local_notice(change, &proto);
   return ngs::Success();
 }
 
-ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder &proto,
-                                         uint64_t i) {
+
+ngs::Error_code send_generated_insert_id(
+    ngs::Protocol_encoder_interface &proto,
+    uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_INSERT_ID);
   change.mutable_value()->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
@@ -126,12 +133,16 @@ ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder &proto,
   return ngs::Success();
 }
 
-ngs::Error_code send_rows_affected(ngs::Protocol_encoder &proto, uint64_t i) {
+ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto, uint64_t i) {
   proto.send_rows_affected(i);
+
   return ngs::Success();
 }
 
-ngs::Error_code send_client_id(ngs::Protocol_encoder &proto, uint64_t i) {
+
+ngs::Error_code send_client_id(
+    ngs::Protocol_encoder_interface &proto,
+    uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::CLIENT_ID_ASSIGNED);
   change.mutable_value()->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
@@ -140,7 +151,7 @@ ngs::Error_code send_client_id(ngs::Protocol_encoder &proto, uint64_t i) {
   return ngs::Success();
 }
 
-ngs::Error_code send_message(ngs::Protocol_encoder &proto,
+ngs::Error_code send_message(ngs::Protocol_encoder_interface &proto,
                              const std::string &message) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::PRODUCED_MESSAGE);

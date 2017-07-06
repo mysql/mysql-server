@@ -18,27 +18,27 @@ create user abc@localhost identified by 'abc';
 
 
 -->stmtadmin ping	{"schema":"xtest"}
--->expecterror 5015
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
 -->recvresult
 
 
 -->stmtadmin ping	"xtest"
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 
 -->stmtadmin ping	42
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 
 -->stmtadmin ping	[42]
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 
 -->stmtadmin ping	null
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 -->sql

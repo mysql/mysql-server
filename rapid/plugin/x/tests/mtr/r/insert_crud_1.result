@@ -786,6 +786,7 @@ categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categor
 19	GROUND	null	null	null	null
 20	null	null	null	null	null
 0 rows affected
+Got expected error (one of: 0 1205 )
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -819,7 +820,7 @@ send Mysqlx.Crud.Insert {
 Got expected error (one of: 1142 1205 )
 RUN SELECT * FROM xplugintest.categories
 While executing SELECT * FROM xplugintest.categories:
-Got expected error: Lock wait timeout exceeded; try restarting transaction (code 1205)
+Got expected error (one of: 0 1205 )
 Mysqlx.Ok {
   msg: "bye!"
 }

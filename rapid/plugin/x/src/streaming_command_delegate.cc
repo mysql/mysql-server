@@ -20,6 +20,7 @@
 #include "streaming_command_delegate.h"
 
 #include <stddef.h>
+#include "ngs/interface/protocol_encoder_interface.h"
 #include <iostream>
 #include <string>
 
@@ -32,7 +33,7 @@
 
 using namespace xpl;
 
-Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder *proto)
+Streaming_command_delegate::Streaming_command_delegate(ngs::Protocol_encoder_interface *proto)
 : m_proto(proto),
   m_sent_result(false),
   m_compact_metadata(false)

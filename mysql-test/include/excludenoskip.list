@@ -198,3 +198,9 @@ not_discover.inc
 # 17.0 Reason for inclusion: the extra JSON cause on ndb builds is hard to
 # separate. see innodb.sdi test
 have_no_ndb.inc
+
+# 18.0 Test to be run on local machine
+# This file is used by test scenarios that depend on time and it isn't possible
+# to test it in other way. Time based tests are unstable on PB2.
+# Waiting for some kind of in test time simulation functionality.
+is_local_machine.inc

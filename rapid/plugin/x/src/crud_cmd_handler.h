@@ -20,9 +20,9 @@
 #ifndef _XPL_CRUD_CMD_HANDLER_H_
 #define _XPL_CRUD_CMD_HANDLER_H_
 
-#include "ngs/error_code.h"
 #include "ngs/interface/resultset_interface.h"
 #include "ngs/protocol_fwd.h"
+#include "ngs/error_code.h"
 #include "query_string_builder.h"
 #include "sql_data_context.h"
 #include "xpl_session_status_variables.h"
@@ -61,7 +61,7 @@ private:
  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
                          ngs::Resultset_interface &resultset,
                          Status_variable variable,
-                         bool (ngs::Protocol_encoder::*send_ok)());
+                          bool (ngs::Protocol_encoder_interface::*send_ok)());
 
   template <typename M>
   ngs::Error_code error_handling(const ngs::Error_code &error,
