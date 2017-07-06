@@ -36,6 +36,20 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_DEL 1
+#ifdef DEBUG_LCP_DEL
+#define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL(arglist) do { } while (0)
+#endif
+
+#define DEBUG_LCP_SKIP 1
+#ifdef DEBUG_LCP_SKIP
+#define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -48,6 +62,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
+#endif
+
+#define DEBUG_DELETE 1
+#ifdef DEBUG_DELETE
+#define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE(arglist) do { } while (0)
 #endif
 
 void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
@@ -73,6 +94,12 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
     tmp.m_page_idx= page_index;
+    DEB_DELETE(("(%u)dealloc tab(%u,%u), rowid(%u,%u)",
+                 instance(),
+                 regTabPtr.i,
+                 frag_id,
+                 frag_page_id,
+                 page_index));
     
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
@@ -307,13 +334,18 @@ Dbtup::dealloc_tuple(Signal* signal,
        *
        */
       extra_bits |= Tuple_header::LCP_SKIP;
-      DEB_LCP(("tab(%u,%u), row_id(%u,%u), handle_lcp_keep_commit",
-              regFragPtr->fragTableId,
-              regFragPtr->fragmentId,
-              rowid.m_page_no,
-              rowid.m_page_idx));
+      DEB_LCP_SKIP(("(%u)tab(%u,%u), row_id(%u,%u), handle_lcp_keep_commit"
+                    ", set LCP_SKIP",
+                    instance(),
+                    regFragPtr->fragTableId,
+                    regFragPtr->fragmentId,
+                    rowid.m_page_no,
+                    rowid.m_page_idx));
       handle_lcp_keep_commit(&rowid,
-                             req_struct, regOperPtr, regFragPtr, regTabPtr);
+                             req_struct,
+                             regOperPtr,
+                             regFragPtr,
+                             regTabPtr);
     }
   }
   
@@ -750,8 +782,9 @@ Dbtup::commit_operation(Signal* signal,
     copy_bits |= Tuple_header::DISK_PART;
   }
   
-  if(lcpScan_ptr_i != RNIL && (bits & Tuple_header::ALLOC) &&
-     !(bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE)))
+  if (lcpScan_ptr_i != RNIL &&
+      (bits & Tuple_header::ALLOC) &&
+      !(bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE)))
   {
     jam();
     ScanOpPtr scanOp;
@@ -772,6 +805,12 @@ Dbtup::commit_operation(Signal* signal,
          */
         jam();
         copy_bits |= Tuple_header::LCP_SKIP;
+        DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), rowid(%u,%u)",
+                      instance(),
+                      regFragPtr->fragTableId,
+                      regFragPtr->fragmentId,
+                      rowid.m_page_no,
+                      rowid.m_page_idx));
       }
       else
       {
@@ -781,10 +820,12 @@ Dbtup::commit_operation(Signal* signal,
          * this to ensure that it doesn't disappear with a later insert
          * operation.
          */
-        DEB_LCP(("(%u)Set LCP_DELETE on page: %u, idx: %u",
-                 instance(),
-                 rowid.m_page_no,
-                 rowid.m_page_idx));
+        DEB_LCP_DEL(("(%u)Set LCP_DELETE on tab(%u,%u), rowid(%u,%u)",
+                     instance(),
+                     regFragPtr->fragTableId,
+                     regFragPtr->fragmentId,
+                     rowid.m_page_no,
+                     rowid.m_page_idx));
         ndbassert(c_backup->is_partial_lcp_enabled());
         copy_bits |= Tuple_header::LCP_DELETE;
       }

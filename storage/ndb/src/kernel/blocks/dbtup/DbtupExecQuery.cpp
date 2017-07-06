@@ -44,6 +44,13 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+#define DEBUG_DELETE 1
+#ifdef DEBUG_DELETE
+#define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_LGMAN 1
 #ifdef DEBUG_LCP_LGMAN
 #define DEB_LCP_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -2188,6 +2195,25 @@ int Dbtup::handleInsertReq(Signal* signal,
     
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
+
+#ifdef DEBUG_DELETE
+    char *insert_str;
+    if (req_struct->m_is_lcp)
+    {
+      insert_str = (char*)"LCP_INSERT";
+    }
+    else
+    {
+      insert_str = (char*)"INSERT";
+    }
+    DEB_DELETE(("(%u)%s: tab(%u,%u) rowid(%u,%u)",
+                instance(),
+                insert_str,
+                regFragPtr->fragTableId,
+                regFragPtr->fragmentId,
+                frag_page_id,
+                regOperPtr.p->m_tuple_location.m_page_idx));
+#endif
 
     /**
      * The LCP_SKIP and LCP_DELETE flags must be retained even when allocating
@@ -4722,7 +4748,14 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
-  
+
+  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u)",
+               instance(),
+               fragPtr.p->fragTableId,
+               fragPtr.p->fragmentId,
+               key->m_page_no,
+               key->m_page_idx));
+
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)
   {

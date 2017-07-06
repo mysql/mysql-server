@@ -34,7 +34,14 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-//#define DEBUG_LCP_SCANNED_BIT 1
+#define DEBUG_LCP_SKIP 1
+#ifdef DEBUG_LCP_SKIP
+#define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) \
   do { g_eventLogger->info arglist ; } while (0)
@@ -650,6 +657,11 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
          * to do with the page whether to skip or record it as DELETE by
          * PAGEID.
          */
+        DEB_LCP_SKIP(("(%u)LCP_SKIP in tab(%u,%u) on page(%u)",
+                       instance(),
+                       fragPtrP->fragTableId,
+                       fragPtrP->fragmentId,
+                       page_no));
         pagePtr.p->set_page_to_skip_lcp();
       }
       else
