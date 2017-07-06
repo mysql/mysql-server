@@ -48,6 +48,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
+#define DEBUG_RES_DEL 1
+#ifdef DEBUG_RES_DEL
+#define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES_DEL(arglist) do { } while (0)
+#endif
+
 #define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -879,7 +886,8 @@ Restore::lcp_remove_old_file(Signal *signal,
   {
     jam();
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
-    DEB_RES(("tab(%u,%u) Delete control file number: %u",
+    DEB_RES(("(%u)tab(%u,%u) Delete control file number: %u",
+             instance(),
              file_ptr.p->m_table_id,
              file_ptr.p->m_fragment_id,
              file_number));
@@ -2491,15 +2499,17 @@ Restore::execFSREADCONF(Signal * signal)
   ndbassert(file_ptr.p->m_outstanding_reads);
   file_ptr.p->m_outstanding_reads--;
 
-  if(file_ptr.p->m_outstanding_reads == 0)
+  if (file_ptr.p->m_outstanding_reads == 0)
   {
     ndbassert(conf->bytes_read <= GLOBAL_PAGE_SIZE);
     if(conf->bytes_read == GLOBAL_PAGE_SIZE)
     {
+      jam();
       read_data_file(signal, file_ptr);
     }
     else 
     {
+      jam();
       file_ptr.p->m_status |= File::FILE_EOF;
       file_ptr.p->m_status &= ~(Uint32)File::FILE_THREAD_RUNNING;
     }
@@ -2908,7 +2918,7 @@ Restore::parse_record(Signal* signal,
                        rowid_val.m_page_no,
                        rowid_val.m_page_idx,
                        gci_id));
-        ndbrequire(len == 3);
+        ndbrequire(len == (3 + 1));
       }
     }
     else
@@ -2922,7 +2932,7 @@ Restore::parse_record(Signal* signal,
                      data[0],
                      data[1]));
       ndbrequire(header_type == BackupFormat::DELETE_BY_PAGEID_TYPE);
-      ndbrequire(len == 2);
+      ndbrequire(len == (2 + 1));
       /* DELETE by PAGEID, a loop of DELETE by ROWID */
       rowid_val.m_page_no = data[0];
       rowid_val.m_page_idx = 0;
@@ -3177,6 +3187,32 @@ Restore::crash_during_restore(FilePtr file_ptr, Uint32 line, Uint32 errCode)
 }
 
 void
+Restore::delete_by_rowid_fail(Uint32 op_ptr)
+{
+  FilePtr file_ptr;
+  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  DEB_RES_DEL(("(%u)DELETE fail:tab(%u,%u), m_rows_restored = %llu",
+               instance(),
+               file_ptr.p->m_table_id,
+               file_ptr.p->m_fragment_id,
+               file_ptr.p->m_rows_restored));
+}
+
+void
+Restore::delete_by_rowid_succ(Uint32 op_ptr)
+{
+  FilePtr file_ptr;
+  m_file_pool.getPtr(file_ptr, (op_ptr & 0x0FFFFFFF));
+  ndbrequire(file_ptr.p->m_rows_restored > 0);
+  file_ptr.p->m_rows_restored--;
+  DEB_RES_DEL(("(%u)DELETE success:tab(%u,%u), m_rows_restored = %llu",
+               instance(),
+               file_ptr.p->m_table_id,
+               file_ptr.p->m_fragment_id,
+               file_ptr.p->m_rows_restored));
+}
+
+void
 Restore::execLQHKEYCONF(Signal* signal)
 {
   FilePtr file_ptr;
@@ -3189,16 +3225,17 @@ Restore::execLQHKEYCONF(Signal* signal)
   switch (header_type)
   {
     case BackupFormat::INSERT_TYPE:
+      jam();
       file_ptr.p->m_rows_restored++;
       break;
     case BackupFormat::WRITE_TYPE:
+      jam();
       file_ptr.p->m_rows_restored++;
       break;
     case BackupFormat::DELETE_BY_ROWID_TYPE:
     case BackupFormat::DELETE_BY_PAGEID_TYPE:
     case BackupFormat::DELETE_BY_ROWID_WRITE_TYPE:
-      ndbrequire(file_ptr.p->m_rows_restored > 0);
-      file_ptr.p->m_rows_restored--;
+      jam();
       break;
     default:
       ndbrequire(false);
@@ -3257,7 +3294,7 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    *
    * TUP will send RESTORE_LCP_CONF
    */
-  DEB_HIGH_RES(("instance: %u Complete restore", instance()));
+  DEB_HIGH_RES(("(%u)Complete restore", instance()));
   c_tup->complete_restore_lcp(signal, 
                               file_ptr.p->m_sender_ref,
                               file_ptr.p->m_sender_data,

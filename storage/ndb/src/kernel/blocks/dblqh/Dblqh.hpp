@@ -42,6 +42,7 @@
 #include "../dbacc/Dbacc.hpp"
 #include "../dbtux/Dbtux.hpp"
 #include "../backup/Backup.hpp"
+#include "../restore.hpp"
 
 class Dbacc;
 class Dbtup;
@@ -3135,6 +3136,7 @@ private:
   Dbacc* c_acc;
   Backup* c_backup;
   Lgman* c_lgman;
+  Restore* c_restore;
 
   /**
    * Read primary key from tup

@@ -3106,6 +3106,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
   set_lcp_start_gci(fragPtr.i, lcp_start_gci);
 
   fragOpPtr.p->fragPointer = fragPtr.i;
+  fragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
 
   signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
   signal->theData[1] = fragOpPtr.i;
