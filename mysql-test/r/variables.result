@@ -587,6 +587,8 @@ set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 set wait_timeout=100;
 set global log_warnings=1;
 Warnings:

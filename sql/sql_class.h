@@ -491,6 +491,7 @@ typedef struct system_variables
   ulong completion_type;
   ulong query_cache_type;
   ulong tx_isolation;
+  ulong transaction_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
@@ -504,6 +505,7 @@ typedef struct system_variables
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
   my_bool tx_read_only;
+  my_bool transaction_read_only;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;

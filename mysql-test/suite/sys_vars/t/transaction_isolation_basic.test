@@ -1,0 +1,185 @@
+--source include/load_sysvars.inc
+
+--echo #
+--echo # WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+--echo #
+
+
+--echo #########################################################################
+--echo # Saving initial value of transaction_isolation in a temporary variable #
+--echo #########################################################################
+
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+
+--echo #####################################################################
+--echo #           Display the DEFAULT value of transaction_isolation      #
+--echo #####################################################################
+
+SET @@global.transaction_isolation = 'READ-UNCOMMITTED';
+SET @@global.transaction_isolation = DEFAULT;
+SELECT @@global.transaction_isolation;
+
+SET @@session.transaction_isolation = DEFAULT;
+SELECT @@session.transaction_isolation;
+
+--echo ##########################################################
+--echo #       Check if NULL or empty value is accepeted        #
+--echo ##########################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = NULL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = '';
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_isolation = NULL;
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.transaction_isolation = '';
+
+--echo #####################################################################
+--echo #     Change the value of transaction_isolation to a valid value    #
+--echo #####################################################################
+
+SET @@global.transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 'read-COMMITTED';
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 'REPEATABLE-READ';
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 'SERIALIZable';
+SELECT @@global.transaction_isolation;
+
+
+SET @@session.transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@session.transaction_isolation;
+
+SET @@session.transaction_isolation = 'READ-COMMITTED';
+SELECT @@session.transaction_isolation;
+
+SET @@session.transaction_isolation = 'REPEATABLE-READ';
+SELECT @@session.transaction_isolation;
+
+SET @@session.transaction_isolation = 'serializable';
+SELECT @@session.transaction_isolation;
+
+
+--echo #######################################################################
+--echo #      Change the value of transaction_isolation to invalid value     #
+--echo #######################################################################
+
+# for global scope
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = READUNCOMMITTED;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = 'REPEATABLE';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = OFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = ON;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.transaction_isolation = 'NON-SERIALIZABLE';
+
+# for session scope
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@transaction_isolation = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@transaction_isolation = READUNCOMMITTED;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@transaction_isolation = 'REPEATABLE';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@transaction_isolation = 'NONE';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@transaction_isolation = 'ALL';
+
+--echo #########################################################################
+--echo #     Check if the value in session Table matches value in variable     #
+--echo #########################################################################
+
+--disable_warnings
+SELECT @@session.transaction_isolation = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='transaction_isolation';
+--enable_warnings
+
+--echo #########################################################################
+--echo #     Check if the value in GLOBAL Table matches value in variable      #
+--echo #########################################################################
+
+--disable_warnings
+SELECT @@global.transaction_isolation = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='transaction_isolation';
+--enable_warnings
+
+
+--echo ###################################################################
+--echo #        Check if numbers can be used on variable                 #
+--echo ###################################################################
+
+# test if variable accepts 0,1,2
+SET @@global.transaction_isolation = 0;
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 1;
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 2;
+SELECT @@global.transaction_isolation;
+
+SET @@global.transaction_isolation = 3;
+SELECT @@global.transaction_isolation;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.transaction_isolation = 0.4;
+
+--echo ###################################################################
+--echo #      Check if TRUE and FALSE values can be used on variable     #
+--echo ###################################################################
+
+SET @@global.transaction_isolation = TRUE;
+SELECT @@global.transaction_isolation;
+SET @@global.transaction_isolation = FALSE;
+SELECT @@global.transaction_isolation;
+
+--echo ##########################################################################
+--echo # Check if transaction_isolation can be accessed with and without @@ sign#
+--echo ##########################################################################
+
+SET transaction_isolation = 'REPEATABLE-READ';
+
+--Error ER_PARSE_ERROR
+SET session.transaction_isolation = 'REPEATABLE-READ';
+--Error ER_PARSE_ERROR
+SET global.transaction_isolation = 'REPEATABLE-READ';
+#using SET SESSION|GLOBAL syntax
+SET session transaction_isolation = 'REPEATABLE-READ';
+SELECT @@transaction_isolation;
+
+SET global transaction_isolation = 'REPEATABLE-READ';
+SELECT @@global.transaction_isolation;
+
+--echo ##############################
+--echo #   Restore initial value    #
+--echo ##############################
+
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+
+--echo ####################################################################
+--echo #                    END OF transaction_isolation TESTS            #
+--echo ####################################################################

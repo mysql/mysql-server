@@ -21,6 +21,8 @@ START TRANSACTION;
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 Should be REPEATABLE READ
 SELECT * FROM t1;
 s1
@@ -29,11 +31,15 @@ s1
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 Should be REPEATABLE READ
 INSERT INTO t1 VALUES (-1);
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 Should be REPEATABLE READ
 COMMIT;
 START TRANSACTION;
@@ -308,18 +314,26 @@ SET SESSION TRANSACTION READ WRITE;
 SELECT @@tx_read_only;
 @@tx_read_only
 0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ ONLY;
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
 SELECT @@tx_read_only;
 @@tx_read_only
 0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ ONLY, ISOLATION LEVEL REPEATABLE READ;
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 START TRANSACTION;
 # Not allowed inside a transaction
 SET TRANSACTION READ ONLY;
@@ -526,6 +540,8 @@ CALL p1();
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ WRITE;
 DROP PROCEDURE p1;
 CREATE PROCEDURE p1() SET SESSION TRANSACTION READ ONLY,
@@ -534,6 +550,8 @@ CALL p1();
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ WRITE, ISOLATION LEVEL REPEATABLE READ;
 DROP PROCEDURE p1;
 CREATE FUNCTION f1() RETURNS INT
@@ -547,6 +565,8 @@ f1()
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION READ WRITE;
 DROP FUNCTION f1;
 CREATE FUNCTION f1() RETURNS INT
@@ -560,6 +580,8 @@ f1()
 SELECT @@tx_read_only;
 @@tx_read_only
 1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE;
 DROP FUNCTION f1;
 #
