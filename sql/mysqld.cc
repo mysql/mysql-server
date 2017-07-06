@@ -5894,12 +5894,12 @@ struct my_option my_long_options[]=
 #endif
    &use_temp_pool, &use_temp_pool, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"transaction-isolation", 0,
+  {"transaction-isolation", OPT_TRANSACTION_ISOLATION,
    "Default transaction isolation level.",
    &global_system_variables.tx_isolation,
    &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
-  {"transaction-read-only", 0,
+  {"transaction-read-only", OPT_TRANSACTION_READ_ONLY,
    "Default transaction access mode. "
    "True if transactions are read-only.",
    &global_system_variables.tx_read_only,
@@ -7154,7 +7154,8 @@ mysqld_get_one_option(int optid,
     break;
   case 'a':
     global_system_variables.sql_mode= MODE_ANSI;
-    global_system_variables.tx_isolation= ISO_SERIALIZABLE;
+    global_system_variables.tx_isolation=
+           global_system_variables.transaction_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
@@ -7547,6 +7548,7 @@ pfs_error:
     sql_print_warning("The use of InnoDB is mandatory since MySQL 5.7. "
                       "The former options like '--innodb=0/1/OFF/ON' or "
                       "'--skip-innodb' are ignored.");
+    break;
   case OPT_AVOID_TEMPORAL_UPGRADE:
     push_deprecated_warn_no_replacement(NULL, "avoid_temporal_upgrade");
     break;
@@ -7561,7 +7563,16 @@ pfs_error:
       sql_print_warning("option 'enforce-gtid-consistency': value '%s' "
                         "was not recognized. Setting enforce-gtid-consistency "
                         "to OFF.", wrong_value);
+    break;
   }
+  case OPT_TRANSACTION_READ_ONLY:
+    global_system_variables.transaction_read_only=
+                            global_system_variables.tx_read_only;
+    break;
+  case OPT_TRANSACTION_ISOLATION:
+    global_system_variables.transaction_isolation=
+                            global_system_variables.tx_isolation;
+    break;
   }
   return 0;
 }

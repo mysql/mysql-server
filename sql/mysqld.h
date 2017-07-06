@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -900,7 +900,9 @@ enum options_mysqld
   OPT_SKIP_INNODB,
   OPT_AVOID_TEMPORAL_UPGRADE,
   OPT_SHOW_OLD_TEMPORALS,
-  OPT_ENFORCE_GTID_CONSISTENCY
+  OPT_ENFORCE_GTID_CONSISTENCY,
+  OPT_TRANSACTION_READ_ONLY,
+  OPT_TRANSACTION_ISOLATION
 };
 
 

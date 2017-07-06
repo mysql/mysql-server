@@ -712,6 +712,8 @@ execute stmt;
 @@time_zone
 Japan
 prepare stmt from "select @@tx_isolation";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ
@@ -724,6 +726,8 @@ execute stmt;
 @@tx_isolation
 REPEATABLE-READ
 set @@tx_isolation=default;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ

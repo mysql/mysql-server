@@ -14,6 +14,8 @@ update worklog5743 set a = (repeat("x", 17000));
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
 0
@@ -24,6 +26,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
 1
@@ -42,6 +46,8 @@ update worklog5743 set a1 = 1000;
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
@@ -54,6 +60,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 rollback;
@@ -67,6 +75,8 @@ update worklog5743 set a1 = 1000;
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	worklog5743	NULL	ref	idx	idx	5	const	1	100.00	NULL
@@ -79,6 +89,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 rollback;
@@ -338,6 +350,8 @@ a1	left(a2, 20)
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	worklog5743_1	NULL	ref	idx6	idx6	5	const	1	100.00	NULL
@@ -382,6 +396,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 a1	left(a2, 20)
 select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
@@ -455,6 +471,8 @@ update worklog5743 set a1 = 1000;
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 explain select a1 from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	worklog5743	NULL	ref	idx6	idx6	5	const	1	100.00	Using index
@@ -467,6 +485,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a1 from worklog5743 where a1 = 9;
 a1
 rollback;
@@ -487,6 +507,8 @@ update worklog5743 set a = (repeat("x", 25000));
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a = repeat("a", 20000) from worklog5743;
 a = repeat("a", 20000)
 1
@@ -494,6 +516,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 select a = repeat("x", 25000) from worklog5743;
 a = repeat("x", 25000)
 1
