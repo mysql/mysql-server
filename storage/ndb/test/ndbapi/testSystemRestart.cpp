@@ -669,7 +669,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
      * 9. Delete all records
      * 10. Restart cluster and verify records
      */
-    g_info << "Loading records..." << endl;
+    g_err << "Loading records..." << endl;
     CHECK(hugoTrans.loadTable(pNdb, records) == 0);
 
     /*** 1 ***/
@@ -680,7 +680,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 				     false) == 0);
     currentRestartNodeIndex = (currentRestartNodeIndex + 1 ) % nodeCount;
 
-    g_info << "Updating records..." << endl;
+    g_err << "Updating records..." << endl;
     CHECK(hugoTrans.pkUpdateRecords(pNdb, records) == 0);
     
     g_err << "Restarting cluster..." << endl;
@@ -761,7 +761,7 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
 				     false) == 0);
     currentRestartNodeIndex = (currentRestartNodeIndex - 1 ) % nodeCount;
 
-    g_err << "Verifying records..." << endl;
+    g_err << "Verifying records again..." << endl;
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == 0);
     
@@ -772,6 +772,11 @@ int runSystemRestart4(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(restarter.dumpStateAllNodes(&val, 1) == 0);
     }
     CHECK(pNdb->waitUntilReady(timeout) == 0);
+
+    g_err << "Verifying records yet again..." << endl;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == 0);
+    
 
     i++;
   }

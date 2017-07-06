@@ -244,8 +244,11 @@ private:
   void restore_lcp_conf(Signal* signal, FilePtr);
   void restore_lcp_conf_after_execute(Signal* signal, FilePtr);
   void crash_during_restore(FilePtr, Uint32 line, Uint32 errCode);
+
 public:
-  
+  void delete_by_rowid_fail(Uint32 op_ptr);
+  void delete_by_rowid_succ(Uint32 op_ptr);
+
 private:
   class Dblqh* c_lqh;
   class Dbtup* c_tup;

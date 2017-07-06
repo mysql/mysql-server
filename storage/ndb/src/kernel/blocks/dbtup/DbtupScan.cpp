@@ -1880,6 +1880,7 @@ Dbtup::record_delete_by_rowid(Signal *signal,
                               Local_key &key,
                               Uint32 foundGCI)
 {
+  const Uint32 bits = scan.m_bits;
   DEB_LCP_DEL(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
                instance(),
                tableId,
@@ -1888,7 +1889,7 @@ Dbtup::record_delete_by_rowid(Signal *signal,
                key.m_page_idx));
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
-  conf->accOperationPtr = RNIL;
+  conf->accOperationPtr = (bits & ScanOp::SCAN_LCP) ? Uint32(-1) : RNIL;
   conf->fragId = fragmentId;
   conf->localKey[0] = key.m_page_no;
   conf->localKey[1] = key.m_page_idx;
@@ -1923,7 +1924,7 @@ Dbtup::record_delete_by_pageid(Signal *signal,
 
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
-  conf->accOperationPtr = RNIL;
+  conf->accOperationPtr = Uint32(-1);
   conf->fragId = fragmentId;
   conf->localKey[0] = page_no;
   conf->localKey[1] = page_idx;

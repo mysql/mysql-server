@@ -4581,7 +4581,10 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
 }
 
 int
-Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
+Dbtup::nr_update_gci(Uint32 fragPtrI,
+                     const Local_key* key,
+                     Uint32 gci,
+                     bool tuple_exists)
 {
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -4599,6 +4602,7 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     if (unlikely(pagePtr.i == RNIL))
     {
       jam();
+      ndbassert(!tuple_exists);
       return 0;
     }
 
@@ -4606,8 +4610,15 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     
     Tuple_header* ptr = (Tuple_header*)
       ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
-    
-    ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
+
+    if (tuple_exists)
+    {
+      ndbrequire(!(ptr->m_header_bits & Tuple_header::FREE));
+    }
+    else
+    {
+      ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
+    }
     update_gci(fragPtr.p, tablePtr.p, ptr, gci);
   }
   return 0;

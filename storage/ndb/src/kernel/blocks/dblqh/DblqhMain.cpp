@@ -777,8 +777,13 @@ void Dblqh::execSTTOR(Signal* signal)
     c_tux = (Dbtux*)globalData.getBlock(DBTUX, instance());
     c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
     c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
+    c_restore = (Restore*)globalData.getBlock(RESTORE, instance());
     c_lgman = (Lgman*)globalData.getBlock(LGMAN);
-    ndbrequire(c_tup != 0 && c_tux != 0 && c_acc != 0 && c_lgman != 0);
+    ndbrequire(c_tup != 0 &&
+               c_tux != 0 &&
+               c_acc != 0 &&
+               c_lgman != 0 &&
+               c_restore != 0);
     
 #ifdef NDBD_TRACENR
 #ifdef VM_TRACE
@@ -6378,7 +6383,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
   /**
    * len == 0 here means that the row id had no record attached to it.
    * len > 0 means that we returned a primary key from nr_read_pk.
-   * len == 0 > match = false
+   * len == 0 >> match = false
    *
    * DELETE by ROWID means regTcPtr.p->primKeyLen is 0 and thus compare_key
    * will not return true and thus match = false
@@ -6435,6 +6440,15 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
 	  TRACENR(" performing DELETE key: " 
 	         << dst[0] << endl); 
 
+        if (refToMain(regTcPtr.p->tcBlockref) == RESTORE)
+        {
+          jam();
+          c_restore->delete_by_rowid_succ(regTcPtr.p->tcOprec);
+        }
+        c_tup->nr_update_gci(fragPtr,
+                             &regTcPtr.p->m_row_id,
+                             regTcPtr.p->gci_hi,
+                             true);
         nr_copy_delete_row(signal, regTcPtr, &regTcPtr.p->m_row_id, len);
         ndbassert(regTcPtr.p->m_nr_delete.m_cnt);
         regTcPtr.p->m_nr_delete.m_cnt--; // No real op is run
@@ -6459,7 +6473,15 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
         jam();
         if (TRACENR_FLAG)
 	  TRACENR(" UPDATE_GCI" << endl);
-        c_tup->nr_update_gci(fragPtr, &regTcPtr.p->m_row_id, regTcPtr.p->gci_hi);
+        if (refToMain(regTcPtr.p->tcBlockref) == RESTORE)
+        {
+          jam();
+          c_restore->delete_by_rowid_fail(regTcPtr.p->tcOprec);
+        }
+        c_tup->nr_update_gci(fragPtr,
+                             &regTcPtr.p->m_row_id,
+                             regTcPtr.p->gci_hi,
+                             false);
         goto update_gci_ignore;
       }
     }
@@ -12742,22 +12764,6 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
                                accOpPtr);
 
     Fragrecord* fragPtrP= fragptr.p;
-    /* ----------------------------------------------------------------------
-     *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
-     * ---------------------------------------------------------------------- */
-    if (scanPtr->scanCompletedStatus == ZTRUE) {
-      if ((scanPtr->scanLockHold == ZTRUE) && 
-          (scanPtr->m_curr_batch_size_rows > 0)) {
-        jam();
-        scanPtr->scanReleaseCounter = 1;
-        scanReleaseLocksLab(signal, tcConnectptr.p);
-        return;
-      }//if
-      jam();
-      closeScanLab(signal, tcConnectptr.p);
-      return;
-    }//if
-
     if (unlikely(signal->getLength() ==
                  NextScanConf::SignalLengthNoKeyInfo))
     {
@@ -12776,13 +12782,13 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
        */
       NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
       Uint32 gci = nextScanConf->gci;
-      TupKeyConf * conf = (TupKeyConf *)signal->getDataPtr();
+      Uint32 readLength;
       if (scanPtr->m_row_id.m_page_idx == ZNIL)
       {
         jam();
         /* gci transports record_size in this case */
         c_backup->record_deleted_pageid(scanPtr->m_row_id.m_page_no, gci);
-        conf->readLength = 2;
+        readLength = 2;
       }
       else
       {
@@ -12790,12 +12796,44 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
         c_backup->record_deleted_rowid(scanPtr->m_row_id.m_page_no,
                                        scanPtr->m_row_id.m_page_idx,
                                        gci);
-        conf->readLength = 3;
+        readLength = 3;
       }
-      conf->lastRow = false;
-      scanTupkeyConfLab(signal, tcConnectptr.p);
+      ndbrequire(scanPtr->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
+      scanPtr->m_exec_direct_batch_size_words += readLength;
+      scanPtr->m_curr_batch_size_bytes+= readLength * sizeof(Uint32);
+      scanPtr->m_curr_batch_size_rows++;
+      scanPtr->m_last_row = false;
+      scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
+
+      if (!scanPtr->check_scan_batch_completed())
+      {
+        jam();
+        scanNextLoopLab(signal);
+      }
+      else
+      {
+        jam();
+        scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+        sendScanFragConf(signal, ZFALSE);
+      }
       return;
     }
+
+    /* ----------------------------------------------------------------------
+     *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
+     * ---------------------------------------------------------------------- */
+    if (scanPtr->scanCompletedStatus == ZTRUE) {
+      if ((scanPtr->scanLockHold == ZTRUE) && 
+          (scanPtr->m_curr_batch_size_rows > 0)) {
+        jam();
+        scanPtr->scanReleaseCounter = 1;
+        scanReleaseLocksLab(signal);
+        return;
+      }//if
+      jam();
+      closeScanLab(signal);
+      return;
+    }//if
 
     const Uint32 fragPtrI = fragPtrP->tableFragptr;
     const Uint32 rangeScan = scanPtr->rangeScan;
@@ -12829,7 +12867,8 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
      * --------------------------------------------------------------------- */
     /*************************************************************
      *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
-     ************************************************************ */    
+     ************************************************************ */
+
     if (fragId == RNIL && !scanPtr->scanLockHold)
     {
       jamDebug();

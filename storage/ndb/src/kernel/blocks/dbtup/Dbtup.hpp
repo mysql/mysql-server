@@ -1807,7 +1807,10 @@ public:
   Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
-  int nr_update_gci(Uint32 fragPtr, const Local_key*, Uint32 gci);
+  int nr_update_gci(Uint32 fragPtr,
+                    const Local_key*,
+                    Uint32 gci,
+                    bool tuple_exists);
   int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
 
   void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
