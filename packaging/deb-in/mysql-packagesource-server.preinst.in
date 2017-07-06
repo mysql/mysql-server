@@ -55,6 +55,12 @@ case "$1" in
 			invoke-rc.d mysql stop || exit $?
 			server_stop
 		fi
+		# Native 5.5 packages create a /var/run/mysqld owned by root. This can cause
+		# errors in the systemd service, so we reset ownership if it exists.
+		MYSQLRUN=/var/run/mysqld
+		if [ -d ${MYSQLRUN} ]; then
+			install -d -m0755 -omysql -gmysql ${MYSQLRUN}
+		fi
 
 		set +e
 
