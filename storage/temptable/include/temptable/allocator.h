@@ -74,6 +74,10 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 
 namespace temptable {
 
+#if defined(HAVE_WINNUMA)
+extern DWORD	win_page_size;
+#endif /* HAVE_WINNUMA */
+
 #ifdef TEMPTABLE_PFS_MEMORY
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
 /** PFS key to account logical memory allocations and deallocations. Logical
@@ -681,14 +685,12 @@ inline void* Allocator<T>::mem_fetch_from_ram(size_t bytes) {
     return malloc(bytes);
   }
 #elif defined(HAVE_WINNUMA)
-  SYSTEM_INFO systemInfo;
   PROCESSOR_NUMBER processorNumber;
   USHORT numaNodeId;
-  GetSystemInfo(&systemInfo);
   GetCurrentProcessorNumberEx(&processorNumber);
   GetNumaProcessorNodeEx(&processorNumber, &numaNodeId);
-  bytes = (bytes + systemInfo.dwPageSize - 1) &
-          ~(static_cast<size_t>(systemInfo.dwPageSize) - 1);
+  bytes = (bytes + win_page_size - 1) &
+          ~(static_cast<size_t>(win_page_size) - 1);
   return VirtualAllocExNuma(GetCurrentProcess(), NULL, bytes,
                             MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE,
                             numaNodeId);
@@ -707,7 +709,8 @@ inline void Allocator<T>::mem_drop_from_ram(
     free(ptr);
   }
 #elif defined(HAVE_WINNUMA)
-  VirtualFree(ptr, 0, MEM_DECOMMIT | MEM_RELEASE);
+  auto	ret = VirtualFree(ptr, 0, MEM_RELEASE);
+  assert(ret != 0);
 #else
   free(ptr);
 #endif
