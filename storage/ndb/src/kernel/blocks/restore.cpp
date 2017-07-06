@@ -1882,10 +1882,14 @@ Restore::release_file(FilePtr file_ptr, bool statistics)
     m_frags_restored++;
   }
 
-  DEB_RES(("(%u)Restore: insert: %llu, write: %llu"
-           ", delete: %llu, delete_page: %llu"
+  DEB_RES(("(%u)Restore tab(%u,%u): file_index: %u, "
+           "inserts: %llu, writes: %llu"
+           ", deletes: %llu, delete_pages: %llu"
            ", delete_failed: %llu",
            instance(),
+           file_ptr.p->m_table_id,
+           file_ptr.p->m_fragment_id,
+           file_ptr.p->m_current_file_index - 1,
            file_ptr.p->m_rows_restored_insert,
            file_ptr.p->m_rows_restored_write,
            file_ptr.p->m_rows_restored_delete,
@@ -2858,8 +2862,10 @@ Restore::parse_record(Signal* signal,
          * records, so the performance impact should not be
          * very high.
          */
-        DEB_HIGH_RES(("(%u)WRITE_TYPE, rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)WRITE_TYPE tab(%u,%u), rowid(%u,%u), gci=%u",
                        instance(),
+                       file_ptr.p->m_table_id,
+                       file_ptr.p->m_fragment_id,
                        rowid_val.m_page_no,
                        rowid_val.m_page_idx,
                        gci_id));
@@ -2895,8 +2901,10 @@ Restore::parse_record(Signal* signal,
          * The key is instead the rowid which is sent when the row id flag is
          * set.
          */
-        DEB_HIGH_RES(("(%u)DELETE_BY_ROWID, rowid(%u,%u), gci=%u",
+        DEB_HIGH_RES(("(%u)DELETE_BY_ROWID tab(%u,%u), rowid(%u,%u), gci=%u",
                        instance(),
+                       file_ptr.p->m_table_id,
+                       file_ptr.p->m_fragment_id,
                        rowid_val.m_page_no,
                        rowid_val.m_page_idx,
                        gci_id));
@@ -2907,8 +2915,10 @@ Restore::parse_record(Signal* signal,
     {
       jam();
       Local_key rowid_val;
-      DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID, page=%u, record_size=%u",
+      DEB_HIGH_RES(("(%u)DELETE_BY_PAGEID tab(%u,%u), page=%u, record_size=%u",
                      instance(),
+                     file_ptr.p->m_table_id,
+                     file_ptr.p->m_fragment_id,
                      data[0],
                      data[1]));
       ndbrequire(header_type == BackupFormat::DELETE_BY_PAGEID_TYPE);

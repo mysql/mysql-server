@@ -424,6 +424,11 @@ public:
     OperationRecord operation;
     Uint32 m_sent_words_in_scan_batch;
     Uint32 m_num_scan_req_on_prioa;
+
+    Uint64 m_lcp_inserts;
+    Uint64 m_lcp_writes;
+    Uint64 m_lcp_delete_by_pageids;
+    Uint64 m_lcp_delete_by_rowids;
     
     Array<Page32> pages;
     Uint32 nextList;

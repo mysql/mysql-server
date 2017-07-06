@@ -5634,6 +5634,10 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   fragPtr.p->scanning = 1;
   filePtr.p->fragmentNo = fragPtr.p->fragmentId;
   filePtr.p->m_retry_count = 0;
+  filePtr.p->m_lcp_inserts = 0;
+  filePtr.p->m_lcp_writes = 0;
+  filePtr.p->m_lcp_delete_by_rowids = 0;
+  filePtr.p->m_lcp_delete_by_pageids = 0;
 
   if (ptr.p->is_lcp())
   {
@@ -6186,6 +6190,7 @@ Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
   op.attrSzTotal += dataLen;
   ndbrequire(dataLen < op.maxRecordSize);
   filePtr.p->m_sent_words_in_scan_batch += dataLen;
+  filePtr.p->m_lcp_delete_by_pageids++;
   op.finished(dataLen);
   op.newRecord(dst + dataLen + 1);
 }
@@ -6209,6 +6214,7 @@ Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
   op.attrSzTotal += dataLen;
   ndbrequire(dataLen < op.maxRecordSize);
   filePtr.p->m_sent_words_in_scan_batch += dataLen;
+  filePtr.p->m_lcp_delete_by_rowids++;
   op.finished(dataLen);
   op.newRecord(dst + dataLen + 1);
 }
@@ -6242,12 +6248,14 @@ Backup::execTRANSID_AI(Signal* signal)
       /* LCP for CHANGED ROWS pages */
       jam();
       header = dataLen + (BackupFormat::WRITE_TYPE << 16);
+      filePtr.p->m_lcp_writes++;
     }
     else
     {
       /* LCP for ALL ROWS pages */
       jam();
       header = dataLen + (BackupFormat::INSERT_TYPE << 16);
+      filePtr.p->m_lcp_inserts++;
     }
 #ifdef VM_TRACE
     Uint32 th = signal->theData[4];
@@ -6454,6 +6462,23 @@ Backup::init_lcp_scan(Uint32 & scanGCI,
                 scanGCI,
                 skip_page,
                 changed_row_page_flag);
+
+#ifdef DEBUG_EXTRA_LCP
+  TablePtr debTabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(debTabPtr);
+  debTabPtr.p->fragments.getPtr(fragPtr, 0);
+  DEB_EXTRA_LCP(("(%u)LCP scan page tab(%u,%u): %u, part_id: %u,"
+                 " round: %u, %s",
+          instance(),
+          debTabPtr.p->tableId,
+          fragPtr.p->fragmentId,
+          0,
+          part_id,
+          0,
+          skip_page ? "SKIP page" :
+            changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
+#endif
   ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
 }
 
@@ -6539,13 +6564,22 @@ Backup::update_lcp_pages_scanned(Signal *signal,
                 skip_page,
                 changed_row_page_flag);
   ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
-  DEB_EXTRA_LCP(("(%u)LCP scan page: %u, part_id: %u, round: %u, %s",
-          instance(),
-          scanned_pages,
-          part_id,
-          0,
-          skip_page ? "SKIP page" :
-            changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
+#ifdef DEBUG_EXTRA_LCP
+  TablePtr debTabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(debTabPtr);
+  debTabPtr.p->fragments.getPtr(fragPtr, 0);
+  DEB_EXTRA_LCP(("(%u)LCP scan page tab(%u,%u):%u, part_id: %u, round: %u, %s",
+                 instance(),
+                 debTabPtr.p->tableId,
+                 fragPtr.p->fragmentId,
+                 scanned_pages,
+                 part_id,
+                 0,
+                 skip_page ? "SKIP page" :
+                   changed_row_page_flag ?
+                     "CHANGED ROWS page" : " ALL ROWS page"));
+#endif
 }
 
 void 
@@ -6870,6 +6904,15 @@ Backup::fragmentCompleted(Signal* signal,
       FragmentPtr fragPtr;
       ptr.p->tables.first(tabPtr);
       tabPtr.p->fragments.getPtr(fragPtr, 0);
+      DEB_LCP(("(%u)LCP tab(%u,%u): inserts: %llu, writes: %llu"
+               ", delete_by_row: %llu, delete_by_page: %llu",
+               instance(),
+               tabPtr.p->tableId,
+               fragPtr.p->fragmentId,
+               filePtr.p->m_lcp_inserts,
+               filePtr.p->m_lcp_writes,
+               filePtr.p->m_lcp_delete_by_rowids,
+               filePtr.p->m_lcp_delete_by_pageids));
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
     ptr.p->slaveState.setState(STOPPING);
@@ -8565,10 +8608,12 @@ Backup::execFSREMOVECONF(Signal* signal)
  * the rowid they are inserted into.
  *
  * Observation 3:
- * Given that the REDO log is a logical log it location and replication
+ * Given that the REDO log is a logical log it is location and replication
  * independent. This means that we can restore the LCP stored locally
  * and then apply a mix of the local REDO log and REDO logs from other
- * nodes in the same node group.
+ * nodes in the same node group. Using remote REDO logs is a principle we
+ * have decided to abandon and instead fully rely on the ability to
+ * synchronize data nodes at node restarts.
  *
  * An LCP is performed per fragment. A table consists of multiple fragments
  * that can be checkpointed in parallel in different LDMs.
@@ -8581,14 +8626,20 @@ Backup::execFSREMOVECONF(Signal* signal)
  *
  *     Need of LCP_SKIP bit for inserts
  *     ................................
- * We need to do the same thing for main memory data. The idea is that we
- * need a LCP to contain exactly the rows present at the start of the LCP.
- * This means that we set an LCP_SKIP bit on rows that are inserted during
- * LCPs to avoid putting those rows into the LCP when we pass by them in
- * the LCP scan.
+ * Performing a checkpoint for disk pages means simply writing any pages that
+ * got dirty since the last checkpoint. It is a bit more involved to perform
+ * checkpoints (LCPs) for main memory data. For main memory data we only
+ * checkpoint the rows and not pages. This gives us the opportunity to write
+ * less data in the main memory checkpoints since we don't have to save the
+ * entire page where the changes were done.
+ *
+ * The idea for LCPs is that we need a LCP to contain exactly the rows present
+ * at the start of the LCP. This means that we set an LCP_SKIP bit on rows
+ * that are inserted during LCPs to avoid putting those rows into the LCP when
+ * we pass by them in the LCP scan.
  *
  * The requirement to have exactly the correct set of rows that existed at
- * start of LCP comes from that we need the reference in main-memory rows
+ * start of LCP comes from that we need the reference from main-memory rows
  * to disk rows to be correct. The content of the main memory row and
  * disk data row must not be exactly synchronized but if the row exists
  * in main memory the referred disk row must exist in disk pages and
@@ -8658,7 +8709,7 @@ Backup::execFSREMOVECONF(Signal* signal)
  *    the time when we write the marker in the UNDO log of disk data) must
  *    all be part of LCP and no other rows may be present in the LCP.
  * 2) All links from main memory to disk data and vice versa must be
- *    consistent in checkpoint.
+ *    consistent in a checkpoint.
  * 3) The row data must be the same as at the time of the start of the LCP
  *    OR at a time after the start of the LCP.
  *
@@ -8673,7 +8724,8 @@ Backup::execFSREMOVECONF(Signal* signal)
  * REDO log execution.
  *
  * A paper at VLDB 2005 also presents some of the proof behind this in
- * the paper called "Recovery principles in MySQL Cluster 5.1".
+ * the paper called "Recovery principles in MySQL Cluster 5.1". This paper
+ * also takes into account the use of disk data parts.
  *
  * While applying the REDO log the following events can happen to a row that
  * existed in LCP. Note that the start of LCP is not known when executing
@@ -11038,23 +11090,33 @@ Backup::prepare_ranges_for_parts(BackupRecordPtr ptr,
                                  Uint32 in_parts,
                                  Uint64 memory_used)
 {
+#ifdef DEBUG_LCP
+  TablePtr debTabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(debTabPtr);
+  debTabPtr.p->fragments.getPtr(fragPtr, 0);
+#endif
   Uint64 parts = Uint64(in_parts);
   ndbrequire(parts > 0);
   Uint32 start_part = ptr.p->m_first_start_part_in_lcp;
   ptr.p->m_scan_info[0].m_start_all_part = start_part;
   ptr.p->m_scan_info[0].m_num_all_parts = parts;
   start_part = get_part_add(start_part, parts);
-  DEB_LCP(("(%u)m_scan_info[0].start_all_part = %u, num_all_parts: %u",
+  DEB_LCP(("(%u)tab(%u,%u),m_scan_info[0].start_all_part = %u, num_all_parts: %u",
           instance(),
+          debTabPtr.p->tableId,
+          fragPtr.p->fragmentId,
           ptr.p->m_scan_info[0].m_start_all_part,
           ptr.p->m_scan_info[0].m_num_all_parts));
   Uint32 num_change_parts = BackupFormat::NDB_MAX_LCP_PARTS - parts;
   ptr.p->m_scan_info[0].m_start_change_part = start_part;
   ptr.p->m_scan_info[0].m_num_change_parts = num_change_parts;
   ndbassert(is_partial_lcp_enabled() || num_change_parts == 0);
-  DEB_LCP(("(%u)m_scan_info[0].start_change_part = %u,"
+  DEB_LCP(("(%u)tab(%u,%u),m_scan_info[0].start_change_part = %u,"
            " num_all_parts: %u",
            instance(),
+           debTabPtr.p->tableId,
+           fragPtr.p->fragmentId,
            ptr.p->m_scan_info[0].m_start_change_part,
            ptr.p->m_scan_info[0].m_num_change_parts));
 }
