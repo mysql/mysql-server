@@ -44,7 +44,7 @@
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_DELETE 1
+//#define DEBUG_DELETE 1
 #ifdef DEBUG_DELETE
 #define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
