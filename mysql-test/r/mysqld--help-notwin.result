@@ -1369,10 +1369,8 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
-language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US
-lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile FALSE
 lock-wait-timeout 31536000

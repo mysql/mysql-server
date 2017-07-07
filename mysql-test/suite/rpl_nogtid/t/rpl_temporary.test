@@ -312,7 +312,7 @@ create temporary table `\E4\F6\FC\C4\D6\DC` (a int);
 insert into `\E4\F6\FC\C4\D6\DC` values (1);
 insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
---exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
+--exec $MYSQL --character-sets-dir=../share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 --source include/sync_slave_sql_with_master.inc
 #connection slave;

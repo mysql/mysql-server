@@ -1383,11 +1383,9 @@ sub command_line_setup {
 
   # Look for language files and charsetsdir, use same share
   $path_language=   mtr_path_exists("$bindir/share/mysql",
-                                    "$bindir/sql/share",
                                     "$bindir/share");
   my $path_share= $path_language;
   $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
-                                    "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
@@ -2066,7 +2064,6 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--secure-file-priv=\"\"");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
@@ -2207,7 +2204,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
@@ -3865,7 +3862,7 @@ sub mysql_install_db {
   my ($mysqld, $datadir, $bootstrap_opts)= @_;
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
-  my $install_basedir= $mysqld->value('basedir');
+  my $install_basedir= $mysqld->value('#mtr_basedir');
   my $install_chsdir= $mysqld->value('character-sets-dir');
 
   mtr_report("Installing system database...");
@@ -3878,9 +3875,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
-  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
   mtr_add_arg($args, "--datadir=%s", "$install_datadir");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
   mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
   # overwrite the buffer size to 24M for certain tests to pass
   mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
@@ -3963,7 +3958,7 @@ sub mysql_install_db {
   }
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
+			     ["mysql", "share/mysql",
 			      "share", "scripts"],
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
@@ -5990,7 +5985,7 @@ sub mysqld_start ($$) {
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
-  my $exe= find_mysqld($mysqld->value('basedir'));
+  my $exe= find_mysqld($mysqld->value('#mtr_basedir'));
   my $wait_for_pid_file= 1;
 
   my $args;
@@ -6541,7 +6536,7 @@ sub start_servers($) {
       }
     }
 
-    my $mysqld_basedir= $mysqld->value('basedir');
+    my $mysqld_basedir= $mysqld->value('#mtr_basedir');
     if ( $basedir eq $mysqld_basedir )
     {
       if (!$opt_start_dirty)	# If dirty, keep possibly grown system db

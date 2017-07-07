@@ -115,7 +115,7 @@ sub my_find_file {
 #
 # Example:
 #    my $charset_set= my_find_dir($basedir,
-#                                 ["mysql/share","sql/share", "share"],
+#                                 ["mysql/share", "share"],
 #                                 ["charset"]);
 # or
 #    my $charset_set= my_find_dir($basedir,

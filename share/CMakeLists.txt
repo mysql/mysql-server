@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ SET(files
 )
 
 FOREACH (dir ${dirs})
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${dir} 
+  INSTALL(DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/${dir}
           DESTINATION ${INSTALL_MYSQLSHAREDIR}
           COMPONENT Server
   )
@@ -60,7 +60,7 @@ INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/charsets
 
 # Don't copy if we're building in-source.
 IF (NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  CONFIGURE_FILE(dictionary.txt ${CMAKE_BINARY_DIR}/sql/share/dictionary.txt)
+  CONFIGURE_FILE(dictionary.txt ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/dictionary.txt)
 ENDIF()
 
 INSTALL(FILES ${files}

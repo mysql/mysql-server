@@ -7894,7 +7894,7 @@ static int mysql_init_variables()
 
   // On windows the basedir will always be one level up from where
   // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir=sql>/<buildconfig>/mysqld.exe for a
+  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe for a
   // sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
@@ -7909,7 +7909,6 @@ static int mysql_init_variables()
   {
     mysql_home[strlen(mysql_home) - 1]= '\0';   // remove trailing
     dirname_part(cmake_binary_dir, mysql_home, &dlen);
-    strcat(cmake_binary_dir, "sql\\");
     strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
   }
   // The sql_print_information below outputs nothing ??
@@ -7926,23 +7925,12 @@ static int mysql_init_variables()
     char progdir[FN_REFLEN];
     size_t dlen= 0;
     dirname_part(progdir, my_progname, &dlen);
-    if (!strcmp(progdir + (dlen - 5), "/sql/"))
-    {
-      // Running in sandbox, set mysql_home to progdir (CMAKE_BINARY_DIR/sql)
-      if (!opt_help)
-      {
-        sql_print_information("Running in sandbox, basedir set to %s",
-                              progdir);
-      }
-      strmake(mysql_home, progdir, sizeof(mysql_home) - 1);
-    }
-    else if (dlen > 26U &&
+    if (dlen > 26U &&
              !strcmp(progdir + (dlen - 26), "/runtime_output_directory/"))
     {
       char cmake_binary_dir[FN_REFLEN];
       progdir[strlen(progdir) - 1]= '\0';       // remove trailing "/"
       dirname_part(cmake_binary_dir, progdir, &dlen);
-      strcat(cmake_binary_dir, "sql/");
       strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
     }
     else

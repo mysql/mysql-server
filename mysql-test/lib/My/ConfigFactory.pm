@@ -36,7 +36,7 @@ my @pre_rules=
 );
 
 
-my @share_locations= ("share/mysql", "sql/share", "share");
+my @share_locations= ("share/mysql", "share");
 
 
 sub get_basedir {
@@ -243,10 +243,9 @@ sub fix_ssl_server_key {
 #
 my @mysqld_rules=
   (
- { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
+ { '#mtr_basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
  { 'character-sets-dir' => \&fix_charset_dir },
- { 'lc-messages-dir' => \&fix_language },
  { 'datadir' => \&fix_datadir },
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
