@@ -258,7 +258,7 @@ bool initialize_pfs(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);

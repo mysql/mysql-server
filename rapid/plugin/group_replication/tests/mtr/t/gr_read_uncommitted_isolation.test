@@ -48,17 +48,17 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 # Take a back-up of isolation level
-SET @tx_isolation_global_orig = @@global.tx_isolation;
-SET GLOBAL tx_isolation= 'READ-UNCOMMITTED';
-SET @tx_isolation_session_orig = @@global.tx_isolation;
-SET SESSION tx_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-UNCOMMITTED';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET @tx_isolation_global_orig = @@global.tx_isolation;
-SET GLOBAL tx_isolation= 'READ-UNCOMMITTED';
-SET @tx_isolation_session_orig = @@global.tx_isolation;
-SET SESSION tx_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-UNCOMMITTED';
 
 --echo
 --echo ## 2. Create table and insert some data
@@ -265,16 +265,16 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo ## 6. Clean up.
 
 # Restore original isolation levels
-SET GLOBAL tx_isolation= @tx_isolation_global_orig;
-SET SESSION tx_isolation= @tx_isolation_session_orig;
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
 
 SET DEBUG_SYNC='RESET';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET GLOBAL tx_isolation= @tx_isolation_global_orig;
-SET SESSION tx_isolation= @tx_isolation_session_orig;
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
 # Drop table
 DROP TABLE t1;
 

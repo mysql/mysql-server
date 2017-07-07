@@ -108,8 +108,8 @@ drop table t1, t2;
 --echo # In the default transaction isolation mode, ha_innodb::unlock_row()
 --echo # does nothing.  Thus in order to reproduce the condition
 --echo # that led to the warning, one needs to relax isolation by
---echo # setting a weaker tx_isolation value
-set @@session.tx_isolation="read-committed";
+--echo # setting a weaker transaction_isolation value
+set @@session.transaction_isolation="read-committed";
 
 --echo # Prepare data. We need a table with a unique index,
 --echo # for join_read_key to be used. The other column
@@ -243,7 +243,7 @@ connection default;
 commit;
 
 disconnect con1;
-set @@session.tx_isolation=default;
+set @@session.transaction_isolation=default;
 drop table t1;
 
 --echo #

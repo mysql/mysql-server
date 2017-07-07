@@ -618,7 +618,7 @@ INSERT INTO t1 (a,b) VALUES
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
 SET NAMES UTF8;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -720,7 +720,7 @@ INSERT INTO t1 (a,b) VALUES
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
 SET NAMES UTF8;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -845,7 +845,7 @@ INSERT INTO t1 (a,b) VALUES
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
 SET NAMES UTF8;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -947,7 +947,7 @@ INSERT INTO t1 (a,b) VALUES
 --echo "In connection 2"
 --connect (con2,localhost,root,,)
 SET NAMES UTF8;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);

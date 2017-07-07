@@ -10,7 +10,7 @@ CALL mtr.add_suppression("InnoDB: Error: MySQL is freeing a thd");
 --enable_query_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -211,5 +211,5 @@ DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP DATABASE innodb_memcache;
  
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;
 

@@ -35,8 +35,8 @@ INSERT INTO temp1 VALUE (1);
 
 --echo
 --echo ## 2. Change Isolation level to SERIALIZABLE.
-SET @tx_isolation_orig = @@session.tx_isolation;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET @transaction_isolation_orig = @@session.transaction_isolation;
+SET SESSION transaction_isolation='SERIALIZABLE';
 
 --echo
 --echo ## 3. DDLs are allowed irrespective of transaction isolation value
@@ -89,7 +89,7 @@ SELECT dml_function();
 
 
 START TRANSACTION;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 # Isolation value change is effective only from the next transaction.
 # So this insert should be disallowed as the current transaction's
 # isolation level is 'SERIALIZABLE';
@@ -97,12 +97,12 @@ SET SESSION tx_isolation='REPEATABLE-READ';
 INSERT INTO t1 VALUES (2);
 COMMIT;
 
---let $assert_text= 'tx_isolation should be REPEATABLE-READ'
---let $assert_cond= "[SELECT @@SESSION.tx_isolation]" = "REPEATABLE-READ";
+--let $assert_text= 'transaction_isolation should be REPEATABLE-READ'
+--let $assert_cond= "[SELECT @@SESSION.transaction_isolation]" = "REPEATABLE-READ";
 --source include/assert.inc
 
 START TRANSACTION;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 --echo
 --echo ## 5. Isolation value change is effective only from the next transaction.
 --echo ##    So this insert should be allowed as the current transaction's
@@ -117,6 +117,6 @@ DROP TABLE t2;
 DROP TABLE temp1;
 DROP PROCEDURE dml_procedure;
 DROP FUNCTION dml_function;
-SET SESSION tx_isolation=@tx_isolation_orig;
+SET SESSION transaction_isolation=@transaction_isolation_orig;
 
 --source ../inc/group_replication_end.inc
