@@ -2067,6 +2067,9 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
+  mysql_mutex_destroy(&LOCK_server_started);
+  mysql_mutex_destroy(&LOCK_reset_gtid_table);
+  mysql_mutex_destroy(&LOCK_compress_gtid_table);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
