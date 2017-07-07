@@ -390,9 +390,9 @@ id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hi
 60	21	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=60;root=64;trx_id=0;	1	InnoDB
 84	29	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=84;root=88;trx_id=0;	1	InnoDB
 85	30	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=85;root=90;trx_id=0;	1	InnoDB
-87	32	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=2;root=5;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
-88	32	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=3;root=6;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
-89	32	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=4;root=7;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+89	33	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=2;root=5;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+90	33	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=3;root=6;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+91	33	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=4;root=7;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage
