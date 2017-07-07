@@ -1336,7 +1336,7 @@ row_import::match_schema(
 
 		return(DB_ERROR);
 	} else if (UT_LIST_GET_LEN(m_table->indexes)
-		   + (m_has_sdi ? MAX_SDI_COPIES : 0) != m_n_indexes) {
+		   + (m_has_sdi ? 1 : 0) != m_n_indexes) {
 
 		/* If the number of indexes don't match then it is better
 		to abort the IMPORT. It is easy for the user to create a
@@ -1362,33 +1362,29 @@ row_import::match_schema(
 	const dict_index_t* index;
 
 	if (m_has_sdi) {
-		for (uint32_t copy_num = 0; copy_num < MAX_SDI_COPIES;
-			++copy_num) {
 
-			dict_mutex_enter_for_mysql();
+		dict_mutex_enter_for_mysql();
 
-			index = dict_sdi_get_index(m_table->space, copy_num);
+		index = dict_sdi_get_index(m_table->space);
 
-			if (index == NULL) {
-				dict_sdi_create_idx_in_mem(
-					m_table->space,
-					copy_num,
-					true,
-					dict_tf_to_fsp_flags(m_flags));
+		if (index == nullptr) {
+			dict_sdi_create_idx_in_mem(
+				m_table->space,
+				true,
+				dict_tf_to_fsp_flags(m_flags),
+				false);
 
-				index = dict_sdi_get_index(
-					m_table->space, copy_num);
-			}
+			index = dict_sdi_get_index(m_table->space);
+		}
 
-			dict_mutex_exit_for_mysql();
+		dict_mutex_exit_for_mysql();
 
-			ut_ad(index != NULL);
+		ut_ad(index != nullptr);
 
-			dberr_t	index_err = match_index_columns(thd, index);
+		dberr_t	index_err = match_index_columns(thd, index);
 
-			if (index_err != DB_SUCCESS) {
-				err = index_err;
-			}
+		if (index_err != DB_SUCCESS) {
+			err = index_err;
 		}
 	}
 
@@ -1420,28 +1416,24 @@ row_import::set_root_by_name() UNIV_NOTHROW
 {
 	row_index_t*	cfg_index = m_indexes;
 	dict_index_t*	index;
-	ulint		i = 0;
 	ulint		normal_indexes_count = m_has_sdi
-		? (m_n_indexes - MAX_SDI_COPIES)
+		? (m_n_indexes - 1)
 		: m_n_indexes;
 
 	if (m_has_sdi) {
-		for (ib_uint32_t copy_num = 0;
-			copy_num < MAX_SDI_COPIES && i < m_n_indexes;
-			++copy_num, ++i, ++cfg_index) {
 
-			dict_mutex_enter_for_mysql();
-			index = dict_sdi_get_index(
-				m_table->space, copy_num);
-			dict_mutex_exit_for_mysql();
+		dict_mutex_enter_for_mysql();
+		index = dict_sdi_get_index(
+			m_table->space);
+		dict_mutex_exit_for_mysql();
 
-			ut_ad(index != 0);
-			index->space = m_table->space;
-			index->page = cfg_index->m_page_no;
-		}
+		ut_ad(index != nullptr);
+		index->space = m_table->space;
+		index->page = cfg_index->m_page_no;
+		++cfg_index;
 	}
 
-	for (i = 0; i < normal_indexes_count; ++i, ++cfg_index) {
+	for (uint32_t i = 0; i < normal_indexes_count; ++i, ++cfg_index) {
 
 		const char*	index_name;
 
@@ -1471,7 +1463,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 	// TODO: For now use brute force, based on ordinality
 
 	ulint	num_indexes = UT_LIST_GET_LEN(m_table->indexes)
-		+ (m_has_sdi ? MAX_SDI_COPIES : 0);
+		+ (m_has_sdi ? 1 : 0);
 	if (num_indexes != m_n_indexes) {
 		ib::warn() << "Table " << m_table->name << " should have "
 			<< num_indexes  << " indexes but"
@@ -1484,42 +1476,39 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 	dberr_t	err = DB_SUCCESS;
 
 	if (m_has_sdi) {
-		for (uint32_t copy_num = 0;
-		     copy_num < MAX_SDI_COPIES && i < m_n_indexes;
-		     ++i, ++copy_num) {
+		dict_index_t*	index = dict_sdi_get_index(
+			m_table->space);
+		if (index == nullptr) {
+			dict_sdi_create_idx_in_mem(
+				m_table->space,
+				true,
+				dict_tf_to_fsp_flags(m_flags),
+				false);
 
-			dict_index_t*	index = dict_sdi_get_index(
-				m_table->space, copy_num);
-			if (index == NULL) {
-				dict_sdi_create_idx_in_mem(
-					m_table->space,
-					copy_num,
-					true,
-					dict_tf_to_fsp_flags(m_flags));
-
-				index = dict_sdi_get_index(
-					m_table->space, copy_num);
-			}
-
-			ut_ad(index != 0);
-			UT_DELETE_ARRAY(cfg_index[i].m_name);
-
-			ulint	len = strlen(index->name) + 1;
-
-			cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
-
-			if (cfg_index[i].m_name == NULL) {
-				err = DB_OUT_OF_MEMORY;
-				break;
-			}
-
-			memcpy(cfg_index[i].m_name, index->name, len);
-
-			cfg_index[i].m_srv_index = index;
-
-			index->space = m_table->space;
-			index->page = cfg_index[i].m_page_no;
+			index = dict_sdi_get_index(
+				m_table->space);
 		}
+
+		ut_ad(index != nullptr);
+		UT_DELETE_ARRAY(cfg_index[i].m_name);
+
+		ulint	len = strlen(index->name) + 1;
+
+		cfg_index[i].m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+		if (cfg_index[i].m_name == nullptr) {
+			err = DB_OUT_OF_MEMORY;
+			dict_mutex_exit_for_mysql();
+			return(err);
+		}
+
+		memcpy(cfg_index[i].m_name, index->name, len);
+
+		cfg_index[i].m_srv_index = index;
+
+		index->space = m_table->space;
+		index->page = cfg_index[i].m_page_no;
+		++i;
 	}
 
 	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
@@ -1602,7 +1591,6 @@ void
 IndexPurge::open() UNIV_NOTHROW
 {
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
@@ -1642,7 +1630,6 @@ IndexPurge::next() UNIV_NOTHROW
 	mtr_commit(&m_mtr);
 
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
@@ -1690,7 +1677,6 @@ IndexPurge::purge() UNIV_NOTHROW
 	purge_pessimistic_delete();
 
 	mtr_start(&m_mtr);
-
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
@@ -4101,6 +4087,24 @@ row_import_for_mysql(
 		}
 	}
 
+	fil_space_t*	space = fil_space_acquire(table->space);
+
+	/* Update Btree segment headers for SDI Index */
+	if (FSP_FLAGS_HAS_SDI(space->flags)) {
+		dict_mutex_enter_for_mysql();
+		dict_index_t* sdi_index = dict_sdi_get_index(table->space);
+		dict_mutex_exit_for_mysql();
+
+		err = btr_root_adjust_on_import(sdi_index);
+
+		if (err != DB_SUCCESS) {
+			fil_space_release(space);
+			return(row_import_error(prebuilt, trx, err));
+		}
+	}
+	fil_space_release(space);
+
+
 	ib::info() << "Phase III - Flush changes to disk";
 
 	/* Ensure that all pages dirtied during the IMPORT make it to disk.
@@ -4117,6 +4121,33 @@ row_import_for_mysql(
 
 	ib::info() << "Phase IV - Flush complete";
 	fil_space_set_imported(prebuilt->table->space);
+
+	/* Check if the on-disk .ibd file doesn't have SDI index.
+	If it doesn't exist, create SDI Index page now. */
+	mtr_t	mtr;
+	mtr.start();
+	buf_block_t*	block = buf_page_get(page_id_t(table->space, 0),
+					     dict_table_page_size(table),
+					     RW_SX_LATCH, &mtr);
+
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+
+	page_t*	page = buf_block_get_frame(block);
+
+
+	ulint	space_flags_from_disk = mach_read_from_4(
+		page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+	mtr.commit();
+
+	if (!FSP_FLAGS_HAS_SDI(space_flags_from_disk)) {
+		/* This is IMPORT from 5.7 .ibd file or pre 8.0.1 */
+		dict_mutex_enter_for_mysql();
+		dict_sdi_remove_from_cache(table->space, NULL, true);
+		btr_sdi_create_index(table->space, true);
+		dict_mutex_exit_for_mysql();
+	} else {
+		ut_ad(space->flags == space_flags_from_disk);
+	}
 
 	if (dict_table_is_encrypted(table)) {
 		mtr_t		mtr;
@@ -4176,6 +4207,14 @@ row_import_for_mysql(
 	table->autoinc_field_no = ULINT_UNDEFINED;
 
 	ut_a(err == DB_SUCCESS);
+
+	/* After discard, sdi_table->ibd_file_missing is set to true.
+	This is avoid to purge on SDI tables after discard.
+	At the end of successful import, set sdi_table->ibd_file_missing to
+	false, indicating that .ibd of SDI table is available */
+	dict_table_t*	sdi_table = dict_sdi_get_table(space->id, true, false);
+	sdi_table->ibd_file_missing = false;
+	dict_sdi_close_table(sdi_table);
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }

@@ -92,12 +92,18 @@ char *buf_handle(Sdi_wcontext *wctx, size_t sz);
 const String_type &lookup_schema_name(Sdi_wcontext *wctx);
 
 /**
+  Look up the tablespace name for a tablespace id. Returns a reference
+  to the name string inside an acquired tablespace object. The
+  lifetime of these tablespace objects are managed by the
+  Auto_releaser in the scope where the dd store is initiated.
+
   @param wctx opaque context
   @param id tablespace id to look up
-  @return tablespace name
+  @return tablespace name ref
 */
 
-const String_type &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
+const dd::String_type&
+lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
 
 class Sdi_rcontext;
 
@@ -330,6 +336,8 @@ bool read_value(dd::String_type *ap, const GV &gv)
 }
 /** @} */ // value_overloads
 
+template <typename W>
+void write_value(W *w, dd::String_type *a);
 
 /**
   @defgroup key_templates Key-related Function Templates
@@ -498,6 +506,7 @@ void serialize_tablespace_ref(dd::Sdi_wcontext *wctx, W *w,
   }
   const dd::String_type &tablespace_name=
     lookup_tablespace_name(wctx, tablespace_id);
+
   if (tablespace_name.empty())
   {
     return;

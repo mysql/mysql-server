@@ -4943,7 +4943,7 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (prebuilt->table->is_dd_table
+	if (prebuilt->table->skip_gap_locks()
 	    || (trx->skip_gap_locks()
 	        && prebuilt->select_lock_type != LOCK_NONE
 	        && trx->mysql_thd != NULL

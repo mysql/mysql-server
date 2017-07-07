@@ -53,7 +53,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static bool option_force=0,interrupted=0,new_line=0,
             opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-            tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
+            tty_password= 0, opt_nobeep;
 static bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
@@ -204,9 +204,6 @@ static struct my_option my_long_options[] =
    "Currently only works with extended-status.",
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
@@ -327,16 +324,6 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     break;
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
     using_opt_enable_cleartext_plugin= TRUE;
-    break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqladmin: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   if (error)
@@ -1265,19 +1252,6 @@ static void usage(void)
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (struct my_option *optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   print_defaults("my",load_default_groups);

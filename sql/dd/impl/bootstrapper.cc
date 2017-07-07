@@ -31,6 +31,7 @@
 #include "dd/impl/cache/storage_adapter.h"    // Storage_adapter
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"          // dd::System_tables
+#include "dd/impl/sdi.h"                      // dd::sdi::store
 #include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
 #include "dd/impl/tables/collations.h"        // dd::tables::Collations
 #include "dd/impl/tables/dd_properties.h"     // dd::tables::DD_properties
@@ -459,6 +460,49 @@ bool flush_meta_data(THD *thd)
   // Now, the auto releaser has released the objects, and we can go ahead and
   // reset the shared cache.
   dd::cache::Shared_dictionary_cache::instance()->reset(true);
+
+  if (dd::end_transaction(thd, false))
+  {
+    return true;
+  }
+
+  /*
+    Use a scoped auto releaser to make sure the objects cached for SDI
+    writing are released.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  // Acquire the DD tablespace and write SDI
+  const Tablespace *dd_tspace= nullptr;
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
+                                &dd_tspace) ||
+      dd::sdi::store(thd, dd_tspace))
+  {
+    return dd::end_transaction(thd, true);
+  }
+
+  // Acquire the DD schema and write SDI
+  const Schema *dd_schema= nullptr;
+  if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
+                                &dd_schema) ||
+      dd::sdi::store(thd, dd_schema))
+  {
+    return dd::end_transaction(thd, true);
+  }
+
+  // Acquire the DD table objects and write SDI for them
+  for (System_tables::Const_iterator it= System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it)
+  {
+    const dd::Table *dd_table= nullptr;
+    if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
+                                  (*it)->entity()->name(), &dd_table) ||
+        dd::sdi::store(thd, dd_table))
+    {
+      return dd::end_transaction(thd, true);
+    }
+  }
+
   bootstrap_stage= bootstrap::BOOTSTRAP_SYNCED;
 
   return dd::end_transaction(thd, false);

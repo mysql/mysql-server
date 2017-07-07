@@ -22,11 +22,12 @@
 #include <time.h>
 
 #include "mysqlx_version.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/connection_acceptor_interface.h"
 #include "ngs/interface/server_task_interface.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_monitor.h"
 #include "ngs/scheduler.h"
 #include "ngs/server_acceptors.h"
 #include "ngs/server_client_timeout.h"
@@ -311,8 +312,8 @@ bool Server::on_check_terminated_workers()
 }
 
 ngs::shared_ptr<Session_interface> Server::create_session(Client_interface &client,
-                                                  Protocol_encoder &proto,
-                                                  int session_id)
+                                                          Protocol_encoder_interface &proto,
+                                                          const int session_id)
 {
   if (is_terminating())
     return ngs::shared_ptr<Session_interface>();

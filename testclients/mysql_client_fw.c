@@ -44,7 +44,6 @@ static unsigned int  opt_port;
 static bool tty_password= 0;
 static int opt_silent= 0;
 
-static bool opt_secure_auth= 1;
 static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
@@ -276,8 +275,6 @@ static MYSQL *mysql_client_init(MYSQL* con)
  if (opt_default_auth && *opt_default_auth)
  mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
- if (!opt_secure_auth)
- mysql_options(res, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
  return res;
 }
 
@@ -367,9 +364,6 @@ static MYSQL* client_connect(ulong flag, uint protocol, bool auto_reconnect)
 
  if (opt_default_auth && *opt_default_auth)
  mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
-
- if (!opt_secure_auth)
- mysql_options(mysql, MYSQL_SECURE_AUTH, (char*)&opt_secure_auth);
 
  if (!(mysql_real_connect(mysql, opt_host, opt_user,
  opt_password, opt_db ? opt_db:"test", opt_port,
@@ -1246,9 +1240,6 @@ static struct my_option client_test_long_options[] =
 {"default_auth", 0, "Default authentication client-side plugin to use.",
  &opt_default_auth, &opt_default_auth, 0,
  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-{"secure-auth", 0, "Refuse client connecting to server if it"
-  " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-  &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

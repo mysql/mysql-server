@@ -25,8 +25,7 @@ struct handlerton;
   @file
   @ingroup sdi
 
-  Declares the SDI ((de)serialization) api which exposes
-  SDI-related functionality to the rest of the dictionary code.
+  Exposes SDI-related functionality to the rest of the dictionary code.
 */
 
 namespace dd {
@@ -35,7 +34,16 @@ class Schema;
 class Table;
 class Tablespace;
 class View;
-typedef String_type sdi_t;
+typedef String_type Sdi_type;
+
+/**
+  @defgroup serialize_api (De)serialize api functions.
+  @ingroup sdi
+
+  Functions for serializing (with complete header) and deserializing
+  the dd object which supports this.
+  @{
+ */
 
 /**
   Serialize a Schema object.
@@ -45,7 +53,7 @@ typedef String_type sdi_t;
   @return sdi (as json string).
 
 */
-sdi_t serialize(const Schema &schema);
+Sdi_type serialize(const Schema &schema);
 
 
 /**
@@ -57,7 +65,7 @@ sdi_t serialize(const Schema &schema);
   @return sdi (as json string).
 
 */
-sdi_t serialize(THD *thd, const Table &table, const String_type &schema_name);
+Sdi_type serialize(THD *thd, const Table &table, const String_type &schema_name);
 
 
 /**
@@ -69,7 +77,7 @@ sdi_t serialize(THD *thd, const Table &table, const String_type &schema_name);
 
 */
 
-sdi_t serialize(const Tablespace &tablespace);
+Sdi_type serialize(const Tablespace &tablespace);
 
 
 /**
@@ -89,7 +97,7 @@ sdi_t serialize(const Tablespace &tablespace);
 
 */
 
-bool deserialize(THD *thd, const sdi_t &sdi, Schema *schema);
+bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
 
 
 /**
@@ -110,7 +118,7 @@ bool deserialize(THD *thd, const sdi_t &sdi, Schema *schema);
 
 */
 
-bool deserialize(THD *thd, const sdi_t &sdi, Table *table,
+bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
                  String_type *deser_schema_name= nullptr);
 
 
@@ -131,16 +139,21 @@ bool deserialize(THD *thd, const sdi_t &sdi, Table *table,
 
 */
 
-bool deserialize(THD *thd, const sdi_t &sdi, Tablespace *tablespace);
+bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *tablespace);
 
-
-/**
-  Wl#7524
- */
-bool import_sdi(THD *thd, Table *table, const String_type &schema_name);
-
+/** @} End of group serialize_api */
 
 namespace sdi {
+
+/**
+  @defgroup sdi_storage_ops Storage operations on SDIs.
+  @ingroup sdi
+
+  Functions for storing and dropping (deleting) SDIs. To be used from
+  dd::cache::Storage_adapter and dd::cache::Dictionary_client to store
+  and remove SDIs as DD objects are added, modified or deleted.
+  @{
+*/
 
 /**
   Generic noop for all types that don't have a specific overload. No
@@ -268,24 +281,8 @@ bool drop(THD *thd, const Schema *s);
 
 bool drop(THD *thd, const Table *t);
 
-
-/**
-  Remove SDI for a table space.
-
-  Forwards to SE through handlerton api, which will remove from
-  tablespace, or falls back to deleting the .SDI file in the default
-  case.
-
-  @param thd    Thread handle.
-  @param ts     Tablespace object.
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool drop(THD *thd, const Tablespace *ts);
-
+// Note that there is NO drop() overload for Tablespace. Dropping a
+// tablespace implies that all sdis in it are dropped also.
 
 /**
   Hook for SDI cleanup after updating DD object. Generic noop for all
@@ -350,6 +347,7 @@ bool drop_after_update(THD *thd, const Schema *old_s, const Schema *new_s);
 
 bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t);
 
+/** @} End of group sdi_storage_ops */
 } // namespace sdi
 } // namespace dd
 

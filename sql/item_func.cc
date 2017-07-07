@@ -8871,10 +8871,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   res= Item_func::fix_fields(thd, ref);
 
-  /* These is reset/set by Item_func::fix_fields. */
-  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
-    const_item_cache= false;
-
   if (res)
     DBUG_RETURN(res);
 
@@ -8908,9 +8904,6 @@ void Item_func_sp::update_used_tables()
 {
   Item_func::update_used_tables();
 
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
-
   /* This is reset by Item_func::update_used_tables(). */
   set_stored_program();
 }
@@ -8928,8 +8921,6 @@ void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
             doesn't reference any tables.
   */
   used_tables_cache|= PARAM_TABLE_BIT;
-
-  const_item_cache= used_tables_cache == 0;
 }
 
 

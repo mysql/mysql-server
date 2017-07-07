@@ -178,10 +178,11 @@ const uint32 SDI_TYPE_LEN = 4;
 
 /** Key to identify a dictionary object */
 struct sdi_key {
-  /** Object id which should be unique in tablespsace */
-  uint64 id;
   /** Type of Object, For ex: column, index, etc */
   uint32 type;
+
+  /** Object id which should be unique in tablespsace */
+  uint64 id;
 };
 
 typedef std::vector<sdi_key> sdi_container;

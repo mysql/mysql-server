@@ -18,6 +18,10 @@ let $MYSQLD_BASEDIR= `select @@basedir`;
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+# We wiped out entire SDI created by Server. This is to avoid server
+# SDI interference with memcached inserted SDI. So server complains
+# on missing SDI
+CALL mtr.add_suppression("\\[Warning\\] sdi_delete*");
 --enable_query_log
 
 # Create custom datadir path
@@ -83,6 +87,11 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
 # Insert into SDI tables via memcached
 let MEMCACHED_TABLE_MAPPING = desc_t1;
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
 --source ../include/create_ibd2sdi_data.inc
 
 # Shutdown server
@@ -115,6 +124,10 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 
 # Create table not required because SDI is common for all tables
 # in a tablespace
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
 
 # Insert into SDI tables via memcached
 --source ../include/create_ibd2sdi_data_large.inc
@@ -171,6 +184,10 @@ ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
 
 --source ../include/create_ibd2sdi_data_large.inc
 

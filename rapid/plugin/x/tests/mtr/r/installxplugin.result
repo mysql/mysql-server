@@ -62,7 +62,8 @@ Mysqlx.Ok {
 }
 ok
 uninstall plugin mysqlx;
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 install plugin mysqlx soname "mysqlx.so";
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
@@ -130,7 +131,8 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Error executing CREATE USER I
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 uninstall plugin mysqlx;
 # restart: --loose-mysqlx_idle_worker_thread_timeout=70 --loose-mysqlx_max_allowed_packet=4048576 --loose-mysqlx_max_connections=500 --loose-mysqlx_min_worker_threads=50
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 Variable_name	Value
 show variables like 'mysqlx_max_allowed_packet%';

@@ -55,7 +55,10 @@
 #include <sys/types.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
+#include <string>
+
 #include "client_priv.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -104,6 +107,8 @@
 /* Maximum number of fields per table */
 #define MAX_FIELDS 4000
 
+using std::string;
+
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
 static ulong find_set(TYPELIB *lib, const char *x, size_t length,
@@ -130,7 +135,7 @@ static bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
              opt_include_master_host_port= 0,
              opt_events= 0, opt_comments_used= 0,
              opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-             opt_secure_auth= TRUE, opt_network_timeout= 0,
+             opt_network_timeout= 0,
              stats_tables_included= 0, column_statistics= false;
 static bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -228,7 +233,7 @@ const char *compatible_mode_names[]=
 TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
                                   "", compatible_mode_names, NULL};
 
-HASH ignore_table;
+collation_unordered_set<string> *ignore_table;
 
 static struct my_option my_long_options[] =
 {
@@ -546,9 +551,6 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
 
   {"tab",'T',
@@ -678,25 +680,11 @@ static void short_usage_sub(void)
 
 static void usage(void)
 {
-  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
@@ -820,13 +808,6 @@ static void write_footer(FILE *sql_file)
 } /* write_footer */
 
 
-static const uchar* get_table_key(const uchar *entry, size_t *length)
-{
-  *length= strlen(pointer_cast<const char*>(entry));
-  return entry;
-}
-
-
 static bool
 get_one_option(int optid, const struct my_option *opt,
                char *argument)
@@ -929,9 +910,7 @@ get_one_option(int optid, const struct my_option *opt,
       fprintf(stderr, "Illegal use of option --ignore-table=<database>.<table>\n");
       exit(1);
     }
-    if (my_hash_insert(&ignore_table, (uchar*)my_strdup(PSI_NOT_INSTRUMENTED,
-                                                        argument, MYF(0))))
-      exit(EX_EOM);
+    ignore_table->insert(argument);
     break;
   }
   case (int) OPT_COMPATIBLE:
@@ -1004,16 +983,6 @@ get_one_option(int optid, const struct my_option *opt,
     if (parse_ignore_error())
       exit(EX_EOM);
     break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqldump: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
-    break;
   }
   return 0;
 }
@@ -1036,27 +1005,13 @@ static int get_options(int *argc, char ***argv)
 
   defaults_argv= *argv;
 
-  if (my_hash_init(&ignore_table, charset_info, 16, 0,
-                   get_table_key, my_free, 0,
-                   PSI_NOT_INSTRUMENTED))
-    return(EX_EOM);
+  ignore_table= new collation_unordered_set<string>(charset_info, PSI_NOT_INSTRUMENTED);
   /* Don't copy internal log tables */
-  if (my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.apply_status", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.gtid_executed", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.schema", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.general_log", MYF(MY_WME))) ||
-      my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
-                                        "mysql.slow_log", MYF(MY_WME))))
-    return(EX_EOM);
+  ignore_table->insert("mysql.apply_status");
+  ignore_table->insert("mysql.gtid_executed");
+  ignore_table->insert("mysql.schema");
+  ignore_table->insert("mysql.general_log");
+  ignore_table->insert("mysql.slow_log");
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     return(ho_error);
@@ -1573,8 +1528,11 @@ static void free_resources()
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password);
-  if (my_hash_inited(&ignore_table))
-    my_hash_free(&ignore_table);
+  if (ignore_table != nullptr)
+  {
+    delete ignore_table;
+    ignore_table= nullptr;
+  }
   if (insert_pat_inited)
     dynstr_free(&insert_pat);
   if (defaults_argv)
@@ -4877,9 +4835,9 @@ static int init_dumping(char *database, int init_func(char*))
 
 /* Return 1 if we should copy the table */
 
-static bool include_table(const uchar *hash_key, size_t len)
+static bool include_table(const char *hash_key, size_t len)
 {
-  return ! my_hash_search(&ignore_table, hash_key, len);
+  return ignore_table->count(string(hash_key, len)) == 0;
 }
 
 
@@ -4911,7 +4869,7 @@ static int dump_all_tables_in_db(char *database)
     for (numrows= 0 ; (table= getTableName(1)) ; )
     {
       char *end= my_stpcpy(afterdot, table);
-      if (include_table((uchar*) hash_key,end - hash_key))
+      if (include_table(hash_key,end - hash_key))
       {
         numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
@@ -4940,7 +4898,7 @@ static int dump_all_tables_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= my_stpcpy(afterdot, table);
-    if (include_table((uchar*) hash_key, end - hash_key))
+    if (include_table(hash_key, end - hash_key))
     {
       dump_table(table,database);
       my_free(order_by);
@@ -5092,7 +5050,7 @@ static bool dump_all_views_in_db(char *database)
     for (numrows= 0 ; (table= getTableName(1)); )
     {
       char *end= my_stpcpy(afterdot, table);
-      if (include_table((uchar*) hash_key,end - hash_key))
+      if (include_table(hash_key,end - hash_key))
       {
         numrows++;
         dynstr_append_checked(&query, quote_name(table, table_buff, 1));
@@ -5115,7 +5073,7 @@ static bool dump_all_views_in_db(char *database)
   while ((table= getTableName(0)))
   {
     char *end= my_stpcpy(afterdot, table);
-    if (include_table((uchar*) hash_key, end - hash_key))
+    if (include_table(hash_key, end - hash_key))
       get_view_structure(table, database);
   }
   if (opt_xml)
@@ -6331,7 +6289,6 @@ int main(int argc, char **argv)
 
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
-  memset(&ignore_table, 0, sizeof(ignore_table));
 
   exit_code= get_options(&argc, &argv);
   if (exit_code)

@@ -2913,7 +2913,7 @@ innodb_sdi_get(
 	uint64_t	ret_len;
 	if (check_key_name_for_sdi(key, nkey, SDI_CREATE_PREFIX)) {
 		/* Create SDI Index in the tablespace */
-		err = ib_cb_sdi_create_copies(crsr);
+		err = ib_cb_sdi_create(crsr);
 		ib_cb_cursor_close(crsr);
 		*err_ret = ENGINE_KEY_ENOENT;
 		return(true);
@@ -2921,7 +2921,7 @@ innodb_sdi_get(
 
 	if (check_key_name_for_sdi(key, nkey, SDI_DROP_PREFIX)) {
 		/* Create SDI Index in the tablespace */
-		err = ib_cb_sdi_drop_copies(crsr);
+		err = ib_cb_sdi_drop(crsr);
 		ib_cb_cursor_close(crsr);
 		*err_ret = ENGINE_KEY_ENOENT;
 		return(true);
@@ -2954,6 +2954,7 @@ innodb_sdi_get(
 		}
 
 		conn_data->sdi_buf = new_mem;
+		ret_len = mem_size;
 		err = ib_cb_sdi_get(
 			crsr, key, conn_data->sdi_buf, &ret_len, trx);
 

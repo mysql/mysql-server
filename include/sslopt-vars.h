@@ -70,8 +70,8 @@ static void set_client_ssl_options(MYSQL *mysql)
       opt_ssl_mode < SSL_MODE_VERIFY_CA &&
       (opt_ssl_ca || opt_ssl_capath))
   {
-    printf("WARNING: no verification of server certificate will be done. "
-           "Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.\n");
+    fprintf(stderr, "WARNING: no verification of server certificate will be done. "
+                    "Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.\n");
   }
    
   /* Set SSL parameters: key, cert, ca, capath, cipher, clr, clrpath. */

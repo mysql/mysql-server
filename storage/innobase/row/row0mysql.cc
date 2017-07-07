@@ -4260,7 +4260,9 @@ row_drop_table_from_cache(
 
 	/* Remove SDI tables of the tablespace from cache */
 	if (!table->is_intrinsic()) {
-		dict_sdi_remove_from_cache(table->space, NULL, true);
+		if (dict_table_is_file_per_table(table)) {
+			dict_sdi_remove_from_cache(table->space, NULL, true);
+		}
 		dict_table_remove_from_cache(table);
 	} else {
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
@@ -4377,6 +4379,7 @@ row_drop_table_for_mysql(
 	THD*		thd = trx->mysql_thd;
 	bool		file_per_table = false;
 	aux_name_vec_t	aux_vec;
+	MDL_ticket*	sdi_mdl = nullptr;
 
 	DBUG_ENTER("row_drop_table_for_mysql");
 	DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
@@ -4439,6 +4442,21 @@ row_drop_table_for_mysql(
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
 		goto funct_exit;
+	}
+
+	/* Acquire MDL on SDI table of tablespace. This is to prevent
+	concurrent DROP while purge is happening on SDI table */
+	if (dict_table_is_file_per_table(table)) {
+
+		mutex_exit(&dict_sys->mutex);
+		err = dd_sdi_acquire_exclusive_mdl(
+			thd, table->space, &sdi_mdl);
+		mutex_enter(&dict_sys->mutex);
+
+		if (err != DB_SUCCESS) {
+			dd_table_close(table, nullptr, nullptr, true);
+			goto funct_exit;
+		}
 	}
 
 	/* This function is called recursively via fts_drop_tables(). */

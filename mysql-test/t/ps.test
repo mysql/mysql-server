@@ -2293,26 +2293,6 @@ execute abc;
 deallocate prepare abc;
 
 
-create procedure proc_1() flush des_key_file;
-call proc_1();
-call proc_1();
-call proc_1();
-delimiter |;
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function func_1() returns int begin flush des_key_file; return 1; end|
-create function func_1() returns int begin call proc_1(); return 1; end|
-delimiter ;|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-select func_1(), func_1(), func_1() from dual;
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "flush des_key_file";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
-
-
 create procedure proc_1() flush user_resources;
 call proc_1();
 call proc_1();
@@ -2842,17 +2822,6 @@ prepare abc from "show warnings";
 # Bug#22684: The Functions ENCODE, DECODE and FORMAT are not real functions
 #
 
-set @my_password="password";
-set @my_data="clear text to encode";
-
-prepare stmt1 from 'select decode(encode(?, ?), ?)';
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_data="more text to encode";
-execute stmt1 using @my_data, @my_password, @my_password;
-set @my_password="new password";
-execute stmt1 using @my_data, @my_password, @my_password;
-deallocate prepare stmt1;
-
 set @to_format="123456789.123456789";
 set @dec=0;
 
@@ -2973,23 +2942,6 @@ execute stmt;
 
 deallocate prepare stmt;
 drop table t1, t2;
-
---echo #
---echo # Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
---echo #
-
-prepare encode from "select encode(?, ?) into @ciphertext";
-prepare decode from "select decode(?, ?) into @plaintext";
-set @str="abc", @key="cba";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-set @str="bcd", @key="dcb";
-execute encode using @str, @key;
-execute decode using @ciphertext, @key;
-select @plaintext;
-deallocate prepare encode;
-deallocate prepare decode;
 
 --echo #
 --echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings

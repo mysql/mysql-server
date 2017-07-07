@@ -13,20 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(MYSQLX_PROJECT_DIR "${PROJECT_SOURCE_DIR}/rapid/plugin/x")
 
-SET(PROTOBUF_MYSQLX_FILES
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_datatypes.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_connection.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_expect.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_expr.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_crud.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_sql.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_session.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_notice.proto"
-  "${MYSQLX_PROJECT_DIR}/protocol/mysqlx_resultset.proto"
-)
 
 FILE(GLOB ngs_HDRS
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/*.h"
@@ -127,4 +114,14 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
   ${ngs_SRC}
+)
+
+SET(xplugin_stubbed_SRC
+  "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
+)
+
+SET(xplugin_all_SRC
+  ${xplugin_SRC}
+  ${xplugin_stubbed_SRC}
 )

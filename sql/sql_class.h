@@ -37,6 +37,7 @@
 #include <atomic>
 #include <memory>
 #include <new>
+#include <string>
 
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "discrete_interval.h"            // Discrete_interval
@@ -358,8 +359,8 @@ public:
 
   ~Prepared_statement_map();
 private:
-  HASH st_hash;
-  HASH names_hash;
+  malloc_unordered_map<ulong, std::unique_ptr<Prepared_statement>> st_hash;
+  collation_unordered_map<std::string, Prepared_statement *> names_hash;
   Prepared_statement *m_last_found_statement;
 };
 

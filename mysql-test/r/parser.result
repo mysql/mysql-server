@@ -414,14 +414,6 @@ select concat_ws();
 ERROR 42000: Incorrect parameter count in the call to native function 'concat_ws'
 select concat_ws("foo");
 ERROR 42000: Incorrect parameter count in the call to native function 'concat_ws'
-select encrypt();
-ERROR 42000: Incorrect parameter count in the call to native function 'encrypt'
-select encrypt(1, 2, 3);
-ERROR 42000: Incorrect parameter count in the call to native function 'encrypt'
-select des_encrypt("p1", "p2", "not expected");
-ERROR 42000: Incorrect parameter count in the call to native function 'des_encrypt'
-select des_decrypt("p1", "p2", "not expected");
-ERROR 42000: Incorrect parameter count in the call to native function 'des_decrypt'
 select elt();
 ERROR 42000: Incorrect parameter count in the call to native function 'elt'
 select elt(1);

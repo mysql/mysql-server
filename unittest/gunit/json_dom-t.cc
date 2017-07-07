@@ -418,6 +418,30 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(nullptr, dom);
 }
 
+/*
+  Test that special characters are escaped when a Json_string is
+  converted to text, so that it is possible to parse the resulting
+  string. The JSON parser requires all characters in the range [0x00,
+  0x1F] and the characters " (double-quote) and \ (backslash) to be
+  escaped.
+*/
+TEST_F(JsonDomTest, EscapeSpecialChars)
+{
+  // Create a JSON string with all characters in the range [0, 127].
+  char input[128];
+  for (size_t i= 0; i < sizeof(input); ++i)
+    input[i]= static_cast<char>(i);
+  const Json_string str(input, sizeof(input));
+
+  // Now convert that value from JSON to text and back to JSON.
+  Json_dom_ptr dom= parse_json(format(str).c_str());
+  EXPECT_EQ(enum_json_type::J_STRING, dom->json_type());
+
+  // Expect to get the same string back, including all the special characters.
+  const Json_string *str2= down_cast<const Json_string *>(dom.get());
+  EXPECT_EQ(str.value(), str2->value());
+}
+
 void vet_wrapper_length(const THD *thd, const char *text,
                         size_t expected_length)
 {
@@ -1428,5 +1452,97 @@ static void BM_JsonBinarySearchKey(size_t num_iterations)
   benchmark_binary_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
 BENCHMARK(BM_JsonBinarySearchKey);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON string value
+  with no special characters that need quoting.
+*/
+static void BM_JsonStringToString_Plain(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_string str("This is a plain string with no special characters!");
+  const Json_wrapper wr(str.clone());
+  const size_t quoted_length= str.size() + 2;
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_EQ(quoted_length, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonStringToString_Plain);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON string value
+  which contains some special characters that need quoting.
+*/
+static void BM_JsonStringToString_SpecialChars(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_string str("This\nstring\nspans\nmultiple\nlines.\f\nabc\x1Dxyz");
+  const Json_wrapper wr(str.clone());
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_LT(str.size(), buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonStringToString_SpecialChars);
+
+/**
+  Microbenchmark which tests the performance of
+  Json_wrapper::to_string() when it's called on a JSON object with
+  nested values.
+*/
+static void BM_JsonObjectToString(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const Json_wrapper wr(parse_json("{\"name\": \"John Doe\", \"age\": 42, "
+                                   "\"points\": [1, 3.14e0, 2.7, null], "
+                                   "\"id\": \"xyzxyzxyzxyz\"}"));
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    wr.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonObjectToString);
 
 }  // namespace

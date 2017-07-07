@@ -21,6 +21,7 @@
 #define _XPL_BUFFERING_COMMAND_DELEGATE_H_
 
 #include "callback_command_delegate.h"
+#include <list>
 
 namespace xpl {
 class Buffering_command_delegate : public Callback_command_delegate {

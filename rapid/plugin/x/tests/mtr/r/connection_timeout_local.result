@@ -1,0 +1,89 @@
+Preamble
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+SHOW VARIABLES LIKE 'mysqlx_connect_timeout';
+Variable_name	Value
+mysqlx_connect_timeout	30
+show status like 'Mysqlx_conn%';
+Variable_name	Value
+Mysqlx_connection_accept_errors	0
+Mysqlx_connection_errors	0
+Mysqlx_connections_accepted	0
+Mysqlx_connections_closed	0
+Mysqlx_connections_rejected	0
+SET GLOBAL mysqlx_connect_timeout = 4;
+show status like 'Mysqlx_conn%';
+Variable_name	Value
+Mysqlx_connection_accept_errors	0
+Mysqlx_connection_errors	0
+Mysqlx_connections_accepted	0
+Mysqlx_connections_closed	0
+Mysqlx_connections_rejected	0
+Disconnect user on idle connection after timeout
+ok
+Disconnect user without session after timeout
+connecting...
+active session is now 'idle_session'
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+closing session idle_session
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Inactivity timer disabled after session setup (commands executed after 1s should be processed)
+
+command ok
+
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Disconnect user on idle connection after new timeout
+SET GLOBAL mysqlx_connect_timeout = 2;
+show status like 'Mysqlx_conn%';
+Variable_name	Value
+Mysqlx_connection_accept_errors	0
+Mysqlx_connection_errors	2
+Mysqlx_connections_accepted	4
+Mysqlx_connections_closed	4
+Mysqlx_connections_rejected	0
+ok
+SET GLOBAL mysqlx_connect_timeout = 4;
+Inactivity timer restarted with Session.Reset Message
+
+command ok
+send Mysqlx.Session.Reset {
+}
+
+Mysqlx.Ok {
+}
+
+Login OK
+
+command ok
+send Mysqlx.Session.Reset {
+}
+
+Mysqlx.Ok {
+}
+
+Login OK
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Cleanup
+SET GLOBAL mysqlx_connect_timeout = 300;
+show status like 'Mysqlx_conn%';
+Variable_name	Value
+Mysqlx_connection_accept_errors	0
+Mysqlx_connection_errors	3
+Mysqlx_connections_accepted	6
+Mysqlx_connections_closed	6
+Mysqlx_connections_rejected	0
+UNINSTALL PLUGIN mysqlx;

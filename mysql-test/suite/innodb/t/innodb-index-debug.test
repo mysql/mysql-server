@@ -112,6 +112,39 @@ SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
 disconnect con1;
 connection default;
 show create table t1;
+
+SET DEBUG_SYNC='RESET';
+--source include/wait_until_count_sessions.inc
+--source include/shutdown_mysqld.inc
+
+--echo # SDI output shouldn't show new column "k4" because
+--echo # ALTER failed
+
+# Extract saved JSON to tmp dir
+--let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
+--error 0,1
+--force-rmdir $SRC_DIR
+--mkdir $SRC_DIR
+--copy_file $MYSQLTEST_VARDIR/std_data/innodb_index_debug_json.zip $SRC_DIR/innodb_index_debug_json.zip
+
+# Unzip the JSONs zip file
+--exec unzip -qo $SRC_DIR/innodb_index_debug_json.zip -d $SRC_DIR
+
+# Create a directory to store json generated
+--let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
+--error 0,1
+--force-rmdir $DEST_DIR
+--mkdir $DEST_DIR
+
+--let JSON_FILE_PATH = $DEST_DIR/t1.json
+--exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
+--source ../include/ibd2sdi_replace.inc
+--diff_files $SRC_DIR/sdi/t1.json $JSON_FILE_PATH
+
+--force-rmdir $SRC_DIR
+--force-rmdir $DEST_DIR
+
+--source include/start_mysqld.inc
 drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';

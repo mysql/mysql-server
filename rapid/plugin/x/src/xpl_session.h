@@ -60,7 +60,7 @@ private:
 class Session : public ngs::Session
 {
 public:
-  Session(ngs::Client_interface &client, ngs::Protocol_encoder *proto, const Session_id session_id);
+  Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto, const Session_id session_id);
   virtual ~Session();
 
 public: // impl ngs::Session_interface

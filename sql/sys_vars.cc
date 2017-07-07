@@ -1802,13 +1802,6 @@ static Sys_var_charptr Sys_ft_stopword_file(
        CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
-static Sys_var_bool Sys_ignore_builtin_innodb(
-       "ignore_builtin_innodb",
-       "IGNORED. This option will be removed in future releases. "
-       "Disable initialization of builtin InnoDB plugin",
-       READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-
 static bool check_init_string(sys_var*, THD*, set_var *var)
 {
   if (var->save_result.string_value.str == 0)
@@ -3575,22 +3568,6 @@ static Sys_var_bool Sys_query_cache_wlock_invalidate(
        "Invalidate queries in query cache on LOCK for write",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
-
-static bool on_check_opt_secure_auth(sys_var*, THD *thd, set_var *var)
-{
-  push_deprecated_warn_no_replacement(thd, "--secure-auth");
-  return (!var->save_result.ulonglong_value);
-}
-
-static Sys_var_bool Sys_secure_auth(
-       "secure_auth",
-       "Disallow authentication for accounts that have old (pre-4.1) "
-       "passwords. Deprecated. Always TRUE.",
-       GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG, OPT_SECURE_AUTH),
-       DEFAULT(TRUE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(on_check_opt_secure_auth)
-       );
 
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",

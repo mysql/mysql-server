@@ -49,29 +49,6 @@ BEGIN {
   }
 }
 
-BEGIN {
-  # Check backward compatibility support
-  # By setting the environment variable MTR_VERSION
-  # it's possible to use a previous version of
-  # mysql-test-run.pl
-  my $version= $ENV{MTR_VERSION} || 2;
-  if ( $version == 1 )
-  {
-    print "ERROR: Version 1 of mysql-test-run is not supported!\n";
-    exit(1);
-  }
-  elsif ( $version == 2 )
-  {
-    # This is the current version, just continue
-    ;
-  }
-  else
-  {
-    print "ERROR: Version $version of mysql-test-run does not exist!\n";
-    exit(1);
-  }
-}
-
 use lib "lib";
 
 use Cwd;
@@ -979,8 +956,6 @@ sub run_worker ($) {
 
   $SIG{INT}= sub { exit(1); };
 
-  mtr_report("*** Running worker: $thread_num") if IS_WINDOWS;
-
   # Connect to server
   my $server = new IO::Socket::INET
     (
@@ -994,7 +969,6 @@ sub run_worker ($) {
   # --------------------------------------------------------------------------
   # Set worker name
   # --------------------------------------------------------------------------
-  mtr_report("*** Reserving ports for worker $thread_num") if IS_WINDOWS;
   report_option('name',"worker[$thread_num]");
 
   # --------------------------------------------------------------------------
@@ -1995,21 +1969,10 @@ sub set_build_thread_ports($) {
                              ? $max_parallel + int($max_parallel / 2)
                              : 49);
 
-    if (IS_WINDOWS)
-    {
-      mtr_report("=> Build thread initial value: $build_thread");
-      mtr_report("=> Build thread upper limit value: $build_thread_upper");
-      mtr_report("=> Build threads per worker process: ".
-                 "$build_threads_per_thread");
-    }
-
     while (!$found_free)
     {
       $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper,
-                                       $build_threads_per_thread, $thread);
-
-      mtr_report("=> Checking build thread $build_thread for worker $thread")
-        if IS_WINDOWS;
+                                       $build_threads_per_thread);
 
       if (!defined $build_thread)
       {
@@ -2244,7 +2207,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["sql", "runtime_output_directory", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 

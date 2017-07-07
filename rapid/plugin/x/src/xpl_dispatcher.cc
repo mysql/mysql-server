@@ -22,6 +22,7 @@
 #include "admin_cmd_handler.h"
 #include "crud_cmd_handler.h"
 #include "expect.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "expr_generator.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/mysqlx/getter_any.h"
@@ -38,7 +39,7 @@ namespace {
 class Stmt {
  public:
   ngs::Error_code execute(ngs::Sql_session_interface &da,
-                          ngs::Protocol_encoder &proto,
+                          ngs::Protocol_encoder_interface &proto,
                           const bool show_warnings, const bool compact_metadata,
                           const std::string &query,
                           const ::google::protobuf::RepeatedPtrField<
@@ -66,7 +67,7 @@ class Stmt {
   }
 
   ngs::Error_code execute(ngs::Sql_session_interface &da,
-                          ngs::Protocol_encoder &proto,
+                          ngs::Protocol_encoder_interface &proto,
                           const bool show_warnings, const bool compact_metadata,
                           const char *query, std::size_t query_len) {
     xpl::Streaming_resultset resultset(&proto, compact_metadata);

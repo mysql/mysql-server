@@ -176,6 +176,7 @@ report_memory_accounting_error(const char *api_name,
 }
 #endif /* PFS_PARANOID */
 
+/* clang-format off */
 /**
   @page PAGE_PFS Performance Schema
   MySQL PERFORMANCE_SCHEMA implementation.
@@ -495,7 +496,7 @@ report_memory_accounting_error(const char *api_name,
 
   In each case, the API may expand into different code paths,
   and use different ABI infrastructure, depending on how the code is built.
-  In each case, the API exposed is consistent: 
+  In each case, the API exposed is consistent:
   instrumented source code is the same, regardless of where it is built.
 
   The following sections details what happens technically for each type of code.
@@ -518,7 +519,8 @@ report_memory_accounting_error(const char *api_name,
   }
   @endcode
 
-  MySQL already provides some wrappers, to make the code platform independent, as in
+  MySQL already provides some wrappers,
+  to make the code platform independent, as in
 
   @code
   #include "thr_mutex.h"
@@ -632,7 +634,7 @@ inline_mysql_mutex_lock(mysql_mutex_t *that,
 
   The following code fragment is annotated to show how in detail this pattern
   in implemented, when the instrumentation is compiled in statically.
-  In this case, 
+  In this case,
   the @c PSI_MUTEX_CALL macro expands to a function call,
   which results in
 
@@ -689,10 +691,12 @@ inline_mysql_mutex_lock(mysql_mutex_t *that,
 
   Inside a plugin, @c PSI_MUTEX_CALL expands to a call using a function pointer.
   This is to decouple the plugin binary from the implementation,
-  to avoid having hard coded references to symbols like pfs_start_mutex_wait_v1()
+  to avoid having hard coded references to symbols like
+  pfs_start_mutex_wait_v1()
   from the plugin library (either shared or static).
 
-  The plugin library, however, still depends on a symbol to be provided by the server,
+  The plugin library, however, still depends on a symbol
+  to be provided by the server,
   in this case @c psi_mutex_service.
 
   @code
@@ -748,7 +752,8 @@ inline_mysql_mutex_lock(mysql_mutex_t *that,
   is to have a service that delegates all decisions to the server code.
   For this reason, all the parameters that might or might not be needed
   depending on the ultimate implementation
-  (such as @c __FILE__ and @c __LINE__ for @c SAFE_MUTEX) are provided in all cases.
+  (such as @c __FILE__ and @c __LINE__ for @c SAFE_MUTEX)
+  are provided in all cases.
 
   In a component, the code is instrumented using a different header file,
   everything else is the same.
@@ -2049,6 +2054,7 @@ PSI_DATA_LOCK_CALL(unregister_data_lock)(...)
   - [E] EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR,
         @c table_ees_global_by_error::make_row()
 */
+/* clang-format on */
 
 /**
   @defgroup performance_schema Performance Schema
