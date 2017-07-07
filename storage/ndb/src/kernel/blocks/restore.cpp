@@ -3265,7 +3265,7 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
      * Handle next file now.
      */
     jam();
-    DEB_HIGH_RES(("instance: %u Step forward to next data file", instance()));
+    DEB_HIGH_RES(("(%u)Step forward to next data file", instance()));
     step_file_number_forward(file_ptr);
     file_ptr.p->m_current_page_pos = 0; 
     file_ptr.p->m_current_page_index = 0;
