@@ -4943,7 +4943,7 @@ row_search_mvcc(
 
 	trx_start_if_not_started(trx, false);
 
-	if (prebuilt->table->is_dd_table
+	if (prebuilt->table->skip_gap_locks()
 	    || (trx->skip_gap_locks()
 	        && prebuilt->select_lock_type != LOCK_NONE
 	        && trx->mysql_thd != NULL
@@ -6559,4 +6559,203 @@ row_search_max_autoinc(
 	}
 
 	return(error);
+}
+
+/** Convert the innodb_table_stats clustered index record to
+table_stats format.
+@param[in]	clust_rec	clustered index record
+@param[in]	clust_index	clustered index
+@param[in]	clust_offsets	offsets of the clustered index
+				record
+@param[out]	tbl_stats	table_stats information
+				to be filled. */
+static
+void
+convert_to_table_stats_record(
+	rec_t*			clust_rec,
+	dict_index_t*		clust_index,
+	ulint*			clust_offsets,
+	TableStatsRecord&	tbl_stats)
+{
+	for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
+		const byte*	data;
+		ulint		len;
+		data = rec_get_nth_field(clust_rec, clust_offsets,
+					 i, &len);
+
+		if (len == UNIV_SQL_NULL) {
+			continue;
+		}
+
+		tbl_stats.set_data(data, i, len);
+	}
+}
+
+/** Search the record present in innodb_table_stats table using
+db_name, table_name and fill it in table stats structure.
+@param[in]	db_name		database name
+@param[in]	tbl_name	table name
+@param[out]	table_stats	stats table structure.
+@return true if successful else false. */
+bool
+row_search_table_stats(
+	const char*		db_name,
+	const char*		tbl_name,
+	TableStatsRecord&	table_stats)
+{
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	bool		move = true;
+	ulint*		offsets;
+	dict_table_t*	table = dict_sys->table_stats;
+	dict_index_t*	clust_index = table->first_index();
+	dtuple_t*	dtuple;
+	dfield_t*	dfield;
+	bool		found_rec = false;
+	mem_heap_t*	heap = mem_heap_create(1000);
+
+	dtuple = dtuple_create(heap, clust_index->n_uniq);
+	dict_index_copy_types(dtuple, clust_index, clust_index->n_uniq);
+
+	dfield = dtuple_get_nth_field(dtuple,
+				      TableStatsRecord::DB_NAME_COL_NO);
+	dfield_set_data(dfield, db_name, strlen(db_name));
+
+	dfield = dtuple_get_nth_field(dtuple,
+				      TableStatsRecord::TABLE_NAME_COL_NO);
+	dfield_set_data(dfield, tbl_name, strlen(tbl_name));
+
+	mtr_start(&mtr);
+	btr_pcur_open_with_no_init(clust_index, dtuple, PAGE_CUR_GE,
+				   BTR_SEARCH_LEAF, &pcur, 0, &mtr);
+
+	for (;move == true; move = btr_pcur_move_to_next(&pcur, &mtr)) {
+		rec = btr_pcur_get_rec(&pcur);
+		offsets = rec_get_offsets(rec, clust_index, NULL,
+				ULINT_UNDEFINED, &heap);
+
+		if (page_rec_is_infimum(rec)
+		    || page_rec_is_supremum(rec)) {
+			continue;
+		}
+
+		if (0 != cmp_dtuple_rec(dtuple, rec, clust_index, offsets)) {
+			break;
+		}
+
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
+			continue;
+		}
+
+		found_rec = true;
+		convert_to_table_stats_record(rec, clust_index,
+					      offsets, table_stats);
+	}
+
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+	return(found_rec);
+}
+
+
+/** Search the record present in innodb_index_stats using
+db_name, table name and index_name and fill the
+cardinality for the each column.
+@param[in]	db_name		database name
+@param[in]	tbl_name	table name
+@param[in]	index_name	index name
+@param[in]	col_offset	offset of the column in the index
+@param[out]	cardinality	cardinality of the column.
+@return true if successful else false. */
+bool
+row_search_index_stats(
+	const char*	db_name,
+	const char*	tbl_name,
+	const char*	index_name,
+	ulint		col_offset,
+	ulonglong*	cardinality)
+{
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	bool		move = true;
+	ulint*		offsets;
+	dict_table_t*	table = dict_sys->index_stats;
+	dict_index_t*	clust_index = table->first_index();
+	dtuple_t*	dtuple;
+	dfield_t*	dfield;
+	mem_heap_t*	heap = mem_heap_create(1000);
+	ulint		n_recs = 0;
+
+	/** Number of fields to search in the table. */
+	static constexpr unsigned	N_SEARCH_FIELDS = 3;
+	/** Column number of innodb_index_stats.database_name. */
+	static constexpr unsigned	DB_NAME_COL_NO = 0;
+	/** Column number of innodb_index_stats.table_name. */
+	static constexpr unsigned	TABLE_NAME_COL_NO = 1;
+	/** Column number of innodb_index_stats.index_name. */
+	static constexpr unsigned	INDEX_NAME_COL_NO = 2;
+	/** Column number of innodb_index_stats.stat_value. */
+	static constexpr unsigned	STAT_VALUE_COL_NO = 5;
+
+	ulint	cardinality_index_offset =
+			clust_index->get_col_pos(STAT_VALUE_COL_NO);
+
+	/** Search the innodb_index_stats table using
+		(database_name, table_name, index_name). */
+	dtuple = dtuple_create(heap, N_SEARCH_FIELDS);
+	dict_index_copy_types(dtuple, clust_index, N_SEARCH_FIELDS);
+
+	dfield = dtuple_get_nth_field(dtuple, DB_NAME_COL_NO);
+	dfield_set_data(dfield, db_name, strlen(db_name));
+
+	dfield = dtuple_get_nth_field(dtuple, TABLE_NAME_COL_NO);
+	dfield_set_data(dfield, tbl_name, strlen(tbl_name));
+
+	dfield = dtuple_get_nth_field(dtuple, INDEX_NAME_COL_NO);
+	dfield_set_data(dfield, index_name, strlen(index_name));
+
+	mtr_start(&mtr);
+	btr_pcur_open_with_no_init(clust_index, dtuple, PAGE_CUR_GE,
+				   BTR_SEARCH_LEAF, &pcur, 0, &mtr);
+
+	for (;move == true; move = btr_pcur_move_to_next(&pcur, &mtr)) {
+		rec = btr_pcur_get_rec(&pcur);
+		offsets = rec_get_offsets(rec, clust_index, NULL,
+				ULINT_UNDEFINED, &heap);
+
+		if (page_rec_is_infimum(rec)
+		    || page_rec_is_supremum(rec)) {
+			continue;
+		}
+
+		if (0 != cmp_dtuple_rec(dtuple, rec, clust_index, offsets)) {
+			break;
+		}
+
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
+			continue;
+		}
+
+		if (n_recs == col_offset) {
+			const byte*	data;
+			ulint		len;
+			data = rec_get_nth_field(rec, offsets,
+						 cardinality_index_offset,
+						 &len);
+
+			*cardinality = static_cast<ulonglong>(
+					round(mach_read_from_8(data)));
+			mtr_commit(&mtr);
+			mem_heap_free(heap);
+			return(true);
+		}
+
+		n_recs++;
+	}
+
+	mtr_commit(&mtr);
+	mem_heap_free(heap);
+	return(false);
 }

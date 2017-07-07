@@ -2,7 +2,7 @@
 ALTER TABLE performance_schema.session_account_connect_attrs
   ADD COLUMN foo INTEGER;
 
--- error ER_WRONG_PERFSCHEMA_USAGE
+-- error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.session_account_connect_attrs;
 
 -- error ER_DBACCESS_DENIED_ERROR

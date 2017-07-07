@@ -3544,12 +3544,11 @@ void Query_tables_list::reset_query_tables_list(bool init)
       We delay real initialization of hash (and therefore related
       memory allocation) until first insertion into this hash.
     */
-    my_hash_clear(&sroutines);
+    sroutines.reset();
   }
-  else if (sroutines.records)
+  else if (sroutines != nullptr)
   {
-    /* Non-zero sroutines.records means that hash was initialized. */
-    my_hash_reset(&sroutines);
+    sroutines->clear();
   }
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
@@ -3574,7 +3573,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
 
 void Query_tables_list::destroy_query_tables_list()
 {
-  my_hash_free(&sroutines);
+  sroutines.reset();
 }
 
 
@@ -4294,7 +4293,7 @@ bool LEX::table_or_sp_used()
 {
   DBUG_ENTER("table_or_sp_used");
 
-  if (sroutines.records || query_tables)
+  if ((sroutines != nullptr && !sroutines->empty()) || query_tables)
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

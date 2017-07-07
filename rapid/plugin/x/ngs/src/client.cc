@@ -557,7 +557,7 @@ void Client::run(const bool skip_name_resolve)
   }
 
   {
-    Mutex_lock lock(server().get_client_exit_mutex());
+    MUTEX_LOCK(lock, server().get_client_exit_mutex());
     m_state = Client_closed;
 
     remove_client_from_server();

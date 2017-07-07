@@ -206,7 +206,6 @@ get_buf_dump_dir()
 /** Generate the path to the buffer pool dump/load file.
 @param[out]	path		generated path
 @param[in]	path_size	size of 'path', used as in snprintf(3). */
-static
 void
 buf_dump_generate_path(
 	char*	path,

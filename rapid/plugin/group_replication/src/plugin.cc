@@ -349,6 +349,12 @@ int plugin_group_replication_start()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_start",
+                 {
+                   const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+
   int error= 0;
   bool enabled_super_read_only= false;
   bool read_only_mode= false, super_read_only_mode=false;
@@ -457,24 +463,14 @@ int plugin_group_replication_start()
                                              server_version)))
     goto err; /* purecov: inspected */
 
-  /* To stop group replication to start on secondary member with single primary-
-     mode, when any async channels are running, we verify whether member is not
-     bootstrapping. As only when the member is bootstrapping, it can be the
-     primary leader on a single primary member context.
-
-   */
-  if (single_primary_mode_var && !bootstrap_group_var)
+  if (check_async_channel_running_on_secondary())
   {
-    if (is_any_slave_channel_running(
-        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
-    {
-      error= 1;
-      log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
-                                  " member with single primary-mode while"
-                                  " asynchronous replication channels are"
-                                  " running.");
-      goto err; /* purecov: inspected */
-    }
+    error= 1;
+    log_message(MY_ERROR_LEVEL, "Can't start group replication on secondary"
+                                " member with single primary-mode while"
+                                " asynchronous replication channels are"
+                                " running.");
+    goto err; /* purecov: inspected */
   }
 
   configure_compatibility_manager();
@@ -541,6 +537,7 @@ int plugin_group_replication_start()
 
   initialize_asynchronous_channels_observer();
   initialize_group_partition_handler();
+  set_auto_increment_handler();
 
   if ((error= start_group_communication()))
   {
@@ -752,10 +749,7 @@ bypass_message:
   // Finalize GCS.
   gcs_module->finalize();
 
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->reset_auto_increment_variables();
-  }
+  auto_increment_handler->reset_auto_increment_variables();
 
   // Destroy handlers and notifiers
   delete events_handler;
@@ -921,7 +915,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   plugin_info_ptr= plugin_info;
 
-  if (group_replication_init(group_replication_plugin_name))
+  if (group_replication_init())
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
@@ -988,7 +982,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   }
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
-  if (start_group_replication_at_boot_var && group_replication_start())
+  if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
     log_message(MY_ERROR_LEVEL,
                 "Unable to start Group Replication on boot");
@@ -1006,10 +1000,9 @@ int plugin_group_replication_deinit(void *p)
   plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
-  //plugin_group_replication_stop will be called from this method stack
-  if (group_replication_cleanup())
+  if (plugin_group_replication_stop())
     log_message(MY_ERROR_LEVEL,
-                "Failure when cleaning Group Replication server state");
+                "Failure when stopping Group Replication on plugin uninstall");
 
   if (group_member_mgr != NULL)
   {
@@ -1199,6 +1192,13 @@ void initialize_group_partition_handler()
                                    timeout_on_unreachable_var);
 }
 
+void set_auto_increment_handler()
+{
+  auto_increment_handler->
+      set_auto_increment_variables(auto_increment_increment_var,
+                                   get_server_id());
+}
+
 int terminate_applier_module()
 {
 
@@ -1371,13 +1371,6 @@ int start_group_communication()
 {
   DBUG_ENTER("start_group_communication");
 
-  if (auto_increment_handler != NULL)
-  {
-    auto_increment_handler->
-      set_auto_increment_variables(auto_increment_increment_var,
-                                   get_server_id());
-  }
-
   view_change_notifier= new Plugin_gcs_view_modification_notifier();
   events_handler= new Plugin_gcs_events_handler(applier_module,
                                                 recovery_module,
@@ -1390,6 +1383,25 @@ int start_group_communication()
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);
+}
+
+bool check_async_channel_running_on_secondary()
+{
+  /* To stop group replication to start on secondary member with single primary-
+     mode, when any async channels are running, we verify whether member is not
+    bootstrapping. As only when the member is bootstrapping, it can be the
+    primary leader on a single primary member context.
+  */
+  if (single_primary_mode_var && !bootstrap_group_var)
+  {
+    if (is_any_slave_channel_running(
+        CHANNEL_RECEIVER_THREAD | CHANNEL_APPLIER_THREAD))
+    {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 void initialize_asynchronous_channels_observer()
@@ -1506,7 +1518,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs, true);
+  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting);
 
   if(!startup_pre_reqs.binlog_enabled)
   {

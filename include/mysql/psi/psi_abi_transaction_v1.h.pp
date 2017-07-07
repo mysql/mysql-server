@@ -20,25 +20,9 @@ typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
-#include "psi_base.h"
-#include "my_psi_config.h"
-typedef unsigned int PSI_mutex_key;
-typedef unsigned int PSI_rwlock_key;
-typedef unsigned int PSI_cond_key;
-typedef unsigned int PSI_thread_key;
-typedef unsigned int PSI_file_key;
-typedef unsigned int PSI_stage_key;
-typedef unsigned int PSI_statement_key;
-typedef unsigned int PSI_socket_key;
-struct PSI_placeholder
-{
-  int m_placeholder;
-};
-struct PSI_transaction_bootstrap
-{
-  void *(*get_interface)(int version);
-};
-typedef struct PSI_transaction_bootstrap PSI_transaction_bootstrap;
+#include "mysql/components/services/psi_transaction_bits.h"
+#include "my_inttypes.h"
+#include "my_macros.h"
 struct PSI_transaction_locker;
 typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_transaction_locker_state_v1
@@ -85,6 +69,12 @@ typedef void (*inc_transaction_release_savepoint_v1_t)(
   struct PSI_transaction_locker *locker, ulong count);
 typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                      bool commit);
+typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
+struct PSI_transaction_bootstrap
+{
+  void *(*get_interface)(int version);
+};
+typedef struct PSI_transaction_bootstrap PSI_transaction_bootstrap;
 struct PSI_transaction_service_v1
 {
   get_thread_transaction_locker_v1_t get_thread_transaction_locker;
@@ -100,5 +90,4 @@ struct PSI_transaction_service_v1
   end_transaction_v1_t end_transaction;
 };
 typedef struct PSI_transaction_service_v1 PSI_transaction_service_t;
-typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 extern PSI_transaction_service_t *psi_transaction_service;

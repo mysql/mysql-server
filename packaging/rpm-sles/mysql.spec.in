@@ -797,6 +797,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
@@ -806,6 +807,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -1001,6 +1003,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_pfs_example_component_population.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/pfs_example_plugin_employee.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
@@ -1059,6 +1062,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_pfs_example_component_population.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/pfs_example_plugin_employee.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so

@@ -19,4 +19,4 @@ innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically 
 
 innodb.table_compress      : Bug#22916982 2017-05-04 Satya To be fixed by new fix for Bug#22916982
 innodb.innodb_tsof_use_1  : Bug#26161492  2017-05-29 Erlend Fails sporadically
-innodb.table_encrypt_debug: Bug#22916982  2017-06-07 Erlend To be fixed by WL#9538
+innodb.sys_tablestats	  : WL#9535, 2017-06-16 Satya

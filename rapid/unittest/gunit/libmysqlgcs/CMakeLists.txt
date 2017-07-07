@@ -68,9 +68,8 @@ SET(GCS_XCOM_TESTS
 
 FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
   GET_FILENAME_COMPONENT(test ${tpath} NAME)
-  ADD_EXECUTABLE(${test}-t ${tpath}-t.cc)
+  MYSQL_ADD_EXECUTABLE(${test}-t ${tpath}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small ${GCS_LIBRARY} ${LZ4_LIBRARY})
-  ADD_TEST(${test} ${test}-t)
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
 ENDFOREACH()
 

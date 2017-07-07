@@ -1023,7 +1023,7 @@ ACL_internal_access_result
 PFS_internal_schema_access::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden =
-    /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
+    CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
     EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
     ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
 
@@ -1058,7 +1058,7 @@ PFS_internal_schema_access::lookup(const char *name) const
     Do not return NULL, it would mean we are not interested
     in privilege checks for unknown tables.
     Instead, return an object that denies every actions,
-    to prevent users for creating their own tables in the
+    to prevent users from creating their own tables in the
     performance_schema database schema.
   */
   return &pfs_unknown_acl;
@@ -1080,13 +1080,41 @@ initialize_performance_schema_acl(bool bootstrap)
   }
 }
 
+static bool
+allow_drop_privilege()
+{
+  /*
+    The same DROP_ACL privilege is used for different statements,
+    in particular:
+    - TRUNCATE TABLE
+    - DROP TABLE
+    - ALTER TABLE
+    Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
+    Note that we must also allow GRANT to transfer the truncate privilege.
+  */
+  THD *thd = current_thd;
+  if (thd == NULL)
+  {
+    return false;
+  }
+
+  DBUG_ASSERT(thd->lex != NULL);
+  if ( (thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+       (thd->lex->sql_command != SQLCOM_GRANT))
+  {
+    return false;
+  }
+
+  return true;
+}
+
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result
 PFS_readonly_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+                                 CREATE_ACL | DROP_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
@@ -1118,13 +1146,21 @@ ACL_internal_access_result
 PFS_truncatable_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+                                 CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
+
+  if (want_access & DROP_ACL)
+  {
+    if (! allow_drop_privilege())
+    {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
   }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
@@ -1150,7 +1186,7 @@ ACL_internal_access_result
 PFS_updatable_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden =
-    INSERT_ACL | DELETE_ACL | /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+    INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL | INDEX_ACL |
     ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
@@ -1166,13 +1202,21 @@ PFS_editable_acl pfs_editable_acl;
 ACL_internal_access_result
 PFS_editable_acl::check(ulong want_access, ulong *) const
 {
-  const ulong always_forbidden = /* CREATE_ACL | */ REFERENCES_ACL | INDEX_ACL |
+  const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
+
+  if (want_access & DROP_ACL)
+  {
+    if (! allow_drop_privilege())
+    {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
   }
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
@@ -1192,6 +1236,7 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
   }
 
   /*
+    About SELECT_ACL:
     There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
     on performance_schema.*) tables that do not exist anyway.
     When SELECT_ACL is granted on performance_schema.* or *.*,
@@ -1200,6 +1245,10 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
     instead of ER_TABLEACCESS_DENIED_ERROR.
     The same goes for other DML (INSERT_ACL | UPDATE_ACL | DELETE_ACL),
     for ease of use: error messages will be less surprising.
+
+    About DROP_ACL:
+    "Unknown" tables are not supposed to be here,
+    so allowing DROP_ACL to make cleanup possible.
   */
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }

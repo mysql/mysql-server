@@ -38,36 +38,30 @@ using rules_table_service::Cursor;
 using Mysql::Nullable;
 namespace messages = rewriter_messages;
 
+namespace {
+
+std::string hash_key_from_digest(const uchar *digest)
+{
+  return std::string(pointer_cast<const char *>(digest),
+                     PARSER_SERVICE_DIGEST_LENGTH);
+}
+
+}  // namespace
+
 /**
   @file rewriter.cc
   Implementation of the Rewriter class's member functions.
 */
 
 
-/** Functions used in the hash */
-static const uchar *get_rule_hash_code(const uchar *entry, size_t *length)
-{
-  const Rule *rule= pointer_cast<const Rule*>(entry);
-  *length= PARSER_SERVICE_DIGEST_LENGTH;
-  const uchar *digest= pointer_cast<const uchar*>(rule->digest_buffer());
-  return digest;
-}
-
-
-static void free_rule(void *entry) { delete pointer_cast<Rule*>(entry); }
-
-
 Rewriter::Rewriter()
 {
-  my_hash_init(&m_digests, &my_charset_bin, 10,
-               PARSER_SERVICE_DIGEST_LENGTH,
-               get_rule_hash_code,
-               free_rule, 0,
-               PSI_INSTRUMENT_ME);
 }
 
 
-Rewriter::~Rewriter() { my_hash_free(&m_digests); }
+Rewriter::~Rewriter()
+{
+}
 
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
@@ -79,7 +73,8 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
   switch (load_status)
   {
   case Rule::OK:
-    my_hash_insert(&m_digests, pointer_cast<uchar*>(memrule_ptr.release()));
+    m_digests.emplace(hash_key_from_digest(memrule_ptr->digest_buffer()),
+                      std::move(memrule_ptr));
     diskrule->message= Nullable<string>();
     diskrule->pattern_digest= services::print_digest(memrule->digest_buffer());
     diskrule->normalized_pattern= memrule->normalized_pattern();
@@ -139,7 +134,7 @@ void Rewriter::do_refresh(MYSQL_THD session_thd)
     m_refresh_status= REWRITER_ERROR_TABLE_MALFORMED;
     DBUG_VOID_RETURN;
   }
-  my_hash_reset(&m_digests);
+  m_digests.clear();
 
   for (; c != rules_table_service::end(); ++c)
   {
@@ -209,26 +204,26 @@ Rewriter::Load_status Rewriter::refresh(MYSQL_THD thd)
 
 Rewrite_result Rewriter::rewrite_query(MYSQL_THD thd, const uchar *key)
 {
-  HASH_SEARCH_STATE state;
   Rewrite_result result;
+  bool digest_matched= false;
 
-  Rule *rule= pointer_cast<Rule*>(my_hash_first(&m_digests, key,
-                                                PARSER_SERVICE_DIGEST_LENGTH,
-                                                &state));
-  while (rule != NULL)
+  auto it_range= m_digests.equal_range(hash_key_from_digest(key));
+  for (auto it= it_range.first; it != it_range.second; ++it)
   {
-    result.digest_matched= true;
+    Rule *rule= it->second.get();
     if (rule->matches(thd))
     {
       result= rule->create_new_query(thd);
       if (result.was_rewritten)
         return result;
     }
-    rule= pointer_cast<Rule*>(my_hash_next(&m_digests, key,
-                                           PARSER_SERVICE_DIGEST_LENGTH,
-                                           &state));
+    else
+    {
+      digest_matched= true;
+    }
   }
 
   result.was_rewritten= false;
+  result.digest_matched= digest_matched;
   return result;
 }

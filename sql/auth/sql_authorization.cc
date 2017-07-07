@@ -4971,19 +4971,21 @@ static int remove_column_access_privileges(THD *thd,
           return ret;
         }
         else if (ret > 0)
+        {
           /*
             For the case when replace_table_table() returns 1 we continue
             iteration in order to remove all column access privileges.
-            It is safe since this function is called as part of handling
-            the statement REVOKE ALL.
           */
           result= 1;
+          revoked= true;
+          break;
+        }
         else
         {
           if (!grant_table->cols)
           {
-            revoked= 1;
-            continue;
+            revoked= true;
+            break;
           }
           List<LEX_COLUMN> columns;
           ret= replace_column_table(thd, grant_table, columns_priv_table,
@@ -4994,8 +4996,8 @@ static int remove_column_access_privileges(THD *thd,
                                     ~(ulong)0, true);
           if (!ret)
           {
-            revoked= 1;
-            continue;
+            revoked= true;
+            break;
           }
           /*
             If we come there then the variable ret always has a value < 0 since
@@ -5349,10 +5351,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 /**
   Grant EXECUTE,ALTER privilege for a stored procedure
 
-  @param thd The current thread.
-  @param sp_db
-  @param sp_name
-  @param is_proc
+  @param      thd                  The current thread.
+  @param      sp_db                DB of the stored procedure.
+  @param      sp_name              Name of the stored procedure
+  @param      is_proc              True if this is a SP rather than a function
 
   @return
     @retval FALSE Success

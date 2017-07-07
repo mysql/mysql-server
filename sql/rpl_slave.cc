@@ -285,7 +285,7 @@ static Log_event* next_event(Relay_log_info* rli);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
-                                  volatile uint *slave_running,
+                                  std::atomic<uint> *slave_running,
                                   ulong *stop_wait_timeout,
                                   bool need_lock_term,
                                   bool force= false);
@@ -1894,7 +1894,7 @@ static int
 terminate_slave_thread(THD *thd,
                        mysql_mutex_t *term_lock,
                        mysql_cond_t *term_cond,
-                       volatile uint *slave_running,
+                       std::atomic<uint> *slave_running,
                        ulong *stop_wait_timeout,
                        bool need_lock_term,
                        bool force)
@@ -1988,8 +1988,8 @@ bool start_slave_thread(
                         my_start_routine h_func, mysql_mutex_t *start_lock,
                         mysql_mutex_t *cond_lock,
                         mysql_cond_t *start_cond,
-                        volatile uint *slave_running,
-                        volatile ulong *slave_run_id,
+                        std::atomic<uint> *slave_running,
+                        std::atomic<ulong> *slave_run_id,
                         Master_info* mi)
 {
   bool is_error= false;

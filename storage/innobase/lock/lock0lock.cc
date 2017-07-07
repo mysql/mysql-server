@@ -1393,6 +1393,7 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 		lock_set_lock_and_trx_wait(lock, lock->trx);
 	}
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 	/*
 	  The performance schema THREAD_ID and EVENT_ID
@@ -1401,7 +1402,8 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 	PSI_THREAD_CALL(get_thread_event_id)(
 		& lock->m_psi_internal_thread_id,
 		& lock->m_psi_event_id);
-#endif
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
 	UT_LIST_ADD_LAST(lock->trx->lock.trx_locks, lock);
 }
@@ -2602,7 +2604,7 @@ lock_rec_inherit_to_gap(
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (!lock_rec_get_insert_intention(lock)
-		    && !lock->index->table->is_dd_table
+		    && !lock->index->table->skip_gap_locks()
 		    && !(lock->trx->skip_gap_locks()
 			 && lock_get_mode(lock) ==
 			 (lock->trx->duplicates ? LOCK_S : LOCK_X))) {
@@ -3655,6 +3657,7 @@ lock_table_create(
 
 	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 	/*
 	  The performance schema THREAD_ID and EVENT_ID
@@ -3663,7 +3666,8 @@ lock_table_create(
 	PSI_THREAD_CALL(get_thread_event_id)(
 		& lock->m_psi_internal_thread_id,
 		& lock->m_psi_event_id);
-#endif
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
 	UT_LIST_ADD_LAST(trx->lock.trx_locks, lock);
 
@@ -7344,9 +7348,9 @@ DeadlockChecker::search()
 			we find, we crash early to find the transactions
 			causing deadlock */
 			if ((lock->is_record_lock() && lock->index != nullptr
-			     && lock->index->table->is_dd_table)
+			     && lock->index->table->skip_gap_locks())
 			    || (m_wait_lock->is_record_lock() && m_wait_lock->index != nullptr
-				&& m_wait_lock->index->table->is_dd_table)) {
+				&& m_wait_lock->index->table->skip_gap_locks())) {
 				bool	dd_deadlock_found = true;
 				ut_ad(!dd_deadlock_found);
 			}

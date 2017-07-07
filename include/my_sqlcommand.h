@@ -185,6 +185,7 @@ enum enum_sql_command {
   SQLCOM_REVOKE_ROLE,
   SQLCOM_ALTER_USER_DEFAULT_ROLE,
   SQLCOM_IMPORT,
+  SQLCOM_CLONE,
   /* This should be the last !!! */
   SQLCOM_END
 };

@@ -65,7 +65,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/dd.h"
 #include "dd/dictionary.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/types/tablespace.h"
 #include "dd/types/index.h"
 #include "dd/types/partition.h"
@@ -83,6 +82,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0stats.h"
+#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -151,6 +151,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql_base.h" // OPEN_FRM_FILE_ONLY
 #include "dict0upgrade.h"
 #include "dict0load.h"
+#include "dict0sdi.h"
 
 /** fil_space_t::flags for hard-coded tablespaces */
 ulint			predefined_flags;
@@ -520,6 +521,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
 	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
 	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(clone_task_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
@@ -539,10 +543,13 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
 	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
 	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
 	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
 	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
 	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
 	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
@@ -623,6 +630,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
+	PSI_KEY(archiver_thread),
 	PSI_KEY(buf_dump_thread),
 	PSI_KEY(dict_stats_thread),
 	PSI_KEY(io_handler_thread),
@@ -654,7 +662,9 @@ static PSI_file_info	all_innodb_files[] = {
 	PSI_KEY(innodb_tablespace_open_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
-	PSI_KEY(innodb_temp_file)
+	PSI_KEY(innodb_temp_file),
+	PSI_KEY(innodb_arch_file),
+	PSI_KEY(innodb_clone_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
@@ -711,8 +721,8 @@ static ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_memc_sdi_get,
 	(ib_cb_t) ib_memc_sdi_delete,
 	(ib_cb_t) ib_memc_sdi_set,
-	(ib_cb_t) ib_memc_sdi_create_copies,
-	(ib_cb_t) ib_memc_sdi_drop_copies,
+	(ib_cb_t) ib_memc_sdi_create,
+	(ib_cb_t) ib_memc_sdi_drop,
 	(ib_cb_t) ib_memc_sdi_get_keys,
 #endif /* UNIV_MEMCACHED_SDI */
 	(ib_cb_t) ib_trx_read_only,
@@ -1138,21 +1148,25 @@ innobase_create_handler(
 	MEM_ROOT*	mem_root);
 
 
-/** Retrieve table statistics.
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in]	se_private_id	The internal id of the table
-@param[in]	flags		flags used to retrieve specific stats
-@param[in,out]	stats		structure to save the retrieved statistics
+/** Retrieve table satistics.
+@param[in]	db_name			database name
+@param[in]	table_name		table name
+@param[in]	se_private_id		The internal id of the table
+@param[in]	ts_se_private_data	Tablespace SE Private data
+@param[in]	tbl_se_private_data	Table SE private data
+@param[in]	flags			flags used to retrieve specific stats
+@param[in,out]	stats			structure to save the retrieved statistics
 @return false on success, true on failure */
 static
 bool
 innobase_get_table_statistics(
-	const char*	db_name,
-	const char*	table_name,
-	dd::Object_id	se_private_id,
-	uint		flags,
-	ha_statistics*	stats);
+	const char*		db_name,
+	const char*		table_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+	const dd::Properties&	tbl_se_private_data,
+	uint			flags,
+	ha_statistics*		stats);
 
 /** Retrieve index column cardinality.
 @param[in]		db_name			name of schema
@@ -1174,156 +1188,6 @@ innobase_get_index_column_cardinality(
 	uint		column_ordinal_position,
 	dd::Object_id	se_private_id,
 	ulonglong*	cardinality);
-
-/** Create SDI in a tablespace. This API should be used when
-upgrading a tablespace with no SDI.
-@param[in]	tablespace	tablespace object
-@param[in]	num_of_copies	Number of SDI copies
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_create(
-	const dd::Tablespace&	tablespace,
-	uint32			num_of_copies);
-
-/** Drop SDI in a tablespace. This API should be used only
-when SDI is corrupted.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_drop(
-	const dd::Tablespace&	tablespace);
-
-/** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace	tablespace object
-@param[in,out]	vector		vector to hold SDI keys
-@param[in]	copy_num	the SDI copy to operate on
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get_keys(
-	const dd::Tablespace&	tablespace,
-	dd::sdi_vector_t&	vector,
-	uint32			copy_num);
-
-/** Retrieve SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
-				out: actual length of SDI
-@param[in]	copy_num	the copy from which SDI has to retrieved
-@retval		false		success
-@retval		true		incase of failures like record not found,
-				sdi_len is UINT64MAX_T, else sdi_len is
-				actual length of SDI */
-static
-bool
-innobase_sdi_get(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	void*			sdi,
-	uint64*			sdi_len,
-	uint32			copy_num);
-
-/** Insert/Update SDI in tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_set(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	const void*		sdi,
-	uint64			sdi_len);
-
-/** Delete SDI from tablespace.
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_delete(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key);
-
-/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
-will be flushed before transaction commit.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_flush(
-	const dd::Tablespace&	tablespace);
-
-/** Return the number of SDI copies stored in a tablespace.
-@param[in]	tablespace	tablespace object
-@retval		0		if there are no SDI copies
-@retval		MAX_SDI_COPIES	if the SDI is present
-@retval		UINT32_MAX	in case of failure */
-static
-uint32
-innobase_sdi_get_num_copies(
-	const dd::Tablespace&	tablespace);
-
-/** Store sdi for a dd:Schema object associated with table
-@param[in,out]  thd     connection thread
-@param[in]      sdi     serialized dictionary information JSON string
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_store_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const LEX_CSTRING&	sdi,
-	const dd::Schema*	schema,
-	const dd::Table*	table);
-
-/** Remove serialized dictionary information for a schema.
-@param[in,out]  thd     connection thread
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Schema*	schema,
-	const dd::Table*	table);
-
-/** Remove serialized dictionary information for a table.
-@param[in,out]  thd     connection thread
-@param[in]      table   dd object
-@param[in]      schema  schema with which table is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_table_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Table*	table,
-	const dd::Schema*	schema);
 
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
@@ -3895,6 +3759,13 @@ innobase_dict_recover(
 			return(true);
 		}
 
+		/* Check and extend space files, if needed. */
+		if (fil_iterate_tablespace_files(false, nullptr,
+			fil_check_extend_space) != DB_SUCCESS) {
+
+			return(true);
+		}
+
 		srv_dict_recover_on_restart();
 success:
 		srv_start_threads(
@@ -4601,24 +4472,33 @@ innodb_init(
 	innobase_hton->is_dict_readonly=
 		innobase_is_dict_readonly;
 
-	innobase_hton->sdi_create = innobase_sdi_create;
-	innobase_hton->sdi_drop = innobase_sdi_drop;
-	innobase_hton->sdi_get_keys = innobase_sdi_get_keys;
-	innobase_hton->sdi_get = innobase_sdi_get;
-	innobase_hton->sdi_set = innobase_sdi_set;
-	innobase_hton->sdi_delete = innobase_sdi_delete;
-	innobase_hton->sdi_flush = innobase_sdi_flush;
-	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
-
-	innobase_hton->store_schema_sdi = innodb_store_schema_sdi;
-	innobase_hton->store_table_sdi = dd::sdi_tablespace::store;
-	innobase_hton->remove_schema_sdi = innodb_remove_schema_sdi;
-	innobase_hton->remove_table_sdi = innodb_remove_table_sdi;
+	innobase_hton->sdi_create = dict_sdi_create;
+	innobase_hton->sdi_drop = dict_sdi_drop;
+	innobase_hton->sdi_get_keys = dict_sdi_get_keys;
+	innobase_hton->sdi_get = dict_sdi_get;
+	innobase_hton->sdi_set = dict_sdi_set;
+	innobase_hton->sdi_delete = dict_sdi_delete;
 
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
 
 	innobase_hton->post_ddl = innobase_post_ddl;
+
+	/* Initialize handler clone interfaces for. */
+
+	innobase_hton->clone_interface.clone_begin
+		= innodb_clone_begin;
+	innobase_hton->clone_interface.clone_copy
+		= innodb_clone_copy;
+	innobase_hton->clone_interface.clone_end
+		= innodb_clone_end;
+
+	innobase_hton->clone_interface.clone_apply_begin
+		= innodb_clone_apply_begin;
+	innobase_hton->clone_interface.clone_apply
+		= innodb_clone_apply;
+	innobase_hton->clone_interface.clone_apply_end
+		= innodb_clone_apply_end;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -4763,6 +4643,7 @@ dd_create_hardcoded(space_id_t space_id, const char* filename)
 		mtr.commit();
 
 		if (ret) {
+			btr_sdi_create_index(space_id, false);
 			return(false);
 		}
 	}
@@ -4781,12 +4662,16 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 {
 	bool		fail = false;
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
+	ulint		mysql_flags = FSP_FLAGS_SET_SDI(predefined_flags);
 
 	if (space != NULL) {
+		/* ADD SDI flag presence in predefined flags of mysql
+		tablespace. */
+
 		/* The tablespace was already opened up by redo log apply. */
-		ut_ad(space->flags == predefined_flags);
+		ut_ad(space->flags == mysql_flags);
 		if (strstr(UT_LIST_GET_FIRST(space->chain)->name, filename) != 0
-		    && space->flags == predefined_flags) {
+		    && space->flags == mysql_flags) {
 			fil_space_open_if_needed(space);
 		} else {
 			fail = true;
@@ -4794,7 +4679,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
-				predefined_flags, dict_sys_t::dd_space_name,
+				mysql_flags, dict_sys_t::dd_space_name,
 				filename)
 		   == DB_SUCCESS) {
 		/* Set fil_space_t::size, which is 0 initially. */
@@ -5642,336 +5527,6 @@ innobase_kill_connection(
 	}
 
 	DBUG_VOID_RETURN;
-}
-
-/** Check for existence of SDI copies in a tablespace
-@param[in]	tablespace	tablespace object
-@param[in,out]	space_id	space_id from tablespace object
-@return DB_SUCESS if number of SDI copies is MAX_SDI_COPIES,
-else return DB_ERROR */
-static
-dberr_t
-innobase_sdi_check_existence(
-	const dd::Tablespace&	tablespace,
-	uint32*			space_id)
-{
-	if (tablespace.se_private_data().get_uint32("id", space_id)) {
-		/* error, attribute not found */
-		ut_ad(0);
-		return(DB_ERROR);
-	}
-
-	ut_ad(check_trx_exists(current_thd) != NULL);
-
-	uint32_t	num_of_sdi = innobase_sdi_get_num_copies(tablespace);
-	return(num_of_sdi != MAX_SDI_COPIES ? DB_ERROR : DB_SUCCESS);
-}
-
-/** Create SDI in a tablespace. This API should be used when
-upgrading a tablespace with no SDI. InnoDB will always create
-MAX_SDI_COPIES only.
-@param[in]	tablespace	tablespace object
-@param[in]	num_of_copies	Number of SDI copies
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_create(
-	const dd::Tablespace&	tablespace,
-	uint32			num_of_copies)
-{
-	if (num_of_copies != MAX_SDI_COPIES) {
-		return(true);
-	}
-
-	uint32	space_id;
-	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
-		/* error, attribute not found */
-		ut_ad(0);
-		return(true);
-	}
-
-	dberr_t	err = ib_sdi_create_copies(space_id, num_of_copies);
-
-	return(err != DB_SUCCESS);
-}
-
-/** Drop SDI in a tablespace. This API should be used only
-when SDI is corrupted.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_drop(
-	const dd::Tablespace&	tablespace)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	dberr_t	err = ib_sdi_drop_copies(space_id);
-	return(err != DB_SUCCESS);
-}
-
-/** Get the SDI keys in a tablespace into vector.
-@param[in]	tablespace	tablespace object
-@param[in,out]	vector		vector to hold SDI keys
-@param[in]	copy_num	the SDI copy to operate on
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get_keys(
-	const dd::Tablespace&	tablespace,
-	dd::sdi_vector_t&	vector,
-	uint32			copy_num)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	ib_sdi_vector	ib_vector;
-	ib_vector.sdi_vector = &vector;
-
-	trx_t*	trx = check_trx_exists(current_thd);
-
-	dberr_t	err = ib_sdi_get_keys(space_id, &ib_vector,
-				      copy_num, trx);
-
-	return(err != DB_SUCCESS);
-}
-
-/** Retrieve SDI from tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  size of memory allocated
-				out: actual length of SDI
-@param[in]	copy_num	the copy from which SDI has to retrieved
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_get(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	void*			sdi,
-	uint64*			sdi_len,
-	uint32			copy_num)
-{
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-
-	dberr_t	err = ib_sdi_get(
-		space_id, &ib_sdi_key,
-		sdi, reinterpret_cast<uint64_t*>(sdi_len),
-		copy_num, trx);
-	return(err != DB_SUCCESS);
-}
-
-/** Insert/Update SDI in tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_set(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key,
-	const void*		sdi,
-	uint64			sdi_len)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-	/* TODO: To be determined if the rollback to savepoint is needed around
-	SDI modification. */
-	trx_savept_t	savept = trx_savept_take(trx);
-
-	dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 0, trx);
-	if (err == DB_SUCCESS) {
-		err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 1, trx);
-	}
-
-	if (err != DB_SUCCESS) {
-		trx_rollback_to_savepoint(trx, &savept);
-		return(true);
-	} else {
-		return(false);
-	}
-}
-
-/** Delete SDI from tablespace
-@param[in]	tablespace	tablespace object
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_delete(
-	const dd::Tablespace&	tablespace,
-	const dd::sdi_key_t*	sdi_key)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	trx_t*		trx = check_trx_exists(current_thd);
-	ib_sdi_key_t	ib_sdi_key;
-	ib_sdi_key.sdi_key = sdi_key;
-	/* TODO: To be determined if the rollback to savepoint is needed around
-	SDI modification. */
-	trx_savept_t	savept = trx_savept_take(trx);
-
-	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, 0, trx);
-	if (err == DB_SUCCESS) {
-		err = ib_sdi_delete(space_id, &ib_sdi_key, 1, trx);
-	}
-
-	if (err != DB_SUCCESS) {
-		trx_rollback_to_savepoint(trx, &savept);
-		return(true);
-	} else {
-		return(false);
-	}
-}
-
-/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
-will be flushed before transaction commit.
-@param[in]	tablespace	tablespace object
-@retval		false		success
-@retval		true		failure */
-static
-bool
-innobase_sdi_flush(
-	const dd::Tablespace&	tablespace)
-{
-#if 1
-	/* WL#9538 TODO: Enable this function. */
-	return(false);
-#endif
-	uint32	space_id;
-	if (innobase_sdi_check_existence(tablespace, &space_id)
-	    != DB_SUCCESS) {
-		return(true);
-	}
-
-	ib_sdi_flush(space_id);
-	return(false);
-}
-
-/** Return the number of SDI copies stored in a tablespace.
-@param[in]	tablespace	tablespace object
-@retval		0		if there are no SDI copies
-@retval		MAX_SDI_COPIES	if the SDI is present
-@retval		UINT32_MAX	in case of failure */
-static
-uint32
-innobase_sdi_get_num_copies(
-	const dd::Tablespace&	tablespace)
-{
-	uint32	space_id;
-	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
-		ut_ad(0);
-		return(UINT32_MAX);
-	}
-
-	return(ib_sdi_get_num_copies(space_id));
-}
-
-/** Store sdi for a dd:Schema object associated with table
-@param[in,out]  thd     connection thread
-@param[in]	sdi	SDI json string
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_store_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const LEX_CSTRING&	sdi,
-	const dd::Schema*	schema,
-	const dd::Table*	table)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
-}
-
-/** Remove serialized dictionary information for a schema.
-@param[in,out]  thd     connection thread
-@param[in]      schema  dd object
-@param[in]      table   table with which schema is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_schema_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Schema*	schema,
-	const dd::Table*	table)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
-}
-
-/** Remove serialized dictionary information for a table.
-@param[in,out]  thd     connection thread
-@param[in]      table   dd object
-@param[in]      schema  schema with which table is associated
-@return error status
-@retval false   if successful
-@retval true    on failure */
-static
-bool
-innodb_remove_table_sdi(
-	THD*			thd,
-	handlerton*,
-	const dd::Table*	table,
-	const dd::Schema*	schema)
-{
-	ut_ad(table->schema_id() == schema->id());
-	// TODO: implement WL#7053/WL#7069
-	return(false);
 }
 
 /*************************************************************************//**
@@ -14215,7 +13770,7 @@ ha_innobase::get_se_private_data(
 {
 	static uint	n_tables = 0;
 	static uint	n_indexes = 0;
-	static uint	n_pages = 3;
+	static uint	n_pages = 4;
 
 #ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
@@ -14962,7 +14517,7 @@ innobase_create_tablespace(
 		goto cleanup;
 	}
 
-	err = btr_sdi_create_indexes(tablespace.space_id(), true);
+	err = btr_sdi_create_index(tablespace.space_id(), true);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		goto cleanup;
@@ -14995,6 +14550,7 @@ innobase_drop_tablespace(
 	trx_t*		trx;
 	int		error = 0;
 	space_id_t	space_id = SPACE_UNKNOWN;
+	MDL_ticket*	sdi_mdl = nullptr;
 
 	DBUG_ENTER("innobase_drop_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -15023,6 +14579,18 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 
 	++trx->will_lock;
+
+	/* Acquire Exclusive MDL on SDI table of tablespace.
+	This is to prevent concurrent purge on SDI table */
+	dberr_t	err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		DBUG_RETURN(error);
+	}
+
+	row_mysql_lock_data_dictionary(trx);
+	dict_sdi_remove_from_cache(space_id, nullptr, true);
+	row_mysql_unlock_data_dictionary(trx);
 
 	log_ddl->writeDeleteSpaceLog(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
@@ -16216,21 +15784,178 @@ ha_innobase::info(
 	return(info_low(flag, false /* not ANALYZE */));
 }
 
-/** Retrieve table satistics.
-@param[in]	db_name		database name
-@param[in]	table_name	table name
-@param[in]	se_private_id	The internal id of the table
+/** Get the autoincrement for the given table id which is
+not in the cache.
+@param[in]	se_private_id		InnoDB table id
+@param[in]	tbl_se_private_data	table SE private data
+@return autoincrement value for the given table_id. */
+static
+ib_uint64_t
+innodb_get_auto_increment_for_uncached(
+	dd::Object_id		se_private_id,
+	const dd::Properties	&tbl_se_private_data)
+{
+	uint64	autoinc = 0;
+	uint64	meta_autoinc = 0;
+
+	bool exists = tbl_se_private_data.exists(
+				dd_table_key_strings[DD_TABLE_AUTOINC]);
+
+	/** Get the auto_increment from the table SE private data. */
+	if (exists) {
+		tbl_se_private_data.get_uint64(
+			dd_table_key_strings[DD_TABLE_AUTOINC],
+			&autoinc);
+	}
+
+	/** Get the auto_increment value from innodb_dynamic_metadata
+	table. */
+	mutex_enter(&dict_persist->mutex);
+
+	DDTableBuffer*	table_buffer = dict_persist->table_buffer;
+
+	uint64	version;
+	std::string*	readmeta = table_buffer->get(se_private_id, &version);
+
+	if (readmeta->length() != 0) {
+		PersistentTableMetadata metadata(se_private_id, version);
+
+		dict_table_read_dynamic_metadata(
+			reinterpret_cast<const byte*>(readmeta->data()),
+			readmeta->length(), &metadata);
+
+		meta_autoinc = metadata.get_autoinc();
+	}
+
+	mutex_exit(&dict_persist->mutex);
+
+	UT_DELETE(readmeta);
+
+	return(std::max(meta_autoinc, autoinc));
+}
+
+/** Retrieves table statistics only for uncache table only.
+@param[in]	db_name			database name
+@param[in]	tbl_name		table name
+@param[in]	norm_name		tablespace name
+@param[in]	se_private_id		InnoDB table id
+@param[in]	ts_se_private_data	tablespace se private data
+@param[in]	tbl_se_private_data	table se private data
 @param[in]	flags		flags used to retrieve specific stats
 @param[in,out]	stats		structure to save the retrieved statistics
+@return true if the stats information filled successfully
+@return false if tablespace is missing or table doesn't have persistent
+stats. */
+static
+bool
+innodb_get_table_statistics_for_uncached(
+	const char*		db_name,
+	const char*		tbl_name,
+	const char*		norm_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+        const dd::Properties&	tbl_se_private_data,
+	ulint			flags,
+	ha_statistics*		stats)
+{
+
+	TableStatsRecord	stat_info;
+	space_id_t		space_id;
+
+	if (!row_search_table_stats(db_name, tbl_name, stat_info)) {
+		return(false);
+	}
+
+	/** Server passes dummy ts_se_private_data for file_per_table
+	tablespace. In that case, InnoDB should find the space_id using
+	the tablespace name. */
+	bool exists = ts_se_private_data.exists(
+				dd_space_key_strings[DD_SPACE_ID]);
+
+	if (exists) {
+		ts_se_private_data.get_uint32(
+				dd_space_key_strings[DD_SPACE_ID],
+				 &space_id);
+	} else {
+		space_id = fil_space_get_id_by_name(norm_name);
+
+		if (space_id == SPACE_UNKNOWN) {
+			return(false);
+		}
+	}
+
+	fil_space_t*	space;
+	ulint		fsp_flags;
+
+	space = fil_space_acquire(space_id);
+
+	/** Tablespace is missing in this case. */
+	if (space == NULL) {
+		return(false);
+	}
+
+	fsp_flags = space->flags;
+	page_size_t	page_size(fsp_flags);
+
+	if (flags & HA_STATUS_VARIABLE_EXTRA) {
+		ulint avail_space =
+			fsp_get_available_space_in_free_extents(space);
+		stats->delete_length = avail_space * 1024;
+	}
+
+	fil_space_release(space);
+
+	if (flags & HA_STATUS_AUTO) {
+		stats->auto_increment_value =
+			innodb_get_auto_increment_for_uncached(
+				se_private_id, tbl_se_private_data);
+	}
+
+	if (flags & HA_STATUS_TIME) {
+		stats->update_time = (time_t) NULL;
+	}
+
+	if (flags & HA_STATUS_VARIABLE) {
+		stats->records = static_cast<ha_rows>(stat_info.get_n_rows());
+		stats->data_file_length
+			= static_cast<ulonglong>(
+				stat_info.get_clustered_index_size())
+					* page_size.physical();
+		stats->index_file_length
+			= static_cast<ulonglong>(
+				stat_info.get_sum_of_other_index_size())
+				* page_size.physical();
+
+		if (stats->records == 0) {
+			stats->mean_rec_length = 0;
+		} else {
+			stats->mean_rec_length = static_cast<ulong>(
+				stats->data_file_length / stats->records);
+		}
+	}
+
+	return(true);
+}
+
+/** Retrieve table satistics.
+@param[in]	db_name			database name
+@param[in]	table_name		table name
+@param[in]	se_private_id		The internal id of the table
+@param[in]	ts_se_private_data	Tablespace SE Private data
+@param[in]	tbl_se_private_data	Table SE private data
+@param[in]	flags			flags used to retrieve specific stats
+@param[in,out]	stats			structure to save the retrieved statistics
 @return false on success, true on failure */
 static
 bool
 innobase_get_table_statistics(
-	const char*	db_name,
-	const char*	table_name,
-	dd::Object_id	se_private_id,
-	uint		flags,
-	ha_statistics*	stats)
+	const char*		db_name,
+	const char*		table_name,
+	dd::Object_id		se_private_id,
+	const dd::Properties&	ts_se_private_data,
+	const dd::Properties&	tbl_se_private_data,
+	uint			flags,
+	ha_statistics*		stats)
 {
 	char		norm_name[FN_REFLEN];
 	dict_table_t*	ib_table;
@@ -16246,11 +15971,28 @@ innobase_get_table_statistics(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
-					 false, DICT_ERR_IGNORE_NONE);
+	ib_table = dd_table_open_on_name_in_mem(norm_name,
+						false);
+	if (ib_table == nullptr) {
 
-	if (ib_table == NULL) {
-		return(true);
+		if (innodb_get_table_statistics_for_uncached(
+					db_name, table_name,
+                                        norm_name,
+					se_private_id,
+					ts_se_private_data,
+                                        tbl_se_private_data,
+                                        flags, stats)) {
+			return(false);
+		}
+
+		/** If the table doesn't have persistent stats then
+		load the table from disk. */
+		ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+						 false, DICT_ERR_IGNORE_NONE);
+
+		if (ib_table == nullptr) {
+			return(true);
+		}
 	}
 
 	if (flags & HA_STATUS_AUTO) {
@@ -16322,11 +16064,25 @@ innobase_get_index_column_cardinality(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
-					 false, DICT_ERR_IGNORE_NONE);
+	ib_table = dd_table_open_on_name_in_mem(norm_name,
+						false);
+	if (ib_table == nullptr) {
 
-	if (ib_table == NULL) {
-		return(failure);
+		if (row_search_index_stats(db_name, table_name,
+					       index_name,
+					       column_ordinal_position,
+					       cardinality)) {
+			return(false);
+		}
+
+		/** If the table doesn't have persistent stats then
+		load the table from disk. */
+		ib_table = dd_table_open_on_name(thd, &mdl, norm_name,
+						 false, DICT_ERR_IGNORE_NONE);
+
+		if (ib_table == nullptr) {
+			return(true);
+		}
 	}
 
 	if (ib_table->is_fts_aux()) {
@@ -20362,12 +20118,6 @@ innodb_undo_tablespaces_update(
 		return;
 	}
 
-	if (target == 0) {
-		ib::info() << "Setting 'innodb_undo_tablespaces' to 0 is"
-			" deprecated and will not be supported in a future"
-			" release.";
-	}
-
 	if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
 		ib::warn() << "Failed to set innodb_undo_tablespaces to "
 			<< target << ".";
@@ -21556,8 +21306,8 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
   "Number of undo tablespaces to use. ",
   NULL, innodb_undo_tablespaces_update,
-  2L,				/* Default seting */
-  0L,				/* Minimum value */
+  FSP_MIN_UNDO_TABLESPACES,	/* Default seting */
+  FSP_MIN_UNDO_TABLESPACES,	/* Minimum value */
   FSP_MAX_UNDO_TABLESPACES, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_tablespace_size,

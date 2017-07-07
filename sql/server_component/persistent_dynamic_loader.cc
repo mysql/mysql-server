@@ -184,8 +184,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     };
 
     int count= (int) array_elements(all_dyloader_mutexes);
-    PSI_MUTEX_CALL(register_mutex)("p_dyn_loader",
-                                   all_dyloader_mutexes, count);
+    mysql_mutex_register("p_dyn_loader", all_dyloader_mutexes, count);
 
     mysql_mutex_init(key_component_id_by_urn_mutex,
                      &component_id_by_urn_mutex,
@@ -257,7 +256,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
 
       component_groups[component_group_id].push_back(component_urn);
       {
-        Mutex_lock lock(&component_id_by_urn_mutex);
+        MUTEX_LOCK(lock, &component_id_by_urn_mutex);
         mysql_persistent_dynamic_loader_imp::component_id_by_urn.emplace(
           component_urn, component_id);
       }
@@ -353,7 +352,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       return true;
     }
 
-    Mutex_lock lock(&component_id_by_urn_mutex);
+    MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
     /* We don't replicate INSTALL COMPONENT */
     Disable_binlog_guard binlog_guard(thd);
@@ -467,7 +466,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       return true;
     }
 
-    Mutex_lock lock(&component_id_by_urn_mutex);
+    MUTEX_LOCK(lock, &component_id_by_urn_mutex);
 
     int res;
 

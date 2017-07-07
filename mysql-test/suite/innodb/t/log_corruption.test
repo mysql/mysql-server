@@ -69,11 +69,12 @@ let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only 
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4a.zip -d $newdir > $SEARCH_FILE
 # Anything below innodb_force_recovery=6 must find a valid redo log.
 # Missing tablespace files are tolerated already with innodb_force_recovery=1.
+--echo # Start with innodb-force-recovery=5
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=Data Dictionary initialization failed;
+let SEARCH_PATTERN=Cannot continue InnoDB startup in force_recovery mode because there are no existing undo tablespaces found;
 --source include/search_pattern_in_file.inc
---echo # --innodb-force-recovery=6 (skip the entire redo log)
+--echo # Start with --innodb-force-recovery=6 (skip the entire redo log)
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
 let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only mode;

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -208,6 +208,12 @@ ENDIF(MSVC)
 
 ADD_CONVENIENCE_LIBRARY(protoclib ${LIBPROTOC_SOURCES})
 SET_PROPERTY(TARGET protoclib PROPERTY EXCLUDE_FROM_ALL TRUE)
-ADD_EXECUTABLE(protoc ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc)
-SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_ALL TRUE)
+
+MYSQL_ADD_EXECUTABLE(protoc
+  ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc
+  SKIP_INSTALL EXCLUDE_FROM_ALL)
+# Build fails with 'devenv' unless we include it in the default build
+IF(WIN32)
+  SET_PROPERTY(TARGET protoc PROPERTY EXCLUDE_FROM_DEFAULT_BUILD FALSE)
+ENDIF()
 TARGET_LINK_LIBRARIES(protoc protobuf protoclib protobuf)

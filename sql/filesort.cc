@@ -1051,7 +1051,7 @@ static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
   uchar *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  volatile THD::killed_state *killed= &thd->killed;
+  std::atomic<THD::killed_state> *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set;
   bool skip_record;
@@ -2235,8 +2235,8 @@ int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   my_off_t to_start_filepos;
   uchar *strpos;
   Merge_chunk *merge_chunk;
-  volatile THD::killed_state *killed= &thd->killed;
-  THD::killed_state not_killable;
+  std::atomic<THD::killed_state> *killed= &thd->killed;
+  std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
   DBUG_ENTER("merge_buffers");
 
   thd->inc_status_sort_merge_passes();

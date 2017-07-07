@@ -448,6 +448,27 @@ sub collect_one_suite($)
   }
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
+
+  # Check for the tests to be skipped in a sanitizer which are listed
+  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
+  if ($::opt_sanitize)
+  {
+    # Check for disabled-asan.list
+    if($::mysql_version_extra =~ /asan/i &&
+       !grep(/disabled-asan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-asan.list");
+    }
+    # Check for disabled-ubsan.list
+    elsif($::mysql_version_extra =~ /ubsan/i &&
+         !grep(/disabled-ubsan\.list$/, @{$opt_skip_test_list}))
+    {
+      push (@disabled_collection,
+            "collections/disabled-ubsan.list");
+    }
+  }
+
   for my $skip (@disabled_collection)
     {
       if ( open(DISABLED, $skip ) )
@@ -631,7 +652,7 @@ sub collect_one_suite($)
 
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
-	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
+	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
 	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
 	    next;
 	  }

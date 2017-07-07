@@ -51,6 +51,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "ut0byte.h"
 #include "ut0stage.h"
+#include "arch0arch.h"
 
 #ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
@@ -1231,6 +1232,30 @@ buf_flush_page(
 		}
 
 		++buf_pool->n_flush[flush_type];
+
+		if (bpage->oldest_modification > buf_pool->max_lsn_io) {
+
+			buf_pool->max_lsn_io =
+				bpage->oldest_modification;
+		}
+
+		if (!fsp_is_system_temporary(bpage->id.space())
+		    && buf_pool->track_page_lsn != LSN_MAX) {
+
+			page_t*	frame;
+			lsn_t	frame_lsn;
+
+			frame = bpage->zip.data;
+
+			if (!frame) {
+
+				frame = ((buf_block_t*) bpage)->frame;
+			}
+			frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
+
+			arch_page_sys->track_page(bpage,
+				buf_pool->track_page_lsn, frame_lsn, false);
+                }
 
 		mutex_exit(&buf_pool->flush_state_mutex);
 

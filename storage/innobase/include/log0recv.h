@@ -536,6 +536,9 @@ struct recv_sys_t {
 	is detected during log scan or apply */
 	bool			found_corrupt_fs;
 
+	/** If the recovery is from a cloned database. */
+	bool			is_cloned_db;
+
 	/** Hash table of pages, indexed by SpaceID. */
 	Spaces*			spaces;
 

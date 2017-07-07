@@ -679,6 +679,22 @@ void
 fil_close_log_files(
 /*================*/
 	bool	free);	/*!< in: whether to free the memory object */
+
+/** File Node Iterator callback. */
+using fil_node_cbk_t = dberr_t (fil_node_t* node, void* context);
+
+/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
+returning the nodes via callback function cbk.
+@param[in]	include_log	include log files
+@param[in]	context		callback function context
+@param[in]	callback	callback function
+@return any error returned by the callback function. */
+dberr_t
+fil_iterate_tablespace_files(
+	bool		include_log,
+	void*		context,
+	fil_node_cbk_t*	callback);
+
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
@@ -1343,6 +1359,12 @@ Compression::Type
 fil_get_compression(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
+void
+fil_io_set_encryption(
+	IORequest&		req_type,
+	const page_id_t&	page_id,
+	fil_space_t*		space);
+
 /** Set the encryption type for the tablespace
 @param[in] space_id		Space ID of tablespace for which to set
 @param[in] algorithm		Encryption algorithm
@@ -1482,4 +1504,12 @@ fil_op_replay_rename(
 	const char*		name,
 	const char*		new_name);
 
+/** Callback to check tablespace size with space header size and extend
+@param[in]	node	file node
+@param[in]	context	callers context, currently unused
+@return	error code */
+dberr_t
+fil_check_extend_space(
+	fil_node_t*	node,
+	void* 		context MY_ATTRIBUTE((unused)));
 #endif /* fil0fil_h */

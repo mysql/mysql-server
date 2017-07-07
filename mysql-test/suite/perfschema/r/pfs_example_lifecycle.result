@@ -1,0 +1,109 @@
+select component_urn from mysql.component;
+component_urn
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+INSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "%/pfs_example/%";
+NAME	ENABLED	TIMED
+wait/synch/cond/pfs_example/X	YES	YES
+wait/synch/cond/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/T	YES	YES
+wait/synch/mutex/pfs_example/X	YES	YES
+wait/synch/mutex/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/Z	YES	YES
+wait/synch/rwlock/pfs_example/T	YES	YES
+wait/synch/rwlock/pfs_example/X	YES	YES
+wait/synch/rwlock/pfs_example/Y	YES	YES
+wait/synch/rwlock/pfs_example/Z	YES	YES
+wait/synch/sxlock/pfs_example/S1	YES	YES
+wait/synch/sxlock/pfs_example/S2	YES	YES
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+wait/synch/mutex/pfs_example/T
+UNINSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED
+wait/synch/mutex/pfs_example/T	YES	YES
+wait/synch/mutex/pfs_example/X	YES	YES
+wait/synch/mutex/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/Z	YES	YES
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+INSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED
+wait/synch/mutex/pfs_example/T	YES	YES
+wait/synch/mutex/pfs_example/X	YES	YES
+wait/synch/mutex/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/Z	YES	YES
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+wait/synch/mutex/pfs_example/T
+# restart
+select component_urn from mysql.component;
+component_urn
+file://component_pfs_example
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED
+wait/synch/mutex/pfs_example/T	YES	YES
+wait/synch/mutex/pfs_example/X	YES	YES
+wait/synch/mutex/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/Z	YES	YES
+select NAME
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+wait/synch/mutex/pfs_example/T
+UNINSTALL COMPONENT "file://component_pfs_example";
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED
+wait/synch/mutex/pfs_example/T	YES	YES
+wait/synch/mutex/pfs_example/X	YES	YES
+wait/synch/mutex/pfs_example/Y	YES	YES
+wait/synch/mutex/pfs_example/Z	YES	YES
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+# restart
+select component_urn from mysql.component;
+component_urn
+select * from performance_schema.setup_instruments
+where NAME like "wait/synch/mutex/pfs_example/%";
+NAME	ENABLED	TIMED
+select *
+from performance_schema.mutex_instances
+where NAME like "%/pfs_example/%";
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID

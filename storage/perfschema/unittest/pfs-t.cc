@@ -186,99 +186,71 @@ static void test_bootstrap()
   ok(psi == NULL, "no thread version 0");
   psi= thread_boot->get_interface(PSI_THREAD_VERSION_1);
   ok(psi != NULL, "thread version 1");
-  psi_2= thread_boot->get_interface(PSI_THREAD_VERSION_2);
-  ok(psi_2 == NULL, "thread version 2");
 
   psi= mutex_boot->get_interface(0);
   ok(psi == NULL, "no mutex version 0");
   psi= mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   ok(psi != NULL, "mutex version 1");
-  psi_2= mutex_boot->get_interface(PSI_MUTEX_VERSION_2);
-  ok(psi_2 == NULL, "mutex version 2");
 
   psi= rwlock_boot->get_interface(0);
   ok(psi == NULL, "no rwlock version 0");
   psi= rwlock_boot->get_interface(PSI_RWLOCK_VERSION_1);
   ok(psi != NULL, "rwlock version 1");
-  psi_2= rwlock_boot->get_interface(PSI_RWLOCK_VERSION_2);
-  ok(psi_2 == NULL, "rwlock version 2");
 
   psi= cond_boot->get_interface(0);
   ok(psi == NULL, "no cond version 0");
   psi= cond_boot->get_interface(PSI_COND_VERSION_1);
   ok(psi != NULL, "cond version 1");
-  psi_2= cond_boot->get_interface(PSI_COND_VERSION_2);
-  ok(psi_2 == NULL, "cond version 2");
 
   psi= file_boot->get_interface(0);
   ok(psi == NULL, "no file version 0");
   psi= file_boot->get_interface(PSI_FILE_VERSION_1);
   ok(psi != NULL, "file version 1");
-  psi_2= file_boot->get_interface(PSI_FILE_VERSION_2);
-  ok(psi_2 == NULL, "file version 2");
 
   psi= socket_boot->get_interface(0);
   ok(psi == NULL, "no socket version 0");
   psi= socket_boot->get_interface(PSI_SOCKET_VERSION_1);
   ok(psi != NULL, "socket version 1");
-  psi_2= socket_boot->get_interface(PSI_SOCKET_VERSION_2);
-  ok(psi_2 == NULL, "socket version 2");
 
   psi= table_boot->get_interface(0);
   ok(psi == NULL, "no table version 0");
   psi= table_boot->get_interface(PSI_TABLE_VERSION_1);
   ok(psi != NULL, "table version 1");
-  psi_2= table_boot->get_interface(PSI_TABLE_VERSION_2);
-  ok(psi_2 == NULL, "table version 2");
 
   psi= mdl_boot->get_interface(0);
   ok(psi == NULL, "no mdl version 0");
   psi= mdl_boot->get_interface(PSI_MDL_VERSION_1);
   ok(psi != NULL, "mdl version 1");
-  psi_2= mdl_boot->get_interface(PSI_MDL_VERSION_2);
-  ok(psi_2 == NULL, "mdl version 2");
 
   psi= idle_boot->get_interface(0);
   ok(psi == NULL, "no idle version 0");
   psi= idle_boot->get_interface(PSI_IDLE_VERSION_1);
   ok(psi != NULL, "idle version 1");
-  psi_2= idle_boot->get_interface(PSI_IDLE_VERSION_2);
-  ok(psi_2 == NULL, "idle version 2");
 
   psi= stage_boot->get_interface(0);
   ok(psi == NULL, "no stage version 0");
   psi= stage_boot->get_interface(PSI_STAGE_VERSION_1);
   ok(psi != NULL, "stage version 1");
-  psi_2= stage_boot->get_interface(PSI_STAGE_VERSION_2);
-  ok(psi_2 == NULL, "stage version 2");
 
   psi= statement_boot->get_interface(0);
   ok(psi == NULL, "no statement version 0");
   psi= statement_boot->get_interface(PSI_STATEMENT_VERSION_1);
   ok(psi != NULL, "statement version 1");
-  psi_2= statement_boot->get_interface(PSI_STATEMENT_VERSION_2);
-  ok(psi_2 == NULL, "statement version 2");
 
   psi= transaction_boot->get_interface(0);
   ok(psi == NULL, "no transaction version 0");
   psi= transaction_boot->get_interface(PSI_TRANSACTION_VERSION_1);
   ok(psi != NULL, "transaction version 1");
-  psi_2= transaction_boot->get_interface(PSI_TRANSACTION_VERSION_2);
-  ok(psi_2 == NULL, "transaction version 2");
 
   psi= memory_boot->get_interface(0);
   ok(psi == NULL, "no memory version 0");
   psi= memory_boot->get_interface(PSI_MEMORY_VERSION_1);
   ok(psi != NULL, "memory version 1");
-  psi_2= memory_boot->get_interface(PSI_MEMORY_VERSION_2);
-  ok(psi_2 == NULL, "memory version 2");
 
   psi= error_boot->get_interface(0);
   ok(psi == NULL, "no error version 0");
   psi= error_boot->get_interface(PSI_ERROR_VERSION_1);
   ok(psi != NULL, "error version 1");
-  psi_2= error_boot->get_interface(PSI_ERROR_VERSION_2);
-  ok(psi_2 == NULL, "error version 2");
 
   psi= data_lock_boot->get_interface(0);
   ok(psi == NULL, "no data_lock version 0");
@@ -2266,7 +2238,7 @@ static void do_all_tests()
 
 int main(int, char **)
 {
-  plan(343);
+  plan(329);
 
   MY_INIT("pfs-t");
   do_all_tests();

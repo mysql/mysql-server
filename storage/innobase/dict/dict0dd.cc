@@ -568,12 +568,10 @@ reopen:
 			/* The table is SDI table */
 			space_id_t	space_id = dict_sdi_get_space_id(
 				table_id);
-			uint32_t	copy_num = dict_sdi_get_copy_num(
-				table_id);
 
 			/* Create in-memory table oject for SDI table */
-			dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
-				space_id, copy_num, false, 0);
+			dict_index_t*   sdi_index = dict_sdi_create_idx_in_mem(
+				space_id, false, 0, false);
 
 			if (sdi_index == nullptr) {
 				if (!dict_locked) {
@@ -740,6 +738,33 @@ dd_table_discard_tablespace(
 		dd::Properties& p = table_def->se_private_data();
 		p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
+		/* Get Tablespace object */
+		dd::Tablespace*		dd_space = nullptr;
+		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+		dd::Object_id   dd_space_id =
+			(*table_def->indexes()->begin())->tablespace_id();
+
+		char    name[FN_REFLEN];
+		snprintf(name, sizeof name, "%s.%u",
+			 dict_sys_t::file_per_table_name, table->space);
+
+		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+			ut_a(false);
+		}
+
+		if (client->acquire_for_modification(dd_space_id, &dd_space)) {
+			ut_a(false);
+		}
+
+		ut_a(dd_space != NULL);
+
+		dd_tablespace_set_discard(dd_space, discard);
+
+		if (client->update(dd_space)) {
+			ut_ad(0);
+		}
 		ret = true;
 	} else {
 		ret = false;
@@ -5048,6 +5073,37 @@ dd_rename_fts_table(
 	}
 
 	return(true);
+}
+
+/** Set Discard attribute in se_private_data of tablespace
+@param[in,out]	dd_space	dd::Tablespace object
+@param[in]	discard		true if discarded, else false */
+void
+dd_tablespace_set_discard(
+	dd::Tablespace*		dd_space,
+	bool			discard)
+{
+	dd::Properties& p = dd_space->se_private_data();
+	p.set_bool(dd_space_key_strings[DD_SPACE_DISCARD], discard);
+}
+
+/** Get discard attribute value stored in se_private_dat of tablespace
+@param[in]	dd_space	dd::Tablespace object
+@retval		true		if Tablespace is discarded
+@retval		false		if attribute doesn't exist or if the
+				tablespace is not discarded */
+bool
+dd_tablespace_get_discard(
+	const dd::Tablespace*	dd_space)
+{
+	const dd::Properties& p = dd_space->se_private_data();
+	if (p.exists(dd_space_key_strings[DD_SPACE_DISCARD])) {
+		bool	is_discarded;
+		p.get_bool(dd_space_key_strings[DD_SPACE_DISCARD],
+			   &is_discarded);
+		return(is_discarded);
+	}
+	return(false);
 }
 
 #ifdef UNIV_DEBUG

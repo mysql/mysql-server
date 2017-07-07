@@ -2718,7 +2718,7 @@ err:
     report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",
-                        worker->id, thd->killed, thd->is_error(),
+                        worker->id, thd->killed.load(), thd->is_error(),
                         worker->running_status));
     worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
   }

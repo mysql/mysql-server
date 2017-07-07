@@ -2022,7 +2022,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
                    if (thd->killed)
                      DBUG_PRINT("debug_sync_exec",
                                 ("killed %d from '%s'  at: '%s'",
-                                 thd->killed, sig_wait, dsp_name));
+                                 thd->killed.load(), sig_wait, dsp_name));
                    else
                      DBUG_PRINT("debug_sync_exec",
                                 ("%s from '%s'  at: '%s'",

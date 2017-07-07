@@ -529,8 +529,6 @@ static bool udf_end_transaction(THD *thd, bool rollback,
       u_f->func_add= udf->func_add;
     }
   }
-  else
-    udf_hash_delete(udf);
 
   rollback_transaction= rollback_transaction || (insert_udf && u_f == nullptr);
 
@@ -547,8 +545,17 @@ static bool udf_end_transaction(THD *thd, bool rollback,
   {
     result= trans_commit_stmt(thd);
     result= result || trans_commit_implicit(thd);
-
   }
+
+  /*
+    Delete UDF from the hash if
+      * the transaction commit fails for CREATE UDF operation
+      * OR if the transaction is committed successfully for the DROP UDF
+        operation.
+  */
+  if (!rollback_transaction &&
+      ((insert_udf && result) ||(!insert_udf && !result)))
+    udf_hash_delete(udf);
 
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
@@ -559,6 +566,19 @@ static bool udf_end_transaction(THD *thd, bool rollback,
 
 /**
   Create a user defined function.
+
+  Atomicity:
+    The operation to create a user defined function is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. UDF hash is in sync with operation state.
+    UDF hash do not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between the
+    data-dictionary table and the binary log.
+
+  @param thd                 THD context.
+  @param udf                 Pointer to UDF function.
 
   @note Like implementations of other DDL/DML in MySQL, this function
   relies on the caller to close the thread tables. This is done in the
@@ -679,10 +699,10 @@ bool mysql_create_function(THD *thd,udf_func *udf)
 
   // Binlog the create function.
   if (!error)
-    error= (write_bin_log(thd, true, thd->query().str, thd->query().length) != 0);
+    error= (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                          true) != 0);
 
-  error= udf_end_transaction(thd, thd->transaction_rollback_request || error,
-                             udf, true);
+  error= udf_end_transaction(thd, error, udf, true);
 
   if (error)
   {
@@ -696,7 +716,24 @@ bool mysql_create_function(THD *thd,udf_func *udf)
 }
 
 
-bool mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
+/**
+  Drop a user defined function.
+
+  Atomicity:
+    The operation to drop a user defined function is atomic/crash-safe.
+    Changes to the Data-dictionary and writing event to binlog are
+    part of the same transaction. All the changes are done as part
+    of the same transaction or do not have any side effects on the
+    operation failure. UDF hash is in sync with operation state.
+    UDF hash do not contain any stale/incorrect data in case of failure.
+    In case of crash, there won't be any discrepancy between the
+    data-dictionary table and the binary log.
+
+  @param thd                 THD context.
+  @param udf_name            Name of the UDF function.
+*/
+
+bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name)
 {
   TABLE *table;
   TABLE_LIST tables;
@@ -763,7 +800,7 @@ bool mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   */
   if (!error)
     error= (write_bin_log(thd, true, thd->query().str,
-                          thd->query().length) != 0);
+                          thd->query().length, true) != 0);
 
   error= udf_end_transaction(thd, error, udf, false);
 

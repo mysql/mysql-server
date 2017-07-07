@@ -30,6 +30,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "dict0types.h"
 #include "trx0types.h"
+#include "mem0mem.h"
 
 enum dict_stats_upd_option_t {
 	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
@@ -196,6 +197,92 @@ close the stats .ibd files. We have to close stats tables because
 with a suffix "_backup57" and migrate the statistics. */
 void
 dict_stats_evict_tablespaces();
+
+/** Represent the record of innodb_table_stats table. */
+class TableStatsRecord {
+
+public:
+	/** Constructor. */
+	TableStatsRecord();
+
+	/** Destructor. */
+	~TableStatsRecord();
+
+	/** Set the data for the innodb_table_stats record.
+	@param[in]	data		data to be set in the record
+	@param[in]	col_offset	column offset
+	@param[in]	len		length of the data. */
+	void set_data(const byte* data, ulint col_offset, ulint len);
+
+	/** Get the table name from innodb_table_stats record.
+	@retval table name of the table_stats record. */
+	char* get_tbl_name() const;
+
+	/** Set the table name for the innodb_table_stats record.
+	@param[in]	data	data to be set in the record
+	@param[in]	len	length of the data. */
+	void set_tbl_name(const byte* data, ulint len);
+
+	/** Get the db name from the innodb_table_stats record.
+	@retval db name of the table stats record. */
+	char* get_db_name() const;
+
+	/** Set the db name for the innodb_table_stats record.
+	@param[in]	data	data to be set
+	@param[in]	len	length of the data. */
+	void set_db_name(const byte* data, ulint len);
+
+	/** Get the n_rows from the innodb_table_stats record.
+	@retval n_rows from the record. */
+	ib_uint64_t get_n_rows() const;
+
+	/** Set the n_rows for the innodb_table_stats record.
+	@param[in]	no_of_rows	number of rows. */
+	void set_n_rows(ib_uint64_t no_of_rows);
+
+	/** Get the clustered index size from
+	innodb_table_stats record.
+	@retval size of the clustered index. */
+	ulint get_clustered_index_size() const;
+
+	/** Set the clustered index size for the
+	innodb_table_stats record.
+	@param[in]	clust_size	clustered index size. */
+	void set_clustered_index_size(ulint clust_size);
+
+	/** Get the sum of other index size.
+	@retval sum of secondary index size. */
+	ulint get_sum_of_other_index_size() const;
+
+	/** Set the sum of sec index size.
+	@param[in]	sum_of_other_index_size	sum of secondary index size. */
+	void set_sum_of_other_index_size(ulint sum_of_other_index_size);
+
+	/** Column number of innodb_table_stats.database_name. */
+	static constexpr unsigned	DB_NAME_COL_NO = 0;
+	/** Column number of innodb_table_stats.table_name. */
+	static constexpr unsigned	TABLE_NAME_COL_NO = 1;
+	/** Column number of innodb_table_stats.n_rows. */
+	static constexpr unsigned	N_ROWS_COL_NO = 3;
+	/** Column number of innodb_table_stats.clustered_index_size. */
+	static constexpr unsigned	CLUST_INDEX_SIZE_COL_NO = 4;
+	/** Column number of innodb_table_stats.sum_of_other_index_sizes. */
+	static constexpr unsigned	SUM_OF_OTHER_INDEX_SIZE_COL_NO = 5;
+
+private:
+	/** Database name. */
+	char*		m_db_name;
+	/** Table name. */
+	char*		m_tbl_name;
+	/** Number of rows. */
+	ib_uint64_t	m_n_rows;
+	/** Clustered index size. */
+	ulint		m_clustered_index_size;
+	/** Sum of other index size. */
+	ulint		m_sum_of_other_index_sizes;
+	/** Heap to store db_name, tbl_name for the record. */
+	mem_heap_t*	m_heap;
+};
 
 #include "dict0stats.ic"
 

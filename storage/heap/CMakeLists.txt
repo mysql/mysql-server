@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,11 +28,9 @@ IF(WITH_UNIT_TESTS)
   ADD_CONVENIENCE_LIBRARY(heap_nopfs ${HEAP_SOURCES})
   ADD_DEPENDENCIES(heap_nopfs GenError)
 
-  ADD_EXECUTABLE(hp_test1 hp_test1.c)
+  MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.c ADD_TEST hp_test1)
   TARGET_LINK_LIBRARIES(hp_test1 heap_nopfs mysys)
-  ADD_TEST(hp_test1 hp_test1)
 
-  ADD_EXECUTABLE(hp_test2 hp_test2.c)
+  MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.c ADD_TEST hp_test2)
   TARGET_LINK_LIBRARIES(hp_test2 heap_nopfs mysys)
-  ADD_TEST(hp_test2 hp_test2)
 ENDIF()

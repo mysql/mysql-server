@@ -38,67 +38,6 @@ extern "C" {
     @{
 */
 
-/**
-  Instrumented mutex key.
-  To instrument a mutex, a mutex key must be obtained using @c register_mutex.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_mutex_key;
-
-/**
-  Instrumented rwlock key.
-  To instrument a rwlock, a rwlock key must be obtained
-  using @c register_rwlock.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_rwlock_key;
-
-/**
-  Instrumented cond key.
-  To instrument a condition, a condition key must be obtained
-  using @c register_cond.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_cond_key;
-
-/**
-  Instrumented thread key.
-  To instrument a thread, a thread key must be obtained
-  using @c register_thread.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_thread_key;
-
-/**
-  Instrumented file key.
-  To instrument a file, a file key must be obtained using @c register_file.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_file_key;
-
-/**
-  Instrumented stage key.
-  To instrument a stage, a stage key must be obtained using @c register_stage.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_stage_key;
-
-/**
-  Instrumented statement key.
-  To instrument a statement, a statement key must be obtained using @c
-  register_statement.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_statement_key;
-
-/**
-  Instrumented socket key.
-  To instrument a socket, a socket key must be obtained using @c
-  register_socket.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_socket_key;
-
 #define PSI_INSTRUMENT_ME 0
 
 #define PSI_NOT_INSTRUMENTED 0
@@ -125,12 +64,6 @@ typedef unsigned int PSI_socket_key;
   It indicates the instrumentation provides progress data.
 */
 #define PSI_FLAG_STAGE_PROGRESS (1 << 3)
-
-/**
-  Shared Exclusive flag.
-  Indicates that rwlock support the shared exclusive state.
-*/
-#define PSI_RWLOCK_FLAG_SX (1 << 4)
 
 /**
   Transferable flag.

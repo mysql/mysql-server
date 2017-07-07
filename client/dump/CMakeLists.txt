@@ -172,12 +172,3 @@ ADD_COMPILE_FLAGS(
 TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib)
 
 SET_TARGET_PROPERTIES(mysqlpump PROPERTIES HAS_CXX TRUE)
-
-# Store the executable in our parent directory.
-# Why? In pushbuild we do 'touch client/mysql*' to prevent rebuild,
-#      in the case where we have a separate build of libmysqlclient.so
-IF (NOT WIN32)
-  SET_TARGET_PROPERTIES(mysqlpump
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client)
-ENDIF()
-

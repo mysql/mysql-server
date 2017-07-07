@@ -1,4 +1,5 @@
 # Bug#20205934 - ENABLE VALGRIND FOR MEMCACHED TESTS
+#
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 # Memcached SDI APIs are enabled only for debug version
@@ -25,39 +26,64 @@ USE test;
 let MEMCACHED_PORT=11288;
 
 --echo # Case 1. Test with uncompressed tables;
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t1(c1 VARCHAR(32),
 	c2 VARCHAR(1024),
 	primary key(c1))
 ENGINE = INNODB;
+SET DEBUG = '-d, skip_sdi';
 
 # Tables must exist before plugin can be started!
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
+# Clear the current SDI in table
+--let MEMCACHED_TABLE_MAPPING = desc_t1
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
+
 # Insert into SDI tables via memcached
 --source ../include/sdi_insert_delete.inc
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
 
 --echo # Case 2. Test with Compressed tables
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLE t1(c1 VARCHAR(32),
 	c2 VARCHAR(1024),
 	primary key(c1))
 ENGINE = INNODB KEY_BLOCK_SIZE=1 ROW_FORMAT=COMPRESSED;
+SET DEBUG = '-d, skip_sdi';
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
 
 # Insert into SDI tables via memcached
 --source ../include/sdi_insert_delete.inc
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
+SET DEBUG = '-d, skip_sdi';
 
 --echo # Case 3. Test with General tablespaces
+SET DEBUG = '+d, skip_sdi';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1(c1 VARCHAR(32),
 	c2 VARCHAR(1024),
 	primary key(c1))
 ENGINE = INNODB TABLESPACE=ts1;
+SET DEBUG = '-d, skip_sdi';
+
+# Clear the current SDI in table
+--source ../include/sdi_drop_index.inc
+--source ../include/sdi_create_index.inc
 
 --source ../include/sdi_insert_delete.inc
 
+SET DEBUG = '+d, skip_sdi';
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+SET DEBUG = '-d, skip_sdi';
 
 # Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;

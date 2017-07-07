@@ -27,7 +27,7 @@
 #endif
 
 #include "dd/impl/sdi_utils.h"      // dd::sdi_util::checked_return
-#include "dd/types/entity_object.h" // dd::Entity_object
+#include "dd/impl/sdi.h"            // dd::Sdi_type
 #include "dd/types/schema.h"        // dd::Schema
 #include "dd/types/table.h"         // dd::Table
 #include "handler.h"
@@ -62,7 +62,7 @@ using namespace dd::sdi_utils;
 extern PSI_file_key key_file_sdi;
 namespace {
 
-bool write_sdi_file(const dd::String_type &fname, const MYSQL_LEX_CSTRING &sdi)
+bool write_sdi_file(const dd::String_type &fname, const dd::Sdi_type &sdi)
 {
   File sdif= mysql_file_create(key_file_sdi, fname.c_str(), CREATE_MODE,
                                O_WRONLY | O_TRUNC, MYF(MY_FAE));
@@ -75,8 +75,8 @@ bool write_sdi_file(const dd::String_type &fname, const MYSQL_LEX_CSTRING &sdi)
   }
 
   size_t bw= mysql_file_write(sdif,
-                              reinterpret_cast<const uchar*>(sdi.str),
-                              sdi.length, MYF(MY_FNABP));
+                              reinterpret_cast<const uchar*>(sdi.c_str()),
+                              sdi.length(), MYF(MY_FNABP));
 
   if (bw == MY_FILE_ERROR)
   {
@@ -263,13 +263,12 @@ bool expand_sdi_pattern(const Dir_pat_tuple &dpt,
 namespace dd {
 namespace sdi_file {
 
-template <typename T>
-String_type sdi_filename(const T *dd_object,
+String_type sdi_filename(Object_id id, const String_type &entity_name,
                          const String_type &schema)
 {
   typedef String_type::const_iterator CHARIT;
-  const CHARIT begin= dd_object->name().begin();
-  const CHARIT end= dd_object->name().end();
+  const CHARIT begin= entity_name.begin();
+  const CHARIT end= entity_name.end();
   CHARIT i= begin;
   size_t count= 0;
 
@@ -282,7 +281,7 @@ String_type sdi_filename(const T *dd_object,
   }
 
   Stringstream_type fnamestr;
-  fnamestr << String_type(begin, i) << "_" << dd_object->id();
+  fnamestr << String_type(begin, i) << "_" << id;
 
   char path[FN_REFLEN+1];
   bool was_truncated= false;
@@ -294,16 +293,17 @@ String_type sdi_filename(const T *dd_object,
   return String_type(path);
 }
 
-bool store(THD*, const MYSQL_LEX_CSTRING &sdi, const dd::Schema *schema)
+bool store_sch_sdi(const dd::Sdi_type &sdi, const dd::Schema &schema)
 {
-  return checked_return(write_sdi_file(sdi_filename(schema, ""), sdi));
+  return checked_return(write_sdi_file(sdi_filename(schema.id(),
+                                                    schema.name(), ""), sdi));
 }
 
-bool store(THD*, handlerton*, const MYSQL_LEX_CSTRING &sdi, const dd::Table *table,
-           const dd::Schema *schema)
+bool store_tbl_sdi(const dd::Sdi_type &sdi, const dd::Table &table,
+                   const dd::Schema &schema)
 {
-  return checked_return(write_sdi_file(sdi_filename(table,
-                                                    schema->name()), sdi));
+  return checked_return(write_sdi_file(sdi_filename(table.id(), table.name(),
+                                                    schema.name()), sdi));
 }
 
 bool remove(const String_type &fname)
@@ -328,16 +328,15 @@ static bool remove_sdi_file_if_exists(const String_type &fname)
   return checked_return(remove(fname));
 }
 
-bool remove(THD*, const dd::Schema *schema)
+bool drop_sch_sdi(const dd::Schema &schema)
 {
-  String_type sdi_fname= sdi_filename(schema, "");
+  String_type sdi_fname= sdi_filename(schema.id(), schema.name(), "");
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
-bool remove(THD*, handlerton*, const dd::Table *table,
-            const dd::Schema *schema)
+bool drop_tbl_sdi(const dd::Table &table, const dd::Schema &schema)
 {
-  String_type sdi_fname= sdi_filename(table, schema->name());
+  String_type sdi_fname= sdi_filename(table.id(), table.name(), schema.name());
   return checked_return(remove_sdi_file_if_exists(sdi_fname));
 }
 
@@ -431,9 +430,5 @@ bool check_data_files_exist(const dd::String_type &schema_name,
   }
   return false;
 }
-template dd::String_type sdi_filename(const dd::Table *dd_object,
-                                      const dd::String_type &schema);
 }
 }
-
-

@@ -43,14 +43,9 @@
 #include "my_macros.h"
 #include "my_thread.h"
 #include "thr_mutex.h"
+#include "mysql/components/services/thr_cond_bits.h"
 
 C_MODE_START
-
-#ifdef _WIN32
-typedef CONDITION_VARIABLE native_cond_t;
-#else
-typedef pthread_cond_t native_cond_t;
-#endif
 
 #ifdef _WIN32
 /**
@@ -138,9 +133,9 @@ static inline int native_cond_broadcast(native_cond_t *cond)
 }
 
 #ifdef SAFE_MUTEX
-int safe_cond_wait(native_cond_t *cond, my_mutex_t *mp,
+int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp,
                    const char *file, uint line);
-int safe_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
+int safe_cond_timedwait(native_cond_t *cond, safe_mutex_t *mp,
                         const struct timespec *abstime,
                         const char *file, uint line);
 #endif
@@ -153,9 +148,9 @@ static inline int my_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
                                     )
 {
 #ifdef SAFE_MUTEX
-  return safe_cond_timedwait(cond, mp, abstime, file, line);
+  return safe_cond_timedwait(cond, mp->m_u.m_safe_ptr, abstime, file, line);
 #else
-  return native_cond_timedwait(cond, mp, abstime);
+  return native_cond_timedwait(cond, & mp->m_u.m_native, abstime);
 #endif
 }
 
@@ -166,9 +161,9 @@ static inline int my_cond_wait(native_cond_t *cond, my_mutex_t *mp
                                )
 {
 #ifdef SAFE_MUTEX
-  return safe_cond_wait(cond, mp, file, line);
+  return safe_cond_wait(cond, mp->m_u.m_safe_ptr, file, line);
 #else
-  return native_cond_wait(cond, mp);
+  return native_cond_wait(cond, & mp->m_u.m_native);
 #endif
 }
 

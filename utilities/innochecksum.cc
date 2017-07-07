@@ -998,8 +998,8 @@ parse_page(
 		id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
 		if (page_type_dump) {
 			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tSDI Index page"
-				"\t\t\t|\tindex id=%llu (copy_num=%llu),",
-				cur_page_num, id, IB_UINT64_MAX - id);
+				"\t\t\t|\tindex id=%llu,",
+				cur_page_num, id);
 
 			fprintf(file,
 				" page level=" ULINTPF
@@ -1186,7 +1186,7 @@ parse_page(
 		page_type.n_fil_page_sdi_zblob++;
 		if (page_type_dump) {
 			fprintf(file, "#::%8" PRIuMAX "\t\t|\t\tCompressed SDI"
-				" BLOB page\t\t|\t%s\n", cur_page_num, str);
+				" BLOB page\t|\t%s\n", cur_page_num, str);
 		}
 		break;
 

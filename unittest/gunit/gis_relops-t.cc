@@ -147,9 +147,13 @@ TYPED_TEST(RelopsTest, CodeCoverage) {
       bool result = false;
       bool is_null = false;
       gis::crosses(this->m_srs, g1, g2, "unittest", &result, &is_null);
+// Bug#26336467 ASAN FAILURE IN UNIT TEST RELOPSTEST/1.CODECOVERAGE
+// Disable test until bug can be fixed.
+#ifndef HAVE_ASAN
       gis::disjoint(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::equals(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::intersects(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#endif
       gis::mbr_covered_by(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_disjoint(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_equals(this->m_srs, g1, g2, "unittest", &result, &is_null);
@@ -157,9 +161,11 @@ TYPED_TEST(RelopsTest, CodeCoverage) {
       gis::mbr_overlaps(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_touches(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::mbr_within(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#ifndef HAVE_ASAN
       gis::overlaps(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::touches(this->m_srs, g1, g2, "unittest", &result, &is_null);
       gis::within(this->m_srs, g1, g2, "unittest", &result, &is_null);
+#endif
     }
   }
 }

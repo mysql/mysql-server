@@ -3,6 +3,8 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 --enable_warnings
 
+# Set max_error_count to contain number of warnings in result file
+SET @@session.max_error_count = 64;
 ####Checking the bit values####
 SELECT 0 + b'0'; 
 SELECT 0 + (0<<1);
@@ -16144,4 +16146,4 @@ DELETE t5,t6 FROM t5,t6 WHERE  t5.c1=t6.c1 AND t5.c2=t6.c2;
 
 # Droping the tables
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
-
+SET @@session.max_error_count = default;

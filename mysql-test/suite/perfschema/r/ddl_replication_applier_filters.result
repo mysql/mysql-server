@@ -2,7 +2,7 @@ ALTER TABLE performance_schema.replication_applier_filters
 ADD COLUMN foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 TRUNCATE TABLE performance_schema.replication_applier_filters;
-ERROR HY000: Invalid performance_schema usage.
+ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'replication_applier_filters'
 ALTER TABLE performance_schema.replication_applier_filters
 ADD INDEX test_index(filter_name);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

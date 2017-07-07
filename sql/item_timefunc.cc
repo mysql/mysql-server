@@ -3485,6 +3485,8 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  String ts_se_private_data;
+  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
@@ -3505,6 +3507,9 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
                 *table_name_ptr,
                 *engine_name_ptr,
                 se_private_id,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr),
+                nullptr,
                 dd::info_schema::enum_statistics_type::TABLE_UPDATE_TIME);
     if (unixtime)
     {
@@ -3539,6 +3544,8 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  String ts_se_private_data;
+  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
@@ -3559,6 +3566,9 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
                 *table_name_ptr,
                 *engine_name_ptr,
                 se_private_id,
+                (ts_se_private_data_ptr ?
+                 ts_se_private_data_ptr->c_ptr_safe() : nullptr),
+                nullptr,
                 dd::info_schema::enum_statistics_type::CHECK_TIME);
     if (unixtime)
     {

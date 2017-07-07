@@ -1285,6 +1285,10 @@ end:
 
       thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
 
+      // Prevent InnoDB from automatically committing the InnoDB transaction
+      // after updating the data-dictionary table.
+      Disable_autocommit_guard autocommit_guard(thd);
+
       /*
         NOTE: even if we run in read-only mode, we should be able to lock
         the mysql.event table for writing. In order to achieve this, we

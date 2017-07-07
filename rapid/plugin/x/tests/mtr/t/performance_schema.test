@@ -91,25 +91,26 @@ alter table performance_schema.socket_summary_by_event_name add column foo integ
 -->sql
 alter table performance_schema.socket_summary_by_instance add column foo integer;
 
-# error ER_WRONG_PERFSCHEMA_USAGE
+# error ER_WRONG_PERFSCHEMA_USAGE (1683)
+# error ER_TABLEACCESS_DENIED_ERROR (1142)
 -->endsql
--->expecterror 1683
+-->expecterror 1142
 -->sql
 truncate table performance_schema.mutex_instances;
 -->endsql
--->expecterror 1683
+-->expecterror 1142
 -->sql
 truncate table performance_schema.cond_instances;
 -->endsql
--->expecterror 1683
+-->expecterror 1142
 -->sql
 truncate table performance_schema.threads;
 -->endsql
--->expecterror 1683
+-->expecterror 1142
 -->sql
 truncate table performance_schema.rwlock_instances;
 -->endsql
--->expecterror 1683
+-->expecterror 1142
 -->sql
 truncate table performance_schema.socket_instances;
 -->endsql

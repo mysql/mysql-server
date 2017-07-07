@@ -39,6 +39,7 @@
 #include "lex_string.h"
 #include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "mem_root_array.h"           // Mem_root_array
 #include "my_base.h"
@@ -2290,6 +2291,8 @@ class Sroutine_hash_entry;
 class Query_tables_list
 {
 public:
+  Query_tables_list& operator=(Query_tables_list &&) = default;
+
   /**
     SQL command for this statement. Part of this class since the
     process of opening and locking tables for the statement needs
@@ -2311,9 +2314,13 @@ public:
   /*
     Set of stored routines called by statement.
     (Note that we use lazy-initialization for this hash).
+
+    See Sroutine_hash_entry for explanation why this hash uses binary
+    key comparison.
   */
   enum { START_SROUTINES_HASH_SIZE= 16 };
-  HASH sroutines;
+  std::unique_ptr<malloc_unordered_map<std::string, Sroutine_hash_entry *>>
+    sroutines;
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
     to this set as you iterate through the list of existing elements.
@@ -2370,7 +2377,7 @@ public:
   void destroy_query_tables_list();
   void set_query_tables_list(Query_tables_list *state)
   {
-    *this= *state;
+    *this= std::move(*state);
   }
 
   /*
@@ -3738,7 +3745,10 @@ public:
   /// Check if the current statement uses meta-data (uses a table or a stored
   /// routine).
   bool is_metadata_used() const
-  { return query_tables != NULL || sroutines.records > 0; }
+  {
+    return query_tables != NULL ||
+      (sroutines != nullptr && !sroutines->empty());
+  }
 
 public:
   st_sp_chistics sp_chistics;
@@ -3943,7 +3953,8 @@ public:
       on its top. So select_lex (as the first added) will be at the tail 
       of the list.
     */ 
-    if (select_lex == all_selects_list && !sroutines.records)
+    if (select_lex == all_selects_list &&
+        (sroutines == nullptr || sroutines->empty()))
     {
       DBUG_ASSERT(!all_selects_list->next_select_in_list());
       return TRUE;

@@ -915,7 +915,8 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view& new_view,
     */
     ulong auto_increment_increment= get_auto_increment_increment();
 
-    if (new_view.get_members().size() > auto_increment_increment)
+    if (!local_member_info->in_primary_mode() &&
+        new_view.get_members().size() > auto_increment_increment)
     {
       log_message(MY_ERROR_LEVEL,
                   "Group contains %lu members which is greater than"

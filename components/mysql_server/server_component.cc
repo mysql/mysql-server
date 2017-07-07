@@ -16,6 +16,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
+#include <mysql/components/services/mysql_cond_service.h>
+#include <mysql/components/services/mysql_mutex_service.h>
+#include <mysql/components/services/mysql_rwlock_service.h>
+
 #include <stddef.h>
 #include <new>
 #include <stdexcept>                        // std::exception subclasses
@@ -35,6 +39,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "auth/dynamic_privileges_impl.h"
 #include "udf_registration_imp.h"
 #include "component_sys_var_service.h"
+
+/* Implementation located in the mysql_server component. */
+extern SERVICE_TYPE(mysql_cond_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_cond_v1);
+extern SERVICE_TYPE(mysql_mutex_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_mutex_v1);
+extern SERVICE_TYPE(mysql_rwlock_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_rwlock_v1);
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, registry)
   mysql_registry_imp::acquire,
@@ -289,6 +298,9 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, udf_registration_aggregate)
   PROVIDES_SERVICE(mysql_server, component_sys_variable_register)
   PROVIDES_SERVICE(mysql_server, component_sys_variable_unregister)
+  PROVIDES_SERVICE(mysql_server, mysql_cond_v1)
+  PROVIDES_SERVICE(mysql_server, mysql_mutex_v1)
+  PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)
@@ -358,7 +370,6 @@ bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry)
 
   return false;
 }
-
 
 /**
   Shutdowns dynamic loader.

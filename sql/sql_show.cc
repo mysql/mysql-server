@@ -55,8 +55,8 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "mem_root_array.h"
+#include "mutex_lock.h"                     // MUTEX_LOCK
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
-#include "mutex_lock.h"                     // Mutex_lock
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"
@@ -2058,10 +2058,10 @@ static const char *thread_state_info(THD *tmp)
   }
   else
   {
-    Mutex_lock lock(&tmp->LOCK_current_cond);
+    MUTEX_LOCK(lock, &tmp->LOCK_current_cond);
     if (tmp->proc_info)
       return tmp->proc_info;
-    else if (tmp->current_cond)
+    else if (tmp->current_cond.load())
       return "Waiting on cond";
     else
       return NULL;
@@ -2475,7 +2475,7 @@ static void shrink_var_array(Status_var_array *array)
 */
 int add_status_vars(const SHOW_VAR *list)
 {
-  Mutex_lock lock(status_vars_inited ? &LOCK_status : NULL);
+  MUTEX_LOCK(lock, status_vars_inited ? &LOCK_status : NULL);
 
   try
   {

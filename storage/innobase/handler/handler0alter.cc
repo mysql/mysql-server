@@ -40,7 +40,6 @@ Smart ALTER TABLE
 #include "dd/dictionary.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/properties.h"
-#include "dd/sdi_tablespace.h"	// dd::sdi_tablespace::store
 #include "dd/impl/properties_impl.h"
 #include "dd/types/table.h"
 #include "dd/types/index.h"
@@ -93,6 +92,7 @@ Smart ALTER TABLE
 #include "ut0stage.h"
 #include "dict0dd.h"
 #include "lock0lock.h"
+#include "clone0api.h"
 
 /* For supporting Native InnoDB Partitioning. */
 #include "partition_info.h"
@@ -1084,8 +1084,15 @@ ha_innobase::inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	DBUG_RETURN(inplace_alter_table_impl<dd::Table>(
-		altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
+	/* Don't allow database clone during in place operations */
+	clone_mark_abort(true);
+
+	auto ret = inplace_alter_table_impl<dd::Table>(
+		altered_table, ha_alter_info, old_dd_tab, new_dd_tab);
+
+	clone_mark_active();
+
+	DBUG_RETURN(ret);
 }
 
 /** Commit or rollback the changes made during
@@ -3967,7 +3974,7 @@ dd_prepare_inplace_alter_table(
 	THD*			thd,
 	const dict_table_t*	old_table,
 	dict_table_t*		new_table,
-	const Table*		 old_dd_tab,
+	const Table*		old_dd_tab,
 	Table*			new_dd_tab)
 {
 	if (new_table->is_temporary() || old_table == new_table) {
@@ -3978,6 +3985,8 @@ dd_prepare_inplace_alter_table(
 
 	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+	bool	is_old_discarded = false;
 
 	if (dict_table_is_file_per_table(old_table)) {
 		dd::Object_id   old_space_id =
@@ -4006,6 +4015,37 @@ dd_prepare_inplace_alter_table(
 		}
 
 		new_table->dd_space_id = dd_space_id;
+
+		const dd::Properties& p = old_dd_tab->se_private_data();
+
+		if (p.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
+			p.get_bool(dd_table_key_strings[DD_TABLE_DISCARD],
+				   &is_old_discarded);
+		}
+
+		if (dict_table_is_file_per_table(old_table) && is_old_discarded) {
+			/* Get new dd::Tablespace object */
+			dd::Tablespace*         new_dd_space = nullptr;
+			char    name[FN_REFLEN];
+			snprintf(name, sizeof name, "%s.%u", dict_sys_t::file_per_table_name,
+				 new_table->space);
+
+			/* Acquire MDL */
+			if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+				ut_a(0);
+			}
+			if (client->acquire_for_modification(dd_space_id, &new_dd_space)) {
+				ut_a(0);
+			}
+			ut_ad(new_dd_space != NULL);
+
+			/* Set discard attribute */
+			dd_tablespace_set_discard(new_dd_space, true);
+
+			if (client->update(new_dd_space)) {
+				ut_ad(0);
+			}
+		}
 	}
 
 	return(false);
@@ -4216,6 +4256,18 @@ prepare_inplace_alter_table_dict(
 		for create index */
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX) {
+			for (ulint i = 0;
+			     i < ctx->num_to_add_vcol;
+			     i++) {
+				/* Set mbminmax for newly added column */
+				ulint   i_mbminlen, i_mbmaxlen;
+				dtype_get_mblen(ctx->add_vcol[i].m_col.mtype,
+						ctx->add_vcol[i].m_col.prtype,
+						&i_mbminlen, &i_mbmaxlen);
+
+				ctx->add_vcol[i].m_col.set_mbminmaxlen(
+					i_mbminlen, i_mbmaxlen);
+			}
 			add_v = static_cast<dict_add_v_col_t*>(
 				mem_heap_alloc(ctx->heap, sizeof *add_v));
 			add_v->n_v_col = ctx->num_to_add_vcol;

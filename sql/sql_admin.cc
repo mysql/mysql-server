@@ -23,6 +23,7 @@
 
 #include "auth_acls.h"
 #include "auth_common.h"                     // *_ACL
+#include "clone_handler.h"
 #include "dd/dd_table.h"                     // dd::recreate_table
 #include "dd/info_schema/stats.h"            // dd::info_schema::update_*
 #include "dd/types/abstract_table.h"         // dd::enum_table_type
@@ -1608,6 +1609,75 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
   }
 
   DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_clone_local::execute(THD *thd)
+{
+  plugin_ref plugin;
+
+  DBUG_ENTER("Sql_cmd_clone_local::execute");
+  DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
+
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE LOCAL");
+    DBUG_RETURN(true);
+  }
+
+  Clone_handler* clone = clone_plugin_lock(thd, &plugin);
+
+  if (clone == nullptr)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
+    DBUG_RETURN(true);
+  }
+
+  if (clone->clone_local(thd, clone_dir) != 0)
+  {
+    clone_plugin_unlock(thd, plugin);
+    DBUG_RETURN(true);
+  }
+
+  clone_plugin_unlock(thd, plugin);
+
+  my_ok(thd);
+  DBUG_RETURN(false);
+}
+
+
+bool Sql_cmd_clone_remote::execute(THD *thd)
+{
+  plugin_ref plugin;
+
+  DBUG_ENTER("Sql_cmd_clone_remote::execute");
+  DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
+                       clone_dir, is_for_replication));
+
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE REMOTE");
+    DBUG_RETURN(true);
+  }
+
+  Clone_handler* clone = clone_plugin_lock(thd, &plugin);
+
+  if (clone == nullptr)
+  {
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
+    DBUG_RETURN(true);
+  }
+
+  if (clone->clone_remote_client(thd, clone_dir))
+  {
+    clone_plugin_unlock(thd, plugin);
+    DBUG_RETURN(true);
+  }
+
+  clone_plugin_unlock(thd, plugin);
+
+  my_ok(thd);
+  DBUG_RETURN(false);
 }
 
 

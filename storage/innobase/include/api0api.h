@@ -1006,93 +1006,81 @@ ib_ut_strerr(
 @param[in]	tablespace_id	tablespace id
 @param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
 and ids
-@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
 @param[in,out]	trx		data dictionary transaction
 @return DB_SUCCESS if SDI keys retrieval is successful, else error */
 ib_err_t
 ib_sdi_get_keys(
 	uint32_t		tablespace_id,
 	ib_sdi_vector_t*	ib_sdi_vector,
-	uint32_t		copy_num,
 	ib_trx_t		trx);
 
-/** Retrieve SDI from tablespace.
+/** Retrieve SDI from tablespace
 @param[in]	tablespace_id	tablespace id
-@param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in,out]	sdi		SDI retrieved from tablespace
-@param[in,out]	sdi_len		in:  Size of memory allocated
-				out: Actual SDI length
-@param[in]	copy_num	the copy from which SDI has to retrieved
+@param[in]	ib_sdi_key	SDI key
+@param[in,out]	comp_sdi	in: buffer to hold the SDI BLOB
+				out: compressed SDI retrieved from tablespace
+@param[in,out]	comp_sdi_len	in:  Size of memory allocated
+				out: compressed length of SDI
+@param[out]	uncomp_sdi_len	out: uncompressed length of SDI
 @param[in,out]	trx		innodb transaction
-@return DB_SUCCESS if SDI retrieval is successful, else error */
+@return DB_SUCCESS if SDI retrieval is successful, else error
+in case the passed buffer length is smaller than the actual SDI
+DB_OUT_OF_MEMORY is thrown and uncompressed length is set in
+uncomp_sdi_len */
 ib_err_t
 ib_sdi_get(
 	uint32_t		tablespace_id,
-	const ib_sdi_key_t*	sdi_key,
-	void*			sdi,
-	uint64_t*		sdi_len,
-	uint32_t		copy_num,
+	const ib_sdi_key_t*	ib_sdi_key,
+	void*			comp_sdi,
+	uint32_t*		comp_sdi_len,
+	uint32_t*		uncomp_sdi_len,
 	ib_trx_t		trx);
 
-/** Insert/Update SDI in tablespace.
+/** Insert/Update SDI in tablespace
 @param[in]	tablespace_id	tablespace id
 @param[in]	sdi_key		SDI key to uniquely identify the tablespace
-object
-@param[in]	sdi		SDI to be stored in tablespace
-@param[in]	sdi_len		SDI length
-@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+				object
+@param[in]	uncomp_len	uncompressed length of SDI
+@param[in]	comp_len	compressed length of SDI
+@param[in]	sdi		compressed SDI to be stored in tablespace
 @param[in,out]	trx		innodb transaction
 @return DB_SUCCESS if SDI Insert/Update is successful, else error */
 ib_err_t
 ib_sdi_set(
 	uint32_t		tablespace_id,
 	const ib_sdi_key_t*	sdi_key,
+	uint32_t		uncomp_len,
+	uint32_t		comp_len,
 	const void*		sdi,
-	uint64_t		sdi_len,
-	uint32_t		copy_num,
 	ib_trx_t		trx);
 
 /** Delete SDI from tablespace.
 @param[in]	tablespace_id	tablespace id
 @param[in]	sdi_key		SDI key to uniquely identify the tablespace
 object
-@param[in]	copy_num	the copy from which SDI has to be deleted
 @param[in,out]	trx		innodb transaction
 @return DB_SUCCESS if SDI deletion is successful, else error */
 ib_err_t
 ib_sdi_delete(
 	uint32_t		tablespace_id,
 	const ib_sdi_key_t*	sdi_key,
-	uint32_t		copy_num,
 	ib_trx_t		trx);
 
-/** Return the number of SDI copies stored in tablespace.
-@param[in]	tablespace_id	Tablespace id
-@retval		0		if there are no SDI copies
-@retval		MAX_SDI_COPIES	if the SDI is present
-@retval		UINT32_MAX	in case of failure */
-uint32_t
-ib_sdi_get_num_copies(space_id_t tablespace_id);
-
-/** Create SDI Copies in a tablespace. The number of allowed copies is always
-two for InnoDB.
+/** Create SDI in a tablespace
 @param[in]	tablespace_id	InnoDB tablespace id
-@param[in]	num_of_copies	number of SDI copies to create
 @return DB_SUCCESS if SDI index creation is successful, else error */
 ib_err_t
-ib_sdi_create_copies(
-	space_id_t	tablespace_id,
-	uint32_t	num_of_copies);
+ib_sdi_create(
+	space_id_t	tablespace_id);
 
-/** Drop SDI Indexes from tablespace. This should be used only when SDI
+/** Drop SDI Index from tablespace. This should be used only when SDI
 is corrupted.
 @param[in]	tablespace_id	InnoDB tablespace id
 @return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
 ib_err_t
-ib_sdi_drop_copies(space_id_t tablespace_id);
+ib_sdi_drop(space_id_t tablespace_id);
 
-/** Flush SDI copy in a tablespace. The pages of a SDI copy modified by the
+/** Flush SDI in a tablespace. The pages of a SDI copy modified by the
 transaction will be flushed to disk.
 @param[in]	space_id	tablespace id
 @return DB_SUCCESS always*/
@@ -1136,18 +1124,18 @@ ib_memc_sdi_set(
 	const void*	sdi,
 	uint64_t*	sdi_len);
 
-/** Wrapper function to create SDI copies in a tablespace.
+/** Wrapper function to create SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if SDI creation is successful, else error */
 ib_err_t
-ib_memc_sdi_create_copies(
+ib_memc_sdi_create(
 	ib_crsr_t	ib_crsr);
 
-/** Wrapper function to drop SDI copies in a tablespace.
+/** Wrapper function to drop SDI in a tablespace.
 @param[in,out]	crsr		Memcached cursor
 @return DB_SUCCESS if dropping of SDI is successful, else error */
 ib_err_t
-ib_memc_sdi_drop_copies(
+ib_memc_sdi_drop(
 	ib_crsr_t	ib_crsr);
 
 /* Wrapper function to retreive list of SDI keys into the buffer

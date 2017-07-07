@@ -783,11 +783,12 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
 #define	_MY_B	0100	/* Blank */
 #define	_MY_X	0200	/* heXadecimal digit */
 
-
+/* The following macros makes sense only for one-byte character sets.
+They will not fail for multibyte character sets, but will not produce
+the expected results. They may have som limited usability like
+e.g. for utf8mb3/utf8mb4, meaningful results will be produced for
+values < 0x7F. */
 #define	my_isascii(c)	(!((c) & ~0177))
-#define	my_toascii(c)	((c) & 0177)
-#define my_tocntrl(c)	((c) & 31)
-#define my_toprint(c)	((c) | 64)
 #define my_toupper(s,c)	(char) ((s)->to_upper[(uchar) (c)])
 #define my_tolower(s,c)	(char) ((s)->to_lower[(uchar) (c)])
 #define	my_isalpha(s, c)  (((s)->ctype+1)[(uchar) (c)] & (_MY_U | _MY_L))

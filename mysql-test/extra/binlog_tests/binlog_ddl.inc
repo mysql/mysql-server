@@ -3,7 +3,9 @@
 # top-level files, e.g suite/binlog/t/binlog_crash_safe_ddl.test
 # The file contains DDLs that are crash-safe
 # which include at this point the ACL DDL:s,
-# CREATE TRIGGER, DROP TRIGGER.
+# CREATE TRIGGER, DROP TRIGGER, CREATE FUNCTION, ALTER FUNCTION,
+# DROP FUNCTION, CREATE PROCEDURE, DROP PROCEDURE, CREATE EVENT,
+# ALTER EVENT, DROP EVENT, CREATE VIEW, ALTER VIEW, DROP VIEW.
 #
 #
 # TODO: (WL7743 etc) add a piece of test of each DDL when it's been
@@ -128,4 +130,78 @@ DEALLOCATE PREPARE stmt;
 --let $ddl_query=DROP TRIGGER tr_0
 --let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.TRIGGERS where TRIGGER_NAME = 'tr_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+#
+# WL9173: New data-dictionary: Improve crash-safety of non-table DDL.
+#
+
+--let $ddl_query=CREATE FUNCTION f_0() RETURNS INT RETURN 5;
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=ALTER FUNCTION f_0 COMMENT 'comment'
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=DROP FUNCTION f_0
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'f_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=CREATE PROCEDURE p_0() BEGIN END
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=ALTER PROCEDURE p_0 COMMENT 'comment'
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=DROP PROCEDURE p_0
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.ROUTINES where ROUTINE_NAME = 'p_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=CREATE EVENT e_0 ON SCHEDULE EVERY 2 DAY DO SELECT 2
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=ALTER EVENT e_0 ON SCHEDULE EVERY 2 day DO SELECT 1;
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=DROP EVENT e_0
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.EVENTS where EVENT_NAME = 'e_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=CREATE VIEW v_0 AS SELECT * FROM $table
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=ALTER VIEW v_0 AS SELECT * FROM $table
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query=DROP VIEW v_0
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so'
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'
+--let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= DROP FUNCTION metaphon;
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'
+--let $post_binlog_crash_check=SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
