@@ -193,33 +193,24 @@ done
 
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
-	authentication_ldap_simple.so daemon_example.ini libdaemon_example.so \
-	qa_auth_client.so component_example_component1.so component_example_component2.so \
-	component_example_component3.so component_log_sink_test.so \
-	component_test_string_service_charset.so component_test_string_service_long.so \
-	component_test_string_service.so qa_auth_interface.so \
-	component_pfs_example.so \
-    component_pfs_example_component_population.so pfs_example_plugin_employee.so \
-	qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-	test_udf_services.so test_security_context.so test_services_plugin_registry.so \
-	  component_test_pfs_notification.so \
-	  component_test_pfs_resource_group.so \
-    component_test_udf_registration.so \
-    component_udf_reg_3_func.so \
-    component_udf_reg_int_same_func.so \
-    component_udf_reg_avg_func.so \
-    component_udf_reg_only_3_func.so \
-    component_udf_reg_int_func.so \
-    component_udf_reg_real_func.so \
-    component_udf_unreg_3_func.so \
-    component_udf_unreg_int_func.so \
-    component_udf_unreg_real_func.so ; \
-    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so component_test_component_sys_var_service.so \
-    component_test_string_service_charset.so component_test_string_service_long.so component_test_string_service.so \
-    component_test_sys_var_service_int.so component_test_sys_var_service.so component_test_sys_var_service_same.so \
-    component_test_sys_var_service_str.so \
-    qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-    test_udf_services.so test_security_context.so test_services_plugin_registry.so ; do
+         authentication_ldap_simple.so component_example_component1.so \
+         component_example_component2.so component_example_component3.so \
+         component_log_sink_test.so component_pfs_example_component_population.so \
+         component_test_pfs_notification.so component_test_pfs_resource_group.so \
+         component_test_string_service_charset.so component_test_string_service.so \
+         component_test_string_service_long.so component_udf_reg_3_func.so \
+         component_udf_reg_int_same_func.so component_udf_reg_avg_func.so \
+         component_udf_reg_only_3_func.so component_udf_reg_int_func.so \
+         component_udf_reg_real_func.so component_test_udf_registration.so \
+         component_udf_unreg_3_func.so component_udf_unreg_int_func.so \
+         component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
+         component_test_sys_var_service_int.so component_test_sys_var_service.so \
+         component_test_sys_var_service_same.so component_test_sys_var_service_str.so \
+         daemon_example.ini ha_example.so libdaemon_example.so \
+         pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
+         qa_auth_server.so replication_observers_example_plugin.so \
+         test_security_context.so test_services_plugin_registry.so \
+         test_udf_services.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
