@@ -1,12 +1,12 @@
 drop table if exists t1;
-CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id)) charset latin1;
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
 insert into t1 values ('000000000001'),('000000000002');
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where id=000000000001;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	12	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	48	NULL	2	50.00	Using where; Using index
 Warnings:
 Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'id'
 Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'id'
@@ -19,6 +19,7 @@ select * from t1;
 id
 000000000001
 drop table t1;
+set names latin1;
 SELECT 'a' = 'a ';
 'a' = 'a '
 1
@@ -43,6 +44,7 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 6109	-1	-1
 61	0	0
 DROP TABLE t1;
+set names default;
 SELECT CHAR(31) = '', '' = CHAR(31);
 CHAR(31) = ''	'' = CHAR(31)
 0	0

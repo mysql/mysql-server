@@ -90,15 +90,15 @@ SET @@session.sql_big_selects = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_big_selects = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = TRÜE;
+SET @@session.sql_big_selects = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = ÕN;
+SET @@session.sql_big_selects = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_big_selects = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = ÓFF;
+SET @@session.sql_big_selects = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_big_selects = '¹';
+SET @@session.sql_big_selects = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_big_selects = NO;
 

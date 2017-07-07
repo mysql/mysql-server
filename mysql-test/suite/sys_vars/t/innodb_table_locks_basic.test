@@ -113,17 +113,16 @@ SET @@session.innodb_table_locks = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.innodb_table_locks = TRÜE;
+SET @@session.innodb_table_locks = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.innodb_table_locks = ÕN;
+SET @@session.innodb_table_locks = Ã•N;
 
 --error ER_PARSE_ERROR
 SET @@session.innodb_table_locks = OF;
 SELECT @@session.innodb_table_locks;
 
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.innodb_table_locks = ÓFF;
-
+SET @@session.innodb_table_locks = Ã“FF;
 # for global
 
 
@@ -135,7 +134,7 @@ SET @@global.innodb_table_locks = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@global.innodb_table_locks = TRÜE;
+SET @@global.innodb_table_locks = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = QN;
 
@@ -144,7 +143,7 @@ SET @@global.innodb_table_locks = OF;
 SELECT @@global.innodb_table_locks;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-#SET @@global.innodb_table_locks = ÓFF;
+#SET @@global.innodb_table_locks = Ã“FF;
 
 
 --echo '#-------------------FN_DYNVARS_046_05----------------------------#'
