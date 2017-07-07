@@ -48,14 +48,14 @@ extern EventLogger * g_eventLogger;
 #define DEB_RES(arglist) do { } while (0)
 #endif
 
-#define DEBUG_RES_DEL 1
+//#define DEBUG_RES_DEL 1
 #ifdef DEBUG_RES_DEL
 #define DEB_RES_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_RES_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_HIGH_RES 1
+//#define DEBUG_HIGH_RES 1
 #ifdef DEBUG_HIGH_RES
 #define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1953,11 +1953,11 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
 
-    DEB_HIGH_RES(("(%u)Prepare ALL parts[%u] = (%u,%u)",
-                  instance(),
-                  file_ptr.p->m_current_file_index,
-                  partPair.startPart,
-                  partPair.numParts));
+    DEB_RES(("(%u)Prepare ALL parts[%u] = (%u,%u)",
+             instance(),
+             file_ptr.p->m_current_file_index,
+             partPair.startPart,
+             partPair.numParts));
 
     Uint32 part_id = partPair.startPart;
     for (Uint32 i = 0; i < partPair.numParts; i++)
@@ -1977,11 +1977,11 @@ Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
     struct BackupFormat::PartPair partPair =
       lcpCtlFilePtr->partPairs[i];
 
-    DEB_HIGH_RES(("(%u)Prepare IGNORE parts[%u] = (%u,%u)",
-                  instance(),
-                  i,
-                  partPair.startPart,
-                  partPair.numParts));
+    DEB_RES(("(%u)Prepare IGNORE parts[%u] = (%u,%u)",
+             instance(),
+             i,
+             partPair.startPart,
+             partPair.numParts));
 
     Uint32 part_id = partPair.startPart;
     for (Uint32 j = 0; j < partPair.numParts; j++)
@@ -3265,7 +3265,7 @@ Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
      * Handle next file now.
      */
     jam();
-    DEB_HIGH_RES(("(%u)Step forward to next data file", instance()));
+    DEB_RES(("(%u)Step forward to next data file", instance()));
     step_file_number_forward(file_ptr);
     file_ptr.p->m_current_page_pos = 0; 
     file_ptr.p->m_current_page_index = 0;
@@ -3294,7 +3294,7 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    *
    * TUP will send RESTORE_LCP_CONF
    */
-  DEB_HIGH_RES(("(%u)Complete restore", instance()));
+  DEB_RES(("(%u)Complete restore", instance()));
   c_tup->complete_restore_lcp(signal, 
                               file_ptr.p->m_sender_ref,
                               file_ptr.p->m_sender_data,

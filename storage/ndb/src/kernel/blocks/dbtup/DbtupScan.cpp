@@ -42,11 +42,25 @@
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
+#define DEBUG_LCP_DEL_EXTRA 1
+#ifdef DEBUG_LCP_DEL_EXTRA
+#define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL_EXTRA(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_SKIP_EXTRA 1
+#ifdef DEBUG_LCP_SKIP_EXTRA
+#define DEB_LCP_SKIP_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
 #define DEBUG_LCP_KEEP 1
@@ -63,7 +77,7 @@
 #define DEB_NR_SCAN(arglist) do { } while (0)
 #endif
 
-#define DEBUG_NR_SCAN_EXTRA 1
+//#define DEBUG_NR_SCAN_EXTRA 1
 #ifdef DEBUG_NR_SCAN_EXTRA
 #define DEB_NR_SCAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -832,7 +846,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Tuple_header* th = 0;
   Uint32 thbits = 0;
   Uint32 loop_count = 0;
-  Uint32 scanGCI = scan.m_scanGCI;
   Uint32 foundGCI;
 
   const bool mm_index = (bits & ScanOp::SCAN_DD);
@@ -1536,7 +1549,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  else if (bits & ScanOp::SCAN_NR)
 	  {
             thbits = th->m_header_bits;
-	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
+	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI ||
                 foundGCI == 0)
 	    {
               /**
@@ -1571,7 +1584,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                key.m_page_no,
                                key.m_page_idx,
                                foundGCI,
-                               scanGCI,
+                               scan.m_scanGCI,
                                thbits));
 	  }
           else
@@ -1606,7 +1619,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             ndbassert((bits & ScanOp::SCAN_LCP) &&
                        pos.m_lcp_scan_changed_rows_page);
             thbits = th->m_header_bits;
-            if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI)
+            if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI)
             {
               if (unlikely(thbits & Tuple_header::LCP_DELETE))
               {
@@ -1639,7 +1652,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 scan.m_last_seen = __LINE__;
                 goto found_tuple;
               }
-              else if (scanGCI > 0 &&
+              else if (scan.m_scanGCI > 0 &&
                        !(thbits & Tuple_header::LCP_SKIP))
               {
                 jam();
@@ -1659,9 +1672,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                 scan.m_last_seen = __LINE__;
                 goto found_deleted_rowid;
               }
-              /* Ensure that LCP_SKIP bit is clear before we move on */
-              if (unlikely(thbits & Tuple_header::LCP_SKIP))
+              else if (unlikely(thbits & Tuple_header::LCP_SKIP))
               {
+                /* Ensure that LCP_SKIP bit is clear before we move on */
                 jam();
                 th->m_header_bits = thbits & (~Tuple_header::LCP_SKIP);
                 DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), rowid(%u,%u)"
@@ -1673,6 +1686,20 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                               key.m_page_idx,
                               thbits));
                 updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
+              }
+              else
+              {
+                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), rowid(%u,%u),"
+                              " foundGCI: %u, scanGCI: %u, header: %x",
+                              instance(),
+                              fragPtr.p->fragTableId,
+                              fragPtr.p->fragmentId,
+                              key.m_page_no,
+                              key.m_page_idx,
+                              foundGCI,
+                              scan.m_scanGCI,
+                              thbits));
+
               }
               jam();
               scan.m_last_seen = __LINE__;
@@ -1687,15 +1714,27 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * here.
                */
               ndbassert(!(thbits & Tuple_header::LCP_DELETE));
-              if (foundGCI == 0 && scanGCI > 0)
+              ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+              if (foundGCI == 0 && scan.m_scanGCI > 0)
               {
                 jam();
                 /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-                ndbassert(!(thbits & Tuple_header::LCP_SKIP));
                 scan.m_last_seen = __LINE__;
                 goto found_deleted_rowid;
               }
-              ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+              else
+              {
+                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), rowid(%u,%u),"
+                              " foundGCI: %u, scanGCI: %u, header: %x",
+                              instance(),
+                              fragPtr.p->fragTableId,
+                              fragPtr.p->fragmentId,
+                              key.m_page_no,
+                              key.m_page_idx,
+                              foundGCI,
+                              scan.m_scanGCI,
+                              thbits));
+              }
             }
             scan.m_last_seen = __LINE__;
             /* Continue LCP scan, no need to handle this row in this LCP */
@@ -1830,7 +1869,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   
           Fix_page *mmpage = (Fix_page*)c_page_pool.getPtr(pos.m_realpid_mm);
           th = (Tuple_header*)(mmpage->m_data + key_mm.m_page_idx);
-          if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
+          if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scan.m_scanGCI ||
               foundGCI == 0)
           {
             if (! (thbits & Tuple_header::FREE))
@@ -1901,12 +1940,12 @@ Dbtup::record_delete_by_rowid(Signal *signal,
                               Uint32 foundGCI)
 {
   const Uint32 bits = scan.m_bits;
-  DEB_LCP_DEL(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
-               instance(),
-               tableId,
-               fragmentId,
-               key.m_page_no,
-               key.m_page_idx));
+  DEB_LCP_DEL_EXTRA(("(%u)Delete by rowid tab(%u,%u), page(%u,%u)",
+                     instance(),
+                     tableId,
+                     fragmentId,
+                     key.m_page_no,
+                     key.m_page_idx));
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scan.m_userPtr;
   conf->accOperationPtr = (bits & ScanOp::SCAN_LCP) ? Uint32(-1) : RNIL;
@@ -1929,11 +1968,11 @@ Dbtup::record_delete_by_pageid(Signal *signal,
                                Uint32 page_no,
                                Uint32 record_size)
 {
-  DEB_LCP_DEL(("(%u)Delete by pageid tab(%u,%u), page(%u)",
-               instance(),
-               tableId,
-               fragmentId,
-               page_no));
+  DEB_LCP_DEL_EXTRA(("(%u)Delete by pageid tab(%u,%u), page(%u)",
+                     instance(),
+                     tableId,
+                     fragmentId,
+                     page_no));
   jam();
   /**
    * Set page_idx to flag to LQH that it is a
