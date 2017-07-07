@@ -32,7 +32,6 @@
 #include "enum_query_type.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
 #include "key_spec.h"                 // KEY_CREATE_INFO

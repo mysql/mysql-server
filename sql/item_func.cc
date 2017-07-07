@@ -49,7 +49,6 @@
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
 #include "error_handler.h"       // Internal_error_handler
-#include "hash.h"
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_create.h"
 #include "item_strfunc.h"        // Item_func_concat_ws

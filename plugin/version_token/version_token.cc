@@ -16,7 +16,6 @@
 #include <current_thd.h>
 #include <derror.h>
 #include <errmsg.h>
-#include <hash.h>
 #include <locking_service.h>
 #include <m_string.h>
 #include <mysql/plugin_audit.h>

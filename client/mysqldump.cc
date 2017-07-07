@@ -44,7 +44,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <hash.h>
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_sys.h>

@@ -36,7 +36,6 @@
 #include "field.h"
 #include "filesort.h"         // Filesort
 #include "handler.h"
-#include "hash.h"
 #include "item_cmpfunc.h"
 #include "item_func.h"
 #include "item_sum.h"         // Item_sum
@@ -6241,6 +6240,7 @@ QEP_TAB::remove_duplicates()
 
   free_io_cache(tbl);				// Safety
   tbl->file->info(HA_STATUS_VARIABLE);
+  constexpr int HASH_OVERHEAD = 16;  // Very approximate.
   if (tbl->s->db_type() == temptable_hton ||
       tbl->s->db_type() == heap_hton ||
       (!tbl->s->blob_fields &&

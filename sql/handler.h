@@ -34,7 +34,6 @@
 #include "dd/properties.h"     // dd::Properties
 #include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
-#include "hash.h"
 #include "key.h"
 #include "lex_string.h"
 #include "m_string.h"

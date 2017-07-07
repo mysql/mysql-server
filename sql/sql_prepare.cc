@@ -97,7 +97,6 @@ When one supplies long data for a placeholder:
 #include "derror.h"             // ER_THD
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "item_func.h"          // user_var_entry
 #include "log.h"                // query_logger

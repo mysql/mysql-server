@@ -22,7 +22,6 @@ SET(MYSYS_SOURCES
   charset-def.cc
   checksum.cc
   errors.cc
-  hash.cc
   lf_alloc-pin.cc
   lf_dynarray.cc
   lf_hash.cc

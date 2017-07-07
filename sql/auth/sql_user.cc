@@ -19,7 +19,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "lex_string.h"
 #include "log_event.h"                  /* append_query_string */

@@ -47,7 +47,6 @@
 #include "dur_prop.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item_func.h"                      // user_var_entry
 #include "key.h"
 #include "log.h"

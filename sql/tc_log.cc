@@ -27,7 +27,6 @@
 #endif
 
 #include "handler.h"
-#include "hash.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "my_compiler.h"

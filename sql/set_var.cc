@@ -25,7 +25,6 @@
 #include "derror.h"              // ER_THD
 #include "enum_query_type.h"
 #include "handler.h"
-#include "hash.h"                // HASH
 #include "item.h"
 #include "item_func.h"
 #include "key.h"

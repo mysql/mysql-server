@@ -39,7 +39,6 @@
 #include "error_handler.h"               // Strict_error_handler
 #include "field.h"
 #include "ft_global.h"
-#include "hash.h"
 #include "item.h"
 #include "item_cmpfunc.h"                // and_conds
 #include "json_diff.h"                   // Json_diff_vector

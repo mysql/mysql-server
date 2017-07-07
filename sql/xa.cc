@@ -20,7 +20,6 @@
 #include "debug_sync.h"         // DEBUG_SYNC
 #include "derror.h"             // ER_DEFAULT
 #include "handler.h"            // handlerton
-#include "hash.h"               // HASH
 #include "item.h"
 #include "log.h"
 #include "m_ctype.h"

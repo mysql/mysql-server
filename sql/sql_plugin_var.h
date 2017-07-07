@@ -17,7 +17,6 @@
 #define _sql_comp_common_h
 
 #include "set_var.h"
-#include "hash.h"
 
 /*
   Below define's are used for internal purpose(i.e used by plugin and
