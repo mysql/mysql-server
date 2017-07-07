@@ -4593,7 +4593,14 @@ Dbtup::nr_update_gci(Uint32 fragPtrI,
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
+  /**
+   * GCI on the row is mandatory since many versions back.
+   * During restore we have temporarily disabled this
+   * flag to avoid it being set other than when done
+   * with a purpose to actually set it (happens in
+   * DELETE BY PAGEID and DELETE BY ROWID).
+   */
+  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI || true)
   {
     Local_key tmp = *key;
     PagePtr pagePtr;
@@ -4760,12 +4767,13 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
 
-  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u)",
+  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u), gci: %u",
                instance(),
                fragPtr.p->fragTableId,
                fragPtr.p->fragmentId,
                key->m_page_no,
-               key->m_page_idx));
+               key->m_page_idx,
+               *ptr->get_mm_gci(tablePtr.p)));
 
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)

@@ -385,6 +385,10 @@ Dbtup::update_gci(Fragrecord * regFragPtr,
   Uint32 *gci_ptr = ptr->get_mm_gci(regTabPtr);
   Uint32 old_gci = *gci_ptr;
   *gci_ptr = new_gci;
+  g_eventLogger->info("(%u) GCI_PTR: %p, new_gci = %u",
+                       instance(),
+                       gci_ptr,
+                       new_gci);
   if (old_gci <= regFragPtr->m_lcp_start_gci)
   {
     jam();

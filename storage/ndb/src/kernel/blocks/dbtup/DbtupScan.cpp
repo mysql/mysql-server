@@ -63,6 +63,13 @@
 #define DEB_NR_SCAN(arglist) do { } while (0)
 #endif
 
+#define DEBUG_NR_SCAN_EXTRA 1
+#ifdef DEBUG_NR_SCAN_EXTRA
+#define DEB_NR_SCAN_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NR_SCAN_EXTRA(arglist) do { } while (0)
+#endif
+
 #define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
@@ -1556,6 +1563,16 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	      goto found_tuple; // Locked tuple...
 	      // skip free tuple
 	    }
+            DEB_NR_SCAN_EXTRA(("(%u)NR_SCAN_SKIP:tab(%u,%u) rowid(%u,%u),"
+                               " recGCI: %u, scanGCI: %u, header: %x",
+                               instance(),
+                               fragPtr.p->fragTableId,
+                               fragPtr.p->fragmentId,
+                               key.m_page_no,
+                               key.m_page_idx,
+                               foundGCI,
+                               scanGCI,
+                               thbits));
 	  }
           else
           {
@@ -1803,6 +1820,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         else
         {
           jam();
+          /**
+           * Currently dead code since NR scans never use Disk data scans.
+           */
           ndbassert(bits & ScanOp::SCAN_NR);
           th->get_base_record_ref(key_mm);
           // recompute for each disk tuple

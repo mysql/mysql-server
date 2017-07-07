@@ -6445,6 +6445,13 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
           jam();
           c_restore->delete_by_rowid_succ(regTcPtr.p->tcOprec);
         }
+        DEB_LCP(("(%u)tab(%u,%u) rowid(%u,%u), set GCI = %u",
+                 instance(),
+                 regTcPtr.p->tableref,
+                 regTcPtr.p->fragmentid,
+                 regTcPtr.p->m_row_id.m_page_no,
+                 regTcPtr.p->m_row_id.m_page_idx,
+                 regTcPtr.p->gci_hi));
         c_tup->nr_update_gci(fragPtr,
                              &regTcPtr.p->m_row_id,
                              regTcPtr.p->gci_hi,
