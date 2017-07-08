@@ -149,11 +149,6 @@ sub my_find_paths {
   my (@names, @paths);
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
-  push(@paths, "runtime_output_directory");
-
-  #print "base: $base\n";
-  #print "names: @names\n";
-  #print "paths: @paths\n";
 
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths
