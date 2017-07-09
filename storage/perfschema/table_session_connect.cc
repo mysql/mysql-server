@@ -284,7 +284,7 @@ int table_session_connect::read_row_values(TABLE *table,
       {
       case FO_PROCESS_ID:
         if (m_row.m_process_id != 0)
-          set_field_ulong(f, m_row.m_process_id);
+          set_field_ulonglong(f, m_row.m_process_id);
         else
           f->set_null();
         break;
