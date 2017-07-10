@@ -3616,6 +3616,7 @@ public:
     Uint32 m_len;
     Uint32 m_offset;
     const Uint32* m_ptr;
+    Uint32 m_data[MAX_UNDO_DATA];
     Uint64 m_lsn;
     Ptr<Tablerec> m_table_ptr;
     Ptr<Fragrecord> m_fragment_ptr;
@@ -3637,7 +3638,6 @@ private:
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
-  Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
   void disk_restart_undo_next(Signal*, Uint32 applied = 0);
   void disk_restart_undo_lcp(Uint32,

@@ -357,6 +357,8 @@
  */
 #define MAX_NORMAL_ROW_SIZE 2048
 
+#define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
+
 #ifdef NDB_STATIC_ASSERT
 
 static inline void ndb_limits_constraints()

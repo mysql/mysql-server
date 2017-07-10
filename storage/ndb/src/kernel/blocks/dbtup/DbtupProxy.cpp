@@ -235,7 +235,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
    * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
    * data pointed to by ptr.  So save it now and do not use ptr.
    */
-  ndbrequire(undo.m_len <= Proxy_undo::MaxData);
+  ndbrequire(undo.m_len <= MAX_UNDO_DATA);
   memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
 
   /**
@@ -278,6 +278,16 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    /**
+     * Setting the SendUndoNext flag makes DbtupProxy send a CONTINUEB to
+     * LGMAN thread immediately after sending the current undo record to the
+     * respective LDM.
+     * This enables LGMAN to proceed to the next undo record immediately.
+     * If SendUndoNext is not set,  LGMAN waits for a CONTINUEB from LDM to
+     * confirm completion and then proceeds to fetch the next undo record.
+     */
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
+
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE:
@@ -290,6 +300,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
@@ -301,6 +312,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_FREE:
@@ -313,6 +325,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_key.m_page_idx = rec->m_file_no_page_idx & 0xFFFF;
     undo.m_actions |= Proxy_undo::ReadTupPage;
     undo.m_actions |= Proxy_undo::GetInstance;
+    undo.m_actions |= Proxy_undo::SendUndoNext; // Don't wait for LDM
     break;
   }
   case File_formats::Undofile::UNDO_TUP_DROP:
