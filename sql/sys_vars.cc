@@ -5404,6 +5404,8 @@ static Sys_var_ulong Sys_sp_cache_size(
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_outside_trx(self, thd, var))
+    return true;
   longlong previous_val= thd->variables.pseudo_slave_mode;
   longlong val= (longlong) var->save_result.ulonglong_value;
   bool rli_fake= false;
