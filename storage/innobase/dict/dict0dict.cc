@@ -7046,6 +7046,8 @@ DDTableBuffer::open()
 	table->acquire();
 
 	mutex_exit(&dict_sys->mutex);
+
+	mem_heap_free(heap);
 }
 
 /** Initialize the id field of tuple
