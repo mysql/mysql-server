@@ -77,6 +77,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(XPROTOCOL_FLAGS
     "${XPROTOCOL_FLAGS} -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable"
   )
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
+  IF(HAVE_UNUSED_BUT_SET)
+    SET(XPROTOCOL_FLAGS "${XPROTOCOL_FLAGS} -Wno-unused-but-set-parameter")
+  ENDIF()
+
 ENDIF()
 
 IF(MSVC)
