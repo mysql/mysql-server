@@ -771,6 +771,7 @@ dd_tablespace_update_filename(
 @param[in]	space		InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
 @param[in]	filename	filename of this tablespace
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd_space_id
 @retval	false	on success
 @retval	true	on failure */
@@ -782,6 +783,7 @@ create_dd_tablespace(
 	space_id_t			space_id,
 	ulint				flags,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id);
 
 /** Create metadata for implicit tablespace
@@ -789,6 +791,7 @@ create_dd_tablespace(
 @param[in,out]	thd		THD
 @param[in]	space		InnoDB tablespace ID
 @param[in]	filename	tablespace filename
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd tablespace id
 @retval	false	on success
 @retval	true	on failure */
@@ -798,6 +801,7 @@ dd_create_implicit_tablespace(
 	THD*				thd,
 	space_id_t			space,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id);
 
 /** Drop a tablespace

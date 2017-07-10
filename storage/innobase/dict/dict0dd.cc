@@ -2454,6 +2454,7 @@ dd_fill_dict_table(
 @param[in]	space		InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
 @param[in]	filename	filename of this tablespace
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd_space_id
 @retval false on success
 @retval true on failure */
@@ -2465,6 +2466,7 @@ create_dd_tablespace(
 	space_id_t			space_id,
 	ulint				flags,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id)
 {
 	std::unique_ptr<dd::Tablespace> dd_space(
@@ -2485,6 +2487,11 @@ create_dd_tablespace(
 		     static_cast<uint32>(space_id));
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 		     static_cast<uint32>(flags));
+	if (discarded) {
+		p.set_bool(dd_space_key_strings[DD_SPACE_DISCARD],
+			   discarded);
+	}
+
 	dd::Tablespace_file*    dd_file = dd_space->add_file();
 	dd_file->set_filename(filename);
 	dd_file->se_private_data().set_uint32(
@@ -2505,6 +2512,7 @@ create_dd_tablespace(
 @param[in,out]	thd		THD
 @param[in]	space		InnoDB tablespace ID
 @param[in]	filename	tablespace filename
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd tablespace id
 @retval false	on success
 @retval true	on failure */
@@ -2514,6 +2522,7 @@ dd_create_implicit_tablespace(
 	THD*				thd,
 	space_id_t			space,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id)
 {
 	char	space_name[11 + sizeof reserved_implicit_name];
@@ -2525,7 +2534,7 @@ dd_create_implicit_tablespace(
 
 	bool fail = create_dd_tablespace(
 		dd_client, thd, space_name, space,
-		flags, filename, dd_space_id);
+		flags, filename, discarded, dd_space_id);
 
 	return(fail);
 }
@@ -4569,7 +4578,8 @@ dd_get_fts_tablespace_id(
 			fil_space_get_first_path(table->space);
 
 		ret = dd_create_implicit_tablespace(
-			client, thd, table->space, filename, dd_space_id);
+			client, thd, table->space, filename,
+			false, dd_space_id);
 
 		ut_free(filename);
 		if (ret) {

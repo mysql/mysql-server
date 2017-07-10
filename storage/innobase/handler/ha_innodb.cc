@@ -3639,7 +3639,7 @@ predefine_tablespace(
 	dd::Object_id	dd_space_id;
 
 	return(create_dd_tablespace(dd_client, thd, name, space_id,
-				    flags, filename, dd_space_id));
+				    flags, filename, false, dd_space_id));
 }
 
 /** Predefine the undo tablespace metadata at server initialization.
@@ -13018,7 +13018,8 @@ create_table_info_t::create_table_update_global_dd(
 		char* filename = fil_space_get_first_path(table->space);
 
 		if (dd_create_implicit_tablespace(
-			client, m_thd, table->space, filename, dd_space_id)) {
+			client, m_thd, table->space, filename,
+			false, dd_space_id)) {
 
 			ut_free(filename);
 			dict_table_close(table, FALSE, FALSE);
@@ -14588,9 +14589,7 @@ innobase_drop_tablespace(
 		DBUG_RETURN(error);
 	}
 
-	row_mysql_lock_data_dictionary(trx);
-	dict_sdi_remove_from_cache(space_id, nullptr, true);
-	row_mysql_unlock_data_dictionary(trx);
+	dict_sdi_remove_from_cache(space_id, nullptr, false);
 
 	log_ddl->writeDeleteSpaceLog(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),

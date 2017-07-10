@@ -4261,9 +4261,11 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	file_per_table = dict_table_is_file_per_table(table);
+
 	/* Acquire MDL on SDI table of tablespace. This is to prevent
 	concurrent DROP while purge is happening on SDI table */
-	if (dict_table_is_file_per_table(table)) {
+	if (file_per_table) {
 
 		mutex_exit(&dict_sys->mutex);
 		err = dd_sdi_acquire_exclusive_mdl(
@@ -4288,8 +4290,6 @@ row_drop_table_for_mysql(
 	/* Turn on this drop bit before we could release the dictionary
 	latch */
 	table->to_be_dropped = true;
-
-	file_per_table = dict_table_is_file_per_table(table);
 
 	if (nonatomic) {
 		/* This trx did not acquire any locks on dictionary
