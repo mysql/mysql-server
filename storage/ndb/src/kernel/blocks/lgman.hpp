@@ -324,6 +324,12 @@ private:
    *
    */
   int m_pending_undo_records[MAX_NDBMT_LQH_WORKERS + 1];
+  struct serial_record
+  {
+    Uint64 lsn;
+    Uint32 ptr_array[20 + MAX_TUPLE_SIZE_IN_WORDS];
+    Uint32* ptr;
+  } m_serial_record;
 
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
@@ -428,6 +434,15 @@ private:
                                  Ptr<Undofile> file_ptr);
   void sendCUT_UNDO_LOG_TAIL_CONF(Signal*);
   void execCUT_UNDO_LOG_TAIL_REQ(Signal*);
+
+  /**
+   * Checks if it's needed to wait for the pending records to complete.
+   * If waiting is required, it saves "ptr" in a member variable.
+   * @param ptr The undo log record that requires all the pending records to
+   * complete execution
+   * @return true if wait required, false otherwise.
+   */
+  bool wait_pending(Uint64 lsn, const Uint32* ptr, Uint32 len);
 };
 
 class Logfile_client {
