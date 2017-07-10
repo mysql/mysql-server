@@ -2014,12 +2014,13 @@ Dbtup::disk_restart_undo(Signal* signal,
 }
 
 void
-Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied)
+Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied, Uint32 count_pending)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   /* Flag indicating whether UNDO log was applied. */
   signal->theData[1] = applied;
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = count_pending;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 3, JBB);
 }
 
 /**
@@ -2175,6 +2176,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   m_immediate_flag = false;
 
   Apply_undo* undo = &f_undo;
+  Uint32 count_pending = 1;
 
   /**
    * Before we apply the UNDO record we need to discover which table
@@ -2450,7 +2452,8 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     }
   }
 
-  disk_restart_undo_next(signal, applied);
+  ndbassert(count_pending != 0);
+  disk_restart_undo_next(signal, applied, count_pending);
 }
 
 void

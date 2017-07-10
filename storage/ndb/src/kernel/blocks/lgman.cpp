@@ -4593,6 +4593,13 @@ Lgman::init_run_undo_log(Signal* signal)
     return;
   }
   
+  if (isNdbMtLqh())
+  {
+    for (unsigned int i = 0; i <= getLqhWorkers(); i++)
+    {
+      m_pending_undo_records[i] = 0; //initialize
+    }
+  }
   execute_undo_record(signal);
 }
 
@@ -4792,6 +4799,97 @@ Lgman::execute_undo_record(Signal* signal)
 
   Uint64 lsn;
   const Uint32* ptr;
+  if (isNdbMtLqh())
+  {
+    Uint32 block_reference = signal->getSendersBlockRef();
+    BlockInstance block_instance = refToInstance(block_reference);
+
+    /**
+     * block_instance is 0 for DbtupProxy, non-zero for DBTUP instances
+     * operating from LDM threads.
+     */
+    if (refToMain(block_reference) == DBTUP)
+    {
+      if (block_instance)
+      {
+        // CONTINUEB sent from LDM
+
+        /**
+         * CONTINUEB from LDM has 2 functionalities:
+         * (1) decrement pending count and
+         * (2) restart paused undo log fetching and sending when LDM capacity
+         *     becomes available again
+         */
+
+        /**
+         *  "resume" is true if fetching of undo records was paused earlier,
+         *  i.e, max. limit was reached. It can be resumed now because we
+         *  have received a CONTINUEB from LDM which signifies the completion
+         *  of processing of at least one undo log record.
+         */
+
+        bool resume = (m_pending_undo_records[block_instance] == MAX_PENDING_UNDO_RECORDS);
+        Uint32 count_processed = signal->theData[2];
+        DEB_LGMAN(("LGMAN: Applied from LDM(%u) count:%u",
+                    block_instance, count_processed));
+        ndbassert((count_processed != 0) &&
+                  (count_processed <= MAX_PENDING_UNDO_RECORDS));
+        ndbassert(m_pending_undo_records[block_instance] <= MAX_PENDING_UNDO_RECORDS);
+        ndbassert(m_pending_undo_records[0] <=
+               MAX_NDBMT_LQH_WORKERS * MAX_PENDING_UNDO_RECORDS);
+        ndbrequire(count_processed <= m_pending_undo_records[0]);
+        ndbrequire(count_processed <= m_pending_undo_records[block_instance]);
+        m_pending_undo_records[0] -= count_processed; // decrement total_pending
+        m_pending_undo_records[block_instance] -= count_processed;
+
+        if (DEBUG_UNDO_EXECUTION)
+        {
+          g_eventLogger->info("<m_pending_undo_records>");
+          for (Uint32 i = 0; i <= getLqhWorkers(); i++)
+          {
+            g_eventLogger->info("[%d]:%d", i, m_pending_undo_records[i]);
+          }
+          g_eventLogger->info("</m_pending_undo_records>");
+        }
+        if (!resume)
+        {
+          return;
+        }
+        DEB_LGMAN(("LGMAN: Undo RESUMED"));
+      }
+      else
+      {
+        // CONTINUEB from TUPProxy
+        DEB_LGMAN(("LGMAN: CONTINUEB from DBTUP(0)"));
+        Uint32 ldm_tup_instance = signal->theData[2];
+        if (ldm_tup_instance)
+        {
+          /**
+           * Undo record has been sent to an LDM.
+           * Pending count needs to be incremented.
+           */
+          m_pending_undo_records[0] += 1;
+          m_pending_undo_records[ldm_tup_instance] += 1;
+          if (DEBUG_UNDO_EXECUTION)
+          {
+            g_eventLogger->info("<m_pending_undo_records>");
+            for (Uint32 i = 0; i <= getLqhWorkers(); i++)
+            {
+              g_eventLogger->info("[%d]:%d", i, m_pending_undo_records[i]);
+            }
+            g_eventLogger->info("</m_pending_undo_records>");
+          }
+          if (m_pending_undo_records[ldm_tup_instance] == MAX_PENDING_UNDO_RECORDS)
+          {
+            // do not fetch next log record
+            DEB_LGMAN(("LGMAN: Undo PAUSED, Max. reached"));
+            return;
+          }
+        }
+      }
+    }
+  }
+
   if((ptr = get_next_undo_record(&lsn)))
   {
     /* Report progress information while the log is applied.
@@ -4808,6 +4906,8 @@ Lgman::execute_undo_record(Signal* signal)
     Uint32 len= (* ptr) & 0xFFFF;
     Uint32 type= (* ptr) >> 16;
     Uint32 mask= type & (~((Uint32)File_formats::Undofile::UNDO_NEXT_LSN));
+    DEB_LGMAN(("LGMAN type:%u", mask));
+
     switch(mask){
     case File_formats::Undofile::UNDO_END:
       jam();

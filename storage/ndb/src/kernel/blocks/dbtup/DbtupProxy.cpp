@@ -231,12 +231,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   undo.m_ptr = ptr;
   undo.m_lsn = lsn;
 
-  /*
-   * The timeslice via PGMAN/5 gives LGMAN a chance to overwrite the
-   * data pointed to by ptr.  So save it now and do not use ptr.
-   */
   ndbrequire(undo.m_len <= MAX_UNDO_DATA);
-  memcpy(undo.m_data, undo.m_ptr, undo.m_len << 2);
 
   /**
    * All the logic about when to stop executing the UNDO log
@@ -527,27 +522,23 @@ DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
 }
 
 void
-DbtupProxy::disk_restart_undo_send_next(Signal *signal)
+DbtupProxy::disk_restart_undo_send_next(Signal *signal, Uint32 tup_instance)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
   signal->theData[1] = 0; /* Not applied flag */
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
+  signal->theData[2] = tup_instance;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 3, JBB);
 }
 
 void
 DbtupProxy::disk_restart_undo_finish(Signal* signal)
 {
   Proxy_undo& undo = c_proxy_undo;
-
-  if (undo.m_actions & Proxy_undo::SendUndoNext) {
-    jam();
-    disk_restart_undo_send_next(signal);
-  }
-
-  if (undo.m_actions & Proxy_undo::NoExecute) {
-    jam();
-    goto finish;
-  }
+  /**
+   * The instance number of the tup instance the undo record is sent to.
+   * 0 means the undo record is not sent to any LDM or it was sent to all.
+   */
+  Uint32 tup_instance = 0;
 
   if (undo.m_actions & Proxy_undo::GetInstance) {
     jam();
@@ -560,22 +551,50 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
        * Ignore this record since no table with this table id and
        * fragment id is currently existing.
        */
-      disk_restart_undo_send_next(signal);
+      disk_restart_undo_send_next(signal, tup_instance);
       goto finish;
     }
     Uint32 instanceNo = getInstanceFromKey(instanceKey);
-    undo.m_instance_no = instanceNo;
+    tup_instance = undo.m_instance_no = instanceNo;
+  }
+
+  if (undo.m_actions & Proxy_undo::NoExecute) {
+    jam();
+    tup_instance = 0;
+  }
+
+  if (undo.m_actions & Proxy_undo::SendUndoNext) {
+    jam();
+    disk_restart_undo_send_next(signal, tup_instance);
+  }
+
+  if (undo.m_actions & Proxy_undo::NoExecute) {
+    jam();
+    goto finish;
   }
 
   if (!(undo.m_actions & Proxy_undo::SendToAll)) {
     jam();
     ndbrequire(undo.m_instance_no != 0);
     Uint32 i = undo.m_instance_no - 1;
+    DEB_TUP_RESTART(("DBTUP(0) SENDING lsn:%llu type:%u len:%u LDM:%u",
+                            undo.m_lsn,
+                            undo.m_type,
+                            undo.m_len,
+                            undo.m_instance_no));
+
     disk_restart_undo_send(signal, i);
+    tup_instance = undo.m_instance_no;
   } else {
     jam();
     Uint32 i;
     for (i = 0; i < c_workers; i++) {
+      DEB_TUP_RESTART(("DBTUP(0) DbtupProxy SENDING lsn:%llu type:%u "
+          "len:%u LDM:%u",
+          undo.m_lsn,
+          undo.m_type,
+          undo.m_len,
+          i+1));
       disk_restart_undo_send(signal, i);
     }
   }
@@ -596,7 +615,7 @@ DbtupProxy::disk_restart_undo_send(Signal* signal, Uint32 i)
   Proxy_undo& undo = c_proxy_undo;
 
   LinearSectionPtr ptr[3];
-  ptr[0].p = undo.m_data;
+  ptr[0].p = (Uint32 *)undo.m_ptr;
   ptr[0].sz = undo.m_len;
 
   signal->theData[0] = ZDISK_RESTART_UNDO;

@@ -308,6 +308,23 @@ private:
   Uint64 m_records_applied; // Track number of records applied
   Uint64 m_pages_applied; // Track number of pages applied
   NdbMutex *m_client_mutex;
+
+  /**
+   * Index 0 : Total number of pending undo records (All LDMs combined)
+   * Index i(>0) : Number of pending undo records for DBTUP instance i
+   *
+   * The counts are incremented in LGMAN when a
+   * CONTINUEB (ZDISK_RESTART_UNDO) is sent to a single LDM with the required
+   * undo record data.
+   * The counts are decremented in LGMAN when a CONTINUEB is received from
+   * an LDM thread.
+   * Note: The numbers are applicable only to records of type UNDO_TUP_ALLOC,
+   * UNDO_TUP_UPDATE, UNDO_TUP_UPDATE_PART, UNDO_TUP_UPDATE_PART,
+   * UNDO_TUP_FREE and UNDO_TUP_FREE_PART.
+   *
+   */
+  Uint32 m_pending_undo_records[MAX_NDBMT_LQH_WORKERS + 1];
+
   void client_lock(BlockNumber block, int line, SimulatedBlock*);
   void client_unlock(BlockNumber block, int line, SimulatedBlock*);
 

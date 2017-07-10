@@ -108,7 +108,7 @@ protected:
 
   void disk_restart_undo_finish(Signal*);
 
-  void disk_restart_undo_send_next(Signal*);
+  void disk_restart_undo_send_next(Signal*, Uint32);
 
   void disk_restart_undo_send(Signal*, Uint32 i);
 

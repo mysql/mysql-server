@@ -3639,7 +3639,9 @@ private:
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;
 
-  void disk_restart_undo_next(Signal*, Uint32 applied = 0);
+  void disk_restart_undo_next(Signal*,
+                              Uint32 applied = 0,
+                              Uint32 count_pending = 1);
   void disk_restart_undo_lcp(Uint32,
                              Uint32,
                              Uint32 flag,
