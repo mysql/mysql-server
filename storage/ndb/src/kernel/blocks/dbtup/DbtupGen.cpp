@@ -327,12 +327,12 @@ void Dbtup::execCONTINUEB(Signal* signal)
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
     handle.getSection(ssptr, 0);
-    ::copy(c_proxy_undo_data, ssptr);
+    ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);
     disk_restart_undo(signal,
                       lsn,
                       type,
-                      c_proxy_undo_data,
+                      f_undo.m_data,
                       len);
     return;
   }
