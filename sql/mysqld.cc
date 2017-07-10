@@ -9406,8 +9406,6 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
-PSI_mutex_key
-Gtid_set::key_gtid_executed_free_intervals_mutex;
 
 static PSI_mutex_info all_server_mutexes[]=
 {

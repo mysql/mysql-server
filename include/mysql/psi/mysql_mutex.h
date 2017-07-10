@@ -137,13 +137,8 @@
 #define mysql_mutex_init(K, M, A) \
   mysql_mutex_init_with_src(K, M, A, __FILE__, __LINE__)
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 #define mysql_mutex_init_with_src(K, M, A, F, L) \
   inline_mysql_mutex_init(K, M, A, F, L)
-#else
-#define mysql_mutex_init_with_src(K, M, A, F, L) \
-  inline_mysql_mutex_init(M, A, F, L)
-#endif
 
 /**
   @def mysql_mutex_destroy(M)
@@ -204,9 +199,7 @@ inline_mysql_mutex_register(
 
 static inline int
 inline_mysql_mutex_init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-  PSI_mutex_key key,
-#endif
+  PSI_mutex_key key MY_ATTRIBUTE((unused)),
   mysql_mutex_t *that,
   const native_mutexattr_t *attr ,
   const char *src_file MY_ATTRIBUTE((unused)),

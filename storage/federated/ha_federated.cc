@@ -435,9 +435,9 @@ static handler *federated_create_handler(handlerton *hton,
 }
 
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_federated_mutexes[]=
 {
   { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL, 0},

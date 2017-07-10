@@ -564,7 +564,7 @@ Group_member_info_manager(Group_member_info* local_member_info)
   members= new map<string, Group_member_info*>();
   this->local_member_info= local_member_info;
 
-  mysql_mutex_init(key_GR_LOCK_group_info_manager, &update_lock,
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &update_lock,
                    MY_MUTEX_INIT_FAST);
 
   add(local_member_info);
