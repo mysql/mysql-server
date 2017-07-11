@@ -28,10 +28,9 @@ SLEEP(2)
 0
 Bug 25909540 UNINSTALL PLUGIN DAEMON_MEMCACHED MAKE MYSQLD CRASHED
 
- Open connection using perl mysql module
  Connect to the memcached server and do a get
  Uninstall the memcached plugin,with a memcached connection present
- Load the plugin again
+ and load the plugin again.
 DROP TABLE t1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
