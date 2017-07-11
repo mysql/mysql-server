@@ -1761,7 +1761,6 @@ fts_drop_index_tables(
 }
 
 /** Write the default settings to the config table.
-@param[in,out]	trx		transaction
 @param[in]	fts_table	fts table
 @return	DB_SUCCESS or error code. */
 static
@@ -2190,7 +2189,7 @@ fts_create_one_common_table(
 
 /** Check if common tables already exist
 @param[in]	table	table with fts index
-@retrun true on success, false on failure */
+@return true on success, false on failure */
 bool
 fts_check_common_tables_exist(
 	const dict_table_t*	table)

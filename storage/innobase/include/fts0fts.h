@@ -529,7 +529,7 @@ fts_trx_free(
 
 /** Check if common tables already exist
 @param[in]	table	table with fts index
-@retrun true on success, false on failure */
+@return true on success, false on failure */
 bool
 fts_check_common_tables_exist(
 	const dict_table_t*	table);

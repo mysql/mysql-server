@@ -1099,7 +1099,7 @@ LogDDL::insertDeleteSpaceLog(
 }
 
 /** Write a RENAME log record
-@param[in]	id		log id
+@param[in]	trx		transaction
 @param[in]	space_id	tablespace id
 @param[in]	old_file_path	file path after rename
 @param[in]	new_file_path	file path before rename

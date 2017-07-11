@@ -23,7 +23,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file log/log0ddl.h
+@file include/log0ddl.h
 DDL log
 
 Created 12/1/2016 Shaohua Wang

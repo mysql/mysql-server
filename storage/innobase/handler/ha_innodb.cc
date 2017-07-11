@@ -13084,7 +13084,7 @@ template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 
 /** Create an InnoDB table.
 @tparam		Table		dd::Table or dd::Partition
-@parampin,out]	thd		THD object
+@param[in,out]	thd		THD object
 @param[in]	name		Table name, format: "db/table_name"
 @param[in]	form		Table format; columns and index information
 @param[in]	create_info	Create info (including create statement string)
