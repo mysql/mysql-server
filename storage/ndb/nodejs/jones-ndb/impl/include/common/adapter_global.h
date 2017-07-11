@@ -25,8 +25,6 @@
 #define ENABLE_WRAPPER_TYPE_CHECKS 0
 #define UNIFIED_DEBUG 1
 
-#define __STDC_LIMIT_MACROS
-
 #ifdef WIN32
 
 #include <malloc.h>
