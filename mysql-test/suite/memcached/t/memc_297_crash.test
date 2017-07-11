@@ -4,15 +4,6 @@ source include/not_valgrind.inc;
 source include/not_windows.inc;
 source include/have_innodb.inc;
 
---let $perlChecker=$MYSQLTEST_VARDIR/std_data/checkDBI_DBD-mysql.pl
---let $resultFile= $MYSQL_TMP_DIR/dbidbd-mysql.txt
---chmod 0755 $perlChecker
---exec $perlChecker
---source $resultFile
-if (!$dbidbd) {
-       --skip Test needs Perl modules DBI and DBD::mysql
-} 
-
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
@@ -63,17 +54,13 @@ SELECT c1,c2,c21 FROM t1;
 SELECT SLEEP(2);
 
 --echo Bug 25909540 UNINSTALL PLUGIN DAEMON_MEMCACHED MAKE MYSQLD CRASHED
-#This test requires libdbd-perl-mysql module to be installed
 
 #Note:- innodb_api_enable_binlog=1 should be enabled
 perl;
-use DBI;
 use Cache::Memcached;
 
-print "\n Open connection using perl mysql module";
-my $port= $ENV{'MASTER_MYPORT'};
-my $dsn = "DBI:mysql:database=test;host=127.0.0.1;port=$port";
-my $dbh = DBI->connect($dsn, "root","");
+my $port = $ENV{'MASTER_MYPORT'};
+my $client = $ENV{'MYSQL'};
 
 print "\n Connect to the memcached server and do a get";
 my $memd = new Cache::Memcached {
@@ -83,14 +70,16 @@ my $memd = new Cache::Memcached {
 $val = $memd->get("D");
 
 print "\n Uninstall the memcached plugin,with a memcached connection present";
-$dbh->do("UNINSTALL PLUGIN daemon_memcached");
+print "\n and load the plugin again.\n";
 
-print "\n Load the plugin again\n";
-$dbh->do("INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';");
-$dbh->disconnect();
+my $test_sql = "UNINSTALL PLUGIN daemon_memcached;".
+               "INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';";
+
+$cmd="$client --host=127.0.0.1 -P $port -uroot -e\"$test_sql\"";
+system($cmd);
+
 $memd->disconnect_all;
 EOF
-
 
 DROP TABLE t1;
 
