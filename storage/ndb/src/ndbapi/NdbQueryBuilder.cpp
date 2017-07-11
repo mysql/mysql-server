@@ -1089,6 +1089,12 @@ NdbQueryBuilder::prepare(const Ndb *ndb)
   return (def) ? &def->getInterface() : NULL;
 }
 
+const NdbQueryDef*
+NdbQueryBuilder::prepare()
+{
+  return prepare(0);
+}
+
 ////////////////////////////////////////
 // The (hidden) Impl of NdbQueryBuilder
 ////////////////////////////////////////
@@ -2740,7 +2746,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
 {
   const bool isRoot = (getOpNo()==0);
   const bool useNewScanFrag = 
-    ndbd_spj_multifrag_scan(ndb->getMinDbNodeVersion());
+    ndb && (ndbd_spj_multifrag_scan(ndb->getMinDbNodeVersion()));
 
   // This method should only be invoked once.
   assert (!m_isPrepared);
