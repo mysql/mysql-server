@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,8 @@ class StartFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 20 );
+  STATIC_CONST( SignalOldLength = 20 );
+  STATIC_CONST( SignalLength = 21 );
 
   friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
   
@@ -55,6 +56,7 @@ public:
   Uint32 startGci[4];
   Uint32 lastGci[4];
   Uint32 requestInfo;
+  Uint32 nodeRestorableGci;
 };
 
 #undef JAM_FILE_ID

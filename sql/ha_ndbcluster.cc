@@ -1553,12 +1553,27 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 }
 
 
+extern bool
+ndb_fk_util_generate_constraint_string(THD* thd, Ndb *ndb,
+                                       const NdbDictionary::ForeignKey &fk,
+                                       const int child_tab_id,
+                                       const bool print_mock_table_names,
+                                       String &fk_string);
+
+
 /**
-  Override the default get_error_message in order to add the 
-  error message of NDB .
+  Generate error messages when requested by the caller.
+  Fetches the error description from NdbError and print it in the caller's
+  buffer. This function also additionally handles HA_ROW_REF fk errors.
+
+  @param    error             The error code sent by the caller.
+  @param    buf               String buffer to print the error message.
+
+  @retval   true              if the error is permanent
+            false             if its temporary
 */
 
-bool ha_ndbcluster::get_error_message(int error, 
+bool ha_ndbcluster::get_error_message(int error,
                                       String *buf)
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
@@ -1568,9 +1583,76 @@ bool ha_ndbcluster::get_error_message(int error,
   if (!ndb)
     DBUG_RETURN(FALSE);
 
-  const NdbError err= ndb->getNdbError(error);
-  bool temporary= err.status==NdbError::TemporaryError;
-  buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
+  bool temporary = false;
+
+  if(unlikely(error == HA_ERR_NO_REFERENCED_ROW ||
+              error == HA_ERR_ROW_IS_REFERENCED))
+  {
+    /* Error message to be generated from NdbError in latest trans or dict */
+    Thd_ndb *thd_ndb = get_thd_ndb(current_thd);
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    NdbError err;
+    if (thd_ndb->trans != NULL)
+    {
+      err = thd_ndb->trans->getNdbError();
+    }
+    else
+    {
+      //Drop table failure. get error from dictionary.
+      err = dict->getNdbError();
+      DBUG_ASSERT(err.code == 21080);
+    }
+    temporary= (err.status==NdbError::TemporaryError);
+
+    String fk_string;
+    {
+      /* copy default error message to be used on failure */
+      const char* unknown_fk = "Unknown FK Constraint";
+      buf->copy(unknown_fk, (uint32)strlen(unknown_fk), &my_charset_bin);
+    }
+
+    /* fk name of format parent_id/child_id/fk_name */
+    char fully_qualified_fk_name[MAX_ATTR_NAME_SIZE +
+                                 (2*MAX_INT_WIDTH) + 3];
+    /* get the fully qualified FK name from ndb using getNdbErrorDetail */
+    if (ndb->getNdbErrorDetail(err, &fully_qualified_fk_name[0],
+                               sizeof(fully_qualified_fk_name)) == NULL)
+    {
+      DBUG_ASSERT(false);
+      ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_RETURN(temporary);
+    }
+
+    /* fetch the foreign key */
+    NdbDictionary::ForeignKey fk;
+    if (dict->getForeignKey(fk, fully_qualified_fk_name) != 0)
+    {
+      DBUG_ASSERT(false);
+      ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_RETURN(temporary);
+    }
+
+    /* generate constraint string from fk object */
+    if(!ndb_fk_util_generate_constraint_string(current_thd, ndb,
+                                               fk, 0, false,
+                                               fk_string))
+    {
+      DBUG_ASSERT(false);
+      DBUG_RETURN(temporary);
+    }
+
+    /* fk found and string has been generated. set the buf */
+    buf->copy(fk_string);
+    DBUG_RETURN(temporary);
+  }
+  else
+  {
+    /* NdbError code. Fetch error description from ndb */
+    const NdbError err= ndb->getNdbError(error);
+    temporary= err.status==NdbError::TemporaryError;
+    buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
+  }
+
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
   DBUG_RETURN(temporary);
 }
@@ -16784,7 +16866,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
 
   if (THDVAR(thd, join_pushdown) &&
       // Check for online upgrade/downgrade.
-      ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
+      ndbd_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
     bool pushed_something = false;
     ndb_pushed_builder_ctx pushed_builder(*plan);

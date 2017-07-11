@@ -990,12 +990,28 @@ Ndbd_mem_manager::dump() const
   mt_mem_manager_unlock();
 }
 
+void
+Ndbd_mem_manager::lock()
+{
+  mt_mem_manager_lock();
+}
+
+void
+Ndbd_mem_manager::unlock()
+{
+  mt_mem_manager_unlock();
+}
+
 void*
-Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
+Ndbd_mem_manager::alloc_page(Uint32 type,
+                             Uint32* i,
+                             AllocZone zone,
+                             bool locked)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx <= MM_RG_COUNT);
-  mt_mem_manager_lock();
+  if (!locked)
+    mt_mem_manager_lock();
 
   Uint32 cnt = 1;
   const Uint32 min = 1;
@@ -1006,7 +1022,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
     const Uint32 free = m_resource_limits.get_resource_free(idx);
     if (free < min || (free_shr + free_res < min))
     {
-      mt_mem_manager_unlock();
+      if (!locked)
+        mt_mem_manager_unlock();
       return NULL;
     }
   }
@@ -1019,12 +1036,14 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
       require(spare_taken == cnt);
       release(*i, spare_taken);
       m_resource_limits.check();
-      mt_mem_manager_unlock();
+      if (!locked)
+        mt_mem_manager_unlock();
       *i = RNIL;
       return NULL;
     }
     m_resource_limits.check();
-    mt_mem_manager_unlock();
+    if (!locked)
+      mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
     *i += g_random_start_page_id;
     return m_base_page + *i - g_random_start_page_id;
@@ -1032,7 +1051,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
     return m_base_page + *i;
 #endif
   }
-  mt_mem_manager_unlock();
+  if (!locked)
+    mt_mem_manager_unlock();
   return 0;
 }
 
@@ -1067,11 +1087,12 @@ Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
 }
 
 void
-Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
+Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, bool locked)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx <= MM_RG_COUNT);
-  mt_mem_manager_lock();
+  if (!locked)
+    mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
   i -= g_random_start_page_id;
@@ -1081,15 +1102,21 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i)
   m_resource_limits.post_release_resource_pages(idx, 1);
 
   m_resource_limits.check();
-  mt_mem_manager_unlock();
+  if (!locked)
+    mt_mem_manager_unlock();
 }
 
 void
-Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
+Ndbd_mem_manager::alloc_pages(Uint32 type,
+                              Uint32* i,
+                              Uint32 *cnt,
+                              Uint32 min,
+                              bool locked)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx <= MM_RG_COUNT);
-  mt_mem_manager_lock();
+  if (!locked)
+    mt_mem_manager_lock();
 
   Uint32 req = *cnt;
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
@@ -1108,7 +1135,8 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
     if (req < min)
     {
       *cnt = 0;
-      mt_mem_manager_unlock();
+      if (!locked)
+        mt_mem_manager_unlock();
       return;
     }
   }
@@ -1129,18 +1157,20 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
   }
   * cnt = req;
   m_resource_limits.check();
-  mt_mem_manager_unlock();
+  if (!locked)
+    mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
   *i += g_random_start_page_id;
 #endif
 }
 
 void
-Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
+Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx <= MM_RG_COUNT);
-  mt_mem_manager_lock();
+  if (!locked)
+    mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
   i -= g_random_start_page_id;
@@ -1149,7 +1179,8 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt)
   release(i, cnt);
   m_resource_limits.post_release_resource_pages(idx, cnt);
   m_resource_limits.check();
-  mt_mem_manager_unlock();
+  if (!locked)
+    mt_mem_manager_unlock();
 }
 
 #ifdef UNIT_TEST

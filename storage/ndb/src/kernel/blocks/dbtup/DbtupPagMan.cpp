@@ -157,9 +157,11 @@ void Dbtup::allocConsPages(EmulatedJamBuffer* jamBuf,
   return;
 }//allocConsPages()
 
-void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo) 
+void Dbtup::returnCommonArea(Uint32 retPageRef,
+                             Uint32 retNo,
+                             bool locked)
 {
-  m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
+  m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo, locked);
 
   // Count number of allocated pages
   m_pages_allocated -= retNo;

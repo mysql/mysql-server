@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,10 @@ struct RestoreLcpReq
   Uint32 tableId;
   Uint32 fragmentId;
   Uint32 lcpId;
-  STATIC_CONST( SignalLength = 6 );
+  Uint32 restoreGcpId;
+  Uint32 maxGciCompleted;
+  Uint32 createGci;
+  STATIC_CONST( SignalLength = 9 );
 };
 
 struct RestoreLcpRef
@@ -56,7 +59,11 @@ struct RestoreLcpConf
 {
   Uint32 senderData;
   Uint32 senderRef;
-  STATIC_CONST( SignalLength = 2 );
+  Uint32 restoredLcpId;
+  Uint32 restoredLocalLcpId;
+  Uint32 maxGciCompleted;
+  Uint32 afterRestore;
+  STATIC_CONST( SignalLength = 6 );
 };
 
 struct RestoreContinueB {

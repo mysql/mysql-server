@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
           ScanFragReq::getReorgFlag(sig->requestInfo));
   fprintf(output, " corr: %u",
           ScanFragReq::getCorrFactorFlag(sig->requestInfo));
+  fprintf(output, " mfrag: %u",
+          ScanFragReq::getMultiFragFlag(sig->requestInfo));
   fprintf(output, " stat: %u",
           ScanFragReq::getStatScanFlag(sig->requestInfo));
   fprintf(output, " ni: %u",

@@ -255,7 +255,13 @@ public:
   NdbColumnImpl * getColumn(const char * name);
   const NdbColumnImpl * getColumn(unsigned attrId) const;
   const NdbColumnImpl * getColumn(const char * name) const;
-  
+
+private:
+  NdbColumnImpl * getColumnByHash(const char * name) const;
+  void dumpColumnHash() const;
+  bool checkColumnHash() const;
+public:
+
   /**
    * Index only stuff
    */
@@ -965,7 +971,7 @@ public:
 
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
-  int listIndexes(List& list, Uint32 indexId);
+  int listIndexes(List& list, Uint32 indexId, bool fullyQualified=false);
   int listDependentObjects(List& list, Uint32 tableId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);
@@ -1235,79 +1241,28 @@ NdbTableImpl::matchDb(const char * name, size_t len) const
     memcmp(name, m_internalName.c_str(), len) == 0;
 }
 
-inline
-Uint32
-Hash( const char* str ){
-  Uint32 h = 0;
-  size_t len = strlen(str);
-  while(len >= 4){
-    h = (h << 5) + h + str[0];
-    h = (h << 5) + h + str[1];
-    h = (h << 5) + h + str[2];
-    h = (h << 5) + h + str[3];
-    len -= 4;
-    str += 4;
-  }
-  
-  switch(len){
-  case 3:
-    h = (h << 5) + h + *str++;
-  case 2:
-    h = (h << 5) + h + *str++;
-  case 1:
-    h = (h << 5) + h + *str++;
-  }
-  return h + h;
-}
-
+static const Uint32 ColNameHashThresh = 5;
 
 inline
 NdbColumnImpl *
 NdbTableImpl::getColumn(const char * name){
-
-  Uint32 sz = m_columns.size();
-  NdbColumnImpl** cols = m_columns.getBase();
-  const Uint32 * hashtable = m_columnHash.getBase();
-
-  if(sz > 5 && false){
-    Uint32 hashValue = Hash(name) & 0xFFFE;
-    Uint32 bucket = hashValue & m_columnHashMask;
-    bucket = (bucket < sz ? bucket : bucket - sz);
-    hashtable += bucket;
-    Uint32 tmp = * hashtable;
-    if((tmp & 1) == 1 ){ // No chaining
-      sz = 1;
-    } else {
-      sz = (tmp >> 16);
-      hashtable += (tmp & 0xFFFE) >> 1;
-      tmp = * hashtable;
-    }
-    do {
-      if(hashValue == (tmp & 0xFFFE)){
-	NdbColumnImpl* col = cols[tmp >> 16];
-	if(strncmp(name, col->m_name.c_str(), col->m_name.length()) == 0){
-	  return col;
-	}
-      }
-      hashtable++;
-      tmp = * hashtable;
-    } while(--sz > 0);
-#if 0
-    Uint32 dir = m_columnHash[bucket];
-    Uint32 pos = bucket + ((dir & 0xFFFE) >> 1); 
-    Uint32 cnt = dir >> 16;
-    ndbout_c("col: %s hv: %x bucket: %d dir: %x pos: %d cnt: %d tmp: %d -> 0", 
-	     name, hashValue, bucket, dir, pos, cnt, tmp);
-#endif
-    return 0;
-  } else {
-    for(Uint32 i = 0; i<sz; i++){
+  const Uint32 sz = m_columns.size();
+  
+  if (sz > ColNameHashThresh)
+  {
+    return getColumnByHash(name);
+  } 
+  else 
+  {
+    NdbColumnImpl** cols = m_columns.getBase();
+    for(Uint32 i = 0; i<sz; i++)
+    {
       NdbColumnImpl* col = * cols++;
       if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
 	return col;
     }
   }
-  return 0;
+  return NULL;
 }
 
 inline
@@ -1316,20 +1271,28 @@ NdbTableImpl::getColumn(unsigned attrId) const {
   if(m_columns.size() > attrId){
     return m_columns[attrId];
   }
-  return 0;
+  return NULL;
 }
 
 inline
 const NdbColumnImpl *
 NdbTableImpl::getColumn(const char * name) const {
   Uint32 sz = m_columns.size();
-  NdbColumnImpl* const * cols = m_columns.getBase();
-  for(Uint32 i = 0; i<sz; i++, cols++){
-    NdbColumnImpl* col = * cols;
-    if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
-      return col;
+  
+  if (sz > ColNameHashThresh)
+  {
+    return getColumnByHash(name);
   }
-  return 0;
+  else
+  {
+    NdbColumnImpl* const * cols = m_columns.getBase();
+    for(Uint32 i = 0; i<sz; i++, cols++){
+      NdbColumnImpl* col = * cols;
+      if(col != 0 && strcmp(name, col->m_name.c_str()) == 0)
+        return col;
+    }
+    return NULL;
+  }
 }
 
 inline

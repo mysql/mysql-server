@@ -81,7 +81,7 @@ set ndb_deferred_constraints = 1;
 begin;
 update t1 set b = a + 1;
 commit;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `fkname` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE RESTRICT)
 begin;
 update t1 set b = a + 1;
 update t1 set b = null where a = @maxa;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 
 #include <ndb_global.h>
 #include "tuppage.hpp"
+#include "EventLogger.hpp"
+
+extern EventLogger *g_eventLogger;
 
 #define JAM_FILE_ID 427
 
@@ -34,33 +37,46 @@
  *              L is len of entry
  *              P is pos of entry
  */
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#define loc_assert(x) \
+{ \
+  if (!(x)) \
+  { \
+    g_eventLogger->info("Crash on page_idx = %u", page_idx); \
+    require((x)); \
+  } \
+}
+#define use_assert
+#else
+#define loc_assert(x)
+#endif
 
 Uint32
 Tup_fixsize_page::alloc_record()
 {
-  assert(free_space);
   Uint32 page_idx = next_free_index;
-  assert(page_idx + 1 < DATA_WORDS);
+  loc_assert(free_space);
+  loc_assert(page_idx + 1 < DATA_WORDS);
 
-#ifdef VM_TRACE
+#ifdef use_assert
   Uint32 prev = m_data[page_idx] >> 16;
 #endif
   Uint32 next = m_data[page_idx] & 0xFFFF;
 
-  assert(prev == 0xFFFF);
-  assert(m_data[page_idx + 1] == FREE_RECORD);
+  loc_assert(prev == 0xFFFF);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD);
   
-  m_data[page_idx + 1] = 0;
+  m_data[page_idx + 1] &= (Uint32)~FREE_RECORD;
   if (next != 0xFFFF)
   {
-    assert(free_space > 1);
+    loc_assert(free_space > 1);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == page_idx);
+    loc_assert((nextP >> 16) == page_idx);
     m_data[next] = 0xFFFF0000 | (nextP & 0xFFFF);
   }
   else
   {
-    assert(free_space == 1);
+    loc_assert(free_space == 1);
   }
   
   next_free_index = next;
@@ -71,13 +87,14 @@ Tup_fixsize_page::alloc_record()
 Uint32
 Tup_fixsize_page::alloc_record(Uint32 page_idx)
 {
-  assert(page_idx + 1 < DATA_WORDS);
-  if (likely(free_space && m_data[page_idx + 1] == FREE_RECORD))
+  loc_assert(page_idx + 1 < DATA_WORDS);
+  if (likely(free_space &&
+             (m_data[page_idx + 1] & FREE_RECORD) == FREE_RECORD))
   {
     Uint32 prev = m_data[page_idx] >> 16;
     Uint32 next = m_data[page_idx] & 0xFFFF;
     
-    assert(prev != 0xFFFF || (next_free_index == page_idx));
+    loc_assert(prev != 0xFFFF || (next_free_index == page_idx));
     if (prev == 0xFFFF)
     {
       next_free_index = next;
@@ -94,7 +111,7 @@ Tup_fixsize_page::alloc_record(Uint32 page_idx)
       m_data[next] = (prev << 16) | (nextP & 0xFFFF);
     }
     free_space --;
-    m_data[page_idx + 1] = 0;
+    m_data[page_idx + 1] &= (Uint32)~FREE_RECORD;
     return page_idx;
   }
   return ~0;
@@ -105,27 +122,27 @@ Tup_fixsize_page::free_record(Uint32 page_idx)
 {
   Uint32 next = next_free_index;
   
-  assert(page_idx + 1 < DATA_WORDS);
-  assert(m_data[page_idx + 1] != FREE_RECORD);
+  loc_assert(page_idx + 1 < DATA_WORDS);
+  loc_assert((m_data[page_idx + 1] & FREE_RECORD) != FREE_RECORD);
 
   if (next == 0xFFFF)
   {
-    assert(free_space == 0);
+    loc_assert(free_space == 0);
   }
   else
   {
-    assert(free_space);
-    assert(next + 1 < DATA_WORDS);
+    loc_assert(free_space);
+    loc_assert(next + 1 < DATA_WORDS);
     Uint32 nextP = m_data[next];
-    assert((nextP >> 16) == 0xFFFF);
+    loc_assert((nextP >> 16) == 0xFFFF);
     m_data[next] = (page_idx << 16) | (nextP & 0xFFFF);
-    assert(m_data[next + 1] == FREE_RECORD);
+    loc_assert((m_data[next + 1] & FREE_RECORD) == FREE_RECORD);
   }
 
   next_free_index = page_idx;
   m_data[page_idx] = 0xFFFF0000 | next;
-  m_data[page_idx + 1] = FREE_RECORD;
-
+  m_data[page_idx + 1] |= FREE_RECORD;
+  
   return ++free_space;
 }
 
@@ -312,7 +329,7 @@ Tup_varsize_page::free_record(Uint32 page_idx, Uint32 chain)
   Uint32 entry_len= (index_word & LEN_MASK) >> LEN_SHIFT;
   assert(chain == 0 || chain == CHAIN);
   assert((index_word & CHAIN) == chain);
-#ifdef VM_TRACE
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   memset(m_data + entry_pos, 0xF2, 4*entry_len);
 #endif
   if (page_idx + 1 == high_index) {

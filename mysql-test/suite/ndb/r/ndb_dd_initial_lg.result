@@ -1,9 +1,9 @@
-select reserved, used from ndbinfo.resources
+select reserved, (used>reserved) from ndbinfo.resources
 where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
-reserved	used
-640	692
-640	692
+reserved	(used>reserved)
+640	1
+640	1
 select logfile_group_name, extra from information_schema.files
 where file_type = 'UNDO LOG' and file_name is null;
 logfile_group_name	extra

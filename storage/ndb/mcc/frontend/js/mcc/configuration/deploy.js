@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -269,9 +269,9 @@ function verifyConfiguration() {
     // Alert if NoOfReplicas==2 for an odd number of data nodes
     var noOfReplicas = getEffectiveTypeValue(processFamilyMap['data'], 'NoOfReplicas');
     if (processFamilyInstances('data').length % 2 == 1 && noOfReplicas == 2) {
-	alert("With an uneven number of data nodes, the number of replicas " +
-	      "(NoOfReplicas) must be set to 1");
-	return false;
+        alert("With an odd number of data nodes, the number of replicas " +
+        "(NoOfReplicas) must be set to 1");
+        return false;
     }
 
     // Do verification for each host individually
@@ -460,6 +460,7 @@ function getConfigurationFile(process) {
     // Structure to return
     var configFile = {
         host: hostItem.getValue("name"),
+        fqdn: hostItem.getValue("fqdn"), //don't think it's really necessary here.
         path: mcc.util.unixPath(getEffectiveInstanceValue(process, "DataDir")),
         name: null,
         html:  "#<br>",
@@ -688,14 +689,15 @@ function getEffectiveInstalldir(host) {
     return host.getValue("installdir");
 }
 
-// Get the connect string for this cluster
+// Get the connect string for this cluster, use FQDN/internalIP and not hostname.
 function getConnectstring() {
     var connectString = "";
     var mgmds = processTypeInstances("ndb_mgmd");
     // Loop over all ndb_mgmd processes
     for (var i in mgmds) {
         var port = getEffectiveInstanceValue(mgmds[i], "Portnumber");
-        var host = clusterItems[mgmds[i].getValue("host")].getValue("name");
+        // Use internal IP instead of name:
+        var host = clusterItems[mgmds[i].getValue("host")].getValue("internalIP");
         connectString += host + ":" + port + ",";
     }
     return connectString;
@@ -744,14 +746,14 @@ function removeProgressDialog() {
 
 function isFirstStart(nodeid) {
 //Mysqld shall be started for the first time if the file does not exist in datadir
-   for (i = 0; i < fileExists.length; i++) { 
-      if (fileExists[i].nodeid == nodeid) {
-         mcc.util.dbg("IsFirstStart ("+nodeid+") returns " + fileExists[i].fileExist);
-         return !fileExists[i].fileExist;
-      }
-   }
-   mcc.util.dbg("isFirstStart failed - should never happen");
-   return false;
+    for (i = 0; i < fileExists.length; i++) { 
+        if (fileExists[i].nodeid == nodeid) {
+            mcc.util.dbg("IsFirstStart ("+nodeid+") returns " + fileExists[i].fileExist);
+            return !fileExists[i].fileExist;
+        }
+    }
+    mcc.util.dbg("isFirstStart failed - should never happen");
+    return false;
 }
 
 function getCheckCommands() {
@@ -815,7 +817,7 @@ function getCreateCommands() {
             // Get datadir and dir separator
             var datadir = mcc.util.unixPath(
                     mcc.util.terminatePath(
-                            getEffectiveInstanceValue(process, "DataDir")));
+                        getEffectiveInstanceValue(process, "DataDir")));
             var dirSep = mcc.util.dirSep(datadir);
 
             // Push the create datadir command unless mysqld
@@ -925,7 +927,7 @@ function getStartProcessCommands(process) {
     var datadir = mcc.util.unixPath(datadir_);
     var basedir = getEffectiveInstalldir(hostItem);
                                     
-    // Get connect string
+    // Get connect string; FQDN and not hostname.
     var connectString = getConnectstring();
 
     var sc = new ProcessCommand(
@@ -950,24 +952,24 @@ function getStartProcessCommands(process) {
             ss.addopt("start");
             ss.addopt("N"+nodeid);
             ss.progTitle = "Starting service N"+nodeid;
-	    ss.isDone = isDoneFunction;
+            ss.isDone = isDoneFunction;
             scmds.push(ss);
         } else {
-	    sc.isDone = isDoneFunction;
+            sc.isDone = isDoneFunction;
         }
         
         sc.addopt("--initial");
         sc.addopt("--ndb-nodeid", process.getValue("NodeId"));
 
-	if (isWin) {
+        if (isWin) {
             sc.addopt("--config-dir", mcc.util.unixPath(datadir));
             sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
                       "config.ini");
-	} else {
+        } else {
             sc.addopt("--config-dir", mcc.util.unixPath(datadir));
             sc.addopt("--config-file", mcc.util.unixPath(datadir) + 
                       "config.ini");
-	}
+        }
 
         return scmds;
     } 
@@ -990,7 +992,7 @@ function getStartProcessCommands(process) {
             lastNdbdCmd = ss;
             scmds.push(ss);
         } else {
-	    sc.isDone = isDoneFunction; 
+            sc.isDone = isDoneFunction; 
             lastNdbdCmd = sc;
         }
         
@@ -1004,32 +1006,33 @@ function getStartProcessCommands(process) {
         // Change isDone for the last data node to make it wait for all
         // ndbds to become STARTED
         lastNdbdCmd.isDone = function () {
-	    for (var i in ndbdids) {
-	        if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
-	            mcc.util.dbg("Still waiting for node "+ndbdids[i]);
-	            return false; 
-	        }
-	    }
-	    return true;
+            for (var i in ndbdids) {
+               if (mcc.gui.getStatii(ndbdids[i]) != "STARTED") { 
+                    mcc.util.dbg("Still waiting for node "+ndbdids[i]);
+                    return false; 
+                }
+            }
+            return true;
         };
 
         var isDoneFunction = function () { return mcc.gui.getStatii(nodeid) == "CONNECTED"; };
 
         if (isFirstStart(nodeid)) { 
-        // First start of mysqld
-           var fsc = new ProcessCommand(
-                     host, 
-                     basedir,
-                     "mysqld"+(isWin?".exe":""));
-           fsc.addopt("--defaults-file", datadir+"my.cnf");
-           fsc.addopt("--initialize-insecure");
-           fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
-           scmds.unshift(fsc);
+            // First start of mysqld
+            var fsc = new ProcessCommand(
+                      host, 
+                      basedir,
+                      "mysqld"+(isWin?".exe":""));
+            fsc.addopt("--defaults-file", datadir+"my.cnf");
+            fsc.addopt("--initialize-insecure");
+            fsc.progTitle = "Initializing (insecure) node "+ nodeid +" ("+ptype+")";
+            mcc.util.dbg("Initializing (insecure) node " + nodeid + " ("+ptype+")");
+            scmds.unshift(fsc);
         }
       
         // inside cmd.exe for redirect of stdin (FIXME: not sure if that 
         // will work on Cygwin
-        if (isWin) {		
+        if (isWin) {
             sc.addopt("--install");
             sc.addopt("N"+nodeid);
             sc.addopt("--defaults-file", datadir+"my.cnf");
@@ -1054,7 +1057,7 @@ function getStartProcessCommands(process) {
             sc.msg.procCtrl.getStd = false;
             sc.msg.procCtrl.daemonWait = 10;
             sc.progTitle = "Starting node "+nodeid+" ("+ptype+")";
-	    sc.isDone = isDoneFunction;            
+            sc.isDone = isDoneFunction;            
         }
 
         return scmds;
@@ -1085,10 +1088,10 @@ function getStopProcessCommands(process) {
         sc.addopt("--execute", "shutdown");
         sc.progTitle = "Running ndb_mgm -e shutdown to take down cluster";
 
-	if(!isWin) {
-	  sc.isDone = function () 
-	    { return mcc.gui.getStatii(nodeid) =="UNKNOWN" };
-	}
+        if(!isWin) {
+          sc.isDone = function () 
+            { return mcc.gui.getStatii(nodeid) =="UNKNOWN" };
+        }
         stopCommands.push(sc);
     }
 
@@ -1102,10 +1105,10 @@ function getStopProcessCommands(process) {
             getEffectiveInstanceValue(process, "Socket")));
         sc.progTitle = "mysqldadmin shutdown on node "+nodeid;
         sc.nodeid = nodeid;
-	if (!isWin) {
-	  sc.isDone = function () 
-	    { return mcc.gui.getStatii(nodeid) == "NO_CONTACT" };
-	}
+        if (!isWin) {
+          sc.isDone = function () 
+            { return mcc.gui.getStatii(nodeid) == "NO_CONTACT" };
+        }
         stopCommands.push(sc);
     }
  
@@ -1122,24 +1125,24 @@ function getStopProcessCommands(process) {
         rsc = new ProcessCommand(host, basedir, 
                                  ptypeItem.getValue("name")+(isWin?".exe":""));
        
-		rsc.check_result = function (rep) { 
-			if (rep.body.out.search(/Service successfully removed/) != -1 ||
-				rep.body.out.search(/The service doesn't exist/) != -1) {
-				return "ok";
-			}
-			if (rep.body.out.search(/Failed to remove the service/) != -1) {
-				return "retry";
-			}
-			return "error";
-		};
-		if(ptype == "mysqld") {
+        rsc.check_result = function (rep) { 
+            if (rep.body.out.search(/Service successfully removed/) != -1 ||
+                rep.body.out.search(/The service doesn't exist/) != -1) {
+                return "ok";
+            }
+            if (rep.body.out.search(/Failed to remove the service/) != -1) {
+                return "retry";
+            }
+            return "error";
+        };
+        if(ptype == "mysqld") {
             rsc.addopt("--remove");
             rsc.addopt("N"+nodeid);
         } else {
             rsc.addopt("--remove", "N"+nodeid);
         }
         rsc.progTitle = "Removing service N"+nodeid;
-		rsc.msg.isCommand = true;
+        rsc.msg.isCommand = true;
         stopCommands.push(rsc);
     }
 
@@ -1321,76 +1324,81 @@ function startCluster() {
     
   deployCluster(true, 10).
     then(function (deployed) {
-	if (!deployed) {
-	  mcc.util.dbg("Not starting cluster due to previous error");
-	  return;
-	}
+        if (!deployed) {
+          mcc.util.dbg("Not starting cluster due to previous error");
+          dijit.byId("configWizardStopCluster").setDisabled(true);
+          dijit.byId("configWizardStartCluster").setDisabled(false);
+          dijit.byId("configWizardDeployCluster").setDisabled(false);
+          return;
+        }
 
         //Check for files. If file exists, initialization will be skipped
         var checkCmds = getCheckCommands();
-
         sendFileOps(checkCmds).then(function () {        
-	
-	mcc.util.dbg("Starting cluster...");
-	var commands = _getClusterCommands(getStartProcessCommands, 
-					   ["management", "data", "sql"]);
-	var currseq = 0;
+            mcc.util.dbg("Starting cluster...");
+            var commands = _getClusterCommands(getStartProcessCommands, 
+                               ["management", "data", "sql"]);
+            var currseq = 0;
 
-	function onTimeout() {
-	  if (commands[currseq].isDone()) {
-	    ++currseq;
-	    updateProgressAndStartNext();
-	  } else {
-	    console.log(commands[currseq].isDone);
-	    mcc.util.dbg("returned false for "+commands[currseq].progTitle)
-	    timeout = setTimeout(onTimeout, 2000);
-	  }	    
-	}
-	  
-	function onError(errMsg) {
-          alert(errMsg);
-	  removeProgressDialog();
-	  waitCondition.resolve();
-	}
+            function onTimeout() {
+              if (commands[currseq].isDone()) {
+                ++currseq;
+                updateProgressAndStartNext();
+              } else {
+                console.log(commands[currseq].isDone);
+                mcc.util.dbg("returned false for "+commands[currseq].progTitle)
+                timeout = setTimeout(onTimeout, 2000);
+              }
+            }
 
-	function onReply(rep) {
-	  mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-	  console.log(rep.body);
-	  // Start status polling timer after mgmd has been started
-	  // Ignore errors since it may not be available right away           
-	  if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
-	  onTimeout();
-	}
-        
-        function updateProgressAndStartNext() {
-	  if (currseq >= commands.length) {
-	    mcc.util.dbg("Cluster started");
-	    updateProgressDialog("Starting cluster", 
-				 "Cluster started", 
-				 {progress: "100%"});
-	    alert("Cluster started");
-	    removeProgressDialog();
-	    waitCondition.resolve();
-	    return;
-	  }
-	  mcc.util.dbg("commands["+currseq+"].progTitle: " + 
-		       commands[currseq].progTitle);
-	  updateProgressDialog("Starting cluster",
-			       commands[currseq].progTitle,
-			       {maximum: commands.length, 
-				   progress: currseq});
-	  
-	  mcc.server.doReq("executeCommandReq", 
-			   {command: commands[currseq].msg}, cluster,
-			   onReply, onError);
-	  
-	} 
-	// Initiate startup sequence by calling onReply
-	updateProgressAndStartNext();
-      });
-});
+            function onError(errMsg) {
+                alert(errMsg);
+                removeProgressDialog();
+                dijit.byId("configWizardStopCluster").setDisabled(false);
+              
+                waitCondition.resolve();
+            }
+
+            function onReply(rep) {
+              mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
+              console.log(rep.body);
+              // Start status polling timer after mgmd has been started
+              // Ignore errors since it may not be available right away           
+              if (currseq == 0) { mcc.gui.startStatusPoll(false); } 
+              onTimeout();
+            }
+                
+            function updateProgressAndStartNext() {
+              if (currseq >= commands.length) {
+                mcc.util.dbg("Cluster started");
+                updateProgressDialog("Starting cluster", 
+                         "Cluster started", 
+                         {progress: "100%"});
+                alert("Cluster started");
+                removeProgressDialog();
+                dijit.byId("configWizardStopCluster").setDisabled(false);
+                dijit.byId("configWizardStartCluster").setDisabled(true);
+                dijit.byId("configWizardDeployCluster").setDisabled(true);
+                waitCondition.resolve();
+                return;
+              }
+              mcc.util.dbg("commands["+currseq+"].progTitle: " + 
+                       commands[currseq].progTitle);
+              updateProgressDialog("Starting cluster",
+                           commands[currseq].progTitle,
+                           {maximum: commands.length, 
+                           progress: currseq});
+
+              mcc.server.doReq("executeCommandReq", 
+                       {command: commands[currseq].msg}, cluster,
+                       onReply, onError);
+            } 
+            // Initiate startup sequence by calling onReply
+            updateProgressAndStartNext();
+          });
+    });
   
-  return waitCondition;
+    return waitCondition;
 }
 
 // Stop cluster
@@ -1407,71 +1415,78 @@ function stopCluster() {
 
     function onTimeout() {
       if (commands[currseq].isDone()) {
-	++currseq;
-	updateProgressAndStopNext();
+        ++currseq;
+        updateProgressAndStopNext();
       } else {
-	timeout = setTimeout(onTimeout, 2000);
-      }	    
+        timeout = setTimeout(onTimeout, 2000);
+      }
     }
 
     function onError(errMsg, errReply) {
         mcc.util.dbg("stopCluster failed: "+errMsg);
-        alert("Error occured while stopping cluster: `"+errMsg+
-	      "' (Press OK to continue)");
+        alert("Error occurred while stopping cluster: `"+errMsg+
+          "' (Press OK to continue)");
         ++errorReplies;
 
         var cwpb = dijit.byId("configWizardProgressBar");
         var visualTile = dojo.query(".dijitProgressBarTile", cwpb.domNode)[0];
         visualTile.style.backgroundColor = "#FF3366";
-	++currseq;
+        ++currseq;
         updateProgressAndStopNext();
     }
 
     function onReply(rep) {
       mcc.util.dbg("Got reply for: "+commands[currseq].progTitle);
-	  var cc = commands[currseq];
-	  console.log(rep.body, cc)
-	  if (cc.msg.isCommand) {
-		result = cc.check_result(rep);
-		if (result == "retry") {
-			alert("check_status returned 'retry', retry in 2 sec...");
-			setTimeout(updateProgressAndStopNext, 2000);
-			return;
-		}
-		if (result == "error") {
-			onError(rep.body.out, rep);
-			return;
-		}
-	  }
+      var cc = commands[currseq];
+      console.log(rep.body, cc)
+      if (cc.msg.isCommand) {
+        result = cc.check_result(rep);
+        if (result == "retry") {
+            mcc.util.dbg("Retrying: "+commands[currseq].progTitle);
+            setTimeout(updateProgressAndStopNext, 2000);
+            return;
+        }
+        if (result == "error") {
+            onError(rep.body.out, rep);
+            dijit.byId("configWizardStopCluster").setDisabled(true);
+            dijit.byId("configWizardStartCluster").setDisabled(false);
+            dijit.byId("configWizardDeployCluster").setDisabled(false);
+            return;
+        }
+      }
       onTimeout();
     }
     
     function updateProgressAndStopNext() {
       if (currseq >= commands.length) {
-	var message = errorReplies ? 
-	  "Stop procedure has completed, but " + errorReplies + " out of " + 
-	  commands.length + " commands failed" : 
-	  "Cluster stopped successfully";
+        var message = errorReplies ? 
+          "Stop procedure has completed, but " + errorReplies + " out of " + 
+          commands.length + " commands failed" : 
+          "Cluster stopped successfully";
 
-	mcc.util.dbg(message);
-	updateProgressDialog(message, "", {progress: "100%"});
-	alert(message);
-	removeProgressDialog();
-	mcc.gui.stopStatusPoll();
-	waitCondition.resolve();
-	return;
+        mcc.util.dbg(message);
+        updateProgressDialog(message, "", {progress: "100%"});
+        alert(message);
+        dijit.byId("configWizardStopCluster").setDisabled(true);
+        dijit.byId("configWizardStartCluster").setDisabled(false);
+        dijit.byId("configWizardDeployCluster").setDisabled(false);
+        removeProgressDialog();
+        mcc.gui.stopStatusPoll();
+        waitCondition.resolve();
+        return;
       }
 
       mcc.util.dbg("Stopping cluster: `" + commands[currseq].progTitle + "'");
       updateProgressDialog("Stopping cluster" + 
-			   (errorReplies ? 
-			    " (" + errorReplies + " failed command(s))":
-			    ""), 
-			   commands[currseq].progTitle, 
-			   {maximum: commands.length, progress: currseq });
+               (errorReplies ? 
+                " (" + errorReplies + " failed command(s))":
+                ""), 
+               commands[currseq].progTitle, 
+               {maximum: commands.length, progress: currseq });
+
       mcc.server.doReq("executeCommandReq", 
-		       {command: commands[currseq].msg}, cluster, 
-		       onReply, onError);
+               {command: commands[currseq].msg}, cluster, 
+               onReply, onError);
     }
 
     // Initiate stop sequence

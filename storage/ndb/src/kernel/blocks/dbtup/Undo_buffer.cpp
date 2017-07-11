@@ -50,7 +50,7 @@ Undo_buffer::Undo_buffer(Ndbd_mem_manager* mm)
 }
 
 Uint32 *
-Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
+Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words, bool locked)
 {
   UndoPage* page;
   assert(words);
@@ -61,7 +61,8 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   {
     page= (UndoPage*)m_mm->alloc_page(RT_DBTUP_COPY_PAGE,
                                       &m_first_free,
-                                      Ndbd_mem_manager::NDB_ZONE_LE_32);
+                                      Ndbd_mem_manager::NDB_ZONE_LE_32,
+                                      locked);
     if(page == 0)
       return 0;
     page->m_words_used= 0;
@@ -74,7 +75,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   if (words + pos > UndoPage::DATA_WORDS)
   {
     m_first_free= RNIL;
-    return alloc_copy_tuple(dst, words);
+    return alloc_copy_tuple(dst, words, locked);
   }
   
   dst->m_page_no = m_first_free;

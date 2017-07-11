@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -25,6 +25,8 @@
 #define ENABLE_WRAPPER_TYPE_CHECKS 0
 #define UNIFIED_DEBUG 1
 
+#define __STDC_LIMIT_MACROS
+
 #ifdef WIN32
 
 #include <malloc.h>
@@ -36,7 +38,6 @@
 #define strtoll _strtoi64
 #define strtoull _strtoui64
 #define isfinite _finite
-#define rint(X) floor(.5+X)
 
 #else
 #include <unistd.h>

@@ -116,6 +116,7 @@ public:
 	Uint32 m_first_free_extent;
 	Uint32 m_lcp_free_extent_head; // extents freed but not LCP
 	Uint32 m_lcp_free_extent_tail;
+        Uint32 m_lcp_free_extent_count;
 	Uint32 m_offset_data_pages;    // 1(zero) + extent header pages
 	Uint32 m_data_pages;
 	Uint32 m_used_extent_cnt;
@@ -152,8 +153,8 @@ public:
   };
 
   typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
-  typedef DLList<Datafile, Datafile_pool> Datafile_list;
-  typedef LocalDLList<Datafile, Datafile_pool> Local_datafile_list;
+  typedef DLFifoList<Datafile, Datafile_pool> Datafile_list;
+  typedef LocalDLFifoList<Datafile, Datafile_pool> Local_datafile_list;
   typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
 
   struct Tablespace
@@ -184,6 +185,10 @@ public:
 
     Datafile_list::Head m_full_files; // Files wo/ free space
     Datafile_list::Head m_meta_files; // Files being created/dropped
+
+    // Total extents of a tablespace (sum of data page extents of all files)
+    Uint64 m_total_extents;
+    Uint64 m_total_used_extents;  // Total extents used from a tablespace
     
     Uint32 nextHash;
     Uint32 prevHash;
@@ -212,6 +217,7 @@ private:
   Tablespace_pool m_tablespace_pool;
   
   bool m_lcp_ongoing;
+  BlockReference m_end_lcp_ref;
   Datafile_hash m_file_hash;
   Tablespace_list m_tablespace_list;
   Tablespace_hash m_tablespace_hash;
@@ -263,6 +269,7 @@ private:
                                         Uint32 extent_size,
                                         Uint64 data_pages,
                                         bool v2);
+  void sendEND_LCPCONF(Signal*);
 };
 
 inline
@@ -440,11 +447,14 @@ Tablespace_client::alloc_page_from_extent(Local_key* key, Uint32 bits)
   req->request.tablespace_id = m_tablespace_id;
   m_tsman->execALLOC_PAGE_REQ(m_signal);
 
-  if(req->reply.errorCode == 0){
+  if(req->reply.errorCode == 0)
+  {
     *key = req->key;
     D("alloc_page_from_extent" << V(*key) << V(bits) << V(req->bits));
     return req->bits;
-  } else {
+  }
+  else
+  {
     return -(int)req->reply.errorCode;
   }
 }

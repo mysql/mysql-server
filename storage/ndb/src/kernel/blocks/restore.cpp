@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/FsRemoveReq.hpp>
 #include <signaldata/RestoreImpl.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/KeyInfo.hpp>
@@ -28,6 +29,7 @@
 #include <signaldata/LqhKey.hpp>
 #include <AttributeHeader.hpp>
 #include <md5_hash.hpp>
+#include <backup/Backup.hpp>
 #include <dblqh/Dblqh.hpp>
 #include <dbtup/Dbtup.hpp>
 #include <KeyDescriptor.hpp>
@@ -38,6 +40,20 @@
 extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 453
+
+//#define DEBUG_RES 1
+#ifdef DEBUG_RES
+#define DEB_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_RES(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_HIGH_RES 1
+#ifdef DEBUG_HIGH_RES
+#define DEB_HIGH_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_HIGH_RES(arglist) do { } while (0)
+#endif
 
 #define PAGES LCP_RESTORE_BUFFER
 
@@ -65,6 +81,9 @@ Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_FSREADCONF, &Restore::execFSREADCONF);
   addRecSignal(GSN_FSCLOSEREF, &Restore::execFSCLOSEREF, true);
   addRecSignal(GSN_FSCLOSECONF, &Restore::execFSCLOSECONF);
+  addRecSignal(GSN_FSREMOVEREF, &Restore::execFSREMOVEREF, true);
+  addRecSignal(GSN_FSREMOVECONF, &Restore::execFSREMOVECONF);
+  addRecSignal(GSN_FSWRITECONF, &Restore::execFSWRITECONF);
 
   addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
   addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
@@ -85,9 +104,9 @@ Restore::execSTTOR(Signal* signal)
 
   c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
   c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
-  ndbrequire(c_lqh != 0 && c_tup != 0);
+  c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
+  ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
   sendSTTORRY(signal);
-  
   return;
 }//Restore::execNDB_STTOR()
 
@@ -111,7 +130,16 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
   cnt /= List::getSegmentSize();
   cnt += 2;
   m_databuffer_pool.setSize(cnt);
-  
+
+  /**
+   * Set up read and write buffer for LCP control files.
+   * We use 1 buffer of 4k in size. So currently no
+   * parallel reads or writes are supported.
+   */
+  NewVARIABLE *bat = allocateBat(1);
+  bat[0].WA = &m_lcp_ctl_file_data[0][0];
+  bat[0].nrr = 2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -144,7 +172,7 @@ Restore::execCONTINUEB(Signal* signal){
   {
     FilePtr file_ptr;
     m_file_pool.getPtr(file_ptr, signal->theData[1]);
-    read_file(signal, file_ptr);
+    read_data_file(signal, file_ptr);
     return;
   }
   default:
@@ -180,8 +208,1480 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
   }
 }
 
+/**
+ * MODULE: Restore LCP
+ * -------------------
+ * Restore LCP of a fragment
+ * Starts by receiving RESTORE_LCP_REQ and later responding by RESTORE_LCP_CONF
+ * from DBTUP when done.
+ *
+ * Here is a flow chart of what we perform here.
+ * There are 5 main cases:
+ * Case 1) Only valid LCP control file 0 exists
+ * Case 2) Only valid LCP control file 1 exists
+ *
+ *    Perfectly normal cases and common cases. This LCP was completed
+ *    and the previous one was both completed and removed from disk.
+ *
+ * Case 3) Both LCP control file 0 and 1 exists
+ *
+ *    This case is perfectly normal but unusual. It happens when
+ *    we had a crash before completing the removal of the old
+ *    LCP control file.
+ * 
+ *    In this case we can either have two valid
+ *    LCP control files or one valid and one invalid.
+ *
+ *    Invalid LCP control files can happen if a crash occurs after opening
+ *    the LCP control file for a second LCP on a fragment and not
+ *    completing it. It can also happen when the crash occurs in the
+ *    middle of writing the LCP control file (should be extremely
+ *    rare or even never happening).
+ *
+ * Case 4) No LCP control file exists (restore of 7.4 and older LCP).
+ *
+ * This is the normal case for an upgrade case.
+ *
+ * Case 5) Only LCP control file 0 exists, but it still is empty or contains
+ *    invalid data. We could also have two invalid LCP control files here.
+ *
+ *    This case is also valid and can happen when we crash during running
+ *    of the very first LCP on a fragment. It could also happen simply
+ *    since we haven't done our first LCP on the fragment yet. In this
+ *    case we should definitely have received lcpNo == ZNIL from LQH
+ *    since DIH will not know of LCPs that we don't know about ourselves.
+ *
+ *    This case can also happen if we have 1 completed LCP control file
+ *    which is not recoverable. In this case the node crashed just before
+ *    completing the GCP that was necessary to make the LCP recoverable.
+ *    Even DIH could know about this LCP but also knows to not try to use
+ *    it. Either way DIH will send lcpNo equal to ZNIL.
+ *
+ * Variable descriptions:
+ * ----------------------
+ * m_ctl_file_no:
+ * --------------
+ * This represents the number of the CTL file currently being processed.
+ * It is set to 0 when opening the first file and 1 when later opening
+ * the second CTL file. It is initialised to Uint32(~0). When an empty
+ * CTL file is created when no LCP is found it is set to 0.
+ *
+ * m_status:
+ * ---------
+ * This variable represents what we are currently doing.
+ * It is a bitmap, so more than one state is possible at any time.
+ *
+ * Initial state is READ_CTL_FILES, this represents reading both CTL
+ * files to discover the state of the LCP.
+ *
+ * FIRST_READ, FILE_THREAD_RUNNING, RESTORE_THREAD_RUNNING, FILE_EOF and
+ * READING_RECORDS are states used when reading data files.
+ * FIRST_READ is the initial state when starting to open the data file.
+ * FILE_THREAD_RUNNING is an indication that a CONTINUEB thread is running
+ * that reads the data file.
+ * RESTORE_THREAD_RUNNING is an indication that a CONTINUEB thread is
+ * running to restore using the data file.
+ * READING_RECORDS is an indication that we are now reading records of the
+ * data file.
+ * FILE_EOF is an indication that the read of the data file is completed.
+ * It is set when FILE_THREAD_RUNNING is reset.
+ *
+ * CREATE_CTL_FILE is a state used when creating a CTL file at times when
+ * no LCP files was found.
+ *
+ * REMOVE_LCP_DATA_FILE is a state used when deleting data files after
+ * reading the CTL files.
+ * REMOVE_LCP_CTL_FILE is a state used when deleting a CTL file after
+ * deleting data files.
+ *
+ * We start in state READ_CTL_FILES, after that we go CREATE_CTL_FILE
+ * if no LCP files were found. If LCP files were found we move to
+ * REMOVE_LCP_DATA_FILE if data files to delete was present, next we
+ * move to REMOVE_LCP_CTL_FILE if necessary to remove a CTL file.
+ * 
+ * Finally we move to restore using one or more data files. We restore
+ * one file at a time using the state variables described above for
+ * handling the data file.
+ * 
+ * m_outstanding_reads:
+ * --------------------
+ * Used during read of data file to keep track of number of outstanding
+ * FSREADREQ's.
+ *
+ * m_outstanding_operations:
+ * -------------------------
+ * It is used during remove files to keep track of number of outstanding
+ * remove data files that are currently outstanding (we can delete multiple
+ * files in parallel).
+ * It is used during restore to keep track of number of outstanding
+ * LQHKEYREQs.
+ *
+ * m_remove_ctl_file_no:
+ * ---------------------
+ * It is initialised to Uint32(~0). If set to this we won't delete any
+ * CTL files.
+ * When we find no CTL files we drop CTL file 0, we also drop all potential
+ * data files from 0 to max file number.
+ * If a CTL file that isn't restorable is found, then this file number is
+ * set in this variable.
+ * If we find that the other file is newer and restorable then we set this
+ * variable to this file number.
+ *
+ * m_used_ctl_file_no:
+ * -------------------
+ * This variable is set to the CTL file we will use for restore. As soon as
+ * we find a possible candidate it is set to the candidate, we might then
+ * find that the other CTL file is an even better candidate and move the
+ * variable to this number. As long as no CTL file have been found it
+ * remains set to the initial value Uint32(~0).
+ *
+ * m_current_page_ptr_i:
+ * ---------------------
+ * Set to i-value of page we are currently restoring from. We allocate a set
+ * of pages at start of restore and use those pages when reading from file
+ * into those pages.
+ *
+ * m_current_page_pos:
+ * -------------------
+ * Indicates index position on the current page we are restoring.
+ *
+ * m_current_page_index:
+ * ---------------------
+ * Indicates which of the allocated pages we are currently restoring, used
+ * to find the next page. The allocated pages are in an array. So getting
+ * to the next page can be easily accomplished by adding one to this variable.
+ * We use modulo page_count always when getting the page ptr, so this variable
+ * can be constantly incremented.
+ *
+ * m_current_file_page:
+ * --------------------
+ * Used by read file process, keeps track of which page number was the last
+ * one we issued a read on.
+ *
+ * m_bytes_left:
+ * -------------
+ * Incremented with number of bytes read from disk when FSREADCONF arrives.
+ * Decremented by length of record when restoring from file.
+ * Thus keeps track of number of bytes left already read from disk.
+ *
+ * m_rows_restored:
+ * ----------------
+ * Statistical variable, counts number of rows restored (counts LQHKEYCONF's
+ * received). Used to display various stats about the restore.
+ *
+ * m_restore_start_time:
+ * ---------------------
+ * Current millisecond when restore starts. Used to print stats on restore
+ * performance.
+ *
+ * m_restored_gcp_id:
+ * ------------------
+ * This variable keeps track of the GCI we are restoring, no LCP files that
+ * have a newer GCP written can be used. This is either retrieved from
+ * DIH sysfile or local sysfile (if recovering in a not restorable state).
+ * Can be used for upgrade case where we use it to write a CTL file for
+ * an existing LCP that had no CTL files.
+ *
+ * m_restored_lcp_id:
+ * m_restored_local_lcp_id:
+ * m_max_gci_completed:
+ * m_max_gci_written:
+ * m_max_page_cnt:
+ * ------------------------
+ * These five variables are set from the used CTL file. They are initialised
+ * from the RESTORE_LCP_REQ to be used in the upgrade case. In the upgrade
+ * case we will set MaxPageCnt to Uint32(~0).
+ * m_restored_lcp_id and m_restored_local_lcp_id is the id of the LCP used
+ * write the LCP.
+ * m_max_page_cnt is the number of pages that we have ROW ids for in the file.
+ * m_max_gci_written is the maximum GCI written in this LCP.
+ * m_max_gci_completed is the maximum GCI completed when writing this LCP.
+ * m_max_gci_completed can be bigger than m_max_gci_written.
+ *
+ * m_create_gci:
+ * -------------
+ * CreateGCI from RESTORE_LCP_REQ, not used.
+ *
+ * m_file_id:
+ * ----------
+ * File id as described in used CTL file. When multiple files are to be restored
+ * it starts at first and then moves forward. Is between 0 and
+ * BackupFormat::NDB_MAX_LCP_FILES - 1.
+ *
+ * m_max_parts:
+ * ------------
+ * Set from used CTL file. Set to 1 when performing upgrade variant.
+ *
+ * m_max_files:
+ * ------------
+ * Set from used CTL file, normally set to BackupFormat::NDB_MAX_LCP_FILES but
+ * could be set differently when performing downgrade or upgrade. Indicates
+ * maximum files that could be used, this is necessary to know what the file
+ * name is of the next file.
+ *
+ * m_num_files:
+ * ------------
+ * Set from used CTL file. Set to number of files (also number of part pairs)
+ * to restore in the LCP.
+ *
+ * m_current_file_index:
+ * ---------------------
+ * Number of file currently restored, starts at 0 and goes up to
+ * m_num_files - 1 before we're done.
+ *
+ * m_dih_lcp_no:
+ * -------------
+ * In pre-7.6 this indicates data file number, in 7.6 it indicates rather
+ * which CTL file number that DIH thinks should be restored. If this is set
+ * to ZNIL then DIH knows of no LCPs written for this fragment. In this case
+ * we don't really know anything about what we will find since we can even
+ * have both CTL files restorable in this case if local LCPs was executed
+ * as part of restart. However if it is set to 0 or 1, then we should not
+ * be able to not find any files at all. So if we find no CTL file in this
+ * it is an upgrade case.
+ *
+ * m_upgrade_case:
+ * ---------------
+ * Initialised to true, as soon as we find an CTL file whether correct or
+ * not we know that it isn't an upgrade from pre-7.6 versions.
+ *
+ * m_double_lcps_found:
+ * --------------------
+ * Both CTL files found and both were found to be restorable.
+ *
+ * m_found_not_restorable:
+ * -----------------------
+ * We have found one CTL file that wasn't restorable if true.
+ *
+ * m_old_max_files:
+ * ----------------
+ * This is the max files read from CTL file NOT used. It is used to
+ * delete LCP data from the old data files. It is possible that
+ * the new and old CTL files have different max files in an upgrade
+ * or downgrade situation.
+ *
+ * m_num_remove_data_files:
+ * ------------------------
+ * Number of data files to remove, calculated after finding new and old
+ * CTL file. If only one CTL file is found then we cleaned up already during
+ * execution of LCP, so no need to clean up. In this case it is set to 0.
+ *
+ * m_table_id, m_fragment_id, m_table_version:
+ * -------------------------------------------
+ * Triplet describing the partition we are restoring. m_table_id and
+ * m_fragment_id came from RESTORE_LCP_REQ, m_table_version read from
+ * data file.
+ *
+ * The flow chart for Case 1) is here:
+ * -----------------------------------
+ * Open LCP control 0 -> Success
+ * Read LCP control 0 -> Success (read important data into File data)
+ * Close LCP control 0 -> Success
+ * Open LCP control 1 -> Fail
+ * Start restore (starts through open_data_file call)
+ *
+ * The flow chart for Case 2) is here
+ * -----------------------------------
+ * Open LCP control 0 -> Fail
+ * Open LCP control 1 -> Success
+ * Read LCP control 1 -> Success (read important data into File data)
+ * Close LCP control 1 -> Success
+ * Start restore
+ *
+ * The flow chart for Case 3) is here
+ * -----------------------------------
+ * Open LCP control 0 -> Success
+ * Read LCP control 0 -> Success (read important data into File data)
+ * Close LCP control 0 -> Sucess
+ * Open LCP control 1 -> Success
+ * Read LCP control 1 -> Success (calculate which LCP control file to use)
+ * Close LCP control 1 -> Success
+ * Assume here X is the LCP control file NOT used (0 or 1)
+ * Assume here Y is the file number of the file for the NOT used LCP
+ * Remove data file Y -> Success
+ * Remove control file X -> Success
+ * Start restore
+ *
+ * The flow chart for Case 4) is here
+ * ----------------------------------
+ * Open LCP control 0 -> Fail
+ * Open LCP control 1 -> Fail
+ * Create LCP control 0 -> Success
+ * Write LCP control 0 -> Success
+ * Close LCP control 0 -> Success
+ * if (lcpNo == ZNIL) then report Done
+ * else
+ * Remove not used data file
+ * Start restore (this is a certain upgrade)
+ *
+ * The flow chart for Case 5) is here
+ * ----------------------------------
+ * Open LCP control 0 -> Success
+ * Read LCP control 0 -> Success
+ * We discover that the LCP control file is readable but not valid
+ * Close LCP control 0 -> Success
+ * Open LCP control 1 -> Fail
+ * Create LCP control 0 -> Success
+ * Write LCP control 0 -> Success
+ * Close LCP control 0 -> Success
+ * In this case lcpNo must be ZNIL since if there is a CTL file
+ * but not completed then this LCP is written using Partial LCP
+ * code.
+ * ndbrequire(lcpNo == ZNIL) then report Done
+ *
+ * We will always with the following steps the read and close steps are
+ * only needed when open is a success.
+ *
+ * Open LCP control 0
+ * Read LCP control 0
+ * Close LCP control 0
+ * Open LCP control 1
+ * Read LCP control 1
+ * Close LCP control 1
+ *
+ * At this point we know which of the 5 cases we are.
+ * 1) and 2) will simply start the restore
+ * 4) and 5) will create LCP control file 0 and then conditionally restore
+ * 3) needs to remove unneeded LCP control and data file before continuing
+ *
+ * In 7.5 after development of Partial LCPs the LCP files can be in the
+ * following states.
+ *
+ * 1) No files at all
+ *    This state happens immediately after the table has been created and
+ *    the first LCP haven't been started yet.
+ *    This state is covered by Case 4) above and is handled as if the table
+ *    was created in 7.4 or earlier.
+ *
+ * 2) Two empty control files and possibly a not finished data file 0.
+ *    This state happens after the first LCP has started, but not yet
+ *    completed. We could also have only 1 invalid empty control file
+ *    if the crash occurs in the middle of the start of the first LCP.
+ *    In this case there could be a data file 0 which has been created
+ *    but not yet completed.
+ *    This is covered by state 5) above.
+ *
+ * 3) One valid LCP control file, in this case the only the data files
+ *    present in the control file should exist. There could also be an
+ *    invalid LCP control file here after the first LCP have been
+ *    completed.
+ *    This is Case 1) and 2) above.
+ * 
+ * 4) Two valid control files. In this case all the data files present
+ *    in any of the control files can be present. There could however
+ *    be ones missing since we could be in the process of deleting an
+ *    LCP after completion of an LCP.
+ *    This is case 3) above.
+ *
+ * Execution of partial LCPs at restore
+ * ------------------------------------
+ * When we are restoring an LCP that consists of multiple data files this
+ * is the algorithm used.
+ * The LCP control file will cover either all parts or a subset of the parts.
+ * We start with the case where it covers all parts.
+ *
+ * When all parts are covered we could have a case where there is overlap in
+ * the parts. Let's use the following example.
+ * Last part: All of part 801-35 (801-1023 and 0-35).
+ * Last part - 1: All of part 554-800
+ * Last part - 2: All of part 287-553
+ * Last part - 3: All of part 18-286
+ *
+ * We need to execute all 4 of those parts (one data file per part). The file
+ * number of the last part is given in the control file and also the maximum
+ * file number is also given in the control file. This means that we can step
+ * backwards and if we step backwards from file number 0 we will step to
+ * file number MaxFileNumbers - 1.
+ *
+ * The above specifies which parts we have all changes for. There will also be
+ * changes present for many other parts in the LCP data file. We will ignore
+ * parts of those.
+ *
+ * We will start here with Last Part - 3. We will ignore everything for parts
+ * 0-35 and 287-1023. We will insert all data pertaining to parts 36-286.
+ * These changes should not contain any deleted rows as these should not be
+ * recorded in parts where we record all rows.
+ *
+ * Next part to restore is Last part - 2. Here we will restore all of parts
+ * 287-553. We will also install all changes related to parts 36-286. We
+ * will ignore parts 0-35 and 554-1024.
+ *
+ * Next part to restore is Last part - 1. Here we will restore all of parts
+ * 554-800 and all changes related to parts 36-553. We will ignore parts 0-35
+ * and parts 801-1023.
+ *
+ * Finally we will restore Last part. Here we will restore all of parts 0-35
+ * and parts 801-1023. We will also restore all changes of rows in parts
+ * 36-800.
+ *
+ * Where we restore all parts we will use INSERT since those rows should not
+ * be present yet. We will also reject the restore if we discover a DELETE row
+ * in any of those parts.
+ *
+ * For parts where we restore changes we will use WRITE instead of INSERT since
+ * the row might already exist. In addition we will accept DELETE rows by
+ * row id.
+ *
+ * For parts that we ignore we will simply skip to next row.
+ *
+ * So we effectively divide rows in those parts into 3 separate categories.
+ *
+ * When we restore an LCP that was not restorable then we will exactly the
+ * same scheme, the only difference is that we will only have some parts
+ * that are restorable. So this LCP isn't usable in a system restart. It will
+ * still be usable in a node restart however.
+ */
 void
-Restore::execRESTORE_LCP_REQ(Signal* signal){
+Restore::execFSREMOVEREF(Signal *signal)
+{
+  jamEntry();
+  FsRef * ref = (FsRef*)signal->getDataPtr();
+  const Uint32 ptrI = ref->userPointer;
+  FsConf * conf = (FsConf*)signal->getDataPtr();
+  conf->userPointer = ptrI;
+  execFSREMOVECONF(signal);
+}
+
+void
+Restore::execFSREMOVECONF(Signal *signal)
+{
+  jamEntry();
+  FsConf * conf = (FsConf*)signal->getDataPtr();
+  FilePtr file_ptr;
+  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  lcp_remove_old_file_done(signal, file_ptr);
+}
+
+void
+Restore::execFSWRITECONF(Signal *signal)
+{
+  jamEntry();
+  FsConf *conf = (FsConf*)signal->getDataPtr();
+  FilePtr file_ptr;
+  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  lcp_create_ctl_done_write(signal, file_ptr);
+}
+
+void
+Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr)
+{
+  file_ptr.p->m_ctl_file_no = 0;
+  file_ptr.p->m_status = File::CREATE_CTL_FILE;
+
+  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_CREATE;
+
+  req->userPointer = file_ptr.i;
+  
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, 0);
+  FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+}
+
+void
+Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
+{
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)&m_lcp_ctl_file_data[0][0];
+
+  memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
+
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+  const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
+  lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
+  lcpCtlFilePtr->fileHeader.SectionLength = sz - 3;
+  lcpCtlFilePtr->fileHeader.FileType = BackupFormat::LCP_CTL_FILE;
+  lcpCtlFilePtr->fileHeader.BackupId = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_0 = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_1 = 0;
+  lcpCtlFilePtr->fileHeader.ByteOrder = 0x12345678;
+  lcpCtlFilePtr->fileHeader.NdbVersion = NDB_VERSION_D;
+  lcpCtlFilePtr->fileHeader.MySQLVersion = NDB_MYSQL_VERSION_D;
+
+  lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
+  lcpCtlFilePtr->MaxNumberDataFiles = BackupFormat::NDB_MAX_LCP_FILES;
+  lcpCtlFilePtr->ValidFlag = 0;
+  lcpCtlFilePtr->TableId = file_ptr.p->m_table_id;
+  lcpCtlFilePtr->FragmentId = file_ptr.p->m_fragment_id;
+  /**
+   * There are a couple of possibilities here:
+   * 1) DIH knows about the LCP, this is indicated by m_dih_lcp_no set to
+   *    0 or 1. In this case if we come here it means we're doing the
+   *    upgrade case and we can rely on that there is a correct data file
+   *    and we take the opportunity to create a CTL file for this
+   *    fragment here as well.
+   *
+   * 2) DIH knows about no data files, in this case there is no data file
+   *    since by coming here we have concluded that we found no correct
+   *    CTL file, so thus there is no data file both according to DIH
+   *    and according to the non-presence of correct CTL files.
+   */
+  if (file_ptr.p->m_dih_lcp_no == ZNIL ||
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+  {
+    /**
+     * We have no checkpointed data file yet, so we will write an initial
+     * LCP control file. This could be either upgrade case or not.
+     */
+    jam();
+    lcpCtlFilePtr->CreateGci = file_ptr.p->m_create_gci;
+    lcpCtlFilePtr->MaxGciWritten = 0;
+    lcpCtlFilePtr->MaxGciCompleted = 0;
+    lcpCtlFilePtr->LastDataFileNumber = 0;
+    lcpCtlFilePtr->LcpId = 0;
+    lcpCtlFilePtr->LocalLcpId = 0;
+    lcpCtlFilePtr->MaxPageCount = 0;
+  }
+  else
+  {
+    jam();
+    /**
+     * We have the upgrade case where DIH knows about a data file that there
+     * is no CTL file defined for. We create a correct data file before
+     * proceeding.
+     * This is Case 4) above
+     */
+    ndbrequire(file_ptr.p->m_upgrade_case);
+    ndbrequire(file_ptr.p->m_dih_lcp_no == 0 ||
+               file_ptr.p->m_dih_lcp_no == 1);
+    lcpCtlFilePtr->ValidFlag = 1;
+    lcpCtlFilePtr->CreateGci = file_ptr.p->m_create_gci;
+    lcpCtlFilePtr->MaxGciWritten = file_ptr.p->m_restored_gcp_id;
+    lcpCtlFilePtr->MaxGciCompleted = file_ptr.p->m_max_gci_completed;
+    lcpCtlFilePtr->LastDataFileNumber = file_ptr.p->m_dih_lcp_no;
+    lcpCtlFilePtr->LcpId = file_ptr.p->m_restored_lcp_id;
+    lcpCtlFilePtr->LocalLcpId = 0;
+    lcpCtlFilePtr->MaxPageCount = (~0);
+  }
+  struct BackupFormat::PartPair locPartPair;
+  locPartPair.startPart = 0;
+  locPartPair.numParts = BackupFormat::NDB_MAX_LCP_PARTS;
+  lcpCtlFilePtr->partPairs[0] = locPartPair;
+  lcpCtlFilePtr->NumPartPairs = 1;
+
+  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr);
+  lcp_create_ctl_write(signal, file_ptr);
+}
+
+void
+Restore::lcp_create_ctl_write(Signal *signal, FilePtr file_ptr)
+{
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->userPointer = file_ptr.i;
+  req->filePointer = file_ptr.p->m_fd;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setSyncFlag(req->operationFlag, 1);
+
+  /**
+   * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
+  req->data.memoryAddress.memoryOffset = 0;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Restore::lcp_create_ctl_done_write(Signal *signal, FilePtr file_ptr)
+{
+  close_file(signal, file_ptr);
+}
+
+void
+Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
+{
+  if (file_ptr.p->m_dih_lcp_no == ZNIL ||
+      file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+  {
+    /**
+     * We have created an LCP control file, DIH knew not about any
+     * recoverable LCP for this fragment. We have already removed
+     * old LCP files not recoverable, so we're ready to move on
+     * from here.
+     */
+    jam();
+    /**
+     * Done with Case 4) or 5) without upgrade case
+     * --------------------------------------------
+     * We are done, there was no data file to restore, but we have
+     * created an LCP control file, so things should be fine now.
+     * We fake start of restore and end of restore to signal back
+     * the RESTORE_LCP_CONF and other reporting properly done.
+     * We set LCP id and local LCP id to indicate to LQH that no
+     * restorable LCP was found.
+     */
+    c_tup->start_restore_lcp(file_ptr.p->m_table_id,
+                             file_ptr.p->m_fragment_id);
+    jamEntry();
+    ndbrequire(file_ptr.p->m_outstanding_operations == 0);
+    DEB_RES(("(%u)restore_lcp_conf", instance()));
+    file_ptr.p->m_restored_lcp_id = 0;
+    file_ptr.p->m_restored_local_lcp_id = 0;
+    restore_lcp_conf(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_dih_lcp_no == 0 ||
+           file_ptr.p->m_dih_lcp_no == 1)
+  {
+    /**
+     * Case 4) Upgrade case
+     * --------------------
+     * We will clean away any old LCP data file that was not reported as
+     * the one to restore. So if we will use 0 to restore we will
+     * remove 1 and vice versa.
+     */
+    jam();
+    ndbrequire(file_ptr.p->m_upgrade_case);
+    file_ptr.p->m_status = File::CREATE_CTL_FILE;
+    lcp_remove_old_file(signal,
+                        file_ptr,
+                        file_ptr.p->m_dih_lcp_no == 0 ? 1 : 0,
+                        false);
+    return;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+}
+
+void
+Restore::lcp_remove_old_file(Signal *signal,
+                                  FilePtr file_ptr,
+                                  Uint32 file_number,
+                                  bool is_ctl_file)
+{
+  file_ptr.p->m_outstanding_operations++;
+  FsRemoveReq * req = (FsRemoveReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = file_ptr.i;
+  req->directory = 0;
+  req->ownDirectory = 0;
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  if (is_ctl_file)
+  {
+    jam();
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+    DEB_RES(("tab(%u,%u) Delete control file number: %u",
+             file_ptr.p->m_table_id,
+             file_ptr.p->m_fragment_id,
+             file_number));
+  }
+  else
+  {
+    jam();
+    DEB_RES(("tab(%u,%u) Delete data file number: %u",
+             file_ptr.p->m_table_id,
+             file_ptr.p->m_fragment_id,
+             file_number));
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+  }
+  FsOpenReq::v5_setLcpNo(req->fileNumber, file_number);
+  FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal,
+             FsRemoveReq::SignalLength, JBA);
+}
+
+void
+Restore::lcp_remove_old_file_done(Signal *signal, FilePtr file_ptr)
+{
+  ndbrequire(file_ptr.p->m_outstanding_operations > 0);
+  file_ptr.p->m_outstanding_operations--;
+  if (file_ptr.p->m_outstanding_operations > 0)
+  {
+    jam();
+    return;
+  }
+  switch (file_ptr.p->m_status)
+  {
+    case File::CREATE_CTL_FILE:
+    {
+      /**
+       * END of UPGRADE PATH
+       * -------------------
+       * We are done creating a new LCP control file and removing
+       * any half-written data files still lingering. It is the
+       * normal path for case 4) for upgrades but could also happen
+       * in case 5) where a crash occurred in an early phase of the
+       * fragments lifetime.
+       * Done with Case 4) and 5)
+       * ------------------------
+       * We are now ready to follow the normal path for restoring
+       * a fragment. The information needed to complete the
+       * restore is available now in the File object.
+       */
+      jam();
+      DEB_RES(("(%u)start_restore_lcp_upgrade", instance()));
+      start_restore_lcp_upgrade(signal, file_ptr);
+      return;
+    }
+    case File::REMOVE_LCP_DATA_FILE:
+    {
+      jam();
+      /**
+       * Case 3) completed data file removal
+       * -----------------------------------
+       * We are starting up a normal restore, we found 2 LCP control files,
+       * this is a normal condition, we will always remove any unneeded
+       * LCP files as part of restore. We are now done with data file and
+       * will continue with LCP control file.
+       */
+      DEB_RES(("(%u)Case 3 discovered after remove", instance()));
+      ndbrequire(file_ptr.p->m_num_remove_data_files > 0);
+      file_ptr.p->m_num_remove_data_files--;
+      if (file_ptr.p->m_num_remove_data_files > 0)
+      {
+        jam();
+        if (file_ptr.p->m_remove_data_file_no ==
+            (file_ptr.p->m_old_max_files - 1))
+        {
+          jam();
+          file_ptr.p->m_remove_data_file_no = 0;
+        }
+        else
+        {
+          jam();
+          file_ptr.p->m_remove_data_file_no++;
+        }
+        lcp_remove_old_file(signal,
+                            file_ptr,
+                            file_ptr.p->m_remove_data_file_no,
+                            false);
+      }
+      else
+      {
+        jam();
+        file_ptr.p->m_status = File::REMOVE_LCP_CTL_FILE;
+        lcp_remove_old_file(signal,
+                            file_ptr,
+                            file_ptr.p->m_remove_ctl_file_no,
+                            true);
+      }
+      return;
+    }
+    case File::REMOVE_LCP_CTL_FILE:
+    {
+      jam();
+      /**
+       * Case 3) is completed or Case 4 or Case 5) completed file removal
+       * ----------------------------------------------------------------
+       * Done with removal of both data file and control file of LCP
+       * not used for restore. We are now ready to start restore for
+       * Case 3, for Case 5 we will create an empty LCP control file
+       * 0 first.
+       */
+      DEB_RES(("(%u)start_restore_lcp", instance()));
+      if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+      {
+        jam();
+        lcp_create_ctl_open(signal, file_ptr);
+        return;
+      }
+      start_restore_lcp(signal, file_ptr);
+      return;
+    }
+    default:
+    {
+      ndbrequire(false);
+      return;
+    }
+  }
+}
+
+void
+Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no)
+{
+  /* Keep track of which ctl file we're currently dealing with. */
+  file_ptr.p->m_ctl_file_no = lcp_no;
+
+  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->fileFlags = FsOpenReq::OM_READONLY;
+  req->userPointer = file_ptr.i;
+  
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, lcp_no);
+  FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+}
+
+void
+Restore::open_ctl_file_done_ref(Signal *signal, FilePtr file_ptr)
+{
+  if (file_ptr.p->m_ctl_file_no == 1)
+  {
+    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+    {
+      jam();
+      /**
+       * Case 4) discovered
+       * ------------------
+       * UPGRADE PATH when restoring an older MySQL Cluster version
+       * ----------------------------------------------------------
+       * We are done reading the LCP control files. If no one was found we will
+       * assume that this is an LCP produced by an older version without LCP
+       * control files.
+       *
+       * In the new format we always have a control file, even when there is
+       * no LCP executed yet. We create this control file indicating an empty
+       * set of LCP files before we continue restoring the data.
+       *
+       * We could come here also with a too new LCP completed and we create
+       * an empty one also in this case since it will overwrite the old one.
+       *
+       * We could also come here when we have completed the LCP, but the LCP
+       * control file is still invalid since we haven't ensured that the
+       * LCP is safe yet by calling sync_lsn. In this case we can even have
+       * a case where DIH thinks we have completed an LCP but we haven't
+       * actually done so yet.
+       */
+      if (file_ptr.p->m_upgrade_case)
+      {
+        jam();
+        DEB_RES(("(%u)Case 4 with upgrade discovered", instance()));
+        lcp_create_ctl_open(signal, file_ptr);
+      }
+      else
+      {
+        jam();
+        DEB_RES(("(%u)Case 4 without upgrade discovered", instance()));
+        file_ptr.p->m_remove_ctl_file_no = 0;
+        file_ptr.p->m_remove_data_file_no = 0;
+        file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
+        file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
+        lcp_remove_old_file(signal,
+                            file_ptr,
+                            file_ptr.p->m_remove_data_file_no,
+                            false);
+      }
+      return;
+    }
+    else
+    {
+      /**
+       * Case 1) discovered
+       * ------------------
+       * Normal behaviour, we had no LCP control file 1, but we had an LCP
+       * control file 0, so we will use this to perform the restore. It is
+       * already set up and ready to proceed with the restore. In this case
+       * when there is only one LCP control file then we trust that there is
+       * no LCP data files not needed. We always remove the data files of an
+       * LCP before we remove the LCP control file of an LCP. So it is safe
+       * to continue restoring now, we have 1 LCP control file and 1 set of
+       * LCP data files that all are needed and described by the LCP control
+       * file.
+       */
+      jam();
+      DEB_RES(("(%u)Case 1 discovered", instance()));
+      DEB_RES(("(%u)Use ctl file: 0, 1 not exist, Lcp(%u,%u), GCI_C: %u,"
+               " GCI_W: %u, MPC: %u",
+                instance(),
+                file_ptr.p->m_restored_lcp_id,
+                file_ptr.p->m_restored_local_lcp_id,
+                file_ptr.p->m_max_gci_completed,
+                file_ptr.p->m_max_gci_written,
+                file_ptr.p->m_max_page_cnt));
+      ndbrequire(!file_ptr.p->m_found_not_restorable);
+      start_restore_lcp(signal, file_ptr);
+      return;
+    }
+  }
+  else
+  {
+    jam();
+    ndbrequire(file_ptr.p->m_ctl_file_no == 0);
+    /**
+     * We found no LCP control file 0, this can be normal, so we will now
+     * instead open LCP control file 1.
+     */
+    DEB_RES(("(%u)open_ctl_file( 1 )", instance()));
+    open_ctl_file(signal, file_ptr, 1);
+    return;
+  }
+}
+
+void
+Restore::calculate_remove_new_data_files(FilePtr file_ptr)
+{
+  Uint32 new_ctl_no = file_ptr.p->m_remove_ctl_file_no;
+  Uint32 old_ctl_no = new_ctl_no == 0 ? 1 : 0;
+
+  ndbrequire(new_ctl_no < 2);
+  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[old_ctl_no][0];
+  BackupFormat::LCPCtlFile *newLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[new_ctl_no][0];
+
+  Uint32 old_last_file = oldLcpCtlFilePtr->LastDataFileNumber;
+  Uint32 new_last_file = newLcpCtlFilePtr->LastDataFileNumber;
+
+  Uint32 new_max_files = newLcpCtlFilePtr->MaxNumberDataFiles;
+  Uint32 old_max_files = oldLcpCtlFilePtr->MaxNumberDataFiles;
+
+  ndbrequire(new_max_files == old_max_files);
+  ndbrequire(new_max_files == BackupFormat::NDB_MAX_LCP_FILES);
+
+  /**
+   * Calculate first file to remove.
+   */
+  Uint32 first_remove_file = new_last_file;
+  Uint32 num_remove_files = 0;
+  if (new_last_file == old_last_file)
+  {
+    /**
+     * We could end up here after a number of unsuccessful restarts.
+     * The LCP to remove was possibly changing the GCP written, but it
+     * didn't contain any real changes to the data, so the same data
+     * file was used again. We simply return and continue the restart.
+     */
+    jam();
+    return;
+  }
+  while (1)
+  {
+    Uint32 next_remove_file = first_remove_file;
+    num_remove_files++;
+    if (next_remove_file == 0)
+    {
+      jam();
+      next_remove_file = old_max_files - 1;
+    }
+    else
+    {
+      jam();
+      next_remove_file--;
+    }
+    if (next_remove_file == old_last_file)
+    {
+      jam();
+      break;
+    }
+    first_remove_file = next_remove_file;
+  }
+  ndbrequire(num_remove_files > 0);
+  file_ptr.p->m_remove_data_file_no = first_remove_file;
+  file_ptr.p->m_num_remove_data_files = num_remove_files;
+  file_ptr.p->m_old_max_files = old_max_files;
+}
+
+void
+Restore::calculate_remove_old_data_files(FilePtr file_ptr)
+{
+  Uint32 old_ctl_no = file_ptr.p->m_remove_ctl_file_no;
+  Uint32 new_ctl_no = old_ctl_no == 0 ? 1 : 0;
+
+  ndbrequire(old_ctl_no < 2);
+  BackupFormat::LCPCtlFile *oldLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[old_ctl_no][0];
+  BackupFormat::LCPCtlFile *newLcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[new_ctl_no][0];
+
+  Uint32 new_parts = newLcpCtlFilePtr->NumPartPairs;
+  Uint32 old_parts = oldLcpCtlFilePtr->NumPartPairs;
+
+  Uint32 old_last_file = oldLcpCtlFilePtr->LastDataFileNumber;
+  Uint32 new_last_file = newLcpCtlFilePtr->LastDataFileNumber;
+
+  Uint32 new_max_files = newLcpCtlFilePtr->MaxNumberDataFiles;
+  Uint32 old_max_files = oldLcpCtlFilePtr->MaxNumberDataFiles;
+
+  ndbrequire(new_max_files == old_max_files);
+  ndbrequire(new_max_files == BackupFormat::NDB_MAX_LCP_FILES);
+  ndbrequire(new_parts > 0);
+  ndbrequire(old_parts > 0);
+  /**
+   * new_parts can never be bigger than old_parts + 1. This happens
+   * when the LCP adds one more data file, but removes no data file
+   * from the old LCPs. So when old_parts + 1 = new_parts then we
+   * should remove 0 data files. When we have removed parts in new
+   * LCP, then new_parts will be smaller and thus
+   * old_parts + 1 - new_parts will be the number of parts to remove
+   * from old LCP.
+   */
+  Uint32 new_files = 0;
+  Uint32 loop_file = new_last_file;
+  while (loop_file != old_last_file)
+  {
+    new_files++;
+    if (loop_file == 0)
+    {
+      jam();
+      loop_file = old_max_files - 1;
+    }
+    else
+    {
+      jam();
+      loop_file--;
+    }
+  }
+  /* new_files can be 0 in cases where new_parts == old_parts */
+  ndbrequire(new_files != 0 || new_parts == old_parts);
+  Uint32 remove_parts = (old_parts + new_files) - new_parts;
+  file_ptr.p->m_num_remove_data_files = remove_parts;
+
+  if (remove_parts == 0)
+  {
+    jam();
+    return;
+  }
+
+  /**
+   * Calculate first file to remove.
+   */
+  Uint32 first_remove_file = old_last_file;
+  for (Uint32 i = 0; i < (old_parts - 1); i++)
+  {
+    if (first_remove_file == 0)
+    {
+      jam();
+      first_remove_file = old_max_files - 1;
+    }
+    else
+    {
+      jam();
+      first_remove_file--;
+    }
+  }
+  file_ptr.p->m_remove_data_file_no = first_remove_file;
+  file_ptr.p->m_old_max_files = old_max_files;
+}
+
+void
+Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
+{
+  file_ptr.p->m_upgrade_case = false;
+
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->userPointer = file_ptr.i;
+  req->filePointer = file_ptr.p->m_fd;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
+
+  /**
+   * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
+  req->data.memoryAddress.memoryOffset =
+    file_ptr.p->m_ctl_file_no * BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
+{
+  /**
+   * We read the LCP control file, we really want at this point to know
+   * the following things.
+   * 1) LCP id of this control file
+   * 2) GCI completed, this makes it possible to shorten REDO log execution
+   * 3) GCI written, if this is higher than the restored GCI than the LCP
+   *    is not useful, in this case we should have an older LCP control file
+   *    still there, otherwise the system is not restorable.
+   * 4) Data file number to make sure we read the correct data file.
+   *
+   * The remainder of the information is used to verify that it is a correct
+   * LCP control file and which version that have created it. We will only
+   * go ahead if the LCP control is correct and we have the ability to
+   * read it.
+   *
+   * We need to read both LCP control files, if one is missing then we use
+   * the one we found. If both are present then we decide to use the newest
+   * restorable LCP.
+   * To handle case 3) we need to record which LCP control file we don't
+   * use such that we can remove the LCP control file and LCP data file
+   * belonging to this LCP which we will no longer use.
+   *
+   * When we come here the contents of the LCP control file is stored in
+   * the m_lcp_ctl_file_data variable.
+   */
+  ndbrequire(file_ptr.p->m_ctl_file_no < 2);
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
+
+  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE)
+  {
+    /**
+     * Invalid file, probably still no data written. We will remove it
+     * as we close it.
+     */
+    jam();
+    ndbassert(bytesRead == 0);
+    ndbrequire(!file_ptr.p->m_found_not_restorable);
+    close_file(signal, file_ptr, true);
+    return;
+  }
+  if (!c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
+  {
+    /* Invalid file data */
+    jam();
+    ndbassert(false);
+    ndbrequire(!file_ptr.p->m_found_not_restorable);
+    close_file(signal, file_ptr, true);
+    return;
+  }
+  if (lcpCtlFilePtr->MaxGciWritten == 0 &&
+      lcpCtlFilePtr->MaxGciCompleted == 0 &&
+      lcpCtlFilePtr->ValidFlag == 0 &&
+      lcpCtlFilePtr->LcpId == 0 &&
+      lcpCtlFilePtr->LocalLcpId == 0 &&
+      lcpCtlFilePtr->LastDataFileNumber == 0 &&
+      lcpCtlFilePtr->MaxPageCount == 0)
+  {
+    jam();
+    g_eventLogger->debug("Found empty LCP control file, "
+                         "must have been created by earlier restart,"
+                         " tab(%u,%u), CTL file: %u",
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         file_ptr.p->m_ctl_file_no);
+
+    /**
+     * An empty initialised LCP control file was found, this must have
+     * been created by previous restart attempt. We will ignore it and
+     * act as if we didn't see the LCP control file at all.
+     */
+    ndbrequire(!file_ptr.p->m_found_not_restorable);
+    close_file(signal, file_ptr, true);
+    return;
+  }
+
+  const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
+  if ((memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) != 0) ||
+      (lcpCtlFilePtr->fileHeader.BackupVersion != NDBD_USE_PARTIAL_LCP) ||
+      (lcpCtlFilePtr->fileHeader.SectionType != BackupFormat::FILE_HEADER) ||
+      (lcpCtlFilePtr->fileHeader.SectionLength != (sz - 3)) ||
+      (lcpCtlFilePtr->fileHeader.FileType != BackupFormat::LCP_CTL_FILE) ||
+      (lcpCtlFilePtr->TableId != file_ptr.p->m_table_id) ||
+      (lcpCtlFilePtr->FragmentId != file_ptr.p->m_fragment_id))
+  {
+    jam();
+    g_eventLogger->debug("LCP Control file inconsistency, tab(%u,%u)"
+                         ", CTL file: %u",
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         file_ptr.p->m_ctl_file_no);
+    ndbrequire(!file_ptr.p->m_found_not_restorable);
+    close_file(signal, file_ptr, true);
+    return;
+  }
+
+  /**
+   * Now we are ready to read the parts of the LCP control file that we need
+   * to know to handle the restore correctly.
+   */
+  Uint32 validFlag = lcpCtlFilePtr->ValidFlag;
+  Uint32 createGci = lcpCtlFilePtr->CreateGci;
+  Uint32 maxGciCompleted = lcpCtlFilePtr->MaxGciCompleted;
+  Uint32 maxGciWritten = lcpCtlFilePtr->MaxGciWritten;
+  Uint32 lcpId = lcpCtlFilePtr->LcpId;
+  Uint32 localLcpId = lcpCtlFilePtr->LocalLcpId;
+  Uint32 maxPageCnt = lcpCtlFilePtr->MaxPageCount;
+  Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
+  if (createTableVersion == 0)
+  {
+    jam();
+    /**
+     * LCP control file was created during table drop, simply set the valid flag
+     * to 0 and ignore the LCP control file.
+     */
+    createTableVersion = c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id);
+    validFlag = 0;
+  }
+
+  if (createTableVersion !=
+      c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id))
+  {
+    jam();
+    g_eventLogger->debug("(%u)Found LCP control file from old table"
+                         ", drop table haven't cleaned up properly"
+                         ", tab(%u,%u).%u (now %u), createGci:%u,"
+                         " maxGciCompleted: %u"
+                         ", maxGciWritten: %u, restored createGci: %u",
+                         instance(),
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         createTableVersion,
+                         c_lqh->getCreateSchemaVersion(file_ptr.p->m_table_id),
+                         createGci,
+                         maxGciCompleted,
+                         maxGciWritten,
+                         file_ptr.p->m_create_gci);
+    file_ptr.p->m_status = File::DROP_OLD_FILES;
+    file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no == 0 ? 1 : 0;
+    file_ptr.p->m_remove_data_file_no = 0;
+    file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
+    ndbrequire(file_ptr.p->m_used_ctl_file_no == ~Uint32(0));
+    close_file(signal, file_ptr, true);
+    return;
+  }
+  else if (maxGciWritten > file_ptr.p->m_restored_gcp_id ||
+           validFlag == 0)
+  {
+    jam();
+    /**
+     * This is a fairly normal case, but we will still log it to make sure we
+     * have sufficient information logged if things turns for the worse. In a
+     * normal restart we should at most have a few of those.
+     *
+     * The LCP contained records that was commited in GCI = maxGciWritten,
+     * we are restoring a GCI which is smaller, this means that the LCP cannot
+     * be used for restore since we have no UNDO log for main memory
+     * data.
+     *
+     * This is a perfectly normal case although not so common. The LCP was
+     * completed but had writes in it that rendered it useless. If this is
+     * the very first LCP for this table it could even be that this is the
+     * only LCP control file we have. But this can only happen for file 0.
+     * If it happens for file 1 and we have no useful CTL file in file 0
+     * then we are smoked since that is not supposed to be possible.
+     *
+     * It is also a normal case where we have written LCP control file
+     * but not yet had time to sync the LSN for the LCP. This is flagged
+     * by the validFlag not being set in the LCP control file.
+     */
+    g_eventLogger->debug("(%u)LCP Control file ok, but not recoverable,"
+                         " tab(%u,%u), maxGciWritten: %u, restoredGcpId: %u"
+                         ", CTL file: %u, validFlag: %u",
+                         instance(),
+                         file_ptr.p->m_table_id,
+                         file_ptr.p->m_fragment_id,
+                         maxGciWritten,
+                         file_ptr.p->m_restored_gcp_id,
+                         file_ptr.p->m_ctl_file_no,
+                         validFlag);
+    ndbrequire(file_ptr.p->m_ctl_file_no == 0 ||
+               file_ptr.p->m_used_ctl_file_no != Uint32(~0));
+    ndbrequire(!file_ptr.p->m_found_not_restorable);
+    file_ptr.p->m_found_not_restorable = true;
+    file_ptr.p->m_remove_ctl_file_no = file_ptr.p->m_ctl_file_no;
+    if (file_ptr.p->m_ctl_file_no == 1 &&
+         file_ptr.p->m_used_ctl_file_no != Uint32(~0))
+    {
+      jam();
+      calculate_remove_new_data_files(file_ptr);
+    }
+  }
+  else if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+  {
+    jam();
+    /**
+     * First LCP control file that we read, we simply set things up for
+     * restore. We want the LCP id to check which LCP to use if there is
+     * one more, also to report back to DBLQH.
+     */
+    file_ptr.p->m_max_gci_completed = maxGciCompleted;
+    file_ptr.p->m_restored_lcp_id = lcpId;
+    file_ptr.p->m_restored_local_lcp_id = localLcpId;
+    file_ptr.p->m_max_page_cnt = maxPageCnt;
+    file_ptr.p->m_max_gci_written = maxGciWritten;
+    file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
+    if (file_ptr.p->m_ctl_file_no == 1)
+    {
+      jam();
+      DEB_RES(("(%u)Use ctl file: 1, 0 not exist, Lcp(%u,%u), GCI_C: %u,"
+               " GCI_W: %u, MPC: %u",
+                instance(),
+                file_ptr.p->m_restored_lcp_id,
+                file_ptr.p->m_restored_local_lcp_id,
+                file_ptr.p->m_max_gci_completed,
+                file_ptr.p->m_max_gci_written,
+                file_ptr.p->m_max_page_cnt));
+    }
+    if (file_ptr.p->m_found_not_restorable)
+    {
+      jam();
+      calculate_remove_new_data_files(file_ptr);
+    }
+  }
+  else if (file_ptr.p->m_restored_lcp_id > lcpId)
+  {
+    /**
+     * This file is older than the previous one. We will use the previous
+     * one.
+     */
+    jam();
+    ndbrequire(file_ptr.p->m_ctl_file_no == 1);
+    file_ptr.p->m_double_lcps_found = true;
+    file_ptr.p->m_remove_ctl_file_no = 1;
+    calculate_remove_old_data_files(file_ptr);
+    DEB_RES(("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
+             " GCI_W: %u, MPC: %u",
+              instance(),
+              file_ptr.p->m_restored_lcp_id,
+              file_ptr.p->m_restored_local_lcp_id,
+              file_ptr.p->m_max_gci_completed,
+              file_ptr.p->m_max_gci_written,
+              file_ptr.p->m_max_page_cnt));
+  }
+  else if (file_ptr.p->m_restored_lcp_id < lcpId ||
+           (file_ptr.p->m_restored_lcp_id == lcpId &&
+            file_ptr.p->m_restored_local_lcp_id < localLcpId))
+  {
+    jam();
+    DEB_RES(("(%u)Use ctl file: 1, 0 older, Lcp(%u,%u), GCI_C: %u,"
+             " GCI_W: %u, MPC: %u",
+              instance(),
+              lcpId,
+              localLcpId,
+              maxGciCompleted,
+              maxGciWritten,
+              maxPageCnt));
+    ndbrequire(file_ptr.p->m_ctl_file_no == 1);
+    ndbrequire(file_ptr.p->m_max_gci_completed <= maxGciCompleted);
+    file_ptr.p->m_used_ctl_file_no = file_ptr.p->m_ctl_file_no;
+    file_ptr.p->m_double_lcps_found = true;
+    file_ptr.p->m_max_gci_completed = maxGciCompleted;
+    file_ptr.p->m_max_gci_written = maxGciWritten;
+    file_ptr.p->m_restored_lcp_id = lcpId;
+    file_ptr.p->m_restored_local_lcp_id = localLcpId;
+    file_ptr.p->m_max_page_cnt = maxPageCnt;
+    file_ptr.p->m_remove_ctl_file_no = 0;
+    calculate_remove_old_data_files(file_ptr);
+  }
+  else
+  {
+    /**
+     * The LCP id of both LCPs were the same, this can happen when the
+     * node previously crashed in the middle of an LCP and DIH haven't
+     * finished it, so it starts the next LCP with the same ID.
+     * In this case we have added one to the Local LCP id to ensure we
+     * know which is the most recent one.
+     * So here we come when CTL file 0 is newer.
+     */
+    DEB_RES(("(%u)Use ctl file: 0, 1 older, Lcp(%u,%u), GCI_C: %u,"
+             " GCI_W: %u, MPC: %u",
+              instance(),
+              file_ptr.p->m_restored_lcp_id,
+              file_ptr.p->m_restored_local_lcp_id,
+              file_ptr.p->m_max_gci_completed,
+              file_ptr.p->m_max_gci_written,
+              file_ptr.p->m_max_page_cnt));
+    ndbrequire(file_ptr.p->m_ctl_file_no == 1);
+    ndbrequire(file_ptr.p->m_max_gci_completed >= maxGciCompleted);
+    file_ptr.p->m_used_ctl_file_no = 0;
+    file_ptr.p->m_double_lcps_found = true;
+    file_ptr.p->m_remove_ctl_file_no = 1;
+    calculate_remove_old_data_files(file_ptr);
+  }
+  close_file(signal, file_ptr);
+}
+
+void
+Restore::lcp_drop_old_files(Signal *signal, FilePtr file_ptr)
+{
+  file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
+  lcp_remove_old_file(signal,
+                      file_ptr,
+                      file_ptr.p->m_remove_data_file_no,
+                      false);
+}
+
+void
+Restore::close_ctl_file_done(Signal *signal, FilePtr file_ptr)
+{
+  if (file_ptr.p->m_ctl_file_no == 0)
+  {
+    /**
+     * We are done with LCP control file 0, continue with LCP control
+     * file 1 in the same manner.
+     */
+    jam();
+    open_ctl_file(signal, file_ptr, 1);
+    return;
+  }
+  else
+  {
+    ndbrequire(file_ptr.p->m_ctl_file_no == 1);
+    jam();
+    if (file_ptr.p->m_used_ctl_file_no == Uint32(~0))
+    {
+      /**
+       * Case 5) discovered
+       * No valid LCP file was found. We create an LCP control file 0
+       * which is ok and then continue with the restore if there is
+       * anything to restore.
+       */
+      jam();
+      ndbrequire(file_ptr.p->m_dih_lcp_no == ZNIL);
+      DEB_RES(("(%u)Case 5 discovered", instance()));
+      file_ptr.p->m_remove_data_file_no = 0;
+      file_ptr.p->m_num_remove_data_files = BackupFormat::NDB_MAX_FILES_PER_LCP;
+      file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
+      lcp_remove_old_file(signal,
+                          file_ptr,
+                          file_ptr.p->m_remove_data_file_no,
+                          false);
+      return;
+    }
+    if (file_ptr.p->m_double_lcps_found ||
+        file_ptr.p->m_found_not_restorable)
+    {
+      jam();
+      /**
+       * Case 3) discovered
+       * ------------------
+       * We start by removing potential data and CTL files still there.
+       */
+      DEB_RES(("(%u)Case 3 discovered after close", instance()));
+      if (file_ptr.p->m_num_remove_data_files > 0)
+      {
+        jam();
+        file_ptr.p->m_status = File::REMOVE_LCP_DATA_FILE;
+        lcp_remove_old_file(signal,
+                            file_ptr,
+                            file_ptr.p->m_remove_data_file_no,
+                            false);
+      }
+      else
+      {
+        file_ptr.p->m_status = File::REMOVE_LCP_CTL_FILE;
+        lcp_remove_old_file(signal,
+                            file_ptr,
+                            file_ptr.p->m_remove_ctl_file_no,
+                            true);
+      }
+      return;
+    }
+    else
+    {
+      jam();
+      /**
+       * Case 2) discovered
+       * ------------------
+       * LCP control file 1 existed alone, we are ready to execute the restore
+       * now.
+       */
+      DEB_RES(("(%u)Case 2 discovered, start_restore_lcp",
+              instance()));
+      start_restore_lcp(signal, file_ptr);
+      return;
+    }
+  }
+}
+
+void
+Restore::execRESTORE_LCP_REQ(Signal* signal)
+{
   jamEntry();
 
   Uint32 err= 0;
@@ -202,10 +1702,16 @@ Restore::execRESTORE_LCP_REQ(Signal* signal){
       break;
     }
 
-    open_file(signal, file_ptr);
+    signal->theData[0] = NDB_LE_StartReadLCP;
+    signal->theData[1] = file_ptr.p->m_table_id;
+    signal->theData[2] = file_ptr.p->m_fragment_id;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+
+    open_ctl_file(signal, file_ptr, 0);
     return;
   } while(0);
 
+  DEB_RES(("(%u)RESTORE_LCP_REF", instance()));
   RestoreLcpRef* ref= (RestoreLcpRef*)signal->getDataPtrSend();
   ref->senderData= senderData;
   ref->senderRef= reference();
@@ -223,12 +1729,34 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
 
   file_ptr.p->m_fd = RNIL;
   file_ptr.p->m_file_type = BackupFormat::LCP_FILE;
-  file_ptr.p->m_status = File::FIRST_READ;
-  
-  file_ptr.p->m_lcp_no = req->lcpNo;
+  file_ptr.p->m_status = File::READ_CTL_FILES;
+
+  file_ptr.p->m_double_lcps_found = false;
+  file_ptr.p->m_found_not_restorable = false;
+  file_ptr.p->m_upgrade_case = true;
+  file_ptr.p->m_remove_ctl_file_no = Uint32(~0);
+  file_ptr.p->m_remove_data_file_no = Uint32(~0);
+  file_ptr.p->m_num_remove_data_files = 0;
+  file_ptr.p->m_old_max_files = Uint32(~0);
+
+  file_ptr.p->m_dih_lcp_no = req->lcpNo;
   file_ptr.p->m_table_id = req->tableId;
   file_ptr.p->m_fragment_id = req->fragmentId;
   file_ptr.p->m_table_version = RNIL;
+  file_ptr.p->m_restored_gcp_id = req->restoreGcpId;
+  file_ptr.p->m_restored_lcp_id = req->lcpId;
+  file_ptr.p->m_restored_local_lcp_id = 0;
+  file_ptr.p->m_max_gci_completed = req->maxGciCompleted;
+  file_ptr.p->m_create_gci = req->createGci;
+  DEB_RES(("RESTORE_LCP_REQ(%u) tab(%u,%u),"
+           " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
+           instance(),
+           req->tableId,
+           req->fragmentId,
+           req->restoreGcpId,
+           req->lcpId,
+           req->lcpNo,
+           req->createGci));
 
   file_ptr.p->m_bytes_left = 0; // Bytes read from FS
   file_ptr.p->m_current_page_ptr_i = RNIL;
@@ -238,12 +1766,15 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_outstanding_reads = 0;
   file_ptr.p->m_outstanding_operations = 0;
   file_ptr.p->m_rows_restored = 0;
+  file_ptr.p->m_file_id = Uint32(~0);
+  file_ptr.p->m_ctl_file_no = Uint32(~0);
+  file_ptr.p->m_used_ctl_file_no = Uint32(~0);
+  file_ptr.p->m_current_file_index = 0;
+  file_ptr.p->m_num_files = 0;
+  file_ptr.p->m_max_parts = BackupFormat::NDB_MAX_LCP_PARTS;
+  file_ptr.p->m_max_files = BackupFormat::NDB_MAX_LCP_FILES;
   file_ptr.p->m_restore_start_time = NdbTick_CurrentMillisecond();;
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
-
-  ndbassert(columns.isEmpty());
-  columns.release();
 
   ndbassert(pages.isEmpty());
   pages.release();
@@ -294,13 +1825,15 @@ void
 Restore::release_file(FilePtr file_ptr)
 {
   LocalList pages(m_databuffer_pool, file_ptr.p->m_pages);
-  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
 
   List::Iterator it;
   for (pages.first(it); !it.isNull(); pages.next(it))
   {
     if (* it.data == RNIL)
+    {
+      jam();
       continue;
+    }
     m_global_page_pool.release(* it.data);
   }
 
@@ -324,28 +1857,164 @@ Restore::release_file(FilePtr file_ptr)
     m_millis_spent+= millis;
     m_frags_restored++;
   }
-  
-  columns.release();
   pages.release();
   m_file_list.release(file_ptr);
 }
 
 void
-Restore::open_file(Signal* signal, FilePtr file_ptr)
+Restore::prepare_parts_for_execution(Signal *signal, FilePtr file_ptr)
 {
-  signal->theData[0] = NDB_LE_StartReadLCP;
-  signal->theData[1] = file_ptr.p->m_table_id;
-  signal->theData[2] = file_ptr.p->m_fragment_id;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+  ndbrequire(file_ptr.p->m_used_ctl_file_no < 2);
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
+
+  if (file_ptr.p->m_max_parts == 1 &&
+      file_ptr.p->m_num_files == 1)
+  {
+    /**
+     * UPGRADE CASE, everything is in one file.
+     */
+    jam();
+    file_ptr.p->m_part_state[0] = File::PART_ALL_ROWS;
+    return;
+  }
+  /**
+   * We set up the part state array in 3 steps.
+   * The default state is that all parts receives all changes.
+   *
+   * For the current file index we have recorded in the LCP control file
+   * all the parts where all rows exists, so these parts will all have the
+   * state PART_ALL_ROWS.
+   *
+   * Lastly we will go backwards from the last LCP data file to restore and
+   * set all parts that will be fully restored in this LCP data file to be
+   * ignored by earlier LCP data files.
+   *
+   * We ensure that we have consistent data by ensuring that we don't have
+   * any files set to PART_IGNORED that was in the array to receive all rows.
+   */
+  for (Uint32 i = 0; i < file_ptr.p->m_max_parts; i++)
+  {
+    file_ptr.p->m_part_state[i] = File::PART_ALL_CHANGES;
+  }
+
+  {
+    struct BackupFormat::PartPair partPair =
+      lcpCtlFilePtr->partPairs[file_ptr.p->m_current_file_index];
+
+    Uint32 part_id = partPair.startPart;
+    for (Uint32 i = 0; i < partPair.numParts; i++)
+    {
+      file_ptr.p->m_part_state[part_id] = File::PART_ALL_ROWS;
+      part_id++;
+      if (part_id == file_ptr.p->m_max_parts)
+        part_id = 0;
+    }
+  }
+
+  for (int i = lcpCtlFilePtr->NumPartPairs - 1; i >= 0; i--)
+  {
+    if (file_ptr.p->m_current_file_index == Uint32(i))
+      break;
+    struct BackupFormat::PartPair partPair =
+      lcpCtlFilePtr->partPairs[i];
+    Uint32 part_id = partPair.startPart;
+    for (Uint32 j = 0; j < partPair.numParts; j++)
+    {
+      ndbrequire(file_ptr.p->m_part_state[part_id] != File::PART_ALL_ROWS);
+      file_ptr.p->m_part_state[part_id] = File::PART_IGNORED;
+      part_id++;
+      if (part_id == file_ptr.p->m_max_parts)
+        part_id = 0;
+    }
+  }
+}
+
+void
+Restore::start_restore_lcp_upgrade(Signal *signal, FilePtr file_ptr)
+{
+  /**
+   * In this an LCP existed, but no valid LCP control file, this can
+   * only occur if the LCP was written by older versions of MySQL
+   * Cluster.
+   */
+  file_ptr.p->m_current_file_index = 0;
+  file_ptr.p->m_num_files = 1;
+  file_ptr.p->m_max_parts = 1;
+  file_ptr.p->m_max_files = 1;
+  file_ptr.p->m_file_id = file_ptr.p->m_dih_lcp_no;
+  open_data_file(signal, file_ptr);
+}
+
+void
+Restore::step_file_number_back(FilePtr file_ptr, Uint32 steps)
+{
+  for (Uint32 i = 0; i < steps; i++)
+  {
+    if (file_ptr.p->m_file_id == 0)
+    {
+      jam();
+      file_ptr.p->m_file_id = file_ptr.p->m_max_files - 1;
+    }
+    else
+    {
+      jam();
+      file_ptr.p->m_file_id--;
+    }
+  }
+}
+
+void
+Restore::step_file_number_forward(FilePtr file_ptr)
+{
+  file_ptr.p->m_file_id++;
+  if (file_ptr.p->m_file_id == file_ptr.p->m_max_files)
+  {
+    jam();
+    file_ptr.p->m_file_id = 0;
+  }
+}
+
+void
+Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
+{
+  ndbrequire(file_ptr.p->m_used_ctl_file_no < 2);
+  BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
+    &m_lcp_ctl_file_data[file_ptr.p->m_used_ctl_file_no][0];
+
+  /**
+   * Initialise a few variables before starting the first data file
+   * restore.
+   */
+  file_ptr.p->m_current_file_index = 0;
+  file_ptr.p->m_num_files = lcpCtlFilePtr->NumPartPairs;
+  file_ptr.p->m_max_parts = lcpCtlFilePtr->MaxPartPairs;
+  file_ptr.p->m_max_files = lcpCtlFilePtr->MaxNumberDataFiles;
+  file_ptr.p->m_file_id = lcpCtlFilePtr->LastDataFileNumber;
+  ndbrequire(file_ptr.p->m_num_files > 0);
+  ndbrequire(file_ptr.p->m_num_files <= BackupFormat::NDB_MAX_LCP_PARTS);
+  ndbrequire(file_ptr.p->m_file_id <= BackupFormat::NDB_MAX_LCP_FILES);
+  step_file_number_back(file_ptr, file_ptr.p->m_num_files - 1);
+  open_data_file(signal, file_ptr);
+}
+
+void
+Restore::open_data_file(Signal* signal, FilePtr file_ptr)
+{
+  prepare_parts_for_execution(signal, file_ptr);
+  file_ptr.p->m_status = File::FIRST_READ;
 
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->fileFlags = FsOpenReq::OM_READONLY | FsOpenReq::OM_GZ;
   req->userPointer = file_ptr.i;
-  
+ 
+  DEB_RES(("open_data_file(%u) data file number = %u",
+           instance(),
+           file_ptr.p->m_file_id));
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
-  FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_lcp_no);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_file_id);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
@@ -359,6 +2028,18 @@ Restore::execFSOPENREF(Signal* signal)
   jamEntry();
   m_file_pool.getPtr(file_ptr, ref->userPointer);
 
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    open_ctl_file_done_ref(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
+  {
+    ndbrequire(false);
+  }
+  ndbrequire(file_ptr.p->m_status == File::FIRST_READ);
+
   Uint32 errCode= ref->errorCode;
   Uint32 osError= ref->osErrorCode;
 
@@ -366,9 +2047,8 @@ Restore::execFSOPENREF(Signal* signal)
   rep->senderData= file_ptr.p->m_sender_data;
   rep->errorCode = errCode;
   rep->extra[0] = osError;
-  sendSignal(file_ptr.p->m_sender_ref, 
-	     GSN_RESTORE_LCP_REF, signal, RestoreLcpRef::SignalLength+1, JBB);
-
+  sendSignal(file_ptr.p->m_sender_ref, GSN_RESTORE_LCP_REF, signal,
+             RestoreLcpRef::SignalLength+1, JBB);
   release_file(file_ptr);
 }
 
@@ -381,6 +2061,20 @@ Restore::execFSOPENCONF(Signal* signal)
   m_file_pool.getPtr(file_ptr, conf->userPointer);
   
   file_ptr.p->m_fd = conf->filePointer;
+
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    open_ctl_file_done_conf(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
+  {
+    jam();
+    lcp_create_ctl_done_open(signal, file_ptr);
+    return;
+  }
+  ndbrequire(file_ptr.p->m_status == File::FIRST_READ);
 
   /**
    * Start thread's
@@ -403,6 +2097,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
   Uint32 *data, len= 0;
   Uint32 status = file_ptr.p->m_status;
   Uint32 page_count = file_ptr.p->m_pages.getSize();
+  BackupFormat::RecordType header_type = BackupFormat::INSERT_TYPE;
   do 
   {
     Uint32 left= file_ptr.p->m_bytes_left;
@@ -426,7 +2121,11 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
        * We are reading records
        */
       len= ntohl(* (page_ptr.p->data + pos)) + 1;
+      Uint32 type = len >> 16;
+      len &= 0xFFFF;
       ndbrequire(len < GLOBAL_PAGE_SIZE_WORDS);
+      ndbrequire(header_type < BackupFormat::END_TYPE);
+      header_type = (BackupFormat::RecordType)type;
     }
     else
     {
@@ -581,7 +2280,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       }
       else
       {
-	parse_record(signal, file_ptr, data, len);
+	parse_record(signal, file_ptr, data, len, header_type);
       }
     }
     else
@@ -643,7 +2342,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 }
 
 void
-Restore::read_file(Signal* signal, FilePtr file_ptr)
+Restore::read_data_file(Signal* signal, FilePtr file_ptr)
 {
   Uint32 left= file_ptr.p->m_bytes_left;
   Uint32 page_count = file_ptr.p->m_pages.getSize();
@@ -682,7 +2381,7 @@ Restore::read_file(Signal* signal, FilePtr file_ptr)
     req->varIndex = file_ptr.p->m_current_file_page++;
     req->data.pageData[0] = *it.data;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
-	       FsReadWriteReq::FixedLength + 1, JBB);
+	       FsReadWriteReq::FixedLength + 1, JBA);
     
     start++;
     if(start == page_count)
@@ -701,6 +2400,15 @@ void
 Restore::execFSREADREF(Signal * signal)
 {
   jamEntry();
+  FilePtr file_ptr;
+  FsRef* ref= (FsRef*)signal->getDataPtr();
+  m_file_pool.getPtr(file_ptr, ref->userPointer);
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    read_ctl_file_done(signal, file_ptr, 0);
+    return;
+  }
   SimulatedBlock::execFSREADREF(signal);
   ndbrequire(false);
 }
@@ -712,7 +2420,13 @@ Restore::execFSREADCONF(Signal * signal)
   FilePtr file_ptr;
   FsConf* conf= (FsConf*)signal->getDataPtr();
   m_file_pool.getPtr(file_ptr, conf->userPointer);
-  
+
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    read_ctl_file_done(signal, file_ptr, conf->bytes_read);
+    return;
+  }
   file_ptr.p->m_bytes_left += conf->bytes_read;
   
   ndbassert(file_ptr.p->m_outstanding_reads);
@@ -723,7 +2437,7 @@ Restore::execFSREADCONF(Signal * signal)
     ndbassert(conf->bytes_read <= GLOBAL_PAGE_SIZE);
     if(conf->bytes_read == GLOBAL_PAGE_SIZE)
     {
-      read_file(signal, file_ptr);
+      read_data_file(signal, file_ptr);
     }
     else 
     {
@@ -734,13 +2448,18 @@ Restore::execFSREADCONF(Signal * signal)
 }
 
 void
-Restore::close_file(Signal* signal, FilePtr file_ptr)
+Restore::close_file(Signal* signal, FilePtr file_ptr, bool remove_flag)
 {
   FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
   req->filePointer = file_ptr.p->m_fd;
   req->userPointer = file_ptr.i;
   req->userReference = reference();
   req->fileFlag = 0;
+  if (remove_flag)
+  {
+    jam();
+    FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
+  }
   sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }
 
@@ -762,10 +2481,29 @@ Restore::execFSCLOSECONF(Signal * signal)
 
   file_ptr.p->m_fd = RNIL;
 
+  if (file_ptr.p->m_status == File::READ_CTL_FILES)
+  {
+    jam();
+    close_ctl_file_done(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_status == File::CREATE_CTL_FILE)
+  {
+    jam();
+    lcp_create_ctl_done_close(signal, file_ptr);
+    return;
+  }
+  else if (file_ptr.p->m_status == File::DROP_OLD_FILES)
+  {
+    jam();
+    lcp_drop_old_files(signal, file_ptr);
+    return;
+  }
+
   if(file_ptr.p->m_outstanding_operations == 0)
   {
     jam();
-    restore_lcp_conf(signal, file_ptr);
+    restore_lcp_conf_after_execute(signal, file_ptr);
     return;
   }
 }
@@ -828,13 +2566,9 @@ void
 Restore::parse_table_description(Signal* signal, FilePtr file_ptr, 
 				 const Uint32 *data, Uint32 len)
 {
-  bool lcp = file_ptr.p->is_lcp();
-  Uint32 disk= 0;
   const BackupFormat::CtlFile::TableDescription* fh= 
     (BackupFormat::CtlFile::TableDescription*)data;
   
-  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);
-
   SimplePropertiesLinearReader it(fh->DictTabInfo, len);
   it.first();
   
@@ -852,99 +2586,6 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     return;
   }
   
-  Column c; 
-  Uint32 colstore[sizeof(Column)/sizeof(Uint32)];
-
-  for(Uint32 i = 0; i<tmpTab.NoOfAttributes; i++) {
-    jam();
-    DictTabInfo::Attribute tmp; tmp.init();
-    stat = SimpleProperties::unpack(it, &tmp, 
-				    DictTabInfo::AttributeMapping, 
-				    DictTabInfo::AttributeMappingSize,
-				    true, true);
-    
-    ndbrequire(stat == SimpleProperties::Break);
-    it.next(); // Move Past EndOfAttribute
-    
-    const Uint32 arr = tmp.AttributeArraySize;
-    const Uint32 sz = 1 << tmp.AttributeSize;
-    const Uint32 sz32 = (sz * arr + 31) >> 5;
-    const bool varsize = tmp.AttributeArrayType != NDB_ARRAYTYPE_FIXED;
-    
-    c.m_id = tmp.AttributeId;
-    c.m_size = sz32;
-    c.m_flags = (tmp.AttributeKeyFlag ? Column::COL_KEY : 0);
-    c.m_flags |= (tmp.AttributeStorageType == NDB_STORAGETYPE_DISK ?
-		  Column::COL_DISK : 0);
-
-    if(lcp && (c.m_flags & Column::COL_DISK))
-    {
-      /**
-       * Restore does not currently handle disk attributes
-       *   which is fine as restore LCP shouldn't
-       */
-      disk++;
-      continue;
-    }
-
-    if(!tmp.AttributeNullableFlag && !varsize)
-    {
-    }
-    else if (true) // null mask dropped in 5.1
-    {
-      c.m_flags |= (varsize ? Column::COL_VAR : 0);
-      c.m_flags |= (tmp.AttributeNullableFlag ? Column::COL_NULL : 0);
-    } 
-
-    memcpy(colstore, &c, sizeof(Column));
-    if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
-    {
-      parse_error(signal, file_ptr, __LINE__, i);
-      return;
-    }
-  }
-
-  if(lcp)
-  {
-    if (disk)
-    {
-      c.m_id = AttributeHeader::DISK_REF;
-      c.m_size = 2;
-      c.m_flags = 0;
-      memcpy(colstore, &c, sizeof(Column));
-      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
-      {
-	parse_error(signal, file_ptr, __LINE__, 0);
-	return;
-      }
-    }
-
-    {
-      c.m_id = AttributeHeader::ROWID;
-      c.m_size = 2;
-      c.m_flags = 0;
-      memcpy(colstore, &c, sizeof(Column));
-      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
-      {
-	parse_error(signal, file_ptr, __LINE__, 0);
-	return;
-      }
-    }
-
-    if (tmpTab.RowGCIFlag)
-    {
-      c.m_id = AttributeHeader::ROW_GCI;
-      c.m_size = 2;
-      c.m_flags = 0;
-      memcpy(colstore, &c, sizeof(Column));
-      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
-      {
-	parse_error(signal, file_ptr, __LINE__, 0);
-	return;
-      }
-    }
-  }
-  
   file_ptr.p->m_table_version = tmpTab.TableVersion;
 }
 
@@ -960,160 +2601,189 @@ Restore::parse_fragment_header(Signal* signal, FilePtr file_ptr,
     return;
   } 
   
-  if(ntohl(fh->ChecksumType) != 0)
+  if (ntohl(fh->ChecksumType) != 0)
   {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->SectionLength));
     return;
   }
   
   file_ptr.p->m_fragment_id = ntohl(fh->FragmentNo);
+  /**
+   * Temporary reset DBTUP's #disk attributes on table
+   */
+  c_tup->start_restore_lcp(file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+}
 
-  if(file_ptr.p->is_lcp())
+const char*
+Restore::get_state_string(Uint32 part_state)
+{
+  switch (part_state)
   {
-    /**
-     * Temporary reset DBTUP's #disk attributes on table
-     */
-    c_tup->start_restore_lcp(file_ptr.p->m_table_id,
-			     file_ptr.p->m_fragment_id);
+    case File::PART_IGNORED:
+      return "IGNORED";
+    case File::PART_ALL_ROWS:
+      return "ALL ROWS";
+    case File::PART_ALL_CHANGES:
+      return "CHANGED ROWS";
+    default:
+      return "Unknown";
   }
+  return NULL;
 }
 
 void
-Restore::parse_record(Signal* signal, FilePtr file_ptr, 
-		      const Uint32 *data, Uint32 len)
+Restore::parse_record(Signal* signal,
+                      FilePtr file_ptr,
+                      const Uint32 *data,
+                      Uint32 len,
+                      BackupFormat::RecordType header_type)
 {
-  List::Iterator it;
-  LocalList columns(m_databuffer_pool, file_ptr.p->m_columns);  
-
   Uint32 * const key_start = signal->getDataPtrSend()+24;
   Uint32 * const attr_start = key_start + MAX_KEY_SIZE_IN_WORDS;
+  Uint32 op_type;
+  Uint32 record_size = 0;
 
   data += 1;
-  const Uint32* const dataStart = data;
-
-  bool disk = false;
-  bool rowid = false;
-  bool gci = false;
+  bool rowid;
   Uint32 keyLen;
   Uint32 attrLen;
   Local_key rowid_val;
-  Uint64 gci_val;
+  Uint32 gci_id = 0;
   Uint32 tableId = file_ptr.p->m_table_id;
-  const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
 
-  if (likely(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP))
+  ndbrequire(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP);
   {
     rowid = true;
     rowid_val.m_page_no = data[0];
-    rowid_val.m_page_idx = data[1];
-    keyLen = c_tup->read_lcp_keys(tableId, data+2, len - 3, key_start);
-
-    AttributeHeader::init(attr_start, AttributeHeader::READ_LCP, 4*(len - 3));
-    memcpy(attr_start + 1, data + 2, 4 * (len - 3));
-    attrLen = 1 + len - 3;
-  }
-  else
-  {
-    Uint32 *keyData = key_start;
-    Uint32 *attrData = attr_start;
-    union {
-      Column c;
-      Uint32 _align[sizeof(Column)/sizeof(Uint32)];
-    };
-    
-    columns.first(it);
-    while(!it.isNull())
+    if (rowid_val.m_page_no >= file_ptr.p->m_max_page_cnt)
     {
-      _align[0] = *it.data; ndbrequire(columns.next(it));
-      _align[1] = *it.data; columns.next(it);
-
-      if (c.m_id == AttributeHeader::ROWID)
-      {
-        rowid_val.m_page_no = data[0];
-        rowid_val.m_page_idx = data[1];
-        data += 2;
-        rowid = true;
-        continue;
-      }
-
-      if (c.m_id == AttributeHeader::ROW_GCI)
-      {
-        memcpy(&gci_val, data, 8);
-        data += 2;
-        gci = true;
-        continue;
-      }
-
-      if (! (c.m_flags & (Column::COL_VAR | Column::COL_NULL)))
-      {
-        ndbrequire(data < dataStart + len);
-
-        if(c.m_flags & Column::COL_KEY)
-        {
-          memcpy(keyData, data, 4*c.m_size);
-          keyData += c.m_size;
-        }
-
-        AttributeHeader::init(attrData++, c.m_id, c.m_size << 2);
-        memcpy(attrData, data, 4*c.m_size);
-        attrData += c.m_size;
-        data += c.m_size;
-      }
-
-      if(c.m_flags & Column::COL_DISK)
-        disk= true;
+      /**
+       * Page ignored since it is not part of this LCP.
+       * Can happen with multiple files used to restore coming
+       * from different LCPs.
+       */
+      jam();
+      return;
     }
-
-    // second part is data driven
-    while (data + 2 < dataStart + len) {
-      Uint32 sz= ntohl(*data); data++;
-      Uint32 id= ntohl(*data); data++; // column_no
-
-      ndbrequire(columns.position(it, 2 * id));
-
-      _align[0] = *it.data; ndbrequire(columns.next(it));
-      _align[1] = *it.data;
-
-      Uint32 sz32 = (sz + 3) >> 2;
-      ndbassert(c.m_flags & (Column::COL_VAR | Column::COL_NULL));
-      if (c.m_flags & Column::COL_KEY)
-      {
-        memcpy(keyData, data, 4 * sz32);
-        keyData += sz32;
-      }
-
-      AttributeHeader::init(attrData++, c.m_id, sz);
-      memcpy(attrData, data, sz);
-
-      attrData += sz32;
-      data += sz32;
-    }
-
-    ndbrequire(data == dataStart + len - 1);
-
-    ndbrequire(disk == false); // Not supported...
-    ndbrequire(rowid == true);
-    keyLen = Uint32(keyData - key_start);
-    attrLen = Uint32(attrData - attr_start);
-    if (desc->noOfKeyAttr != desc->noOfVarKeys)
+    Uint32 part_id = c_backup->hash_lcp_part(rowid_val.m_page_no);
+    ndbrequire(part_id < MAX_LCP_PARTS_SUPPORTED);
+    DEB_HIGH_RES(("instance: %u, parse_record, page_no: %u, part: %u,"
+                  " state: %s, header_type: %s",
+                  instance(),
+                  rowid_val.m_page_no,
+                  part_id,
+                  get_state_string(Uint32(file_ptr.p->m_part_state[part_id])),
+                  get_header_string(Uint32(header_type))));
+    switch (file_ptr.p->m_part_state[part_id])
     {
-      reorder_key(desc, key_start, keyLen);
+      case File::PART_IGNORED:
+      {
+        jam();
+        /**
+         * The row is a perfectly ok row, but we will ignore since
+         * this part is handled by a later LCP data file.
+         */
+        return;
+      }
+      case File::PART_ALL_ROWS:
+      {
+        jam();
+        /**
+         * The data file contains all rows for this part, it contains no
+         * DELETE BY ROWID. This part will be ignored in earlier LCP data
+         * files restored, so we can safely use ZINSERT here as op_type.
+         */
+        op_type = ZINSERT;
+        ndbrequire(header_type == BackupFormat::INSERT_TYPE);
+        break;
+      }
+      case File::PART_ALL_CHANGES:
+      {
+        jam();
+        /**
+         * This is a row that changed during the LCP this data file records.
+         * The row could either exist or not dependent on if the operation
+         * that changed it was an INSERT or an UPDATE. It could also be a
+         * DELETE, in this case we only record the rowid and nothing more
+         * to indicate this rowid was deleted. We will discover this below.
+         */
+        op_type = ZWRITE;
+        ndbrequire(header_type != BackupFormat::INSERT_TYPE);
+        break;
+      }
+      default:
+      {
+        jam();
+        ndbrequire(false);
+        return; /* Silence compiler warnings */
+      }
+    }
+    if (header_type == BackupFormat::DELETE_BY_ROWID_TYPE)
+    {
+      /**
+       * We found a DELETE BY ROWID, this deletes the row in the rowid
+       * position, This can happen in parts where we record changes, we might
+       * have inserted the row in an earlier LCP data file, so we need to
+       * attempt to remove it here.
+       *
+       * For DELETE by ROWID there is no key and no ATTRINFO to send.
+       * The key is instead the rowid which is sent when the row id flag is
+       * set.
+       */
+      jam();
+      rowid_val.m_page_idx = data[1];
+      ndbrequire(op_type == ZWRITE);
+      op_type = ZDELETE;
+      gci_id = data[2];
+      keyLen = 0;
+      attrLen = 0;
+      ndbrequire(len == 3);
+    }
+    else if (header_type == BackupFormat::DELETE_BY_PAGEID_TYPE)
+    {
+      /* DELETE by PAGEID, a loop of DELETE by ROWID */
+      ndbrequire(op_type == ZWRITE);
+      op_type = ZDELETE;
+      record_size = data[1];
+      rowid_val.m_page_idx = 0;
+      gci_id = 0;
+      keyLen = 0;
+      attrLen = 0;
+      ndbrequire(len == 2);
+    }
+    else if (header_type == BackupFormat::WRITE_TYPE ||
+             header_type == BackupFormat::INSERT_TYPE)
+    {
+      jam();
+      rowid_val.m_page_idx = data[1];
+      keyLen = c_tup->read_lcp_keys(tableId, data+2, len - 3, key_start);
+      AttributeHeader::init(attr_start,
+                            AttributeHeader::READ_LCP, 4*(len - 3));
+      memcpy(attr_start + 1, data + 2, 4 * (len - 3));
+      attrLen = 1 + len - 3;
+    }
+    else
+    {
+      ndbrequire(false);
+      return; /* Silence compiler warnings */
     }
   }
-  
+
   LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
-  
-  Uint32 hashValue;
-  if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
-    hashValue = calulate_hash(tableId, key_start);
-  else
-    hashValue = md5_hash((Uint64*)key_start, keyLen);
-  
-  Uint32 tmp= 0;
-  LqhKeyReq::setAttrLen(tmp, attrLen);
-  req->attrLen = tmp;
+  Uint32 hashValue = 0;
+  if (keyLen > 0)
+  {
+    if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+      hashValue = calculate_hash(tableId, key_start);
+    else
+      hashValue = md5_hash((Uint64*)key_start, keyLen);
+  }
 
-  tmp= 0;
+  Uint32 tmpAttrLen= 0;
+  LqhKeyReq::setAttrLen(tmpAttrLen, attrLen);
+  req->attrLen = tmpAttrLen;
+
+  Uint32 tmp = 0;
   LqhKeyReq::setKeyLen(tmp, keyLen);
   LqhKeyReq::setLastReplicaNo(tmp, 0);
   /* ---------------------------------------------------------------------- */
@@ -1122,15 +2792,13 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   LqhKeyReq::setApplicationAddressFlag(tmp, 0);
   LqhKeyReq::setDirtyFlag(tmp, 1);
   LqhKeyReq::setSimpleFlag(tmp, 1);
-  LqhKeyReq::setOperation(tmp, ZINSERT);
+  LqhKeyReq::setOperation(tmp, op_type);
   LqhKeyReq::setSameClientAndTcFlag(tmp, 0);
   LqhKeyReq::setAIInLqhKeyReq(tmp, 0);
-  LqhKeyReq::setNoDiskFlag(tmp, disk ? 0 : 1);
+  LqhKeyReq::setNoDiskFlag(tmp, 1);
   LqhKeyReq::setRowidFlag(tmp, 1);
-  LqhKeyReq::setGCIFlag(tmp, gci);
   req->clientConnectPtr = file_ptr.i;
   req->hashValue = hashValue;
-  req->requestInfo = tmp;
   req->tcBlockref = reference();
   req->savePointId = 0;
   req->tableSchemaVersion = file_ptr.p->m_table_id + 
@@ -1139,15 +2807,54 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   req->transId1 = 0;
   req->transId2 = 0;
   req->scanInfo = 0;
-  memcpy(req->variableData, key_start, 16);
-  Uint32 pos = keyLen > 4 ? 4 : keyLen;
-  req->variableData[pos++] = rowid_val.m_page_no;
-  req->variableData[pos++] = rowid_val.m_page_idx;
-  if (gci)
-    req->variableData[pos++] = (Uint32)gci_val;
-  file_ptr.p->m_outstanding_operations++;
-  EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
-		 LqhKeyReq::FixedSignalLength+pos);
+  Uint32 pos = 0;
+  if (op_type != ZDELETE)
+  {
+    /**
+     * Need not set GCI flag here since we restore also the header part of
+     * the row in this case.
+     */
+    pos = keyLen > 4 ? 4 : keyLen;
+    memcpy(req->variableData, key_start, 16);
+    req->variableData[pos++] = rowid_val.m_page_no;
+    req->variableData[pos++] = rowid_val.m_page_idx;
+    LqhKeyReq::setGCIFlag(tmp, 0);
+  }
+  else
+  {
+    /**
+     * We reuse the Node Restart Copy handling to perform
+     * DELETE by ROWID. In this case we need to set the GCI of the record.
+     */
+    req->variableData[pos++] = rowid_val.m_page_no;
+    req->variableData[pos++] = rowid_val.m_page_idx;
+    req->variableData[pos++] = gci_id;
+    LqhKeyReq::setGCIFlag(tmp, 1);
+    LqhKeyReq::setNrCopyFlag(tmp, 1);
+  }
+  req->requestInfo = tmp;
+  if (header_type != BackupFormat::DELETE_BY_PAGEID_TYPE)
+  {
+    jam();
+    file_ptr.p->m_outstanding_operations++;
+    EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
+		   LqhKeyReq::FixedSignalLength+pos);
+  }
+  else
+  {
+    jam();
+    while (rowid_val.m_page_idx < Tup_fixsize_page::DATA_WORDS)
+    {
+      jam();
+      file_ptr.p->m_outstanding_operations++;
+      rowid_val.m_page_idx += record_size;
+      req->variableData[1] = rowid_val.m_page_idx;
+      EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal, 
+		     LqhKeyReq::FixedSignalLength+pos);
+      rowid_val.m_page_idx += record_size;
+    }
+    return;
+  }
   
   if(keyLen > 4)
   {
@@ -1155,60 +2862,14 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 			   key_start + 4,
 			   keyLen - 4);
   }
-  
-  c_lqh->receive_attrinfo(signal, attr_start, attrLen);
-}
-
-void
-Restore::reorder_key(const KeyDescriptor* desc,
-		     Uint32 *data, Uint32 len)
-{
-  Uint32 i;
-  Uint32 *var= data;
-  Uint32 Tmp[MAX_KEY_SIZE_IN_WORDS];
-  for(i = 0; i<desc->noOfKeyAttr; i++)
+  if (attrLen > 0)
   {
-    Uint32 attr = desc->keyAttr[i].attributeDescriptor;
-    switch(AttributeDescriptor::getArrayType(attr)){
-    case NDB_ARRAYTYPE_FIXED:
-      var += AttributeDescriptor::getSizeInWords(attr);
-    }
+    c_lqh->receive_attrinfo(signal, attr_start, attrLen);
   }
-
-  Uint32 *dst = Tmp;
-  Uint32 *src = data;
-  for(i = 0; i<desc->noOfKeyAttr; i++)
-  {
-    Uint32 sz;
-    Uint32 attr = desc->keyAttr[i].attributeDescriptor;
-    switch(AttributeDescriptor::getArrayType(attr)){
-    case NDB_ARRAYTYPE_FIXED:
-      sz = AttributeDescriptor::getSizeInWords(attr);
-      memcpy(dst, src, 4 * sz);
-      src += sz;
-      break;
-    case NDB_ARRAYTYPE_SHORT_VAR:
-      sz = (1 + ((Uint8*)var)[0] + 3) >> 2;
-      memcpy(dst, var, 4 * sz);
-      var += sz;
-      break;
-    case NDB_ARRAYTYPE_MEDIUM_VAR:
-      sz = (2 + ((Uint8*)var)[0] +  256*((Uint8*)var)[1] + 3) >> 2;
-      memcpy(dst, var, 4 * sz);
-      var += sz;
-      break;
-    default:
-      ndbrequire(false);
-      sz = 0;
-    }
-    dst += sz;
-  }
-  ndbassert((Uint32) (dst - Tmp) == len);
-  memcpy(data, Tmp, 4*len);
 }
 
 Uint32
-Restore::calulate_hash(Uint32 tableId, const Uint32 *src)
+Restore::calculate_hash(Uint32 tableId, const Uint32 *src)
 {
   jam();
   Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
@@ -1236,7 +2897,7 @@ Restore::crash_during_restore(FilePtr file_ptr, Uint32 line, Uint32 errCode)
 {
   char buf[255], name[100];
   BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
-		       file_ptr.p->m_lcp_no,
+		       file_ptr.p->m_file_id,
 		       file_ptr.p->m_table_id,
 		       file_ptr.p->m_fragment_id);
   
@@ -1265,38 +2926,58 @@ Restore::execLQHKEYCONF(Signal* signal)
   ndbassert(file_ptr.p->m_outstanding_operations);
   file_ptr.p->m_outstanding_operations--;
   file_ptr.p->m_rows_restored++;
-  if(file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL)
+  if (file_ptr.p->m_outstanding_operations == 0 && file_ptr.p->m_fd == RNIL)
   {
     jam();
-    restore_lcp_conf(signal, file_ptr);
+    restore_lcp_conf_after_execute(signal, file_ptr);
     return;
   }
 }
 
 void
-Restore::restore_lcp_conf(Signal* signal, FilePtr file_ptr)
+Restore::restore_lcp_conf_after_execute(Signal* signal, FilePtr file_ptr)
 {
-  RestoreLcpConf* rep= (RestoreLcpConf*)signal->getDataPtrSend();
-  rep->senderData= file_ptr.p->m_sender_data;
-  if(file_ptr.p->is_lcp())
+  file_ptr.p->m_current_file_index++;
+  if (file_ptr.p->m_current_file_index < file_ptr.p->m_num_files)
   {
     /**
-     * Temporary reset DBTUP's #disk attributes on table
-     *
-     * TUP will send RESTORE_LCP_CONF
+     * There are still more data files to apply before restore is complete.
+     * Handle next file now.
      */
-    c_tup->complete_restore_lcp(signal, 
-                                file_ptr.p->m_sender_ref,
-                                file_ptr.p->m_sender_data,
-                                file_ptr.p->m_table_id,
-				file_ptr.p->m_fragment_id);
+    jam();
+    DEB_HIGH_RES(("instance: %u Step forward to next data file", instance()));
+    step_file_number_forward(file_ptr);
+    open_data_file(signal, file_ptr);
+    return;
   }
-  else
-  {
-    sendSignal(file_ptr.p->m_sender_ref, 
-               GSN_RESTORE_LCP_CONF, signal, 
-               RestoreLcpConf::SignalLength, JBB);
-  }
+  restore_lcp_conf(signal, file_ptr);
+}
+
+void
+Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
+{
+  /**
+   * All LCP data files that are part of restore have been applied
+   * successfully, this fragment has completed its restore and we're
+   * ready to continue with the next step.
+   */
+
+  /**
+   * Temporary reset DBTUP's #disk attributes on table
+   *
+   * TUP will send RESTORE_LCP_CONF
+   */
+  DEB_HIGH_RES(("instance: %u Complete restore", instance()));
+  c_tup->complete_restore_lcp(signal, 
+                              file_ptr.p->m_sender_ref,
+                              file_ptr.p->m_sender_data,
+                              file_ptr.p->m_restored_lcp_id,
+                              file_ptr.p->m_restored_local_lcp_id,
+                              file_ptr.p->m_max_gci_completed,
+                              file_ptr.p->m_max_gci_written,
+                              file_ptr.p->m_table_id,
+                              file_ptr.p->m_fragment_id);
+  jamEntry();
 
   signal->theData[0] = NDB_LE_ReadLCPComplete;
   signal->theData[1] = file_ptr.p->m_table_id;
@@ -1340,7 +3021,7 @@ Restore::parse_error(Signal* signal,
 {
   char buf[255], name[100];
   BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
-		       file_ptr.p->m_lcp_no,
+		       file_ptr.p->m_file_id,
 		       file_ptr.p->m_table_id,
 		       file_ptr.p->m_fragment_id);
   

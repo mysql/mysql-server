@@ -912,6 +912,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_import
 %attr(755, root, root) %{_bindir}/ndb_mgm
 %attr(755, root, root) %{_bindir}/ndb_move_data
+%attr(755, root, root) %{_bindir}/ndb_perror
 %attr(755, root, root) %{_bindir}/ndb_print_backup_file
 %attr(755, root, root) %{_bindir}/ndb_print_file
 %attr(755, root, root) %{_bindir}/ndb_print_frag_file
@@ -924,6 +925,7 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_setup.py
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_top
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
@@ -936,8 +938,11 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
@@ -949,6 +954,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
 %attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
