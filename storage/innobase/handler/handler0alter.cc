@@ -5039,8 +5039,6 @@ err_exit:
 	row_mysql_unlock_data_dictionary(ctx->prebuilt->trx);
 	ut_ad(ctx->trx == ctx->prebuilt->trx);
 
-	lock_table_unlock_for_trx(ctx->prebuilt->trx);
-
 	destroy(ctx);
 	ha_alter_info->handler_ctx = NULL;
 
@@ -7900,8 +7898,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 			DBUG_RETURN(true);
 		}
 
-		lock_table_unlock_for_trx(m_prebuilt->trx);
-
 		char	tb_name[FN_REFLEN];
 		ut_strcpy(tb_name, m_prebuilt->table->name.m_name);
 
@@ -7931,9 +7927,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		DBUG_RETURN(false);
 	}
-
-	/* Release the table locks. */
-	lock_table_unlock_for_trx(m_prebuilt->trx);
 
 	DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit", DBUG_SUICIDE(););
 

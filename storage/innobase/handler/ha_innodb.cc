@@ -13948,9 +13948,6 @@ ha_innobase::discard_or_import_tablespace(
 			dict_table->name.m_name, m_prebuilt->trx);
 
 	} else if (!dict_table->ibd_file_missing) {
-		/* Commit the transaction in order to
-		release the table lock. */
-		lock_table_unlock_for_trx(m_prebuilt->trx);
 
 		ib::error() << "Unable to import tablespace "
 			<< dict_table->name << " because it already"
@@ -13982,9 +13979,6 @@ ha_innobase::discard_or_import_tablespace(
 			table_def,
 			discard);
 	}
-
-	/* Commit the transaction in order to release the table lock. */
-	lock_table_unlock_for_trx(m_prebuilt->trx);
 
 	if (err == DB_SUCCESS && !discard
 	    && dict_stats_is_persistent_enabled(dict_table)) {

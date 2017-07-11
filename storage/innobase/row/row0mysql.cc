@@ -3743,8 +3743,6 @@ row_discard_tablespace_end(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			DBUG_SUICIDE(););
 
-	lock_table_unlock_for_trx(trx);
-
 	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			DBUG_SUICIDE(););

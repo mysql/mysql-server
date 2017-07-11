@@ -4330,66 +4330,6 @@ lock_release(
 	}
 }
 
-void
-lock_table_unlock_for_trx(
-	trx_t*		trx)
-{
-	ulint		count = 0;
-	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
-
-	lock_mutex_enter();
-
-	ut_ad(!trx_mutex_own(trx));
-	ut_ad(!trx->is_dd_trx);
-
-	lock_t*	lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
-
-	while (lock != NULL) {
-		lock_t*	prev_lock = UT_LIST_GET_PREV(trx_locks, lock);
-
-		if (lock_get_type_low(lock) == LOCK_TABLE) {
-			dict_table_t*	table = lock->un_member.tab_lock.table;
-
-			if (table->ddl_lock_count == 0) {
-				lock = prev_lock;
-				continue;
-			} else {
-				ut_ad(table->ddl_lock_count > 0);
-				table->ddl_lock_count--;
-			}
-
-			if (lock_get_mode(lock) != LOCK_IS
-			    && trx->undo_no != 0) {
-
-				/* The trx may have modified the table. We
-				block the use of the MySQL query cache for
-				all currently active transactions. */
-
-				table->query_cache_inv_id = max_trx_id;
-			}
-
-			lock_table_dequeue(lock);
-		}
-
-		lock = prev_lock;
-
-		if (count == LOCK_RELEASE_INTERVAL) {
-			/* Release the mutex for a while, so that we
-			do not monopolize it */
-
-			lock_mutex_exit();
-
-			lock_mutex_enter();
-
-			count = 0;
-		}
-
-		++count;
-	}
-
-	lock_mutex_exit();
-}
-
 /* True if a lock mode is S or X */
 #define IS_LOCK_S_OR_X(lock) \
 	(lock_get_mode(lock) == LOCK_S \
