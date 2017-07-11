@@ -183,8 +183,8 @@ rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
 for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
-         mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
-         mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
+         my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
+         mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
          perror resolveip  resolve_stack_dump lz4_decompress \
          zlib_decompress; do
@@ -195,7 +195,8 @@ done
 for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          authentication_ldap_simple.so component_example_component1.so \
          component_example_component2.so component_example_component3.so \
-         component_log_sink_test.so component_pfs_example_component_population.so \
+         component_log_sink_test.so component_pfs_example.so \
+         component_pfs_example_component_population.so \
          component_test_pfs_notification.so component_test_pfs_resource_group.so \
          component_test_string_service_charset.so component_test_string_service.so \
          component_test_string_service_long.so component_udf_reg_3_func.so \
