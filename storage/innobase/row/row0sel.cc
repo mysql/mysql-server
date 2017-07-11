@@ -268,8 +268,13 @@ row_sel_sec_rec_is_for_clust_rec(
 				col->prtype, col->mbminmaxlen,
 				ifield->prefix_len, len, (char*) clust_field);
 
+			/* Check sec index field matches that of cluster index
+			in the case of for table with ATOMIC BLOB, note
+			we also need to check if sec_len is 0 */
 			if (rec_offs_nth_extern(clust_offs, clust_pos)
-			    && len < sec_len) {
+			    && (len < sec_len
+				|| (dict_table_has_atomic_blobs(
+					sec_index->table) && sec_len == 0))) {
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
 					    col->mbminmaxlen,
