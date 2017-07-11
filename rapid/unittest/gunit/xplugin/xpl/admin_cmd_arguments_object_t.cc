@@ -212,6 +212,15 @@ TEST_F(Admin_command_arguments_object_test, docpath_arg) {
   ASSERT_TRUE(extractor->is_end());
 }
 
+TEST_F(Admin_command_arguments_object_test, docpath_arg_root) {
+  set_arguments(Any::Object{{"first", "$"}});
+  std::string value("none");
+  ASSERT_ERROR_CODE(ER_X_SUCCESS,
+                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_EQ("$", value);
+  ASSERT_TRUE(extractor->is_end());
+}
+
 TEST_F(Admin_command_arguments_object_test, docpath_arg_no_dollar) {
   set_arguments(Any::Object{{"first", ".path.to.member"}});
   std::string value("none");

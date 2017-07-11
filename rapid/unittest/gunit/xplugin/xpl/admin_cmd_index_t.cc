@@ -79,6 +79,7 @@ const Any::Object::Fld UNIQUE{"unique", true};
 const Any::Object::Fld NOT_UNIQUE{"unique", false};
 const Any::Object::Fld INDEX_TYPE_PLAIN{"type", "INDEX"};
 const Any::Object::Fld INDEX_TYPE_SPATIAL{"type", "SPATIAL"};
+const Any::Object::Fld INDEX_TYPE_FULLTEXT{"type", "FULLTEXT"};
 #define PATH "$.path"
 #define PATH_HASH "6EA549FAA434CCD150A7DB5FF9C0AEC77C4F5D25"
 const Any::Object::Fld MEMBER{"member", PATH};
@@ -368,7 +369,6 @@ TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
   ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
 }
 
-
 TEST_F(Admin_command_index_test, create_regular_index_without_column) {
   EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
       DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
@@ -550,5 +550,68 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
   ASSERT_ERROR_CODE(ER_X_DOC_REQUIRED_FIELD_MISSING,
                     command->create(NAMESPACE, args.get()));
 }
+
+TEST_F(Admin_command_index_test, create_fulltext_index) {
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
+      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))),
+                                    _, _)).WillOnce(Return(ngs::Success()));
+
+  EXPECT_CALL(
+      data_context,
+      execute(Eq(Sql(ALTER_TABLE ADD_COLUMN("$ix_ft_" PATH_HASH, "TEXT",
+                                            "JSON_UNQUOTE(" EXTRACT_PATH ")",
+                                            "STORED")
+                     ADD_INDEX("FULLTEXT INDEX", IDENT("$ix_ft_" PATH_HASH)))),
+              _, _)).WillOnce(Return(ngs::Success()));
+
+  set_arguments(Any::Object{SCHEMA,
+                            COLLECTION,
+                            INDEX_NAME,
+                            NOT_UNIQUE,
+                            INDEX_TYPE_FULLTEXT,
+                            {"constraint", FULLTEXT_FIELD}});
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+}
+
+TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
+      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))),
+                                    _, _)).WillOnce(Return(ngs::Success()));
+
+  EXPECT_CALL(
+      data_context,
+      execute(
+          Eq(Sql(
+              ALTER_TABLE ADD_COLUMN("$ix_ft_" PATH_HASH, "TEXT",
+                                     "JSON_UNQUOTE(" EXTRACT_PATH ")", "STORED")
+              ADD_INDEX("FULLTEXT INDEX",
+                        IDENT("$ix_ft_" PATH_HASH)) " WITH PARSER ngram")),
+          _, _)).WillOnce(Return(ngs::Success()));
+
+  set_arguments(Any::Object{SCHEMA,
+                            COLLECTION,
+                            INDEX_NAME,
+                            NOT_UNIQUE,
+                            INDEX_TYPE_FULLTEXT,
+                            {"with_parser", "ngram"},
+                            {"constraint", FULLTEXT_FIELD}});
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
+}
+
+TEST_F(Admin_command_index_test, create_unique_fulltext_index) {
+  set_arguments(Any::Object{SCHEMA,
+                            COLLECTION,
+                            INDEX_NAME,
+                            UNIQUE,
+                            INDEX_TYPE_FULLTEXT,
+                            {"constraint", FULLTEXT_FIELD}});
+  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
+                    command->create(NAMESPACE, args.get()));
+}
+
 }  // namespace test
 }  // namespace xpl

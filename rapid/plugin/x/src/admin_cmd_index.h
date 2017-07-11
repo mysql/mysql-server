@@ -80,6 +80,7 @@ class Admin_command_index {
       BLOB,
       TEXT,
       GEOJSON,
+      FULLTEXT,
       UNSUPPORTED = 99
     };
 
@@ -103,10 +104,10 @@ class Admin_command_index {
   };
 
  protected:
-  using String_fields_values = std::list<std::vector<std::string> >;
   enum class Index_type_id {
     INDEX,
     SPATIAL,
+    FULLTEXT,
     UNSUPPORTED = 99
   };
 
@@ -121,11 +122,6 @@ class Admin_command_index {
   bool is_table_support_virtual_columns(const std::string &schema_name,
                                             const std::string &table_name,
                                             ngs::Error_code *error) const;
-
-  ngs::Error_code get_index_virtual_column_names(
-      const std::string &schema_name, const std::string &table_name,
-      const std::string &index_name,
-      String_fields_values *ret_column_names) const;
 
   ngs::Session_interface *m_session;
 };

@@ -132,6 +132,21 @@ Query
 SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='bar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
 ALTER TABLE `xtest`.`test2` DROP INDEX `bar`, DROP COLUMN `$ix_gj_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
 0 rows affected
+######### create_collection_index (fulltext) #########
+
+command ok
+Query
+SHOW CREATE TABLE `xtest`.`test2`
+SHOW COLUMNS FROM `xtest`.`test2` WHERE Field = '$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF'
+ALTER TABLE `xtest`.`test2` ADD COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$.foo'))) STORED NOT NULL, ADD FULLTEXT INDEX `foobar` (`$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`) WITH PARSER ngram
+0 rows affected
+######### drop_collection_index (fulltext) #########
+
+command ok
+Query
+SELECT column_name, COUNT(index_name) AS count FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND column_name IN (SELECT column_name FROM information_schema.statistics WHERE table_name='test2' AND table_schema='xtest' AND index_name='foobar' AND column_name RLIKE '^\\$ix_[[:alnum:]_]+[[:xdigit:]]+$') GROUP BY column_name HAVING count = 1
+ALTER TABLE `xtest`.`test2` DROP INDEX `foobar`, DROP COLUMN `$ix_ft_r_F3A2A51A9B0F2BE2468926B4132313728C250DBF`
+0 rows affected
 ######### list_objects #########
 name	type
 test	COLLECTION

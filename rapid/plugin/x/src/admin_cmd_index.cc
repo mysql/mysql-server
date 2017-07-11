@@ -86,8 +86,8 @@ bool Admin_command_index::is_table_support_virtual_columns(
 
 Admin_command_index::Index_type_id Admin_command_index::get_type_id(
     const std::string &type_name) const {
-  static const std::array<const char *const, 2> INDEX_TYPE{
-      {"INDEX", "SPATIAL"}};
+  static const std::array<const char *const, 3> INDEX_TYPE{
+      {"INDEX", "SPATIAL", "FULLTEXT"}};
   std::string name{type_name};
   std::transform(name.begin(), name.end(), name.begin(), ::toupper);
   auto i = std::find_if(INDEX_TYPE.begin(), INDEX_TYPE.end(),
@@ -106,6 +106,8 @@ std::string Admin_command_index::get_default_field_type(const Index_type_id id)
       return "TEXT(64)";
     case Index_type_id::SPATIAL:
       return "GEOJSON";
+    case Index_type_id::FULLTEXT:
+      return "FULLTEXT";
     default:
       break;
   }
@@ -140,6 +142,7 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   std::string collection;
   std::string index_name;
   std::string index_type{"INDEX"};
+  std::string parser;
   bool is_unique = false;
   std::vector<Command_arguments *> constraints;
 
@@ -150,6 +153,7 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
                 .string_arg("name", &index_name)
                 .bool_arg("unique", &is_unique)
                 .string_arg("type", &index_type, true)
+                .string_arg("with_parser", &parser, true)
                 .object_list("constraint", &constraints)
                 .error();
   else
@@ -178,9 +182,18 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
                       "Argument value '%s' for index type is invalid",
                       index_type.c_str());
 
-  if (is_unique && type_id == Index_type_id::SPATIAL)
-    return ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
-                      "Unique spatial index is not supported");
+  if (is_unique) {
+    if (type_id == Index_type_id::SPATIAL)
+      return ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
+                        "Unique spatial index is not supported");
+    if (type_id == Index_type_id::FULLTEXT)
+      return ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
+                        "Unique fulltext index is not supported");
+  }
+  if (!parser.empty() && type_id != Index_type_id::FULLTEXT)
+    return ngs::Error(
+        ER_X_CMD_ARGUMENT_VALUE,
+        "'with_parser' argument is supported for fulltext index only");
 
   // check if the table's engine supports index on the virtual column
   const bool virtual_supported =
@@ -222,12 +235,15 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   qb.put(" ADD ");
   if (is_unique) qb.put("UNIQUE ");
   if (type_id == Index_type_id::SPATIAL) qb.put("SPATIAL ");
+  if (type_id == Index_type_id::FULLTEXT) qb.put("FULLTEXT ");
   qb.put("INDEX ")
       .quote_identifier(index_name)
       .put(" (")
       .put_list(fields.begin(), fields.end(),
                 std::mem_fn(&Index_field::add_field))
       .put(")");
+
+  if (!parser.empty()) qb.put(" WITH PARSER ").put(parser);
 
   log_debug("CreateCollectionIndex: %s", qb.get().c_str());
   Empty_resultset rset;
@@ -272,7 +288,7 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
       .put(" AND table_schema=")
       .quote_string(schema)
       .put(" AND column_name IN ("
-          "SELECT BINARY column_name FROM information_schema.statistics"
+           "SELECT BINARY column_name FROM information_schema.statistics"
            " WHERE table_name=")
       .quote_string(collection)
       .put(" AND table_schema=")
@@ -280,7 +296,7 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
       .put(" AND index_name=")
       .quote_string(index_name)
       .put(" AND column_name RLIKE '^\\\\$ix_[[:alnum:]_]+[[:xdigit:]]+$')"
-          " GROUP BY column_name HAVING count = 1");
+           " GROUP BY column_name HAVING count = 1");
 
   Sql_data_result result(m_session->data_context());
   try {
@@ -379,13 +395,15 @@ std::string get_prefix(const char *const prefix, const int32_t precision,
   return traits.empty() ? result : result + traits + "_";
 }
 
-std::string hash(const std::string &name) {
+std::string docpath_hash(const std::string &path) {
   std::string hash;
   hash.resize(2 * SHA1_HASH_SIZE + 2);
   // just an arbitrary hash
-  ::make_scrambled_password(&hash[0], name.c_str());
-  hash.resize(2 * SHA1_HASH_SIZE + 1);  // strip the \0
-  return hash.substr(1);                // skip the 1st char
+  ::make_scrambled_password(&hash[0], path.size() > 2
+                                          ? path.substr(2).c_str()  // skip '$.'
+                                          : path.c_str());  // hash for '$'
+  hash.resize(2 * SHA1_HASH_SIZE + 1);                      // strip the \0
+  return hash.substr(1);                                    // skip the 1st char
 }
 
 bool parse_type(const std::string &source, std::string *name,
@@ -457,11 +475,11 @@ void Admin_command_index::Index_field::add_field(Query_string_builder *qb)
 
 Admin_command_index::Index_field::Field_type_id
 Admin_command_index::Index_field::get_type_id(const std::string &type_name) {
-  static const std::array<const char *const, 20> VALID_TYPES{
-      {"TINYINT", "SMALLINT", "MEDIUMINT", "INT",       "INTEGER",
-       "BIGINT",  "REAL",     "FLOAT",     "DOUBLE",    "DECIMAL",
-       "NUMERIC", "DATE",     "TIME",      "TIMESTAMP", "DATETIME",
-       "YEAR",    "BIT",      "BLOB",      "TEXT",      "GEOJSON"}};
+  static const std::array<const char *const, 21> VALID_TYPES{
+      {"TINYINT", "SMALLINT",  "MEDIUMINT", "INT",     "INTEGER", "BIGINT",
+       "REAL",    "FLOAT",     "DOUBLE",    "DECIMAL", "NUMERIC", "DATE",
+       "TIME",    "TIMESTAMP", "DATETIME",  "YEAR",    "BIT",     "BLOB",
+       "TEXT",    "GEOJSON",   "FULLTEXT"}};
   auto i = std::find_if(VALID_TYPES.begin(), VALID_TYPES.end(),
                         [&type_name](const char *const arg) {
     return std::strcmp(type_name.c_str(), arg) == 0;
@@ -480,7 +498,7 @@ class Index_numeric_field : public Admin_command_index::Index_field {
                       const bool is_required, const bool is_virtual_allowed)
       : Index_field(path, is_required, get_prefix(prefix, precision, scale,
                                                   is_unsigned, is_required) +
-                                           hash(path.substr(2)),
+                                           docpath_hash(path),
                     is_virtual_allowed),
         m_type_name(type_name),
         m_precision(precision),
@@ -514,7 +532,7 @@ class Index_string_field : public Admin_command_index::Index_field {
                      const bool is_required, const bool is_virtual_allowed)
       : Index_field(path, is_required,
                     get_prefix(prefix, precision, -1, false, is_required) +
-                        hash(path.substr(2)),
+                        docpath_hash(path),
                     is_virtual_allowed),
         m_type_name(type_name),
         m_precision(precision) {}
@@ -559,7 +577,7 @@ class Index_geojson_field : public Admin_command_index::Index_field {
                       const std::string &path, const bool is_required)
       : Index_field(
             path, is_required,
-            get_prefix("gj", -1, -1, false, is_required) + hash(path.substr(2)),
+            get_prefix("gj", -1, -1, false, is_required) + docpath_hash(path),
             false),
         m_options(options),
         m_srid(srid) {}
@@ -582,6 +600,22 @@ class Index_geojson_field : public Admin_command_index::Index_field {
   const int64_t m_options, m_srid;
 };
 
+class Index_fulltext_field : public Admin_command_index::Index_field {
+ public:
+  Index_fulltext_field(const std::string &path, const bool is_required)
+      : Index_field(
+            path, is_required,
+            get_prefix("ft", -1, -1, false, is_required) + docpath_hash(path),
+            false) {}
+
+ protected:
+  void add_type(Query_string_builder *qb) const override { qb->put("TEXT"); }
+
+  void add_path(Query_string_builder *qb) const override {
+    qb->put("JSON_UNQUOTE(JSON_EXTRACT(doc, ").quote_string(m_path).put("))");
+  }
+};
+
 /////////////////////////////////////////////
 
 namespace {
@@ -598,9 +632,9 @@ inline bool set_unsupported_argument_error(const bool flag,
                                            const std::string &path,
                                            ngs::Error_code *error) {
   if (!flag) return false;
-  *error = ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
-                      "Unsupported argumet specification for '%s'",
-                      path.c_str());
+  *error =
+      ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
+                 "Unsupported argumet specification for '%s'", path.c_str());
   return true;
 }
 
@@ -789,6 +823,14 @@ Admin_command_index::Index_field::create(const std::string &name_space,
       return new Index_geojson_field(options != MAX_UINT64 ? options : 1,
                                      srid != MAX_UINT64 ? srid : 4326, path,
                                      is_required);
+    case Field_type_id::FULLTEXT:
+      if (set_invalid_type_error(precision > 0 || scale > 0 || is_unsigned,
+                                 type, error))
+        break;
+      if (set_unsupported_argument_error(
+              options != MAX_UINT64 || srid != MAX_UINT64, path, error))
+        break;
+      return new Index_fulltext_field(path, is_required);
 
     case Field_type_id::UNSUPPORTED:
       set_invalid_type_error(true, type, error);

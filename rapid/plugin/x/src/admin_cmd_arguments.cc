@@ -273,7 +273,7 @@ class Docpath_argument_validator : String_argument_validator {
 
   void operator()(const std::string &input, std::string *output) {
     static const Regex re(
-        "^[[.dollar-sign.]]([[.period.]][^[:space:][.period.]]+)+$");
+        "^[[.dollar-sign.]]([[.period.]][^[:space:][.period.]]+)*$");
     std::string value;
     String_argument_validator::operator()(input, &value);
     if (*m_error) return;

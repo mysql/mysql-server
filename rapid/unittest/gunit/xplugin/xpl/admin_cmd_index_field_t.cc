@@ -172,7 +172,14 @@ Param_index_field_create fail_on_create_param[] = {
     {ER_X_CMD_ARGUMENT_VALUE,
      {MEMBER, {"type", "geojson(10,2)"}, NOT_REQUIRED}},
     {ER_X_CMD_ARGUMENT_VALUE,
-     {MEMBER, {"type", "geojson unsigned"}, NOT_REQUIRED}}};
+     {MEMBER, {"type", "geojson unsigned"}, NOT_REQUIRED}},
+    {ER_X_CMD_ARGUMENT_VALUE, {MEMBER, {"type", "fulltext(10)"}, NOT_REQUIRED}},
+    {ER_X_CMD_ARGUMENT_VALUE,
+     {MEMBER, {"type", "fulltext unsigned"}, NOT_REQUIRED}},
+    {ER_X_CMD_ARGUMENT_VALUE,
+     {MEMBER, {"type", "fulltext"}, OPTIONS, NOT_REQUIRED}},
+    {ER_X_CMD_ARGUMENT_VALUE,
+     {MEMBER, {"type", "fulltext"}, SRID, NOT_REQUIRED}}, };
 
 INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_field_create_test,
                         ValuesIn(fail_on_create_param));
@@ -235,6 +242,7 @@ Param_index_field_add_field add_field_param[] = {
     {"$ix_bt_", {MEMBER, {"type", "blob"}, NOT_REQUIRED}},
     {"$ix_t_", {MEMBER, {"type", "text"}, NOT_REQUIRED}},
     {"$ix_gj_", {MEMBER, {"type", "geojson"}, NOT_REQUIRED}},
+    {"$ix_ft_", {MEMBER, {"type", "fulltext"}, NOT_REQUIRED}},
     {"$ix_t_", {MEMBER, /*default type*/ NOT_REQUIRED}}};
 
 INSTANTIATE_TEST_CASE_P(get_index_field_name, Index_field_add_field_test,
@@ -291,7 +299,11 @@ Param_index_field_add_column add_column_param[] = {
     {" ADD COLUMN `$ix_gj_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON("
      "JSON_EXTRACT(doc, '$.path'),1,666)) STORED",
-     false, {MEMBER, {"type", "GEOJSON"}, SRID, NOT_REQUIRED}}};
+     false, {MEMBER, {"type", "GEOJSON"}, SRID, NOT_REQUIRED}},
+    {" ADD COLUMN `$ix_ft_" PATH_HASH
+     "` TEXT GENERATED ALWAYS AS (JSON_UNQUOTE("
+     "JSON_EXTRACT(doc, '$.path'))) STORED",
+     false, {MEMBER, {"type", "FULLTEXT"}, NOT_REQUIRED}}};
 
 INSTANTIATE_TEST_CASE_P(add_column, Index_field_add_column_test,
                         ValuesIn(add_column_param));
