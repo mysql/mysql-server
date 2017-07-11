@@ -4971,7 +4971,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           about the non-standard situation we have found.
         */
         if (is_sbr_logging_format() &&
-            thd->variables.tx_isolation > ISO_READ_COMMITTED &&
+            thd->variables.transaction_isolation > ISO_READ_COMMITTED &&
             thd->tx_isolation == ISO_READ_COMMITTED)
         {
           String message;
