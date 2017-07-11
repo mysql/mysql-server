@@ -1979,10 +1979,6 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
-    if (all)
-    {
-      trn_ctx->invalidate_changed_tables_in_cache(thd);
-    }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)

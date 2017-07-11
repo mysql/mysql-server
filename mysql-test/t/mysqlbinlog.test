@@ -111,9 +111,9 @@ flush logs;
 --write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 create table if not exists t5 (a int);
 set names latin1;
-create temporary table `äöüÄÖÜ` (a int);
-insert into `äöüÄÖÜ` values (1);
-insert into t5 select * from `äöüÄÖÜ`
+create temporary table `Ã¤Ã¶Ã¼Ã„Ã–Ãœ` (a int);
+insert into `Ã¤Ã¶Ã¼Ã„Ã–Ãœ` values (1);
+insert into t5 select * from `Ã¤Ã¶Ã¼Ã„Ã–Ãœ`
 EOF
 --exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
@@ -123,7 +123,7 @@ EOF
 # should use default-character-set same as the server.
 flush logs;
 # Due to BUG#18337 that wrongly suppresses the BINLOG EVENTS when
-# --short-form is used, the "insert into t5 select * from `äöüÄÖÜ`"
+# --short-form is used, the "insert into t5 select * from `Ã¤Ã¶Ã¼Ã„Ã–Ãœ`"
 # which is unsafe and thus written to the binary log in the row
 # format is not executed. This makes the assertion select * from t5 
 # /* must be (1),(1) */; to fail. To temporary fix the bug, we

@@ -158,10 +158,9 @@ static handler *archive_create_handler(handlerton *hton,
 
 PSI_memory_key az_key_memory_frm;
 PSI_memory_key az_key_memory_record_buffer;
-
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key az_key_mutex_Archive_share_mutex;
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_archive_mutexes[]=
 {
   { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0, 0}

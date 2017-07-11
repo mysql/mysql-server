@@ -19,6 +19,7 @@
 
 #include "xpl_server.h"
 
+#include "ngs_common/config.h"
 #include "auth_mysql41.h"
 #include "auth_plain.h"
 #include "io/xpl_listener_factory.h"
@@ -200,8 +201,8 @@ ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(ngs::Connectio
 
 
 ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(ngs::Client_interface &client,
-                                                            ngs::Protocol_encoder &proto,
-                                                            Session::Session_id session_id)
+                                                                    ngs::Protocol_encoder_interface &proto,
+                                                                    const Session::Session_id session_id)
 {
   return ngs::shared_ptr<ngs::Session>(
            ngs::allocate_shared<xpl::Session>(ngs::ref(client), &proto, session_id));
@@ -526,7 +527,7 @@ bool xpl::Server::on_net_startup()
       sql_context.switch_to_local_user(MYSQL_SESSION_USER);
       sql_result.query("SELECT @@skip_networking, @@skip_name_resolve, @@have_ssl='YES', @@ssl_key, "
                        "@@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_crl, @@ssl_crlpath, @@tls_version;");
-    } catch (const ngs::Error_code &error) {
+    } catch (const ngs::Error_code &) {
       log_error("Unable to use user mysql.session account when connecting"
                 "the server for internal plugin requests.");
       log_info("For more information, please see the X Plugin User Account"
@@ -741,7 +742,7 @@ struct Client_check_handler_thd
 };
 
 
-xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ref &server, THD *thd)
+xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ptr &server, THD *thd)
 {
   std::vector<ngs::Client_ptr> clients;
   Client_check_handler_thd     client_check_thd(thd);

@@ -89,12 +89,8 @@
 #define mysql_rwlock_init(K, T) \
   mysql_rwlock_init_with_src(K, T, __FILE__, __LINE__)
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
 #define mysql_rwlock_init_with_src(K, T, F, L) \
   inline_mysql_rwlock_init(K, T, F, L)
-#else
-#define mysql_rwlock_init_with_src(K, T, F, L) inline_mysql_rwlock_init(T, F, L)
-#endif
 
 /**
   @def mysql_prlock_init(K, T)
@@ -107,12 +103,8 @@
 #define mysql_prlock_init(K, T) \
   mysql_prlock_init_with_src(K, T, __FILE__, __LINE__)
 
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
 #define mysql_prlock_init_with_src(K, T, F, L) \
   inline_mysql_prlock_init(K, T, F, L)
-#else
-#define mysql_prlock_init_with_src(K, T, F, L) inline_mysql_prlock_init(T, F, L)
-#endif
 
 /**
   @def mysql_rwlock_destroy(T)
@@ -244,13 +236,9 @@
 
 static inline void
 inline_mysql_rwlock_register(
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  const char *category, PSI_rwlock_info *info, int count
-#else
   const char *category MY_ATTRIBUTE((unused)),
-  void *info MY_ATTRIBUTE((unused)),
+  PSI_rwlock_info *info MY_ATTRIBUTE((unused)),
   int count MY_ATTRIBUTE((unused))
-#endif
   )
 {
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -260,9 +248,7 @@ inline_mysql_rwlock_register(
 
 static inline int
 inline_mysql_rwlock_init(
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_rwlock_key key,
-#endif
+  PSI_rwlock_key key MY_ATTRIBUTE((unused)),
   mysql_rwlock_t *that,
   const char *src_file MY_ATTRIBUTE((unused)),
   int src_line MY_ATTRIBUTE((unused)))
@@ -278,9 +264,7 @@ inline_mysql_rwlock_init(
 #ifndef DISABLE_MYSQL_PRLOCK_H
 static inline int
 inline_mysql_prlock_init(
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  PSI_rwlock_key key,
-#endif
+  PSI_rwlock_key key MY_ATTRIBUTE((unused)),
   mysql_prlock_t *that,
   const char *src_file MY_ATTRIBUTE((unused)),
   int src_line MY_ATTRIBUTE((unused)))

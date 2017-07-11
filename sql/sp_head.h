@@ -19,9 +19,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <string>
+
 #include "field.h"
 #include "handler.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "mem_root_array.h"    // Mem_root_array
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -413,6 +416,8 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+struct SP_TABLE;
 
 /**
   sp_head represents one instance of a stored program. It might be of any type
@@ -950,7 +955,7 @@ private:
     We do so because the same instance of sp_head may be called both
     in prelocked mode and in non-prelocked mode.
   */
-  HASH m_sptabs;
+  collation_unordered_map<std::string, SP_TABLE *> m_sptabs;
 
   /**
     Version of the stored routine cache at the moment when the

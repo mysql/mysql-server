@@ -45,9 +45,11 @@
 #include <stdio.h>
 #include <violite.h>
 
+#include <string>
+
 #include "errmsg.h"
-#include "hash.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -104,6 +106,7 @@
 #include "log_event.h"                /* Log_event_type */
 #include "rpl_constants.h"            /* mysql_binlog_XXX() */
 
+using std::string;
 using std::swap;
 
 #define STATE_DATA(M) \
@@ -1681,7 +1684,7 @@ static const char *default_options[]=
   "character-sets-dir", "default-character-set", "interactive-timeout",
   "connect-timeout", "local-infile", "disable-local-infile",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
-  "multi-results", "multi-statements", "multi-queries", "secure-auth",
+  "multi-results", "multi-statements", "multi-queries",
   "report-data-truncation", "plugin-dir", "default-auth",
   "bind-address", "ssl-crl", "ssl-crlpath", "enable-cleartext-plugin", "tls-version",
   "ssl_mode",
@@ -1694,7 +1697,7 @@ enum option_id {
   OPT_character_sets_dir, OPT_default_character_set, OPT_interactive_timeout, 
   OPT_connect_timeout, OPT_local_infile, OPT_disable_local_infile, 
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
-  OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
+  OPT_multi_results, OPT_multi_statements, OPT_multi_queries,
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth,
   OPT_bind_address, OPT_ssl_crl, OPT_ssl_crlpath, OPT_enable_cleartext_plugin,
   OPT_tls_version, OPT_ssl_mode,
@@ -1995,9 +1998,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
 	case OPT_multi_queries:
 	  options->client_flag|= CLIENT_MULTI_STATEMENTS | CLIENT_MULTI_RESULTS;
 	  break;
-        case OPT_secure_auth:
-          /* this is a no-op */
-          break;
         case OPT_report_data_truncation:
           options->report_data_truncation= opt_arg ? (atoi(opt_arg) != 0) : 1;
           break;
@@ -3277,7 +3277,7 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 
 
 static uchar *
-write_length_encoded_string3(uchar *buf, char *string, size_t length)
+write_length_encoded_string3(uchar *buf, const char *string, size_t length)
 {
   buf= net_store_length(buf, length);
   memcpy(buf, string, length);
@@ -3286,34 +3286,12 @@ write_length_encoded_string3(uchar *buf, char *string, size_t length)
 }
 
 
-/**
-  A function to return the key from a connection attribute
-*/
-static const uchar *
-get_attr_key(const uchar *arg, size_t *length)
-{
-  const LEX_STRING *part= pointer_cast<const LEX_STRING*>(arg);
-  *length= part[0].length;
-  return (uchar *) part[0].str;
-}
-
 /*
-  The main purpose of this is to hide HASH from st_mysql_options_extention.
+  The main purpose of this is to hide C++ from st_mysql_options_extention.
  */
-struct My_hash : public HASH
+struct My_hash
 {
-  My_hash()
-  {
-    blength= 0;
-    my_hash_init(this,
-                 &my_charset_bin, 0, 0, get_attr_key,
-                 my_free, HASH_UNIQUE,
-                 key_memory_mysql_options);
-  }
-  ~My_hash()
-  {
-    my_hash_free(this);
-  }
+  malloc_unordered_map<string, string> hash{key_memory_mysql_options};
 };
 
 uchar *
@@ -3333,20 +3311,18 @@ send_client_connect_attrs(MYSQL *mysql, uchar *buf)
     if (mysql->options.extension &&
         mysql->options.extension->connection_attributes)
     {
-      HASH *attrs= mysql->options.extension->connection_attributes;
-      ulong idx;
-
       /* loop over and dump the connection attributes */
-      for (idx= 0; idx < attrs->records; idx++)
+      for (const auto &key_and_value :
+           mysql->options.extension->connection_attributes->hash)
       {
-        LEX_STRING *attr= (LEX_STRING *) my_hash_element(attrs, idx);
-        LEX_STRING *key= attr, *value= attr + 1;
+        const string &key= key_and_value.first;
+        const string &value= key_and_value.second;
 
         /* we can't have zero length keys */
-        DBUG_ASSERT(key->length);
+        DBUG_ASSERT(!key.empty());
 
-        buf= write_length_encoded_string3(buf, key->str, key->length);
-        buf= write_length_encoded_string3(buf, value->str, value->length);
+        buf= write_length_encoded_string3(buf, key.data(), key.size());
+        buf= write_length_encoded_string3(buf, value.data(), value.size());
       }
     }
   }
@@ -5845,10 +5821,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                                            static_cast<const char*>(arg),
                                            MYF(MY_WME));
     break;
-  case MYSQL_SECURE_AUTH:
-    if (!*(bool *) arg)
-      DBUG_RETURN(1);
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= *(bool *) arg;
     break;
@@ -5949,27 +5921,20 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     if (mysql->options.extension->connection_attributes)
     {
-      size_t len;
-      uchar *elt;
+      string key= arg ? pointer_cast<const char *>(arg) : "";
 
-      len= arg ? strlen(static_cast<const char*>(arg)) : 0;
-
-      if (len)
+      if (!key.empty())
       {
-        elt= my_hash_search(mysql->options.extension->connection_attributes,
-                            static_cast<const uchar*>(arg), len);
-        if (elt)
+        auto it= mysql->options.extension->connection_attributes->hash.find(key);
+        if (it != mysql->options.extension->connection_attributes->hash.end())
         {
-          LEX_STRING *attr= (LEX_STRING *) elt;
-          LEX_STRING *key= attr, *value= attr + 1;
-
+          const string &key= it->first;
+          const string &value= it->second;
           mysql->options.extension->connection_attributes_length-=
-            get_length_store_length(key->length) + key->length +
-            get_length_store_length(value->length) + value->length;
+            get_length_store_length(key.size()) + key.size() +
+            get_length_store_length(value.size()) + value.size();
 
-          my_hash_delete(mysql->options.extension->connection_attributes,
-                         elt);
-
+          mysql->options.extension->connection_attributes->hash.erase(it);
         }
       }
     }
@@ -6025,7 +5990,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   bool
     MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
     MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
-    MYSQL_SECURE_AUTH, MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
+    MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
 
   const char *
@@ -6112,9 +6077,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     break;
   case MYSQL_SET_CLIENT_IP:
     *((char **)arg) = mysql->options.ci.client_ip;
-    break;
-  case MYSQL_SECURE_AUTH:
-    *((bool *)arg)= TRUE;
     break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     *((bool *)arg)= mysql->options.report_data_truncation;
@@ -6215,10 +6177,10 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
   {
   case MYSQL_OPT_CONNECT_ATTR_ADD:
     {
-      LEX_STRING *elt;
-      char *key, *value;
-      size_t key_len= arg1 ? strlen(static_cast<const char*>(arg1)) : 0;
-      size_t value_len= arg2 ? strlen(static_cast<const char*>(arg2)) : 0;
+      const char *key= static_cast<const char*>(arg1);
+      const char *value= static_cast<const char*>(arg2);
+      size_t key_len= arg1 ? strlen(key) : 0;
+      size_t value_len= arg2 ? strlen(value) : 0;
       size_t attr_storage_length= key_len + value_len;
 
       /* we can't have a zero length key */
@@ -6250,38 +6212,16 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
       {
         mysql->options.extension->connection_attributes=
           new (std::nothrow) My_hash();
-        if (!mysql->options.extension->connection_attributes ||
-            !my_hash_inited(mysql->options.extension->connection_attributes))
+        if (!mysql->options.extension->connection_attributes)
         {
-          delete mysql->options.extension->connection_attributes;
-          mysql->options.extension->connection_attributes= NULL;
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           DBUG_RETURN(1);
         }
       }
-      if (!my_multi_malloc(key_memory_mysql_options,
-                           MY_WME,
-                           &elt, 2 * sizeof(LEX_STRING),
-                           &key, key_len + 1,
-                           &value, value_len + 1,
-                           NULL))
-      {
-        set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-        DBUG_RETURN(1);
-      }
-      elt[0].str= key; elt[0].length= key_len;
-      elt[1].str= value; elt[1].length= value_len;
-      if (key_len)
-        memcpy(key, arg1, key_len);
-      key[key_len]= 0;
-      if (value_len)
-        memcpy(value, arg2, value_len);
-      value[value_len]= 0;
-      if (my_hash_insert(mysql->options.extension->connection_attributes,
-                     (uchar *) elt))
+      if (!mysql->options.extension->connection_attributes->hash.emplace
+            (key, value).second)
       {
         /* can't insert the value */
-        my_free(elt);
         set_mysql_error(mysql, CR_DUPLICATE_CONNECTION_ATTR,
                         unknown_sqlstate);
         DBUG_RETURN(1);

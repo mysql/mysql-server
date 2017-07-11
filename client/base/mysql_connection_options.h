@@ -112,7 +112,6 @@ private:
   void pipe_protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
 #endif
   void protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
-  void secure_auth_callback(char* argument MY_ATTRIBUTE((unused)));
 
   static bool mysql_inited;
 
@@ -128,7 +127,6 @@ private:
   Nullable<std::string> m_shared_memory_base_name;
 #endif
   Nullable<std::string> m_default_auth;
-  bool m_secure_auth;
   Nullable<std::string> m_plugin_dir;
   uint32 m_net_buffer_length;
   uint32 m_max_allowed_packet;

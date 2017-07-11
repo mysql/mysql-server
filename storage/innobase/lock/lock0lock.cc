@@ -4304,7 +4304,6 @@ lock_release(
 {
 	lock_t*		lock;
 	ulint		count = 0;
-	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
@@ -4320,19 +4319,6 @@ lock_release(
 
 			lock_rec_dequeue_from_page(lock);
 		} else {
-			dict_table_t*	table;
-
-			table = lock->un_member.tab_lock.table;
-
-			if (lock_get_mode(lock) != LOCK_IS
-			    && trx->undo_no != 0) {
-
-				/* The trx may have modified the table. We
-				block the use of the MySQL query cache for
-				all currently active transactions. */
-
-				table->query_cache_inv_id = max_trx_id;
-			}
 
 			lock_table_dequeue(lock);
 		}

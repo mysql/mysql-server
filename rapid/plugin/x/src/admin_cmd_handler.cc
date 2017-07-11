@@ -24,9 +24,6 @@
 
 #include "my_inttypes.h"
 #include "mysql/service_my_snprintf.h"
-#include "mysqlx_datatypes.pb.h"
-#include "mysqlx_resultset.pb.h"
-#include "mysqlx_sql.pb.h"
 #include "ngs/mysqlx/getter_any.h"
 #include "ngs/protocol/row_builder.h"
 #include "password.h"
@@ -221,7 +218,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
 
   std::vector<Client_data_> clients;
   {
-    Server::Server_ref server(Server::get_instance());
+    Server::Server_ptr server(Server::get_instance());
     if (server)
     {
       MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
@@ -236,7 +233,7 @@ ngs::Error_code xpl::Admin_command_handler::list_clients(Command_arguments &args
     }
   }
 
-  ngs::Protocol_encoder &proto(m_session.proto());
+  ngs::Protocol_encoder_interface &proto(m_session.proto());
 
   proto.send_column_metadata("", "", "", "", "client_id", "", 0, Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
   proto.send_column_metadata("", "", "", "", "user", "", 0, Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
@@ -287,7 +284,7 @@ ngs::Error_code xpl::Admin_command_handler::kill_client(Command_arguments &args)
     return error;
 
   {
-    xpl::Server::Server_ref server(Server::get_instance());
+    xpl::Server::Server_ptr server(Server::get_instance());
     if (server)
       error = (*server)->kill_client(cid, m_session);
   }
@@ -1001,7 +998,7 @@ inline bool is_fixed_notice_name(const std::string &notice)
 }
 
 
-inline void add_notice_row(ngs::Protocol_encoder &proto, const std::string &notice, longlong status)
+inline void add_notice_row(ngs::Protocol_encoder_interface &proto, const std::string &notice, longlong status)
 {
   proto.start_row();
   proto.row_builder().add_string_field(notice.c_str(), notice.length(), NULL);
@@ -1766,8 +1763,6 @@ xpl::Admin_command_arguments_object *xpl::Admin_command_arguments_object::add_su
   m_sub_objects.push_back(ngs::shared_ptr<Admin_command_arguments_object>(obj));
   return obj;
 }
-
-
 
 
 const ngs::Error_code &xpl::Admin_command_arguments_object::end()

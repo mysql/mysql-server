@@ -171,7 +171,8 @@ Mysqlx_sessions_accepted	2
 Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
-ERROR: Host not found
+in main, line 0:ERROR: Host not foundnot ok
+
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	4
@@ -189,7 +190,8 @@ Mysqlx_sessions_closed	2
 Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	2
 uninstall plugin mysqlx;
-ERROR: Connection refused connecting to HOST:PORT
+in main, line 0:ERROR: Connection refused connecting to HOST:PORT (code 2002)
+not ok
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 show status like 'Mysqlx_connections_accepted';

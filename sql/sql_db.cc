@@ -74,7 +74,6 @@
 #include "session_tracker.h"
 #include "sp.h"              // lock_db_routines
 #include "sql_base.h"        // lock_table_names
-#include "sql_cache.h"       // query_cache
 #include "sql_class.h"       // THD
 #include "sql_const.h"
 #include "sql_error.h"
@@ -673,7 +672,6 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       ha_drop_database(path);
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
-      query_cache.invalidate(thd, db.str);
       error= Events::drop_schema_events(thd, *schema);
       error= (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
     }

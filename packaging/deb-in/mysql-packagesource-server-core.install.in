@@ -85,3 +85,6 @@ usr/share/mysql/mysql-log-rotate
 # localized error msgs
 usr/share/mysql/*/errmsg.sys
 usr/share/mysql/errmsg-utf8.txt
+# legal
+usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/@DEB_INSTALL_LICENSEFILE@
+usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/README

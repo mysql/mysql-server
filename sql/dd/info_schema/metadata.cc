@@ -99,7 +99,7 @@ class Update_context
 public:
   Update_context(THD *thd, bool commit_gaurd) :
     m_thd(thd),
-    m_saved_var_tx_read_only(thd->variables.tx_read_only),
+    m_saved_var_tx_read_only(thd->variables.transaction_read_only),
     m_saved_tx_read_only(thd->tx_read_only),
     m_autocommit_guard(commit_gaurd ? thd : nullptr),
     m_mdl_handler(thd),
@@ -111,7 +111,7 @@ public:
       Set tx_read_only to false to allow installing DD tables even
       if the server is started with --transaction-read-only=true.
     */
-    m_thd->variables.tx_read_only= false;
+    m_thd->variables.transaction_read_only= false;
     m_thd->tx_read_only= false;
 
     if (m_mdl_handler.ensure_locked(INFORMATION_SCHEMA_NAME.str) ||
@@ -124,7 +124,7 @@ public:
   ~Update_context()
   {
     // Restore thd state.
-    m_thd->variables.tx_read_only= m_saved_var_tx_read_only;
+    m_thd->variables.transaction_read_only= m_saved_var_tx_read_only;
     m_thd->tx_read_only= m_saved_tx_read_only;
   }
 
@@ -607,7 +607,7 @@ bool initialize(THD *thd)
     Set tx_read_only to false to allow installing system views even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.tx_read_only= false;
+  thd->variables.transaction_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);

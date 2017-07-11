@@ -133,6 +133,7 @@
 #include "table_persisted_variables.h"
 #include "table_user_defined_functions.h"
 
+/* clang-format off */
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
 
@@ -446,6 +447,7 @@
 
   An example of table using this pattern is @c table_host_cache.
 */
+/* clang-format on */
 
 /**
   @addtogroup performance_schema_engine
@@ -1099,8 +1101,8 @@ allow_drop_privilege()
   }
 
   DBUG_ASSERT(thd->lex != NULL);
-  if ( (thd->lex->sql_command != SQLCOM_TRUNCATE) &&
-       (thd->lex->sql_command != SQLCOM_GRANT))
+  if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+      (thd->lex->sql_command != SQLCOM_GRANT))
   {
     return false;
   }
@@ -1114,9 +1116,9 @@ ACL_internal_access_result
 PFS_readonly_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 CREATE_ACL | DROP_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
-                                 TRIGGER_ACL | LOCK_TABLES_ACL;
+                                 CREATE_ACL | DROP_ACL | REFERENCES_ACL |
+                                 INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL |
+                                 SHOW_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
@@ -1157,7 +1159,7 @@ PFS_truncatable_acl::check(ulong want_access, ulong *) const
 
   if (want_access & DROP_ACL)
   {
-    if (! allow_drop_privilege())
+    if (!allow_drop_privilege())
     {
       return ACL_INTERNAL_ACCESS_DENIED;
     }
@@ -1186,8 +1188,8 @@ ACL_internal_access_result
 PFS_updatable_acl::check(ulong want_access, ulong *) const
 {
   const ulong always_forbidden =
-    INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL | INDEX_ACL |
-    ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
+    INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
+    INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
   {
@@ -1213,7 +1215,7 @@ PFS_editable_acl::check(ulong want_access, ulong *) const
 
   if (want_access & DROP_ACL)
   {
-    if (! allow_drop_privilege())
+    if (!allow_drop_privilege())
     {
       return ACL_INTERNAL_ACCESS_DENIED;
     }

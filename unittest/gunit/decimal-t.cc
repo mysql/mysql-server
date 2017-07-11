@@ -973,7 +973,6 @@ static void BM_Bin2Decimal_10_2(size_t iters)
   uchar packed_buf[num_elements][bin_size];
 
   decimal_t decimal;
-  uchar buf[100];
   decimal_digit_t decimal_buf[9];
   decimal.buf= decimal_buf;
   decimal.len= array_elements(decimal_buf);
@@ -994,7 +993,7 @@ static void BM_Bin2Decimal_10_2(size_t iters)
   for (size_t i= 0; i < iters; ++i)
   {
     bin2decimal(packed_buf[i % num_elements], &decimal, 10, 2);
-    dummy+= buf[0];
+    dummy+= decimal_buf[0];
   }
 
   ASSERT_NE(static_cast<size_t>(-1), dummy);  // To keep the optimizer from removing the loop.

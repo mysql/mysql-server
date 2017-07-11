@@ -24,6 +24,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "test_utils.h"
+#include "temptable/allocator.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -71,6 +72,13 @@ extern void install_tap_listener();
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+
+#if defined(HAVE_WINNUMA)
+  SYSTEM_INFO systemInfo;
+  GetSystemInfo(&systemInfo);
+
+  temptable::win_page_size = systemInfo.dwPageSize;
+#endif /* HAVE_WINNUMA */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   pre_initialize_performance_schema();

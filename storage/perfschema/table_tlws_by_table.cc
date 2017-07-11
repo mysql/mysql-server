@@ -213,11 +213,8 @@ table_tlws_by_table::rnd_next(void)
     pfs = it.scan_next(&m_pos.m_index);
     if (pfs != NULL)
     {
-      if (pfs->m_enabled)
-      {
-        m_next_pos.set_after(&m_pos);
-        return make_row(pfs);
-      }
+      m_next_pos.set_after(&m_pos);
+      return make_row(pfs);
     }
   } while (pfs != NULL);
 
@@ -234,10 +231,7 @@ table_tlws_by_table::rnd_pos(const void *pos)
   pfs = global_table_share_container.get(m_pos.m_index);
   if (pfs != NULL)
   {
-    if (pfs->m_enabled)
-    {
-      return make_row(pfs);
-    }
+    return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -268,15 +262,12 @@ table_tlws_by_table::index_next(void)
 
     if (share != NULL)
     {
-      if (share->m_enabled)
+      if (m_opened_index->match(share))
       {
-        if (m_opened_index->match(share))
+        if (!make_row(share))
         {
-          if (!make_row(share))
-          {
-            m_next_pos.set_after(&m_pos);
-            return 0;
-          }
+          m_next_pos.set_after(&m_pos);
+          return 0;
         }
       }
     }

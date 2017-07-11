@@ -15,11 +15,11 @@ include/gr_single_primary_with_transaction_isolation.inc
 # CONFIGURE SERVER 1
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -38,11 +38,11 @@ include/gr_single_primary_with_transaction_isolation.inc
 # CONFIGURE SERVER 1
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -61,11 +61,11 @@ include/gr_single_primary_with_transaction_isolation.inc
 # CONFIGURE SERVER 1
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='SERIALIZABLE';
+SET SESSION transaction_isolation='SERIALIZABLE';
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -81,11 +81,11 @@ include/gr_single_primary_with_transaction_isolation.inc
 # CONFIGURE SERVER 1
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -104,11 +104,11 @@ include/gr_single_primary_with_transaction_isolation.inc
 # CONFIGURE SERVER 1
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
-SET SESSION tx_isolation='REPEATABLE-READ';
+SET SESSION transaction_isolation='REPEATABLE-READ';
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);

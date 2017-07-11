@@ -61,7 +61,6 @@ PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 PSI_memory_key key_memory_Owned_gtids_to_string;
 PSI_memory_key key_memory_PROFILE;
 PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
-PSI_memory_key key_memory_Query_cache;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
@@ -286,7 +285,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID_STATE, "XID_STATE", 0},
   { &key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0},
   { &key_memory_opt_bin_logname, "opt_bin_logname", 0},
-  { &key_memory_Query_cache, "Query_cache", PSI_FLAG_GLOBAL},
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},

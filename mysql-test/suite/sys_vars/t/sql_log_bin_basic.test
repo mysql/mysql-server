@@ -94,15 +94,15 @@ SET @@session.sql_log_bin = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = TRÜE;
+SET @@session.sql_log_bin = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = ÕN;
+SET @@session.sql_log_bin = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_log_bin = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = ÓFF;
+SET @@session.sql_log_bin = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_bin = '¹';
+SET @@session.sql_log_bin = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = NO;
 

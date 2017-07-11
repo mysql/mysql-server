@@ -3264,9 +3264,10 @@ bool fill_partition_tablespace_names(
   {
     // Add tablespace name from partition elements, if used.
     if (part_elem->tablespace_name &&
-        strlen(part_elem->tablespace_name) &&
-        tablespace_set->insert(const_cast<char*>(part_elem->tablespace_name)))
-      return true;
+        strlen(part_elem->tablespace_name))
+    {
+      tablespace_set->insert(part_elem->tablespace_name);
+    }
 
     // Traverse through all subpartitions.
     List_iterator<partition_element> sub_it(part_elem->subpartitions);
@@ -3275,9 +3276,10 @@ bool fill_partition_tablespace_names(
     {
       // Add tablespace name from sub-partition elements, if used.
       if (sub_elem->tablespace_name &&
-          strlen(sub_elem->tablespace_name) &&
-          tablespace_set->insert(const_cast<char*>(sub_elem->tablespace_name)))
-        return true;
+          strlen(sub_elem->tablespace_name))
+      {
+        tablespace_set->insert(sub_elem->tablespace_name);
+      }
     }
   }
 

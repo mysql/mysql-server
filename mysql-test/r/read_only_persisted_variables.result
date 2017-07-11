@@ -128,26 +128,26 @@ SET PERSIST_ONLY table_open_cache_instances= 8;
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
 151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
 SET @@persist_only.max_connections=99;
 SET PERSIST_ONLY session_track_system_variables= 'max_connections';
-SET @@persist_only.tx_isolation= 'READ-COMMITTED';
+SET @@persist_only.transaction_isolation= 'READ-COMMITTED';
 # should not change the values.
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
 151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
 # Restart server
 # after restart
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
 99	max_connections
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 READ-COMMITTED
 SELECT VARIABLE_NAME FROM performance_schema.variables_info
 WHERE VARIABLE_SOURCE = 'PERSISTED';
@@ -161,16 +161,16 @@ log_slave_updates
 max_connections
 session_track_system_variables
 table_open_cache_instances
-tx_isolation
+transaction_isolation
 # Restart server with persisted_globals_load disabled.
 # check contents of persistent config file
-{ "mysql_server": {"max_connections": "99" , "session_track_system_variables": "max_connections" , "tx_isolation": "READ-COMMITTED" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" , "table_open_cache_instances": "8" } } }
+{ "mysql_server": {"max_connections": "99" , "session_track_system_variables": "max_connections" , "transaction_isolation": "READ-COMMITTED" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" , "table_open_cache_instances": "8" } } }
 # should have values different from persistent config file
 SELECT @@global.max_connections, @@global.session_track_system_variables;
 @@global.max_connections	@@global.session_track_system_variables
 151	time_zone,autocommit,character_set_client,character_set_results,character_set_connection
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 REPEATABLE-READ
 # check when persisted_globals_load is disabled.
 # should return 0 rows.
@@ -202,7 +202,7 @@ relay_log_space_limit
 session_track_system_variables
 slave_type_conversions
 table_open_cache_instances
-tx_isolation
+transaction_isolation
 # check for PERSIST_RO_VARIABLES_ADMIN privilege
 CREATE USER wl9787;
 SET GLOBAL sort_buffer_size=256000;

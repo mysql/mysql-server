@@ -917,13 +917,6 @@ bool Srv_session::open()
 
   DBUG_PRINT("info", ("thread_id=%d", thd.thread_id()));
 
-  /*
-    Disable QC - plugins will most probably install their own protocol
-    and it won't be compatible with the QC. In addition, Protocol_error
-    is not compatible with the QC.
-  */
-  thd.variables.query_cache_type = 0;
-
   thd.set_command(COM_SLEEP);
   thd.init_query_mem_roots();
 

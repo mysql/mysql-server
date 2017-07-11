@@ -47,6 +47,7 @@
 #include <cmath> // std::isinf
 
 #include "client_priv.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -133,6 +134,9 @@ extern CHARSET_INFO my_charset_utf16le_bin;
     dynstr_append(ds, "\n");                                                   \
   }                                                                            \
 }
+
+using std::string;
+using std::unique_ptr;
 
 C_MODE_START
 static void signal_handler(int sig);
@@ -355,7 +359,12 @@ typedef struct
 /*Perl/shell-like variable registers */
 VAR var_reg[10];
 
-HASH var_hash;
+struct var_free
+{
+  void operator() (VAR *var) const;
+};
+
+collation_unordered_map<string, unique_ptr<VAR, var_free>> *var_hash;
 
 struct st_connection
 {
@@ -1293,7 +1302,8 @@ static void free_used_memory()
   if (connections)
     close_connections();
   close_files();
-  my_hash_free(&var_hash);
+  delete var_hash;
+  var_hash= nullptr;
 
   struct st_command **q;
   for (q= q_lines->begin(); q != q_lines->end(); ++q)
@@ -2007,19 +2017,8 @@ static void strip_parentheses(struct st_command *command)
           static_cast<int>(command->first_word_len), command->query, '(', ')');
 }
 
-
-static const uchar *get_var_key(const uchar* var, size_t *len)
+void var_free::operator() (VAR *var) const
 {
-  char* key;
-  key = ((VAR*)var)->name;
-  *len = ((VAR*)var)->name_len;
-  return (uchar*)key;
-}
-
-
-static void var_free(void *v)
-{
-  VAR *var= (VAR*) v;
   my_free(var->str_val);
   if (var->alloced)
     my_free(var);
@@ -2095,7 +2094,7 @@ VAR* var_from_env(const char *name, const char *def_val)
     tmp = def_val;
 
   v = var_init(0, name, strlen(name), tmp, strlen(tmp));
-  my_hash_insert(&var_hash, (uchar*)v);
+  var_hash->emplace(name, unique_ptr<VAR, var_free>(v));
   return v;
 }
 
@@ -2128,8 +2127,7 @@ VAR* var_get(const char *var_name, const char **var_name_end, bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = (VAR*) my_hash_search(&var_hash, (const uchar*) save_var_name,
-                                    length)))
+    if (!(v = find_or_nullptr(*var_hash, string(save_var_name, length))))
     {
       char buff[MAX_VAR_NAME_LENGTH+1];
       strmake(buff, save_var_name, length);
@@ -2159,11 +2157,12 @@ err:
 
 static VAR *var_obtain(const char *name, int len)
 {
-  VAR* v;
-  if ((v = (VAR*)my_hash_search(&var_hash, (const uchar *) name, len)))
-    return v;
-  v = var_init(0, name, len, "", 0);
-  my_hash_insert(&var_hash, (uchar*)v);
+  VAR* v= find_or_nullptr(*var_hash, string(name, len));
+  if (v == nullptr)
+  {
+    v = var_init(0, name, len, "", 0);
+    var_hash->emplace(string(name, len), unique_ptr<VAR, var_free>(v));
+  }
   return v;
 }
 
@@ -6848,7 +6847,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
     }
 
     v.is_int= TRUE;
-    var_free(&v2);
+    var_free()(&v2);
   } else
   {
     if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
@@ -6888,7 +6887,7 @@ static void do_block(enum block_cmd cmd, struct st_command* command)
   
   DBUG_PRINT("info", ("OK: %d", cur_block->ok));
 
-  var_free(&v);
+  var_free()(&v);
   DBUG_VOID_RETURN;
 }
 
@@ -9641,10 +9640,8 @@ int main(int argc, char **argv)
 
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
-  if (my_hash_init(&var_hash, charset_info,
-                   1024, 0, get_var_key, var_free, 0,
-                   PSI_NOT_INSTRUMENTED))
-    die("Variable hash initialization failed");
+  var_hash= new collation_unordered_map<string, unique_ptr<VAR, var_free>>
+    (charset_info, PSI_NOT_INSTRUMENTED);
 
   {
     char path_separator[]= { FN_LIBCHAR, 0 };

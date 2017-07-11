@@ -4,10 +4,6 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
---source include/have_query_cache_disabled.inc
-
 create user user1@localhost;
 create user user2@localhost;
 create user user3@localhost;

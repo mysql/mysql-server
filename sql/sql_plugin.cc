@@ -2008,6 +2008,7 @@ void plugin_shutdown(void)
     initialized= false;
     mysql_mutex_destroy(&LOCK_plugin);
     mysql_mutex_destroy(&LOCK_plugin_delete);
+    mysql_mutex_destroy(&LOCK_plugin_install);
   }
 
   /* Dispose of the memory */

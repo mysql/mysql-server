@@ -80,6 +80,7 @@ ERROR HY000: Result of repeat() was larger than max_allowed_packet (4194304) - t
 REPLACE INTO t1
 SELECT 102, REPEAT('ab', @max_allowed_packet);
 ERROR HY000: Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+set names latin1;
 DELETE FROM t1
 WHERE c12 <=> REPEAT('ab', @max_allowed_packet);
 ERROR HY000: Result of repeat() was larger than max_allowed_packet (4194304) - truncated
@@ -88,6 +89,7 @@ USING t1 INNER JOIN t2
 WHERE t1.c11 = t2.c21 AND
 t2.c22 <=> REPEAT('ab', @max_allowed_packet);
 ERROR HY000: Result of repeat() was larger than max_allowed_packet (4194304) - truncated
+set names utf8mb4;
 DELETE IGNORE FROM t1, t2
 USING t1 INNER JOIN t2
 WHERE t1.c11 = t2.c21 AND
@@ -151,8 +153,6 @@ c11	LENGTH(c12)
 DELETE FROM t1
 WHERE c12 <=> REPEAT('ab', @max_allowed_packet);
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
-Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 SELECT c11, LENGTH(c12) FROM t1;
 c11	LENGTH(c12)

@@ -362,24 +362,6 @@ TEST_F(ItemTest, ItemEqual)
 }
 
 
-TEST_F(ItemTest, ItemFuncDesDecrypt)
-{
-  // Bug #59632 Assertion failed: arg_length > length
-  const uint length= 1U;
-  Item_int *item_one= new Item_int(1, length);
-  Item_int *item_two= new Item_int(2, length);
-  Item *item_decrypt=
-    new Item_func_des_decrypt(POS(), item_two, item_one);
-  Parse_context pc(thd(), thd()->lex->current_select());
-  EXPECT_FALSE(item_decrypt->itemize(&pc, &item_decrypt));
-  
-  EXPECT_FALSE(item_decrypt->fix_fields(thd(), NULL));
-  EXPECT_EQ(length, item_one->max_length);
-  EXPECT_EQ(length, item_two->max_length);
-  EXPECT_LE(item_decrypt->max_length, length);
-}
-
-
 TEST_F(ItemTest, ItemFuncExportSet)
 {
   String str;

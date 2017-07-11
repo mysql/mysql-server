@@ -40,7 +40,7 @@ update worklog5743 set a = (repeat("x", 17000));
 # Start a new session to select the column to force it build
 # an earlier version of the clustered index through undo log. So it should
 # just see the result of repeat("b", 16000)
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 --connect (con1,localhost,root,,)
 select a = repeat("x", 17000) from worklog5743;
 select a = repeat("b", 16000) from worklog5743;
@@ -49,7 +49,7 @@ select a = repeat("b", 16000) from worklog5743;
 # should see the uncommitted update
 --connect (con2,localhost,root,,)
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a = repeat("x", 17000) from worklog5743;
 
 # Roll back the transaction
@@ -73,7 +73,7 @@ update worklog5743 set a1 = 1000;
 
 # Do a select from another connection that would use the secondary index
 --connection con1
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 
@@ -81,7 +81,7 @@ select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 # row with a1 = 9
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 
 --connection default
@@ -103,7 +103,7 @@ update worklog5743 set a1 = 1000;
 
 # Do a select from another connection that would use the secondary index
 --connection con1
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 
@@ -111,7 +111,7 @@ select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 # row with a1 = 9
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 
 --connection default
@@ -255,7 +255,7 @@ select a1, left(a2, 20) from worklog5743_16;
 
 # Do a select from another connection that would use the secondary index
 --connection con1
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 explain select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
 explain select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
@@ -271,7 +271,7 @@ select a1, left(a2, 20) from worklog5743_16 where a1 = 9;
 # row with a1 = 9
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 select a1, left(a2, 20) from worklog5743_2 where a1 = 9;
 select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
@@ -327,14 +327,14 @@ update worklog5743 set a1 = 1000;
 
 # Do a select from another connection that would use the secondary index
 --connection con1
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 explain select a1 from worklog5743 where a1 = 9;
 select a1 from worklog5743 where a1 = 9;
 
 # Do read uncommitted, it would show there is no row with a1 = 9
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a1 from worklog5743 where a1 = 9;
 
 --connection default
@@ -369,14 +369,14 @@ update worklog5743 set a = (repeat("x", 25000));
 
 # Start a new session to select the table to force it build
 # an earlier version of the cluster index through undo log
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 --connection con1
 select a = repeat("a", 20000) from worklog5743;
 --disconnect con1
 
 --connection con2
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 select a = repeat("x", 25000) from worklog5743;
 --disconnect con2
 

@@ -18,8 +18,8 @@ Warning	1071	Specified key was too long; max key length is 768 bytes
 SET sql_mode= default;
 begin;
 update worklog5743 set a = (repeat("x", 17000));
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
@@ -28,8 +28,8 @@ select a = repeat("b", 16000) from worklog5743;
 a = repeat("b", 16000)
 1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a = repeat("x", 17000) from worklog5743;
 a = repeat("x", 17000)
@@ -46,8 +46,8 @@ Level	Code	Message
 insert into worklog5743 values(9, repeat("a", 10000));
 begin;
 update worklog5743 set a1 = 1111;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -58,8 +58,8 @@ select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
@@ -71,8 +71,8 @@ create index idx on worklog5743(a1, a2(50));
 insert into worklog5743 values(9, repeat("a", 10000));
 begin;
 update worklog5743 set a1 = 2222;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -83,8 +83,8 @@ select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
 9	1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, a2 = repeat("a", 10000) from worklog5743 where a1 = 9;
 a1	a2 = repeat("a", 10000)
@@ -223,8 +223,8 @@ select a1, left(a2, 20) from worklog5743_4;
 a1	left(a2, 20)
 1000	aaaaaaaaaaaaaaaaaaaa
 1000	bbbbbbbbbbbbbbbbbbbb
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -251,8 +251,8 @@ select a1, left(a2, 20) from worklog5743_4 where a1 = 9;
 a1	left(a2, 20)
 9	aaaaaaaaaaaaaaaaaaaa
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1, left(a2, 20) from worklog5743_1 where a1 = 9;
 a1	left(a2, 20)
@@ -307,8 +307,8 @@ Level	Code	Message
 insert into worklog5743 values(9, repeat("a", 764));
 begin;
 update worklog5743 set a1 = 4444;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 explain select a1 from worklog5743 where a1 = 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -319,8 +319,8 @@ select a1 from worklog5743 where a1 = 9;
 a1
 9
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a1 from worklog5743 where a1 = 9;
 a1
@@ -337,15 +337,15 @@ insert into worklog5743 values(repeat("a", 20000));
 begin;
 insert into worklog5743 values(repeat("b", 20000));
 update worklog5743 set a = (repeat("x", 25000));
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 REPEATABLE-READ
 select a = repeat("a", 20000) from worklog5743;
 a = repeat("a", 20000)
 1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
-@@session.tx_isolation
+select @@session.transaction_isolation;
+@@session.transaction_isolation
 READ-UNCOMMITTED
 select a = repeat("x", 25000) from worklog5743;
 a = repeat("x", 25000)

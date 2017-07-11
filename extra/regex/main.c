@@ -192,9 +192,9 @@ int main(int argc, char *argv[])
     const char *argv2[]= {my_progname, "-el", "-I", NULL};
     const char *argv3[]= {my_progname, "-er", "-I", NULL};
 
-    int ret1= old_main(2, argv1);
-    int ret2= old_main(3, argv2);
-    int ret3= old_main(3, argv3);
+    int ret1= old_main(2, (char**)(argv1));
+    int ret2= old_main(3, (char**)(argv2));
+    int ret3= old_main(3, (char**)(argv3));
 
     return ret1 + ret2 + ret3;
   }

@@ -786,57 +786,6 @@ use test;
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
 End of 4.1 tests
-DROP VIEW IF EXISTS v1;
-DROP PROCEDURE IF EXISTS p1;
-CREATE VIEW v1 AS SELECT 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_NO_CACHE and SQL_CACHE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE PROCEDURE p1()
-BEGIN
-SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
-PREPARE stmt FROM @s;
-EXECUTE stmt;
-DROP PREPARE stmt;
-END |
-CALL p1();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP PROCEDURE p1;
-DROP VIEW v1;
 SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;

@@ -86,7 +86,7 @@ class Collect_resultset : public ngs::Resultset_interface {
 
 class Streaming_resultset : public ngs::Resultset_interface {
  public:
-  Streaming_resultset(ngs::Protocol_encoder *proto, const bool compact_metadata)
+  Streaming_resultset(ngs::Protocol_encoder_interface *proto, const bool compact_metadata)
       : m_streaming_delegate(proto) {
     m_streaming_delegate.set_compact_metadata(compact_metadata);
   }

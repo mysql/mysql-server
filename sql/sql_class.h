@@ -37,6 +37,7 @@
 #include <atomic>
 #include <memory>
 #include <new>
+#include <string>
 
 #include "auth/sql_security_ctx.h"        // Security_context
 #include "discrete_interval.h"            // Discrete_interval
@@ -131,7 +132,6 @@ class Rows_log_event;
 class Time_zone;
 class sp_cache;
 struct Binlog_user_var_event;
-struct Query_cache_block;
 
 typedef struct st_log_info LOG_INFO;
 typedef struct user_conn USER_CONN;
@@ -358,8 +358,8 @@ public:
 
   ~Prepared_statement_map();
 private:
-  HASH st_hash;
-  HASH names_hash;
+  malloc_unordered_map<ulong, std::unique_ptr<Prepared_statement>> st_hash;
+  collation_unordered_map<std::string, Prepared_statement *> names_hash;
   Prepared_statement *m_last_found_statement;
 };
 
@@ -957,11 +957,6 @@ public:
   */
   static const char * const DEFAULT_WHERE;
 
-  /*
-    'first_query_cache_block' should be accessed only via query cache
-    functions and methods to maintain proper locking.
-  */
-  Query_cache_block *first_query_cache_block;
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
   /**

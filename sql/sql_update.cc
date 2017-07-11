@@ -62,7 +62,6 @@
 #include "sql_array.h"
 #include "sql_base.h"                 // check_record, fill_record
 #include "sql_bitmap.h"
-#include "sql_cache.h"                // query_cache
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_data_change.h"
@@ -1037,13 +1036,6 @@ bool Sql_cmd_update::update_single_table(THD *thd)
 
   end_read_record(&info);
 
-  /*
-    Invalidate the table in the query cache if something changed.
-    This must be before binlog writing and ha_autocommit_...
-  */
-  if (updated_rows > 0)
-    query_cache.invalidate_single(thd, update_table_ref, true);
-  
   /*
     error < 0 means really no error at all: we processed all rows until the
     last one without error. error > 0 means an error (e.g. unique key
@@ -2421,15 +2413,6 @@ void Query_result_update::send_error(uint errcode,const char *err)
 
 
 
-static void invalidate_update_tables(THD *thd, TABLE_LIST *update_tables)
-{
-  for (TABLE_LIST *tl= update_tables; tl != NULL; tl= tl->next_local)
-  {
-    query_cache.invalidate_single(thd, tl->updatable_base_table(), 1);
-  }
-}
-
-
 void Query_result_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
@@ -2437,10 +2420,6 @@ void Query_result_update::abort_result_set()
       (!thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT) && updated_rows == 0))
     return;
-
-  /* Something already updated so we have to invalidate cache */
-  if (updated_rows > 0)
-    invalidate_update_tables(thd, update_tables);
 
   /*
     If all tables that has been updated are trans safe then just do rollback.
@@ -2756,12 +2735,6 @@ bool Query_result_update::send_eof()
     later carried out killing should not affect binlogging.
   */
   killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed.load();
-
-  /* We must invalidate the query cache before binlog writing and
-  ha_autocommit_... */
-
-  if (updated_rows > 0)
-    invalidate_update_tables(thd, update_tables);
 
   /*
     Write the SQL statement to the binlog if we updated

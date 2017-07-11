@@ -33,6 +33,7 @@
 #include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/server_delegate.h"
 #include "ngs/interface/server_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol/protocol_config.h"
 #include "ngs/thread.h"
@@ -81,8 +82,8 @@ public:
   Mutex &get_client_exit_mutex() { return m_client_exit_mutex; }
 
   virtual ngs::shared_ptr<Session_interface> create_session(Client_interface &client,
-                                                              Protocol_encoder &proto,
-                                                              int session_id);
+                                                            Protocol_encoder_interface &proto,
+                                                            const int session_id);
 
   void on_client_closed(const Client_interface &client);
 

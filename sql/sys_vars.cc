@@ -104,7 +104,6 @@
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
-#include "sql_cache.h"                   // query_cache
 #include "sql_lex.h"
 #include "sql_locale.h"                  // my_locale_by_number
 #include "sql_parse.h"                   // killall_non_super_threads
@@ -1758,11 +1757,6 @@ static bool check_ftb_syntax(sys_var*, THD*, set_var *var)
   return ft_boolean_check_syntax_string((uchar*)
                       (var->save_result.string_value.str));
 }
-static bool query_cache_flush(sys_var*, THD *thd, enum_var_type)
-{
-  query_cache.flush(thd);
-  return false;
-}
 /// @todo make SESSION_VAR (usability enhancement and a fix for a race condition)
 static Sys_var_charptr Sys_ft_boolean_syntax(
        "ft_boolean_syntax", "List of operators for "
@@ -1770,7 +1764,7 @@ static Sys_var_charptr Sys_ft_boolean_syntax(
        GLOBAL_VAR(ft_boolean_syntax),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(DEFAULT_FTB_SYNTAX), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_ftb_syntax), ON_UPDATE(query_cache_flush));
+       NOT_IN_BINLOG, ON_CHECK(check_ftb_syntax));
 
 static Sys_var_ulong Sys_ft_max_word_len(
        "ft_max_word_len",
@@ -1801,13 +1795,6 @@ static Sys_var_charptr Sys_ft_stopword_file(
        READ_ONLY NON_PERSIST GLOBAL_VAR(ft_stopword_file),
        CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_bool Sys_ignore_builtin_innodb(
-       "ignore_builtin_innodb",
-       "IGNORED. This option will be removed in future releases. "
-       "Disable initialization of builtin InnoDB plugin",
-       READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool check_init_string(sys_var*, THD*, set_var *var)
 {
@@ -3502,96 +3489,6 @@ static Sys_var_enum Sys_thread_handling(
        , READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
        CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
 
-static bool fix_query_cache_size(sys_var*, THD *thd, enum_var_type)
-{
-  ulong new_cache_size= query_cache.resize(thd, query_cache_size);
-  /*
-     Note: query_cache_size is a global variable reflecting the
-     requested cache size. See also query_cache_size_arg
-  */
-  if (query_cache_size != new_cache_size)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_QC_RESIZE, ER_THD(thd, ER_WARN_QC_RESIZE),
-                        query_cache_size, new_cache_size);
-
-  query_cache_size= new_cache_size;
-  return false;
-}
-static Sys_var_ulong Sys_query_cache_size(
-       "query_cache_size",
-       "The memory allocated to store results from old queries",
-       GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size));
-
-static Sys_var_ulong Sys_query_cache_limit(
-       "query_cache_limit",
-       "Don't cache results that are bigger than this",
-       GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
-
-static bool fix_qcache_min_res_unit(sys_var*, THD*, enum_var_type)
-{
-  query_cache_min_res_unit=
-    query_cache.set_min_res_unit(query_cache_min_res_unit);
-  return false;
-}
-static Sys_var_ulong Sys_query_cache_min_res_unit(
-       "query_cache_min_res_unit",
-       "The minimum size for blocks allocated by the query cache",
-       GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
-       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit));
-
-static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
-static bool check_query_cache_type(sys_var*, THD*, set_var *var)
-{
-  /*
-   Setting it to 0 (or OFF) is always OK, even if the query cache
-   is disabled.
-  */
-  if (var->save_result.ulonglong_value == 0)
-    return false;
-  else if (query_cache.is_disabled())
-  {
-    my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
-    return true;
-  }
-  return false;
-}
-static Sys_var_enum Sys_query_cache_type(
-       "query_cache_type",
-       "OFF = Don't cache or retrieve results. ON = Cache all results "
-       "except SELECT SQL_NO_CACHE ... queries. DEMAND = Cache only "
-       "SELECT SQL_CACHE ... queries",
-       SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
-       query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type));
-
-static Sys_var_bool Sys_query_cache_wlock_invalidate(
-       "query_cache_wlock_invalidate",
-       "Invalidate queries in query cache on LOCK for write",
-       SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
-
-static bool on_check_opt_secure_auth(sys_var*, THD *thd, set_var *var)
-{
-  push_deprecated_warn_no_replacement(thd, "--secure-auth");
-  return (!var->save_result.ulonglong_value);
-}
-
-static Sys_var_bool Sys_secure_auth(
-       "secure_auth",
-       "Disallow authentication for accounts that have old (pre-4.1) "
-       "passwords. Deprecated. Always TRUE.",
-       GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG, OPT_SECURE_AUTH),
-       DEFAULT(TRUE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(on_check_opt_secure_auth)
-       );
-
 static Sys_var_charptr Sys_secure_file_priv(
        "secure_file_priv",
        "Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to files "
@@ -4603,25 +4500,42 @@ static Sys_var_ulong Sys_thread_cache_size(
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-/**
-  Can't change the 'next' tx_isolation if we are already in a
-  transaction.
-*/
 
-static bool check_tx_isolation(sys_var*, THD *thd, set_var *var)
+/**
+  Function to check if the 'next' transaction isolation level
+  can be changed.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool check_transaction_isolation(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
 
-bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
+/**
+  This function sets the session variable thd->variables.transaction_isolation
+  to reflect changes to @@session.transaction_isolation.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+bool Sys_var_transaction_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
@@ -4656,20 +4570,26 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 }
 
 
-// NO_CMD_LINE - different name of the option
-static Sys_var_tx_isolation Sys_tx_isolation(
-       "tx_isolation", "Default transaction isolation level",
-       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
+// NO_CMD_LINE
+static Sys_var_transaction_isolation Sys_transaction_isolation(
+       "transaction_isolation", "Default transaction isolation level",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation));
 
 
 /**
-  Can't change the tx_read_only state if we are already in a
-  transaction.
-*/
+  Function to check if the state of 'transaction_read_only' can be changed.
+  The state cannot be changed if there is already a transaction in progress.
 
-static bool check_tx_read_only(sys_var*, THD *thd, set_var *var)
+  @param[in] thd    Thread handler
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool check_transaction_read_only(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4682,14 +4602,23 @@ static bool check_tx_read_only(sys_var*, THD *thd, set_var *var)
 }
 
 
-bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
+/**
+  This function sets the session variable thd->variables.transaction_read_only
+  to reflect changes to @@session.transaction_read_only.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+*/
+bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_bool::session_update(thd, var))
     return true;
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    // @see Sys_var_tx_isolation::session_update() above for the rules.
+    // @see Sys_var_transaction_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
 
     if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
@@ -4708,10 +4637,12 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 }
 
 
-static Sys_var_tx_read_only Sys_tx_read_only(
-       "tx_read_only", "Set default transaction access mode to read only.",
-       UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
+static Sys_var_transaction_read_only Sys_transaction_read_only(
+       "transaction_read_only", "Set default transaction access mode to read only.",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_read_only), NO_CMD_LINE,
+       DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_transaction_read_only));
+
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",

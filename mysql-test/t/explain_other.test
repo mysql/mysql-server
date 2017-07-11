@@ -6,10 +6,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-# Problem occur with checking ACL when QC is enabled
-# Should be lifted later
---source include/have_query_cache_disabled.inc
-
 CREATE DATABASE mysqltest1;
 USE mysqltest1;
 CREATE TABLE t1 (f1 int);

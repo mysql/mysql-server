@@ -3,10 +3,6 @@
 #       base table used within the view shows up whereas
 #       the view itself never shows up.
 
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
--- source include/have_QC_Disabled.inc
-
 --source ../include/table_io_setup_helper.inc
 
 let $engine_type= MyISAM;

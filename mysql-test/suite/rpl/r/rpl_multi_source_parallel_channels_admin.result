@@ -20,7 +20,7 @@ include/sync_slave_io_with_master.inc [FOR CHANNEL 'ch1']
 STOP SLAVE SQL_THREAD FOR CHANNEL 'ch1';
 [connection server_2_2]
 include/assert.inc [SQL thread for ch1 is running]
-include/assert.inc [SQL thread for ch1 running state is "System lock" or "Waiting for workers to exit" or "invalidating query cache entries (table)" or "Applying batch of row changes (write)"]
+include/assert.inc [SQL thread for ch1 running state is "System lock" or "Waiting for workers to exit" or "Applying batch of row changes (write)"]
 Stop ch2 SQL thread while stopping ch1 SQL thread
 STOP SLAVE SQL_THREAD FOR CHANNEL 'ch2';
 include/wait_for_slave_sql_to_stop.inc [FOR CHANNEL 'ch2']

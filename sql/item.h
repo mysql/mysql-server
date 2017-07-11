@@ -3699,7 +3699,6 @@ private:
     - from the point of view of logging: it is not in the original query so it
     should not be substituted in the query written to logs (in insert_params()
     if with_log is true).
-    - from the POV of query cache matching (same).
     - from the POV of the user:
         * user provides one single value for I, not one for I and one for J.
         * user expects mysql_stmt_param_count() to return 1, not 2 (count is

@@ -66,7 +66,6 @@
 #include "query_result.h"
 #include "sql_base.h"            // init_ftfuncs
 #include "sql_bitmap.h"
-#include "sql_cache.h"           // query_cache
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
@@ -10581,8 +10580,6 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(thd);
-
         cond= new Item_func_eq(
                 args[0],
                 new Item_int(NAME_STRING("last_insert_id()"),

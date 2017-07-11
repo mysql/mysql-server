@@ -49,7 +49,7 @@ TODO:
 #include <algorithm>
 
 #include "field.h"
-#include "hash.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
@@ -58,8 +58,10 @@ TODO:
 #include "table.h"
 #include "template_utils.h"
 
-using std::min;
 using std::max;
+using std::min;
+using std::string;
+using std::unique_ptr;
 
 /*
   uchar + uchar + ulonglong + ulonglong + ulonglong + ulonglong + uchar
@@ -86,7 +88,8 @@ extern "C" bool tina_check_status(void* param);
 
 /* Stuff for shares */
 mysql_mutex_t tina_mutex;
-static HASH tina_open_tables;
+static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>>
+  tina_open_tables;
 static handler *tina_create_handler(handlerton *hton,
                                     TABLE_SHARE *table,
                                     bool partitioned,
@@ -96,13 +99,6 @@ static handler *tina_create_handler(handlerton *hton,
 /*****************************************************************************
  ** TINA tables
  *****************************************************************************/
-
-static const uchar* tina_get_key(const uchar *arg, size_t *length)
-{
-  const TINA_SHARE *share= pointer_cast<const TINA_SHARE*>(arg);
-  *length=share->table_name_length;
-  return (uchar*) share->table_name;
-}
 
 static PSI_memory_key csv_key_memory_tina_share;
 static PSI_memory_key csv_key_memory_blobroot;
@@ -176,9 +172,9 @@ static int tina_init_func(void *p)
 
   tina_hton= (handlerton *)p;
   mysql_mutex_init(csv_key_mutex_tina, &tina_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,
-                      tina_get_key, nullptr, 0,
-                      csv_key_memory_tina_share);
+  tina_open_tables.reset
+    (new collation_unordered_multimap<string, TINA_SHARE *>
+      (system_charset_info, csv_key_memory_tina_share));
   tina_hton->state= SHOW_OPTION_YES;
   tina_hton->db_type= DB_TYPE_CSV_DB;
   tina_hton->create= tina_create_handler;
@@ -191,7 +187,7 @@ static int tina_init_func(void *p)
 
 static int tina_done_func(void*)
 {
-  my_hash_free(&tina_open_tables);
+  tina_open_tables.reset();
   mysql_mutex_destroy(&tina_mutex);
 
   return 0;
@@ -216,9 +212,8 @@ static TINA_SHARE *get_share(const char *table_name, TABLE*)
     If share is not present in the hash, create a new share and
     initialize its members.
   */
-  if (!(share=(TINA_SHARE*) my_hash_search(&tina_open_tables,
-                                           (uchar*) table_name,
-                                           length)))
+  const auto it= tina_open_tables->find(table_name);
+  if (it == tina_open_tables->end())
   {
     if (!my_multi_malloc(csv_key_memory_tina_share,
                          MYF(MY_WME | MY_ZEROFILL),
@@ -250,8 +245,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE*)
       goto error;
     share->saved_data_file_length= file_stat.st_size;
 
-    if (my_hash_insert(&tina_open_tables, (uchar*) share))
-      goto error;
+    tina_open_tables->emplace(table_name, share);
     thr_lock_init(&share->lock);
     mysql_mutex_init(csv_key_mutex_TINA_SHARE_mutex,
                      &share->mutex, MY_MUTEX_INIT_FAST);
@@ -268,6 +262,10 @@ static TINA_SHARE *get_share(const char *table_name, TABLE*)
                                             MYF(MY_WME))) == -1) ||
         read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
+  }
+  else
+  {
+    share= it->second;
   }
 
   share->use_count++;
@@ -452,7 +450,7 @@ static int free_share(TINA_SHARE *share)
       share->tina_write_opened= FALSE;
     }
 
-    my_hash_delete(&tina_open_tables, (uchar*) share);
+    tina_open_tables->erase(share->table_name);
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->mutex);
     my_free(share);

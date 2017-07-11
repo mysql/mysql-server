@@ -564,7 +564,6 @@ drop table t1;
 #test of uncacheable subqueries
 CREATE TABLE t1 (a int(1));
 EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
-EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
 EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
 drop table t1;
 
@@ -1868,17 +1867,17 @@ insert into t1 values (10);
 create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b)) charset utf8mb4;
 insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
 
-explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
              ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
-SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
 
-explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+explain SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
-SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
+SELECT t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
   ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
 
@@ -2418,7 +2417,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INT);
 
 (SELECT i FROM t1) UNION (SELECT i FROM t1);
-SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS
+SELECT * FROM t1 WHERE NOT EXISTS
   (
    (SELECT i FROM t1) UNION
    (SELECT i FROM t1)
@@ -2512,12 +2511,12 @@ insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
-SELECT SQL_NO_CACHE COUNT(*)
+SELECT COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
 SET SESSION sort_buffer_size = 8 * 1024 * 1024;
-SELECT SQL_NO_CACHE COUNT(*)
+SELECT COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 

@@ -141,7 +141,6 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static bool opt_secure_auth= TRUE;
 static uint opt_enable_cleartext_plugin= 0;
 static bool using_opt_enable_cleartext_plugin= 0;
 
@@ -699,9 +698,6 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
-    " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
-    &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
@@ -731,25 +727,11 @@ static struct my_option my_long_options[] =
 
 static void usage(void)
 {
-  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
-  /*
-    Turn default for zombies off so that the help on how to 
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
 }
 
@@ -811,16 +793,6 @@ get_one_option(int optid, const struct my_option *opt,
     exit(0);
   case OPT_ENABLE_CLEARTEXT_PLUGIN:
     using_opt_enable_cleartext_plugin= TRUE;
-    break;
-  case OPT_SECURE_AUTH:
-    /* --secure-auth is a zombie option. */
-    if (!opt_secure_auth)
-    {
-      fprintf(stderr, "mysqlslap: [ERROR] --skip-secure-auth is not supported.\n");
-      exit(1);
-    }
-    else
-      CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--secure-auth");
     break;
   }
   DBUG_RETURN(0);

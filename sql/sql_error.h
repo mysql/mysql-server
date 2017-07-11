@@ -358,8 +358,7 @@ public:
     Mark the Diagnostics Area as 'DISABLED'.
 
     This is used in rare cases when the COM_ command at hand sends a response
-    in a custom format. One example is the query cache, another is
-    COM_STMT_PREPARE.
+    in a custom format. One example is COM_STMT_PREPARE.
   */
   void disable_status()
   {

@@ -736,9 +736,9 @@ ANALYZE TABLE t1,t2;
 
 --replace_column 10 #
 explain 
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
-SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+SELECT straight_join v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 
 DROP VIEW v1;

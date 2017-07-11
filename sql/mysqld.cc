@@ -382,7 +382,6 @@
 #include "current_thd.h"                // current_thd
 #include "debug_sync.h"                 // debug_sync_end
 #include "derror.h"
-#include "des_key_file.h"               // load_des_key_file
 #include "errmsg.h"                     // init_client_errs
 #include "event_data_objects.h"         // init_scheduler_psi_keys
 #include "events.h"                     // Events
@@ -472,7 +471,6 @@
 #include "sql_audit.h"                  // mysql_audit_general
 #include "sql_authentication.h"         // init_rsa_keys
 #include "sql_base.h"
-#include "sql_cache.h"                  // Query_cache
 #include "sql_callback.h"               // MUSQL_CALLBACK
 #include "sql_class.h"                  // THD
 #include "sql_common.h"                 // mysql_client_plugin_init
@@ -682,9 +680,6 @@ static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
 static PSI_mutex_key key_LOCK_slave_net_timeout;
 static PSI_mutex_key key_LOCK_uuid_generator;
-#ifdef HAVE_OPENSSL
-static PSI_mutex_key key_LOCK_des_key_file;
-#endif /* HAVE_OPENSSL */
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
 static PSI_mutex_key key_LOCK_mandatory_roles;
@@ -775,7 +770,7 @@ LEX_STRING opt_init_connect, opt_init_slave;
 LEX_STRING opt_mandatory_roles;
 bool opt_mandatory_roles_cache= false;
 bool opt_always_activate_granted_roles= false;
-bool opt_bin_log, opt_ignore_builtin_innodb= 0;
+bool opt_bin_log;
 bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 bool opt_log_queries_not_using_indexes= 0;
@@ -848,7 +843,6 @@ bool opt_require_secure_transport= 0;
 bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
-bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
 bool opt_log_slow_admin_statements= 0;
 bool opt_log_slow_slave_statements= 0;
@@ -933,7 +927,6 @@ int32 opt_binlog_max_flush_queue_time= 0;
 ulong opt_binlog_group_commit_sync_delay= 0;
 ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
-ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 std::atomic<query_id_t> atomic_global_query_id { 1 };
 ulong aborted_threads;
@@ -1123,9 +1116,6 @@ mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_mutex_t LOCK_offline_mode;
-#ifdef HAVE_OPENSSL
-mysql_mutex_t LOCK_des_key_file;
-#endif
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
@@ -1378,8 +1368,6 @@ static bool dynamic_plugins_are_initialized= false;
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
 #endif
-ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
-Query_cache query_cache;
 
 bool opt_use_ssl= 1;
 char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
@@ -1387,7 +1375,6 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_crlpath= NULL, *opt_tls_version= NULL;
 
 #ifdef HAVE_OPENSSL
-char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 SSL *ssl_acceptor;
 #endif /* HAVE_OPENSSL */
@@ -1954,7 +1941,6 @@ static void clean_up(bool print_message)
   servers_free(1);
   acl_free(1);
   grant_free();
-  query_cache.destroy(NULL);
   hostname_cache_free();
   range_optimizer_free();
   item_func_sleep_free();
@@ -2068,9 +2054,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_manager);
   mysql_mutex_destroy(&LOCK_crypt);
   mysql_mutex_destroy(&LOCK_user_conn);
-#ifdef HAVE_OPENSSL
-  mysql_mutex_destroy(&LOCK_des_key_file);
-#endif
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -2084,6 +2067,9 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
+  mysql_mutex_destroy(&LOCK_server_started);
+  mysql_mutex_destroy(&LOCK_reset_gtid_table);
+  mysql_mutex_destroy(&LOCK_compress_gtid_table);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3789,10 +3775,6 @@ static int init_thread_environment()
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_mandatory_roles,
                    &LOCK_mandatory_roles, MY_MUTEX_INIT_FAST);
-#ifdef HAVE_OPENSSL
-  mysql_mutex_init(key_LOCK_des_key_file,
-                   &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_cond_init(key_COND_manager, &COND_manager);
@@ -4032,8 +4014,6 @@ static int init_ssl_communication()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
-  if (des_key_file)
-    load_des_key_file(des_key_file);
 #ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
@@ -4298,22 +4278,6 @@ initialize_storage_engine(char *se_name, const char *se_kind,
 }
 
 
-static void init_server_query_cache()
-{
-  ulong set_cache_size;
-
-  query_cache.set_min_res_unit(query_cache_min_res_unit);
-  query_cache.init();
-
-  set_cache_size= query_cache.resize(NULL, query_cache_size);
-  if (set_cache_size != query_cache_size)
-  {
-    LogErr(WARNING_LEVEL, ER_WARN_QC_RESIZE, query_cache_size, set_cache_size);
-    query_cache_size= set_cache_size;
-  }
-}
-
-
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4336,8 +4300,6 @@ static int init_server_components()
     else
       have_statement_timeout= SHOW_OPTION_YES;
   }
-
-  init_server_query_cache();
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
@@ -4585,8 +4547,6 @@ static int init_server_components()
   if (ha_init_errors())
     DBUG_RETURN(1);
 
-  if (opt_ignore_builtin_innodb)
-    LogErr(WARNING_LEVEL, ER_INNODB_CANNOT_BE_IGNORED);
   if (gtid_server_init())
   {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
@@ -6537,12 +6497,6 @@ struct my_option my_long_options[]=
   {"default-time-zone", 0, "Set the default time zone.",
    &default_tz_name, &default_tz_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-#ifdef HAVE_OPENSSL
-  {"des-key-file", 0,
-   "Load keys for des_encrypt() and des_encrypt from given file.",
-   &des_key_file, &des_key_file, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
-#endif /* HAVE_OPENSSL */
   {"disconnect-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
    &disconnect_slave_event_count, &disconnect_slave_event_count,
@@ -6759,14 +6713,14 @@ struct my_option my_long_options[]=
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   {"transaction-isolation", 0,
    "Default transaction isolation level.",
-   &global_system_variables.tx_isolation,
-   &global_system_variables.tx_isolation, &tx_isolation_typelib,
+   &global_system_variables.transaction_isolation,
+   &global_system_variables.transaction_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
   {"transaction-read-only", 0,
    "Default transaction access mode. "
    "True if transactions are read-only.",
-   &global_system_variables.tx_read_only,
-   &global_system_variables.tx_read_only, 0,
+   &global_system_variables.transaction_read_only,
+   &global_system_variables.transaction_read_only, 0,
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -7611,14 +7565,6 @@ SHOW_VAR status_vars[]= {
   {"Opened_tables",            (char*) offsetof(System_status_var, opened_tables),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Opened_table_definitions", (char*) offsetof(System_status_var, opened_shares),           SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count,                     SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks,               SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_free_memory",       (char*) &query_cache.free_memory,                      SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_hits",              (char*) &query_cache.hits,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_inserts",           (char*) &query_cache.inserts,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_lowmem_prunes",     (char*) &query_cache.lowmem_prunes,                    SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_not_cached",        (char*) &query_cache.refused,                          SHOW_LONG,               SHOW_SCOPE_GLOBAL},
-  {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache,                 SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
-  {"Qcache_total_blocks",      (char*) &query_cache.total_blocks,                     SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
   {"Queries",                  (char*) &show_queries,                                 SHOW_FUNC,               SHOW_SCOPE_ALL},
   {"Questions",                (char*) offsetof(System_status_var, questions),               SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
   {"Select_full_join",         (char*) offsetof(System_status_var, select_full_join_count),  SHOW_LONGLONG_STATUS,    SHOW_SCOPE_ALL},
@@ -7828,10 +7774,8 @@ static int mysql_init_variables()
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
-  opt_ignore_builtin_innodb= 0;
   opt_general_logname= opt_binlog_index_name= opt_slow_logname= NULL;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
-  opt_secure_auth= 0;
   opt_myisam_log= 0;
   mqh_used= 0;
   cleanup_done= 0;
@@ -7926,7 +7870,7 @@ static int mysql_init_variables()
 
   have_dlopen=SHOW_OPTION_YES;
 
-  have_query_cache=SHOW_OPTION_YES;
+  have_query_cache= SHOW_OPTION_NO;
 
   have_geometry=SHOW_OPTION_YES;
 
@@ -7940,7 +7884,6 @@ static int mysql_init_variables()
   /* Always true */
   have_compress= SHOW_OPTION_YES;
 #ifdef HAVE_OPENSSL
-  des_key_file = 0;
   ssl_acceptor_fd= 0;
 #endif /* HAVE_OPENSSL */
 #if defined (_WIN32)
@@ -7954,7 +7897,7 @@ static int mysql_init_variables()
 
   // On windows the basedir will always be one level up from where
   // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir=sql>/<buildconfig>/mysqld.exe for a
+  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe for a
   // sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
@@ -7969,7 +7912,6 @@ static int mysql_init_variables()
   {
     mysql_home[strlen(mysql_home) - 1]= '\0';   // remove trailing
     dirname_part(cmake_binary_dir, mysql_home, &dlen);
-    strcat(cmake_binary_dir, "sql\\");
     strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
   }
   // The sql_print_information below outputs nothing ??
@@ -7986,23 +7928,12 @@ static int mysql_init_variables()
     char progdir[FN_REFLEN];
     size_t dlen= 0;
     dirname_part(progdir, my_progname, &dlen);
-    if (!strcmp(progdir + (dlen - 5), "/sql/"))
-    {
-      // Running in sandbox, set mysql_home to progdir (CMAKE_BINARY_DIR/sql)
-      if (!opt_help)
-      {
-        sql_print_information("Running in sandbox, basedir set to %s",
-                              progdir);
-      }
-      strmake(mysql_home, progdir, sizeof(mysql_home) - 1);
-    }
-    else if (dlen > 26U &&
+    if (dlen > 26U &&
              !strcmp(progdir + (dlen - 26), "/runtime_output_directory/"))
     {
       char cmake_binary_dir[FN_REFLEN];
       progdir[strlen(progdir) - 1]= '\0';       // remove trailing "/"
       dirname_part(cmake_binary_dir, progdir, &dlen);
-      strcat(cmake_binary_dir, "sql/");
       strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
     }
     else
@@ -8136,7 +8067,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'a':
     global_system_variables.sql_mode= MODE_ANSI;
-    global_system_variables.tx_isolation= ISO_SERIALIZABLE;
+    global_system_variables.transaction_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
@@ -8404,7 +8335,6 @@ mysqld_get_one_option(int optid,
     sp_automatic_privileges=0;
     my_enable_symlinks= 0;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
-    query_cache_size=0;
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -8465,14 +8395,6 @@ mysqld_get_one_option(int optid,
     /* fall through */
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
-    break;
-  case OPT_SECURE_AUTH:
-    push_deprecated_warn_no_replacement(NULL, "--secure-auth");
-    if (!opt_secure_auth)
-    {
-      LogErr(ERROR_LEVEL, ER_SECURE_AUTH_VALUE_UNSUPPORTED);
-      return 1;
-    }
     break;
   case OPT_PFS_INSTRUMENT:
     {
@@ -8664,11 +8586,6 @@ static bool check_ghost_options()
   if (global_system_variables.old_passwords == 1)
   {
     LogErr(ERROR_LEVEL, ER_OLD_PASSWORDS_NO_MIDDLE_GROUND);
-    return true;
-  }
-  if (!opt_secure_auth)
-  {
-    LogErr(ERROR_LEVEL, ER_SECURE_AUTH_VALUE_UNSUPPORTED);
     return true;
   }
 
@@ -9489,17 +9406,10 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
-PSI_mutex_key
-Gtid_set::key_gtid_executed_free_intervals_mutex;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
   { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0, 0},
-
-#ifdef HAVE_OPENSSL
-  { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL, 0},
-#endif /* HAVE_OPENSSL */
-
   { &key_BINLOG_LOCK_commit, "MYSQL_BIN_LOG::LOCK_commit", 0, 0},
   { &key_BINLOG_LOCK_commit_queue, "MYSQL_BIN_LOG::LOCK_commit_queue", 0, 0},
   { &key_BINLOG_LOCK_done, "MYSQL_BIN_LOG::LOCK_done", 0, 0},
@@ -9558,7 +9468,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0, 0},
   { &key_mutex_slave_parallel_worker_count, "Relay_log_info::exit_count_lock", 0, 0},
   { &key_mutex_slave_parallel_worker, "Worker_info::jobs_lock", 0, 0},
-  { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0, 0},
   { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0, 0},
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL, 0},
@@ -9579,7 +9488,6 @@ static PSI_mutex_info all_server_mutexes[]=
 };
 
 PSI_rwlock_key key_rwlock_LOCK_logger;
-PSI_rwlock_key key_rwlock_query_cache_query_lock;
 PSI_rwlock_key key_rwlock_channel_map_lock;
 PSI_rwlock_key key_rwlock_channel_lock;
 PSI_rwlock_key key_rwlock_receiver_sid_lock;
@@ -9600,7 +9508,6 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_channel_map_lock, "channel_map_lock", 0},
@@ -9649,7 +9556,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_RELAYLOG_prep_xids_cond, "MYSQL_RELAY_LOG::prep_xids_cond", 0},
-  { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
 #if defined(_WIN32)
   { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_GLOBAL},
 #endif
@@ -9705,7 +9611,6 @@ static PSI_thread_info all_server_threads[]=
 PSI_file_key key_file_binlog;
 PSI_file_key key_file_binlog_index;
 PSI_file_key key_file_dbopt;
-PSI_file_key key_file_des_key_file;
 PSI_file_key key_file_ERRMSG;
 PSI_file_key key_select_to_file;
 PSI_file_key key_file_fileparser;
@@ -9740,7 +9645,6 @@ static PSI_file_info all_server_files[]=
   { &key_file_io_cache, "io_cache", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
-  { &key_file_des_key_file, "des_key_file", 0},
   { &key_file_ERRMSG, "ERRMSG", 0},
   { &key_select_to_file, "select_to_file", 0},
   { &key_file_fileparser, "file_parser", 0},
@@ -9770,7 +9674,6 @@ PSI_stage_info stage_changing_master= { 0, "Changing master", 0};
 PSI_stage_info stage_checking_master_version= { 0, "Checking master version", 0};
 PSI_stage_info stage_checking_permissions= { 0, "checking permissions", 0};
 PSI_stage_info stage_checking_privileges_on_cached_query= { 0, "checking privileges on cached query", 0};
-PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache for query", 0};
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
 PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
@@ -9798,8 +9701,6 @@ PSI_stage_info stage_got_handler_lock= { 0, "got handler lock", 0};
 PSI_stage_info stage_got_old_table= { 0, "got old table", 0};
 PSI_stage_info stage_init= { 0, "init", 0};
 PSI_stage_info stage_insert= { 0, "insert", 0};
-PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating query cache entries (table)", 0};
-PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0};
@@ -9840,7 +9741,6 @@ PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
 PSI_stage_info stage_statistics= { 0, "statistics", 0};
 PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until MASTER_DELAY seconds after master executed event", 0 };
-PSI_stage_info stage_storing_result_in_query_cache= { 0, "storing result in query cache", 0};
 PSI_stage_info stage_storing_row_into_queue= { 0, "storing row into queue", 0};
 PSI_stage_info stage_system_lock= { 0, "System lock", 0};
 PSI_stage_info stage_update= { 0, "update", 0};
@@ -9861,7 +9761,6 @@ PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the slave SQ
 PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0};
 PSI_stage_info stage_waiting_for_slave_thread_to_start= { 0, "Waiting for slave thread to start", 0};
 PSI_stage_info stage_waiting_for_table_flush= { 0, "Waiting for table flush", 0};
-PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache lock", 0};
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
@@ -9886,7 +9785,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_checking_master_version,
   & stage_checking_permissions,
   & stage_checking_privileges_on_cached_query,
-  & stage_checking_query_cache_for_query,
   & stage_cleaning_up,
   & stage_closing_tables,
   & stage_compressing_gtid_table,
@@ -9914,8 +9812,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_got_old_table,
   & stage_init,
   & stage_insert,
-  & stage_invalidating_query_cache_entries_table,
-  & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
   & stage_logging_slow_query,
   & stage_making_temp_file_append_before_load_data,
@@ -9956,7 +9852,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_sorting_result,
   & stage_sql_thd_waiting_until_delay,
   & stage_statistics,
-  & stage_storing_result_in_query_cache,
   & stage_storing_row_into_queue,
   & stage_system_lock,
   & stage_update,
@@ -9977,7 +9872,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_slave_mutex_on_exit,
   & stage_waiting_for_slave_thread_to_start,
   & stage_waiting_for_table_flush,
-  & stage_waiting_for_query_cache_lock,
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,

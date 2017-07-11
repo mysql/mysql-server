@@ -1377,18 +1377,15 @@ sub command_line_setup {
   {
     $path_client_bindir=
       mtr_path_exists(vs_config_dirs('runtime_output_directory', ''),
-		      "$bindir/client",
 		      "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$bindir/share/mysql",
-                                    "$bindir/sql/share",
-                                    "$bindir/share");
+  $path_language= mtr_path_exists("$bindir/share/mysql",
+                                  "$bindir/share");
   my $path_share= $path_language;
-  $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
-                                    "$basedir/sql/share/charsets",
-                                    "$basedir/share/charsets");
+  $path_charsetsdir= mtr_path_exists("$basedir/share/mysql/charsets",
+                                     "$basedir/share/charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin_output_directory");
 
@@ -2066,7 +2063,6 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--secure-file-priv=\"\"");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
@@ -2207,7 +2203,7 @@ sub find_mysqld {
   }
 
   return my_find_bin($mysqld_basedir,
-		     ["runtime_output_directory", "sql", "libexec", "sbin", "bin"],
+		     ["runtime_output_directory", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
 
@@ -2387,11 +2383,9 @@ sub mysqldump_arguments ($) {
 sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
-  $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
-			     "$path_client_bindir/mysql_client_test",
-			     "$basedir/testclients/mysql_client_test",
-			     "$basedir/bin/mysql_client_test");
+  $exe= mtr_exe_maybe_exists("$path_client_bindir/mysql_client_test");
   return "" unless $exe;
+
   my $args;
   mtr_init_args(\$args);
   if ( $opt_valgrind_mysqltest ) {
@@ -2408,9 +2402,7 @@ sub mysql_client_test_arguments(){
 sub mysqlxtest_arguments(){
   my $exe;
   # mysqlxtest executable may _not_ exist
-  $exe= mtr_exe_maybe_exists(vs_config_dirs('plugin', 'mysqlxtest'),
-			     "$path_client_bindir/mysqlxtest",
-                             "$bindir/bin/mysqlxtest");
+  $exe= mtr_exe_maybe_exists("$path_client_bindir/mysqlxtest");
   return "" unless $exe;
 
   my $args;
@@ -2426,14 +2418,12 @@ sub mysqlxtest_arguments(){
   #mtr_add_arg($args, "--password=");
   mtr_add_arg($args, "--port=%d",$mysqlx_baseport);
 
-   return mtr_args2str($exe, @$args);
- }
+  return mtr_args2str($exe, @$args);
+}
 
 sub mysqlpump_arguments ($) {
   my($group_suffix) = @_;
-  my $exe= mtr_exe_exists(vs_config_dirs('client/dump','mysqlpump'),
-                          "$basedir/client/mysqlpump",
-                          "$path_client_bindir/mysqlpump");
+  my $exe= mtr_exe_exists("$path_client_bindir/mysqlpump");
 
   my $args;
   mtr_init_args(\$args);
@@ -2698,10 +2688,7 @@ sub environment_setup {
   # bug25714 executable may _not_ exist in
   # some versions, test using it should be skipped
   # ----------------------------------------------------
-  my $exe_bug25714=
-      mtr_exe_maybe_exists(vs_config_dirs('testclients', 'bug25714'),
-			   "$path_client_bindir/bug25714",
-                           "$basedir/testclients/bug25714");
+  my $exe_bug25714= mtr_exe_maybe_exists("$path_client_bindir/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
@@ -2725,18 +2712,14 @@ sub environment_setup {
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists(vs_config_dirs('utilities', 'my_print_defaults'),
-		   "$path_client_bindir/my_print_defaults",
-		   "$basedir/utilities/my_print_defaults");
+    mtr_exe_exists("$path_client_bindir/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # Setup env so childs can execute innochecksum
   # ----------------------------------------------------
   my $exe_innochecksum=
-    mtr_exe_exists(vs_config_dirs('utilities', 'innochecksum'),
-                   "$path_client_bindir/innochecksum",
-                   "$basedir/utilities/innochecksum");
+    mtr_exe_exists("$path_client_bindir/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
   if ( $opt_valgrind_clients )
   {
@@ -2750,9 +2733,7 @@ sub environment_setup {
   # Setup env so childs can execute ibd2sdi
   # ----------------------------------------------------
   my $exe_ibd2sdi=
-    mtr_exe_exists(vs_config_dirs('utilities', 'ibd2sdi'),
-                   "$path_client_bindir/ibd2sdi",
-                   "$basedir/utilities/ibd2sdi");
+    mtr_exe_exists("$path_client_bindir/ibd2sdi");
   $ENV{'IBD2SDI'}= native_path($exe_ibd2sdi);
 
   if ( $opt_valgrind_clients )
@@ -2765,18 +2746,11 @@ sub environment_setup {
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
-  $ENV{'MYISAMCHK'}= native_path(mtr_exe_exists(
-                       vs_config_dirs('storage/myisam', 'myisamchk'),
-                       vs_config_dirs('myisam', 'myisamchk'),
-                       "$path_client_bindir/myisamchk",
-                       "$basedir/storage/myisam/myisamchk",
-                       "$basedir/myisam/myisamchk"));
-  $ENV{'MYISAMPACK'}= native_path(mtr_exe_exists(
-                        vs_config_dirs('storage/myisam', 'myisampack'),
-                        vs_config_dirs('myisam', 'myisampack'),
-                        "$path_client_bindir/myisampack",
-                        "$basedir/storage/myisam/myisampack",
-                        "$basedir/myisam/myisampack"));
+  $ENV{'MYISAMCHK'}=
+    native_path(mtr_exe_exists("$path_client_bindir/myisamchk"));
+
+  $ENV{'MYISAMPACK'}=
+    native_path(mtr_exe_exists("$path_client_bindir/myisampack"));
 
   # ----------------------------------------------------
   # mysqld_safe
@@ -2784,6 +2758,7 @@ sub environment_setup {
   my $mysqld_safe=
     mtr_pl_maybe_exists("$bindir/scripts/mysqld_safe") ||
     mtr_pl_maybe_exists("$path_client_bindir/mysqld_safe");
+
   if ($mysqld_safe)
   {
     $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
@@ -2795,6 +2770,7 @@ sub environment_setup {
   my $mysqldumpslow=
     mtr_pl_maybe_exists("$bindir/scripts/mysqldumpslow") ||
     mtr_pl_maybe_exists("$path_client_bindir/mysqldumpslow");
+
   if ($mysqldumpslow)
   {
     $ENV{'MYSQLDUMPSLOW'}= $mysqldumpslow;
@@ -2803,11 +2779,8 @@ sub environment_setup {
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists(vs_config_dirs('utilities', 'perror'),
-				 "$basedir/utilities/perror",
-				 "$path_client_bindir/perror");
+  my $exe_perror= mtr_exe_exists("$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
-
 
   # ----------------------------------------------------
   # mysql_tzinfo_to_sql
@@ -2815,26 +2788,22 @@ sub environment_setup {
   # mysql_tzinfo_to_sql is not used on Windows, but vs_config_dirs
   # is needed when building with Xcode on OSX
   my $exe_mysql_tzinfo_to_sql= 
-    mtr_exe_exists(vs_config_dirs('sql', 'mysql_tzinfo_to_sql'),
-		   "$path_client_bindir/mysql_tzinfo_to_sql",
-                   "$basedir/bin/mysql_tzinfo_to_sql");
+    mtr_exe_exists("$path_client_bindir/mysql_tzinfo_to_sql");
   $ENV{'MYSQL_TZINFO_TO_SQL'}= native_path($exe_mysql_tzinfo_to_sql);
 
 
   # ----------------------------------------------------
   # lz4_decompress
   # ----------------------------------------------------
-  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'lz4_decompress'),
-                                 "$basedir/utilities/lz4_decompress",
-                                 "$path_client_bindir/lz4_decompress");
+  my $exe_lz4_decompress=
+    mtr_exe_maybe_exists("$path_client_bindir/lz4_decompress");
   $ENV{'LZ4_DECOMPRESS'}= native_path($exe_lz4_decompress);
 
   # ----------------------------------------------------
   # zlib_decompress
   # ----------------------------------------------------
-  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('utilities', 'zlib_decompress'),
-                                 "$basedir/utilities/zlib_decompress",
-                                 "$path_client_bindir/zlib_decompress");
+  my $exe_zlib_decompress=
+    mtr_exe_maybe_exists("$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'}= native_path($exe_zlib_decompress);
 
   # Create an environment variable to make it possible
@@ -3865,7 +3834,7 @@ sub mysql_install_db {
   my ($mysqld, $datadir, $bootstrap_opts)= @_;
 
   my $install_datadir= $datadir || $mysqld->value('datadir');
-  my $install_basedir= $mysqld->value('basedir');
+  my $install_basedir= $mysqld->value('#mtr_basedir');
   my $install_chsdir= $mysqld->value('character-sets-dir');
 
   mtr_report("Installing system database...");
@@ -3878,9 +3847,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
-  mtr_add_arg($args, "--basedir=%s", $mysqld->value('basedir'));
   mtr_add_arg($args, "--datadir=%s", "$install_datadir");
-  mtr_add_arg($args, "--lc-messages-dir=%s", $mysqld->value('lc-messages-dir'));
   mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
   # overwrite the buffer size to 24M for certain tests to pass
   mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
@@ -3963,7 +3930,7 @@ sub mysql_install_db {
   }
 
   my $path_sql= my_find_file($install_basedir,
-			     ["mysql", "sql/share", "share/mysql",
+			     ["mysql", "share/mysql",
 			      "share", "scripts"],
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
@@ -5990,7 +5957,7 @@ sub mysqld_start ($$) {
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
-  my $exe= find_mysqld($mysqld->value('basedir'));
+  my $exe= find_mysqld($mysqld->value('#mtr_basedir'));
   my $wait_for_pid_file= 1;
 
   my $args;
@@ -6541,7 +6508,7 @@ sub start_servers($) {
       }
     }
 
-    my $mysqld_basedir= $mysqld->value('basedir');
+    my $mysqld_basedir= $mysqld->value('#mtr_basedir');
     if ( $basedir eq $mysqld_basedir )
     {
       if (!$opt_start_dirty)	# If dirty, keep possibly grown system db

@@ -1,3 +1,2 @@
 --force-restart
---query_cache_size=0
 --loose-performance_schema_hosts_size=0
