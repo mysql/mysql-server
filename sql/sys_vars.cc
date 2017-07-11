@@ -1718,7 +1718,7 @@ static Sys_var_enum Sys_event_scheduler(
        "ON, OFF, and DISABLED (keep the event scheduler completely "
        "deactivated, it cannot be activated run-time)",
        GLOBAL_VAR(Events::opt_event_scheduler), CMD_LINE(OPT_ARG),
-       event_scheduler_names, DEFAULT(Events::EVENTS_OFF),
+       event_scheduler_names, DEFAULT(Events::EVENTS_ON),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 

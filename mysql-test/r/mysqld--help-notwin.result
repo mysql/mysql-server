@@ -1335,7 +1335,7 @@ div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
-event-scheduler OFF
+event-scheduler ON
 expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE

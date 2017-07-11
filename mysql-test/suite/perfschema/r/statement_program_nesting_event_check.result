@@ -142,7 +142,10 @@ SELECT append("Bolly", "wood");
 append("Bolly", "wood")
 Bollywood
 # Event
-SET GLOBAL event_scheduler=ON;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE TABLE table_t(a INT);
 CREATE EVENT e1 ON SCHEDULE EVERY 2 SECOND DO
 BEGIN
@@ -151,7 +154,6 @@ END|
 SELECT * FROM table_t;
 a
 1
-SET GLOBAL event_scheduler=OFF;
 SELECT EVENT_NAME, SQL_TEXT, OBJECT_NAME, NESTING_EVENT_TYPE, NESTING_EVENT_LEVEL
 FROM performance_schema.events_statements_history_long 
 WHERE CURRENT_SCHEMA='stored_programs' AND
@@ -262,7 +264,6 @@ SET @del:= @del + 8 + old.j	NULL	NULL	0
 statement/sql/delete	DELETE FROM t1 WHERE i=76	NULL	NULL	0
 statement/sql/insert	INSERT INTO t1 VALUES (10,20)	NULL	NULL	0
 statement/sql/select	SELECT * FROM table_t	NULL	NULL	0
-statement/sql/select	SELECT 5 * 10	NULL	NULL	0
 statement/sql/select	SELECT @a	NULL	NULL	0
 statement/sql/select	SELECT @a	NULL	NULL	0
 statement/sql/select	SELECT @change	NULL	NULL	0
@@ -270,15 +271,11 @@ statement/sql/select	SELECT @change	NULL	NULL	0
 statement/sql/select	SELECT @del	NULL	NULL	0
 statement/sql/select	SELECT @del	NULL	NULL	0
 statement/sql/select	SELECT append("Bolly", "wood")	NULL	NULL	0
-statement/sql/select	SELECT COUNT(*) = 0 FROM information_schema.processlist
-WHERE user = 'event_scheduler'	NULL	NULL	0
 statement/sql/select	SELECT fac(5)	NULL	NULL	0
 statement/sql/select	SELECT wt_avg(1, 12, 1990, 1121990)	NULL	NULL	0
 statement/sql/set_option	SET @a=1	NULL	NULL	0
 statement/sql/set_option	SET @change=1	NULL	NULL	0
 statement/sql/set_option	SET @del=1	NULL	NULL	0
-statement/sql/set_option	SET GLOBAL event_scheduler=OFF	NULL	NULL	0
-statement/sql/set_option	SET GLOBAL event_scheduler=ON	NULL	NULL	0
 statement/sql/update	UPDATE t2 SET id=22 WHERE name="Jwalamukhi"	NULL	NULL	0
 statement/sp/freturn	NULL	append	STATEMENT	1
 statement/sp/stmt	INSERT INTO table_t VALUES(1)	e1	STATEMENT	1

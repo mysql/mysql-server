@@ -2237,6 +2237,8 @@ END//
 DELIMITER ;//
 
 --echo # Events.
+SET GLOBAL EVENT_SCHEDULER = OFF;
+--source include/no_running_event_scheduler.inc
 
 CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
 CREATE EVENT e2 ON SCHEDULE EVERY 1 SECOND DO DROP DATABASE BUG52792;
@@ -2322,6 +2324,8 @@ DROP DATABASE BUG52792;
 SET NAMES default;
 
 USE test;
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 
 --echo #
 --echo # End of 5.1 tests

@@ -159,7 +159,9 @@ DROP TABLE IF EXISTS thread_status;
 DROP EVENT IF EXISTS event_status;
 --enable_warnings
 
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 DELIMITER $$;
 
@@ -185,7 +187,6 @@ let $wait_condition=select count(*) = 0 from information_schema.events where eve
 SELECT variable_name, variable_value FROM thread_status;
 
 DROP TABLE thread_status;
-SET GLOBAL event_scheduler=0;
 
 #
 # Test to connect using a list of ciphers

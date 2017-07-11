@@ -9618,7 +9618,9 @@ CREATE TABLE t3 (a INT);
 
 INSERT INTO t1 VALUES (1, 2);
 
-SET GLOBAL EVENT_SCHEDULER = ON;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 SELECT GET_LOCK('e1_lock', 60);
 
@@ -9656,8 +9658,6 @@ let $wait_condition = SELECT COUNT(*) > 0 FROM t3;
 
 DROP EVENT e1;
 DROP TABLE t1, t2, t3;
-
-SET GLOBAL EVENT_SCHEDULER = OFF;
 
 
 #

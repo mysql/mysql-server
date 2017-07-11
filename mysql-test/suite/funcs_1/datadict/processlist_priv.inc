@@ -89,7 +89,7 @@ USE information_schema;
 --echo 1 Prepare test.
 --echo   connection default (user=root)
 --echo ####################################################################################
-if (`SELECT COUNT(*) <> 1 FROM processlist`)
+if (`SELECT COUNT(*) <> 2 FROM processlist`)
 {
    --echo This test expects one connection to the server.
    --echo Expectation: USER  HOST       DB                  COMMAND  STATE      INFO
@@ -132,7 +132,7 @@ connection default;
 #    Poll till the connection con100 is in state COMMAND = 'Sleep'.
 let $wait_timeout= 10;
 let $wait_condition=
-SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE DB = 'information_schema' AND COMMAND = 'Sleep' AND USER = 'ddicttestuser1';
 --source include/wait_condition.inc
 --replace_result InnoDB TMP_TABLE_ENGINE MyISAM TMP_TABLE_ENGINE 

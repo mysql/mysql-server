@@ -531,6 +531,8 @@ SHOW COLUMNS FROM no_such_table;
 #
 # Bug#19764 SHOW commands end up in the slow log as table scans
 #
+SET GLOBAL EVENT_SCHEDULER = OFF;
+--source include/no_running_event_scheduler.inc
 CREATE TABLE t1 (f1 INT, f2 INT);
 INSERT INTO t1 VALUES(10, 20);
 flush status;
@@ -601,6 +603,8 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 
 #
 # Bug#10491 Server returns data as charset binary SHOW CREATE TABLE or SELECT

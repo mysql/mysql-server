@@ -1141,4 +1141,6 @@ DROP TABLE t3;
 eval USE $OLD_DB;
 DROP DATABASE db1;
 
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 --echo End of tests
