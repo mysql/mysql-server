@@ -1665,7 +1665,7 @@ LogDDL::replayRenameLog(
 	bool		ret;
 	page_id_t	page_id(space_id, 0);
 
-	ret = fil_op_replay_rename(page_id, old_file_path, new_file_path);
+	ret = fil_op_replay_rename_for_ddl(page_id, old_file_path, new_file_path);
 	if (!ret) {
 		ib::info() << "ddl log replay : RENAME failed";
 	}

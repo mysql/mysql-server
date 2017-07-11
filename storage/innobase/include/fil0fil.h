@@ -1504,6 +1504,19 @@ fil_op_replay_rename(
 	const char*		name,
 	const char*		new_name);
 
+/** Replay a file rename operation for ddl replay.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename_for_ddl(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name);
+
 /** Callback to check tablespace size with space header size and extend
 @param[in]	node	file node
 @param[in]	context	callers context, currently unused

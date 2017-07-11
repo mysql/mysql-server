@@ -450,6 +450,12 @@ public:
 	@return	DB_SUCCESS or error */
 	dberr_t recover();
 
+	/** Is it in ddl recovery in server startup.
+	@return	true if it's in ddl recover */
+	static bool is_in_recovery() {
+		return in_recovery;
+	}
+
 private:
 
 	/** Insert a FREE log record

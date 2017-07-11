@@ -3088,6 +3088,40 @@ fil_op_replay_rename(
 	return(true);
 }
 
+/** Replay a file rename operation for ddl replay.
+@param[in]	page_id		Space ID and first page number in the file
+@param[in]	name		old file name
+@param[in]	new_name	new file name
+@return	whether the operation was successfully applied
+(the name did not exist, or new_name did not exist and
+name was successfully renamed to new_name)  */
+bool
+fil_op_replay_rename_for_ddl(
+	const page_id_t&	page_id,
+	const char*		name,
+	const char*		new_name)
+{
+	space_id_t	space_id = page_id.space();
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	if (space == nullptr) {
+		/* If can't find the space, try to load it by
+		the information in tablespace.open.*. */
+		fil_system->m_open.open_for_recovery(space_id);
+		if (!fil_space_get(space_id)) {
+			ib::info()
+				<< "Can not find space with space ID "
+				<< space_id << " when replaying ddl log "
+				<< "rename from '"  << name
+				<< "' to '" << new_name << "'";
+			return(true);
+		}
+	}
+
+	return(fil_op_replay_rename(page_id, name, new_name));
+}
+
 /** File operations for tablespace */
 enum fil_operation_t {
 	FIL_OPERATION_DELETE,	/*!< delete a single-table tablespace */
@@ -8519,7 +8553,7 @@ fil_tablespace_open_for_recovery(
 	fil_space_t*	space;
 	fil_load_status	status;
 
-	ut_ad(recv_recovery_is_on());
+	ut_ad(recv_recovery_is_on() || LogDDL::is_in_recovery());
 
 	status = fil_ibd_open_for_recovery(space_id, path.c_str(), space);
 
