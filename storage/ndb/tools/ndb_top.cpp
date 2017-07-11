@@ -30,7 +30,6 @@
 #include <curses.h>
 #endif
 #include <unistd.h>
-#include <my_global.h>
 #include <mysql.h>
 #include <my_getopt.h>
 #include <signal.h>
@@ -330,7 +329,6 @@ static void print_version(void)
 
 static void usage(void)
 {
-  struct my_option *optp;
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2017"));
   puts("ndb_top");
@@ -360,24 +358,11 @@ static void usage(void)
   puts("Quit program by using Ctrl-C.");
   puts("");
   short_usage_sub();
-  /*
-    Turn default for zombies off so that the help on how to
-    turn them off text won't show up.
-    This is safe to do since it's followed by a call to exit().
-  */
-  for (optp= my_long_options; optp->name; optp++)
-  {
-    if (optp->id == OPT_SECURE_AUTH)
-    {
-      optp->def_value= 0;
-      break;
-    }
-  }
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
 
-static my_bool
+static bool
 get_one_option(int optid,
                const struct my_option *opt MY_ATTRIBUTE((unused)),
                char *argument)

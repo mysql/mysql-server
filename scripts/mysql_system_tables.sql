@@ -1183,7 +1183,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$error_messages` (error_code INT UNSIGNED, error_description VARCHAR(512), error_status VARCHAR(512), error_classification VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$error_messages` (error_code INT UNSIGNED, error_description VARCHAR(512), error_status VARCHAR(512), error_classification VARCHAR(512)) ENGINE=NDBINFO CHARACTER SET latin1','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
