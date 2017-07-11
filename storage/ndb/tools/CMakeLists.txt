@@ -166,6 +166,14 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
       FIND_LIBRARY(NCURSESW_LIB
                    NAMES ncurses)
     ENDIF()
+
+    IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      # Suppress warnings for undefined identifiers in ndb_top
+      ADD_COMPILE_FLAGS(${CMAKE_CURRENT_SOURCE_DIR}/ndb_top.cpp
+                        COMPILE_FLAGS "-Wno-undef")
+    ENDIF()
+
+
     MYSQL_ADD_EXECUTABLE(ndb_top
       ndb_top.cpp
       COMPONENT ClusterTools)
