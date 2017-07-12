@@ -1347,7 +1347,7 @@ static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
   for (size_t i= 0; i < num_iterations; ++i)
   {
     Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-    wr.seek(path, &hits, true, need_only_one);
+    wr.seek(path, path.leg_count(), &hits, true, need_only_one);
     EXPECT_EQ(expected_matches, hits.size());
   }
 
@@ -1416,7 +1416,7 @@ static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
   {
     Json_wrapper wr(val);
     Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-    wr.seek(path, &hits, true, need_only_one);
+    wr.seek(path, path.leg_count(), &hits, true, need_only_one);
     EXPECT_EQ(expected_matches, hits.size());
   }
 

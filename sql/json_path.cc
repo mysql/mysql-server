@@ -161,33 +161,6 @@ Json_seekable_path::Json_seekable_path()
 {}
 
 
-// Json_path_clone
-
-bool Json_path_clone::set(const Json_seekable_path *source)
-{
-  clear();
-
-  for (const Json_path_leg *path_leg : *source)
-  {
-    if (append(path_leg))
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-const Json_path_leg *Json_path_clone::pop()
-{
-  DBUG_ASSERT(m_path_legs.size() > 0);
-  const Json_path_leg *p= m_path_legs.back();
-  m_path_legs.pop_back();
-  return p;
-}
-
-
 // Json_path
 
 Json_path::Json_path()
@@ -195,13 +168,11 @@ Json_path::Json_path()
 {}
 
 
-Json_path_leg Json_path::pop()
+void Json_path::pop()
 {
   DBUG_ASSERT(m_path_legs.size() > 0);
-  Json_path_leg p= *m_path_legs.back();
   m_path_legs.back()->~Json_path_leg();
   m_path_legs.pop_back();
-  return p;
 }
 
 bool Json_path::to_string(String *buf) const

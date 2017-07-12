@@ -835,7 +835,7 @@ longlong Item_func_json_contains::val_int()
       // path is specified
       if (m_path_cache.parse_and_cache_path(args, 2, true))
         return error_int();
-      Json_path *path= m_path_cache.get_path(2);
+      const Json_path *path= m_path_cache.get_path(2);
       if (path == nullptr)
       {
         null_value= true;
@@ -843,7 +843,7 @@ longlong Item_func_json_contains::val_int()
       }
 
       Json_wrapper_vector v(key_memory_JSON);
-      if (doc_wrapper.seek(*path, &v, true, false))
+      if (doc_wrapper.seek(*path, path->leg_count(), &v, true, false))
         return error_int();                 /* purecov: inspected */
 
       if (v.size() == 0)
@@ -935,7 +935,7 @@ longlong Item_func_json_contains_path::val_int()
     {
       if (m_path_cache.parse_and_cache_path(args, i, false))
         return error_int();
-      Json_path *path= m_path_cache.get_path(i);
+      const Json_path *path= m_path_cache.get_path(i);
       if (path == nullptr)
       {
         null_value= true;
@@ -943,7 +943,7 @@ longlong Item_func_json_contains_path::val_int()
       }
 
       hits.clear();
-      if (wrapper.seek(*path, &hits, true, true))
+      if (wrapper.seek(*path, path->leg_count(), &hits, true, true))
         return error_int();               /* purecov: inspected */
       if (hits.size() > 0)
       {
@@ -1824,7 +1824,7 @@ longlong Item_func_json_length::val_int()
   {
     if (m_path_cache.parse_and_cache_path(args, 1, true))
       return error_int();
-    Json_path *json_path= m_path_cache.get_path(1);
+    const Json_path *json_path= m_path_cache.get_path(1);
     if (json_path == nullptr)
     {
       null_value= true;
@@ -1832,7 +1832,7 @@ longlong Item_func_json_length::val_int()
     }
 
     Json_wrapper_vector hits(key_memory_JSON);
-    if (wrapper.seek(*json_path, &hits, true, true))
+    if (wrapper.seek(*json_path, json_path->leg_count(), &hits, true, true))
       return error_int();                 /* purecov: inspected */
 
     if (hits.size() != 1)
@@ -1902,7 +1902,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
     {
       if (m_path_cache.parse_and_cache_path(args, 1, true))
         return error_json();
-      Json_path *path= m_path_cache.get_path(1);
+      const Json_path *path= m_path_cache.get_path(1);
       if (path == nullptr)
       {
         null_value= true;
@@ -1910,7 +1910,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
       }
 
       Json_wrapper_vector hits(key_memory_JSON);
-      if (wrapper.seek(*path, &hits, false, true))
+      if (wrapper.seek(*path, path->leg_count(), &hits, false, true))
         return error_json();              /* purecov: inspected */
 
       if (hits.size() != 1)
@@ -1981,7 +1981,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
     {
       if (m_path_cache.parse_and_cache_path(args, i, false))
         return error_json();
-      Json_path *path= m_path_cache.get_path(i);
+      const Json_path *path= m_path_cache.get_path(i);
       if (path == nullptr)
       {
         null_value= true;
@@ -1990,7 +1990,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
 
       could_return_multiple_matches|= path->can_match_many();
 
-      if (w.seek(*path, &v, true, false))
+      if (w.seek(*path, path->leg_count(), &v, true, false))
         return error_json();              /* purecov: inspected */
     }
 
@@ -2074,7 +2074,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
   @return true if v is a top level item
 */
 static inline
-bool wrapped_top_level_item(Json_path *path MY_ATTRIBUTE((unused)),
+bool wrapped_top_level_item(const Json_path *path MY_ATTRIBUTE((unused)),
                             Json_dom *v)
 {
   if (v->parent())
@@ -2115,7 +2115,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
         return error_json();
-      Json_path *path= m_path_cache.get_path(i);
+      const Json_path *path= m_path_cache.get_path(i);
       if (path == nullptr)
       {
         null_value= true;
@@ -2123,7 +2123,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
       }
 
       Json_dom_vector hits(key_memory_JSON);
-      if (doc->seek(*path, &hits, true, true))
+      if (doc->seek(*path, path->leg_count(), &hits, true, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.empty())
@@ -2217,44 +2217,37 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
         return error_json();
-      Json_path *current_path= m_path_cache.get_path(i);
-      if (current_path == nullptr)
+      const Json_path *path= m_path_cache.get_path(i);
+      if (path == nullptr)
       {
         null_value= true;
         return false;
       }
 
-      /**
-        Clone the path so that we won't mess up the cached version
-        when we pop the trailing leg below.
-      */
-      m_path.set(current_path);
+      // Cannot insert the root element.
+      if (path->leg_count() == 0)
+        continue;
 
-      {
-        Json_dom_vector hits(key_memory_JSON);
-        if (doc->seek(m_path, &hits, true, true))
-          return error_json();                /* purecov: inspected */
+      Json_dom_vector hits(key_memory_JSON);
+      if (doc->seek(*path, path->leg_count(), &hits, true, true))
+        return error_json();                  /* purecov: inspected */
 
-        if (hits.size() != 0 || // already exists
-            m_path.leg_count() == 0) // is root
-        {
-          continue;
-        }
-      }
+      // If it already exists, there is nothing to do.
+      if (!hits.empty())
+        continue;
 
       /*
         Need to look one step up the path: if we are specifying an array slot
         we need to find the array. If we are specifying an object element, we
         need to find the object. In both cases so we can insert into them.
 
-        Remove the first path leg and search again.
+        Seek again without considering the last path leg.
       */
-      Json_dom_vector hits(key_memory_JSON);
-      const Json_path_leg *leg= m_path.pop();
-      if (doc->seek(m_path, &hits, true, true))
+      const Json_path_leg *leg= path->last_leg();
+      if (doc->seek(*path, path->leg_count() - 1, &hits, true, true))
         return error_json();                  /* purecov: inspected */
 
-      if (hits.size() < 1)
+      if (hits.empty())
       {
         // no unique object found at parent position, so bail out
         continue;
@@ -2306,7 +2299,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             array or object, we need to find the parent DOM to be able to
             replace it in situ.
           */
-          if (m_path.leg_count() == 0) // root
+          if (path->leg_count() == 1) // root
           {
             docw= Json_wrapper(std::move(newarr));
           }
@@ -2370,22 +2363,16 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
         return error_json();
-      Json_path *current_path= m_path_cache.get_path(i);
-      if (current_path == nullptr)
+      const Json_path *path= m_path_cache.get_path(i);
+      if (path == nullptr)
       {
         null_value= true;
         return false;
       }
 
-      /**
-        Clone the path so that we won't mess up the cached version
-        when we pop the trailing leg below.
-      */
-      m_path.set(current_path);
-
       // the path must end in a cell identifier
-      if (m_path.leg_count() == 0 ||
-          m_path.last_leg()->get_type() != jpl_array_cell)
+      if (path->leg_count() == 0 ||
+          path->last_leg()->get_type() != jpl_array_cell)
       {
         my_error(ER_INVALID_JSON_PATH_ARRAY_CELL, MYF(0));
         return error_json();
@@ -2394,11 +2381,11 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
       /*
         Need to look one step up the path: we need to find the array.
 
-        Remove the last path leg and search again.
+        Seek without the last path leg.
       */
       Json_dom_vector hits(key_memory_JSON);
-      const Json_path_leg *leg= m_path.pop();
-      if (doc->seek(m_path, &hits, false, true))
+      const Json_path_leg *leg= path->last_leg();
+      if (doc->seek(*path, path->leg_count() - 1, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.empty())
@@ -2466,7 +2453,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 
   @returns True if an error occurred. False otherwise.
 */
-static bool clone_without_autowrapping(Json_path *source_path,
+static bool clone_without_autowrapping(const Json_path *source_path,
                                        Json_path_clone *target_path,
                                        Json_wrapper *doc)
 {
@@ -2485,7 +2472,7 @@ static bool clone_without_autowrapping(Json_path *source_path,
          So see if pathExpression identifies a non-array value.
       */
       hits.clear();
-      if (doc->seek(*target_path, &hits, false, true))
+      if (doc->seek(*target_path, target_path->leg_count(), &hits, false, true))
         return true;  /* purecov: inspected */
 
       if (!hits.empty() && hits[0].type() != enum_json_type::J_ARRAY)
@@ -2605,7 +2592,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
     {
       if (m_path_cache.parse_and_cache_path(args, i, true))
         return error_json();
-      Json_path *current_path= m_path_cache.get_path(i);
+      const Json_path *current_path= m_path_cache.get_path(i);
       if (current_path == nullptr)
         goto return_null;
 
@@ -2651,7 +2638,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         return error_json();                    /* purecov: inspected */
 
       Json_dom_vector hits(key_memory_JSON);
-      if (doc->seek(m_path, &hits, false, true))
+      if (doc->seek(m_path, m_path.leg_count(), &hits, false, true))
         return error_json();                    /* purecov: inspected */
 
       if (hits.empty())
@@ -2667,8 +2654,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
           Remove the first path leg and search again.
         */
-        const Json_path_leg *leg= m_path.pop();
-        if (doc->seek(m_path, &hits, false, true))
+        const Json_path_leg *leg= m_path.last_leg();
+        if (doc->seek(m_path, m_path.leg_count() - 1, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.empty())
@@ -2696,13 +2683,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               return error_json();            /* purecov: inspected */
 
             if (logical_diffs)
-            {
-              m_path.append(leg);
               table->add_logical_diff(m_partial_update_column, m_path,
                                       enum_json_diff_operation::INSERT,
                                       &valuew);
-              m_path.pop();
-            }
           }
           else
           {
@@ -2729,7 +2712,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               inside an array or object, we need to find the parent DOM to be
               able to replace it in situ.
             */
-            if (m_path.leg_count() == 0) // root
+            if (m_path.leg_count() == 1) // root
             {
               docw= Json_wrapper(std::move(newarr));
 
@@ -2746,11 +2729,11 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               {
                 Json_wrapper array_wrapper(newarr.get());
                 array_wrapper.set_alias();
-                table->add_logical_diff(m_partial_update_column, m_path,
+                table->add_logical_diff(m_partial_update_column,
+                                        hit->get_location(),
                                         enum_json_diff_operation::REPLACE,
                                         &array_wrapper);
               }
-
               Json_dom *parent= hit->parent();
               DBUG_ASSERT(parent);
               parent->replace_dom_in_container(hit, std::move(newarr));
@@ -2765,12 +2748,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             return error_json();              /* purecov: inspected */
 
           if (logical_diffs)
-          {
-            m_path.append(leg);
             table->add_logical_diff(m_partial_update_column, m_path,
                                     enum_json_diff_operation::INSERT, &valuew);
-            m_path.pop();
-          }
         }
       }
       else
@@ -3228,18 +3207,16 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
             return error_json();          /* purecov: inspected */
           Json_dom_vector dom_hits(key_memory_JSON);
 
-          if (dom->seek(*path, &dom_hits, false, false))
+          if (dom->seek(*path, path->leg_count(), &dom_hits, false, false))
             return error_json();              /* purecov: inspected */
 
-          for (Json_dom_vector::iterator jdvi= dom_hits.begin();
-               jdvi != dom_hits.end(); ++jdvi)
+          for (Json_dom *subdocument : dom_hits)
           {
             if (one_match && (matches.size() > 0))
             {
               break;
             }
 
-            Json_dom *subdocument= *jdvi;
             Json_path subdocument_path= subdocument->get_location();
             Json_wrapper subdocument_wrapper(subdocument);
             subdocument_wrapper.set_alias();
@@ -3253,18 +3230,15 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
         else // no wildcards in the path
         {
           hits.clear();
-          if (docw.seek(*path, &hits, false, false))
+          if (docw.seek(*path, path->leg_count(), &hits, false, false))
             return error_json();          /* purecov: inspected */
 
-          for (Json_wrapper_vector::iterator jwvi= hits.begin();
-               jwvi != hits.end(); ++jwvi)
+          for (const Json_wrapper &subdocument_wrapper : hits)
           {
             if (one_match && (matches.size() > 0))
             {
               break;
             }
-
-            Json_wrapper  subdocument_wrapper= *jwvi;
 
             if (find_matches(subdocument_wrapper, path, &matches, &duplicates,
                              one_match, m_like_node, m_source_string_item))
@@ -3380,7 +3354,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 
   for (uint path_idx= 0; path_idx < path_count; ++path_idx)
   {
-    Json_path *path= m_path_cache.get_path(path_idx + 1);
+    const Json_path *path= m_path_cache.get_path(path_idx + 1);
     if (path->leg_count() == 0)
     {
       my_error(ER_JSON_VACUOUS_PATH, MYF(0));
@@ -3433,13 +3407,11 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
     else
     {
       const Json_path_leg *last_leg= path.last_leg();
-      path.pop();
       hits.clear();
-      if (dom->seek(path, &hits, false, true))
+      if (dom->seek(path, path.leg_count() - 1, &hits, false, true))
         return error_json();                  /* purecov: inspected */
       if (hits.empty())
         continue;                               // nothing to do
-      path.append(last_leg);                    // restore the path
 
       DBUG_ASSERT(hits.size() == 1);
       Json_dom *parent= hits[0];
