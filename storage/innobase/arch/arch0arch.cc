@@ -347,7 +347,6 @@ Arch_File_Ctx::open(
 {
 	os_file_create_t	option;
 	os_file_type_t		type;
-	ulint			mode;
 
 	bool	success;
 	bool	exists;
@@ -373,16 +372,14 @@ Arch_File_Ctx::open(
 	if (read_only) {
 
 		option = OS_FILE_OPEN;
-		mode = OS_FILE_READ_ALLOW_DELETE;
 	} else {
 
 		option = exists ? OS_FILE_OPEN : OS_FILE_CREATE_PATH;
-		mode = OS_FILE_READ_WRITE;
 	}
 
-	m_file = os_file_create_simple(
-		innodb_arch_file_key, m_name_buf,
-		option, mode, read_only, &success);
+	m_file = os_file_create(innodb_arch_file_key, m_name_buf,
+				option, OS_FILE_NORMAL, OS_CLONE_LOG_FILE,
+				read_only, &success);
 
 	if (success) {
 

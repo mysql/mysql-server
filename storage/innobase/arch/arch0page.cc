@@ -154,9 +154,10 @@ Page_Arch_Client_Ctx::get_from_file(
 	offset += read_pos->m_offset;
 
 	/* Open file in read only mode. */
-	file = os_file_create_simple(innodb_arch_file_key, file_name,
-				     OS_FILE_OPEN, OS_FILE_READ_ALLOW_DELETE,
-				     true, &success);
+	file = os_file_create(innodb_arch_file_key, file_name,
+			      OS_FILE_OPEN, OS_FILE_NORMAL,
+			      OS_CLONE_LOG_FILE,
+			      true, &success);
 
 	if (!success) {
 
