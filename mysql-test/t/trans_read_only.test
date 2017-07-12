@@ -6,19 +6,19 @@
 --echo # Test9:  The --transaction-read-only startup option.
 
 --echo # Check that the option was set by the .opt file.
-SELECT @@transaction_read_only;
+SELECT @@tx_read_only;
 
 --echo # Also for new connections. Switching to con1
 connect (con1, localhost, root);
-SELECT @@transaction_read_only;
+SELECT @@tx_read_only;
 SET SESSION TRANSACTION READ WRITE;
-SELECT @@transaction_read_only;
+SELECT @@tx_read_only;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 
 --echo # Connection default
 connection default;
-SELECT @@transaction_read_only;
+SELECT @@tx_read_only;
 
 
 --echo #

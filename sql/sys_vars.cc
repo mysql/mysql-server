@@ -4500,42 +4500,25 @@ static Sys_var_ulong Sys_thread_cache_size(
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-
 /**
-  Function to check if the 'next' transaction isolation level
-  can be changed.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to set_var holding the specified list of
-                    system variable names.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
+  Can't change the 'next' tx_isolation if we are already in a
+  transaction.
 */
-static bool check_transaction_isolation(sys_var*, THD *thd, set_var *var)
+
+static bool check_tx_isolation(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
-    return true;
+    return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 
-/**
-  This function sets the session variable thd->variables.transaction_isolation
-  to reflect changes to @@session.transaction_isolation.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to the set_var.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
-*/
-bool Sys_var_transaction_isolation::session_update(THD *thd, set_var *var)
+bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
@@ -4570,26 +4553,20 @@ bool Sys_var_transaction_isolation::session_update(THD *thd, set_var *var)
 }
 
 
-// NO_CMD_LINE
-static Sys_var_transaction_isolation Sys_transaction_isolation(
-       "transaction_isolation", "Default transaction isolation level",
-       UNTRACKED_DEFAULT SESSION_VAR(transaction_isolation), NO_CMD_LINE,
+// NO_CMD_LINE - different name of the option
+static Sys_var_tx_isolation Sys_tx_isolation(
+       "tx_isolation", "Default transaction isolation level",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
 
 /**
-  Function to check if the state of 'transaction_read_only' can be changed.
-  The state cannot be changed if there is already a transaction in progress.
-
-  @param[in] thd    Thread handler
-  @param[in] var    A pointer to set_var holding the specified list of
-                    system variable names.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
+  Can't change the tx_read_only state if we are already in a
+  transaction.
 */
-static bool check_transaction_read_only(sys_var*, THD *thd, set_var *var)
+
+static bool check_tx_read_only(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4602,23 +4579,14 @@ static bool check_transaction_read_only(sys_var*, THD *thd, set_var *var)
 }
 
 
-/**
-  This function sets the session variable thd->variables.transaction_read_only
-  to reflect changes to @@session.transaction_read_only.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to the set_var.
-
-  @retval   FALSE   Success.
-*/
-bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var)
+bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_bool::session_update(thd, var))
     return true;
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    // @see Sys_var_transaction_isolation::session_update() above for the rules.
+    // @see Sys_var_tx_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
 
     if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
@@ -4637,12 +4605,10 @@ bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var)
 }
 
 
-static Sys_var_transaction_read_only Sys_transaction_read_only(
-       "transaction_read_only", "Set default transaction access mode to read only.",
-       UNTRACKED_DEFAULT SESSION_VAR(transaction_read_only), NO_CMD_LINE,
-       DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_transaction_read_only));
-
+static Sys_var_tx_read_only Sys_tx_read_only(
+       "tx_read_only", "Set default transaction access mode to read only.",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",

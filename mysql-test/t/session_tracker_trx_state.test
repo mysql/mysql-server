@@ -35,7 +35,7 @@
 #      (if neither was given in the statement, we won't flag either,
 #      so the default will be used -- it's up to the client to
 #      replicate that setting from SET TRANSACTION (i.e. GLOBAL and
-#      SESSION transaction_isolation / transaction_read_only) as needed!
+#      SESSION tx_isolation / tx_read_only) as needed!
 #
 #    - was "SET TRANSACTION ISOLATION LEVEL" one-shot set for this
 #      transaction?
@@ -71,8 +71,7 @@
 SET autocommit=1;
 --echo # if we track CHARACTERISTICS, we must also track the tx_* sysvars!
 SELECT @@session.session_track_system_variables INTO @old_track_list;
-SET @track_list= CONCAT(@old_track_list, ",transaction_isolation,
-                                           transaction_read_only");
+SET @track_list= CONCAT(@old_track_list, ",tx_isolation,tx_read_only");
 SET SESSION session_track_system_variables=@track_list;
 
 SELECT @@session.session_track_state_change INTO @old_track_enable;
@@ -350,7 +349,7 @@ COMMIT;
 
 # Show how the characteristics one-shots interact with the session values:
 
-SET SESSION transaction_read_only=0;
+SET SESSION tx_read_only=0;
 --echo # one-shot (different from session default)
 SET TRANSACTION READ ONLY;
 START TRANSACTION;
@@ -372,7 +371,7 @@ SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 --echo # "read-only" one-shot is set, and added to chistics tracker (=> 2 items)
 SET TRANSACTION READ ONLY;
 --echo # setting the session default:
---echo # - we receive "changed variable" for @@session.transaction_read_only
+--echo # - we receive "changed variable" for @@session.tx_read_only
 --echo # - "read-only" one-shot is cleared, disappears from chistics tracker
 --echo # - "isolation" one-shot remains set, and remains in chistics tracker
 SET SESSION TRANSACTION READ ONLY;

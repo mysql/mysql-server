@@ -823,8 +823,8 @@ void THD::init(void)
   insert_lock_default= (variables.low_priority_updates ?
                         TL_WRITE_LOW_PRIORITY :
                         TL_WRITE_CONCURRENT_INSERT);
-  tx_isolation= (enum_tx_isolation) variables.transaction_isolation;
-  tx_read_only= variables.transaction_read_only;
+  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_read_only= variables.tx_read_only;
   tx_priority= 0;
   thd_tx_priority= 0;
   update_charset();
@@ -915,7 +915,7 @@ void THD::cleanup_connection(void)
     if(check_cleanup)
     {
       /* isolation level should be default */
-      DBUG_ASSERT(variables.transaction_isolation == ISO_REPEATABLE_READ);
+      DBUG_ASSERT(variables.tx_isolation == ISO_REPEATABLE_READ);
       /* check autocommit is ON by default */
       DBUG_ASSERT(server_status == SERVER_STATUS_AUTOCOMMIT);
       /* check prepared stmts are cleaned up */

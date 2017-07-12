@@ -793,16 +793,16 @@ col_1_text = REPEAT("a", 200)	col_2_text  = REPEAT("o", 200)
 1	1
 0	1
 "In connection 1"
-select @@session.transaction_isolation;
-@@session.transaction_isolation
+select @@session.tx_isolation;
+@@session.tx_isolation
 REPEATABLE-READ
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)
 0	1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.transaction_isolation;
-@@session.transaction_isolation
+select @@session.tx_isolation;
+@@session.tx_isolation
 READ-UNCOMMITTED
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
@@ -863,8 +863,8 @@ col_1_text = REPEAT("a", 200)	col_2_text  = REPEAT("o", 200)
 COMMIT;
 "In connection 1"
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.transaction_isolation;
-@@session.transaction_isolation
+select @@session.tx_isolation;
+@@session.tx_isolation
 READ-UNCOMMITTED
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;

@@ -1,18 +1,13 @@
-#
-# WL#9636: Rename tx_{isolation,isolation} variables to transaction_*
-#
-# Setup.
-SET @session_transaction_isolation = @@SESSION.transaction_isolation;
-SET @global_transaction_isolation = @@GLOBAL.transaction_isolation;
-# Creating connections
-connect  con0,localhost,root,,;
-connection con0;
+** Setup **
+SET @session_tx_isolation = @@SESSION.tx_isolation;
+SET @global_tx_isolation = @@GLOBAL.tx_isolation;
+** Connecting con0 using root **
+** Connection con0 **
 SET SESSION AUTOCOMMIT = OFF;
-connect  con1, localhost, root,,;
-connection con1;
+** Connecting con1 using root **
+** Connection con1 **
 SET SESSION AUTOCOMMIT = OFF;
-connection default;
-# Creating tables
+** Connection default **
 CREATE TABLE t1 (a int PRIMARY KEY, b int) ENGINE=INNODB;
 INSERT INTO t1 VALUES(2, 2);
 INSERT INTO t1 VALUES(4, 4);
@@ -23,15 +18,14 @@ INSERT INTO t1 VALUES(18, 18);
 INSERT INTO t1 VALUES(20, 20);
 INSERT INTO t1 VALUES(22, 22);
 INSERT INTO t1 VALUES(24, 24);
-# Testing for value READ-UNCOMMITTED
-connection con0;
-SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+'#----------------------------FN_DYNVARS_184_01--------------------------------------#'
+** Connection con0 **
+SET SESSION tx_isolation = 'READ-UNCOMMITTED';
 set binlog_format=mixed;
-connection con1;
-SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+** Connection con1 **
+SET SESSION tx_isolation = 'READ-UNCOMMITTED';
 set binlog_format=mixed;
-# Testing WHERE on keys using IN clause
-connection con0;
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a IN (2,4,6,8) FOR UPDATE;
 a	b
@@ -40,7 +34,7 @@ a	b
 6	6
 8	8
 UPDATE t1 SET b = 10 WHERE a IN (2,4,6,8);
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -69,11 +63,11 @@ a	b
 22	22
 24	24
 COMMIT;
-connection con0;
+** Connection con0 **
 DELETE FROM t1 WHERE a = 1 OR a = 3;
 COMMIT;
-# Testing WHERE on keys using # on even rows
-connection con0;
+'#----------------------------FN_DYNVARS_184_02--------------------------------------#'
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
 a	b
@@ -87,7 +81,7 @@ a	b
 22	22
 24	24
 UPDATE t1 SET b = 10 WHERE a % 2 = 0;
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -116,15 +110,14 @@ a	b
 24	10
 25	25
 COMMIT;
-connection con0;
+** Connection con0 **
 COMMIT;
-# Testing for value READ-COMMITTED
-connection con0;
-SET SESSION transaction_isolation = 'READ-COMMITTED';
-connection con1;
-SET SESSION transaction_isolation = 'READ-COMMITTED';
-# Testing WHERE on keys using % on even rows
-connection con0;
+'#----------------------------FN_DYNVARS_184_03--------------------------------------#'
+** Connection con0 **
+SET SESSION tx_isolation = 'READ-COMMITTED';
+** Connection con1 **
+SET SESSION tx_isolation = 'READ-COMMITTED';
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
 a	b
@@ -138,7 +131,7 @@ a	b
 22	10
 24	10
 UPDATE t1 SET b = 11 WHERE a % 2 = 0;
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -171,15 +164,14 @@ a	b
 24	10
 25	25
 COMMIT;
-connection con0;
+** Connection con0 **
 COMMIT;
-# Testing for value REPEATABLE-READ
-connection con0;
-SET SESSION transaction_isolation = 'REPEATABLE-READ';
-connection con1;
-SET SESSION transaction_isolation = 'REPEATABLE-READ';
-# Testing WHERE on keys using % on even rows
-connection con0;
+'#----------------------------FN_DYNVARS_184_04--------------------------------------#'
+** Connection con0 **
+SET SESSION tx_isolation = 'REPEATABLE-READ';
+** Connection con1 **
+SET SESSION tx_isolation = 'REPEATABLE-READ';
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
 a	b
@@ -193,7 +185,7 @@ a	b
 22	11
 24	11
 UPDATE t1 SET b = 12 WHERE a % 2 = 0;
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -232,10 +224,9 @@ a	b
 25	25
 COMMIT;
 ** Connection con0 **
-connection con0;
 COMMIT;
-# Testing WHERE on keys using IN clause
-connection con0;
+'#----------------------------FN_DYNVARS_184_05--------------------------------------#'
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0 FOR UPDATE;
 a	b
@@ -244,7 +235,7 @@ a	b
 23	23
 25	25
 UPDATE t1 SET b = 13 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0;
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -282,10 +273,10 @@ a	b
 24	12
 25	25
 COMMIT;
-connection con0;
+** Connection con0 **
 COMMIT;
-# Testing WHERE on keys using IN clause
-connection con0;
+'#----------------------------FN_DYNVARS_184_06--------------------------------------#'
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a IN (2,4,6,8) = 0 FOR UPDATE;
 a	b
@@ -299,7 +290,7 @@ a	b
 24	12
 25	13
 UPDATE t1 SET b = 14 WHERE a IN (2,4,6,8) = 0;
-connection con1;
+** Connection con1 **
 START TRANSACTION;
 SELECT * FROM t1;
 a	b
@@ -337,15 +328,14 @@ a	b
 24	12
 25	13
 COMMIT;
-connection con0;
+** Connection con0 **
 COMMIT;
-# Testing for value SERIALIZABLE
-connection con0;
-SET SESSION transaction_isolation = 'SERIALIZABLE';
-connection con1;
-SET SESSION transaction_isolation = 'SERIALIZABLE';
-# Testing WHERE on keys using # on even rows
-connection con0;
+'#----------------------------FN_DYNVARS_184_07--------------------------------------#'
+** Connection con0 **
+SET SESSION tx_isolation = 'SERIALIZABLE';
+** Connection con0 **
+SET SESSION tx_isolation = 'SERIALIZABLE';
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
 a	b
@@ -359,7 +349,7 @@ a	b
 22	14
 24	14
 UPDATE t1 SET b = 15 WHERE a % 2 = 0;
-connection con1;
+** Connection con0 **
 START TRANSACTION;
 SELECT * FROM t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -370,47 +360,42 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 COMMIT;
-connection con0;
+** Connection con0 **
 COMMIT;
-# Session data integrity check & GLOBAL Value check
-SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
-connect  con_int1,localhost,root,,;
-connection con_int1;
-SELECT @@SESSION.transaction_isolation;
-@@SESSION.transaction_isolation
+'#----------------------------FN_DYNVARS_184_08--------------------------------------#'
+SET GLOBAL tx_isolation = 'READ-UNCOMMITTED';
+** Connecting con_int1 using root **
+** Connection con_int1 **
+SELECT @@SESSION.tx_isolation;
+@@SESSION.tx_isolation
 READ-UNCOMMITTED
 READ-UNCOMMITTED Expected
-SET SESSION transaction_isolation = 'SERIALIZABLE';
-connect  con_int2,localhost,root,,;
-connection con_int2;
-SELECT @@SESSION.transaction_isolation;
-@@SESSION.transaction_isolation
+SET SESSION tx_isolation = 'SERIALIZABLE';
+** Connecting con_int2 using root **
+** Connection con_int2 **
+SELECT @@SESSION.tx_isolation;
+@@SESSION.tx_isolation
 READ-UNCOMMITTED
 READ-UNCOMMITTED Expected
-SET SESSION transaction_isolation = 'REPEATABLE-READ';
-connection con_int2;
-SELECT @@SESSION.transaction_isolation;
-@@SESSION.transaction_isolation
+SET SESSION tx_isolation = 'REPEATABLE-READ';
+** Connection con_int2 **
+SELECT @@SESSION.tx_isolation;
+@@SESSION.tx_isolation
 REPEATABLE-READ
 REPEATABLE-READ Expected
-connection con_int1;
-SELECT @@SESSION.transaction_isolation;
-@@SESSION.transaction_isolation
+** Connection con_int1 **
+SELECT @@SESSION.tx_isolation;
+@@SESSION.tx_isolation
 SERIALIZABLE
 SERIALIZABLE Expected
-SELECT @@GLOBAL.transaction_isolation;
-@@GLOBAL.transaction_isolation
+SELECT @@GLOBAL.tx_isolation;
+@@GLOBAL.tx_isolation
 READ-UNCOMMITTED
 READ-UNCOMMITTED Expected
-connection default;
+** Connection default **
 Disconnecting Connections con_int1, con_int2
-disconnect con_int1;
-disconnect con_int2;
-# Cleanup
-SET @@SESSION.transaction_isolation = @session_transaction_isolation;
-SET @@GLOBAL.transaction_isolation = @global_transaction_isolation;
-connection default;
+SET @@SESSION.tx_isolation = @session_tx_isolation;
+SET @@GLOBAL.tx_isolation = @global_tx_isolation;
+** Connection default **
 Disconnecting Connections con0, con1
-disconnect con0;
-disconnect con1;
 DROP TABLE t1;

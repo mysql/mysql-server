@@ -967,7 +967,7 @@ bool initialize(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
+  thd->variables.tx_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);
@@ -1003,7 +1003,7 @@ bool restart(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
+  thd->variables.tx_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);
@@ -1065,7 +1065,7 @@ bool setup_dd_objects_and_collations(THD *thd)
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
+  thd->variables.tx_read_only= false;
   thd->tx_read_only= false;
 
   Disable_autocommit_guard autocommit_guard(thd);

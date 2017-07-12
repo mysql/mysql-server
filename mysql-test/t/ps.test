@@ -754,13 +754,13 @@ prepare stmt from "select @@time_zone";
 execute stmt;
 set @@time_zone:='Japan';
 execute stmt;
-prepare stmt from "select @@transaction_isolation";
+prepare stmt from "select @@tx_isolation";
 execute stmt;
 set transaction isolation level read committed;
 execute stmt;
 set transaction isolation level serializable;
 execute stmt;
-set @@transaction_isolation=default;
+set @@tx_isolation=default;
 execute stmt;
 deallocate prepare stmt;
 
