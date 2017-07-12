@@ -1810,7 +1810,17 @@ dict_table_rename_in_cache(
 		err = fil_delete_tablespace(
                         table->space, BUF_REMOVE_ALL_NO_WRITE);
 
-                ut_a(err == DB_SUCCESS);
+                ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		if (err == DB_IO_ERROR) {
+
+			ib::info()
+				<< "IO error while deleting: " << table->space
+				<< " during rename of '" << old_name << "' to"
+				<< " '" << new_name << "'";
+		}
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)

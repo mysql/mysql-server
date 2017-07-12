@@ -802,7 +802,7 @@ datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	id		Tablespace id
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
-@return true if success */
+@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
 dberr_t
 fil_delete_tablespace(
 	space_id_t	id,

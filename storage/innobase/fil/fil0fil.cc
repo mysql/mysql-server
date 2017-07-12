@@ -2242,7 +2242,7 @@ fil_check_pending_io(
 @param[in]	operation	File operation
 @param[out]	space		tablespace instance in memory
 @param[out]	path		tablespace path
-@return DB_SUCCESS or error failure. */
+@return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
 static
 dberr_t
 fil_check_pending_operations(
@@ -2551,7 +2551,7 @@ datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	id		Tablespace id
 @param[in]	buf_remove	Specify the action to take on the pages
 				for this table in the buffer pool.
-@return DB_SUCCESS or error */
+@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
 dberr_t
 fil_delete_tablespace(
 	space_id_t	id,
@@ -2567,6 +2567,8 @@ fil_delete_tablespace(
 		id, FIL_OPERATION_DELETE, &space, &path);
 
 	if (err != DB_SUCCESS) {
+
+		ut_a(err == DB_TABLESPACE_NOT_FOUND);
 
 		ib::error()
 			<< "Cannot delete tablespace " << id
@@ -7500,7 +7502,9 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 		space_id_t	space_id = fil_get_tablespace_id(
 			&ifs, filename);
 
-		if (space_id != 0) {
+		ut_a(space_id != 0);
+
+		if (space_id != ULINT32_UNDEFINED) {
 
 			size_t	n_files = tablespace_files->add(
 				space_id, filename);
@@ -7510,6 +7514,8 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 				duplicates->insert(space_id);
 			}
 
+		} else {
+			ib::warn() << "Ignoring '" << filename << "'";
 		}
 
 		ifs.close();
