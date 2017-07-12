@@ -24,6 +24,7 @@
 #include <mgmapi.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
+#include <NdbHost.h>
 #include <NdbThread.h>
 #include <NdbSleep.h>
 #include <NdbGetRUsage.h>

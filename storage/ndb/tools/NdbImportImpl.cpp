@@ -1123,7 +1123,7 @@ NdbImportImpl::Worker::do_start()
   {
     m_state = WorkerState::State_stop;
   }
-  m_seed = (unsigned)(getpid() ^ m_workerno);
+  m_seed = (unsigned)(NdbHost_GetProcessId() ^ m_workerno);
   while (m_state != WorkerState::State_stopped)
   {
     log2("slice: " << m_slice);

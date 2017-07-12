@@ -1767,13 +1767,41 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   else if (c_local_sysfile.m_restorable_flag ==
            ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
   {
-    jam();
-    ctypeOfStart = NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE;
+    if (unlikely(c_local_sysfile.m_max_restorable_gci < c_start.m_lastGci))
+    {
+      jam();
+      /**
+       * We were able to write the distributed sysfile with a restorable
+       * GCI higher than the one recorded in the local sysfile. This can
+       * happen with a crash directly after completing a restart and
+       * before writing the local sysfile. The distributed sysfile will have
+       * precedence here.
+       */
+      ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+      c_local_sysfile.m_max_restorable_gci = c_start.m_lastGci;
+      g_eventLogger->info("Distributed sysfile more recent:"
+                          " Local sysfile: %s, gci: %u, version: %x",
+         get_restorable_flag_string(c_local_sysfile.m_restorable_flag),
+         c_local_sysfile.m_max_restorable_gci,
+         c_local_sysfile.m_data[0]);
+    }
+    else
+    {
+      jam();
+      ctypeOfStart = NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE;
+    }
   }
   else if (c_local_sysfile.m_restorable_flag ==
            ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART)
   {
     jam();
+    /**
+     * It is possible that the crash occurred after writing the
+     * distributed sysfile and before writing the local sysfile.
+     * In this case the local sysfile will have precedence. This
+     * case will be so rare that it is not important to handle
+     * in the most optimal manner.
+     */
     c_start.m_lastGci = 0;
     ctypeOfStart = NodeState::ST_INITIAL_START;
   }
