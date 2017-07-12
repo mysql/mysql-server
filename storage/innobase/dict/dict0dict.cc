@@ -6996,6 +6996,7 @@ DDTableBuffer::open()
 		break;
 	default:
 		ut_ad(0);
+		root = 93;
 	}
 
 	mutex_enter(&dict_sys->mutex);
