@@ -16,10 +16,14 @@ include/gr_single_primary_with_transaction_isolation.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= TRUE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -39,10 +43,14 @@ include/gr_single_primary_with_transaction_isolation.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -62,10 +70,14 @@ include/gr_single_primary_with_transaction_isolation.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -82,10 +94,14 @@ include/gr_single_primary_with_transaction_isolation.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -105,10 +121,14 @@ include/gr_single_primary_with_transaction_isolation.inc
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # CONFIGURE SERVER 2
 SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
 SET GLOBAL group_replication_single_primary_mode= FALSE;
 SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
 # AND VERIFY PRESENCE OF THE DATA ON SERVER 2
 CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
