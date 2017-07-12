@@ -8683,6 +8683,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if (!opt_help && !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
 
+  if (!opt_help && expire_logs_days)
+    push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);
   opt_mandatory_roles.length= strlen(opt_mandatory_roles.str);
