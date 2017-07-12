@@ -8960,6 +8960,12 @@ cleanup2:
     /* Close the only table instance which might be still around. */
     if (table)
       close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    else
+    {
+      handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+      if (ddse->dict_cache_reset != nullptr)
+        ddse->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
+    }
     if (thd->locked_tables_list.reopen_tables(thd))
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
     /* QQ; do something about metadata locks ? */

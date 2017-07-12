@@ -3685,12 +3685,14 @@ innobase_dict_cache_reset(
 		current_thd, NULL, name,
 		false, DICT_ERR_IGNORE_NONE);
 
-	btr_drop_ahi_for_table(table);
+	if (table != nullptr) {
+		btr_drop_ahi_for_table(table);
 
-	mutex_enter(&dict_sys->mutex);
-	dd_table_close(table, NULL, NULL, true);
-	dict_table_remove_from_cache(table);
-	mutex_exit(&dict_sys->mutex);
+		mutex_enter(&dict_sys->mutex);
+		dd_table_close(table, NULL, NULL, true);
+		dict_table_remove_from_cache(table);
+		mutex_exit(&dict_sys->mutex);
+	}
 }
 
 /** Perform high-level recovery in InnoDB as part of initializing the
