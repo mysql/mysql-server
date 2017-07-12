@@ -3733,7 +3733,7 @@ innobase_dict_recover(
 		dict_sys->ddl_log = dd_table_open_on_name(
                         thd, NULL, "mysql/innodb_ddl_log",
                         false, DICT_ERR_IGNORE_NONE);
-		log_ddl = UT_NEW_NOKEY(LogDDL());
+		log_ddl = UT_NEW_NOKEY(Log_DDL());
 	}
 
 	switch (dict_recovery_mode) {
@@ -4387,7 +4387,7 @@ void
 innobase_post_ddl(
 	THD*		thd)
 {
-	log_ddl->postDDL(thd);
+	log_ddl->post_DDL(thd);
 }
 
 /** Initialize the InnoDB storage engine plugin.
@@ -14585,7 +14585,7 @@ innobase_drop_tablespace(
 
 	dict_sdi_remove_from_cache(space_id, nullptr, false);
 
-	log_ddl->writeDeleteSpaceLog(
+	log_ddl->write_delete_space_log(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
 		true, false);
 

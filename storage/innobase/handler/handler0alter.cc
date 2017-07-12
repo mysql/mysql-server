@@ -7281,7 +7281,7 @@ commit_cache_norebuild(
 			/* It is a single table tablespace and the .ibd file is
 			missing if root is FIL_NULL, do nothing. */
 			if (index->page != FIL_NULL) {
-				log_ddl->writeFreeTreeLog(trx, index, true);
+				log_ddl->write_free_tree_log(trx, index, true);
 			}
 
 			btr_drop_ahi_for_index(index);
@@ -7686,7 +7686,8 @@ ha_innobase::commit_inplace_alter_table_impl(
 				trx, table_share->table_name.str);
 
 			if (!fail) {
-				log_ddl->writeDropLog(trx, ctx->old_table->id);
+				log_ddl->write_drop_log(
+					trx, ctx->old_table->id);
 			}
 		} else {
 			fail = commit_try_norebuild(

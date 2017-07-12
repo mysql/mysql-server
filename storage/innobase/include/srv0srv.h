@@ -133,7 +133,7 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 };
 
-extern LogDDL*		log_ddl;
+extern Log_DDL*		log_ddl;
 
 #ifdef INNODB_DD_TABLE
 extern bool	srv_is_upgrade_mode;

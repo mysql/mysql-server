@@ -37,14 +37,14 @@ Created 12/1/2016 Shaohua Wang
 extern thread_local bool thread_local_ddl_log_replay;
 
 /** DDL log record */
-class logDDLRecord {
+class DDL_Record {
 
 public:
 	/** Constructor. */
-	logDDLRecord();
+	DDL_Record();
 
 	/** Destructor. */
-	~logDDLRecord();
+	~DDL_Record();
 
 	/** Get the id of the DDL log record.
 	@return id of the record. */
@@ -130,7 +130,7 @@ public:
 	void set_new_file_path(const byte* data, ulint len);
 
 	/** Set the given field of the innodb_ddl_log record from
-	  given data.
+	given data.
 	@param[in]	data	data to be set
 	@param[in]	offset	column of the ddl record
 	@param[in]	len	length of the data. */
@@ -169,12 +169,11 @@ public:
 	/** Column number of mysql.innodb_ddl_log.new_file_path. */
 	static constexpr unsigned	NEW_FILE_PATH_COL_NO = 8;
 private:
-	/** Fetch the value from data for the given offset.
+	/** Fetch the value from given offset.
 	@param[in]	data	value to be retrieved from data
 	@param[in]	offset	offset of the column
 	@return value of the given offset. */
-	ulint
-	fetch_value(const byte* data, ulint offset);
+	ulint fetch_value(const byte* data, ulint offset);
 
 	/** Log id */
 	ulint		m_id;
@@ -188,7 +187,7 @@ private:
 	/** Tablespace id */
 	space_id_t	m_space_id;
 
-	/** Index root page no */
+	/** Index root page */
 	page_no_t	m_page_no;
 
 	/** Index id */
@@ -203,39 +202,40 @@ private:
 
 	/** New tablespace file name for RENAME */
 	char*		m_new_file_path;
+
 	/** memory heap object used for storing file name. */
 	mem_heap_t*	m_heap;
 };
 
+using DDL_Records = std::vector<DDL_Record*>;
 
-class DDLLogTable
+using DDL_Record_Ids = std::vector<ulint>;
+
+class DDL_Log_Table
 {
 public:
 	/** Constructor. */
-	DDLLogTable();
+	DDL_Log_Table();
 
 	/** Constructor and it initalizes transaction
 	and query thread. */
-	DDLLogTable(trx_t* trx);
+	DDL_Log_Table(trx_t* trx);
 
 	/** Destructor. */
-	~DDLLogTable();
+	~DDL_Log_Table();
 
 	/** Get the list of ddl records ids.
 	@return list of ddl record ids. */
-	std::vector<ulint>
-	get_list();
+	DDL_Record_Ids& get_ids();
 
 	/** Get the list of ddl records.
 	@return list of ddl records. */
-	std::vector<logDDLRecord*>
-	get_records_list();
+	DDL_Records& get_records();
 
 	/** Insert the DDL log record in the innodb_ddl_log table.
-	@param[in]	ddl_record	Record to be inserted.
+	@param[in]	record	Record to be inserted.
 	@return DB_SUCCESS or error. */
-	dberr_t
-	insert(logDDLRecord& ddl_record);
+	dberr_t insert(DDL_Record& record);
 
 	/** The function does the following
 	1) Scan the given id record and replay the given id record.
@@ -246,34 +246,28 @@ public:
 				ULINT_UNDEFINED for scanAll operation
 	@param[in]	type	type of the operation
 	@return DB_SUCCESS or error. */
-	dberr_t
-	search(ulint id, ulint type);
+	dberr_t search(ulint id, ulint type);
 
 	/** Scan the table from right to left and replay all the record.
 	@return DB_SUCCESS or error. */
-	dberr_t
-	search();
+	dberr_t search();
 
 	/** Scan the table for the ddl_record_ids and replay the operation.
 	@param[in]	type	SEARCH THREAD ID operation.
 	@return DB_SUCCESS or error. */
-	dberr_t
-	search(ulint type);
+	dberr_t search(ulint type);
 
 	/** Delete all the innodb_ddl_log records from the table.
 	@param[in]	id	thread id/id of the record
 	@param[in]	type	type of the operation
 	@return DB_SUCCESS or error. */
-	dberr_t
-	remove(ulint id, ulint type);
+	dberr_t remove(ulint id, ulint type);
 
 	/** Delete all innodb_ddl_log records in the given list.
 	@param[in]	ddl_record_ids	list of ddl record id
 	@param[in]	type		Operation to be perform
 	@return DB_SUCCESS or error. */
-	dberr_t
-	remove(std::vector<ulint>& ddl_record_ids,
-	       ulint		  type);
+	dberr_t remove(DDL_Record_Ids& ddl_record_ids, ulint type);
 
 	/** Search the table using record id operation. */
 	static constexpr unsigned	SEARCH_ID_OP = 0;
@@ -285,27 +279,23 @@ public:
 	static constexpr unsigned	DELETE_ID_OP = 3;
 
 	/** Stop the query thread. */
-	void
-	stop_query_thread();
+	void stop_query_thread();
 
 private:
 
 	/** Set the query thread using graph. */
-	void
-	start_query_thread();
+	void start_query_thread();
 
 	/** Create tuple for the innodb_ddl_log table.
 	It is used for insert operation.
-	@param[in]	ddl_record	DDL log record. */
-	void
-	create_tuple(logDDLRecord& ddl_record);
+	@param[in]	record	DDL log record. */
+	void create_tuple(const DDL_Record& record);
 
 	/** Create tuple for the given index.
 	It can be used for delete or search operation.
 	@param[in]	id	Thread id/ id of the record
 	@param[in]	index	Clustered index or secondary index. */
-	void
-	create_tuple(ulint id, const dict_index_t* index);
+	void create_tuple(ulint id, const dict_index_t* index);
 
 	/** Convert the innodb_ddl_log clustered index record
 	to ddl_record structure format.
@@ -317,7 +307,7 @@ private:
 	convert_to_ddl_record(
 		rec_t*		clust_rec,
 		ulint*		clust_offsets,
-		logDDLRecord&	ddl_record);
+		DDL_Record&	ddl_record);
 
 	/** Parse the secondary index record and get
 	the id in the list.
@@ -332,36 +322,42 @@ private:
 	/** Get the index of the table based on the given operation.
 	@param[in]	type	Operation type
 	@return clustered index or secondary index. */
-	dict_index_t*
-	getIndex(ulint type);
+	dict_index_t* get_index(ulint type);
 
+private:
 	/** innodb_ddl_log table. */
-	dict_table_t*			m_table;
+	dict_table_t*		m_table;
+
 	/** Tuple used for insert, search, delete operation. */
-	dtuple_t*			m_tuple;
+	dtuple_t*		m_tuple;
+
 	/** Transaction used for insert, delete operation. */
-	trx_t*				m_trx;
+	trx_t*			m_trx;
+
 	/** Dummy query thread. */
-	que_thr_t*			m_thr;
+	que_thr_t*		m_thr;
+
 	/** List of ddl record ids and it is used for
 	scan_and_deleteAll, scan_and_deleteByThread operation. */
-	std::vector<ulint>		m_ddl_record_ids;
+	DDL_Record_Ids		m_ddl_record_ids;
+
 	/** List of ddl records and it can be used for
 	replay operation. */
-	std::vector<logDDLRecord*>	m_ddl_records;
+	DDL_Records		m_ddl_records;
+
 	/** Heap to store the m_tuple, m_thr and all
-	operation on innodb_ddl_log table. */
-	mem_heap_t*			m_heap;
+	operation on mysql.innodb_ddl_log table. */
+	mem_heap_t*		m_heap;
 };
 
-class LogDDL
+class Log_DDL
 {
 public:
 	/** Constructor */
-	LogDDL();
+	Log_DDL();
 
 	/** Deconstructor */
-	~LogDDL()
+	~Log_DDL()
 	{}
 
 	/** Write DDL log for freeing B-tree
@@ -369,7 +365,7 @@ public:
 	@param[in]	index		dict index
 	@param[in]	is_drop		flag whether dropping index
 	@return	DB_SUCCESS or error */
-	dberr_t writeFreeTreeLog(
+	dberr_t write_free_tree_log(
 		trx_t*			trx,
 		const dict_index_t*	index,
 		bool			is_drop_table);
@@ -382,7 +378,7 @@ public:
 	@param[in]	is_drop		flag whether dropping tablespace
 	@param[in]	dict_locked	true if dict_sys mutex is held
 	@return	DB_SUCCESS or error */
-	dberr_t writeDeleteSpaceLog(
+	dberr_t write_delete_space_log(
 		trx_t*			trx,
 		const dict_table_t*	table,
 		space_id_t		space_id,
@@ -396,7 +392,7 @@ public:
 	@param[in]	old_file_path	file path after rename
 	@param[in]	new_file_path	file path before rename
 	@return DB_SUCCESS or error */
-	dberr_t writeRenameSpaceLog(
+	dberr_t write_rename_space_log(
 		trx_t*			trx,
 		space_id_t		space_id,
 		const char*		old_file_path,
@@ -407,7 +403,7 @@ public:
 	@param[in,out]	trx		transaction
 	@param[in]	table_id	table ID
 	@return DB_SUCCESS or error */
-	dberr_t writeDropLog(
+	dberr_t write_drop_log(
 		trx_t*			trx,
 		const table_id_t	table_id);
 
@@ -417,7 +413,7 @@ public:
 	@param[in]	old_name	table name after rename
 	@param[in]	new_name	table name before rename
 	@return DB_SUCCESS or error */
-	dberr_t writeRenameTableLog(
+	dberr_t write_rename_table_log(
 		trx_t*		trx,
 		dict_table_t*	table,
 		const char*	old_name,
@@ -427,7 +423,7 @@ public:
 	@param[in]	trx		transaction
 	@param[in]	table		dict table
 	@return DB_SUCCESS or error */
-	dberr_t writeRemoveCacheLog(
+	dberr_t write_remove_cache_log(
 		trx_t*		trx,
 		dict_table_t*	table);
 
@@ -435,13 +431,13 @@ public:
 	@param[in,out]	record	DDL log record
 	return DB_SUCCESS or error */
 	static dberr_t replay(
-		logDDLRecord&	record);
+		DDL_Record&	record);
 
 	/** Replay and clean DDL logs after DDL transaction
 	commints or rollbacks.
 	@param[in]	thd	mysql thread
 	@return	DB_SUCCESS or error */
-	dberr_t postDDL(THD*	thd);
+	dberr_t post_DDL(THD*	thd);
 
 	/** Recover in server startup.
 	Scan innodb_ddl_log table, and replay all log entries.
@@ -464,7 +460,7 @@ private:
 	@param[in]	id		log id
 	@param[in]	thread_id	thread id
 	@return DB_SUCCESS or error */
-	dberr_t	insertFreeTreeLog(
+	dberr_t	insert_free_tree_log(
 		trx_t*			trx,
 		const dict_index_t*	index,
 		ib_uint64_t		id,
@@ -474,7 +470,7 @@ private:
 	@param[in]	space_id	tablespace id
 	@param[in]	page_no		root page no
 	@param[in]	index_id	index id */
-	static void replayFreeLog(
+	static void replay_free_log(
 		space_id_t	space_id,
 		page_no_t	page_no,
 		ulint		index_id);
@@ -486,7 +482,7 @@ private:
 	@param[in]	file_path	file path
 	@param[in]	dict_locked	true if dict_sys mutex is held
 	@return DB_SUCCESS or error */
-	dberr_t insertDeleteSpaceLog(
+	dberr_t insert_delete_space_log(
 		trx_t*			trx,
 		ib_uint64_t		id,
 		ulint			thread_id,
@@ -497,7 +493,7 @@ private:
 	/** Replay DELETE log(delete file if exist)
 	@param[in]	space_id	tablespace id
 	@param[in]	file_path	file path */
-	static void replayDeleteLog(
+	static void replay_delete_log(
 		space_id_t	space_id,
 		const char*	file_path);
 
@@ -508,7 +504,7 @@ private:
 	@param[in]	old_file_path	file path after rename
 	@param[in]	new_file_path	file path before rename
 	@return DB_SUCCESS or error */
-	dberr_t insertRenameLog(
+	dberr_t insert_rename_log(
 		ib_uint64_t		id,
 		ulint			thread_id,
 		space_id_t		space_id,
@@ -519,7 +515,7 @@ private:
 	@param[in]	space_id	tablespace id
 	@param[in]	old_file_path	old file path
 	@param[in]	new_file_path	new file path */
-	static void replayRenameLog(
+	static void replay_rename_log(
 		space_id_t		space_id,
 		const char*		old_file_path,
 		const char*		new_file_path);
@@ -530,7 +526,7 @@ private:
 	@param[in]	thread_id	thread id
 	@param[in]	table_id	table id
 	@return DB_SUCCESS or error */
-	static dberr_t insertDropLog(
+	static dberr_t insert_drop_log(
 		trx_t*			trx,
 		ib_uint64_t		id,
 		ulint			thread_id,
@@ -538,7 +534,7 @@ private:
 
 	/** Replay DROP log
 	@param[in]	table_id	table id */
-	static void replayDropLog(
+	static void replay_drop_log(
 		const table_id_t	table_id);
 
 	/** Insert a RENAME TABLE log record
@@ -548,7 +544,7 @@ private:
 	@param[in]	old_name	table name after rename
 	@param[in]	new_name	table name before rename
 	@return DB_SUCCESS or error */
-	static dberr_t insertRenameTableLog(
+	static dberr_t insert_rename_table_log(
 		ib_uint64_t		id,
 		ulint			thread_id,
 		table_id_t		table_id,
@@ -559,7 +555,7 @@ private:
 	@param[in]	table_id	table id
 	@param[in]	old_name	old name
 	@param[in]	new_name	new name */
-	static void replayRenameTableLog(
+	static void replay_rename_table_log(
 		table_id_t	table_id,
 		const char*	old_name,
 		const char*	new_name);
@@ -570,7 +566,7 @@ private:
 	@param[in]	table_id	table id
 	@param[in]	table_name	table name
 	@return DB_SUCCESS or error */
-	static dberr_t insertRemoveCacheLog(
+	static dberr_t insert_remove_cache_log(
 		ib_uint64_t		id,
 		ulint			thread_id,
 		table_id_t		table_id,
@@ -579,7 +575,7 @@ private:
 	/** Relay remove cache log
 	@param[in]	table_id	table id
 	@param[in]	table_name	table name */
-	static void replayRemoveLog(
+	static void replay_remove_log(
 		table_id_t	table_id,
 		const char*	table_name);
 
@@ -587,7 +583,7 @@ private:
 	@param[in]	trx	transaction instance
 	@param[in]	id	log id
 	@return DB_SUCCESS or error */
-	dberr_t	deleteById(
+	dberr_t	delete_by_id(
 		trx_t*		trx,
 		ib_uint64_t	id);
 
@@ -596,54 +592,54 @@ private:
 	@param[in]	thread_id	thread id
 	@param[out]	ids_list	list of ddl records ids
 	@return DB_SUCCESS or error */
-	dberr_t	replayByThreadID(
+	dberr_t	replay_by_thread_id(
 		trx_t*			trx,
 		ulint			thread_id,
-		std::vector<ulint>&	ids_list);
+		DDL_Record_Ids&		ids_list);
 
 	/** Delete the log records present in the list.
 	@param[in]	trx		transaction instance
 	@param[in]	ids_list	list of ddl record ids
 	@return DB_SUCCESS or error. */
-	dberr_t deleteByList(
+	dberr_t delete_by_ids(
 		trx_t*			trx,
-		std::vector<ulint>&	ids_list);
+		DDL_Record_Ids&		ids_list);
 
 	/** Scan and replay all log records
 	@param[out]	ids_list	list of ddl records ids
 	@return DB_SUCCESS or error */
-	dberr_t	replayAll(
-		std::vector<ulint>&	ids_list);
+	dberr_t	replay_all(
+		DDL_Record_Ids&		ids_list);
 
-	enum LogType {
-			/** Drop an index tree */
-			FREE_TREE_LOG = 1,
+	enum Log_Type {
+		/** Drop an index tree */
+		FREE_TREE_LOG = 1,
 
-			/** Delete a file */
-			DELETE_SPACE_LOG,
+		/** Delete a file */
+		DELETE_SPACE_LOG,
 
-			/** Rename a file */
-			RENAME_LOG,
+		/** Rename a file */
+		RENAME_LOG,
 
-			/** Drop the entry in innodb_table_metadata */
-			DROP_LOG,
+		/** Drop the entry in innodb_table_metadata */
+		DROP_LOG,
 
-			/** Rename table in dict cache. */
-			RENAME_TABLE_LOG,
+		/** Rename table in dict cache. */
+		RENAME_TABLE_LOG,
 
-			/** Remove a table from dict cache */
-			REMOVE_CACHE_LOG
+		/** Remove a table from dict cache */
+		REMOVE_CACHE_LOG
 	};
 
 	/** Get next autoinc counter by increasing 1 for innodb_ddl_log
 	@return	new next counter */
-	inline ib_uint64_t getNextId();
+	inline ib_uint64_t next_id();
 
 	/** Check if we need to skip ddl log for a table.
 	@param[in]	table	dict table
 	@param[in]	thd	mysql thread
 	@return true if should skip, otherwise false */
-	inline bool shouldSkip(
+	inline bool skip(
 		const dict_table_t*	table,
 		THD*			thd);
 

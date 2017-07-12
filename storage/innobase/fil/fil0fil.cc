@@ -4026,8 +4026,8 @@ retry:
 
 		/* Rename ddl log is for rollback, so we exchange old file
 		name with new file name. */
-		log_ddl->writeRenameSpaceLog(NULL, id, new_file_name,
-					     old_file_name);
+		log_ddl->write_rename_space_log(
+			NULL, id, new_file_name, old_file_name);
 
 		ut_free(new_file_name);
 
@@ -8553,7 +8553,7 @@ fil_tablespace_open_for_recovery(
 	fil_space_t*	space;
 	fil_load_status	status;
 
-	ut_ad(recv_recovery_is_on() || LogDDL::is_in_recovery());
+	ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
 
 	status = fil_ibd_open_for_recovery(space_id, path.c_str(), space);
 

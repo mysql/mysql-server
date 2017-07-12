@@ -3028,7 +3028,7 @@ row_create_table_for_mysql(
 		dict_table_add_system_columns(table, heap);
 		dict_table_add_to_cache(table, TRUE, heap);
 
-		log_ddl->writeRemoveCacheLog(trx, table);
+		log_ddl->write_remove_cache_log(trx, table);
 
 		mem_heap_free(heap);
 	}
@@ -4497,7 +4497,7 @@ row_drop_table_for_mysql(
 		for (dict_index_t* index = table->first_index();
 		     index != NULL;
 		     index = index->next()) {
-			log_ddl->writeFreeTreeLog(trx, index, true);
+			log_ddl->write_free_tree_log(trx, index, true);
 		}
 	}
 
@@ -4584,7 +4584,7 @@ row_drop_table_for_mysql(
 	}
 
 	if (!is_temp) {
-		log_ddl->writeDropLog(trx, table_id);
+		log_ddl->write_drop_log(trx, table_id);
 	}
 
 	/* Do not attempt to drop known-to-be-missing tablespaces,
@@ -4600,7 +4600,7 @@ row_drop_table_for_mysql(
 	}
 
 	ut_ad(file_per_table);
-	log_ddl->writeDeleteSpaceLog(
+	log_ddl->write_delete_space_log(
 		trx, nullptr, space_id, filepath, true, true);
 
 funct_exit:
