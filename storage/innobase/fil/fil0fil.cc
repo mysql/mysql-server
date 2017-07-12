@@ -7380,6 +7380,107 @@ fil_tokenize_paths(
 	dirs.erase(std::unique(dirs.begin(), dirs.end() ), dirs.end());
 }
 
+/** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
+ is == 0 on the first page then check for at least two pages with the same
+tablespace ID. Do a Light weight check before trying with
+DataFile::find_space_id().
+@param[in,out]	ifs		Input file stream
+@param[in]	filename	File name to check
+@return ULINT32_UNDEFINED if not found, otherwise the space ID */
+static
+space_id_t
+fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
+{
+	dberr_t		err = DB_CORRUPTION;
+	char		buf[sizeof(space_id_t)];
+	space_id_t	space_id = ULINT32_UNDEFINED;
+	space_id_t	prev_space_id = ULINT32_UNDEFINED;
+
+	for (page_no_t page_no = 0; page_no < 32; ++page_no) {
+
+		off_t	off;
+
+		off = page_no * srv_page_size + FIL_PAGE_SPACE_ID;
+
+		ifs->seekg(off,  ifs->beg);
+
+		if ((ifs->rdstate() & std::ifstream::eofbit) != 0
+		    || (ifs->rdstate() & std::ifstream::failbit) != 0
+		    || (ifs->rdstate() & std::ifstream::badbit) != 0) {
+
+			ib::error() << "'" << filename << "' seek failed!";
+
+			return(ULINT32_UNDEFINED);
+		}
+
+		ifs->read(buf, sizeof(buf));
+
+		if (!ifs->good() || (size_t) ifs->gcount() < sizeof(buf)) {
+
+			ib::error() << "'" << filename << "' read failed!";
+
+			return(ULINT32_UNDEFINED);
+		}
+
+		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
+
+		if (space_id == 0 || space_id == ULINT32_UNDEFINED) {
+
+			continue;
+
+		} else if (space_id > 0 && prev_space_id == space_id) {
+
+			ut_a(prev_space_id != ULINT32_UNDEFINED);
+
+			err = DB_SUCCESS;
+			break;
+
+		} else if (space_id > 0) {
+
+			prev_space_id = space_id;
+		}
+	}
+
+	/* Try the more heavy duty method, as a last resort. */
+	if (err != DB_SUCCESS) {
+
+		ifs->close();
+
+		Datafile	file;
+
+		file.set_filepath(filename.c_str());
+
+		err = file.open_read_only(false);
+
+		ut_a(file.is_open());
+		ut_a(err = DB_SUCCESS);
+
+		/* Read and validate the first page of the tablespace.
+		Assign a tablespace name based on the tablespace type. */
+		err = file.find_space_id();
+
+		if (err == DB_SUCCESS) {
+			space_id = file.space_id();
+		}
+
+		file.close();
+
+		ifs->open(filename, std::ios::binary);
+
+		if (!*ifs) {
+			ib::fatal() << "'" << filename << "' failed to open!";
+		}
+	}
+
+	if (err != DB_SUCCESS) {
+		return(ULINT32_UNDEFINED);
+	}
+
+	ib::info() << "****** " << space_id << " -> " << filename;
+
+	return(space_id);
+}
+
 /** Check for duplicate tablespace IDs.
 @param[in]	files		Files to check for duplicate tablespace IDs
 @param[in,out]	duplicates	Duplicate space IDs found */
@@ -7396,41 +7497,19 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 			continue;
 		}
 
-		ifs.seekg(FIL_PAGE_SPACE_ID, ifs.beg);
+		space_id_t	space_id = fil_get_tablespace_id(
+			&ifs, filename);
 
-		char	buf[sizeof(space_id_t)];
+		if (space_id != 0) {
 
-		ifs.read(buf, sizeof(buf));
+			size_t	n_files = tablespace_files->add(
+				space_id, filename);
 
-		if (!ifs.good() || (size_t) ifs.gcount() < sizeof(buf)) {
+			if (n_files > 1) {
 
-			ib::warn()
-				<< "Unable to read tablespace ID from"
-				<< " '" << filename << "'";
-		} else {
-
-			space_id_t	space_id;
-
-			space_id = mach_read_from_4(
-				reinterpret_cast<byte*>(buf));
-
-			ib::info() << "****** " << space_id << ", " << filename;
-
-			if (space_id != 0) {
-				size_t	n_files = tablespace_files->add(
-					space_id, filename);
-
-				if (n_files > 1) {
-
-					duplicates->insert(space_id);
-				}
-
-			} else {
-
-				ib::error()
-					<< "'" << filename  << "' has a"
-					<< " tablespace ID of 0 - ignoring!";
+				duplicates->insert(space_id);
 			}
+
 		}
 
 		ifs.close();
