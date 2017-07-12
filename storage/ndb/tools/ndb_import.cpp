@@ -598,7 +598,7 @@ doerrins_c(void* data)
     return 0;
   }
 #ifndef _WIN32
-  int pid = getpid();
+  int pid = NdbHost_GetProcessId();
   int sig = 0;
   if (strcmp(type, "sighup") == 0)
     sig = SIGHUP;

@@ -3075,7 +3075,7 @@ testmain()
   signal(SIGABRT, SIG_DFL);
   signal(SIGSEGV, SIG_DFL);
 #endif
-  uint seed = (uint)getpid();
+  uint seed = (uint)NdbHost_GetProcessId();
   ndbout << "seed=" << seed << endl;
   ndb_srand(seed);
   if (testlist() != 0)
