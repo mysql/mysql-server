@@ -18446,7 +18446,7 @@ static void test_bug56976()
   const char*   query = "SELECT LENGTH(?)";
   char *long_buffer;
   unsigned long i, packet_len = 256 * 1024L;
-  unsigned long dos_len    = 8 * 1024 * 1024L;
+  unsigned long dos_len    = 65 * 1024 * 1024L;
 
   DBUG_ENTER("test_bug56976");
   myheader("test_bug56976");
@@ -18477,7 +18477,6 @@ static void test_bug56976()
 
   my_free(long_buffer);
   rc= mysql_stmt_execute(stmt);
-
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == ER_UNKNOWN_ERROR);
 
   mysql_stmt_close(stmt);

@@ -18,7 +18,7 @@ include/rpl_reset.inc
 SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
 LENGTH(data1)	LENGTH(data2)
 1000000	1000000
-set @@global.max_allowed_packet= 4194304;
+set @@global.max_allowed_packet= 67108864;
 INSERT INTO t1 (data1, data2) VALUES (repeat('a',1048576), repeat('a',1048576));
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -57,7 +57,7 @@ include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet));
 SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
 LENGTH(data1)	LENGTH(data2)	LENGTH(data3)
-4194304	4194304	4194304
+67108864	67108864	67108864
 drop table t1;
 include/sync_slave_sql_with_master.inc
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");

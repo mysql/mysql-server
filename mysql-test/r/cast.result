@@ -530,17 +530,17 @@ SELECT CAST( 'a' AS BINARY(429496729));
 CAST( 'a' AS BINARY(429496729))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967294));
 CAST( 'a' AS BINARY(4294967294))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967295));
 CAST( 'a' AS BINARY(4294967295))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 SELECT CAST( 'a' AS BINARY(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 SELECT CAST( 'a' AS BINARY(4294967296784564));
