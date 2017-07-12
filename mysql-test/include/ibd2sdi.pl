@@ -21,6 +21,9 @@ sub ibd2sdi_replace() {
     # Remove se_private_data: id & trx_id output. retain the root page number value
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
 
+    # Remove se_private_data: id & trx_id output. retain the root page number value
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+
     # Remove se_private_data: table_id.
     $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;
 
@@ -81,6 +84,9 @@ sub ibd2sdi_replace_system() {
     # This is only thing that differed from normal replace
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
 
+    # Remove se_private_data: id & trx_id output. retain the root page number value
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+
     # Remove se_private_data: table_id.
     $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;
 
@@ -139,6 +145,9 @@ sub ibd2sdi_replace_mysql() {
 
     # Remove se_private_data: id & trx_id output. retain the root page number value
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
+
+    # Remove se_private_data: id & trx_id output. retain the root page number value
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
 
     # Remove se_private_data: table_id.
     $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;

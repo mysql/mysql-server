@@ -33,7 +33,7 @@ CREATE TABLE t2 SELECT a, b FROM t1 WHERE b LIKE 'First%';
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	7
 Handler_external_lock	137
-Handler_read_key	29
+Handler_read_key	30
 Handler_read_next	5
 Handler_update	12
 Handler_write	19
