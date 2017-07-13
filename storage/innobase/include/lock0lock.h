@@ -591,7 +591,7 @@ lock_rec_find_next_set_bit(
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return TRUE if lock1 has to wait for lock2 to be removed */
-ibool
+bool
 lock_has_to_wait(
 /*=============*/
 	const lock_t*	lock1,	/*!< in: waiting lock */
@@ -613,7 +613,7 @@ lock_report_trx_id_insanity(
 Prints info of locks for all transactions.
 @return FALSE if not able to obtain lock mutex and exits without
 printing info */
-ibool
+bool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
@@ -944,8 +944,9 @@ struct lock_op_t{
 typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
-struct lock_sys_t{
-	char		pad1[CACHE_LINE_SIZE];	/*!< padding to prevent other
+struct lock_sys_t {
+	char		pad1[CACHE_LINE_SIZE];
+						/*!< padding to prevent other
 						memory update hotspots from
 						residing on the same memory
 						cache line */
@@ -969,6 +970,8 @@ struct lock_sys_t{
 						in the waiting_threads array,
 						protected by
 						lock_sys->wait_mutex */
+	int		n_waiting;		/*!< Number of slots in use.
+						Protected by lock_sys->mutex */
 	ibool		rollback_complete;
 						/*!< TRUE if rollback of all
 						recovered transactions is
@@ -984,6 +987,15 @@ struct lock_sys_t{
 
 	bool		timeout_thread_active;	/*!< True if the timeout thread
 						is running */
+
+	/** Marker value before trx_t::age. */
+	uint64_t	mark_age_updated;
+
+#ifdef UNIV_DEBUG
+	/** Lock timestamp counter */
+	uint64_t	m_seq;
+#endif /* UNIV_DEBUG */
+
 };
 
 /*************************************************************//**

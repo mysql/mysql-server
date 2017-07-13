@@ -480,7 +480,7 @@ struct hash_table_t {
 # endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ulint			n_cells;/* number of cells in the hash table */
-	hash_cell_t*		array;	/*!< pointer to cell array */
+	hash_cell_t*		cells;	/*!< pointer to cell array */
 #ifndef UNIV_HOTBACKUP
 	ulint			n_sync_obj;/* if sync_objs != NULL, then
 					the number of either the number
