@@ -97,6 +97,7 @@ int Delayed_initialization_thread::launch_initialization_thread()
                           launch_handler_thread,
                           (void*)this))
   {
+    mysql_mutex_unlock(&run_lock); /* purecov: inspected */
     DBUG_RETURN(1); /* purecov: inspected */
   }
 
