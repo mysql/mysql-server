@@ -1032,7 +1032,9 @@ bool Srv_session::attach()
     if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
       DBUG_RETURN(true);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     query_logger.general_log_print(&thd, COM_CONNECT, NullS);
   }
@@ -1129,7 +1131,9 @@ bool Srv_session::close()
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
   mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   thd.security_context()->logout();
   thd.m_view_ctx_list.empty();

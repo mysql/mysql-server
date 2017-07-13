@@ -1507,8 +1507,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     else
     {
+#ifdef HAVE_PSI_THREAD_INTERFACE
       /* we've authenticated new user */
       PSI_THREAD_CALL(notify_session_change_user)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
       if (save_user_connect)
         decrease_user_connections(save_user_connect);
