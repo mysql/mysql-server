@@ -220,7 +220,6 @@ public:
   void init_lcp_scan(Uint32 & scanGCI,
                      bool & skip_page,
                      bool & changed_row_page_flag);
-
   void end_lcp_scan(Uint32 number_of_pages);
 
   void record_deleted_rowid(Uint32 pageNo,
@@ -337,8 +336,9 @@ public:
      * Once per scan frag (next) req/conf
      */
     bool newScan();
-    bool scanConf(Uint32 noOfOps, Uint32 opLen);
-    bool closeScan();
+    void scanConf(Uint32 noOfOps, Uint32 opLen);
+    void scanConfExtra();
+    void closeScan();
     
     /**
      * Per record
@@ -355,7 +355,6 @@ public:
 
   public:
     Uint32* dst;
-    Uint32 attrSzTotal; // No of AI words received
     Uint32 tablePtr;    // Ptr.i to current table
 
     FsBuffer dataBuffer;
@@ -610,7 +609,6 @@ public:
     Uint64 m_memory_used_in_bytes;
     bool   m_empty_lcp;
     bool   m_is_lcp_scan_active;
-    bool   m_handle_dropped_table_during_lcp_scan;
     bool   m_current_changed_row_page_flag;
     Uint32 m_outstanding_operations;
     Uint32 m_first_start_part_in_lcp;
@@ -620,7 +618,12 @@ public:
     Uint32 m_lcp_max_page_cnt;
     Uint32 m_scan_change_gci;
     Uint32 m_lcp_remove_files;
-    Uint32 m_current_data_file_number;
+    Uint32 m_num_lcp_files;
+    Uint32 m_num_lcp_data_files_open;
+    Uint32 m_first_data_file_number;
+    Uint32 m_last_data_file_number;
+    Uint32 m_save_data_file_ptr;
+    Uint32 m_current_data_file_ptr;
     Uint64 m_current_lcp_lsn;
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
@@ -964,6 +967,10 @@ public:
 
   void checkFile(Signal*, BackupFilePtr);
   void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
+  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op);
+  bool check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op);
+  bool check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr);
+  bool check_error(BackupRecordPtr ptr, BackupFilePtr filePtr);
   void fragmentCompleted(Signal*, BackupFilePtr, Uint32 errCode = 0);
   
   void backupAllData(Signal* signal, BackupRecordPtr);
@@ -1076,7 +1083,6 @@ public:
 
   void lcp_close_ctl_file_drop_case(Signal*, BackupRecordPtr);
   void finish_end_lcp(Signal*, BackupRecordPtr);
-  void handle_dropped_table_during_lcp_scan(Signal*, BackupRecordPtr);
   bool check_if_in_page_range(Uint32 part_id,
                               Uint32 start_part,
                               Uint32 num_parts);
@@ -1100,16 +1106,13 @@ public:
   void start_lcp_scan(Signal *signal,
                       BackupRecordPtr ptr,
                       TablePtr tabPtr,
-                      FragmentPtr fragPtr,
-                      BackupFilePtr filePtr);
+                      Uint32 ptrI);
   Uint32 get_part_add(Uint32 start_part, Uint32 num_parts);
   Uint32 get_file_add(Uint32 start_file, Uint32 num_files);
   Uint32 get_file_sub(Uint32 start_file, Uint32 num_files);
 
 
-  void prepare_ranges_for_parts(BackupRecordPtr,
-                                Uint32 parts,
-                                Uint64 memory_used);
+  void prepare_ranges_for_parts(BackupRecordPtr, Uint32 parts);
   void prepare_parts_for_lcp(Signal*, BackupRecordPtr);
   void prepare_new_part_info(BackupRecordPtr, Uint32);
   void lcp_swap_tables(BackupRecordPtr, TablePtr&, Uint32);
@@ -1133,6 +1136,7 @@ public:
   void lcp_close_prepare_ctl_file_done(Signal*, BackupRecordPtr);
   void lcp_read_ctl_page(BackupFilePtr, Page32Ptr&);
   void lcp_open_data_file(Signal*, BackupRecordPtr);
+  void lcp_open_data_file_late(Signal*, BackupRecordPtr, Uint32 index);
   void lcp_open_data_file_done(Signal*, BackupRecordPtr);
   void lcp_close_data_file(Signal*, BackupRecordPtr, bool remove_flag);
   void lcp_close_data_file_conf(Signal* signal, BackupRecordPtr);
@@ -1206,6 +1210,13 @@ public:
                      Uint32 & scanGCI,
                      bool & skip_flag,
                      bool & changed_row_page_flag);
+  void set_current_file(BackupRecordPtr,
+                        Uint32 part_id,
+                        bool is_all_rows_page);
+  void init_file_for_lcp(Signal*, Uint32 index, BackupRecordPtr, Uint32 ptrI);
+  bool is_all_rows_page(BackupRecordPtr, Uint32 part_id);
+  void change_current_page_temp(Uint32 page_no);
+  void restore_current_page(BackupRecordPtr ptr);
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();

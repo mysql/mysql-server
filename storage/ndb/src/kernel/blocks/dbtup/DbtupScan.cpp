@@ -2053,6 +2053,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
     Uint32 num_entries = copytuple[4];
     Uint32 page_id = copytuple[5];
     Uint16 *page_index_array = (Uint16*)&copytuple[6];
+    c_backup->change_current_page_temp(page_id);
     if (page_index_array[0] == ZNIL)
     {
       jam();
@@ -2107,6 +2108,7 @@ Dbtup::handle_lcp_keep(Signal* signal,
     jam();
     remove_top_from_lcp_keep_list(fragPtr.p, copytuple, tmp);
 
+    c_backup->change_current_page_temp(tmp.m_page_no);
     DEB_LCP_KEEP(("(%u)Handle LCP keep insert entry", instance()));
     Local_key save = tmp;
     setCopyTuple(tmp.m_page_no, tmp.m_page_idx);
