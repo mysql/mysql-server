@@ -436,7 +436,7 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 	return(false);
 }
 
-/** Get the absolute path foe a file name
+/** Get the absolute path for a file name
 @param[in]	dir		Directory
 @param[in]	filename	Filename without directory prefix
 @return the absolute path of dir + filename */
@@ -450,16 +450,18 @@ fil_get_abs_path(const char* dir, const std::string& filename)
 
 	my_realpath(abspath, dir, MYF(0));
 
-	size_t  len = strlen(abspath);
+	if (filename.length() > 0) {
+		size_t  len = strlen(abspath);
 
-	ut_a(len < sizeof(abspath) - 10 - filename.length());
+		ut_a(len < sizeof(abspath) - 10 - filename.length());
 
-	if (abspath[len - 1] != OS_PATH_SEPARATOR) {
-		abspath[len] = OS_PATH_SEPARATOR;
-		++len;
+		if (abspath[len - 1] != OS_PATH_SEPARATOR) {
+			abspath[len] = OS_PATH_SEPARATOR;
+			++len;
+		}
+
+		strncat(abspath, filename.c_str(), filename.length());
 	}
-
-	strncat(abspath, filename.c_str(), filename.length());
 
 	return(std::string(abspath));
 }
@@ -2344,7 +2346,7 @@ fil_paths_equal(const char* lhs, const char* rhs)
 	}
 
 	/* Remove adjacent duplicate characters, comparison should not be
-	affected if the strings are identical. It will remove '//' */
+	affected if the strings are identical. */
 
 	abs_path1.erase(
 		std::unique(
@@ -2352,7 +2354,7 @@ fil_paths_equal(const char* lhs, const char* rhs)
 
 	std::string	abs_path2(rhs);
 
-	if (*abs_path2.begin() == '.') {
+	if (*rhs == '.') {
 		const char*	ptr = rhs;
 
 		while (*ptr == '.' || *ptr == OS_PATH_SEPARATOR) {
@@ -7350,6 +7352,9 @@ fil_tokenize_paths(
 				cur_path.c_str(), &exists, &type) && exists) {
 
 				if (type == OS_FILE_TYPE_DIR) {
+
+					cur_path = fil_get_abs_path(
+						cur_path.c_str(), "");
 
 					dirs.push_back(cur_path);
 

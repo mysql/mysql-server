@@ -450,7 +450,6 @@ SysTablespace::create_file(
 		break;
 	}
 
-
 	if (err == DB_SUCCESS && file.m_type != SRV_OLD_RAW) {
 		err = set_size(file);
 	}
