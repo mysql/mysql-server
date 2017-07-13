@@ -1134,6 +1134,8 @@ ib_insert_row_with_lock_retry(
 	ib_err_t	err;
 	ib_bool_t	lock_wait;
 
+	bool		is_sdi = dict_table_is_sdi(node->table->id);
+
 	trx = thr_get_trx(thr);
 
 	do {
@@ -1149,7 +1151,7 @@ ib_insert_row_with_lock_retry(
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
 			lock_wait = static_cast<ib_bool_t>(
-				ib_handle_errors(&err, trx, thr, savept));
+				ib_handle_errors(&err, trx, thr, savept, is_sdi));
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -1471,6 +1473,8 @@ ib_update_row_with_lock_retry(
 	ib_err_t	err;
 	ib_bool_t	lock_wait;
 
+	bool		is_sdi = dict_table_is_sdi(node->table->id);
+
 	trx = thr_get_trx(thr);
 
 	do {
@@ -1488,7 +1492,7 @@ ib_update_row_with_lock_retry(
 				thr->lock_state = QUE_THR_LOCK_ROW;
 
 				lock_wait = static_cast<ib_bool_t>(
-					ib_handle_errors(&err, trx, thr, savept));
+					ib_handle_errors(&err, trx, thr, savept, is_sdi));
 
 				thr->lock_state = QUE_THR_LOCK_NOLOCK;
 			} else {
@@ -3372,6 +3376,13 @@ ib_sdi_set(
 			);
 
 			err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
+
+#ifdef UNIV_DEBUG
+			if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
+				bool	sdi_update_failed = true;
+				ut_ad(!sdi_update_failed);
+			}
+#endif /* UNIV_DEBUG */
 		}
 
 		ib_tuple_delete(old_tuple);
@@ -3394,6 +3405,11 @@ ib_sdi_set(
 				<< " Error returned: " << err
 				<< " by trx->id: " << trx->id;
 		);
+
+#ifdef UNIV_DEBUG
+		bool sdi_insert_failed = true;
+		ut_ad(!sdi_insert_failed || trx_is_interrupted(trx));
+#endif /* UNIV_DEBUG */
 	}
 
 	ib_tuple_delete(new_tuple);
@@ -3603,20 +3619,28 @@ ib_sdi_delete(
 		err = ib_cursor_delete_row(ib_crsr);
 	}
 
-	DBUG_EXECUTE_IF("ib_sdi",
+#ifdef UNIV_DEBUG
+	if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
+
 		if (err == DB_RECORD_NOT_FOUND) {
 			ib::warn() << "sdi_delete failed: Record Doesn't exist:"
 				<< " tablespace_id: " << tablespace_id
 				<< " Key: " << ib_sdi_key->sdi_key->type
 				<< " " << ib_sdi_key->sdi_key->id;
-		} else if (err != DB_SUCCESS) {
+			bool	sdi_delete_record_not_found = true;
+			ut_ad(!sdi_delete_record_not_found);
+
+		} else {
 			ib::warn() << "sdi_delete failed: tablespace_id: "
 				<< tablespace_id
 				<< " Key: " << ib_sdi_key->sdi_key->type
 				<< " " << ib_sdi_key->sdi_key->id
 				<< " Error returned: " << err;
+			bool	sdi_delete_failed = true;
+			ut_ad(!sdi_delete_failed);
 		}
-	);
+	}
+#endif /* UNIV_DEBUG */
 
 	ib_tuple_delete(key_tpl);
 	ib_cursor_close(ib_crsr);

@@ -2903,12 +2903,6 @@ srv_start_threads(
 
 	srv_start_state_set(SRV_START_STATE_MASTER);
 
-	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
-		srv_start_purge_threads();
-	} else {
-		purge_sys->state = PURGE_STATE_DISABLED;
-	}
-
 	if (srv_force_recovery == 0) {
 		/* In the insert buffer we may have even bigger tablespace
 		id's, because we may have dropped those tablespaces, but

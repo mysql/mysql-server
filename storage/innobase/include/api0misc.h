@@ -72,7 +72,8 @@ ib_handle_errors(
 					function */
 	trx_t*		trx,		/*!< in: transaction */
 	que_thr_t*	thr,		/*!< in: query thread */
-	trx_savept_t*	savept);	/*!< in: savepoint or NULL */
+	trx_savept_t*	savept,		/*!< in: savepoint or NULL */
+	bool		is_sdi);	/*!< in: true if table is SDI */
 
 /*************************************************************************
 Sets a lock on a table.

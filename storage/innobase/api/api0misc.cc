@@ -62,7 +62,8 @@ ib_handle_errors(
 				function */
 	trx_t*		trx,    /*!< in: transaction */
 	que_thr_t*	thr,    /*!< in: query thread */
-	trx_savept_t*	savept) /*!< in: savepoint or NULL */
+	trx_savept_t*	savept, /*!< in: savepoint or NULL */
+	bool		is_sdi) /*!< in: true if table is SDI */
 {
 	dberr_t		err;
 handle_new_error:
@@ -74,7 +75,9 @@ handle_new_error:
 
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
-		trx_rollback_for_mysql(trx);
+		if (!is_sdi) {
+			trx_rollback_for_mysql(trx);
+		}
 		break;
 		/* fall through */
 	case DB_DUPLICATE_KEY:
@@ -109,7 +112,9 @@ handle_new_error:
 	case DB_LOCK_TABLE_FULL:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
-
+		if (is_sdi) {
+			ut_ad(0);
+		}
 		trx_rollback_for_mysql(trx);
 		break;
 

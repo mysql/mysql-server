@@ -1659,10 +1659,28 @@ Log_DDL::replay_delete_log(
 	space_id_t	space_id,
 	const char*	file_path)
 {
+	MDL_ticket*     sdi_mdl = nullptr;
+	THD*            thd = current_thd;
+
 	/* Require the mutex to block key rotation. Please note that
 	here we don't know if this tablespace is encrypted or not,
 	so just acquire the mutex unconditionally. */
 	mutex_enter(&master_key_id_mutex);
+
+	if (thd != nullptr) {
+
+		/* Acquire MDL on SDI table of tablespace. This is to prevent
+		concurrent DROP while purge is happening on SDI table */
+		dberr_t err = dd_sdi_acquire_exclusive_mdl(
+				thd, space_id, &sdi_mdl);
+
+		/* WL#9538 TODO: How to handle MDL acquisition failure. */
+		ut_ad(err == DB_SUCCESS);
+
+		mutex_enter(&dict_sys->mutex);
+		dict_sdi_remove_from_cache(space_id, NULL, true);
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	row_drop_single_table_tablespace(space_id, NULL, file_path);
 

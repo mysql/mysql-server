@@ -3786,6 +3786,15 @@ innobase_post_recover()
 		log_ddl->recover();
 	}
 
+	if (srv_read_only_mode
+	    || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
+		purge_sys->state = PURGE_STATE_DISABLED;
+		return;
+	}
+
+	/* Now the InnoDB Metadata and file system should be consistent.
+	start the Purge thread */
+	srv_start_purge_threads();
 }
 
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
@@ -14547,7 +14556,6 @@ innobase_drop_tablespace(
 	trx_t*		trx;
 	int		error = 0;
 	space_id_t	space_id = SPACE_UNKNOWN;
-	MDL_ticket*	sdi_mdl = nullptr;
 
 	DBUG_ENTER("innobase_drop_tablespace");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -14576,16 +14584,6 @@ innobase_drop_tablespace(
 	trx_start_if_not_started(trx, true);
 
 	++trx->will_lock;
-
-	/* Acquire Exclusive MDL on SDI table of tablespace.
-	This is to prevent concurrent purge on SDI table */
-	dberr_t	err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
-	if (err != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(err, 0, NULL);
-		DBUG_RETURN(error);
-	}
-
-	dict_sdi_remove_from_cache(space_id, nullptr, false);
 
 	log_ddl->write_delete_space_log(
 		trx, NULL, space_id, dd_tablespace_get_filename(dd_space),
