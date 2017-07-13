@@ -932,6 +932,8 @@ struct dict_index_t{
 	bool		has_new_v_col;
 				/*!< whether it has a newly added virtual
 				column in ALTER */
+	bool		index_fts_syncing;/*!< Whether the fts index is
+				still syncing in the background */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
