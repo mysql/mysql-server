@@ -120,3 +120,12 @@ ndb_single_user: Need WL#9185 MySQL Cluster support for new DD
 # Problem with failing ALTER, the Thd_ndb::open_tables contains
 # invalid THD_NDB_SHARE
 ndb_alter_table_error: Need WL#9185 MySQL Cluster support for new DD
+
+# Problem with fully replicated tables
+ndb_fully_replicated_addnode: Bug #26429923 FAILURE OF NDB_FULLY_REPLICATED_ADDNODE TEST
+
+# Problem with different metadata in NDB dictionary and DD
+ndb_dist_priv_bug_13340854: Bug #26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
+
+ndb_bug19390895: Bug #26435040 FAILURE OF NDB_BUG19390895 TEST
+ndb_spj_skew: Bug #26435061 FAILURE OF NDB_SPJ_SKEW TEST
