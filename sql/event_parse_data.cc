@@ -246,7 +246,7 @@ Event_parse_data::init_execute_at(THD *thd)
   DBUG_RETURN(0);
 
 wrong_value:
-  report_bad_value("AT", item_execute_at);
+  report_bad_value(thd, "AT", item_execute_at);
   DBUG_RETURN(ER_WRONG_VALUE);
 }
 
@@ -354,7 +354,7 @@ Event_parse_data::init_interval(THD *thd)
   DBUG_RETURN(0);
 
 wrong_value:
-  report_bad_value("INTERVAL", item_expression);
+  report_bad_value(thd, "INTERVAL", item_expression);
   DBUG_RETURN(ER_WRONG_VALUE);
 }
 
@@ -408,7 +408,7 @@ Event_parse_data::init_starts(THD *thd)
   DBUG_RETURN(0);
 
 wrong_value:
-  report_bad_value("STARTS", item_starts);
+  report_bad_value(thd, "STARTS", item_starts);
   DBUG_RETURN(ER_WRONG_VALUE);
 }
 
@@ -476,15 +476,18 @@ error_bad_params:
   Prints an error message about invalid value. Internally used
   during input data verification
 
-  SYNOPSIS
-    Event_parse_data::report_bad_value()
-      item_name The name of the parameter
-      bad_item  The parameter
+  @param thd       THD object
+  @param item_name The name of the parameter
+  @param bad_item  The parameter
 */
-
 void
-Event_parse_data::report_bad_value(const char *item_name, Item *bad_item)
+Event_parse_data::report_bad_value(THD *thd, const char *item_name,
+                                   Item *bad_item)
 {
+  /// Don't proceed to val_str() if an error has already been raised.
+  if (thd->is_error())
+    return;
+
   char buff[120];
   String str(buff, sizeof(buff), system_charset_info);
   String *str2= bad_item->fixed? bad_item->val_str(&str):NULL;
