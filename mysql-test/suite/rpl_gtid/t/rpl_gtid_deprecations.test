@@ -1,0 +1,57 @@
+--source include/master-slave.inc
+
+# Test has more than one channel, so cannot run with
+# master-info-repository=FILE, relay-log-info-repository=FILE
+--source include/have_slave_repository_type_table.inc
+
+# no need to run multiple times
+--source include/have_binlog_format_row.inc
+
+#############################################################
+# WL#10963 Deprecate IGNORE_SERVER_IDS when GTID_MODE=ON    #
+#############################################################
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+
+# assert that a warning is emited when setting ignore_server_ids
+# and GTID_MODE=ON
+CHANGE MASTER TO IGNORE_SERVER_IDS=(1,2,3);
+
+# create a second channel
+CHANGE MASTER TO MASTER_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+
+# assert that warning is not emitted when gtid_mode != ON
+CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '';
+SET @@global.gtid_mode=ON_PERMISSIVE;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=OFF;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=ON_PERMISSIVE;
+CHANGE MASTER TO MASTER_AUTO_POSITION=1 FOR CHANNEL '';
+
+# assert that a warning is emited when setting gtid_mode=on and
+# IGNORE_SERVER_IDS is also set (and that we only get one warning
+# even though there are two channels configured to ignore server
+# ids).
+SET @@global.gtid_mode=ON;
+
+# assert that even if changing to GTID_MODE=ON again (no-op) we
+# get the warning anyway
+SET @@global.gtid_mode=ON;
+
+# assert that no warning is emited when unsetting ignore_server_ids
+# and GTID_MODE=ON
+CHANGE MASTER TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+
+# clean up
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# End of WL#10963
+
+--source include/rpl_end.inc

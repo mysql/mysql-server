@@ -1,6 +1,6 @@
 SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-SELECT @@global.transaction_isolation;
-@@global.transaction_isolation
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
 REPEATABLE-READ
 # keep_locks == 1
 CREATE USER mysqltest@localhost;

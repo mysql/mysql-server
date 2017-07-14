@@ -102,6 +102,8 @@ lock_wait_table_release_slot(
 	slot->thr = NULL;
 	slot->in_use = FALSE;
 
+	--lock_sys->n_waiting;
+
 	lock_mutex_exit();
 
 	/* Scan backwards and adjust the last free slot pointer. */
@@ -232,6 +234,8 @@ lock_wait_suspend_thread(
 
 			trx->error_state = DB_DEADLOCK;
 			trx->lock.was_chosen_as_deadlock_victim = false;
+
+			ut_d(trx->lock.in_rollback = true);
 		}
 
 		lock_wait_mutex_exit();
@@ -254,10 +258,6 @@ lock_wait_suspend_thread(
 		}
 	}
 
-	/* Wake the lock timeout monitor thread, if it is suspended */
-
-	os_event_set(lock_sys->timeout_event);
-
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
 
@@ -268,6 +268,8 @@ lock_wait_suspend_thread(
 	if (const lock_t* wait_lock = trx->lock.wait_lock) {
 		lock_type = lock_get_type_low(wait_lock);
 	}
+
+	++lock_sys->n_waiting;
 
 	lock_mutex_exit();
 
@@ -369,6 +371,7 @@ lock_wait_suspend_thread(
 
 	/* The transaction is chosen as deadlock victim during sleep. */
 	if (trx->error_state == DB_DEADLOCK) {
+		ut_d(trx->lock.in_rollback = true);
 		return;
 	}
 
@@ -411,6 +414,8 @@ lock_wait_release_thread_if_suspended(
 
 			trx->error_state = DB_DEADLOCK;
 			trx->lock.was_chosen_as_deadlock_victim = false;
+
+			ut_d(trx->lock.in_rollback = true);
 		}
 
 		os_event_set(thr->slot->event);
@@ -457,18 +462,22 @@ lock_wait_check_and_cancel(
 
 		trx_mutex_enter(trx);
 
+		trx->owns_mutex = true;
+
 		if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
-			lock_cancel_waiting_and_release(trx->lock.wait_lock);
+			lock_cancel_waiting_and_release(
+				trx->lock.wait_lock, false);
 		}
 
 		lock_mutex_exit();
 
+		trx->owns_mutex = false;
+
 		trx_mutex_exit(trx);
 	}
-
 }
 
 /** A thread which wakes up threads whose lock wait may have lasted too long. */

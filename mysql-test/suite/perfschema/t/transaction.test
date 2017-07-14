@@ -97,9 +97,9 @@ CALL clear_transaction_tables();
 --echo ========================================================================
 --echo
 --connection con1
-SELECT @@global.transaction_isolation;
+SELECT @@global.tx_isolation;
 SELECT @@global.autocommit;
-SELECT @@transaction_isolation;
+SELECT @@tx_isolation;
 SELECT @@autocommit;
 
 --echo

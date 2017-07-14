@@ -12,6 +12,7 @@ RUN select USER,COMMAND,STATE from information_schema.processlist order by ID de
 USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -36,6 +37,7 @@ RUN select USER,COMMAND,STATE from information_schema.processlist order by ID de
 USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 RUN kill 5126
 While executing kill 5126:
@@ -44,6 +46,7 @@ RUN select USER,COMMAND,STATE from information_schema.processlist order by ID de
 USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -57,6 +60,7 @@ USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 RUN kill CONNECTION_ID
 
@@ -69,6 +73,7 @@ RUN select USER,COMMAND,STATE from information_schema.processlist order by ID de
 USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 RUN kill @current
 While executing kill @current:
@@ -82,6 +87,7 @@ RUN select USER,COMMAND,STATE from information_schema.processlist order by ID de
 USER	COMMAND	STATE
 root	Query	executing
 root	Sleep	
+event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
 RUN kill @current
 While executing kill @current:

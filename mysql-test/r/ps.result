@@ -714,21 +714,21 @@ set @@time_zone:='Japan';
 execute stmt;
 @@time_zone
 Japan
-prepare stmt from "select @@transaction_isolation";
+prepare stmt from "select @@tx_isolation";
 execute stmt;
-@@transaction_isolation
+@@tx_isolation
 REPEATABLE-READ
 set transaction isolation level read committed;
 execute stmt;
-@@transaction_isolation
+@@tx_isolation
 REPEATABLE-READ
 set transaction isolation level serializable;
 execute stmt;
-@@transaction_isolation
+@@tx_isolation
 REPEATABLE-READ
-set @@transaction_isolation=default;
+set @@tx_isolation=default;
 execute stmt;
-@@transaction_isolation
+@@tx_isolation
 REPEATABLE-READ
 deallocate prepare stmt;
 prepare stmt from "create temporary table t1 (letter enum('','a','b','c')

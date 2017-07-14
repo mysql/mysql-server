@@ -439,7 +439,11 @@ SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET GLOBAL relay_log_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE

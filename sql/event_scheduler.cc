@@ -521,7 +521,7 @@ Event_scheduler::start(int *err_no)
   */
   master_access= new_thd->security_context()->master_access();
   new_thd->security_context()->set_master_access(master_access | SUPER_ACL);
-  new_thd->variables.transaction_read_only= false;
+  new_thd->variables.tx_read_only= false;
   new_thd->tx_read_only= false;
 
   scheduler_param_value=

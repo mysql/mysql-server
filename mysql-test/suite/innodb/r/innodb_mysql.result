@@ -1995,10 +1995,10 @@ SET @save_binlog_format=@@binlog_format;
 SET @@sql_log_bin = 0;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
+select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
 @@session.sql_log_bin	0
 @@session.binlog_format	STATEMENT
-@@session.transaction_isolation	READ-COMMITTED
+@@session.tx_isolation	READ-COMMITTED
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;

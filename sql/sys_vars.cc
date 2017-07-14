@@ -1251,6 +1251,32 @@ static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
+static bool relay_log_info_repository_update(sys_var *, THD *thd,
+                                             enum_var_type)
+{
+  if (opt_rli_repository_id == INFO_REPOSITORY_FILE)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                        "FILE", "'TABLE'");
+  }
+  return false;
+}
+
+static bool master_info_repository_update(sys_var *, THD *thd,
+                                          enum_var_type)
+{
+  if (opt_mi_repository_id == INFO_REPOSITORY_FILE)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                        "FILE", "'TABLE'");
+  }
+  return false;
+}
+
 static const char *repository_names[]=
 {
   "FILE", "TABLE",
@@ -1267,7 +1293,7 @@ static Sys_var_enum Sys_mi_repository(
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
-       ON_UPDATE(0));
+       ON_UPDATE(master_info_repository_update));
 
 ulong opt_rli_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_rli_repository(
@@ -1277,7 +1303,7 @@ static Sys_var_enum Sys_rli_repository(
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
-       ON_UPDATE(0));
+       ON_UPDATE(relay_log_info_repository_update));
 
 static Sys_var_bool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
@@ -1718,7 +1744,7 @@ static Sys_var_enum Sys_event_scheduler(
        "ON, OFF, and DISABLED (keep the event scheduler completely "
        "deactivated, it cannot be activated run-time)",
        GLOBAL_VAR(Events::opt_event_scheduler), CMD_LINE(OPT_ARG),
-       event_scheduler_names, DEFAULT(Events::EVENTS_OFF),
+       event_scheduler_names, DEFAULT(Events::EVENTS_ON),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 
@@ -1729,7 +1755,9 @@ static Sys_var_ulong Sys_expire_logs_days(
        " seconds if binlog_expire_logs_seconds has a non zero value; "
        "possible purges happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(30), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(30), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED("binlog_expire_logs_seconds"));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
@@ -2438,7 +2466,7 @@ static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(4096 * 1024),
+       VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(64 * 1024 * 1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_allowed_packet));
 
@@ -3837,8 +3865,64 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
 }
 #endif // HAVE_GTID_NEXT_LIST
 
+/**
+  This function shall issue a deprecation warning
+  if the new gtid mode is set to GTID_MODE_ON and
+  there is at least one replication channel with
+  IGNORE_SERVER_IDS configured (i.e., not empty).
 
-bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
+  The caller must have acquired a lock on the
+  channel_map object before calling this function.
+
+  The warning emitted is: ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT .
+
+  @param thd The current session thread context.
+  @param oldmode The old value of @@global.gtid_mode.
+  @param newmode The new value for @@global.gtid_mode.
+
+*/
+static void
+issue_deprecation_warnings_gtid_mode(THD* thd,
+                                     enum_gtid_mode oldmode MY_ATTRIBUTE((unused)),
+                                     enum_gtid_mode newmode)
+{
+  channel_map.assert_some_lock();
+
+  /*
+    Check that if changing to gtid_mode=on no channel is configured
+    to ignore server ids. If it is, issue a deprecation warning.
+  */
+  if (newmode == GTID_MODE_ON)
+  {
+    for (mi_map::iterator it= channel_map.begin();
+         it!= channel_map.end(); it++)
+    {
+      Master_info *mi= it->second;
+      if (mi != NULL && mi->is_ignore_server_ids_configured())
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_DEPRECATED_SYNTAX,
+                            ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                            "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
+                            "(when @@GLOBAL.GTID_MODE = ON)", "");
+
+        break; // Only push one warning
+      }
+    }
+  }
+}
+
+/**
+  This function shall be called whenever the global scope
+  of gtid_mode var is updated.
+
+  It checks some preconditions and also emits deprecation
+  warnings conditionally when changing the value.
+
+  Deprecation warnings are emitted after error conditions
+  have been checked and only if there is no error raised.
+*/
+bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
   bool ret= true;
@@ -4033,6 +4117,10 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
   }
 
 end:
+  /* handle deprecations warning */
+  issue_deprecation_warnings_gtid_mode(thd,
+                                       old_gtid_mode, new_gtid_mode);
+
   ret= false;
 err:
   DBUG_ASSERT(lock_count >= 0);
@@ -4500,42 +4588,25 @@ static Sys_var_ulong Sys_thread_cache_size(
        CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-
 /**
-  Function to check if the 'next' transaction isolation level
-  can be changed.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to set_var holding the specified list of
-                    system variable names.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
+  Can't change the 'next' tx_isolation if we are already in a
+  transaction.
 */
-static bool check_transaction_isolation(sys_var*, THD *thd, set_var *var)
+
+static bool check_tx_isolation(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
-    return true;
+    return TRUE;
   }
-  return false;
+  return FALSE;
 }
 
 
-/**
-  This function sets the session variable thd->variables.transaction_isolation
-  to reflect changes to @@session.transaction_isolation.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to the set_var.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
-*/
-bool Sys_var_transaction_isolation::session_update(THD *thd, set_var *var)
+bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
@@ -4570,26 +4641,20 @@ bool Sys_var_transaction_isolation::session_update(THD *thd, set_var *var)
 }
 
 
-// NO_CMD_LINE
-static Sys_var_transaction_isolation Sys_transaction_isolation(
-       "transaction_isolation", "Default transaction isolation level",
-       UNTRACKED_DEFAULT SESSION_VAR(transaction_isolation), NO_CMD_LINE,
+// NO_CMD_LINE - different name of the option
+static Sys_var_tx_isolation Sys_tx_isolation(
+       "tx_isolation", "Default transaction isolation level",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
 
 /**
-  Function to check if the state of 'transaction_read_only' can be changed.
-  The state cannot be changed if there is already a transaction in progress.
-
-  @param[in] thd    Thread handler
-  @param[in] var    A pointer to set_var holding the specified list of
-                    system variable names.
-
-  @retval   FALSE   Success.
-  @retval   TRUE    Error.
+  Can't change the tx_read_only state if we are already in a
+  transaction.
 */
-static bool check_transaction_read_only(sys_var*, THD *thd, set_var *var)
+
+static bool check_tx_read_only(sys_var*, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4602,23 +4667,14 @@ static bool check_transaction_read_only(sys_var*, THD *thd, set_var *var)
 }
 
 
-/**
-  This function sets the session variable thd->variables.transaction_read_only
-  to reflect changes to @@session.transaction_read_only.
-
-  @param[in] thd    Thread handler.
-  @param[in] var    A pointer to the set_var.
-
-  @retval   FALSE   Success.
-*/
-bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var)
+bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_bool::session_update(thd, var))
     return true;
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    // @see Sys_var_transaction_isolation::session_update() above for the rules.
+    // @see Sys_var_tx_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
 
     if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
@@ -4637,12 +4693,10 @@ bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var)
 }
 
 
-static Sys_var_transaction_read_only Sys_transaction_read_only(
-       "transaction_read_only", "Set default transaction access mode to read only.",
-       UNTRACKED_DEFAULT SESSION_VAR(transaction_read_only), NO_CMD_LINE,
-       DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_transaction_read_only));
-
+static Sys_var_tx_read_only Sys_tx_read_only(
+       "tx_read_only", "Set default transaction access mode to read only.",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",

@@ -97,6 +97,6 @@ FLUSH LOGS;
 # Cleanup.
 #
 # reset variable value to pass testcase checks
-SET @@global.max_allowed_packet = 4194304;
+SET @@global.max_allowed_packet = 67108864;
 DROP TABLE t1;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_big_1.out

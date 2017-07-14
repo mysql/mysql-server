@@ -1332,7 +1332,7 @@ div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
-event-scheduler OFF
+event-scheduler ON
 expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
@@ -1403,7 +1403,7 @@ master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 4194304
+max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824

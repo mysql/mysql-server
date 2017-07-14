@@ -1169,7 +1169,9 @@ DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
 --enable_warnings
 
-SET GLOBAL event_scheduler=1;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 DELIMITER $$;
 
@@ -1194,7 +1196,6 @@ let $wait_condition=select count(*) = 0 from information_schema.events where eve
 SELECT variable_name FROM server_status;
 
 DROP TABLE server_status;
-SET GLOBAL event_scheduler=0;
 
 #
 # Bug#30310 wrong result on SELECT * FROM INFORMATION_SCHEMA.SCHEMATA WHERE ..

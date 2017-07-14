@@ -150,7 +150,7 @@ SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%
 --vertical_results
 --replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR  @0023 #
-SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%' ORDER BY tablespace_name;
 --horizontal_results
 
 --echo #

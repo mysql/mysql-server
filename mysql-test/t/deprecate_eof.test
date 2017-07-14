@@ -187,7 +187,7 @@ BEGIN
   DECLARE done INT DEFAULT FALSE;
   DECLARE cur1 CURSOR FOR SELECT * FROM t1;
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-  SET @@session.transaction_isolation='READ-COMMITTED';
+  SET @@session.tx_isolation='READ-COMMITTED';
   OPEN cur1;
   read_loop: LOOP
     FETCH cur1 INTO v1;
@@ -209,7 +209,7 @@ BEGIN
   DECLARE y int;
   DECLARE c1 CURSOR FOR SELECT * FROM t1 limit 1;
   DECLARE c2 CURSOR FOR SELECT * FROM t2 limit 1;
-  SET @@session.transaction_isolation='READ-COMMITTED';
+  SET @@session.tx_isolation='READ-COMMITTED';
   OPEN c1;
   OPEN c2;
 

@@ -928,8 +928,11 @@ Clone_Handle::send_data(
 
 		callback->set_source_name(file_meta->m_file_name);
 
-		err = file_callback(callback, task, size,
-				    __FILE__,  __LINE__);
+		err = file_callback(callback, task, size
+#ifdef UNIV_PFS_IO
+				    , __FILE__,  __LINE__
+#endif  /* UNIV_PFS_IO */
+				    );
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 		/* Update PFS if success. */

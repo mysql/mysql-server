@@ -3,6 +3,7 @@
 ##########################################
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	test	Query	TIME	starting	SHOW PROCESSLIST
 INSTALL PLUGIN test_x_sessions_init SONAME 'libtest_x_sessions_init.so';
 SHOW VARIABLES LIKE '%test_x_session%';
@@ -10,6 +11,7 @@ Variable_name	Value
 test_x_sessions_init_nb_sessions	5
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+ID	event_scheduler	HOST_NAME	NULL	Daemon	TIME	Waiting on empty queue	NULL
 ID	root	HOST_NAME	test	Query	TIME	starting	SHOW PROCESSLIST
 ##########################################
 # Stop plugin

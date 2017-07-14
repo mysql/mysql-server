@@ -903,21 +903,21 @@ CREATE TABLE b15776 (a year(9999999999999999999999999999999999999999999999999999
 ERROR HY000: Supports only YEAR or YEAR(4) column.
 CREATE TABLE b15776 select cast(null as char(4294967295));
 Warnings:
-Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
 cast(null as char(4294967295))	longtext	YES		NULL	
 drop table b15776;
 CREATE TABLE b15776 select cast(null as nchar(4294967295));
 Warnings:
-Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
 cast(null as nchar(4294967295))	longtext	YES		NULL	
 drop table b15776;
 CREATE TABLE b15776 select cast(null as binary(4294967295));
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
 cast(null as binary(4294967295))	longblob	YES		NULL	

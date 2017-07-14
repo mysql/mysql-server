@@ -245,8 +245,10 @@ SET GLOBAL master_info_repository= 'FILE';
 # Cleanup
 --source include/stop_slave.inc
 CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+--disable_warnings
 --disable_query_log ONCE
 --eval SET GLOBAL master_info_repository= '$saved_repo_type'
+--enable_warnings
 --source include/start_slave.inc
 --connection master
 

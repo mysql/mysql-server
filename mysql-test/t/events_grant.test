@@ -106,6 +106,4 @@ DROP DATABASE events_test2;
 # End of tests
 #
 
---source include/check_events_off.inc
-
 DROP DATABASE events_test;

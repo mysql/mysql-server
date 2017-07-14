@@ -1,5 +1,5 @@
-SET @old_isolation_level= @@session.transaction_isolation;
-SET @@session.transaction_isolation= 'READ-COMMITTED';
+SET @old_isolation_level= @@session.tx_isolation;
+SET @@session.tx_isolation= 'READ-COMMITTED';
 CREATE DATABASE b42829;
 use b42829;
 CREATE TABLE t1 (x int, y int) engine=InnoDB;
@@ -39,4 +39,4 @@ master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t1 (x int, y int) engin
 master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engine=InnoDB
 DROP DATABASE b42829;
 DROP DATABASE b42829_filtered;
-SET @@session.transaction_isolation= @old_isolation_level;
+SET @@session.tx_isolation= @old_isolation_level;

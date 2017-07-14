@@ -267,17 +267,15 @@ ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DI
 
 # Testing with stored procedure.
 
-SET @@session.session_track_system_variables='autocommit,time_zone,
-                                              transaction_isolation';
+SET @@session.session_track_system_variables='autocommit,time_zone,tx_isolation';
 SELECT @@session.session_track_system_variables;
 @@session.session_track_system_variables
-autocommit,time_zone,
-                                              transaction_isolation
+autocommit,time_zone,tx_isolation
 
 CREATE PROCEDURE my_proc() BEGIN
 SET @@session.autocommit=OFF;
 SET @@session.time_zone='-6:00';
-SET @@session.transaction_isolation='READ-COMMITTED';
+SET @@session.tx_isolation='READ-COMMITTED';
 END;|
 CALL my_proc;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
@@ -285,7 +283,7 @@ CALL my_proc;
 -- OFF
 -- time_zone
 -- -06:00
--- transaction_isolation
+-- tx_isolation
 -- READ-COMMITTED
 
 CALL my_proc;
@@ -294,7 +292,7 @@ CALL my_proc;
 -- OFF
 -- time_zone
 -- -06:00
--- transaction_isolation
+-- tx_isolation
 -- READ-COMMITTED
 
 DROP PROCEDURE my_proc;
@@ -761,7 +759,7 @@ ERROR 42000: Variable 'session_track_state_change' can't be set to the value of 
 # Test in combination with other trackers
 
 # CASE1: with session_track_system_variables
-SET @@session.session_track_system_variables='time_zone,transaction_isolation';
+SET @@session.session_track_system_variables='time_zone,tx_isolation';
 SET @@session.time_zone='-6:00';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- time_zone
@@ -769,9 +767,9 @@ SET @@session.time_zone='-6:00';
 
 SET @@session.session_track_state_change=1;
 # expect 1 as well in OK packet
-SET @@session.transaction_isolation='READ-COMMITTED';
+SET @@session.tx_isolation='READ-COMMITTED';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- transaction_isolation
+-- tx_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
@@ -827,7 +825,7 @@ USE test;
 # CASE4: check for trackers itself
 SET @@session.session_track_state_change=1;
 # expect 1
-SET @@session.session_track_system_variables='transaction_isolation';
+SET @@session.session_track_system_variables='tx_isolation';
 -- Tracker : SESSION_TRACK_STATE_CHANGE
 -- 1
 

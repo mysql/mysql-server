@@ -13,7 +13,7 @@ SET GLOBAL innodb_file_per_table=ON;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 
 # Check if we can recover from a crash when a full checkpoint happens
-# between the CREATE2 redo logging and the tablespace page init.
+# between the CREATE redo logging and the tablespace page init.
 
 SET SESSION debug="+d,fil_ibd_create_log";
 
@@ -44,4 +44,5 @@ INSERT INTO t2 SELECT * FROM t2;
 # should be found in the right place.
 SELECT * FROM t2;
 
+DROP TABLE IF EXISTS t1;
 DROP TABLE t2;

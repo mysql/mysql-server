@@ -641,3 +641,8 @@ void Master_info::wait_until_no_reference(THD *thd)
 
   THD_STAGE_INFO(thd, *old_stage);
 }
+
+bool Master_info::is_ignore_server_ids_configured()
+{
+  return ignore_server_ids->dynamic_ids.size() > 0;
+}

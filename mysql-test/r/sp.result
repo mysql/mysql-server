@@ -8210,7 +8210,10 @@ CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT);
 CREATE TABLE t3 (a INT);
 INSERT INTO t1 VALUES (1, 2);
-SET GLOBAL EVENT_SCHEDULER = ON;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 SELECT GET_LOCK('e1_lock', 60);
 GET_LOCK('e1_lock', 60)
 1
@@ -8237,7 +8240,6 @@ RELEASE_LOCK('e1_lock')
 # and INSERT INTO t2 failed because now t1 has 3 columns.
 DROP EVENT e1;
 DROP TABLE t1, t2, t3;
-SET GLOBAL EVENT_SCHEDULER = OFF;
 set @@global.concurrent_insert= @old_concurrent_insert;
 #
 # WL#2284: Increase the length of a user name

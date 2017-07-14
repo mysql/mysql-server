@@ -1536,7 +1536,7 @@ thd_is_replication_slave_thread(
 /*============================*/
 	THD*	thd)	/*!< in: thread handle */
 {
-	return((ibool) thd_slave_thread(thd));
+	return(thd != nullptr && (ibool) thd_slave_thread(thd));
 }
 
 /******************************************************************//**
@@ -20618,7 +20618,7 @@ innodb_status_output_update(
 	*static_cast<bool*>(var_ptr) = *static_cast<const bool*>(save);
 	/* The lock timeout monitor thread also takes care of this
 	output. */
-	os_event_set(lock_sys->timeout_event);
+	os_event_set(srv_monitor_event);
 }
 
 /** Update the innodb_log_checksums parameter.

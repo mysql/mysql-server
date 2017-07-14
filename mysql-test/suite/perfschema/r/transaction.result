@@ -36,14 +36,14 @@ CALL clear_transaction_tables();
 # STEP 2 - BASIC TRANSACTION
 ========================================================================
 
-SELECT @@global.transaction_isolation;
-@@global.transaction_isolation
+SELECT @@global.tx_isolation;
+@@global.tx_isolation
 REPEATABLE-READ
 SELECT @@global.autocommit;
 @@global.autocommit
 1
-SELECT @@transaction_isolation;
-@@transaction_isolation
+SELECT @@tx_isolation;
+@@tx_isolation
 REPEATABLE-READ
 SELECT @@autocommit;
 @@autocommit

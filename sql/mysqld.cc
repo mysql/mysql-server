@@ -463,6 +463,7 @@
 #include "rpl_msr.h"                    // Multisource_info
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // slave_load_tmpdir
+#include "rpl_info_factory.h"
 #include "session_tracker.h"
 #include "set_var.h"
 #include "socket_connection.h"          // stmt_info_new_packet
@@ -6713,14 +6714,14 @@ struct my_option my_long_options[]=
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   {"transaction-isolation", 0,
    "Default transaction isolation level.",
-   &global_system_variables.transaction_isolation,
-   &global_system_variables.transaction_isolation, &tx_isolation_typelib,
+   &global_system_variables.tx_isolation,
+   &global_system_variables.tx_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
   {"transaction-read-only", 0,
    "Default transaction access mode. "
    "True if transactions are read-only.",
-   &global_system_variables.transaction_read_only,
-   &global_system_variables.transaction_read_only, 0,
+   &global_system_variables.tx_read_only,
+   &global_system_variables.tx_read_only, 0,
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -8067,7 +8068,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'a':
     global_system_variables.sql_mode= MODE_ANSI;
-    global_system_variables.transaction_isolation= ISO_SERIALIZABLE;
+    global_system_variables.tx_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
@@ -8682,6 +8683,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   */
   if (!opt_help && !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
+
+  if (!opt_help && expire_logs_days)
+    push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
+
+  if (!opt_help && opt_mi_repository_id == INFO_REPOSITORY_FILE)
+    push_deprecated_warn(NULL, "--master-info-repository=FILE",
+                         "'--master-info-repository=TABLE'");
+
+  if (!opt_help && opt_rli_repository_id == INFO_REPOSITORY_FILE)
+    push_deprecated_warn(NULL, "--relay-log-info-repository=FILE",
+                         "'--relay-log-info-repository=TABLE'");
 
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);

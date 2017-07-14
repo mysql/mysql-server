@@ -215,7 +215,7 @@ struct System_variables
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
-  ulong transaction_isolation;
+  ulong tx_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
@@ -228,7 +228,7 @@ struct System_variables
   /**
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
-  bool transaction_read_only;
+  bool tx_read_only;
   bool low_priority_updates;
   bool new_mode;
   bool keep_files_on_create;

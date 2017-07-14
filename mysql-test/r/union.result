@@ -1446,7 +1446,7 @@ t3	CREATE TABLE `t3` (
 drop tables t1,t2,t3;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-4194304
+67108864
 SET @@global.max_allowed_packet=25000000;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '25000000'

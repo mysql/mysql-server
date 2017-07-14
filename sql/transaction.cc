@@ -77,8 +77,8 @@ void trans_reset_one_shot_chistics(THD *thd)
     tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
 
-  thd->tx_isolation= (enum_tx_isolation) thd->variables.transaction_isolation;
-  thd->tx_read_only= thd->variables.transaction_read_only;
+  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  thd->tx_read_only= thd->variables.tx_read_only;
 }
 
 /**

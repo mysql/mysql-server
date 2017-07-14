@@ -149,4 +149,4 @@ ALTER TABLE mysql.time_zone AUTO_INCREMENT = 6;
 DROP FUNCTION round_to_step;
 DROP TABLE t_step;
 DROP DATABASE mysqltest_db1;
-End of 5.1 tests.
+SET GLOBAL EVENT_SCHEDULER= ON;

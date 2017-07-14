@@ -28,7 +28,10 @@ SELECT append("Bolly", "wood");
 
 --echo # Event
 
-SET GLOBAL event_scheduler=ON;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
+
 
 CREATE TABLE table_t(a INT);
 DELIMITER |;
@@ -46,9 +49,5 @@ SELECT * FROM table_t;
 
 # Wait till the  above one execution of event is instrumented.
 
---let $wait_condition= select count(*) = 1 from performance_schema.events_statements_history_long where object_type='EVENT' 
---source include/wait_condition.inc 
-
-SET GLOBAL event_scheduler=OFF;
---source include/no_running_event_scheduler.inc
-
+--let $wait_condition= select count(*) = 1 from performance_schema.events_statements_history_long where object_type='EVENT'
+--source include/wait_condition.inc

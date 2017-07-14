@@ -1088,5 +1088,11 @@ DELIMITER ;
 # End of log file
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+RESET MASTER;
+WARNING: --short-form is deprecated and will be removed in a future version
+
+RESET MASTER;
+WARNING: --stop-never-slave-server-id is deprecated and will be removed in a future version. Use --connection-server-id instead.
+
 
 End of tests

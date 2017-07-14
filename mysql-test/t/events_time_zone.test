@@ -327,4 +327,6 @@ let $wait_condition=
   WHERE db='mysqltest_db1' AND command = 'Connect' AND user=current_user();
 --source include/wait_condition.inc
 
---echo End of 5.1 tests.
+# Set default behavior of event_scheduler
+SET GLOBAL EVENT_SCHEDULER= ON;
+--source include/running_event_scheduler.inc

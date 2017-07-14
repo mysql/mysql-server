@@ -579,7 +579,7 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
-set transaction_isolation="READ-COMMITTED";
+set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
 Warnings:
@@ -1424,14 +1424,21 @@ ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SELECT @@global.expire_logs_days INTO @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = -1;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 needs to've been adjusted (0)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
 SET GLOBAL expire_logs_days = 100;
@@ -1440,21 +1447,34 @@ needs to be unchanged (11)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 11
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET SESSION sql_mode = @old_mode;
 SET GLOBAL expire_logs_days = 100;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 needs to've been adjusted (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 99;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 needs to pass with no warnings (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
