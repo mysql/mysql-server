@@ -2056,6 +2056,7 @@ Restore::start_restore_lcp(Signal *signal, FilePtr file_ptr)
   file_ptr.p->m_max_parts = lcpCtlFilePtr->MaxPartPairs;
   file_ptr.p->m_max_files = lcpCtlFilePtr->MaxNumberDataFiles;
   file_ptr.p->m_file_id = lcpCtlFilePtr->LastDataFileNumber;
+  file_ptr.p->m_table_version = lcpCtlFilePtr->CreateTableVersion;
   ndbrequire(file_ptr.p->m_num_files > 0);
   ndbrequire(file_ptr.p->m_num_files <= BackupFormat::NDB_MAX_LCP_PARTS);
   ndbrequire(file_ptr.p->m_file_id <= BackupFormat::NDB_MAX_LCP_FILES);

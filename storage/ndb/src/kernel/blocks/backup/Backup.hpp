@@ -1106,7 +1106,8 @@ public:
   void start_lcp_scan(Signal *signal,
                       BackupRecordPtr ptr,
                       TablePtr tabPtr,
-                      Uint32 ptrI);
+                      Uint32 ptrI,
+                      Uint32 fragNo);
   Uint32 get_part_add(Uint32 start_part, Uint32 num_parts);
   Uint32 get_file_add(Uint32 start_file, Uint32 num_files);
   Uint32 get_file_sub(Uint32 start_file, Uint32 num_files);

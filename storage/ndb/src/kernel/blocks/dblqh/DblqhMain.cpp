@@ -5803,7 +5803,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       localNextTcConnectptr.p->prevHashRec = tcConnectptr.i;
     }//if
   }//if
-  if (tabptr.i >= ctabrecFileSize) {
+  if (tabptr.i >= ctabrecFileSize)
+  {
     LQHKEY_error(signal, 5);
     return;
   }//if
