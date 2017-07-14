@@ -4027,7 +4027,7 @@ retry:
 		/* Rename ddl log is for rollback, so we exchange old file
 		name with new file name. */
 		log_ddl->write_rename_space_log(
-			NULL, id, new_file_name, old_file_name);
+			id, new_file_name, old_file_name);
 
 		ut_free(new_file_name);
 

@@ -32,17 +32,11 @@ Created 12/1/2016 Shaohua Wang
 #include "ha_prototypes.h"
 #include <debug_sync.h>
 
-//#include <sql_class.h>
-//#include "thr_lock.h"
 #include <current_thd.h>
-//#include <dd/dictionary.h>
 #include <sql_thd_internal_api.h>
-//#include <mysql/service_thd_alloc.h>
-//#include <mysql/service_thd_engine_lock.h>
 
 #include "dict0mem.h"
 #include "dict0stats.h"
-#include "log0ddl.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0sel.h"
@@ -52,26 +46,30 @@ Created 12/1/2016 Shaohua Wang
 #include "row0ins.h"
 #include "row0row.h"
 #include "lock0lock.h"
+#include "log0ddl.h"
 
-Log_DDL*	log_ddl = NULL;
+/** Object to handle Log_DDL */
+Log_DDL*	log_ddl = nullptr;
 
 /** Whether replaying ddl log
 Note: we should not write ddl log when replaying ddl log. */
 thread_local bool thread_local_ddl_log_replay = false;
 
 /** Whether in recover(replay) ddl log in startup. */
-bool Log_DDL::in_recovery = false;
+bool	Log_DDL::m_in_recovery = false;
 
 DDL_Record::DDL_Record()
+	:
+	m_id(ULINT_UNDEFINED),
+	m_thread_id(ULINT_UNDEFINED),
+	m_space_id(SPACE_UNKNOWN),
+	m_page_no(FIL_NULL),
+	m_index_id(ULINT_UNDEFINED),
+	m_table_id(ULINT_UNDEFINED),
+	m_old_file_path(nullptr),
+	m_new_file_path(nullptr),
+	m_heap(nullptr)
 {
-	m_thread_id = ULINT_UNDEFINED;
-	m_space_id = ULINT32_UNDEFINED;
-	m_index_id = ULINT_UNDEFINED;
-	m_table_id = ULINT_UNDEFINED;
-	m_old_file_path = nullptr;
-	m_new_file_path = nullptr;
-	m_page_no = FIL_NULL;
-	m_heap = nullptr;
 }
 
 
@@ -94,16 +92,16 @@ DDL_Record::set_id(ulint id)
 	m_id = id;
 }
 
-ulint
+Log_Type
 DDL_Record::get_type() const
 {
 	return(m_type);
 }
 
 void
-DDL_Record::set_type(ulint record_type)
+DDL_Record::set_type(Log_Type type)
 {
-	m_type = record_type;
+	m_type = type;
 }
 
 ulint
@@ -113,9 +111,9 @@ DDL_Record::get_thread_id() const
 }
 
 void
-DDL_Record::set_thread_id(ulint thr_id)
+DDL_Record::set_thread_id(ulint thread_id)
 {
-	m_thread_id = thr_id;
+	m_thread_id = thread_id;
 }
 
 space_id_t
@@ -194,7 +192,7 @@ DDL_Record::set_old_file_path(
 	}
 
 	m_old_file_path = static_cast<char*>(
-			mem_heap_dup(m_heap, data, len + 1));
+		mem_heap_dup(m_heap, data, len + 1));
 	m_old_file_path[len]='\0';
 }
 
@@ -210,7 +208,7 @@ DDL_Record::set_new_file_path(const char* name)
 	ulint len = strlen(name);
 
 	if (m_heap == nullptr) {
-		m_heap = mem_heap_create(1000);
+		m_heap = mem_heap_create(FN_REFLEN + 1);
 	}
 
 	m_new_file_path = mem_heap_strdupl(m_heap, name, len);
@@ -222,109 +220,143 @@ DDL_Record::set_new_file_path(
 	ulint		len)
 {
 	if (m_heap == nullptr) {
-		m_heap = mem_heap_create(1000);
+		m_heap = mem_heap_create(FN_REFLEN + 1);
 	}
 
 	m_new_file_path = static_cast<char*>(
-			mem_heap_dup(m_heap, data, len + 1));
+		mem_heap_dup(m_heap, data, len + 1));
 	m_new_file_path[len]='\0';
 }
 
-ulint
-DDL_Record::fetch_value(
-	const byte*	data,
-	ulint		offset)
+std::ostream&
+DDL_Record::print(std::ostream& out) const
 {
-	ulint	value = 0;
-	switch(offset) {
-		case ID_COL_NO:
-		case THREAD_ID_COL_NO:
-		case INDEX_ID_COL_NO:
-		case TABLE_ID_COL_NO:
-			value = mach_read_from_8(data);
-			return(value);
-		case TYPE_COL_NO:
-		case SPACE_ID_COL_NO:
-		case PAGE_NO_COL_NO:
-			value = mach_read_from_4(data);
-			return(value);
-		case NEW_FILE_PATH_COL_NO:
-		case OLD_FILE_PATH_COL_NO:
-		default:
-			ut_ad(0);
-			break;
+	ut_ad(m_type >= Log_Type::SMALLEST_LOG);
+	ut_ad(m_type <= Log_Type::BIGGEST_LOG);
+
+	bool	printed = false;
+
+	out << "[DDL_Record: ";
+
+	switch (m_type) {
+	case Log_Type::FREE_TREE_LOG:
+		out << "FREE";
+		break;
+	case Log_Type::DELETE_SPACE_LOG:
+		out << "DELETE SPACE";
+		break;
+	case Log_Type::RENAME_SPACE_LOG:
+		out << "RENAME SPACE";
+		break;
+	case Log_Type::DROP_LOG:
+		out << "DROP";
+		break;
+	case Log_Type::RENAME_TABLE_LOG:
+		out << "RENAME TABLE";
+		break;
+	case Log_Type::REMOVE_CACHE_LOG:
+		out << "REMOVE CACHE";
+		break;
+	default:
+		ut_ad(0);
 	}
 
-	return(value);
+	if (m_id != ULINT_UNDEFINED) {
+		out << " id=" << m_id;
+		printed = true;
+	}
+
+	if (m_thread_id != ULINT_UNDEFINED) {
+		if (printed) {
+			out << ",";
+		}
+		out << " thread_id=" << m_thread_id;
+		printed = true;
+	}
+
+	if (m_space_id != SPACE_UNKNOWN) {
+		if (printed) {
+			out << ",";
+		}
+		out << " space_id=" << m_space_id;
+		printed = true;
+	}
+
+	if (m_table_id != ULINT_UNDEFINED) {
+		if (printed) {
+			out << ",";
+		}
+		out << " table_id=" << m_table_id;
+		printed = true;
+	}
+
+	if (m_index_id != ULINT_UNDEFINED) {
+		if (printed) {
+			out << ",";
+		}
+		out << " index_id=" << m_index_id;
+		printed = true;
+	}
+
+	if (m_page_no != FIL_NULL) {
+		if (printed) {
+			out << ",";
+		}
+		out << " page_no=" << m_page_no;
+		printed = true;
+	}
+
+	if (m_old_file_path != nullptr) {
+		if (printed) {
+			out << ",";
+		}
+		out << " old_file_path=" << m_old_file_path;
+		printed = true;
+	}
+
+	if (m_new_file_path != nullptr) {
+		if (printed) {
+			out << ",";
+		}
+		out << " new_file_path=" << m_new_file_path;
+	}
+
+	out << "]";
+
+	return(out);
 }
 
-void DDL_Record::set_field(
-	const byte*	data,
-	ulint		index_offset,
-	ulint		len)
+/** Display a DDL record
+@param[in,out]	o	output stream
+@param[in]	record	DDL record to display
+@return the output stream */
+std::ostream&
+operator<<(std::ostream& o, const DDL_Record& record)
 {
-	dict_index_t*	index = dict_sys->ddl_log->first_index();
-	ulint	col_offset = index->get_col_no(index_offset);
-
-	if (col_offset == NEW_FILE_PATH_COL_NO) {
-		set_new_file_path(data, len);
-		return;
-	}
-
-	if (col_offset == OLD_FILE_PATH_COL_NO) {
-		set_old_file_path(data, len);
-		return;
-	}
-
-	ulint value = fetch_value(data, col_offset);
-	switch(col_offset) {
-		case ID_COL_NO:
-			set_id(value);
-			break;
-		case THREAD_ID_COL_NO:
-			set_thread_id(value);
-			break;
-		case TYPE_COL_NO:
-			set_type(value);
-			break;
-		case SPACE_ID_COL_NO:
-			set_space_id(value);
-			break;
-		case PAGE_NO_COL_NO:
-			set_page_no(value);
-			break;
-		case INDEX_ID_COL_NO:
-			set_index_id(value);
-			break;
-		case TABLE_ID_COL_NO:
-			set_table_id(value);
-			break;
-		case OLD_FILE_PATH_COL_NO:
-		case NEW_FILE_PATH_COL_NO:
-		default:
-			ut_ad(0);
-	}
+	return(record.print(o));
 }
 
-DDL_Log_Table::DDL_Log_Table()
+DDL_Log_Table::DDL_Log_Table() : DDL_Log_Table(nullptr)
+{}
+
+DDL_Log_Table::DDL_Log_Table(
+	trx_t*	trx)
+	:
+	m_table(dict_sys->ddl_log),
+	m_tuple(nullptr),
+	m_trx(trx),
+	m_thr(nullptr)
 {
-	m_table = dict_sys->ddl_log;
+	ut_ad(m_trx == nullptr || m_trx->ddl_operation);
 	m_heap = mem_heap_create(1000);
-	m_thr = nullptr;
-	m_trx = nullptr;
-}
-
-DDL_Log_Table::DDL_Log_Table(trx_t*	trx)
-{
-	m_table = dict_sys->ddl_log;
-	m_trx = trx;
-	ut_ad(m_trx->ddl_operation);
-	m_heap = mem_heap_create(1000);
-	start_query_thread();
+	if (m_trx != nullptr) {
+		start_query_thread();
+	}
 }
 
 DDL_Log_Table::~DDL_Log_Table()
 {
+	stop_query_thread();
 	mem_heap_free(m_heap);
 }
 
@@ -348,33 +380,8 @@ DDL_Log_Table::stop_query_thread()
 	}
 }
 
-DDL_Record_Ids&
-DDL_Log_Table::get_ids()
-{
-	return(m_ddl_record_ids);
-}
-
-DDL_Records&
-DDL_Log_Table::get_records()
-{
-	return(m_ddl_records);
-}
-
-dict_index_t*
-DDL_Log_Table::get_index(
-	ulint	type)
-{
-	dict_index_t*	index = m_table->first_index();
-
-	if (type == DDL_Log_Table::SEARCH_THREAD_ID_OP) {
-		index = index->next();
-	}
-
-	return(index);
-}
-
 void
-DDL_Log_Table::create_tuple(const DDL_Record& ddl_record)
+DDL_Log_Table::create_tuple(const DDL_Record& record)
 {
 	const dict_col_t*	col;
 	dfield_t*		dfield;
@@ -399,85 +406,75 @@ DDL_Log_Table::create_tuple(const DDL_Record& ddl_record)
 	dfield = dtuple_get_nth_field(m_tuple, dict_col_get_no(col));
 	dfield_set_data(dfield, buf, DATA_TRX_ID_LEN);
 
-	const ulint	rec_id = ddl_record.get_id();
+	const ulint	rec_id = record.get_id();
 
 	if (rec_id != ULINT_UNDEFINED) {
-		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::ID_COL_LEN));
+		buf = static_cast<byte*>(mem_heap_alloc(m_heap, ID_COL_LEN));
 		mach_write_to_8(buf, rec_id);
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::ID_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, ID_COL_NO);
+		dfield_set_data(dfield, buf, ID_COL_LEN);
 	}
 
-	if (ddl_record.get_thread_id() != ULINT_UNDEFINED) {
+	if (record.get_thread_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::THREAD_ID_COL_LEN));
-		mach_write_to_8(buf, ddl_record.get_thread_id());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::THREAD_ID_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::THREAD_ID_COL_LEN);
+			m_heap, THREAD_ID_COL_LEN));
+		mach_write_to_8(buf, record.get_thread_id());
+		dfield = dtuple_get_nth_field(m_tuple, THREAD_ID_COL_NO);
+		dfield_set_data(dfield, buf, THREAD_ID_COL_LEN);
 	}
 
-	if (ddl_record.get_type() != 0) {
+	ut_ad(record.get_type() >= Log_Type::SMALLEST_LOG);
+	ut_ad(record.get_type() <= Log_Type::BIGGEST_LOG);
+	buf = static_cast<byte*>(mem_heap_alloc(m_heap, TYPE_COL_LEN));
+	mach_write_to_4(
+		buf,
+		static_cast<typename std::underlying_type<Log_Type>::type>(
+			record.get_type()));
+	dfield = dtuple_get_nth_field(m_tuple, TYPE_COL_NO);
+	dfield_set_data(dfield, buf, TYPE_COL_LEN);
+
+	if (record.get_space_id() != SPACE_UNKNOWN) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::TYPE_COL_LEN));
-		mach_write_to_4(buf, ddl_record.get_type());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::TYPE_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::TYPE_COL_LEN);
+			m_heap, SPACE_ID_COL_LEN));
+		mach_write_to_4(buf, record.get_space_id());
+		dfield = dtuple_get_nth_field(m_tuple, SPACE_ID_COL_NO);
+		dfield_set_data(dfield, buf, SPACE_ID_COL_LEN);
 	}
 
-	if (ddl_record.get_space_id() != ULINT32_UNDEFINED) {
+	if (record.get_page_no() != FIL_NULL) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::SPACE_ID_COL_LEN));
-		mach_write_to_4(buf, ddl_record.get_space_id());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::SPACE_ID_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::SPACE_ID_COL_LEN);
+			m_heap, PAGE_NO_COL_LEN));
+		mach_write_to_4(buf, record.get_page_no());
+		dfield = dtuple_get_nth_field(m_tuple, PAGE_NO_COL_NO);
+		dfield_set_data(dfield, buf, PAGE_NO_COL_LEN);
 	}
 
-	if (ddl_record.get_page_no() != FIL_NULL) {
+	if (record.get_index_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::PAGE_NO_COL_LEN));
-		mach_write_to_4(buf, ddl_record.get_page_no());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::PAGE_NO_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::PAGE_NO_COL_LEN);
+			m_heap, INDEX_ID_COL_LEN));
+		mach_write_to_8(buf, record.get_index_id());
+		dfield = dtuple_get_nth_field(m_tuple, INDEX_ID_COL_NO);
+		dfield_set_data(dfield, buf, INDEX_ID_COL_LEN);
 	}
 
-	if (ddl_record.get_index_id() != ULINT_UNDEFINED) {
+	if (record.get_table_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::INDEX_ID_COL_LEN));
-		mach_write_to_8(buf, ddl_record.get_index_id());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::INDEX_ID_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::INDEX_ID_COL_LEN);
+			m_heap, TABLE_ID_COL_LEN));
+		mach_write_to_8(buf, record.get_table_id());
+		dfield = dtuple_get_nth_field(m_tuple, TABLE_ID_COL_NO);
+		dfield_set_data(dfield, buf, TABLE_ID_COL_LEN);
 	}
 
-	if (ddl_record.get_table_id() != ULINT_UNDEFINED) {
-		buf = static_cast<byte*>(mem_heap_alloc(
-				m_heap, DDL_Record::TABLE_ID_COL_LEN));
-		mach_write_to_8(buf, ddl_record.get_table_id());
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::TABLE_ID_COL_NO);
-		dfield_set_data(dfield, buf, DDL_Record::TABLE_ID_COL_LEN);
+	if (record.get_old_file_path() != nullptr) {
+		ulint m_len = strlen(record.get_old_file_path()) + 1;
+		dfield = dtuple_get_nth_field(m_tuple, OLD_FILE_PATH_COL_NO);
+		dfield_set_data(dfield, record.get_old_file_path(), m_len);
 	}
 
-	if (ddl_record.get_old_file_path() != nullptr) {
-		ulint m_len = strlen(ddl_record.get_old_file_path()) + 1;
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::OLD_FILE_PATH_COL_NO);
-		dfield_set_data(dfield, ddl_record.get_old_file_path(),
-				m_len);
-	}
-
-	if (ddl_record.get_new_file_path() != nullptr) {
-		ulint m_len = strlen(ddl_record.get_new_file_path()) + 1;
-		dfield = dtuple_get_nth_field(m_tuple,
-					      DDL_Record::NEW_FILE_PATH_COL_NO);
-		dfield_set_data(dfield, ddl_record.get_new_file_path(),
-				m_len);
+	if (record.get_new_file_path() != nullptr) {
+		ulint m_len = strlen(record.get_new_file_path()) + 1;
+		dfield = dtuple_get_nth_field(m_tuple, NEW_FILE_PATH_COL_NO);
+		dfield_set_data(dfield, record.get_new_file_path(), m_len);
 	}
 }
 
@@ -495,11 +492,11 @@ DDL_Log_Table::create_tuple(ulint id, const dict_index_t* index)
 	dict_index_copy_types(m_tuple, index, 1);
 
 	if (index->is_clustered()) {
-		len = DDL_Record::ID_COL_LEN;
-		table_col_offset = DDL_Record::ID_COL_NO;
+		len = ID_COL_LEN;
+		table_col_offset = ID_COL_NO;
 	} else {
-		len = DDL_Record::THREAD_ID_COL_LEN;
-		table_col_offset = DDL_Record::THREAD_ID_COL_NO;
+		len = THREAD_ID_COL_LEN;
+		table_col_offset = THREAD_ID_COL_NO;
 	}
 
 	index_col_offset = index->get_col_pos(table_col_offset);
@@ -511,7 +508,7 @@ DDL_Log_Table::create_tuple(ulint id, const dict_index_t* index)
 
 dberr_t
 DDL_Log_Table::insert(
-	DDL_Record& record)
+	const DDL_Record& record)
 {
 	dberr_t		error;
 	dict_index_t*	index = m_table->first_index();
@@ -520,19 +517,16 @@ DDL_Log_Table::insert(
 	mem_heap_t*	offsets_heap = mem_heap_create(1000);
 
 	create_tuple(record);
-	entry = row_build_index_entry(m_tuple, NULL,
-				      index, m_heap);
+	entry = row_build_index_entry(m_tuple, NULL, index, m_heap);
 
 	error = row_ins_clust_index_entry_low(
-			flags, BTR_MODIFY_LEAF, index,
-			index->n_uniq,
-			entry, 0, m_thr, false);
+		flags, BTR_MODIFY_LEAF, index, index->n_uniq,
+		entry, 0, m_thr, false);
 
 	if (error == DB_FAIL) {
 		error = row_ins_clust_index_entry_low(
-				flags, BTR_MODIFY_TREE, index,
-				index->n_uniq, entry,
-				0, m_thr, false);
+			flags, BTR_MODIFY_TREE, index, index->n_uniq,
+			entry, 0, m_thr, false);
 		ut_ad(error == DB_SUCCESS);
 	}
 
@@ -541,13 +535,13 @@ DDL_Log_Table::insert(
 	entry = row_build_index_entry(m_tuple, NULL, index, m_heap);
 
 	error = row_ins_sec_index_entry_low(
-			flags, BTR_MODIFY_LEAF, index, offsets_heap, m_heap,
-			entry, m_trx->id, m_thr, false);
+		flags, BTR_MODIFY_LEAF, index, offsets_heap, m_heap,
+		entry, m_trx->id, m_thr, false);
 
 	if (error == DB_FAIL) {
 		error = row_ins_sec_index_entry_low(
-				flags, BTR_MODIFY_TREE, index, offsets_heap,
-				m_heap, entry, m_trx->id, m_thr, false);
+			flags, BTR_MODIFY_TREE, index, offsets_heap,
+			m_heap, entry, m_trx->id, m_thr, false);
 	}
 
 	mem_heap_free(offsets_heap);
@@ -557,131 +551,211 @@ DDL_Log_Table::insert(
 
 void
 DDL_Log_Table::convert_to_ddl_record(
-	rec_t*		clust_rec,
-	ulint*		clust_offsets,
-	DDL_Record&	ddl_record)
+	bool		is_clustered,
+	rec_t*		rec,
+	const ulint*	offsets,
+	DDL_Record&	record)
 {
-	for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
-		const byte*	data;
-		ulint		len;
-		data = rec_get_nth_field(clust_rec, clust_offsets,
-					 i, &len);
+	if (is_clustered) {
+		for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
+			const byte*	data;
+			ulint		len;
 
-		if (i == DATA_ROLL_PTR
-		    || i == DATA_TRX_ID) {
-			continue;
-		}
+			if (i == DATA_ROLL_PTR || i == DATA_TRX_ID) {
+				continue;
+			}
 
-		if (len != UNIV_SQL_NULL) {
-			ddl_record.set_field(data, i, len);
+			data = rec_get_nth_field(rec, offsets, i, &len);
+
+			if (len != UNIV_SQL_NULL) {
+				set_field(data, i, len, record);
+			}
 		}
+	} else {
+		/* For secondary index, only the ID would be stored */
+		record.set_id(
+			parse_id(m_table->first_index()->next(), rec, offsets));
 	}
 }
 
 ulint
-DDL_Log_Table::fetch_id_from_sec_rec_index(
-	rec_t*		rec,
-	ulint*		offsets)
+DDL_Log_Table::parse_id(
+	const dict_index_t*	index,
+	rec_t*			rec,
+	const ulint*		offsets)
 {
-	ulint		len;
-	dict_index_t*	index = m_table->first_index()->next();
-	ulint		index_offset = index->get_col_pos(
-					DDL_Record::ID_COL_NO);
+	ulint	len;
+	ulint	index_offset = index->get_col_pos(ID_COL_NO);
 
-	byte* data = rec_get_nth_field(rec, offsets,
-				       index_offset, &len);
+	byte* data = rec_get_nth_field(rec, offsets, index_offset, &len);
+	ut_ad(len == ID_COL_LEN);
 
-	ut_ad(len == DDL_Record::ID_COL_LEN);
-	ulint value = mach_read_from_8(data);
+	return(mach_read_from_8(data));
+}
+
+void
+DDL_Log_Table::set_field(
+	const byte*	data,
+	ulint		index_offset,
+	ulint		len,
+	DDL_Record&	record)
+{
+	dict_index_t*	index = dict_sys->ddl_log->first_index();
+	ulint		col_offset = index->get_col_no(index_offset);
+
+	if (col_offset == NEW_FILE_PATH_COL_NO) {
+		record.set_new_file_path(data, len);
+		return;
+	}
+
+	if (col_offset == OLD_FILE_PATH_COL_NO) {
+		record.set_old_file_path(data, len);
+		return;
+	}
+
+	ulint value = fetch_value(data, col_offset);
+	switch(col_offset) {
+	case ID_COL_NO:
+		record.set_id(value);
+		break;
+	case THREAD_ID_COL_NO:
+		record.set_thread_id(value);
+		break;
+	case TYPE_COL_NO:
+		record.set_type(static_cast<Log_Type>(value));
+		break;
+	case SPACE_ID_COL_NO:
+		record.set_space_id(value);
+		break;
+	case PAGE_NO_COL_NO:
+		record.set_page_no(value);
+		break;
+	case INDEX_ID_COL_NO:
+		record.set_index_id(value);
+		break;
+	case TABLE_ID_COL_NO:
+		record.set_table_id(value);
+		break;
+	case OLD_FILE_PATH_COL_NO:
+	case NEW_FILE_PATH_COL_NO:
+	default:
+		ut_ad(0);
+	}
+}
+
+ulint
+DDL_Log_Table::fetch_value(
+	const byte*	data,
+	ulint		offset)
+{
+	ulint	value = 0;
+	switch(offset) {
+	case ID_COL_NO:
+	case THREAD_ID_COL_NO:
+	case INDEX_ID_COL_NO:
+	case TABLE_ID_COL_NO:
+		value = mach_read_from_8(data);
+		return(value);
+	case TYPE_COL_NO:
+	case SPACE_ID_COL_NO:
+	case PAGE_NO_COL_NO:
+		value = mach_read_from_4(data);
+		return(value);
+	case NEW_FILE_PATH_COL_NO:
+	case OLD_FILE_PATH_COL_NO:
+	default:
+		ut_ad(0);
+		break;
+	}
+
 	return(value);
 }
 
 dberr_t
-DDL_Log_Table::search()
+DDL_Log_Table::search_all(
+	DDL_Records&	records)
 {
-	mtr_t				mtr;
-	btr_pcur_t			pcur;
-	rec_t*				rec;
-	bool				move = true;
-	ulint*				offsets;
-	dict_index_t*			index = m_table->first_index();
-	dberr_t				error = DB_SUCCESS;
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	bool		move = true;
+	ulint*		offsets;
+	dict_index_t*	index = m_table->first_index();
+	dberr_t		error = DB_SUCCESS;
 
 	mtr_start(&mtr);
 
 	/** Scan the index in decreasing order. */
 	btr_pcur_open_at_index_side(
-		false, index, BTR_SEARCH_LEAF, &pcur, true,
-		0, &mtr);
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-	for (;move == true; move = btr_pcur_move_to_prev(&pcur, &mtr)) {
+	for (; move == true; move = btr_pcur_move_to_prev(&pcur, &mtr)) {
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		if (page_rec_is_infimum(rec)
-		    || page_rec_is_supremum(rec)) {
+		if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
 			continue;
 		}
 
-		offsets = rec_get_offsets(rec, index, NULL,
-				ULINT_UNDEFINED, &m_heap);
+		offsets = rec_get_offsets(
+			rec, index, NULL, ULINT_UNDEFINED, &m_heap);
 
-		if (rec_get_deleted_flag(
-				rec, dict_table_is_comp(m_table))) {
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
 			continue;
 		}
 
-		/** Replay the ddl record operation. */
-		DDL_Record*	ddl_record = new DDL_Record();
+		DDL_Record*	record = new DDL_Record();
 		convert_to_ddl_record(
-			rec, offsets, *ddl_record);
-		m_ddl_records.push_back(ddl_record);
-
-		/** Store the ids in case of ScanALL.
-		It can be stored to clear the table. */
-		const ulint id = ddl_record->get_id();
-		m_ddl_record_ids.push_back(id);
+			index->is_clustered(), rec, offsets, *record);
+		records.push_back(record);
 	}
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
+
 	return(error);
 }
 
 dberr_t
 DDL_Log_Table::search(
-	ulint	type)
+	ulint		thread_id,
+	DDL_Records&	records)
 {
-	/** In case of search by thread id, InnoDB have to scan the
-	clustered index with the id present in the list and replay
-	the ddl record operation. */
-	ut_ad(type == DDL_Log_Table::SEARCH_THREAD_ID_OP);
-	dberr_t	error = DB_SUCCESS;
+	dberr_t		error;
+	DDL_Records	records_of_thread_id;
 
-	for(auto it = m_ddl_record_ids.rbegin(); it != m_ddl_record_ids.rend();
-	    it++) {
-		error = search(*it, DDL_Log_Table::SEARCH_ID_OP);
+	error = search_by_id(
+		thread_id, m_table->first_index()->next(),
+		records_of_thread_id);
+	ut_ad(error == DB_SUCCESS);
+
+	for (auto it = records_of_thread_id.rbegin();
+	     it != records_of_thread_id.rend();
+	     ++it) {
+		error = search_by_id(
+			(*it)->get_id(), m_table->first_index(), records);
 		ut_ad(error == DB_SUCCESS);
+	}
+
+	for (auto record : records_of_thread_id) {
+		delete record;
 	}
 
 	return(error);
 }
 
 dberr_t
-DDL_Log_Table::search(
-	ulint	id,
-	ulint	type)
+DDL_Log_Table::search_by_id(
+	ulint		id,
+	dict_index_t*	index,
+	DDL_Records&	records)
 {
-	ut_ad(type == DDL_Log_Table::SEARCH_THREAD_ID_OP
-	      || type == DDL_Log_Table::SEARCH_ID_OP);
-
-	mtr_t				mtr;
-	btr_pcur_t			pcur;
-	rec_t*				rec;
-	bool				move = true;
-	ulint*				offsets;
-	dict_index_t*			index = get_index(type);
-	dberr_t				error = DB_SUCCESS;
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	bool		move = true;
+	ulint*		offsets;
+	dberr_t		error = DB_SUCCESS;
 
 	mtr_start(&mtr);
 
@@ -694,59 +768,36 @@ DDL_Log_Table::search(
 
 		rec = btr_pcur_get_rec(&pcur);
 
-		if (page_rec_is_infimum(rec)
-		    || page_rec_is_supremum(rec)) {
+		if (page_rec_is_infimum(rec) || page_rec_is_supremum(rec)) {
 			continue;
 		}
 
-		offsets = rec_get_offsets(rec, index, NULL,
-				ULINT_UNDEFINED, &m_heap);
+		offsets = rec_get_offsets(
+			rec, index, NULL, ULINT_UNDEFINED, &m_heap);
 
-		if (0 != cmp_dtuple_rec(
-			m_tuple, rec, index, offsets)) {
+		if (cmp_dtuple_rec(m_tuple, rec, index, offsets) != 0) {
 			break;
 		}
 
-		if (rec_get_deleted_flag(
-				rec, dict_table_is_comp(m_table))) {
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
 			continue;
 		}
 
-		if (type == DDL_Log_Table::SEARCH_ID_OP) {
-
-			/** Replay the ddl record operation. */
-			DDL_Record*	ddl_record = new DDL_Record();
-			convert_to_ddl_record(
-					rec, offsets, *ddl_record);
-			m_ddl_records.push_back(ddl_record);
-
-		} else {
-			/** Fetch the record id from secondary index record.
-			Store it and it can be used to replay the operation,
-			remove the entry from innodb_ddl_log table. */
-			const ulint id =
-				fetch_id_from_sec_rec_index(rec, offsets);
-			m_ddl_record_ids.push_back(id);
-		}
+		DDL_Record*	record = new DDL_Record();
+		convert_to_ddl_record(
+			index->is_clustered(), rec, offsets, *record);
+		records.push_back(record);
 	}
 
 	mtr_commit(&mtr);
 
-	if (type == DDL_Log_Table::SEARCH_ID_OP) {
-		return(error);
-	}
-
-	error = search(DDL_Log_Table::SEARCH_THREAD_ID_OP);
 	return(error);
 }
 
 dberr_t
 DDL_Log_Table::remove(
-	ulint	id,
-	ulint	type)
+	ulint	id)
 {
-	ut_ad(type == DDL_Log_Table::DELETE_ID_OP);
-
 	mtr_t			mtr;
 	dict_index_t*		clust_index = m_table->first_index();
 	btr_pcur_t		pcur;
@@ -787,9 +838,8 @@ DDL_Log_Table::remove(
 
 	if (!rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
 		error = btr_cur_del_mark_set_clust_rec(
-				flags, btr_cur_get_block(btr_cur),
-				rec, clust_index, offsets,
-				m_thr, m_tuple, &mtr);
+			flags, btr_cur_get_block(btr_cur), rec,
+			clust_index, offsets, m_thr, m_tuple, &mtr);
 	}
 
 	btr_pcur_close(&pcur);
@@ -800,11 +850,11 @@ DDL_Log_Table::remove(
 	}
 
 	mtr_start(&mtr);
+
 	index = clust_index->next();
 	entry = row_build_index_entry(row, NULL, index, m_heap);
-	search_result = row_search_index_entry(index, entry,
-					       BTR_MODIFY_LEAF | BTR_DELETE_MARK,
-					       &pcur, &mtr);
+	search_result = row_search_index_entry(
+		index, entry, BTR_MODIFY_LEAF | BTR_DELETE_MARK, &pcur, &mtr);
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	if (search_result == ROW_NOT_FOUND) {
@@ -818,7 +868,7 @@ DDL_Log_Table::remove(
 
 	if (!rec_get_deleted_flag(rec, dict_table_is_comp(m_table))) {
 		error = btr_cur_del_mark_set_sec_rec(
-				flags, btr_cur, TRUE, m_thr, &mtr);
+			flags, btr_cur, TRUE, m_thr, &mtr);
 	}
 
 	btr_pcur_close(&pcur);
@@ -829,31 +879,24 @@ DDL_Log_Table::remove(
 
 dberr_t
 DDL_Log_Table::remove(
-	DDL_Record_Ids&	ddl_record_ids,
-	ulint		type)
+	const DDL_Records&	records)
 {
-	ut_ad(type == DDL_Log_Table::DELETE_LIST_OP);
-
 	dberr_t	error = DB_SUCCESS;
 
-	for(auto it = ddl_record_ids.begin();
-	    it != ddl_record_ids.end(); it++) {
-		error = remove(*it, DDL_Log_Table::DELETE_ID_OP);
+	for (auto record : records) {
+		error = remove(record->get_id());
 		ut_ad(error == DB_SUCCESS);
 	}
 
 	return(error);
 }
 
-/** Constructor */
 Log_DDL::Log_DDL()
 {
 	ut_ad(dict_sys->ddl_log != NULL);
 	ut_ad(dict_table_has_autoinc_col(dict_sys->ddl_log));
 }
 
-/** Get next autoinc counter by increasing 1 for innodb_ddl_log
-@return	new next counter */
 inline
 ib_uint64_t
 Log_DDL::next_id()
@@ -870,40 +913,25 @@ Log_DDL::next_id()
 	return(autoinc);
 }
 
-/** Check if we need to skip ddl log for a table.
-@param[in]	table	dict table
-@param[in]	thd	mysql thread
-@return true if should skip, otherwise false */
-inline bool
+inline
+bool
 Log_DDL::skip(
 	const dict_table_t*	table,
 	THD*			thd)
 {
-	/* Skip ddl log for temp tables and system tables. */
-	/* Fixme: 1.skip when upgrade. 2. skip for intrinsic table? */
-	if (recv_recovery_on || (table != nullptr && table->is_temporary())
-	   || thd_is_bootstrap_thread(thd) || thread_local_ddl_log_replay) {
-//	    || strstr(table->name.m_name, "mysql")
-//	    || strstr(table->name.m_name, "sys")) {
-		return(true);
-	}
-
-	return(false);
+	return(recv_recovery_on
+	       || thread_local_ddl_log_replay
+	       || (table != nullptr && table->is_temporary())
+	       || thd_is_bootstrap_thread(thd));
 }
 
-/** Write DDL log for freeing B-tree
-@param[in,out]	trx		transaction
-@param[in]	index		dict index
-@param[in]	is_drop		flag whether dropping index
-@return	DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_free_tree_log(
 	trx_t*			trx,
 	const dict_index_t*	index,
 	bool			is_drop)
 {
-	/* Get dd transaction */
-	trx = thd_to_trx(current_thd);
+	ut_ad(trx == thd_to_trx(current_thd));
 
 	if (skip(index->table, trx->mysql_thd)) {
 		return(DB_SUCCESS);
@@ -914,12 +942,11 @@ Log_DDL::write_free_tree_log(
 		return(DB_SUCCESS);
 	}
 
-	trx->ddl_operation = true;
-
 	ib_uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
+	dberr_t		err;
 
-	dberr_t	err;
+	trx->ddl_operation = true;
 
 	if (is_drop) {
 		/* Drop index case, if committed, will be redo only */
@@ -930,9 +957,8 @@ Log_DDL::write_free_tree_log(
 		scenario. The index will be dropped if ddl is rolled back */
 		err = insert_free_tree_log(nullptr, index, id, thread_id);
 		ut_ad(err == DB_SUCCESS);
-		trx->ddl_operation = true;
 
-		/* Delete this operation is the create trx is committed */
+		/* Delete this operation if the create trx is committed */
 		err = delete_by_id(trx, id);
 		ut_ad(err == DB_SUCCESS);
 	}
@@ -940,12 +966,6 @@ Log_DDL::write_free_tree_log(
 	return(err);
 }
 
-/** Insert a FREE log record
-@param[in,out]	trx		transaction
-@param[in]	index		dict index
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::insert_free_tree_log(
 	trx_t*			trx,
@@ -959,18 +979,17 @@ Log_DDL::insert_free_tree_log(
 	if (!has_dd_trx) {
 		trx = trx_allocate_for_background();
 		trx_start_internal(trx);
+		trx->ddl_operation = true;
 	} else {
 		trx_start_if_not_started(trx, true);
 	}
 
-	trx->ddl_operation = true;
-
+	ut_ad(trx->ddl_operation);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log,
-					   trx, LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
 	DDL_Record	record;
@@ -981,10 +1000,11 @@ Log_DDL::insert_free_tree_log(
 	record.set_page_no(index->page);
 	record.set_index_id(index->id);
 
-	DDL_Log_Table insert_op(trx);
-	error = insert_op.insert(record);
-	insert_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -993,22 +1013,11 @@ Log_DDL::insert_free_tree_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "ddl log insert : " << "FREE "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", space id " << index->space
-		<< ", page_no " << index->page;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
 
-/** Write DDL log for deleting tablespace file
-@param[in,out]	trx		transaction
-@param[in]	table		dict table
-@param[in]	space_id	tablespace id
-@param[in]	file_path	file path
-@param[in]	is_drop		flag whether dropping tablespace
-@param[in]	dict_locked	true if dict_sys mutex is held
-@return	DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_delete_space_log(
 	trx_t*			trx,
@@ -1018,25 +1027,18 @@ Log_DDL::write_delete_space_log(
 	bool			is_drop,
 	bool			dict_locked)
 {
-	/* Get dd transaction */
-	trx = thd_to_trx(current_thd);
+	ut_ad(trx == thd_to_trx(current_thd));
+	ut_ad(table == nullptr || dict_table_is_file_per_table(table));
 
 	if (skip(table, trx->mysql_thd)) {
 		return(DB_SUCCESS);
 	}
 
-	trx->ddl_operation = true;
-
-#ifdef UNIV_DEBUG
-	if (table != nullptr) {
-		ut_ad(dict_table_is_file_per_table(table));
-	}
-#endif /* UNIV_DEBUG */
-
 	ib_uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
+	dberr_t		err;
 
-	dberr_t	err;
+	trx->ddl_operation = true;
 
 	if (is_drop) {
 		err = insert_delete_space_log(
@@ -1047,7 +1049,6 @@ Log_DDL::write_delete_space_log(
 			nullptr, id, thread_id, space_id,
 			file_path, dict_locked);
 		ut_ad(err == DB_SUCCESS);
-		trx->ddl_operation = true;
 
 		err = delete_by_id(trx, id);
 		ut_ad(err == DB_SUCCESS);
@@ -1056,14 +1057,6 @@ Log_DDL::write_delete_space_log(
 	return(err);
 }
 
-/** Insert a DELETE log record
-@param[in,out]	trx		transaction
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@param[in]	space_id	tablespace id
-@param[in]	file_path	file path
-@param[in]	dict_locked	true if dict_sys mutex is held
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::insert_delete_space_log(
 	trx_t*			trx,
@@ -1077,11 +1070,12 @@ Log_DDL::insert_delete_space_log(
 	if (!has_dd_trx) {
 		trx = trx_allocate_for_background();
 		trx_start_internal(trx);
+		trx->ddl_operation = true;
 	} else {
 		trx_start_if_not_started(trx, true);
 	}
 
-	trx->ddl_operation = true;
+	ut_ad(trx->ddl_operation);
 
 	if (dict_locked) {
 		mutex_exit(&dict_sys->mutex);
@@ -1097,10 +1091,11 @@ Log_DDL::insert_delete_space_log(
 	record.set_space_id(space_id);
 	record.set_old_file_path(file_path);
 
-	DDL_Log_Table	insert_op(trx);
-	error = insert_op.insert(record);
-	ut_ad(error == DB_SUCCESS);
-	insert_op.stop_query_thread();
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	if (dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -1111,22 +1106,13 @@ Log_DDL::insert_delete_space_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "ddl log insert : " << "DELETE "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", space id " << space_id << ", file path " << file_path;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
 
-/** Write a RENAME log record
-@param[in]	trx		transaction
-@param[in]	space_id	tablespace id
-@param[in]	old_file_path	file path after rename
-@param[in]	new_file_path	file path before rename
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_rename_space_log(
-	trx_t*		trx,
 	space_id_t	space_id,
 	const char*	old_file_path,
 	const char*	new_file_path)
@@ -1136,24 +1122,24 @@ Log_DDL::write_rename_space_log(
 		return(DB_SUCCESS);
 	}
 
-	trx = thd_to_trx(current_thd);
+	trx_t*	trx = thd_to_trx(current_thd);
 
 	/* This is special case for fil_rename_tablespace during recovery */
 	if (trx == nullptr) {
 		return(DB_SUCCESS);
 	}
 
-	if (skip(NULL, trx->mysql_thd)) {
+	if (skip(nullptr, trx->mysql_thd)) {
 		return(DB_SUCCESS);
 	}
-
-	trx->ddl_operation = true;
 
 	ib_uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
-	dberr_t	err = insert_rename_log(id, thread_id, space_id,
-					old_file_path, new_file_path);
+	trx->ddl_operation = true;
+
+	dberr_t	err = insert_rename_space_log(
+		id, thread_id, space_id, old_file_path, new_file_path);
 	ut_ad(err == DB_SUCCESS);
 
 	err = delete_by_id(trx, id);
@@ -1162,15 +1148,8 @@ Log_DDL::write_rename_space_log(
 	return(err);
 }
 
-/** Insert a RENAME log record
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@param[in]	space_id	tablespace id
-@param[in]	old_file_path	file path after rename
-@param[in]	new_file_path	file path before rename
-@return DB_SUCCESS or error */
 dberr_t
-Log_DDL::insert_rename_log(
+Log_DDL::insert_rename_space_log(
 	ib_uint64_t		id,
 	ulint			thread_id,
 	space_id_t		space_id,
@@ -1184,41 +1163,33 @@ Log_DDL::insert_rename_log(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log,
-					   trx, LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
 	DDL_Record	record;
 	record.set_id(id);
 	record.set_thread_id(thread_id);
-	record.set_type(Log_Type::RENAME_LOG);
+	record.set_type(Log_Type::RENAME_SPACE_LOG);
 	record.set_space_id(space_id);
 	record.set_old_file_path(old_file_path);
 	record.set_new_file_path(new_file_path);
 
-	DDL_Log_Table	insert_op(trx);
-	error = insert_op.insert(record);
-	insert_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << "RENAME "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", space id " << space_id << ", old_file path "
-		<< old_file_path << ", new_file_path " << new_file_path;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
 
-/** Write a DROP log to indicate the entry in innodb_table_metadata
-should be removed for specified table
-@param[in,out]	trx		transaction
-@param[in]	table_id	table ID
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_drop_log(
 	trx_t*			trx,
@@ -1240,12 +1211,6 @@ Log_DDL::write_drop_log(
 	return(err);
 }
 
-/** Insert a DROP log record
-@param[in,out]	trx		transaction
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@param[in]	table_id	table id
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::insert_drop_log(
 	trx_t*			trx,
@@ -1253,13 +1218,14 @@ Log_DDL::insert_drop_log(
 	ulint			thread_id,
 	const table_id_t	table_id)
 {
-	trx_start_if_not_started(trx, true);
+	ut_ad(trx->ddl_operation);
 	ut_ad(mutex_own(&dict_sys->mutex));
+
+	trx_start_if_not_started(trx, true);
 
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx,
-					   LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
 	DDL_Record	record;
@@ -1268,34 +1234,26 @@ Log_DDL::insert_drop_log(
 	record.set_type(Log_Type::DROP_LOG);
 	record.set_table_id(table_id);
 
-	DDL_Log_Table	insert_op(trx);
-	error = insert_op.insert(record);
-	insert_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "ddl log drop : " << "DROP "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", table id " << table_id;
+	ib::info() << "ddl log drop : " << record;
 
 	return(error);
 }
 
-/** Write a RENAME TABLE log record
-@param[in]	trx		transaction
-@param[in]	table		dict table
-@param[in]	old_name	table name after rename
-@param[in]	new_name	table name before rename
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_rename_table_log(
-	trx_t*		trx,
 	dict_table_t*	table,
 	const char*	old_name,
 	const char*	new_name)
 {
-	trx = thd_to_trx(current_thd);
+	trx_t*	trx = thd_to_trx(current_thd);
 
 	if (skip(table, trx->mysql_thd)) {
 		return(DB_SUCCESS);
@@ -1316,13 +1274,6 @@ Log_DDL::write_rename_table_log(
 	return(err);
 }
 
-/** Insert a RENAME TABLE log record
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@param[in]	table_id	table id
-@param[in]	old_name	table name after rename
-@param[in]	new_name	table name before rename
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::insert_rename_table_log(
 	ib_uint64_t		id,
@@ -1338,8 +1289,7 @@ Log_DDL::insert_rename_table_log(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx,
-					   LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
 	DDL_Record	record;
@@ -1350,34 +1300,28 @@ Log_DDL::insert_rename_table_log(
 	record.set_old_file_path(old_name);
 	record.set_new_file_path(new_name);
 
-	DDL_Log_Table	insert_op(trx);
-	error = insert_op.insert(record);
-	insert_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << "RENAME TABLE "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", table id " << table_id << ", old name "
-		<< old_name << ", new_name " << new_name;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
 
-/** Write a REMOVE cache log record
-@param[in]	trx		transaction
-@param[in]	table		dict table
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::write_remove_cache_log(
 	trx_t*		trx,
 	dict_table_t*	table)
 {
-	trx = thd_to_trx(current_thd);
+	ut_ad(trx == thd_to_trx(current_thd));
 
 	if (skip(table, trx->mysql_thd)) {
 		return(DB_SUCCESS);
@@ -1385,6 +1329,7 @@ Log_DDL::write_remove_cache_log(
 
 	ib_uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
+
 	trx->ddl_operation = true;
 
 	dberr_t	err = insert_remove_cache_log(
@@ -1397,12 +1342,6 @@ Log_DDL::write_remove_cache_log(
 	return(err);
 }
 
-/** Insert a REMOVE cache log record
-@param[in]	id		log id
-@param[in]	thread_id	thread id
-@param[in]	table_id	table id
-@param[in]	table_name	table name
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::insert_remove_cache_log(
 	ib_uint64_t		id,
@@ -1418,8 +1357,7 @@ Log_DDL::insert_remove_cache_log(
 
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx,
-					   LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
 	DDL_Record	record;
@@ -1429,28 +1367,22 @@ Log_DDL::insert_remove_cache_log(
 	record.set_table_id(table_id);
 	record.set_new_file_path(table_name);
 
-	DDL_Log_Table	insert_op(trx);
-	error = insert_op.insert(record);
-	insert_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.insert(record);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << "REMOVE "
-		<< "id " << id << ", thread id " << thread_id
-		<< ", table id " << table_id << ", table name "
-		<< table_name;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
 
-/** Delete log record by id
-@param[in]	trx	transaction instance
-@param[in]	id	log id
-@return DB_SUCCESS or error */
 dberr_t
 Log_DDL::delete_by_id(
 	trx_t*		trx,
@@ -1463,17 +1395,18 @@ Log_DDL::delete_by_id(
 	trx->isolation_level = TRX_ISO_READ_COMMITTED;
 	trx_start_if_not_started(trx, true);
 
+	ut_ad(trx->ddl_operation);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mutex_exit(&dict_sys->mutex);
 
-	dberr_t error = lock_table_for_trx(dict_sys->ddl_log,
-					   trx, LOCK_IX);
+	dberr_t error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 
-	DDL_Log_Table	delete_op(trx);
-	error = delete_op.remove(id, DDL_Log_Table::DELETE_ID_OP);
-	delete_op.stop_query_thread();
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error = ddl_log.remove(id);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -1486,19 +1419,15 @@ Log_DDL::delete_by_id(
 
 dberr_t
 Log_DDL::replay_all(
-	DDL_Record_Ids&	ids_list)
+	DDL_Records&	records)
 {
-	DDL_Records	ddl_records;
-	DDL_Log_Table	search_op;
+	DDL_Log_Table	ddl_log;
 
-	dberr_t error = search_op.search();
+	dberr_t error = ddl_log.search_all(records);
 	ut_ad(error == DB_SUCCESS);
-	ids_list = search_op.get_ids();
-	ddl_records = search_op.get_records();
 
-	for (auto record : ddl_records) {
+	for (auto record : records) {
 		log_ddl->replay(*record);
-		delete(record);
 	}
 
 	return(error);
@@ -1508,21 +1437,15 @@ dberr_t
 Log_DDL::replay_by_thread_id(
 	trx_t*		trx,
 	ulint		thread_id,
-	DDL_Record_Ids&	ids_list)
+	DDL_Records&	records)
 {
-	DDL_Records	ddl_records;
-	DDL_Log_Table	search_op;
+	DDL_Log_Table	ddl_log;
 
-	dberr_t error = search_op.search(
-		thread_id, DDL_Log_Table::SEARCH_THREAD_ID_OP);
+	dberr_t error = ddl_log.search(thread_id, records);
 	ut_ad(error == DB_SUCCESS);
 
-	ids_list = search_op.get_ids();
-	ddl_records = search_op.get_records();
-
-	for (auto record : ddl_records) {
+	for (auto record : records) {
 		log_ddl->replay(*record);
-		delete(record);
 	}
 
 	return(error);
@@ -1531,68 +1454,63 @@ Log_DDL::replay_by_thread_id(
 dberr_t
 Log_DDL::delete_by_ids(
 	trx_t*		trx,
-	DDL_Record_Ids&	ids_list)
+	DDL_Records&	records)
 {
-	if (ids_list.size() == 0) {
+	if (records.empty()) {
 		return(DB_SUCCESS);
 	}
 
 	trx_start_if_not_started(trx, true);
-	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log,
-					   trx, LOCK_IX);
+	dberr_t	error = lock_table_for_trx(dict_sys->ddl_log, trx, LOCK_IX);
 	ut_ad(error == DB_SUCCESS);
 
-	DDL_Log_Table	delete_op(trx);
-	error = delete_op.remove(ids_list, DDL_Log_Table::DELETE_LIST_OP);
-	delete_op.stop_query_thread();
+	DDL_Log_Table	ddl_log(trx);
+	error = ddl_log.remove(records);
 	ut_ad(error == DB_SUCCESS);
 
 	return(error);
 }
 
-/** Replay DDL log record
-@param[in,out]	record	DDL log record
-return DB_SUCCESS or error */
 dberr_t
 Log_DDL::replay(
-	DDL_Record&		record)
+	DDL_Record&	record)
 {
 	dberr_t		err = DB_SUCCESS;
 
 	switch(record.get_type()) {
-	case	Log_Type::FREE_TREE_LOG:
-		replay_free_log(
+	case Log_Type::FREE_TREE_LOG:
+		replay_free_tree_log(
 			record.get_space_id(),
 			record.get_page_no(),
 			record.get_index_id());
 		break;
 
-	case	Log_Type::DELETE_SPACE_LOG:
-		replay_delete_log(
+	case Log_Type::DELETE_SPACE_LOG:
+		replay_delete_space_log(
 			record.get_space_id(),
 			record.get_old_file_path());
 		break;
 
-	case	Log_Type::RENAME_LOG:
-		replay_rename_log(
+	case Log_Type::RENAME_SPACE_LOG:
+		replay_rename_space_log(
 			record.get_space_id(),
 			record.get_old_file_path(),
 			record.get_new_file_path());
 		break;
 
-	case	Log_Type::DROP_LOG:
+	case Log_Type::DROP_LOG:
 		replay_drop_log(record.get_table_id());
 		break;
 
-	case	Log_Type::RENAME_TABLE_LOG:
+	case Log_Type::RENAME_TABLE_LOG:
 		replay_rename_table_log(
 			record.get_table_id(),
 			record.get_old_file_path(),
 			record.get_new_file_path());
 		break;
 
-	case	Log_Type::REMOVE_CACHE_LOG:
-		replay_remove_log(
+	case Log_Type::REMOVE_CACHE_LOG:
+		replay_remove_cache_log(
 			record.get_table_id(),
 			record.get_new_file_path());
 		break;
@@ -1604,17 +1522,13 @@ Log_DDL::replay(
 	return(err);
 }
 
-/** Replay FREE log(free B-tree if exist)
-@param[in]	space_id	tablespace id
-@param[in]	page_no		root page no
-@param[in]	index_id	index id */
 void
-Log_DDL::replay_free_log(
+Log_DDL::replay_free_tree_log(
 	space_id_t	space_id,
 	page_no_t	page_no,
 	ulint		index_id)
 {
-	ut_ad(space_id != ULINT32_UNDEFINED);
+	ut_ad(space_id != SPACE_UNKNOWN);
 	ut_ad(page_no != FIL_NULL);
 
 	bool			found;
@@ -1622,9 +1536,8 @@ Log_DDL::replay_free_log(
 								  &found));
 
 	if (!found) {
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
+		/* Skip if it is a single table tablespace and the
+		.ibd file is missing*/
 		ib::info() << "ddl log replay : FREE tablespace " << space_id
 			<< " is missing.";
 		return;
@@ -1651,11 +1564,8 @@ Log_DDL::replay_free_log(
 
 extern ib_mutex_t	master_key_id_mutex;
 
-/** Replay DELETE log(delete file if exist)
-@param[in]	space_id	tablespace id
-@param[in]	file_path	file path */
 void
-Log_DDL::replay_delete_log(
+Log_DDL::replay_delete_space_log(
 	space_id_t	space_id,
 	const char*	file_path)
 {
@@ -1690,12 +1600,8 @@ Log_DDL::replay_delete_log(
 		<< ", file_path " << file_path;
 }
 
-/** Relay RENAME log
-@param[in]	space_id	tablespace id
-@param[in]	old_file_path	old file path
-@param[in]	new_file_path	new file path */
 void
-Log_DDL::replay_rename_log(
+Log_DDL::replay_rename_space_log(
 	space_id_t	space_id,
 	const char*	old_file_path,
 	const char*	new_file_path)
@@ -1713,8 +1619,6 @@ Log_DDL::replay_rename_log(
 		<< new_file_path;
 }
 
-/** Replay DROP log
-@param[in]	table_id	table id */
 void
 Log_DDL::replay_drop_log(
 	const table_id_t	table_id)
@@ -1726,17 +1630,13 @@ Log_DDL::replay_drop_log(
 	mutex_exit(&dict_persist->mutex);
 }
 
-/** Relay RENAME TABLE log
-@param[in]	table_id	table id
-@param[in]	old_name	old name
-@param[in]	new_name	new name */
 void
 Log_DDL::replay_rename_table_log(
 	table_id_t	table_id,
 	const char*	old_name,
 	const char*	new_name)
 {
-	if (in_recovery) {
+	if (m_in_recovery) {
 		return;
 	}
 
@@ -1780,15 +1680,12 @@ Log_DDL::replay_rename_table_log(
 		<< ", old name " << old_name << ", new name " << new_name;
 }
 
-/** Relay REMOVE cache log
-@param[in]	table_id	table id
-@param[in]	table_name	table name */
 void
-Log_DDL::replay_remove_log(
+Log_DDL::replay_remove_cache_log(
 	table_id_t	table_id,
 	const char*	table_name)
 {
-	if (in_recovery) {
+	if (m_in_recovery) {
 		return;
 	}
 
@@ -1810,12 +1707,8 @@ Log_DDL::replay_remove_log(
 		<< table_id << ", new name " << table_name;
 }
 
-/** Replay and clean DDL logs after DDL transaction
-commints or rollbacks.
-@param[in]	thd	mysql thread
-@return	DB_SUCCESS or error */
 dberr_t
-Log_DDL::post_DDL(THD*	thd)
+Log_DDL::post_ddl(THD*	thd)
 {
 	if (skip(nullptr, thd)) {
 		return(DB_SUCCESS);
@@ -1832,7 +1725,6 @@ Log_DDL::post_DDL(THD*	thd)
 	}
 
 	ulint	thread_id = thd_get_thread_id(thd);
-	DDL_Record_Ids	ids_list;
 
 	ib::info() << "innodb ddl log : post ddl begin, thread id : "
 		<< thread_id;
@@ -1846,11 +1738,14 @@ Log_DDL::post_DDL(THD*	thd)
 
 	thread_local_ddl_log_replay = true;
 
-	replay_by_thread_id(trx, thread_id, ids_list);
+	DDL_Records	records;
+	replay_by_thread_id(trx, thread_id, records);
+	delete_by_ids(trx, records);
+	for (auto record : records) {
+		delete record;
+	}
 
 	thread_local_ddl_log_replay = false;
-
-	delete_by_ids(trx, ids_list);
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
@@ -1861,33 +1756,29 @@ Log_DDL::post_DDL(THD*	thd)
 	return(DB_SUCCESS);
 }
 
-/** Recover in server startup.
-Scan innodb_ddl_log table, and replay all log entries.
-Note: redo log should be applied, and dict transactions
-should be recovered before calling this function.
-@return	DB_SUCCESS or error */
 dberr_t
 Log_DDL::recover()
 {
-	if (srv_read_only_mode
-	    || srv_force_recovery > 0) {
+	if (srv_read_only_mode || srv_force_recovery > 0) {
 		return(DB_SUCCESS);
 	}
 
 	trx_t*	trx;
 	trx = trx_allocate_for_background();
 	trx->ddl_operation = true;
-	DDL_Record_Ids	ids;
 
 	thread_local_ddl_log_replay = true;
-	in_recovery = true;
+	m_in_recovery = true;
 
-	replay_all(ids);
+	DDL_Records	records;
+	replay_all(records);
+	delete_by_ids(trx, records);
+	for (auto record : records) {
+		delete record;
+	}
 
 	thread_local_ddl_log_replay = false;
-	in_recovery = false;
-
-	delete_by_ids(trx, ids);
+	m_in_recovery = false;
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);

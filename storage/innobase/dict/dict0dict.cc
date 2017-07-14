@@ -1787,8 +1787,7 @@ dict_table_rename_in_cache(
 		}
 	}
 
-	log_ddl->write_rename_table_log(
-		NULL, table, new_name, table->name.m_name);
+	log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
 
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,

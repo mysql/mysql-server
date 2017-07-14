@@ -4405,7 +4405,7 @@ void
 innobase_post_ddl(
 	THD*		thd)
 {
-	log_ddl->post_DDL(thd);
+	log_ddl->post_ddl(thd);
 }
 
 /** Initialize the InnoDB storage engine plugin.
