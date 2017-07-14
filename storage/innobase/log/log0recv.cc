@@ -815,35 +815,37 @@ static
 bool
 recv_check_log_header_checksum(const byte* buf)
 {
-	return(log_block_get_checksum(buf)
-	       == log_block_calc_checksum_crc32(buf));
+	auto	c1 = log_block_get_checksum(buf);
+	auto	c2 = log_block_calc_checksum_crc32(buf);
+
+	ib::info() << "c1: " << c1 << ", c2: " << c2;
+
+	return(c1 == c2);
 }
 
 #ifndef UNIV_HOTBACKUP
 /** Copy of the LOG_HEADER_CREATOR field. */
 static char log_header_creator[LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR + 1];
 
-/** Determine if a redo log from MySQL 5.7.9 is clean.
+/** Determine if a redo log from a version before MySQL 8.0.3 is clean.
 @param[in]	lsn	checkpoint LSN
 @return error code
-@retval	DB_SUCCESS	if the redo log is clean
+@retval DB_SUCCESS	if the redo log is clean
 @retval DB_ERROR	if the redo log is corrupted or dirty */
 static
 dberr_t
-recv_log_recover_5_7(lsn_t lsn)
+recv_log_recover_pre_8_0_3(lsn_t lsn)
 {
-	log_mutex_enter();
+       ut_ad(log_mutex_own());
 
 	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	lsn_t		source_offset = log_group_calc_lsn_offset(lsn, group);
+	lsn_t	source_offset = log_group_calc_lsn_offset(lsn, group);
 
-	log_mutex_exit();
-
-	page_no_t	page_no;
+	page_no_t       page_no;
 
 	page_no = (page_no_t) (source_offset / univ_page_size.physical());
 
-	byte*		buf = log_sys->buf;
+	byte*           buf = log_sys->buf;
 
 	static const char* NO_UPGRADE_RECOVERY_MSG =
 		"Upgrade after a crash is not supported."
@@ -853,16 +855,16 @@ recv_log_recover_5_7(lsn_t lsn)
 		". Please follow the instructions at "
 		REFMAN "upgrading.html";
 
-        dberr_t err;
+	dberr_t err;
 
 	err = fil_io(
-                IORequestLogRead, true,
+		IORequestLogRead, true,
                 page_id_t(group->space_id, page_no), univ_page_size,
                 (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
                          % univ_page_size.physical()),
                 OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
 
-        ut_a(err == DB_SUCCESS);
+	ut_a(err == DB_SUCCESS);
 
 	if (log_block_calc_checksum(buf) != log_block_get_checksum(buf)) {
 
@@ -876,7 +878,7 @@ recv_log_recover_5_7(lsn_t lsn)
 	}
 
 	/* On a clean shutdown, the redo log will be logically empty
-	after the checkpoint lsn. */
+	after the checkpoint LSN. */
 
 	if (log_block_get_data_len(buf)
 	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
@@ -920,96 +922,106 @@ recv_find_max_checkpoint(
 	*max_field = 0;
 	*max_group = nullptr;
 
+	/* We've never supported more than one group. */
+	ut_a(UT_LIST_GET_LEN(log_sys->log_groups) == 1);
+
+	auto group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	group->state = LOG_GROUP_CORRUPTED;
+
+	log_group_header_read(group, 0);
+
 	byte*	buf = log_sys->checkpoint_buf;
 
-	for (auto group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	     group != nullptr;
-	     /* No op */ ) {
+	/* Check the header page checksum. There was no
+	checksum in the first redo log format (version 0). */
+	group->format = mach_read_from_4(buf + LOG_HEADER_FORMAT);
 
-		group->state = LOG_GROUP_CORRUPTED;
+	if (group->format != 0 && !recv_check_log_header_checksum(buf)) {
 
-		log_group_header_read(group, 0);
+		ib::error() << "Invalid redo log header checksum.";
 
-		/* Check the header page checksum. There was no
-		checksum in the first redo log format (version 0). */
-		group->format = mach_read_from_4(buf + LOG_HEADER_FORMAT);
+		return(DB_CORRUPTION);
+	}
 
-		if (group->format != 0
-		    && !recv_check_log_header_checksum(buf)) {
+	auto	ptr = buf + LOG_HEADER_CREATOR;
 
-			ib::error() << "Invalid redo log header checksum.";
+	memcpy(log_header_creator, ptr, sizeof(log_header_creator));
 
-			return(DB_CORRUPTION);
-		}
+	log_header_creator[sizeof(log_header_creator) - 1] = 0;
 
-		memcpy(log_header_creator, buf + LOG_HEADER_CREATOR,
-		       sizeof log_header_creator);
+	switch (group->format) {
+	case LOG_HEADER_FORMAT_CURRENT:
+		break;
 
-		log_header_creator[(sizeof log_header_creator) - 1] = 0;
+	case 0:
+		ib::error()
+			<< "Unsupported redo log format ("
+			<< group->format << "). The redo log was created"
+			<< " before MySQL 5.7.9";
 
-		switch (group->format) {
-		case 0:
-			ib::error() << "Unsupported redo log format."
-				" The redo log was created"
-				" before MySQL 5.7.9.";
-			return(DB_ERROR);
+		return(DB_ERROR);
 
-		case LOG_HEADER_FORMAT_5_7_9:
-			/* The checkpoint page format is identical. */
+	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
 
-		case LOG_HEADER_FORMAT_CURRENT:
-			break;
+		/* The checkpoint page format is identical upto v3. */
 
-		default:
-			ib::error() << "Unsupported redo log format."
-				" The redo log was created"
-				" with " << log_header_creator <<
-				". Please follow the instructions at "
-				REFMAN "upgrading-downgrading.html";
-			return(DB_ERROR);
-		}
+		ib::info()
+			<< "Redo log format is v" << group->format
+			<< ". The redo log was created before"
+			<< " MySQL 8.0.3.";
+		break;
 
-		for (auto field = LOG_CHECKPOINT_1;
-		     field <= LOG_CHECKPOINT_2;
-		     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
+	default:
+		ib::error()
+			<< "Unknown redo log format ("
+			<< group->format << ")."
+			<< " Please follow the instructions at "
+			REFMAN "upgrading-downgrading.html";
 
-			log_group_header_read(group, field);
+		return(DB_ERROR);
+	}
 
-			if (!recv_check_log_header_checksum(buf)) {
-				DBUG_PRINT("ib_log",
-					   ("invalid checkpoint,"
-					    " group " ULINTPF " at %d"
-					    ", checksum %x",
-					    group->id, field,
-					    (unsigned) log_block_get_checksum(
-						    buf)));
-				continue;
-			}
+	constexpr auto CKP1 = LOG_CHECKPOINT_1;
+	constexpr auto CKP2 = LOG_CHECKPOINT_2;
 
-			group->state = LOG_GROUP_OK;
+	for (auto i = CKP1; i <= CKP2; i += CKP2 - CKP1) {
 
-			group->lsn = mach_read_from_8(
-				buf + LOG_CHECKPOINT_LSN);
+		log_group_header_read(group, i);
 
-			group->lsn_offset = mach_read_from_8(
-				buf + LOG_CHECKPOINT_OFFSET);
-
-			uint64_t	checkpoint_no = mach_read_from_8(
-				buf + LOG_CHECKPOINT_NO);
-
+		if (!recv_check_log_header_checksum(buf)) {
 			DBUG_PRINT("ib_log",
-				   ("checkpoint " UINT64PF " at " LSN_PF
-				    " found in group " ULINTPF,
-				    checkpoint_no, group->lsn, group->id));
-
-			if (checkpoint_no >= max_no) {
-				*max_group = group;
-				*max_field = field;
-				max_no = checkpoint_no;
-			}
+				   ("invalid checkpoint,"
+				    " group " ULINTPF " at %d"
+				    ", checksum %x",
+				    group->id, i,
+				    (unsigned) log_block_get_checksum(buf)));
+			continue;
 		}
 
-		group = UT_LIST_GET_NEXT(log_groups, group);
+		group->state = LOG_GROUP_OK;
+
+		group->lsn = mach_read_from_8(buf + LOG_CHECKPOINT_LSN);
+
+		ptr = buf + LOG_CHECKPOINT_OFFSET;
+
+		group->lsn_offset = mach_read_from_8(ptr);
+
+		ptr = buf + LOG_CHECKPOINT_NO;
+
+		uint64_t	checkpoint_no = mach_read_from_8(ptr);
+
+		DBUG_PRINT("ib_log",
+			   ("checkpoint " UINT64PF " at " LSN_PF
+			    " found in group " ULINTPF,
+			    checkpoint_no, group->lsn, group->id));
+
+		if (checkpoint_no >= max_no) {
+			*max_field = i;
+			*max_group = group;
+			max_no = checkpoint_no;
+		}
 	}
 
 	if (*max_group == nullptr) {
@@ -3516,7 +3528,7 @@ recv_read_log_seg(
 		const page_no_t	page_no = static_cast<page_no_t>(
 			source_offset / univ_page_size.physical());
 
-                dberr_t 
+                dberr_t
 
 		err = fil_io(
                         IORequestLogRead, true,
@@ -3760,14 +3772,33 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	contiguous_lsn = checkpoint_lsn;
 
 	switch (group->format) {
-	case LOG_HEADER_FORMAT_5_7_9:
-		log_mutex_exit();
-		return(recv_log_recover_5_7(checkpoint_lsn));
-
 	case LOG_HEADER_FORMAT_CURRENT:
 		break;
 
+	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
+
+		ib::info()
+			<< "Redo log is from an earlier version,"
+			<< " v" << group->format << ".";
+
+		/* Check if the redo log from an older known redo log
+		version is from a clean shutdown. */
+		err = recv_log_recover_pre_8_0_3(checkpoint_lsn);
+
+		if (err != DB_SUCCESS) {
+			log_mutex_exit();
+			return(err);
+		}
+
+		break;
+
 	default:
+		ib::error()
+			<< "Redo log format (" << group->format << ")"
+			<< " not supported. Current supported format is"
+			<< " v" << LOG_HEADER_FORMAT_CURRENT;
+
 		ut_ad(0);
 		recv_sys->found_corrupt_log = true;
 		log_mutex_exit();
@@ -3938,7 +3969,7 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 	}
 
 	MetadataRecover*	metadata;
-       
+
 	if (!aborting) {
 
 		metadata = recv_sys->metadata_recover;

@@ -576,7 +576,7 @@ because InnoDB never supported more than one copy of the redo log. */
 /** 4 unused (zero-initialized) bytes. */
 #define LOG_HEADER_PAD1		4
 /** LSN of the start of data in this log file
-(with format version 1 and 2). */
+(with format version 1, 2 and 3). */
 #define LOG_HEADER_START_LSN	8
 /** A null-terminated string which will contain either the string 'ibbackup'
 and the creation time if the log file was created by mysqlbackup --restore,

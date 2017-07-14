@@ -68,19 +68,19 @@ pages, we store the compressed page control information in these 8 bytes. */
 FIL_PAGE_FILE_FLUSH_LSN are broken down as follows: */
 
 /** Control information version format (u8) */
-static const ulint FIL_PAGE_VERSION = FIL_PAGE_FILE_FLUSH_LSN;
+constexpr ulint FIL_PAGE_VERSION = FIL_PAGE_FILE_FLUSH_LSN;
 
 /** Compression algorithm (u8) */
-static const ulint FIL_PAGE_ALGORITHM_V1 = FIL_PAGE_VERSION + 1;
+constexpr ulint FIL_PAGE_ALGORITHM_V1 = FIL_PAGE_VERSION + 1;
 
 /** Original page type (u16) */
-static const ulint FIL_PAGE_ORIGINAL_TYPE_V1 = FIL_PAGE_ALGORITHM_V1 + 1;
+constexpr ulint FIL_PAGE_ORIGINAL_TYPE_V1 = FIL_PAGE_ALGORITHM_V1 + 1;
 
 /** Original data size in bytes (u16)*/
-static const ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
+constexpr ulint FIL_PAGE_ORIGINAL_SIZE_V1 = FIL_PAGE_ORIGINAL_TYPE_V1 + 2;
 
 /** Size after compression (u16) */
-static const ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
+constexpr ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 
 /** This overloads FIL_PAGE_FILE_FLUSH_LSN for RTREE Split Sequence Number */
 constexpr ulint FIL_RTREE_SPLIT_SEQ_NUM = FIL_PAGE_FILE_FLUSH_LSN;

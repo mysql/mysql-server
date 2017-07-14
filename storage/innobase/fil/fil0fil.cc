@@ -442,7 +442,7 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 @return the absolute path of dir + filename */
 static
 std::string
-fil_get_abs_path(const char* dir, const std::string& filename)
+fil_get_abs_path(const char* dir, const std::string& filename = "")
 {
 	char    abspath[FN_REFLEN + 2];
 
@@ -6954,14 +6954,16 @@ fil_tablespace_redo_create(
 		return(ptr);
 	}
 
+	auto	abs_name = fil_get_abs_path(name, "");
+
 	/* Duplicates should have been sorted out before we get here. */
 	ut_a(names->size() == 1);
 
 	/* It's possible that the tablespace file was renamed later. */
 
-	ib::info() << "REDO CREATE: " << page_id.space() << ", " << name;
+	ib::info() << "REDO CREATE: " << page_id.space() << ", " << abs_name;
 
-	if (names->front().compare(name) == 0) {
+	if (names->front().compare(abs_name) == 0) {
 		bool	success;
 
 		success = fil_tablespace_open_for_recovery(page_id.space());
@@ -7029,6 +7031,8 @@ fil_tablespace_redo_rename(
 
 	os_normalize_path(from_name);
 
+	auto	abs_from_name = fil_get_abs_path(from_name);
+
 	ptr += from_len;
 
 	if (memcmp(ptr - 5, DOT_IBD, 5) != 0) {
@@ -7074,7 +7078,8 @@ fil_tablespace_redo_rename(
 
 	os_normalize_path(to_name);
 
-	/* FIXME: Should we do an abs path compare? */
+	auto	abs_to_name = fil_get_abs_path(to_name);
+
 	if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
 
 		ib::error()
@@ -7116,7 +7121,7 @@ fil_tablespace_redo_rename(
 
 	auto&	path = names->front();
 
-	if (path.compare(to_name) == 0) {
+	if (path.compare(abs_to_name) == 0) {
 
 		/* Rename must have succeeded, open the file. */
 
@@ -7126,7 +7131,7 @@ fil_tablespace_redo_rename(
 
 		ut_a(success);
 
-	} else if (path.compare(from_name) == 0) {
+	} else if (path.compare(abs_from_name) == 0) {
 
 		/* Replay the rename. */
 
@@ -7151,7 +7156,7 @@ fil_tablespace_redo_rename(
 
 		const auto&	file = space->files.front();
 
-		ut_a(strncmp(file.name, from_name, from_len) == 0);
+		ut_a(abs_from_name.compare(file.name) == 0);
 
 		/* Create the database directory for the new name, if
 		it does not exist yet. */
@@ -7202,7 +7207,7 @@ fil_tablespace_redo_rename(
 		ut_free(new_table);
 
 		/* Update the name in the space ID to file name mapping. */
-		path.assign(to_name);
+		path.assign(abs_to_name);
 
 		success = fil_tablespace_open_for_recovery(page_id.space());
 
@@ -7289,17 +7294,20 @@ fil_tablespace_redo_delete(
 		return(ptr);
 	}
 
+
 	/* Duplicates should have been sorted out before we get here. */
 
 	ut_a(names->size() == 1);
 
+	auto	abs_name = fil_get_abs_path(name);
+
+	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
+
 	/* If the space ID maps to a file on disk then the name must match. */
 
-	ut_a(names->front().compare(name) == 0);
+	ut_a(names->front().compare(abs_name) == 0);
 
 	fil_space_free(page_id.space(), false);
-
-	ib::info() << "REDO DELETE: " << page_id.space() << ", " << name;
 
 	tablespace_files->erase(page_id.space());
 
@@ -7354,7 +7362,7 @@ fil_tokenize_paths(
 				if (type == OS_FILE_TYPE_DIR) {
 
 					cur_path = fil_get_abs_path(
-						cur_path.c_str(), "");
+						cur_path.c_str());
 
 					dirs.push_back(cur_path);
 
@@ -7415,7 +7423,9 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		    || (ifs->rdstate() & std::ifstream::failbit) != 0
 		    || (ifs->rdstate() & std::ifstream::badbit) != 0) {
 
-			ib::error() << "'" << filename << "' seek failed!";
+			ib::error()
+				<< "'" << filename << "' seek to"
+				<< " " << off << " failed!";
 
 			return(ULINT32_UNDEFINED);
 		}
@@ -7424,14 +7434,31 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 
 		if (!ifs->good() || (size_t) ifs->gcount() < sizeof(buf)) {
 
-			ib::error() << "'" << filename << "' read failed!";
+			ib::error()
+				<< "'" << filename
+				<< "' read failed! - attempted to read"
+				<< " " << sizeof(buf) << " bytes, read only"
+				<< " " << ifs->gcount() << " bytes @offset "
+				<< off;
 
 			return(ULINT32_UNDEFINED);
 		}
 
 		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
 
+		ib::info() << "SPACE ID: " << space_id;
+
 		if (space_id == 0 || space_id == ULINT32_UNDEFINED) {
+
+			/* We don't write the space ID to new pages. */
+			if (prev_space_id != ULINT32_UNDEFINED
+			    && prev_space_id != 0) {
+
+				err = DB_SUCCESS;
+				space_id = prev_space_id;
+
+				break;
+			}
 
 			continue;
 
@@ -7504,15 +7531,17 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 			continue;
 		}
 
-		space_id_t	space_id = fil_get_tablespace_id(
-			&ifs, filename);
+		space_id_t	space_id;
+
+		space_id = fil_get_tablespace_id(&ifs, filename);
 
 		ut_a(space_id != 0);
 
 		if (space_id != ULINT32_UNDEFINED) {
 
-			size_t	n_files = tablespace_files->add(
-				space_id, filename);
+			size_t	n_files;
+
+			n_files = tablespace_files->add(space_id, filename);
 
 			if (n_files > 1) {
 
@@ -7520,7 +7549,9 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 			}
 
 		} else {
-			ib::warn() << "Ignoring '" << filename << "'";
+			ib::warn()
+				<< "Ignoring '" << filename << "' invalid"
+				<< " tablespace ID in the header";
 		}
 
 		ifs.close();

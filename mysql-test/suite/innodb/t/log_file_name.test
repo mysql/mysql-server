@@ -124,7 +124,7 @@ EOF
 --error 1,42
 --exec $mysqld
 
-let SEARCH_PATTERN= \[ERROR\] InnoDB:.*t1.ibd.* has a tablespace ID of 0 - ignoring.*;
+let SEARCH_PATTERN= \[Warning\] InnoDB:.*Ignoring.*t1.ibd.*invalid.*ID.*;
 --source include/search_pattern_in_file.inc
 
 --move_file $SEARCH_FILE $MYSQLTEST_VARDIR/tmp/mysqld_05.log
