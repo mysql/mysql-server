@@ -4574,6 +4574,9 @@ innobase_init_files(
 		scan_directories.append(";").append(srv_undo_dir);
 	}
 
+	/* This is the default directory for .ibd files. */
+	scan_directories.append(";").append(fil_path_to_mysql_datadir);
+
 	err = srv_start(create, scan_directories);
 
 	if (err != DB_SUCCESS) {
@@ -21556,7 +21559,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
 
 static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
-  "List of directories 'dir1;dir2;..;dirN' to scan for tablespace files. Default is to scan innodb-data-home-dir",
+  "List of directories 'dir1;dir2;..;dirN' to scan for tablespace files. Default is to scan 'innodb-data-home-dir;innodb-undo-directory;datadir'",
   NULL, NULL, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {

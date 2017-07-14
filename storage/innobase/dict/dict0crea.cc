@@ -432,7 +432,7 @@ dict_build_tablespace(
 	}
 	tablespace->set_space_id(space);
 
-	Datafile* datafile = tablespace->first_datafile();
+	Datafile*	datafile = tablespace->first_datafile();
 
 	/* We create a new generic empty tablespace.
 	We initially let it be 4 pages:

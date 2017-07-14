@@ -371,6 +371,7 @@ public:
 	{
 		return(std::string(m_abs_path, m_abs_len));
 	}
+
 private:
 	/** Build the basic folder name from the path and length provided
 	@param[in]	path	pathname (not necessarily NUL-terminated)
