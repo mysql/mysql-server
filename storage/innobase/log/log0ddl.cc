@@ -1671,8 +1671,8 @@ Log_DDL::replay_delete_log(
 
 		/* Acquire MDL on SDI table of tablespace. This is to prevent
 		concurrent DROP while purge is happening on SDI table */
-		dberr_t err = dd_sdi_acquire_exclusive_mdl(
-				thd, space_id, &sdi_mdl);
+		ut_d(dberr_t err =)
+		dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
 
 		/* WL#9538 TODO: How to handle MDL acquisition failure. */
 		ut_ad(err == DB_SUCCESS);
