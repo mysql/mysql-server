@@ -124,6 +124,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # === Bug #18593479: ON MASTER_INFO_REPOSITORY CHANGE, ===
 # === IGNORE_SERVER_IDS DOUBLES WITH DUP VALUES        ===
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 CHANGE MASTER TO IGNORE_SERVER_IDS= (5,10,15);
 include/start_slave.inc
 Expect 3 elements.
@@ -147,6 +149,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 
 include/stop_slave.inc
 SET GLOBAL master_info_repository= 'FILE';
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 include/start_slave.inc
 
 ISSUE WAS HERE TOO: Due to buggy behaviour, we woule see 12 elements here.

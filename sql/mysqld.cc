@@ -463,6 +463,7 @@
 #include "rpl_msr.h"                    // Multisource_info
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // slave_load_tmpdir
+#include "rpl_info_factory.h"
 #include "session_tracker.h"
 #include "set_var.h"
 #include "socket_connection.h"          // stmt_info_new_packet
@@ -8685,6 +8686,15 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (!opt_help && expire_logs_days)
     push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
+
+  if (!opt_help && opt_mi_repository_id == INFO_REPOSITORY_FILE)
+    push_deprecated_warn(NULL, "--master-info-repository=FILE",
+                         "'--master-info-repository=TABLE'");
+
+  if (!opt_help && opt_rli_repository_id == INFO_REPOSITORY_FILE)
+    push_deprecated_warn(NULL, "--relay-log-info-repository=FILE",
+                         "'--relay-log-info-repository=TABLE'");
+
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);
   opt_mandatory_roles.length= strlen(opt_mandatory_roles.str);

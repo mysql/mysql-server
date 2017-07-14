@@ -1251,6 +1251,32 @@ static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
+static bool relay_log_info_repository_update(sys_var *, THD *thd,
+                                             enum_var_type)
+{
+  if (opt_rli_repository_id == INFO_REPOSITORY_FILE)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                        "FILE", "'TABLE'");
+  }
+  return false;
+}
+
+static bool master_info_repository_update(sys_var *, THD *thd,
+                                          enum_var_type)
+{
+  if (opt_mi_repository_id == INFO_REPOSITORY_FILE)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                        "FILE", "'TABLE'");
+  }
+  return false;
+}
+
 static const char *repository_names[]=
 {
   "FILE", "TABLE",
@@ -1267,7 +1293,7 @@ static Sys_var_enum Sys_mi_repository(
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
-       ON_UPDATE(0));
+       ON_UPDATE(master_info_repository_update));
 
 ulong opt_rli_repository_id= INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_rli_repository(
@@ -1277,7 +1303,7 @@ static Sys_var_enum Sys_rli_repository(
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
        repository_names, DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
-       ON_UPDATE(0));
+       ON_UPDATE(relay_log_info_repository_update));
 
 static Sys_var_bool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",

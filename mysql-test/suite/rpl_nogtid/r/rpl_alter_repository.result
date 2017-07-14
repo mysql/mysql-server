@@ -195,6 +195,10 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
 DROP TABLE t_innodb;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SELECT * FROM mysql.slave_master_info;
 SELECT * FROM mysql.slave_relay_log_info;
 include/rpl_restart_server.inc [server_number=2]
