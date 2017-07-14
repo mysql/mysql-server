@@ -577,9 +577,13 @@ lock_prdt_insert_check_and_lock(
 		/* Note that we may get DB_SUCCESS also here! */
 
 		trx_mutex_enter(trx);
+		
+		trx->owns_mutex = true;
 
 		err = rec_lock.add_to_waitq(wait_for, prdt);
 
+		trx->owns_mutex = false;
+	
 		trx_mutex_exit(trx);
 
 	} else {

@@ -1796,7 +1796,7 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(m_trx == thr_get_trx(m_thr));
-	ut_ad(trx_mutex_own(m_trx));
+	ut_ad(m_trx->owns_mutex == trx_mutex_own(m_trx));
 
 	DEBUG_SYNC_C("rec_lock_add_to_waitq");
 
