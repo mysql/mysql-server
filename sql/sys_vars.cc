@@ -3839,8 +3839,64 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var)
 }
 #endif // HAVE_GTID_NEXT_LIST
 
+/**
+  This function shall issue a deprecation warning
+  if the new gtid mode is set to GTID_MODE_ON and
+  there is at least one replication channel with
+  IGNORE_SERVER_IDS configured (i.e., not empty).
 
-bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
+  The caller must have acquired a lock on the
+  channel_map object before calling this function.
+
+  The warning emitted is: ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT .
+
+  @param thd The current session thread context.
+  @param oldmode The old value of @@global.gtid_mode.
+  @param newmode The new value for @@global.gtid_mode.
+
+*/
+static void
+issue_deprecation_warnings_gtid_mode(THD* thd,
+                                     enum_gtid_mode oldmode MY_ATTRIBUTE((unused)),
+                                     enum_gtid_mode newmode)
+{
+  channel_map.assert_some_lock();
+
+  /*
+    Check that if changing to gtid_mode=on no channel is configured
+    to ignore server ids. If it is, issue a deprecation warning.
+  */
+  if (newmode == GTID_MODE_ON)
+  {
+    for (mi_map::iterator it= channel_map.begin();
+         it!= channel_map.end(); it++)
+    {
+      Master_info *mi= it->second;
+      if (mi != NULL && mi->is_ignore_server_ids_configured())
+      {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARN_DEPRECATED_SYNTAX,
+                            ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                            "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
+                            "(when @@GLOBAL.GTID_MODE = ON)", "");
+
+        break; // Only push one warning
+      }
+    }
+  }
+}
+
+/**
+  This function shall be called whenever the global scope
+  of gtid_mode var is updated.
+
+  It checks some preconditions and also emits deprecation
+  warnings conditionally when changing the value.
+
+  Deprecation warnings are emitted after error conditions
+  have been checked and only if there is no error raised.
+*/
+bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
 {
   DBUG_ENTER("Sys_var_gtid_mode::global_update");
   bool ret= true;
@@ -4035,6 +4091,10 @@ bool Sys_var_gtid_mode::global_update(THD*, set_var *var)
   }
 
 end:
+  /* handle deprecations warning */
+  issue_deprecation_warnings_gtid_mode(thd,
+                                       old_gtid_mode, new_gtid_mode);
+
   ret= false;
 err:
   DBUG_ASSERT(lock_count >= 0);
