@@ -6874,7 +6874,23 @@ fil_delete_file(
 
 	ib::info() << "Deleting " << ibd_filepath;
 
+#ifdef _WIN32
+	/* For Windows, we need to check the status of the file.
+	If there's a subdir with same name, we will skip to delete it.
+	Otherwise, it'll keep looping in os_file_delete_if_exists_func. */
+	os_file_type_t	type;
+	bool		exists;
+
+	os_file_status(ibd_filepath, &exists, &type);
+	if (type == OS_FILE_TYPE_DIR) {
+		ib::info() << "There is a directory with same name, skip deleting "
+			<< ibd_filepath;
+	} else {
+			os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
+	}
+#else
 	os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, NULL);
+#endif /* _WIN32 */
 
 	char*	cfg_filepath = fil_make_filepath(
 		ibd_filepath, NULL, CFG, false);
