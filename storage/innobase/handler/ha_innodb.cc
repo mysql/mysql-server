@@ -4558,11 +4558,20 @@ innobase_init_files(
 
 	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
-	auto	scan_directories = innobase_scan_directories;
+	auto	directories = innobase_scan_directories;
 
-	if (scan_directories == nullptr || strlen(scan_directories) == 0) {
+	if (directories == nullptr || strlen(directories) == 0) {
 
-		scan_directories = srv_data_home;
+		directories = srv_data_home;
+	}
+
+	std::string	scan_directories(directories);
+
+	if (srv_undo_dir != nullptr
+	    && strlen(srv_undo_dir) != 0
+	    && scan_directories.compare(srv_undo_dir) != 0) {
+
+		scan_directories.append(";").append(srv_undo_dir);
 	}
 
 	err = srv_start(create, scan_directories);

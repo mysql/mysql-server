@@ -1783,7 +1783,7 @@ srv_prepare_to_delete_redo_log_files(
 					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(bool create_new_db, const char* scan_directories)
+srv_start(bool create_new_db, const std::string& scan_directories)
 {
 	lsn_t		flushed_lsn;
 	page_no_t	sum_of_data_file_sizes;

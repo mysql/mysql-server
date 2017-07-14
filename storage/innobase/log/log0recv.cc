@@ -818,8 +818,6 @@ recv_check_log_header_checksum(const byte* buf)
 	auto	c1 = log_block_get_checksum(buf);
 	auto	c2 = log_block_calc_checksum_crc32(buf);
 
-	ib::info() << "c1: " << c1 << ", c2: " << c2;
-
 	return(c1 == c2);
 }
 

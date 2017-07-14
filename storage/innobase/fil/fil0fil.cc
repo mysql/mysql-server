@@ -436,13 +436,13 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 	return(false);
 }
 
-/** Get the absolute path for a file name
+/** Get the real path for a file name, usefule for comparing symlinked files.
 @param[in]	dir		Directory
 @param[in]	filename	Filename without directory prefix
 @return the absolute path of dir + filename */
 static
 std::string
-fil_get_abs_path(const char* dir, const std::string& filename = "")
+fil_get_real_path(const char* dir, const std::string& filename = "")
 {
 	char    abspath[FN_REFLEN + 2];
 
@@ -2342,7 +2342,9 @@ fil_paths_equal(const char* lhs, const char* rhs)
 			++ptr;
 		}
 
-		abs_path1 = fil_get_abs_path(".", ptr);
+		abs_path1 = fil_get_real_path(".", ptr);
+	} else{
+		abs_path1 = fil_get_real_path(lhs);
 	}
 
 	/* Remove adjacent duplicate characters, comparison should not be
@@ -2361,7 +2363,9 @@ fil_paths_equal(const char* lhs, const char* rhs)
 			++ptr;
 		}
 
-		abs_path2 = fil_get_abs_path(".", ptr);
+		abs_path2 = fil_get_real_path(".", ptr);
+	} else {
+		abs_path2 = fil_get_real_path(rhs);
 	}
 
 	/* Remove adjacent duplicate characters, comparison should not be
@@ -6954,7 +6958,7 @@ fil_tablespace_redo_create(
 		return(ptr);
 	}
 
-	auto	abs_name = fil_get_abs_path(name, "");
+	auto	abs_name = fil_get_real_path(name, "");
 
 	/* Duplicates should have been sorted out before we get here. */
 	ut_a(names->size() == 1);
@@ -7031,7 +7035,7 @@ fil_tablespace_redo_rename(
 
 	os_normalize_path(from_name);
 
-	auto	abs_from_name = fil_get_abs_path(from_name);
+	auto	abs_from_name = fil_get_real_path(from_name);
 
 	ptr += from_len;
 
@@ -7078,7 +7082,7 @@ fil_tablespace_redo_rename(
 
 	os_normalize_path(to_name);
 
-	auto	abs_to_name = fil_get_abs_path(to_name);
+	auto	abs_to_name = fil_get_real_path(to_name);
 
 	if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
 
@@ -7299,7 +7303,7 @@ fil_tablespace_redo_delete(
 
 	ut_a(names->size() == 1);
 
-	auto	abs_name = fil_get_abs_path(name);
+	auto	abs_name = fil_get_real_path(name);
 
 	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
 
@@ -7361,7 +7365,7 @@ fil_tokenize_paths(
 
 				if (type == OS_FILE_TYPE_DIR) {
 
-					cur_path = fil_get_abs_path(
+					cur_path = fil_get_real_path(
 						cur_path.c_str());
 
 					dirs.push_back(cur_path);
