@@ -1897,7 +1897,10 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     usage();
     exit(0);
-
+  case 's':
+    warning(CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG("--short-form"));
+    short_form= TRUE;
+    break;
   }
   if (tty_password)
     pass= get_tty_password(NullS);

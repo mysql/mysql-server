@@ -144,13 +144,16 @@ enum options_client
 /**
   Client deprecation warnings
 */
+#define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt) \
+  opt " is deprecated and will be removed in a future version\n"
+
+#define CLIENT_WARN_DEPRECATED_MSG(opt, new_opt) \
+  opt " is deprecated and will be removed in a future version. " \
+  "Use " new_opt " instead.\n"
+
 #define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT(opt) \
-  printf("WARNING: " opt \
-         " is deprecated and will be removed in a future version\n")
+  printf("WARNING: " CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt))
 
 #define CLIENT_WARN_DEPRECATED(opt, new_opt) \
-  printf("WARNING: " opt \
-         " is deprecated and will be removed in a future version. " \
-         "Use " new_opt " instead.\n")
-
+  printf("WARNING: " CLIENT_WARN_DEPRECATED_MSG(opt,new_opt))
 #endif

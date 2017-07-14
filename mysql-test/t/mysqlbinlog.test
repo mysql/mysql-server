@@ -549,5 +549,17 @@ eval SET GLOBAL SERVER_ID = $old_server_id;
 --let $mysqlbinlog_parameters= -uroot --password="" std_data/master-bin.000001 2>&1
 --source include/mysqlbinlog.inc
 
+#
+# WL#9632: mysqlbinlog: generate deprecation warning for --short-form
+#
+
+RESET MASTER;
+
+--let $ofile= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--exec $MYSQL_BINLOG -h 127.0.0.1 -P $MASTER_MYPORT -R master-bin.000001 --short-form > /dev/null 2> $ofile
+--cat_file $ofile
+--remove_file $ofile
+--let $ofile=
+
 --echo
 --echo End of tests
