@@ -561,5 +561,18 @@ RESET MASTER;
 --remove_file $ofile
 --let $ofile=
 
+#
+# WL#9633: mysqlbinlog: generate deprecation warning for --stop-never-slave-server-id
+#
+
+RESET MASTER;
+
+--let $ofile= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--exec $MYSQL_BINLOG -h 127.0.0.1 -P $MASTER_MYPORT -R --stop-never-slave-server-id=100 master-bin.000001 > /dev/null 2> $ofile
+--cat_file $ofile
+--remove_file $ofile
+--let $ofile=
+
+
 --echo
 --echo End of tests
