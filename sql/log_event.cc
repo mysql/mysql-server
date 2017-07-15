@@ -2509,7 +2509,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
       !(td= map->create_table_def()))
   {
     char llbuff[22];
-    my_b_printf(file, "### Row event for unknown table #%s",
+    my_b_printf(file, "### Row event for unknown table #%s\n",
                 llstr(m_table_id, llbuff));
     return;
   }
