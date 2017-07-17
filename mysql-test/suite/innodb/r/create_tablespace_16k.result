@@ -444,6 +444,7 @@ s_2k	General	DEFAULT	2048	Compressed	s_2k.ibd
 s_4k	General	DEFAULT	4096	Compressed	s_4k.ibd
 s_8k	General	DEFAULT	8192	Compressed	s_8k.ibd
 s_16k	General	DEFAULT	0	Any	s_16k.ibd
+s_missing	General	DEFAULT	0	Any	delete_me.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 s_1k	TABLESPACE	InnoDB	NORMAL	s_1k	s_1k.ibd
