@@ -76,7 +76,7 @@ select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 create table t1 (
   pk int not null primary key,
   b int,
-  foreign key (b) references t2(pk1)
+  foreign key fk1(b) references t2(pk1)
 ) engine=ndb;
 
 create table t2 (
@@ -945,7 +945,7 @@ INSERT INTO `address` VALUES (2,22,2,'Second st. 2222',2);
 --echo # Add fk inplace
 # Adding foreign key with foreign_key_checks=1, fails since data is inconsistent
 set foreign_key_checks=1;
---error ER_NO_REFERENCED_ROW_2
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE address ALGORITHM=inplace,
   ADD CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
     ON DELETE CASCADE ON UPDATE RESTRICT;
@@ -959,6 +959,8 @@ ALTER TABLE address ALGORITHM=inplace,
 --echo # Add another fk copying
 # Adding foreign key with foreign_key_checks=1, fails since data is inconcistent
 set foreign_key_checks=1;
+#server prints a bad error with temporary tables for a copy alter failure. mask it.
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 --error ER_NO_REFERENCED_ROW_2
 ALTER TABLE address ALGORITHM=copy,
   ADD CONSTRAINT `ca_fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)

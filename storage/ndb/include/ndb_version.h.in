@@ -132,6 +132,7 @@ Uint32 ndbGetOwnVersion();
 #define NDBD_MT_LQH_VERSION MAKE_VERSION(6,4,0)
 
 #define NDBD_SCHEMA_TRANS_VERSION NDB_MAKE_VERSION(6,4,0)
+#define NDBD_LOCAL_SYSFILE_VERSION NDB_MAKE_VERSION(7,6,3)
 
 static
 inline
@@ -823,9 +824,31 @@ ndbd_spj_api_support_short_TRANSID_AI(Uint32 x)
 static
 inline
 int
-ndb_join_pushdown(Uint32 x)
+ndbd_join_pushdown(Uint32 x)
 {
   return x >= NDBD_JOIN_PUSHDOWN;
+}
+
+/**
+ * An enhanced version of the SCAN_FRAGREQ signal has been
+ * introduced in 7.6.4, where multiple fragments to be scanned
+ * can be specified in a single 'REQ'.
+ *
+ * At the same time an updated version of QueryNode introduced
+ * a new QN_SCAN_FRAG OpNode type, with an extended format
+ * for specifying the scan 'batchSize'.
+ *
+ * That also deprecated (still supported) the former 'SCAN' type
+ * QueryNode into QN_SCAN_FRAG_v1 and QN_SCAN_INDEX_v1.
+ */
+#define NDBD_SPJ_MULTIFRAG_SCAN NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_spj_multifrag_scan(Uint32 x)
+{
+  return x >= NDBD_SPJ_MULTIFRAG_SCAN;
 }
 
 /**
@@ -1067,6 +1090,36 @@ ndbd_support_fully_replicated(Uint32 x)
     else if (minor == 5)
     {
       return x >= NDBD_SUPPORT_FULLY_REPLICATED;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Uses new Partial LCP format for LCPs
+ */
+#define NDBD_USE_PARTIAL_LCP NDB_MAKE_VERSION(7,6,3)
+
+static
+inline
+int
+ndbd_use_partial_lcp(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_USE_PARTIAL_LCP;
     }
   }
   return 1;

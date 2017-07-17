@@ -285,19 +285,41 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
      * each logpart keeps up to 3 logfiles open at any given time...
      *   (bound)
      * make sure noIdleFiles is atleast 4 times #logparts
+     * In addition the LCP execution can have up to 4 files open in each
+     * LDM thread. In the LCP prepare phase we can have up to 2 files
+     * (2 CTL files first, then 1 CTL file and finally 1 CTL file and
+     *  1 data file). The LCP execution runs in parallel and can also
+     * have 2 open files (1 CTL file and 1 data file). With the
+     * introduction of Partial LCP the execution phase could even have
+     * 9 files open at a time and thus we can have up to 11 threads open
+     * at any time per LDM thread only to handle LCP execution.
+     *
+     * In addition ensure that we have at least 10 more open files
+     * available for the remainder of the tasks we need to handle.
      */
     Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
     ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
     Uint32 logfiles = 4 * logParts;
+    Uint32 numLDMthreads = getLqhWorkers();
+    if (numLDMthreads == 0)
+    {
+      jam();
+      numLDMthreads = 1;
+    }
+    logfiles += ((numLDMthreads * 11) + 10);
     if (noIdleFiles < logfiles)
     {
+      jam();
       noIdleFiles = logfiles;
     }
   }
 
-  // Make sure at least "noIdleFiles" files can be created
+  // Make sure at least "noIdleFiles" files can be created and a few more
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
-    m_maxFiles = noIdleFiles;
+  {
+    jam();
+    m_maxFiles = noIdleFiles + 2;
+  }
 
   // Create idle AsyncFiles
   for (Uint32 i = 0; i < noIdleFiles; i++)
@@ -633,6 +655,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)
   {
+    jam();
     SegmentedSectionPtr secPtr;
     ndbrequire(handle.getSection(secPtr, 0));
     ndbrequire(signal->getLength() + secPtr.sz < NDB_ARRAY_SIZE(theData));
@@ -760,7 +783,20 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       break;
       // make it a writev or readv
     }//case
-      
+
+    case FsReadWriteReq::fsFormatMemAddress:
+    {
+      jam();
+      const Uint32 memoryOffset = fsRWReq->data.memoryAddress.memoryOffset;
+      const Uint32 fileOffset = fsRWReq->data.memoryAddress.fileOffset;
+      const Uint32 sz = fsRWReq->data.memoryAddress.size;
+
+      request->par.readWrite.pages[0].buf = &tWA[memoryOffset];
+      request->par.readWrite.pages[0].size = sz;
+      request->par.readWrite.pages[0].offset = (off_t)(fileOffset);
+      request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
+      break;
+    }
     default: {
       jam();
       errorCode = FsRef::fsErrInvalidParameters;
@@ -852,9 +888,15 @@ Ndbfs::execFSREADREQ(Signal* signal)
   jamEntry();
   FsReadWriteReq * req = (FsReadWriteReq *)signal->getDataPtr();
   if (FsReadWriteReq::getPartialReadFlag(req->operationFlag))
+  {
+    jam();
     readWriteRequest( Request::readPartial, signal );
+  }
   else
+  {
+    jam();
     readWriteRequest( Request::read, signal );
+  }
 }
 
 /*
@@ -1099,6 +1141,8 @@ Ndbfs::createAsyncFile()
                (long) file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
+    ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
+              m_maxFiles, theFiles.size());
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 

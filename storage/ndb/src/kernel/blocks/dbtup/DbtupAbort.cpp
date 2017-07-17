@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,16 @@
 
 #define JAM_FILE_ID 409
 
+//#define DEBUG_LCP 1
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
+
+/**
+ * Abort abort this operation and all after (nextActiveOp's)
+ */
 void Dbtup::execTUP_ABORTREQ(Signal* signal) 
 {
   jamEntry();
@@ -40,7 +50,7 @@ Dbtup::do_tup_abort_operation(Signal* signal,
   /**
    * There are a couple of things that we need to handle at abort time.
    * Every operation needs to release its resources, the operation
-   * record and the copy row. This is handled in the method calling this.
+   * record and copy tuple. This is handled in the method calling this.
    *
    * We also need to ensure that the header bits are properly set after
    * aborting the tuple. When a tuple was inserted as part of the
@@ -55,25 +65,23 @@ Dbtup::do_tup_abort_operation(Signal* signal,
    * to the original size.
    */
   Uint32 bits= tuple_ptr->m_header_bits;  
-  Tuple_header *copy= get_copy_tuple(&opPtrP->m_copy_tuple_location);
-    
   if (opPtrP->op_type != ZDELETE &&
       opPtrP->op_struct.bit_field.m_disk_preallocated)
   {
     jam();
     Local_key key;
+    Tuple_header *copy= get_copy_tuple(&opPtrP->m_copy_tuple_location);
     memcpy(&key, copy->get_disk_ref_ptr(tablePtrP), sizeof(key));
     disk_page_abort_prealloc(signal, fragPtrP, &key, key.m_page_idx);
   }
-
   if(! (bits & Tuple_header::ALLOC))
   {
-    jam();
     /**
      * Tuple existed before starting this transaction.
      */
-    if(opPtrP->is_first_operation() &&
-       bits & Tuple_header::MM_GROWN)
+    jam();
+    if (opPtrP->is_first_operation() &&
+        bits & Tuple_header::MM_GROWN)
     {
       /**
        * A MM_GROWN tuple was relocated with a bigger size in preparation for
@@ -135,6 +143,11 @@ Dbtup::do_tup_abort_operation(Signal* signal,
         tmp.m_page_no = RNIL;
         ref->assign(&tmp);
         bits &= ~(Uint32)Tuple_header::VAR_PART;
+        DEB_LCP(("MM_SHRINK ABORT: tab(%u,%u) row(%u,%u)",
+                 fragPtrP->fragTableId,
+                 fragPtrP->fragmentId,
+                 opPtrP->m_tuple_location.m_page_no,
+                 opPtrP->m_tuple_location.m_page_idx));
       }
       tuple_ptr->m_header_bits= bits & ~Tuple_header::MM_GROWN;
     } 
@@ -180,6 +193,12 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   PagePtr page;
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  DEB_LCP(("Abort tab(%u,%u) row(%u,%u)",
+           regFragPtr.p->fragTableId,
+           regFragPtr.p->fragmentId,
+           regOperPtr.p->m_tuple_location.m_page_no,
+           regOperPtr.p->m_tuple_location.m_page_idx));
 
   if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {

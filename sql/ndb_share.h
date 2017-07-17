@@ -107,6 +107,7 @@ struct NDB_SHARE {
   size_t key_length() const;
   const char* key_string() const;
 
+  const char* share_state_string() const;
 };
 
 

@@ -97,21 +97,14 @@ class HostInfo(object):
     def disk_free(self):
         """Returns the free space for homedir on host."""
         hd = self.ch.env['HOME']
-        #Localhost code, due to shellex escaping in subprocess, mimics AWK functionality.
-        #Remotehost sends full bash line to console.
-        if isinstance(self.ch, LocalClusterHost):
-            dtest=self.ch.exec_blocking(['df', '-h', hd])
-        else:
-            dtest=self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])
+        dtest=self.ch.exec_blocking(['df', '-h', hd])
+        
         #There is a chance there will be an error output from opening the console so skip over it:
         #o  grab df output, skip to last line, go one back and grab Avail (4th value).
         lc = dtest.count('\n')
         if lc > 1: #There has to be 2 lines of df output + errors from console (if any).
-            if isinstance(self.ch, LocalClusterHost):
-                ds = str(str(((dtest).split('\n')[lc-1]).split()[3:4]).strip('[]')).strip("''")
-            else:
-                ds = (self.ch.exec_blocking(['df', '-h', hd, '|', 'awk', '''{ print \$4 }'''])).split('\n')[lc-1]
-            #ds should be at least 2 characters wide (2T, 1G...) otherwise return "unknown".
+            ds = str(str(((dtest).split('\n')[lc-1]).split()[3:4]).strip('[]')).strip("''")
+            
             if len(ds) >= 2:
                 return ds
             else:
@@ -507,7 +500,7 @@ class LocalClusterHost(ABClusterHost):
         result['err'] = errFile.read()
         return result
 
-def produce_ABClusterHost(hostname='localhost', user=None, pwd=None):
+def produce_ABClusterHost(hostname='localhost', key_based=None, user=None, pwd=None, key_file=None):
     """Factory method which returns RemoteClusterHost or LocalClusterHost depending 
     on the value of hostname.."""
 
@@ -517,5 +510,16 @@ def produce_ABClusterHost(hostname='localhost', user=None, pwd=None):
     hostname_fqdn = socket.getfqdn(hostname)
     if hostname_fqdn == socket.getfqdn('localhost') or hostname_fqdn == socket.getfqdn(socket.gethostname()):
         return LocalClusterHost(hostname)
+    
+    # Sanitize input:
+    if not (user and user.strip()):
+        user = None
+    if not (pwd and pwd.strip()):
+        pwd = None
+    else:
+        if pwd.startswith('**'):
+            pwd = None
+    if not (key_file and key_file.strip()):
+        key_file = None
     import remote_clusterhost
-    return remote_clusterhost.RemoteClusterHost(hostname, user, pwd)
+    return remote_clusterhost.RemoteClusterHost(hostname, key_based, user, pwd, key_file)

@@ -2173,8 +2173,9 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   for (int j = 0; j<res.getNumDbNodes(); j++)
   {
     int node = res.getDbNodeId(j);
-    nodeGroups[node] = res.getNodeGroup(node);
-    nodeGroupMap.set(nodeGroups[node]);
+    nodeGroups[node] = Uint32(res.getNodeGroup(node));
+    if (nodeGroups[node] != Uint32(NDBT_NO_NODE_GROUP_ID))
+      nodeGroupMap.set(nodeGroups[node]);
   }
 
   struct ndb_logevent event;
@@ -2497,19 +2498,22 @@ loop:
     for (Uint32 i = 0; i<limit; i++)
     {
       int tmp = res.getNodeGroup(nodes[i]);
-      printf("node %d ng: %d", nodes[i], tmp);
-      if (ng.get(tmp))
+      if (tmp != NDBT_NO_NODE_GROUP_ID)
       {
-        restartnodes[cnt++] = nodes[i];
-        ndbout_c(" COLLISION");
-        limit++;
-        if (limit > nodeCount)
-          limit = nodeCount;
-      }
-      else
-      {
-        ng.set(tmp);
-        ndbout_c(" OK");
+        printf("node %d ng: %d", nodes[i], tmp);
+        if (ng.get(tmp))
+        {
+          restartnodes[cnt++] = nodes[i];
+          ndbout_c(" COLLISION");
+          limit++;
+          if (limit > nodeCount)
+            limit = nodeCount;
+        }
+        else
+        {
+          ng.set(tmp);
+          ndbout_c(" OK");
+        }
       }
     }
 
@@ -2771,7 +2775,7 @@ int runAddNodes(NDBT_Context* ctx, NDBT_Step* step)
   for(int i= 0; i < restarter.getNumDbNodes(); i++ )
   {
     int _node_id= restarter.getDbNodeId(i);
-    if(restarter.getNodeGroup(_node_id) == -256)
+    if(restarter.getNodeGroup(_node_id) == NDBT_NO_NODE_GROUP_ID)
     {
       /* nodes that don't have a nodegroup yet */
       newNodes.push_back(_node_id);
@@ -3064,10 +3068,10 @@ int runStartWithNodeGroupZero(NDBT_Context* ctx, NDBT_Step* step){
     3. Check the group id of the above node
     **/
     /*** 1 ***/
-    g_info << "1- Findind a node of group id other then 0" << endl;
+    g_info << "1- Finding a node of group id other then 0" << endl;
     nodeGroup = restarter.getNodeGroup(nodeId);
     g_info << "    Current node group : " << nodeGroup << endl;
-    if(nodeGroup == 0)
+    if(nodeGroup == 0 || nodeGroup == NDBT_NO_NODE_GROUP_ID)
     {
       g_info << "    Skiping this node" << endl;
       nodeId = restarter.getRandomNodeOtherNodeGroup(nodeId, 4);
@@ -3117,7 +3121,7 @@ int runMixedModeRestart4Node(NDBT_Context* ctx, NDBT_Step* step){
   **/
 
   /*** 1 ***/
-  g_info << "1- Killing four nodes of diffrent groups." << endl;
+  g_info << "1- Killing four nodes of different groups." << endl;
   int nodesarray[256];
   int cnt = 0;
   int timeout = 300;
@@ -3125,6 +3129,8 @@ int runMixedModeRestart4Node(NDBT_Context* ctx, NDBT_Step* step){
   for(int i = 0; i< nodeCount; i++)
   {
     int nodeGroup=restarter.getNodeGroup(nodeIds[i]);
+    if (nodeGroup == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (seen_groups.get(nodeGroup))
     {
       // One node in this node group already down
@@ -3193,6 +3199,8 @@ int runKillMasterNodes(NDBT_Context* ctx, NDBT_Step* step){
     g_info << "Master Node Id : " << master << endl;
     int nodeGroup = restarter.getNodeGroup(master);
     CHECK(nodeGroup != -1);
+    if (nodeGroup == NDBT_NO_NODE_GROUP_ID)
+      continue;
     if (seen_groups.get(nodeGroup))
     {
       // One node in this node group already down

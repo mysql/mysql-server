@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2722,6 +2722,7 @@ runBug33793(NDBT_Context* ctx, NDBT_Step* step)
         int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
         if (restarter.dumpStateOneNode(id, val2, 2))
           return NDBT_FAILED;
+        break;
       }
     }
     printf("\n"); fflush(stdout);

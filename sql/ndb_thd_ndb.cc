@@ -162,3 +162,33 @@ Thd_ndb::add_row_check_if_batch_full(uint size)
   m_unsent_bytes= unsent;
   return unsent >= m_batch_size;
 }
+
+
+bool
+Thd_ndb::check_trans_option(Trans_options option) const
+{
+  return (trans_options & option);
+}
+
+
+void
+Thd_ndb::set_trans_option(Trans_options option)
+{
+#ifndef DBUG_OFF
+  if (check_trans_option(TRANS_TRANSACTIONS_OFF))
+    DBUG_PRINT("info", ("Disabling transactions"));
+  if (check_trans_option(TRANS_INJECTED_APPLY_STATUS))
+    DBUG_PRINT("info", ("Statement has written to ndb_apply_status"));
+  if (check_trans_option(TRANS_NO_LOGGING))
+    DBUG_PRINT("info", ("Statement is not using logging"));
+#endif
+  trans_options |= option;
+}
+
+
+void
+Thd_ndb::reset_trans_options(void)
+{
+  DBUG_PRINT("info", ("Resetting trans_options"));
+  trans_options = 0;
+}

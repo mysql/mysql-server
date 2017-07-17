@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -427,6 +427,141 @@ public:
   }
 };
 
+/*
+   This class implements a table returning all the NDB specific
+   error codes as rows in table error_messages.
+
+   There are three different type of error codes
+
+   1) MgmApi error codes
+   2) NDB error codes
+   3) NDB exit codes(from ndbmtd or ndbd)
+
+   the table is filled in the above order.
+*/
+
+#include "../storage/ndb/include/ndbapi/ndberror.h"
+#include "../storage/ndb/include/mgmapi/ndbd_exit_codes.h"
+#include "../storage/ndb/include/mgmapi/mgmapi_error.h"
+class ErrorCodesTable : public VirtualTable
+{
+  struct ErrorMessage {
+    int err_no;
+    const char * status_msg;
+    const char * class_msg;
+    const char * error_msg;
+  };
+
+  Vector<ErrorMessage> m_error_messages;
+public:
+  bool init()
+  {
+    // Build an index into the three error message arrays
+    // to allow further lookup of the error messages by "row_number"
+
+    // Iterate Mgmapi errors
+    for (int i = 0;i < ndb_mgm_noOfErrorMsgs; i++)
+    {
+      ErrorMessage err;
+      err.err_no = ndb_mgm_error_msgs[i].code;
+      err.status_msg = ndb_mgm_error_msgs[i].msg;
+      err.class_msg = ""; // No status for MgmApi
+      err.error_msg= ""; // No classification for MgmApi
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    // Iterate NDB errors
+    for (int i = 0;; i++)
+    {
+      int err_no;
+      const char * status_msg;
+      const char * class_msg;
+      const char * error_msg;
+      if (ndb_error_get_next(i, &err_no, &status_msg,
+                             &class_msg, &error_msg) == -1)
+      {
+        // No more NDB errors
+        break;
+      }
+
+      ErrorMessage err;
+      err.err_no = err_no;
+      err.status_msg = status_msg;
+      err.class_msg = class_msg;
+      err.error_msg= error_msg;
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    // Iterate NDB exit codes
+    for (int i = 0;; i++)
+    {
+      int exit_code;
+      const char * status_msg;
+      const char * class_msg;
+      const char * error_msg;
+      if (ndbd_exit_code_get_next(i, &exit_code, &status_msg,
+                                  &class_msg, &error_msg) == -1)
+      {
+        // No more ndbd exit codes
+        break;
+      }
+
+      ErrorMessage err;
+      err.err_no = exit_code;
+      err.status_msg = status_msg;
+      err.class_msg = class_msg;
+      err.error_msg= error_msg;
+
+      if (m_error_messages.push_back(err) != 0)
+        return false;
+    }
+
+    return true;
+  }
+
+  virtual bool read_row(VirtualTable::Row& w,
+                        Uint32 row_number) const
+  {
+    if (row_number >= m_error_messages.size())
+    {
+      // No more rows
+      return false;
+    }
+
+    const ErrorMessage& err = m_error_messages[row_number];
+
+    w.write_number(err.err_no); // error_code
+    w.write_string(err.error_msg); // error_description
+    w.write_string(err.status_msg); // error_status
+    w.write_string(err.class_msg); // error_classification
+
+    return true;
+  }
+
+  NdbInfo::Table* get_instance() const
+  {
+    NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
+                                             NdbInfo::Table::InvalidTableId,
+                                             this);
+    if (!tab)
+      return NULL;
+    if (!tab->addColumn(NdbInfo::Column("error_code", 0,
+                                        NdbInfo::Column::Number)) ||
+        !tab->addColumn(NdbInfo::Column("error_description", 1,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("error_status", 2,
+                                        NdbInfo::Column::String)) ||
+        !tab->addColumn(NdbInfo::Column("error_classification", 3,
+                                        NdbInfo::Column::String)))
+      return NULL;
+    return tab;
+  }
+
+};
 
 #include "mgmapi/mgmapi_config_parameters.h"
 #include "../mgmsrv/ConfigInfo.hpp"
@@ -702,6 +837,18 @@ NdbInfoScanVirtual::create_virtual_tables(Vector<NdbInfo::Table*>& list)
       return false;
 
     if (list.push_back(dictObjTypesTable->get_instance()) != 0)
+      return false;
+  }
+
+  {
+    ErrorCodesTable* errorCodesTable = new ErrorCodesTable;
+    if (!errorCodesTable)
+      return false;
+
+    if (!errorCodesTable->init())
+      return false;
+
+    if (list.push_back(errorCodesTable->get_instance()) != 0)
       return false;
   }
 

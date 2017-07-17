@@ -305,3 +305,17 @@ void NDB_SHARE::print(const char* where, FILE* file) const
   if (event_data_ptr)
     event_data_ptr->print("  -", file);
 }
+
+
+const char*
+NDB_SHARE::share_state_string(void) const
+{
+  switch(state) {
+  case NSS_INITIAL:
+    return "NSS_INITIAL";
+  case NSS_DROPPED:
+    return "NSS_DROPPED";
+  }
+  assert(false);
+  return "<unknown>";
+}

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -261,7 +261,7 @@ function hwDepParams(processTypeName) {
     // Single deferred to callback
     var waitCondition = new dojo.Deferred();
 
-    // Array of deferreds to wait for
+    // Array of deferrers to wait for
     var waitConditions= [];
     var waitList; 
 
@@ -723,8 +723,9 @@ function instanceSetup(processFamilyName, processItem) {
             mcc.configuration.setPara(processFamilyName, id, "HostName",
                     "defaultValueInstance", null);
         } else {
+            //Use HostName=internalIP to avoid mixing LOCAL & REMOTE hosts.
             mcc.configuration.setPara(processFamilyName, id, "HostName",
-                    "defaultValueInstance", host.getValue("name"));
+                    "defaultValueInstance", host.getValue("internalIP"));
         }
 
         // Get prototypical process type and do process specific assignments

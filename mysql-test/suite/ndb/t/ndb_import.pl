@@ -114,6 +114,7 @@ my %typeinfo = (
 
 # CSV control strings
 # note --exec uses sh so these are passed in single quotes
+# note using --csvopt now to avoid quoting (windows)
 
 sub get_csvfmt1 {
   my $csvfmt = {
@@ -121,6 +122,7 @@ sub get_csvfmt1 {
     fields_enclosed_by => undef,
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
+    csvopt => 'd',      # must match above
   };
   return $csvfmt;
 }
@@ -131,6 +133,7 @@ sub get_csvfmt2 {
     fields_enclosed_by => '"',
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
+    csvopt => 'cq',     # must match above
   };
   return $csvfmt;
 }
@@ -289,7 +292,7 @@ sub run_import {
   my $fenc = $test->{csvfmt}{fields_enclosed_by};
   my @cmd = ();
   push(@cmd, "\$NDB_IMPORT");
-  push(@cmd, "--state-dir='$test->{statedir}'");
+  push(@cmd, "--state-dir=$test->{statedir}");
   push(@cmd, "--keep-state");
   push(@cmd, "--input-type=csv");
   push(@cmd, "--input-workers=2");
@@ -297,14 +300,18 @@ sub run_import {
   push(@cmd, "--output-workers=2");
   push(@cmd, "--db-workers=2");
   push(@cmd, "--temperrors=100");
-  push(@cmd, "--fields-terminated-by='$fter'");
-  if (defined($fenc)) {
-    push(@cmd, "--fields-optionally-enclosed-by='$fenc'");
+  if (defined($test->{csvfmt}{csvopt})) {
+    push(@cmd, "--csvopt=$test->{csvfmt}{csvopt}");
+  } else {
+    push(@cmd, "--fields-terminated-by='$fter'");
+    if (defined($fenc)) {
+      push(@cmd, "--fields-optionally-enclosed-by='$fenc'");
+    }
   }
   if ($test->{rejectsopt}) {
     push(@cmd, "--rejects=$test->{rejectsopt}");
   }
-  # $opts tells is this is a resume
+  # $opts tells if this is a resume
   if ($opts->{resumeopt}) {
     push(@cmd, "--resume");
   }
@@ -441,7 +448,7 @@ sub write_tests {
   my $tag = $tests->{tag};
   my $file = "$vardir/tmp/ndb_import$tag.inc";
   my $fh = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   my $testlist = $tests->{testlist};
   for my $test (@$testlist) {
@@ -559,6 +566,10 @@ sub make_byte {
     }
     if ($x == 0) {
       $val = $fesc.'0';
+      last;
+    }
+    if (0 && $x == 032) {       # now using _O_BINARY on windows
+      $val = $fesc.'Z';
       last;
     }
     if ($x == ord($fter)) {
@@ -868,10 +879,10 @@ sub write_csvfile {
   my $filever = get_csvfile($test, $table, { ver => 1 });
   my $fh = gensym();
   my $fhver = gensym();
-  open($fh, ">$file")
+  open($fh, ">:raw", $file)
     or die "$file: open for write failed: $!";
   if ($test->{csvver}) {
-    open($fhver, ">$filever")
+    open($fhver, ">:raw", $filever)
       or die "$filever: open for write failed: $!";
   }
   my $tablename = get_tablename($test, $table, { ver => 0 });

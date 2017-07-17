@@ -71,3 +71,13 @@ where type like '%FullyRepTrigger%'
 limit 1;
 
 drop table t1,ndb_show_tables_results;
+
+# Check working of --fully-qualified
+CREATE TABLE test.t1 (
+  a int primary key,
+  b int
+)engine=ndbcluster;
+--replace_regex /[^ ][0-9]+/XX/
+--exec $NDB_SHOW_TABLES --no-defaults --fully-qualified -dtest t1
+# Cleanup
+DROP TABLE test.t1;

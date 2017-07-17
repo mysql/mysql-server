@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@ class FsCloseReq {
   friend class Backup;
   friend class Dbdict;
   friend class Restore;
+  friend class Dbtup;
+  friend class Ndbcntr;
 
   /**
    * For printing

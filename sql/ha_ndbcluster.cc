@@ -241,11 +241,6 @@ static MYSQL_THDVAR_ULONG(
   0                                  /* block */
 );
 
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEFAULT_NDB_INDEX_STAT_ENABLE FALSE
-#else
-#define DEFAULT_NDB_INDEX_STAT_ENABLE TRUE
-#endif
 
 static MYSQL_THDVAR_BOOL(
   index_stat_enable,                 /* name */
@@ -253,7 +248,7 @@ static MYSQL_THDVAR_BOOL(
   "Use ndb index statistics in query optimization.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  DEFAULT_NDB_INDEX_STAT_ENABLE      /* default */
+  true                               /* default */
 );
 
 
@@ -325,19 +320,13 @@ static MYSQL_THDVAR_BOOL(
   0                                  /* default */
 );
 
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-#define DEFAULT_NDB_JOIN_PUSHDOWN FALSE
-#else
-#define DEFAULT_NDB_JOIN_PUSHDOWN TRUE
-#endif
-
 static MYSQL_THDVAR_BOOL(
   join_pushdown,                     /* name */
   PLUGIN_VAR_OPCMDARG,
   "Enable pushing down of join to datanodes",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  DEFAULT_NDB_JOIN_PUSHDOWN          /* default */
+  true                               /* default */
 );
 
 static MYSQL_THDVAR_BOOL(
@@ -1323,6 +1312,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   options(0),
+  trans_options(0),
   global_schema_lock_trans(NULL),
   global_schema_lock_count(0),
   global_schema_lock_error(0),
@@ -1339,7 +1329,6 @@ Thd_ndb::Thd_ndb(THD* thd) :
   trans= NULL;
   m_handler= NULL;
   m_error= FALSE;
-  options= 0;
   m_unsent_bytes= 0;
   m_execute_count= 0;
   m_scan_count= 0;
@@ -1561,12 +1550,27 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
 }
 
 
+extern bool
+ndb_fk_util_generate_constraint_string(THD* thd, Ndb *ndb,
+                                       const NdbDictionary::ForeignKey &fk,
+                                       const int child_tab_id,
+                                       const bool print_mock_table_names,
+                                       String &fk_string);
+
+
 /**
-  Override the default get_error_message in order to add the 
-  error message of NDB .
+  Generate error messages when requested by the caller.
+  Fetches the error description from NdbError and print it in the caller's
+  buffer. This function also additionally handles HA_ROW_REF fk errors.
+
+  @param    error             The error code sent by the caller.
+  @param    buf               String buffer to print the error message.
+
+  @retval   true              if the error is permanent
+            false             if its temporary
 */
 
-bool ha_ndbcluster::get_error_message(int error, 
+bool ha_ndbcluster::get_error_message(int error,
                                       String *buf)
 {
   DBUG_ENTER("ha_ndbcluster::get_error_message");
@@ -1576,9 +1580,76 @@ bool ha_ndbcluster::get_error_message(int error,
   if (!ndb)
     DBUG_RETURN(FALSE);
 
-  const NdbError err= ndb->getNdbError(error);
-  bool temporary= err.status==NdbError::TemporaryError;
-  buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
+  bool temporary = false;
+
+  if(unlikely(error == HA_ERR_NO_REFERENCED_ROW ||
+              error == HA_ERR_ROW_IS_REFERENCED))
+  {
+    /* Error message to be generated from NdbError in latest trans or dict */
+    Thd_ndb *thd_ndb = get_thd_ndb(current_thd);
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    NdbError err;
+    if (thd_ndb->trans != NULL)
+    {
+      err = thd_ndb->trans->getNdbError();
+    }
+    else
+    {
+      //Drop table failure. get error from dictionary.
+      err = dict->getNdbError();
+      DBUG_ASSERT(err.code == 21080);
+    }
+    temporary= (err.status==NdbError::TemporaryError);
+
+    String fk_string;
+    {
+      /* copy default error message to be used on failure */
+      const char* unknown_fk = "Unknown FK Constraint";
+      buf->copy(unknown_fk, (uint32)strlen(unknown_fk), &my_charset_bin);
+    }
+
+    /* fk name of format parent_id/child_id/fk_name */
+    char fully_qualified_fk_name[MAX_ATTR_NAME_SIZE +
+                                 (2*MAX_INT_WIDTH) + 3];
+    /* get the fully qualified FK name from ndb using getNdbErrorDetail */
+    if (ndb->getNdbErrorDetail(err, &fully_qualified_fk_name[0],
+                               sizeof(fully_qualified_fk_name)) == NULL)
+    {
+      DBUG_ASSERT(false);
+      ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_RETURN(temporary);
+    }
+
+    /* fetch the foreign key */
+    NdbDictionary::ForeignKey fk;
+    if (dict->getForeignKey(fk, fully_qualified_fk_name) != 0)
+    {
+      DBUG_ASSERT(false);
+      ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_RETURN(temporary);
+    }
+
+    /* generate constraint string from fk object */
+    if(!ndb_fk_util_generate_constraint_string(current_thd, ndb,
+                                               fk, 0, false,
+                                               fk_string))
+    {
+      DBUG_ASSERT(false);
+      DBUG_RETURN(temporary);
+    }
+
+    /* fk found and string has been generated. set the buf */
+    buf->copy(fk_string);
+    DBUG_RETURN(temporary);
+  }
+  else
+  {
+    /* NdbError code. Fetch error description from ndb */
+    const NdbError err= ndb->getNdbError(error);
+    temporary= err.status==NdbError::TemporaryError;
+    buf->set(err.message, (uint32)strlen(err.message), &my_charset_bin);
+  }
+
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
   DBUG_RETURN(temporary);
 }
@@ -2974,8 +3045,6 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
     invalidate_indexes= 1;
   dict->removeTableGlobal(*m_table, invalidate_indexes);
 
-  // TODO investigate
-  DBUG_ASSERT(m_table_info == NULL);
   m_table_info= NULL;
 
   release_indexes(dict, invalidate_indexes);
@@ -3260,16 +3329,6 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       m_thd_ndb->m_execute_count++;
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
       trans->execute(NdbTransaction::Rollback);
-#ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
-      int undo_res;
-      // Undo delete_row(old_data)
-      undo_res= ndb_write_row((uchar *)old_data, TRUE, batched_update);
-      if (undo_res)
-        push_warning(table->in_use,
-                     Sql_condition::SL_WARNING,
-                     undo_res,
-                     "NDB failed undoing delete at primary key update");
-#endif
     }
     DBUG_RETURN(error);
   }
@@ -4483,14 +4542,13 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     {
       /* Unique index scan in NDB (full table scan with scan filter) */
       DBUG_PRINT("info", ("Starting unique index scan"));
-      if (!m_cond)
-        m_cond= new ha_ndbcluster_cond;
-
-      if (!m_cond)
+      if (m_cond == nullptr)
       {
-        set_my_errno(HA_ERR_OUT_OF_MEM);
-        DBUG_RETURN(my_errno());
-      }       
+        m_cond = new (std::nothrow) ha_ndbcluster_cond;
+        if (m_cond == nullptr)
+          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      }
+
       if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
                                                 start_key, end_key))
         ERR_RETURN(code.getNdbError());
@@ -4755,7 +4813,7 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       options->anyValue = thd_unmasked_server_id(thd);
     }
-    else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
+    else if (thd_ndb->check_trans_option(Thd_ndb::TRANS_NO_LOGGING))
     {
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
       ndbcluster_anyvalue_set_nologging(options->anyValue);
@@ -5815,7 +5873,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       primary_key_update ||
       need_flush)
   {
-    int res= flush_bulk_insert();
+    const int res = flush_bulk_insert();
     if (res != 0)
     {
       m_skip_auto_increment= TRUE;
@@ -7948,10 +8006,24 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_NO_KEYREAD"));
     m_disable_pushed_join= FALSE;
     break;
+  case HA_EXTRA_BEGIN_ALTER_COPY:
+    // Start of copy into intermediate table during copying alter, turn
+    // off transactions when writing into the intermediate table in order to
+    // avoid exhausting NDB transaction resources, this is safe as it would
+    // be dropped anyway if there is a failure during the alter
+    DBUG_PRINT("info", ("HA_EXTRA_BEGIN_ALTER_COPY"));
+    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_TRANSACTIONS_OFF);
+    break;
+  case HA_EXTRA_END_ALTER_COPY:
+    // End of copy into intermediate table during copying alter.
+    // Nothing to do, the transactions will automatically be enabled
+    // again for subsequent statement
+    DBUG_PRINT("info", ("HA_EXTRA_END_ALTER_COPY"));
+    break;
   default:
     break;
   }
-  
+
   DBUG_RETURN(0);
 }
 
@@ -8032,18 +8104,6 @@ int ha_ndbcluster::reset()
   m_pushed_join_operation= -1;
   m_disable_pushed_join= FALSE;
 
-#if 0
-  // Magnus, disble this "hack" until it's possible to test if
-  // it's still needed
-  /*
-    Regular partition pruning will set the bitmap appropriately.
-    Some queries like ALTER TABLE doesn't use partition pruning and
-    thus the 'used_partitions' bitmap needs to be initialized
-  */
-  if (m_part_info)
-    bitmap_set_all(&m_part_info->used_partitions);
-#endif
-
   /* reset flags set by extra calls */
   m_read_before_write_removal_possible= FALSE;
   m_read_before_write_removal_used= FALSE;
@@ -8080,20 +8140,10 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
                       (int)m_rows_inserted));
   DBUG_ASSERT(trans);
 
-  
-  if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
-  {
-    if (!allow_batch &&
-        execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
-    {
-      no_uncommitted_rows_execute_failure();
-      DBUG_RETURN(ndb_err(trans));
-    }
-  }
-  else
+  if (m_thd_ndb->check_trans_option(Thd_ndb::TRANS_TRANSACTIONS_OFF))
   {
     /*
-      signal that transaction has been broken up and hence cannot
+      signal that transaction will be broken up and hence cannot
       be rolled back
     */
     THD *thd= table->in_use;
@@ -8110,7 +8160,16 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
       DBUG_ASSERT(0);
       DBUG_RETURN(-1);
     }
+    DBUG_RETURN(0);
   }
+
+  if (!allow_batch &&
+      execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
+  {
+    no_uncommitted_rows_execute_failure();
+    DBUG_RETURN(ndb_err(trans));
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -8166,14 +8225,23 @@ int ha_ndbcluster::end_bulk_insert()
   
   if (!thd_allow_batch(thd) && thd_ndb->m_unsent_bytes)
   {
-    bool allow_batch= (thd_ndb->m_handler != 0);
+    const bool allow_batch= (thd_ndb->m_handler != 0);
     error= flush_bulk_insert(allow_batch);
     if (error != 0)
+    {
+      // The requirement to calling set_my_errno() here is
+      // not according to the handler interface specification
+      // However there it is still code in mysql_load() which check
+      // 'my_errno' after end_bulk_insert has reported failure
+      // The call to set_my_errno() can be removed from here when
+      // Bug #26126535 	MYSQL_LOAD DOES NOT CHECK RETURN VALUES
+      // FROM HANDLER BULK INSERT FUNCTIONS has been fixed upstream
       set_my_errno(error);
+    }
   }
 
-  m_rows_inserted= (ha_rows) 0;
-  m_rows_to_insert= (ha_rows) 1;
+  m_rows_inserted = 0;
+  m_rows_to_insert = 1;
   DBUG_RETURN(error);
 }
 
@@ -8329,12 +8397,14 @@ Thd_ndb::transaction_checks()
 {
   THD* thd = m_thd;
 
-  if (thd->lex->sql_command == SQLCOM_LOAD)
-    trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->get_transaction()->m_flags.enabled)
-    trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!THDVAR(thd, use_transactions))
-    trans_options|= TNTO_TRANSACTIONS_OFF;
+  if (thd->lex->sql_command == SQLCOM_LOAD ||
+      !THDVAR(thd, use_transactions))
+  {
+    // Tutrn off transactionila behaviour for the duration of this
+    // statement/transaction
+    set_trans_option(TRANS_TRANSACTIONS_OFF);
+  }
+
   m_force_send= THDVAR(thd, force_send);
   if (!thd->slave_thread)
     m_batch_size= THDVAR(thd, batch_size);
@@ -8399,7 +8469,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   }
   if (!trans && table_count == 0)
   {
-    thd_ndb->trans_options= 0;
+    thd_ndb->reset_trans_options();
 
     DBUG_PRINT("trans",("Possibly starting transaction"));
     const uint opti_node_select = THDVAR(thd, optimized_node_selection);
@@ -8414,7 +8484,7 @@ int ha_ndbcluster::start_statement(THD *thd,
     if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     {
-      thd_ndb->trans_options|= TNTO_NO_LOGGING;
+      thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
       thd_ndb->m_slow_path= TRUE;
     }
     else if (thd->slave_thread)
@@ -8490,7 +8560,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd)
   if (unlikely(m_slow_path))
   {
     if (m_share == ndb_apply_status_share && thd->slave_thread)
-        m_thd_ndb->trans_options|= TNTO_INJECTED_APPLY_STATUS;
+        m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
   int ret = 0;
@@ -8842,8 +8912,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   if (unlikely(thd_ndb->m_slow_path))
   {
     if (thd->slave_thread)
-      ndbcluster_update_apply_status
-        (thd, thd_ndb->trans_options & TNTO_INJECTED_APPLY_STATUS);
+    {
+      ndbcluster_update_apply_status(thd,
+          thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
+    }
   }
 
   if (thd->slave_thread)
@@ -9063,9 +9135,6 @@ struct NDB_Modifier
       const char * str;
       size_t len;
     } m_val_str;
-#ifdef TODO__
-    int m_val_int;
-#endif
   };
 };
 
@@ -9408,37 +9477,6 @@ NDB_Modifiers::notfound() const
   return last; // last has m_found == false
 }
 
-/**
-  Define NDB column based on Field.
-
-  Not member of ha_ndbcluster because NDBCOL cannot be declared.
-
-  MySQL text types with character set "binary" are mapped to true
-  NDB binary types without a character set.
-
-  Blobs are V2 and striping from mysql level is not supported
-  due to lack of syntax and lack of support for partitioning.
-
-  @return
-    Returns 0 or mysql error code.
-*/
-
-static bool
-ndb_blob_striping()
-{
-#ifndef DBUG_OFF
-  const char* p= getenv("NDB_BLOB_STRIPING");
-  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
-    return true;
-#endif
-  return false;
-}
-
-#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
-const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
-#else
-const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
-#endif
 
 static bool
 ndb_column_is_dynamic(THD *thd,
@@ -9524,6 +9562,22 @@ ndb_column_is_dynamic(THD *thd,
   DBUG_RETURN(dynamic);
 }
 
+
+/**
+  Define NDB column based on Field.
+
+  Not member of ha_ndbcluster because NDBCOL cannot be declared.
+
+  MySQL text types with character set "binary" are mapped to true
+  NDB binary types without a character set.
+
+  Blobs are V2 and striping from mysql level is not supported
+  due to lack of syntax and lack of support for partitioning.
+
+  @return
+    Returns 0 or mysql error code.
+*/
+
 static int
 create_ndb_column(THD *thd,
                   NDBCOL &col,
@@ -9535,12 +9589,14 @@ create_ndb_column(THD *thd,
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
   char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   assert(field->stored_in_db);
+
   // Set name
   if (col.setName(field->field_name))
   {
-    set_my_errno(errno);
-    DBUG_RETURN(errno);
+    // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
+
   // Get char set
   CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(field->charset());
   // Set type and sizes
@@ -9790,7 +9846,7 @@ create_ndb_column(THD *thd,
     col.setInlineSize(256);
     // No parts
     col.setPartSize(0);
-    col.setStripeSize(ndb_blob_striping() ? 0 : 0);
+    col.setStripeSize(0);
     break;
   //mysql_type_blob:
   case MYSQL_TYPE_GEOMETRY:
@@ -9817,10 +9873,10 @@ create_ndb_column(THD *thd,
       {
         col.setInlineSize(256);
         col.setPartSize(2000);
-        col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+        col.setStripeSize(0);
         if (mod_maxblob->m_found)
         {
-          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
         }
       }
       else if (field_blob->max_data_length() < (1 << 24))
@@ -9839,10 +9895,10 @@ create_ndb_column(THD *thd,
     }
     col.setInlineSize(256);
     col.setPartSize(4000);
-    col.setStripeSize(ndb_blob_striping() ? 8 : 0);
+    col.setStripeSize(0);
     if (mod_maxblob->m_found)
     {
-      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
+      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
     }
     break;
   mysql_type_long_blob:
@@ -9854,12 +9910,9 @@ create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(4 * (OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
-    col.setStripeSize(ndb_blob_striping() ? 4 : 0);
-    if (mod_maxblob->m_found)
-    {
-      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
-    }
+    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
+    col.setStripeSize(0);
+    // The mod_maxblob modified has no effect here, already at max
     break;
 
   // MySQL 5.7 binary-encoded JSON type
@@ -9881,7 +9934,7 @@ create_ndb_column(THD *thd,
     col.setType(NDBCOL::Blob);
     col.setInlineSize(NDB_JSON_INLINE_SIZE);
     col.setPartSize(NDB_JSON_PART_SIZE);
-    col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+    col.setStripeSize(0);
     break;
   }
 
@@ -10717,12 +10770,10 @@ int ha_ndbcluster::create(const char *name,
   NDBTAB tab;
   NDBCOL col;
   uint i, pk_length= 0;
-  bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
   int result= 0;
-  NdbDictionary::ObjectId objId;
   Ndb_fk_list fk_list_for_truncate;
 
   DBUG_ENTER("ha_ndbcluster::create");
@@ -10807,7 +10858,7 @@ int ha_ndbcluster::create(const char *name,
     tables since a table being altered might not be known to the
     mysqld issuing the alter statement.
    */
-  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  const bool is_alter= (thd_sql_command(thd) == SQLCOM_ALTER_TABLE);
   if (is_alter)
   {
     DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
@@ -10828,6 +10879,22 @@ int ha_ndbcluster::create(const char *name,
               "Implicit copying alter", "ndb_allow_copying_alter_table=0",
               "ALGORITHM=COPY to force the alter");
       DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    }
+
+    /*
+      Renaming a table and at the same time doing some other change
+      is currently not supported, see Bug #16021021 ALTER ... RENAME
+      FAILS TO RENAME ON PARTICIPANT MYSQLD.
+
+      Refuse such ALTER TABLE .. RENAME already when trying to
+      create the destination table.
+    */
+    const uint flags= thd->lex->alter_info->flags;
+    if (flags & Alter_info::ALTER_RENAME &&
+        flags & ~Alter_info::ALTER_RENAME)
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
+      DBUG_RETURN(ER_NOT_SUPPORTED_YET);
     }
   }
 
@@ -10864,6 +10931,7 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
+  const bool is_truncate = (thd_sql_command(thd) == SQLCOM_TRUNCATE);
   if (is_truncate)
   {
     Ndb_table_guard ndbtab_g(dict);
@@ -11028,14 +11096,17 @@ int ha_ndbcluster::create(const char *name,
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
-    goto err_return;
+    m_table= 0;
+    ERR_RETURN(dict->getNdbError());
   }
   DBUG_PRINT("info", ("Started schema transaction"));
 
+  int abort_error = 0;
+  int create_result;
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
-    set_my_errno(errno);
+    abort_error = errno;
     goto abort;
   }
   if (!ndb_sys_table)
@@ -11186,9 +11257,13 @@ int ha_ndbcluster::create(const char *name,
                         field->pack_length(), field->stored_in_db));
     if(field->stored_in_db)
     {
-      set_my_errno(create_ndb_column(thd, col, field, create_info));
-      if (my_errno())
+      const int create_column_result =
+          create_ndb_column(thd, col, field, create_info);
+      if (create_column_result)
+      {
+        abort_error = create_column_result;
         goto abort;
+      }
 
       if (!use_disk &&
           col.getStorageType() == NDBCOL::StorageTypeDisk)
@@ -11196,7 +11271,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (tab.addColumn(col))
       {
-        set_my_errno(errno);
+        abort_error = errno;
         goto abort;
       }
       if (col.getPrimaryKey())
@@ -11277,7 +11352,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      set_my_errno(errno);
+      abort_error = errno;
       goto abort;
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
@@ -11288,7 +11363,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      set_my_errno(errno);
+      abort_error = errno;
       goto abort;
     }
     pk_length += 2;
@@ -11306,8 +11381,7 @@ int ha_ndbcluster::create(const char *name,
      * 5 - from extra words added by tup/dict??
      */
 
-    // To be upgrade/downgrade safe...we currently use
-    // old NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
+    // Use NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
     switch (form->field[i]->real_type()) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
@@ -11317,7 +11391,7 @@ int ha_ndbcluster::create(const char *name,
     {
       NdbDictionary::Column * column= table_map.getColumn(tab, i);
       unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
-      unsigned ndb_max= OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS;
+      unsigned ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS;
       if (column->getPartSize() > (int)(4 * ndb_max))
         ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS; // MAX_BLOB_PART_SIZE
 
@@ -11356,10 +11430,16 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  set_my_errno(create_table_set_up_partition_info(form->part_info,
-                                                  tab, table_map));
-  if (my_errno())
-    goto abort;
+  {
+    const int setup_partinfo_result =
+        create_table_set_up_partition_info(form->part_info,
+                                           tab, table_map);
+    if (setup_partinfo_result)
+    {
+      abort_error = setup_partinfo_result;
+      goto abort;
+    }
+  }
 
   if (tab.getFullyReplicated() &&
       (tab.getFragmentType() != NDBTAB::HashMapPartition ||
@@ -11419,7 +11499,7 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        set_my_errno(ndb_to_mysql_error(&err));
+        abort_error = ndb_to_mysql_error(&err);
         goto abort;
       }
 
@@ -11427,64 +11507,77 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        set_my_errno(ndb_to_mysql_error(&err));
+        abort_error = ndb_to_mysql_error(&err);
         goto abort;
       }
     }
   }
 
-  // Create the table in NDB     
-  if (dict->createTable(tab, &objId) != 0)
+  // Create the table in NDB
+  if (dict->createTable(tab) != 0)
   {
     const NdbError err= dict->getNdbError();
-    set_my_errno(ndb_to_mysql_error(&err));
+    abort_error = ndb_to_mysql_error(&err);
     goto abort;
   }
 
-  DBUG_PRINT("info", ("Table %s/%s created successfully", 
-                      m_dbname, m_tabname));
+  DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
+                      m_dbname, m_tabname,
+                      tab.getObjectId(),
+                      tab.getObjectVersion()));
+
+#ifdef DISABLED_UNTIL_OPEN_WITHOUT_SDI_COMPARE
+  // Update table definition with the table id of the newly created table
+  // the caller will then save this information in the DD
+  ndb_dd_table_set_se_private_id(table_def, tab.getObjectId());
+#endif
+
+  m_table= &tab;
 
   // Create secondary indexes
-  tab.assignObjId(objId);
-  m_table= &tab;
-  set_my_errno(create_indexes(thd, ndb, form));
+  create_result = create_indexes(thd, ndb, form);
 
-  if (!is_truncate && my_errno() == 0)
+  if (create_result == 0 &&
+      !is_truncate)
   {
-    set_my_errno(create_fks(thd, ndb));
+    create_result = create_fks(thd, ndb);
   }
 
-  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+  if (create_result == 0 &&
+      (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
        thd->lex->sql_command == SQLCOM_DROP_INDEX ||
-       thd->lex->sql_command == SQLCOM_CREATE_INDEX) &&
-      my_errno() == 0)
+       thd->lex->sql_command == SQLCOM_CREATE_INDEX))
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
      *   so we need to copy the old ones ourselves
      */
-    set_my_errno(copy_fk_for_offline_alter(thd, ndb, &tab));
+    create_result = copy_fk_for_offline_alter(thd, ndb, &tab);
   }
 
-  if (!fk_list_for_truncate.is_empty() && my_errno() == 0)
+  if (create_result == 0 &&
+      !fk_list_for_truncate.is_empty())
   {
     /*
      create FKs for the new table from the list got from old table.
      for truncate table.
      */
-    set_my_errno(recreate_fk_for_truncate(thd, ndb, tab.getName(),
-                                          fk_list_for_truncate));
+    create_result = recreate_fk_for_truncate(thd, ndb, tab.getName(),
+                                             fk_list_for_truncate);
   }
 
   m_table= 0;
 
-  if (!my_errno())
+  if (create_result == 0)
   {
     /*
      * All steps have succeeded, try and commit schema transaction
      */
     if (dict->endSchemaTrans() == -1)
-      goto err_return;
+    {
+      m_table= 0;
+      ERR_RETURN(dict->getNdbError());
+    }
 
     Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
@@ -11492,10 +11585,17 @@ int ha_ndbcluster::create(const char *name,
   }
   else
   {
+    DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
+                         "create_result: %d", create_result));
+    abort_error = create_result;
+
 abort:
-/*
- *  Some step during table creation failed, abort schema transaction
- */
+    /*
+     *  Some step during table creation failed, abort schema transaction
+     */
+
+    // Require that 'abort_error' was set before "goto abort"
+    DBUG_ASSERT(abort_error);
 
     {
       // Flush out the indexes(if any) from ndbapi dictionary's cache first
@@ -11514,7 +11614,7 @@ abort:
 
     // Now abort schema transaction
     DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
-                        my_errno()));
+                        abort_error));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
@@ -11530,18 +11630,24 @@ abort:
       ndbtab_g.invalidate();
     }
 
-    DBUG_RETURN(my_errno());
+    DBUG_RETURN(abort_error);
+
 abort_return:
+
+    // Require that "result" was set before "goto abort_return"
+    DBUG_ASSERT(result);
+
     DBUG_PRINT("info", ("Aborting schema transaction"));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
                           dict->getNdbError().code));
     DBUG_RETURN(result);
-err_return:
-    m_table= 0;
-    ERR_RETURN(dict->getNdbError());
   }
+
+  // All objects have been created sucessfully and
+  // thus "create_result" have to be zero here
+  DBUG_ASSERT(create_result == 0);
 
   /**
    * createTable/index schema transaction OK
@@ -11586,9 +11692,15 @@ cleanup_failed:
       break;
     }
     m_table = 0;
-    DBUG_RETURN(my_errno());
+
+    // The above code is activated when the table can't be opened in NDB,
+    // it then tries to drop the table which it can't open, having m_table
+    // being NULL indicates that most of the code is dead(and obfuscated).
+    // However an NDB error must have occured since the table can't
+    // be opened and as such the NDB error can be returned here
+    ERR_RETURN(dict->getNdbError());
   }
-  else // if (!my_errno)
+  else
   {
     NDB_SHARE *share= 0;
     mysql_mutex_lock(&ndbcluster_mutex);
@@ -11607,7 +11719,6 @@ cleanup_failed:
     if (!(share= get_share(name, form, TRUE, TRUE)))
     {
       ndb_log_error("allocating table share for %s failed", name);
-      /* my_errno is set */
     }
     else
     {
@@ -11680,7 +11791,7 @@ cleanup_failed:
   }
 
   m_table= 0;
-  DBUG_RETURN(my_errno());
+  DBUG_RETURN(0); // All OK
 }
 
 
@@ -11795,8 +11906,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     ndb_index.setTemporary(TRUE); 
   if (ndb_index.setTable(m_tabname))
   {
-    set_my_errno(errno);
-    DBUG_RETURN(errno);
+    // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
 
   for (; key_part != end; key_part++) 
@@ -11816,8 +11927,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
-      set_my_errno(errno);
-      DBUG_RETURN(errno);
+      // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
   }
   
@@ -11828,6 +11939,55 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   DBUG_PRINT("info", ("Created index %s", name));
   DBUG_RETURN(0);  
 }
+
+
+/**
+  Truncate a table in NDB, after this command there should
+  be no rows left in the table and the autoincrement
+  value should be reset to its start value.
+
+  This is currently implemented by dropping the table and
+  creating it again, thus rendering it empty
+
+  @param[in,out]  table_def dd::Table describing table to be
+                  truncated. Can be adjusted by SE, the changes
+                  will be saved in the DD at statement commit time.
+
+  @return         error number
+  @retval         0 on success
+*/
+
+int ha_ndbcluster::truncate(dd::Table *table_def)
+{
+  DBUG_ENTER("ha_ndbcluster::truncate");
+
+  /* Table should have been opened */
+  DBUG_ASSERT(m_table);
+
+  /* Fill in create_info from the open table */
+  HA_CREATE_INFO create_info;
+  update_create_info_from_table(&create_info, table);
+
+  // Close the table, will always return 0
+  (void)close();
+
+  // Call ha_ndbcluster::create which will detect that this is a
+  // truncate and thus drop the table before creating it again.
+  const int truncate_error =
+      create(table->s->normalized_path.str, table,
+             &create_info,
+             table_def);
+
+  // Open the table again even if the truncate failed, the caller
+  // expect the table to be open. Report any error during open.
+  const int open_error =
+      open(table->s->normalized_path.str, 0, 0, table_def);
+
+  if (truncate_error)
+    DBUG_RETURN(truncate_error);
+  DBUG_RETURN(open_error);
+}
+
 
 
 int ha_ndbcluster::prepare_inplace__add_index(THD *thd,
@@ -12184,26 +12344,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
   DBUG_ENTER("ha_ndbcluster::rename_table");
   DBUG_PRINT("info", ("Renaming %s to %s", from, to));
-
-  /*
-    ALTER RENAME with some more change is currently not supported
-    by Ndb due to
-    Bug #16021021 ALTER ... RENAME FAILS TO RENAME ON PARTICIPANT MYSQLD
-
-    Check if command is not RENAME and some more alter_flag
-    except ALTER_RENAME is set.
-  */
-  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
-  {
-    Alter_info *alter_info= thd->lex->alter_info;
-    uint flags= alter_info->flags;
-
-    if (flags & Alter_info::ALTER_RENAME && flags & ~Alter_info::ALTER_RENAME)
-    {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query().str);
-      DBUG_RETURN(ER_NOT_SUPPORTED_YET);
-    }
-  }
 
   set_dbname(from, old_dbname);
   set_dbname(to, new_dbname);
@@ -12830,7 +12970,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_disable_pushed_join(FALSE),
   m_active_query(NULL),
   m_pushed_operation(NULL),
-  m_cond(NULL),
+  m_cond(nullptr),
   m_multi_cursor(NULL)
 {
   uint i;
@@ -12878,12 +13018,9 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_ASSERT(m_thd_ndb == NULL);
 
   // Discard any generated condition
-  DBUG_PRINT("info", ("Deleting generated condition"));
-  if (m_cond)
-  {
-    delete m_cond;
-    m_cond= NULL;
-  }
+  delete m_cond;
+  m_cond = nullptr;
+
   DBUG_PRINT("info", ("Deleting pushed joins"));
   DBUG_ASSERT(m_active_query == NULL);
   DBUG_ASSERT(m_active_cursor == NULL);
@@ -13062,7 +13199,7 @@ int ha_ndbcluster::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   return (error) ? error : stats_error;
 }
 
-int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
+int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay) const
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
@@ -13511,11 +13648,9 @@ int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
 
 
 /**
-  Drop a database in NDB Cluster
-
-  @note
-    add a dummy void function, since stupid handlerton is returning void instead of int...
+  Drop a database and all its tables from NDB
 */
+
 int ndbcluster_drop_database_impl(THD *thd, const char *path)
 {
   DBUG_ENTER("ndbcluster_drop_database");
@@ -13909,10 +14044,10 @@ int ndbcluster_init(void* p)
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
     h->fill_is_table=    ndbcluster_fill_is_table;
     ndbcluster_binlog_init(h);
-    h->flags=            HTON_CAN_RECREATE |
-                         HTON_TEMPORARY_NOT_SUPPORTED |
+    h->flags=            HTON_TEMPORARY_NOT_SUPPORTED |
                          HTON_NO_BINLOG_ROW_OPT |
-                         HTON_SUPPORTS_FOREIGN_KEYS;
+                         HTON_SUPPORTS_FOREIGN_KEYS |
+                         HTON_SUPPORTS_ATOMIC_DDL;
     h->discover=         ndbcluster_discover;
     h->find_files=       ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
@@ -13978,21 +14113,6 @@ int ndbcluster_init(void* p)
   DBUG_RETURN(0); // OK
 }
 
-#ifndef DBUG_OFF
-static
-const char*
-get_share_state_string(NDB_SHARE_STATE s)
-{
-  switch(s) {
-  case NSS_INITIAL:
-    return "NSS_INITIAL";
-  case NSS_DROPPED:
-    return "NSS_DROPPED";
-  }
-  assert(false);
-  return "<unknown>";
-}
-#endif
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 {
@@ -14016,7 +14136,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) still open\n",
               share->key_string(), share->use_count,
-              get_share_state_string(share->state),
+              share->share_state_string(),
               (uint)share->state);
 #endif
 
@@ -14038,7 +14158,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
               share->key_string(), share->use_count,
-              get_share_state_string(share->state),
+              share->share_state_string(),
               (uint)share->state);
       /**
        * For unknown reasons...the dist-priv tables linger here
@@ -14418,6 +14538,16 @@ ulonglong ha_ndbcluster::table_flags(void) const
   if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,m_tabname))
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
 
+  /*
+     Allow MySQL Server to decide that STATEMENT logging should be used
+     during TRUNCATE TABLE, thus writing the truncate query to the binlog
+     in STATEMENT format. Basically this is shortcutting the logic
+     in THD::decide_logging_format() to not handle the truncated
+     table as a "no_replicate" table.
+  */
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
+    f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
   /**
    * To maximize join pushability we want const-table 
    * optimization blocked if 'ndb_join_pushdown= on'
@@ -14556,9 +14686,6 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   /*
     Ndb share has not been released as it should
   */
-#ifdef NOT_YET
-  DBUG_ASSERT(FALSE);
-#endif
 
   /*
     This is probably an error.  We can however save the situation
@@ -14954,7 +15081,6 @@ int ha_ndbcluster::update_stats(THD *thd,
     Ndb *ndb= thd_ndb->ndb;
     if (ndb->setDatabaseName(m_dbname))
     {
-      set_my_errno(HA_ERR_OUT_OF_MEM);
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(thd,
@@ -16362,7 +16488,7 @@ int ndbcluster_make_pushed_join(handlerton *hton,
 
   if (THDVAR(thd, join_pushdown) &&
       // Check for online upgrade/downgrade.
-      ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
+      ndbd_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
     bool pushed_something = false;
     ndb_pushed_builder_ctx pushed_builder(*plan);
@@ -16635,7 +16761,6 @@ ha_ndbcluster::cond_push(const Item *cond)
 { 
   DBUG_ENTER("ha_ndbcluster::cond_push");
 
-#if 1
   if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
     /**
@@ -16647,21 +16772,19 @@ ha_ndbcluster::cond_push(const Item *cond)
     DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
     DBUG_RETURN(cond);
   }
-#else
-  /*
-    Make sure that 'cond' does not refer field(s) from other tables
-    or other instances of this table.
-    (This was a legacy bug in optimizer)
-  */
-  DBUG_ASSERT(!(cond->used_tables() & ~table->pos_in_table_list->map()));
-#endif
-  if (!m_cond) 
-    m_cond= new ha_ndbcluster_cond;
-  if (!m_cond)
+
+  if (m_cond == nullptr)
   {
-    set_my_errno(HA_ERR_OUT_OF_MEM);
-    DBUG_RETURN(cond);
+    m_cond= new (std::nothrow) ha_ndbcluster_cond;
+    if (m_cond == nullptr)
+    {
+      // Failed to allocate condition pushdown, return
+      // the full cond in order to indicate that it was not supported
+      // and caller has to evalute each row returned
+      DBUG_RETURN(cond);
+    }
   }
+
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
@@ -17427,17 +17550,18 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
            }
          }
          /* Create new field to check if it can be added */
-         set_my_errno(create_ndb_column(thd, col, field, create_info,
-                                        COLUMN_FORMAT_TYPE_DYNAMIC));
-         if (my_errno())
+         const int create_column_result =
+             create_ndb_column(thd, col, field, create_info,
+                               COLUMN_FORMAT_TYPE_DYNAMIC);
+         if (create_column_result)
          {
-           DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno()));
+           DBUG_PRINT("info", ("Failed to create NDB column, error %d",
+                               create_column_result));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
          if (new_tab.addColumn(col))
          {
-           set_my_errno(errno);
-           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno()));
+           DBUG_PRINT("info", ("Failed to add NDB column to table"));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
        }
@@ -17997,14 +18121,15 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
        Field *field= altered_table->field[i];
        if(! field->stored_in_db)
          continue;
+
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
-       set_my_errno(create_ndb_column(thd, col, field, create_info,
-                                      COLUMN_FORMAT_TYPE_DYNAMIC));
-       if (my_errno())
+       if (create_ndb_column(thd, col, field, create_info,
+                                 COLUMN_FORMAT_TYPE_DYNAMIC) != 0)
        {
-         error= my_errno();
+         // Failed to create column in NDB
          goto abort;
        }
+
        /*
          If the user has not specified the field format
          make it dynamic to enable online add attribute
@@ -18098,7 +18223,6 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
         res= ER_CANNOT_ADD_FOREIGN;
       }
       error= res;
-      set_my_errno(error);
       my_error(error, MYF(0), 0);
       goto abort;
     }
@@ -19860,7 +19984,7 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
     const NDB_SHARE *share= key_and_value.second;
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
-                 get_share_state_string(share->state),
+                 share->share_state_string(),
                  (unsigned)share->state,
                  share->use_count);
     assert(share->state != NSS_DROPPED);
@@ -19872,7 +19996,7 @@ dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
     const NDB_SHARE *share= key_and_value.second;
     ndb_log_info("  %s.%s: state: %s(%u) use_count: %u",
                  share->db, share->table_name,
-                 get_share_state_string(share->state),
+                 share->share_state_string(),
                  (unsigned)share->state,
                  share->use_count);
     assert(share->state == NSS_DROPPED);

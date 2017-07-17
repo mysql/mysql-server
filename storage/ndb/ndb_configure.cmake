@@ -73,6 +73,10 @@ CHECK_FUNCTION_EXISTS(setpriority HAVE_SETPRIORITY)
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 CHECK_INCLUDE_FILES(Processtopologyapi.h HAVE_PROCESSTOPOLOGYAPI_H)
 CHECK_INCLUDE_FILES(Processthreadsapi.h HAVE_PROCESSTHREADSAPI_H)
+CHECK_INCLUDE_FILES(ncursesw/curses.h HAVE_NCURSESW_CURSES_H)
+CHECK_INCLUDE_FILES(ncursesw.h HAVE_NCURSESW_H)
+CHECK_INCLUDE_FILES(ncurses.h HAVE_NCURSES_H)
+CHECK_INCLUDE_FILES(ncurses/curses.h HAVE_NCURSES_CURSES_H)
 
 CHECK_CXX_SOURCE_RUNS("
 unsigned A = 7;
@@ -202,6 +206,76 @@ int main()
   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
 }"
 HAVE_LINUX_FUTEX)
+
+IF (NOT WIN32)
+  FIND_LIBRARY(NCURSESW_LIB
+               NAMES ncursesw)
+  IF (NOT NCURSESW_LIB)
+    FIND_LIBRARY(NCURSESW_LIB
+                 NAMES ncurses)
+  ENDIF()
+  SET(CMAKE_REQUIRED_LIBRARIES ${NCURSESW_LIB})
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_1 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_2 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses/curses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_3 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncurses.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_4 )
+
+  CHECK_CXX_SOURCE_COMPILES("
+#define _XOPEN_SOURCE_EXTENDED
+#include <ncursesw.h>
+#include <stdlib.h>
+int main()
+{
+  wcstombs(NULL, NULL, 0);
+  addstr(NULL);
+  return 0;
+}"
+  HAVE_NCURSESW_5 )
+ENDIF()
 
 OPTION(WITH_NDBMTD
   "Build the MySQL Cluster multithreadded data node" ON)

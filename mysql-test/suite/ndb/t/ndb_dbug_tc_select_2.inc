@@ -1,5 +1,12 @@
 
---eval create table t1 (a $type1, b $type2, c $type3, d int, primary key(a,c), unique(c,b)) engine ndb
+eval create table t1 (
+  a $type1,
+  b $type2,
+  c $type3,
+  d int,
+  primary key(a,c),
+  unique(c,b)
+) charset latin1 engine ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
 
 --echo # verify tc select on insert using simple int key
