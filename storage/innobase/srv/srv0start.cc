@@ -2850,7 +2850,6 @@ srv_start_purge_threads()
 	/* Start purge threads only if they are not started
 	earlier. */
 	if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
-		ut_ad(srv_is_upgrade_mode);
 		return;
 	}
 
