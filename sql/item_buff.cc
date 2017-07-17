@@ -267,11 +267,8 @@ bool Cached_item_decimal::cmp()
     null_value= item->null_value;
     /* Save only not null values */
     if (!null_value)
-    {
       my_decimal2decimal(ptmp, &value);
-      DBUG_RETURN(TRUE);
-    }
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(true);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
