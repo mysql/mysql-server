@@ -21864,8 +21864,8 @@ i_s_innodb_columns,
 i_s_innodb_fields,
 i_s_innodb_foreign,
 i_s_innodb_foreign_cols,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_datafiles,
+#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_virtual,
 i_s_innodb_cached_indexes
 

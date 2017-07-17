@@ -37,6 +37,7 @@
 #include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
 #include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
 #include "dd/impl/system_views/innodb_fields.h"      // Innodb_fields
+#include "dd/impl/system_views/innodb_datafiles.h"   // Innodb_datafiles
 
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
@@ -188,6 +189,7 @@ void System_views::init()
   register_view<dd::system_views::Innodb_foreign>(is);
   register_view<dd::system_views::Innodb_foreign_cols>(is);
   register_view<dd::system_views::Innodb_fields>(is);
+  register_view<dd::system_views::Innodb_datafiles>(is);
 }
 
 } // namespace dd
