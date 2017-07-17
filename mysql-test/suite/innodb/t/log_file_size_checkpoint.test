@@ -1,7 +1,7 @@
 --source include/no_valgrind_without_big.inc
 
 let $n=250;
-let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;
+let $t=very_long_table_name;
 
 --disable_query_log
 call mtr.add_suppression("InnoDB: Resizing redo log");

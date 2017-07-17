@@ -5345,14 +5345,14 @@ fil_flush(space_id_t space_id)
 			++fil_n_pending_log_flushes;
 			break;
 		}
+
+		bool	skip_flush = false;
 #ifdef _WIN32
 		if (file.is_raw_disk) {
 
-			goto skip_flush;
+			skip_flush = true;;
 		}
 #endif /* _WIN32 */
-
-		bool	skip_flush = false;
 
 		while (file.n_pending_flushes > 0 && !skip_flush) {
 
