@@ -3429,7 +3429,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	cola,colb	cola,colb	12,12	NULL	29	100.00	Using intersect(cola,colb); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`cola` = 'foo') and (`test`.`t1`.`colb` = 'bar'))
+Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where ((`test`.`t1`.`colb` = 'bar') and (`test`.`t1`.`cola` = 'foo'))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3456,15 +3456,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "resulting_condition": "(multiple equal('foo', `t1`.`cola`) and multiple equal('bar', `t1`.`colb`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3673,13 +3673,13 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))",
+              "original_condition": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`cola` = 'foo') and (`t1`.`colb` = 'bar'))"
+                  "attached": "((`t1`.`colb` = 'bar') and (`t1`.`cola` = 'foo'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -3735,15 +3735,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`cola` = 'f\\no')"
+                  "resulting_condition": "multiple equal('f\\no', `t1`.`cola`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5197,7 +5197,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5224,15 +5224,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal('a', `t1`.`v`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5444,7 +5444,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -5487,7 +5487,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	12	const,const	1	20.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`v` = 'a') and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -5514,15 +5514,15 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5763,7 +5763,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -6122,15 +6122,15 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`c1` = '1')"
+                  "resulting_condition": "multiple equal('1', `t1`.`c1`)"
                 }
               ] /* steps */
             } /* condition_processing */

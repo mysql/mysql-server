@@ -5521,6 +5521,19 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs,
 
 }  // extern "C"
 
+/*
+  Check if a constant can be propagated
+
+  Currently we don't check the constant itself, and decide not to propagate
+  a constant just if the collation itself allows expansions or contractions.
+*/
+bool my_propagate_uca_900(const CHARSET_INFO *cs,
+                          const uchar *str MY_ATTRIBUTE((unused)),
+                          size_t length MY_ATTRIBUTE((unused)))
+{
+  return !my_uca_have_contractions(cs->uca);
+}
+
 template<class Mb_wc, int LEVELS_FOR_COMPARE>
 static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
                                        const Mb_wc mb_wc,
@@ -6582,7 +6595,7 @@ MY_COLLATION_HANDLER my_collation_uca_900_handler =
     my_strcasecmp_uca,
     my_instr_mb,
     my_hash_sort_uca_900,
-    my_propagate_complex
+    my_propagate_uca_900
 };
 
 

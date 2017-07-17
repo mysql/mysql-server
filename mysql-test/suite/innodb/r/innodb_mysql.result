@@ -2570,7 +2570,7 @@ c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 'TEST') and (`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00') and multiple equal('TEST', `test`.`t1`.`a`))
 DROP TABLE t1;
 #
 # Bug #46175: NULL read_view and consistent read assertion
@@ -2783,7 +2783,7 @@ AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx1,idx2	PRIMARY	4	NULL	18	0.28	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t1` where ((`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f2` = 1221457) and (`test`.`t1`.`f1` in (3305028,3353871,3772880,3346860,4228206,3336022,3470988,3305175,3329875,3817277,3856380,3796193,3784744,4180925,4559596,3963734,3856391,4494153)) and (`test`.`t1`.`f5` = 'abcdefghijklmnopwrst'))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`t1`.`f3` AS `f3`,`test`.`t1`.`f4` AS `f4`,`test`.`t1`.`f5` AS `f5` from `test`.`t1` where ((`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f2` = 1221457) and (`test`.`t1`.`f5` = 'abcdefghijklmnopwrst') and (`test`.`t1`.`f1` in (3305028,3353871,3772880,3346860,4228206,3336022,3470988,3305175,3329875,3817277,3856380,3796193,3784744,4180925,4559596,3963734,3856391,4494153)))
 DROP TABLE t1;
 #
 # Bug#51431 Wrong sort order after import of dump file
