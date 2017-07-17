@@ -20,10 +20,11 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include "ngs_common/to_string.h"
 
 #include "connector/mysqlx_all_msgs.h"
+#include "formatters/message_formatter.h"
 #include "json_to_any_handler.h"
-#include "ngs_common/to_string.h"
 #include "processor/commands/mysqlxtest_error_names.h"
 #include "processor/macro_block_processor.h"
 #include "processor/stream_processor.h"
@@ -85,12 +86,6 @@ class Backup_and_restore {
   T *m_variable;
   T  m_value;
 };
-
-std::string message_to_text(const xcl::XProtocol::Message &message) {
-  std::stringstream s;
-  s << message;
-  return s.str();
-}
 
 }  // namespace
 
@@ -255,7 +250,7 @@ Command::Result Command::cmd_recvtype(std::istream &input,
 
   try {
     const std::string message_in_text =
-        context->m_variables->unreplace(message_to_text(*msg), true);
+        context->m_variables->unreplace(formatter::message_to_text(*msg), true);
 
     if (msg->GetDescriptor()->full_name() != vargs[0]) {
       context->print("Received unexpected message. Was expecting:\n    ",
@@ -859,11 +854,10 @@ Command::Result Command::cmd_recv(std::istream &input,
   std::string args_copy(args);
 
   aux::trim(args_copy);
+
   if (args_copy == "quiet") {
     quiet = true;
-  } else if (!args_copy.empty()) {
-    context->print_error("ERROR: Unknown command argument: ", args_copy, '\n');
-    return Result::Stop_with_failure;
+    args_copy = "";
   }
 
   try {
@@ -883,7 +877,8 @@ Command::Result Command::cmd_recv(std::istream &input,
 
     if (msg.get() && (context->m_options.m_show_query_result && !quiet))
       context->print(
-          context->m_variables->unreplace(message_to_text(*msg), true), "\n");
+          context->m_variables->unreplace(formatter::message_to_text(
+              *msg, args_copy), true), "\n");
 
     if (!context->m_expected_error.check_ok())
       return Result::Stop_with_failure;
@@ -1632,8 +1627,14 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
-  std::cout << "-->recv [quiet]\n";
-  std::cout << "  Read and print (if not quiet) one message from the server\n";
+  std::cout << "-->recv [quiet|<FIELD PATH>]\n";
+  std::cout << "  quiet        - received message isn't printed\n";
+  std::cout << "  <FIELD PATH> - print only selected part of the message using"
+               "                 \"field-path\" filter:\n";
+  std::cout << "                 * field_name1\n";
+  std::cout << "                 * field_name1.field_name2\n";
+  std::cout << "                 * repeated_field_name1[1].field_name1\n";
+
   std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET
             << "]\n";
   std::cout << "  Read and print one resultset from the server; if "

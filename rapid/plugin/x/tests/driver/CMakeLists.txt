@@ -15,16 +15,11 @@
 
 SET(XTEST_EXE_NAME mysqlxtest)
 
-FILE(GLOB XTEST_HDRS
-  "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"
-  "${MYSQLX_PROJECT_DIR}/ngs/include/ngs_common/*.h"
-)
-
 FILE(GLOB XTEST_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/connector/*.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/formatters/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
 )

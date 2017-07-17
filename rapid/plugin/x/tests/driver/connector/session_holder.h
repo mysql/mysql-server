@@ -25,7 +25,7 @@
 #include <string>
 #include <utility>
 
-#include "console.h"
+#include "formatters/console.h"
 #include "my_macros.h"
 #include "mysqlxclient/xconnection.h"
 #include "mysqlxclient/xsession.h"

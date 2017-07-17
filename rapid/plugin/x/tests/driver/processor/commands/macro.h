@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "console.h"
+#include "formatters/console.h"
 #include "processor/block_processor.h"
 #include "processor/script_stack.h"
 
