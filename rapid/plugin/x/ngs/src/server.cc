@@ -351,7 +351,8 @@ Authentication_handler_ptr Server::get_auth_handler(const std::string &name, Ses
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client)
 {
-  bool tls_active = client.connection().options()->active_tls();
+  const Connection_type type      = client.connection().connection_type();
+  const bool            is_secure = Connection_type_helper::is_secure_type(type);
 
   auth_mech.clear();
 
@@ -361,7 +362,7 @@ void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, 
 
   while (m_auth_handlers.end() != i)
   {
-    if (i->first.should_be_tls_active == tls_active)
+    if (i->first.must_be_secure_connection == is_secure)
       auth_mech.push_back(i->first.name);
     ++i;
   }

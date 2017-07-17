@@ -215,11 +215,42 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+#
+# Match capabilities with the result file,
+# must contain PLAIN and MYSQL41
+#
+Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.Array {
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "MYSQL41"
+      }
+    }
+  }
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "PLAIN"
+      }
+    }
+  }
+}
+
+#
+# Do plain authentication (must be available)
+#
 Mysqlx.Session.AuthenticateOk {
   auth_data: ""
 }
 
 ok
+#
+# Lets confirm that user can connect through UNIX socket connection is secure one
+#
 SET GLOBAL require_secure_transport:=1;
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
@@ -268,6 +299,34 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+#
+# Match capabilities with the result file,
+# must contain PLAIN and MYSQL41
+#
+Mysqlx.Connection.Capabilities(capabilities[0].value.array) = Mysqlx.Datatypes.Array {
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "MYSQL41"
+      }
+    }
+  }
+  value {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "PLAIN"
+      }
+    }
+  }
+}
+
+#
+# Do plain authentication (must be available)
+#
 Mysqlx.Session.AuthenticateOk {
   auth_data: ""
 }
