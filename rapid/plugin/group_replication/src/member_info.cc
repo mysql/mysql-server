@@ -867,6 +867,26 @@ get_primary_member_uuid(std::string &primary_member_uuid)
     primary_member_uuid= "UNDEFINED";
 }
 
+bool Group_member_info_manager::is_majority_unreachable()
+{
+  bool ret= false;
+  int unreachables= 0;
+
+  mysql_mutex_lock(&update_lock);
+  map<string, Group_member_info*>::iterator it= members->begin();
+
+  for (it= members->begin(); it != members->end(); it++)
+  {
+    Group_member_info* info= (*it).second;
+    if (info->is_unreachable())
+      unreachables++;
+  }
+  ret= (members->size() - unreachables) <= (members->size() / 2);
+  mysql_mutex_unlock(&update_lock);
+
+  return ret;
+}
+
 Group_member_info_manager_message::Group_member_info_manager_message()
   : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE)
 {
