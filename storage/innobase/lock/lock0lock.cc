@@ -2728,6 +2728,7 @@ lock_grant_vats(
 
 	if (waiting.empty() && granted.empty()) {
 		/* Nothing to grant. */
+		mem_heap_free(heap);
 		return;
 	}
 
