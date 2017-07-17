@@ -6929,9 +6929,9 @@ fil_tablespace_redo_create(
 				<< " Length (" << len << ") must be >= 5"
 				<< " and end in '.ibd'. File name in the"
 				<< " redo log is '" << name << "'";
-		}
 
-		recv_sys->found_corrupt_log = true;
+			recv_sys->found_corrupt_log = true;
+		}
 
 		return(nullptr);
 	}
