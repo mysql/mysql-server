@@ -5002,7 +5002,6 @@ dd_drop_fts_table(
 	}
 
 	if (client->drop(dd_table)) {
-		ut_ad(0);
 		return(false);
 	}
 
