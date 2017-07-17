@@ -6637,9 +6637,10 @@ void
 fil_space_t::release_free_extents(ulint	n_reserved)
 {
 	ut_ad(rw_lock_own(&latch, RW_LOCK_X));
+	ut_a(n_reserved < std::numeric_limits<uint32_t>::max());
 
 	ut_a(n_reserved_extents >= n_reserved);
-	n_reserved_extents -= n_reserved;
+	n_reserved_extents -= (uint32_t) n_reserved;
 }
 
 #ifdef UNIV_DEBUG
