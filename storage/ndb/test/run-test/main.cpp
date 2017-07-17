@@ -96,7 +96,7 @@ static struct
   { true,  "ndbd",              &g_ndbd_bin_path },
   { false, "ndbmtd",            &g_ndbmtd_bin_path },
   { true,  "mysqld",            &g_mysqld_bin_path },
-  { true,  "mysql_install_db",  &g_mysql_install_db_bin_path },
+  { false, "mysql_install_db",  &g_mysql_install_db_bin_path },
 #if defined(__MACH__)
   { true,  "libmysqlclient.dylib", &g_libmysqlclient_so_path },
 #else
