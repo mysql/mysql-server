@@ -1,7 +1,7 @@
 Valid values are semi-colon separated strings
 select @@global.innodb_scan_directories;
 @@global.innodb_scan_directories
-
+NULL
 select @@session.innodb_scan_directories;
 ERROR HY000: Variable 'innodb_scan_directories' is a GLOBAL variable
 show global variables like 'innodb_scan_directories';
