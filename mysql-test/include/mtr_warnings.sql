@@ -282,6 +282,8 @@ INSERT INTO global_suppressions VALUES
  ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
  ("Skip re-populating collations and character sets tables in read-only mode"),
  ("Skip updating information_schema metadata in read-only mode"),
+ ("The member lost contact with a majority of the members in the group. Until the network is restored.*"),
+ ("The member resumed contact with a majority of the members in the group.*"),
 
  ("THE_LAST_SUPPRESSION")||
 
