@@ -496,7 +496,6 @@ dd_process_dd_indexes_rec(
 @param[in,out]	space_id	space id
 @param[in,out]	path		datafile path
 @param[in]	dd_files	dict_table_t obj of mysql.tablespace_files
-@param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
 dd_process_dd_datafiles_rec(
@@ -538,6 +537,7 @@ dd_process_dd_tablespaces_rec(
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
 @param[in]	table		Table object
+@param[in]	dd_table	DD table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template<typename Table>
 void
@@ -549,6 +549,7 @@ dd_get_and_save_data_dir_path(
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
+@param[in]	dd_table	DD table object
 @param[out]	filename	filename
 @param[in]	max_len		filename max length */
 void

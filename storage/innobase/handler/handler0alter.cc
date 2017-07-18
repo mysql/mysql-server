@@ -7635,9 +7635,9 @@ do {								\
 @param[in,out]	ha_alter_info	Structure describing changes to be done
 by ALTER TABLE and holding data used during in-place alter.
 @param commit true => Commit, false => Rollback.
-@param old_table_def dd::Table object describing old version
+@param old_dd_tab dd::Table object describing old version
 of the table.
-@param new_table_def dd::Table object for the new version of the
+@param new_dd_tab dd::Table object for the new version of the
 table. Can be adjusted by this call. Changes to the table
 definition will be persisted in the data-dictionary at statement
 commit time.

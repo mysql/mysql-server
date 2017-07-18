@@ -3033,6 +3033,7 @@ dd_get_first_path(
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from NEW DD.
 @param[in]	table		Table object
+@param[in]	dd_table	DD table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template<typename Table>
 void
@@ -3087,6 +3088,7 @@ template void dd_get_and_save_data_dir_path<dd::Partition>(
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
 @param[in]	table		table object
+@param[in]	dd_table	DD table object
 @param[out]	filename	filename
 @param[in]	max_len		filename max length */
 void
@@ -4271,7 +4273,8 @@ dd_process_dd_datafiles_rec(
 /** Process one mysql.indexes record and get breif info to dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
-@param[in,out]	index		dict_index_t to fill
+@param[in,out]	index_id	index id
+@param[in,out]	space_id	space id
 @param[in]	dd_indexes	dict_table_t obj of mysql.indexes
 @retval true if index is filled */
 bool

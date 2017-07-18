@@ -3278,15 +3278,18 @@ row_import_read_meta_data(
 
 /**
 Read the contents of the @<tablename@>.cfg file.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	thd		session
+@param[in,out]	cfg		contents of the .cfg file
 @return DB_SUCCESS or error code. */
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_cfg(
-/*================*/
-	dict_table_t*	table,	/*!< in: table */
-	dd::Table*		table_def,
-	THD*		thd,	/*!< in: session */
-	row_import&	cfg)	/*!< out: contents of the .cfg file */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	THD*		thd,
+	row_import&	cfg)
 {
 	dberr_t		err;
 	char		name[OS_FILE_MAX_PATH];
@@ -3490,16 +3493,17 @@ row_import_read_cfp(
 	return(err);
 }
 
-/*****************************************************************//**
-Imports a tablespace. The space id in the .ibd file must match the space id
+/** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t
 row_import_for_mysql(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table */
+	dict_table_t*	table,
 	dd::Table*	table_def,
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
+	row_prebuilt_t*	prebuilt)
 {
 	dberr_t		err;
 	trx_t*		trx;

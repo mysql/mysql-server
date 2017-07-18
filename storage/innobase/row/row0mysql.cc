@@ -4134,7 +4134,6 @@ row_drop_ancillary_fts_tables(
 }
 
 /** Drop a table from the memory cache as part of dropping a table.
-@param[in]	tablename	A copy of table->name. Used when table == null
 @param[in,out]	table		Table cache entry
 @param[in,out]	trx		Transaction handle
 @return error code or DB_SUCCESS */
