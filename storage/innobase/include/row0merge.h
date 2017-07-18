@@ -143,15 +143,6 @@ row_merge_lock_table(
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
-Drop indexes that were created before an error occurred.
-The data dictionary must have been locked exclusively by the caller,
-because the transaction will not be committed. */
-void
-row_merge_drop_indexes_dict(
-/*========================*/
-	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	table_id_t	table_id);/*!< in: table identifier */
-/*********************************************************************//**
 Drop those indexes which were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
 because the transaction will not be committed. */
@@ -206,28 +197,6 @@ row_merge_rename_tables_dict(
 	trx_t*		trx)		/*!< in/out: dictionary transaction */
 	MY_ATTRIBUTE((warn_unused_result));
 
-/*********************************************************************//**
-Rename an index in the dictionary that was created. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_add(
-/*==========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id);	/*!< in: index identifier */
-/*********************************************************************//**
-Rename an index in the dictionary that is to be dropped. The data
-dictionary must have been locked exclusively by the caller, because
-the transaction will not be committed.
-@return DB_SUCCESS if all OK */
-dberr_t
-row_merge_rename_index_to_drop(
-/*===========================*/
-	trx_t*		trx,		/*!< in/out: transaction */
-	table_id_t	table_id,	/*!< in: table identifier */
-	space_index_t	index_id);	/*!< in: index identifier */
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table

@@ -34,17 +34,17 @@ struct trx_t;
 struct dict_table_t;
 struct row_prebuilt_t;
 
-/*****************************************************************//**
-Imports a tablespace. The space id in the .ibd file must match the space id
+/** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t
 row_import_for_mysql(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	dd::Table*		table_def,
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
-						in MySQL */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	row_prebuilt_t*	prebuilt)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /*****************************************************************//**

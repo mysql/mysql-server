@@ -7468,14 +7468,16 @@ do {								\
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
 @param[in,out]	ha_alter_info	Structure describing changes to be done
-by ALTER TABLE and holding data used during in-place alter.
-@param commit true => Commit, false => Rollback.
-@param old_table_def dd::Table object describing old version
-of the table.
-@param new_table_def dd::Table object for the new version of the
-table. Can be adjusted by this call. Changes to the table
-definition will be persisted in the data-dictionary at statement
-commit time.
+				by ALTER TABLE and holding data used
+				during in-place alter.
+@param[in]	commit		true => Commit, false => Rollback.
+@param[in]	old_dd_tab	dd::Table object describing old version
+				of the table.
+@param[in,out]	new_dd_tab	dd::Table object for the new version of the
+				table. Can be adjusted by this call.
+				Changes to the table definition will be
+				persisted in the data-dictionary at statement
+				commit time.
 @retval true Failure
 @retval false Success
 */
