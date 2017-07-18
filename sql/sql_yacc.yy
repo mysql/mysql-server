@@ -13905,6 +13905,10 @@ set_expr_or_default:
           {
             $$= NEW_PTN Item_string(@$, "binary", 6, system_charset_info);
           }
+        | ROW_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "ROW", 3, system_charset_info);
+          }
         ;
 
 /* Lock function */
