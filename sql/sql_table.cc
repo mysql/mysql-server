@@ -8751,6 +8751,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup2;
     table_def= nullptr;
 
+    DEBUG_SYNC_C("alter_table_after_dd_client_drop");
     /*
       Rename pre-existing foreign keys back to their original names.
       Since foreign key names have to be unique per schema, they cannot
