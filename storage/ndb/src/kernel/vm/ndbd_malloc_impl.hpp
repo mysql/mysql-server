@@ -141,13 +141,20 @@ public:
     NDB_ZONE_LE_32 = 3,
   };
 
-  void* alloc_page(Uint32 type, Uint32* i, enum AllocZone);
+  void* alloc_page(Uint32 type, Uint32* i, enum AllocZone, bool locked = false);
   void* alloc_spare_page(Uint32 type, Uint32* i, enum AllocZone);
-  void release_page(Uint32 type, Uint32 i);
+  void release_page(Uint32 type, Uint32 i, bool locked = false);
   
-  void alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min = 1);
-  void release_pages(Uint32 type, Uint32 i, Uint32 cnt);
-  
+  void alloc_pages(Uint32 type,
+                   Uint32* i,
+                   Uint32 *cnt,
+                   Uint32 min = 1,
+                   bool locked = false);
+  void release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked = false);
+
+  void lock();
+  void unlock();
+
   /**
    * Compute 2log of size 
    * @note size = 0     -> 0

@@ -25,7 +25,7 @@
 #include <utility>
 
 #include "connector/session_holder.h"
-#include "console.h"
+#include "formatters/console.h"
 #include "errmsg.h"
 #include "mysqlxclient/xconnection.h"
 #include "mysqlxclient/xmessage.h"

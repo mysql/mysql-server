@@ -7830,6 +7830,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
   Uint32 logPart = req->logPartId;
   Uint32 changeMask = req->changeMask;
   Uint32 partitionId = req->partitionId;
+  Uint32 createGci = req->createGci;
   D("execADD_FRAGREQ(" << tableId << "), dihPtr = " << dihPtr);
 
   ndbrequire(node == getOwnNodeId());
@@ -7918,6 +7919,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
     req->logPartId = logPart;
     req->changeMask = changeMask;
     req->partitionId = partitionId;
+    req->createGci = createGci;
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal,
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -12037,9 +12039,10 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
    */
 
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
+  NodeInfo sendersNI = getNodeInfo(refToNode(req->senderRef));
+  bool internalReq = (sendersNI.m_type == NodeInfo::DB);
 
-  if (ERROR_INSERTED(6215) &&
-      (signal->senderBlockRef() != reference()))
+  if (ERROR_INSERTED(6215) && !internalReq)
   {
     jam();
     // API tries 100 times and (80/100)^100 is quite small..
@@ -12054,9 +12057,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     // no CLEAR_ERROR_INSERT_VALUE
   }
 
-  const bool testRef = (ERROR_INSERTED(6026) &&
-                        refToMain(signal->senderBlockRef()) == DBDICT &&
-                        (signal->senderBlockRef() != reference()));
+  const bool testRef = (ERROR_INSERTED(6026) && !internalReq);
   if (testRef)
   {
     ndbout_c("DICT : ERROR_INSERT(6026) simulating old internal "
@@ -12071,8 +12072,6 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   if (c_retrieveRecord.busyState)
   {
     jam();
-    NodeInfo sendersNI = getNodeInfo(refToNode(req->senderRef));
-    bool internalReq = (sendersNI.m_type == NodeInfo::DB);
 
     c_retrieveRecord.totalWaiters++;
 

@@ -6743,7 +6743,8 @@ restart_cluster_failure:
   }
   thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP); 
 
-  if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
+  if (!(s_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection,
+                                      NDB_REP_DB)) ||
       s_ndb->setNdbObjectName("Ndb Binlog schema change monitoring") ||
       s_ndb->init())
   {
@@ -6754,7 +6755,7 @@ restart_cluster_failure:
            s_ndb->getReference(), s_ndb->getNdbObjectName());
 
   // empty database
-  if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+  if (!(i_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection, "")) ||
       i_ndb->setNdbObjectName("Ndb Binlog data change monitoring") ||
       i_ndb->init())
   {

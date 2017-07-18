@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@ BackupProxy::BackupProxy(Block_context& ctx) :
 
   addRecSignal(GSN_DUMP_STATE_ORD, &BackupProxy::execDUMP_STATE_ORD, true);
   addRecSignal(GSN_EVENT_REP, &BackupProxy::execEVENT_REP);
+
+  addRecSignal(GSN_RESTORABLE_GCI_REP, &BackupProxy::execRESTORABLE_GCI_REP);
 }
 
 BackupProxy::~BackupProxy()
@@ -207,5 +209,14 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
   ssRelease<Ss_SUM_DUMP_STATE_ORD>(ssId);
 }
 
-
+void
+BackupProxy::execRESTORABLE_GCI_REP(Signal *signal)
+{
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    sendSignal(workerRef(i), GSN_RESTORABLE_GCI_REP, signal,
+               signal->getLength(), JBB);
+  }
+}
 BLOCK_FUNCTIONS(BackupProxy)

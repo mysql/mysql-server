@@ -19,15 +19,16 @@
 
 set(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
-# For now starting with 7.5.4 we skip attempting to build and link on Windows
-if(WIN32)
-  MESSAGE(STATUS "Skipping jones-ndb on Windows")
-  RETURN()
+# Which version of Node.js?
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0")
+  set(NODE_VERSION 0.12.15)
+else()
+  set(NODE_VERSION 6.10.2)
 endif()
 
+
 IF(NDB_NODEJS_EXTRAS_PATH)
-  set(NODE_VERSION 0.12.15)
-  set(NODE_GYP ${NDB_NODEJS_EXTRAS_PATH}/node-gyp/${NODE_VERSION})
+  set(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})
   set(NODE_HEADERS ${NDB_NODEJS_EXTRAS_PATH}/node-headers/${NODE_VERSION})
   set(WITH_NODEJS_INCLUDE_PATH ${NODE_HEADERS}/include/node)
   MESSAGE(STATUS "Using node.js version " ${NODE_VERSION})
@@ -37,7 +38,6 @@ if(WITH_NODEJS_INCLUDE_PATH)
   MESSAGE(STATUS "Building jones-ndb to install in share/nodejs")
   MESSAGE(STATUS "Using node.js from " ${WITH_NODEJS_INCLUDE_PATH})
 else()
-  MESSAGE(STATUS "Skipping jones-ndb")
   RETURN()
 endif()
 
@@ -97,6 +97,9 @@ set(ADAPTER_SOURCE_FILES
   jones-ndb/impl/src/ndb/QueryOperation_wrapper.cpp
 )
 
+
+###### COMPILER AND LINKER OPTIONS
+
 # Enable asserts:
 remove_definitions(-DNDEBUG)
 
@@ -105,18 +108,26 @@ if(WIN32)
   add_definitions(-DWIN32)
   add_definitions(-D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
   if(CMAKE_CL_64)
-    link_directories(${NODE_GYP}/x64)
+    link_directories(${NODE_LIBRARIES}/win-x64)
   else()
-    link_directories(${NODE_GYP}/ia32) 
+    link_directories(${NODE_LIBRARIES}/win-x86)
   endif()
 else()
+  if(NODE_VERSION VERSION_GREATER "4.0.0")
+    # Remove any -std=xxx compiler flag present, and add -std=c++11
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" BTYPE)
+    set(CXX_FLAGS_VAL ${CMAKE_CXX_FLAGS_${BTYPE}})
+    STRING(REGEX REPLACE "-std=[cgnu]+..[0-9]+" "" CXX_FLAGS_VAL "${CXX_FLAGS_VAL}")
+    set(CMAKE_CXX_FLAGS_${BTYPE} "${CXX_FLAGS_VAL} -std=c++11")
+  endif()
   set(ADAPTER_REQUIRED_LIBS ndbclient_static)
-  add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
-  remove_definitions(-Werror=undef)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
+ 
   # Remove -Wundef from C++ compiler flags since there are several
   # undefined identifiers which are evaluated in for example v8config.h
   STRING(REPLACE "-Wundef " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+#  IT SHOULD BE POSSIBLE TO LINK DYNAMICALLY WITH PROPER RPATH
+#  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
@@ -124,10 +135,13 @@ add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
 
 
-if(APPLE) 
+# non-gcc linker flags to deal with undefined & multiply-defined symbols
+if(APPLE)
   set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
 elseif(WIN32)
   set(FINAL_LINK_FLAGS "/FORCE:MULTIPLE")
+elseif(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  set(FINAL_LINK_FLAGS "-z muldefs")
 endif()
 
 set_target_properties(ndb_adapter PROPERTIES

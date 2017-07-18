@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -207,8 +207,8 @@ FsBuffer::setup(Uint32 * Buffer,
   ndbout_c("Block = %d MinRead = %d -> %d", Block*4, MinRead*4, m_minRead*4);
   ndbout_c("Block = %d MaxRead = %d -> %d", Block*4, MaxRead*4, m_maxRead*4);
   
-  ndbout_c("Buffer = %d -> %d", Buffer, m_start);
-  ndbout_c("Buffer = %d Size = %d MaxWrite = %d -> %d",
+  ndbout_c("Buffer = %p -> %p", Buffer, m_start);
+  ndbout_c("Buffer = %p Size = %d MaxWrite = %d -> %d",
 	   Buffer, Size*4, MaxWrite*4, m_size*4);
 #endif
 

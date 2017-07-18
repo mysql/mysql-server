@@ -2124,6 +2124,19 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR*,
   if (length == 0)
     goto update_value;
 
+  // if group replication isn't running and majority is reachable you can't
+  // update force_members
+  if (!plugin_is_group_replication_running() ||
+      !group_member_mgr->is_majority_unreachable())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_force_members can only be updated"
+                " when Group Replication is running and a majority of the"
+                " members are unreachable");
+    error= 1;
+    goto end;
+  }
+
   if ((error= gcs_module->force_members(str)))
     goto end;
 

@@ -24,7 +24,7 @@
 #include <utility>
 
 #include "connector/connection_manager.h"
-#include "console.h"
+#include "formatters/console.h"
 #include "my_io.h"
 #include "processor/commands/expected_error.h"
 #include "processor/commands/macro.h"

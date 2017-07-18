@@ -1376,6 +1376,7 @@ protected:
     THE_NULL_CALLBACK = 0 // must assign TheNULLCallbackFunction
   };
 
+  void block_require(void);
   void execute(Signal* signal, CallbackPtr & cptr, Uint32 returnCode);
   const CallbackEntry& getCallbackEntry(Uint32 ci);
   void sendCallbackConf(Signal* signal, Uint32 fullBlockNo,
@@ -1573,6 +1574,12 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
    * This point only passed if an error has occurred
    */
   handle_execute_error(gsn);
+}
+
+inline
+void SimulatedBlock::block_require(void)
+{
+  ndbrequire(false);
 }
 
 inline

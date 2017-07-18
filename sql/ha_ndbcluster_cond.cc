@@ -1823,7 +1823,6 @@ ha_ndbcluster_cond::cond_push(const Item *cond,
   Ndb_cond_stack *ndb_cond = new (*THR_MALLOC) Ndb_cond_stack();
   if (ndb_cond == NULL)
   {
-    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(cond);
   }
   if (m_cond_stack)

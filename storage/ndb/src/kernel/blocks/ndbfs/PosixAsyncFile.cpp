@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ void PosixAsyncFile::openReq(Request *request)
   Uint32 flags = request->par.open.flags;
   int new_flags = 0;
 
-  // Convert file open flags from Solaris to Liux
+  // Convert file open flags from Solaris to Linux
   if (flags & FsOpenReq::OM_CREATE)
   {
     new_flags |= O_CREAT;
@@ -593,7 +593,7 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
   }
 
-  int error;
+  int error = 0;
 
   while (size > 0) {
     size_t bytes_read = 0;

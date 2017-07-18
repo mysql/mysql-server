@@ -2372,8 +2372,8 @@ Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
   Ndb* ndb= NULL;
   do
   {
-    ndb= new Ndb(connection, "");
-    if (ndb == NULL)
+    ndb= new (std::nothrow) Ndb(connection, "");
+    if (ndb == nullptr)
     {
       log_error("failed to create Ndb object");
       break;

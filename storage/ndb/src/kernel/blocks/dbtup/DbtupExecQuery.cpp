@@ -37,6 +37,19 @@
 
 #define JAM_FILE_ID 422
 
+//#define DEBUG_LCP 1
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_LGMAN 1
+#ifdef DEBUG_LCP_LGMAN
+#define DEB_LCP_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_LGMAN(arglist) do { } while (0)
+#endif
 
 // #define TRACE_INTERPRETER
 
@@ -481,6 +494,8 @@ Dbtup::load_diskpage(Signal* signal,
     jam();
     Page_cache_client::Request req;
     memcpy(&req.m_page, ptr->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
+    req.m_table_id = regFragPtr->fragTableId;
+    req.m_fragment_id = regFragPtr->fragmentId;
     req.m_callback.m_callbackData= opRec;
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_callback);
@@ -563,6 +578,8 @@ Dbtup::load_diskpage_scan(Signal* signal,
     jam();
     Page_cache_client::Request req;
     memcpy(&req.m_page, ptr->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
+    req.m_table_id = regFragPtr->fragTableId;
+    req.m_fragment_id = regFragPtr->fragmentId;
     req.m_callback.m_callbackData= opRec;
     req.m_callback.m_callbackFunction= 
       safe_cast(&Dbtup::disk_page_load_scan_callback);
@@ -783,6 +800,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      regOperPtr->op_type= TupKeyReq::getOperation(TrequestInfo);
      req_struct.m_disable_fk_checks = disable_fk_checks;
      req_struct.m_use_rowid = TupKeyReq::getRowidFlag(TrequestInfo);
+     req_struct.m_nr_copy_or_redo = TupKeyReq::getNrCopyFlag(TrequestInfo);
      req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
      req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
    }
@@ -1405,12 +1423,21 @@ int Dbtup::handleUpdateReq(Signal* signal,
       jam();
       operPtrP->op_struct.bit_field.m_wait_log_buffer = 1;
       operPtrP->op_struct.bit_field.m_load_diskpage_on_commit = 1;
-      Uint32 sz= operPtrP->m_undo_buffer_space= 
+      operPtrP->m_undo_buffer_space= 
 	(sizeof(Dbtup::Disk_undo::Update) >> 2) + sizes[DD] - 1;
-      
-      D("Logfile_client - handleUpdateReq");
-      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-      terrorCode= lgman.alloc_log_space(sz, jamBuffer());
+
+      {
+        D("Logfile_client - handleUpdateReq");
+        Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+        DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                       instance(),
+                       __LINE__,
+                       operPtrP->m_undo_buffer_space));
+        terrorCode= lgman.alloc_log_space(operPtrP->m_undo_buffer_space,
+                                          true,
+                                          !req_struct->m_nr_copy_or_redo,
+                                          jamBuffer());
+      }
       if(unlikely(terrorCode))
       {
         jam();
@@ -1862,6 +1889,13 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   ndbrequire(dd_vars == 0);
   
   req_struct->m_tuple_ptr->m_header_bits= bits;
+  /**
+   * The copy tuple will be copied directly into the rowid position of
+   * the tuple. Since we use the GCI in this position to see if a row
+   * has changed we need to ensure that the GCI value is initialised,
+   * otherwise we will not count inserts as a changed row.
+   */
+  *req_struct->m_tuple_ptr->get_mm_gci(regTabPtr) = 0;
 
   // Set all null bits
   memset(req_struct->m_tuple_ptr->m_null_bits+
@@ -1970,9 +2004,18 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto log_space_error;
     }
 
-    D("Logfile_client - handleInsertReq");
-    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-    res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space, jamBuffer());
+    {
+      D("Logfile_client - handleInsertReq");
+      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                     instance(),
+                     __LINE__,
+                     regOperPtr.p->m_undo_buffer_space));
+      res= lgman.alloc_log_space(regOperPtr.p->m_undo_buffer_space,
+                                 true,
+                                 !req_struct->m_nr_copy_or_redo,
+                                 jamBuffer());
+    }
     if(unlikely(res))
     {
       jam();
@@ -2145,8 +2188,19 @@ int Dbtup::handleInsertReq(Signal* signal,
     
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
+
+    /**
+     * The LCP_SKIP and LCP_DELETE flags must be retained even when allocating
+     * a new row since they record state for the rowid and not for the record
+     * as such. So we need to know state of rowid in LCP scans.
+     */
+    Uint32 old_header_keep =
+      base->m_header_bits &
+       (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE);
     base->m_header_bits= Tuple_header::ALLOC |
-      (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0);
+      (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0) |
+      old_header_keep;
+
     /**
      * No need to set checksum here, the tuple is allocated, but contains
      * no data, so if we attempt to read it in this state we even want the
@@ -2358,13 +2412,22 @@ int Dbtup::handleDeleteReq(Signal* signal,
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer = 1;
     regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit = 1;
-    Uint32 sz= regOperPtr->m_undo_buffer_space= 
+    regOperPtr->m_undo_buffer_space= 
       (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       regTabPtr->m_offsets[DD].m_fix_header_size - 1;
-    
-    D("Logfile_client - handleDeleteReq");
-    Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
-    terrorCode= lgman.alloc_log_space(sz, jamBuffer());
+
+    {
+      D("Logfile_client - handleDeleteReq");
+      Logfile_client lgman(this, c_lgman, regFragPtr->m_logfile_group_id);
+      DEB_LCP_LGMAN(("(%u)alloc_log_space(%u): %u",
+                     instance(),
+                     __LINE__,
+                     regOperPtr->m_undo_buffer_space));
+      terrorCode= lgman.alloc_log_space(regOperPtr->m_undo_buffer_space,
+                                        true,
+                                        !req_struct->m_nr_copy_or_redo,
+                                        jamBuffer());
+    }
     if(unlikely(terrorCode))
     {
       jam();
@@ -3798,7 +3861,6 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
         Ptr<Page> var_page;
         src_data= get_ptr(&var_page, *var_ref);
         src_len= get_len(&var_page, *var_ref);
-
         jam();
         /**
          * Coming here with MM_GROWN set is possible if we are coming here
@@ -4107,7 +4169,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       src_len = 0;
       dst->m_max_var_offset = 0;
       dst->m_dyn_part_len = 0;
-#if defined VM_TRACE || defined ERROR_INSERT
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       bzero(dst, sizeof(* dst));
 #endif
     }
@@ -4135,6 +4197,24 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     }
     // Fix diskpart
     req_struct->m_disk_ptr= (Tuple_header*)src_ptr;
+#ifdef VM_TRACE
+    if (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE)
+    {
+      Local_key key;
+      memcpy(&key, disk_ref, sizeof(key));
+      g_eventLogger->info(
+        "Crash: page(%u,%u,%u,%u).%u, DISK_INLINE= %u, tab(%u,%u,%u)",
+                          instance(),
+                          req_struct->m_disk_page_ptr.i,
+                          req_struct->m_disk_page_ptr.p->m_file_no,
+                          req_struct->m_disk_page_ptr.p->m_page_no,
+                          key.m_page_idx,
+                          bits & Tuple_header::DISK_INLINE ? 1 : 0,
+                          req_struct->m_disk_page_ptr.p->m_table_id,
+                          req_struct->m_disk_page_ptr.p->m_fragment_id,
+                          req_struct->m_disk_page_ptr.p->m_create_table_version);
+    }
+#endif
     ndbassert(! (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE));
     ndbrequire(dd_vars == 0);
   }
@@ -4345,6 +4425,13 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
   Uint32 bits= org->m_header_bits;
   Uint32 copy_bits= req_struct->m_tuple_ptr->m_header_bits;
   
+  DEB_LCP(("size_change: tab(%u,%u), row_id(%u,%u), old: %u, new: %u",
+          req_struct->fragPtrP->fragTableId,
+          req_struct->fragPtrP->fragmentId,
+          regOperPtr->m_tuple_location.m_page_no,
+          regOperPtr->m_tuple_location.m_page_idx,
+          sizes[2+MM],
+          sizes[MM]));
   if(sizes[2+MM] == sizes[MM])
     jam();
   else if(sizes[2+MM] < sizes[MM])
@@ -4411,6 +4498,11 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     if (unlikely(new_var_part==NULL))
       return -1;
     /* Mark the tuple grown, store the original length at the end. */
+    DEB_LCP(("tab(%u,%u), row_id(%u,%u), set MM_GROWN",
+            req_struct->fragPtrP->fragTableId,
+            req_struct->fragPtrP->fragmentId,
+            regOperPtr->m_tuple_location.m_page_no,
+            regOperPtr->m_tuple_location.m_page_idx));
     org->m_header_bits= bits | Tuple_header::MM_GROWN | Tuple_header::VAR_PART;
     new_var_part[needed-1]= orig_size;
 
@@ -4490,7 +4582,7 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
       ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
     
     ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
-    *ptr->get_mm_gci(tablePtr.p) = gci;
+    update_gci(fragPtr.p, tablePtr.p, ptr, gci);
   }
   return 0;
 }
@@ -4647,10 +4739,14 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
 
     Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
       tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
-    
+
+    Ptr<GlobalPage> diskPagePtr;
+    int res;
+
+    {
     D("Logfile_client - nr_delete");
     Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-    int res = lgman.alloc_log_space(sz, jamBuffer());
+    res = lgman.alloc_log_space(sz, false, false, jamBuffer());
     ndbrequire(res == 0);
     
     /**
@@ -4661,6 +4757,8 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
      */
     Page_cache_client::Request preq;
     preq.m_page = disk;
+    preq.m_table_id = fragPtr.p->fragTableId;
+    preq.m_fragment_id = fragPtr.p->fragmentId;
     preq.m_callback.m_callbackData = senderData;
     preq.m_callback.m_callbackFunction =
       safe_cast(&Dbtup::nr_delete_page_callback);
@@ -4694,26 +4792,30 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       }
     }
 #endif
-    Ptr<GlobalPage> diskPagePtr; 
-    Page_cache_client pgman(this, c_pgman);
-    res = pgman.get_page(signal, preq, flags);
-    diskPagePtr = pgman.m_ptr;
-    if (res == 0)
     {
-      goto timeslice;
+      Page_cache_client pgman(this, c_pgman);
+      res = pgman.get_page(signal, preq, flags);
+      diskPagePtr = pgman.m_ptr;
+      if (res == 0)
+      {
+        goto timeslice;
+      }
+      else if (unlikely(res == -1))
+      {
+        return -1;
+      }
+
+      /* Complete work on LGMAN before setting page to dirty */
+      CallbackPtr cptr;
+      cptr.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
+      cptr.m_callbackData = senderData;
+      res= lgman.get_log_buffer(signal, sz, &cptr);
     }
-    else if (unlikely(res == -1))
-    {
-      return -1;
-    }
+    } // Unlock the LGMAN lock
 
     PagePtr disk_page((Tup_page*)diskPagePtr.p, diskPagePtr.i);
     disk_page_set_dirty(disk_page);
 
-    CallbackPtr cptr;
-    cptr.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
-    cptr.m_callbackData = senderData;
-    res= lgman.get_log_buffer(signal, sz, &cptr);
     switch(res){
     case 0:
       signal->theData[2] = disk_page.i;
@@ -4722,10 +4824,14 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       ndbrequire("NOT YET IMPLEMENTED" == 0);
       break;
     }
-
-    if (0) ndbout << "DIRECT DISK DELETE: " << disk << endl;
-    disk_page_free(signal, tablePtr.p, fragPtr.p,
-		   &disk, *(PagePtr*)&disk_page, gci);
+    disk_page_free(signal,
+                   tablePtr.p,
+                   fragPtr.p,
+		   &disk,
+                   *(PagePtr*)&disk_page,
+                   gci,
+                   key,
+                   sz);
     return 0;
   }
   
@@ -4764,9 +4870,12 @@ Dbtup::nr_delete_page_callback(Signal* signal,
   CallbackPtr cb;
   cb.m_callbackData = userpointer;
   cb.m_callbackIndex = NR_DELETE_LOG_BUFFER_CALLBACK;
-  D("Logfile_client - nr_delete_page_callback");
-  Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
-  int res= lgman.get_log_buffer(signal, sz, &cb);
+  int res;
+  {
+    D("Logfile_client - nr_delete_page_callback");
+    Logfile_client lgman(this, c_lgman, fragPtr.p->m_logfile_group_id);
+    res= lgman.get_log_buffer(signal, sz, &cb);
+  }
   switch(res){
   case 0:
     jam();
@@ -4776,10 +4885,13 @@ Dbtup::nr_delete_page_callback(Signal* signal,
     break;
   }
   jam();
-    
-  if (0) ndbout << "PAGE CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
-  disk_page_free(signal, tablePtr.p, fragPtr.p,
-		 &op.m_disk_ref, pagePtr, op.m_gci_hi);
+  disk_page_free(signal,
+                 tablePtr.p, fragPtr.p,
+		 &op.m_disk_ref,
+                 pagePtr,
+                 op.m_gci_hi,
+                 &op.m_row_id,
+                 sz);
   
   c_lqh->nr_delete_complete(signal, &op);
   return;
@@ -4802,6 +4914,9 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
   tablePtr.i = fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
+  Uint32 sz = (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
+    tablePtr.p->m_offsets[DD].m_fix_header_size - 1;
+  
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, op.m_page_id);
   PagePtr pagePtr((Tup_page*)gpage.p, gpage.i);
@@ -4809,10 +4924,15 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
   /**
    * reset page no
    */
-  if (0) ndbout << "LOGBUFFER CALLBACK DISK DELETE: " << op.m_disk_ref << endl;
   jam();
-  disk_page_free(signal, tablePtr.p, fragPtr.p,
-		 &op.m_disk_ref, pagePtr, op.m_gci_hi);
+  disk_page_free(signal,
+                 tablePtr.p,
+                 fragPtr.p,
+		 &op.m_disk_ref,
+                 pagePtr,
+                 op.m_gci_hi,
+                 &op.m_row_id,
+                 sz);
   
   c_lqh->nr_delete_complete(signal, &op);
 }

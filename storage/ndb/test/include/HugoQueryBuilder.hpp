@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,16 +71,20 @@ public:
        (OptionMask)(O_PK_INDEX | O_UNIQUE_INDEX | O_ORDERED_INDEX | O_TABLE_SCAN | O_GRANDPARENT);
 
   HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table**tabptr, 
-                   OptionMask om = OM_RANDOM_OPTIONS){
+                   OptionMask om = OM_RANDOM_OPTIONS)
+  : m_ndb(ndb)
+  {
     init();
     for (; * tabptr != 0; tabptr++)
-      addTable(ndb, * tabptr);
+      addTable(*tabptr);
     setOptionMask(om);
     fixOptions();
   }
-  HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table* tab, QueryOption o) {
+  HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table* tab, QueryOption o)
+  : m_ndb(ndb)
+  {
     init();
-    addTable(ndb, tab);
+    addTable(tab);
     setOption(o);
     fixOptions();
   }
@@ -94,7 +98,7 @@ public:
   void setJoinLevel(int level) { setMinJoinLevel(level);setMaxJoinLevel(level);}
   int getJoinLevel() const;
 
-  void addTable(Ndb*, const NdbDictionary::Table*);
+  void addTable(const NdbDictionary::Table*);
   void removeTable(const NdbDictionary::Table*);
 
   void setOption(QueryOption o) { m_options |= (OptionMask)o;}
@@ -107,6 +111,8 @@ public:
   const NdbQueryDef * createQuery(bool takeOwnership = false);
 
 private:
+  const Ndb* m_ndb;
+
   struct TableDef
   {
     const NdbDictionary::Table * m_table;

@@ -86,7 +86,7 @@ void CharsetMapImpl::build_map()
     put("macce", "MacCentralEurope");
     
     /* Build the fixed map */
-    for(unsigned int i = 0 ; i < 255 ; i++) 
+    for(unsigned int i = 0 ; i < NDB_ARRAY_SIZE(mysql_charset_name) ; i++)
     {
         CHARSET_INFO *cs = get_charset(i, MYF(0));
         register const char *mysql_name = 0;
@@ -129,7 +129,7 @@ void CharsetMapImpl::build_map()
 
 const char * CharsetMapImpl::getName(int csnum)  
 {
-    if((csnum > 255) || (csnum < 0)) 
+    if((csnum >= (int)NDB_ARRAY_SIZE(mysql_charset_name)) || (csnum < 0))
     {
         return 0;
     }

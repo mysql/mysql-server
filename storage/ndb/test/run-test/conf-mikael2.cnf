@@ -16,8 +16,7 @@
 [atrt]
 basedir = CHOOSE_dir
 baseport = 14000
-#clusters = .4node
-clusters = .2node
+clusters = .4node
 fix-nodeid=1
 mt = 2
 
@@ -32,14 +31,11 @@ default-storage-engine=myisam
 [client]
 protocol=tcp
 
-#[cluster_config.4node]
-[cluster_config.2node]
+[cluster_config.4node]
 ndb_mgmd = CHOOSE_host1
-#ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
-ndbd = CHOOSE_host2,CHOOSE_host3
+ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
 ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
-#mysqld = CHOOSE_host1,CHOOSE_host6
-mysqld = CHOOSE_host1,CHOOSE_host4
+mysqld = CHOOSE_host1,CHOOSE_host6
 
 NoOfReplicas = 2
 DataMemory = 600M
@@ -52,8 +48,8 @@ ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
 
-SharedGlobalMemory=256M
-DiskPageBufferMemory=256M
-InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+SharedGlobalMemory=128M
+DiskPageBufferMemory=128M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000

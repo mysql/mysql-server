@@ -81,6 +81,15 @@ Description: memcached
  This package contains the standard memcached server and a loadable
  storage engine for memcached using the Memcache API for MySQL Cluster
  to provide a persistent MySQL Cluster data store.
+
+Package: mysql-${DEB_PRODUCTNAME}-nodejs
+Architecture: any
+Depends: \${shlibs:Depends}, \${misc:Depends}
+Description: nodejs
+ This package contains MySQL NoSQL Connector for JavaScript, a set of
+ Node.js adapters for MySQL Cluster and MySQL Server, which make it
+ possible to write JavaScript applications for Node.js using MySQL
+ data.
 ")
 
   SET (DEB_NDB_CLIENT_EXTRA
@@ -96,6 +105,7 @@ Description: memcached
 /usr/bin/ndb_import
 /usr/bin/ndb_mgm
 /usr/bin/ndb_move_data
+/usr/bin/ndb_perror
 /usr/bin/ndb_print_backup_file
 /usr/bin/ndb_print_file
 /usr/bin/ndb_print_frag_file
@@ -108,6 +118,7 @@ Description: memcached
 /usr/bin/ndb_setup.py
 /usr/bin/ndb_show_tables
 /usr/bin/ndb_size.pl
+/usr/bin/ndb_top
 /usr/bin/ndb_waiter
 /usr/bin/ndbinfo_select_all
 
@@ -120,8 +131,11 @@ Description: memcached
 /usr/share/man/man1/ndb_drop_index.1*
 /usr/share/man/man1/ndb_drop_table.1*
 /usr/share/man/man1/ndb_error_reporter.1*
+/usr/share/man/man1/ndb_import.1*
 /usr/share/man/man1/ndb_index_stat.1*
 /usr/share/man/man1/ndb_mgm.1*
+/usr/share/man/man1/ndb_move_data.1*
+/usr/share/man/man1/ndb_perror.1*
 /usr/share/man/man1/ndb_print_backup_file.1*
 /usr/share/man/man1/ndb_print_file.1*
 /usr/share/man/man1/ndb_print_frag_file.1*
@@ -133,6 +147,7 @@ Description: memcached
 /usr/share/man/man1/ndb_setup.py.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
+/usr/share/man/man1/ndb_top.1*
 /usr/share/man/man1/ndb_waiter.1*
 /usr/share/man/man1/ndb_redo_log_reader.1*
 /usr/share/man/man1/ndbinfo_select_all.1*
@@ -146,6 +161,7 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/${DEB_INSTALL_LICENSEFILE}
+	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-nodejs/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient/${DEB_INSTALL_LICENSEFILE}
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/${DEB_INSTALL_LICENSEFILE} debian/tmp/usr/share/doc/ndbclient-dev/${DEB_INSTALL_LICENSEFILE}
 ")
@@ -156,6 +172,7 @@ Description: memcached
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached/README
+	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-nodejs/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient/README
 	install -g root -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/ndbclient-dev/README
 ")
@@ -166,6 +183,7 @@ Description: memcached
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-java
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-management-server
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-memcached
+	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/mysql-${DEB_PRODUCTNAME}-nodejs
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient
 	install -g root -o root -m 0755 -d debian/tmp/usr/share/doc/ndbclient-dev
 ")

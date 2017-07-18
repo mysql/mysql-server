@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -388,7 +388,7 @@ void GetTableCall::run() {
          by checking WaitMetaRequestCount at the start and end.
 */    
 void GetTableCall::doAsyncCallback(Local<Object> ctx) {
-  const char *tableName;
+  const char *ndbTableName;
   EscapableHandleScope scope(isolate);
   DEBUG_PRINT("GetTableCall::doAsyncCallback: return_val %d", return_val);
 
@@ -413,8 +413,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     table->Set(SYMBOL(isolate, "database"), String::NewFromUtf8(isolate, arg1));
     
     // name
-    tableName = ndb_table->getName();
-    table->Set(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, tableName));
+    ndbTableName = ndb_table->getName();
+    table->Set(SYMBOL(isolate, "name"), String::NewFromUtf8(isolate, ndbTableName));
 
     // partitionKey
     int nPartitionKeys = 0;

@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-# Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,51 +17,48 @@
 
 set -e
 
-mkdir -p result
+if [ -d result ]; then
+  rm -rf result
+fi
+
+mkdir result
 cd result
-rm -rf *
 
-if [ `uname | grep -ic cygwin || true` -ne 0 ]
-then
-  while [ $# -gt 0 ]
-  do
-    SAVE_IFS=$IFS
-    IFS=":"
-    declare -a ARR="($1)"
-    IFS=$SAVE_IFS
-    DIR=`dirname "${ARR[1]}"`
-    REMOTE_DIR=`cygpath -u $DIR`
-    HOST="${ARR[0]}"
-    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$HOST:$REMOTE_DIR" .
-    shift
-  done
-else
-  while [ $# -gt 0 ]
-  do
-#
-# The below commented out lines can be used if we want to keep the file
-# as part of the result from a faulty test in autotest. The first line
-# also keeps the BACKUP files as part of a faulty test case. These lines
-# can be used in special autotest runs when a the file contents are
-# needed to debug issues in test cases.
-#
-#    rsync -a "$1" .
-#    rsync -a --exclude='BACKUP' "$1" .
-    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$1" .
-    shift
-  done
+name="`uname -n | sed 's!\..*!!g'`"
+cygwin="`uname | grep -ic cygwin || true`"
 
-  #
-  # clean tables...not to make results too large
-  #
-  lst=`find . -name '*.frm'`
-  if [ "$lst" ]
-  then
- 	  basename=`echo $i | sed 's!\.frm!!'`
-	  if [ "$basename" ]
-	  then
-	    rm -f $basename.*
-	  fi
+while [ $# -gt 0 ]; do
+  IFS=':' read -r HOST DIR <<< "$1"
+
+  if [ -z "$DIR" ]; then
+    echo "Error: input must be either 'HOST:/some/path' or 'HOST:c:\some\path'"
+    exit 1
   fi
 
-fi
+  if (( $cygwin )); then
+    DIR=`cygpath -u "$DIR"`
+  fi
+
+  # Add trailing slash to prevent rsync creating an extra folder level
+  DIR="$DIR/"
+
+  if [[ -z "$HOST" || "$HOST" == "$name" || "$HOST" == "localhost" ]]; then
+    SRC_PATH="$DIR"
+  else
+    SRC_PATH="$HOST:$DIR"
+  fi
+
+  #
+  # The below commented out lines can be used if we want to keep the file
+  # as part of the result from a faulty test in autotest. The first line
+  # also keeps the BACKUP files as part of a faulty test case. These lines
+  # can be used in special autotest runs when a the file contents are
+  # needed to debug issues in test cases.
+  #
+  # rsync -a "$SRC_PATH" .
+  # rsync -a --exclude='BACKUP' "$SRC_PATH" .
+  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$SRC_PATH" .
+  # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$SRC_PATH" .
+  rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
+  shift
+done
