@@ -1022,15 +1022,14 @@ class Recursive_executor
 private:
   SELECT_LEX_UNIT *const unit;
   THD *const thd;
-  /// Count of executions of recursive members.
-  uint iteration_counter;
   Strict_error_handler strict_handler;
   enum_check_fields save_check_for_truncated_fields;
   sql_mode_t save_sql_mode;
-  bool disabled_trace, pop_handler;
+  enum {DISABLED_TRACE= 1, POP_HANDLER= 2, EXEC_RECURSIVE= 4};
+  uint8 flags; ///< bitmap made of the above enum bits
   /**
-    If recursive, count of rows in the temporary table when the current
-    iteration started.
+    If recursive: count of rows in the temporary table when we started the
+    current iteration of the for-loop which executes query blocks.
   */
   ha_rows row_count;
   TABLE *table;                                 ///< Table for result of union
@@ -1041,10 +1040,9 @@ private:
 public:
 
   Recursive_executor(SELECT_LEX_UNIT *unit_arg, THD *thd_arg) :
-    unit(unit_arg), thd(thd_arg), iteration_counter(0),
+    unit(unit_arg), thd(thd_arg),
     strict_handler(Strict_error_handler::ENABLE_SET_SELECT_STRICT_ERROR_HANDLER),
-    disabled_trace(false), pop_handler(false),
-    row_count(0), table(nullptr), cached_file(nullptr)
+    flags(0), row_count(0), table(nullptr), cached_file(nullptr)
   {
     TRASH(row_ref, sizeof(row_ref));
   }
@@ -1089,7 +1087,7 @@ public:
     */
     if (thd->is_strict_mode())
     {
-      pop_handler= true;
+      flags|= POP_HANDLER;
       save_check_for_truncated_fields= thd->check_for_truncated_fields;
       thd->check_for_truncated_fields= CHECK_FIELD_WARN;
       thd->push_internal_handler(&strict_handler);
@@ -1112,14 +1110,14 @@ public:
   /// @returns Query block to execute first, in current phase
   SELECT_LEX *first_select() const
   {
-    return (iteration_counter == 0) ?
-      unit->first_select() : unit->first_recursive;
+    return (flags & EXEC_RECURSIVE) ?
+      unit->first_recursive : unit->first_select();
   }
 
   /// @returns Query block to execute last, in current phase
   SELECT_LEX *last_select() const
   {
-    return (iteration_counter == 0) ? unit->first_recursive : nullptr;
+    return (flags & EXEC_RECURSIVE) ? nullptr : unit->first_recursive;
   }
 
   /// @returns true if more iterations are needed
@@ -1128,13 +1126,6 @@ public:
     if (!unit->is_recursive())
       return false;
 
-    iteration_counter++;
-
-    if (iteration_counter == 3)
-    {
-      DEBUG_SYNC(thd, "in_WITH_RECURSIVE");
-    }
-
     ha_rows new_row_count= *unit->query_result()->row_count();
     if (row_count == new_row_count)
     {
@@ -1142,19 +1133,40 @@ public:
       if (unit->got_all_recursive_rows)
         return false; // The final iteration is done.
       unit->got_all_recursive_rows= true;
-      // Do a final iteration, just to get table free-ing/unlocking:
+      /*
+        Do a final iteration, just to get table free-ing/unlocking. But skip
+        non-recursive query blocks as they have already done that.
+      */
+      flags|= EXEC_RECURSIVE;
       return true;
     }
+
+#ifdef ENABLED_DEBUG_SYNC
+    if (unit->first_select()->next_select()->join->recursive_iteration_count
+        == 4)
+    {
+      DEBUG_SYNC(thd, "in_WITH_RECURSIVE");
+    }
+#endif
+
     row_count= new_row_count;
 #ifdef OPTIMIZER_TRACE
     Opt_trace_context &trace= thd->opt_trace;
-    if (iteration_counter == 2 &&
+    /*
+      If recursive query blocks have been executed at least once, and repeated
+      executions should not be traced, disable tracing, unless it already is
+      disabled.
+    */
+    if ((flags & (EXEC_RECURSIVE | DISABLED_TRACE)) == EXEC_RECURSIVE &&
         !trace.feature_enabled(Opt_trace_context::REPEATED_SUBSELECT))
     {
-      disabled_trace= true;
+      flags|= DISABLED_TRACE;
       trace.disable_I_S_for_this_and_children();
     }
 #endif
+
+    flags|= EXEC_RECURSIVE;
+
     return true;
   }
 
@@ -1166,7 +1178,6 @@ public:
   {
     if (cached_file == nullptr)
       return false;
-    DBUG_ASSERT(iteration_counter > 0);
     int error;
     if (cached_file == table->file)
     {
@@ -1219,10 +1230,10 @@ public:
     if (unit->is_recursive())
     {
 #ifdef OPTIMIZER_TRACE
-      if (disabled_trace)
+      if (flags & DISABLED_TRACE)
         thd->opt_trace.restore_I_S();
 #endif
-      if (pop_handler)
+      if (flags & POP_HANDLER)
       {
         thd->pop_internal_handler();
         thd->check_for_truncated_fields= save_check_for_truncated_fields;
@@ -1353,7 +1364,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd)
     }
 
   } while (recursive_executor.more_iterations());
-
 
   if (fake_select_lex)
   {

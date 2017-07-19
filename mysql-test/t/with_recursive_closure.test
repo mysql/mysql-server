@@ -2,6 +2,8 @@
 # Takes too long in Valgrind, for pushbuild2:
 --source include/not_valgrind.inc
 
+set cte_max_recursion_depth = 1000000;
+
 # This builds a graph of randomly connected nodes (random number
 # generator is using a seed for repeatability). Then it computes the
 # transitive closure of a node. The result has been validated against

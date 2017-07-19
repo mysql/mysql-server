@@ -10814,6 +10814,9 @@ ER_SDI_OPERATION_FAILED
 ER_APPLIER_LOG_EVENT_VALIDATION_ERROR
   eng "The table in transaction %s does not comply with the requirements by an external plugin."
 
+ER_CTE_MAX_RECURSION_DEPTH
+  eng "Recursive query aborted after %u iterations. Try increasing @@cte_max_recursion_depth to a larger value."
+
 #
 #  End of 8.0 error messages.
 #

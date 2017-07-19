@@ -252,6 +252,7 @@ public:
       return_tab(0),
       ref_items(nullptr),
       current_ref_item_slice(REF_SLICE_SAVE),
+      recursive_iteration_count(0),
       zero_result_cause(NULL),
       child_subquery_can_materialize(false),
       allow_outer_refs(false),
@@ -585,6 +586,13 @@ public:
   uint current_ref_item_slice;
 
   /**
+    Used only if this query block is recursive. Contains count of
+    all executions of this recursive query block, since the last
+    this->reset().
+  */
+  uint recursive_iteration_count;
+
+  /**
     <> NULL if optimization has determined that execution will produce an
     empty result before aggregation, contains a textual explanation on why
     result is empty. Implicitly grouped queries may still produce an
@@ -763,7 +771,6 @@ public:
   void set_optimized() { optimized= true; }
   bool is_executed() const { return executed; }
   void set_executed() { executed= true; }
-  void reset_executed() { executed= false; }
 
   /**
     Retrieve the cost model object to be used for this join.
