@@ -836,11 +836,6 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     Json_array_ptr array(down_cast<Json_array*>(dom->clone().release()));
     array->remove(i);
     array->insert_clone(i, jint.to_dom(thd()));
-    String dbg;
-    Json_wrapper wp(array->clone());
-    wp.to_string(&dbg, true, "dbg");
-    String dbg2;
-    doc.to_string(&dbg2, true, "dbg2");
     EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));

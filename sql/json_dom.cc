@@ -4146,13 +4146,14 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
   DBUG_ASSERT(result->length() >= data_offset + needed);
 
   char *destination= const_cast<char *>(result->ptr());
+  bool changed= false;
   if (parent.update_in_shadow(field, element_pos, new_value, data_offset,
-                              needed, original, destination))
+                              needed, original, destination, &changed))
     return true;                                /* purecov: inspected */
 
   m_value= parse_binary(result->ptr(), result->length());
   *partially_updated= true;
-  *replaced_path= true;
+  *replaced_path= changed;
   return false;
 }
 
