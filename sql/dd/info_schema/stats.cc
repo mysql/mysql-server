@@ -389,6 +389,9 @@ ulonglong Statistics_cache::read_stat_from_SE(
   bool ignore_cache= false;
   ulonglong return_value= 0;
 
+  DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
+                  DBUG_ASSERT(!strncmp(table_name_ptr.ptr(), "fts", 3)););
+
   // Stop we have see and error already for this table.
   if (check_error_for_key(schema_name_ptr, table_name_ptr))
     DBUG_RETURN(0);

@@ -114,12 +114,11 @@ Statistics_dynamic::Statistics_dynamic()
 
   m_target_def.add_field(FIELD_CARDINALITY,  "CARDINALITY",
     "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
-                                       "idx.ordinal_position,"
-                                       "icu.ordinal_position,"
-                                       "tbl.engine,"
-                                       "tbl.se_private_id,"
-                                       "idx.hidden OR icu.hidden)");
-
+      "idx.ordinal_position,"
+      "icu.ordinal_position,"
+      "tbl.engine,"
+      "tbl.se_private_id,"
+      "tbl.hidden != 'Visible' OR idx.hidden OR icu.hidden)");
 }
 
 Show_statistics::Show_statistics()
