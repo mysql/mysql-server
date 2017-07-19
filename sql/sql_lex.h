@@ -958,7 +958,8 @@ public:
   */
   void set_tables_readonly()
   {
-    for (TABLE_LIST *tr= get_table_list(); tr != NULL; tr= tr->next_local)
+    // Set all referenced base tables as read only.
+    for (TABLE_LIST *tr= leaf_tables; tr != nullptr; tr= tr->next_leaf)
       tr->set_readonly();
   }
 

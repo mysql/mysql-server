@@ -9236,7 +9236,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       TABLE_LIST *tr= field->table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable())
       {
-        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->alias, "UPDATE");
+        /*
+          The base table of the column may have beeen referenced through a view
+          or derived table. If so, print the name of the upper-most view
+          referring to this table in order to print the error message with the
+          alias of the view as written in the original query instead of the
+          alias of the base table.
+        */
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->top_table()->alias,
+                 "UPDATE");
         DBUG_RETURN(true);
       }
       if ((want_privilege & INSERT_ACL) && !tr->is_insertable())
@@ -9247,7 +9255,8 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
           one base table, for which the INSERT privileges are checked in
           Sql_cmd_insert_base::prepare_inner()
         */
-        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->alias, "INSERT");
+        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->top_table()->alias,
+                 "INSERT");
         DBUG_RETURN(true);
         /* purecov: end */
       }
