@@ -71,64 +71,109 @@ public:
 
 	/** Get the id of the DDL log record.
 	@return id of the record. */
-	ulint get_id() const;
+	ulint get_id() const
+	{
+		return(m_id);
+	}
 
 	/** Set the id for the DDL log record.
 	@param[in]	id	id of the record. */
-	void set_id(ulint id);
+	void set_id(ulint id)
+	{
+		m_id = id;
+	}
 
 	/** Get the type of operation to perform
 	for the DDL log record.
 	@return type of the record. */
-	Log_Type get_type() const;
+	Log_Type get_type() const
+	{
+		return(m_type);
+	}
 
 	/** Set the type for the DDL log record.
-	@param[in]	record_type	set the record type.*/
-	void set_type(Log_Type type);
+	@param[in]	type	set the record type.*/
+	void set_type(Log_Type type)
+	{
+		m_type = type;
+	}
 
 	/** Get the thread id for the DDL log record.
 	@return thread id of the DDL log record. */
-	ulint get_thread_id() const;
+	ulint get_thread_id() const
+	{
+		return(m_thread_id);
+	}
 
 	/** Set the thread id for the DDL log record.
 	@param[in]	thread_id	thread id. */
-	void set_thread_id(ulint thread_id);
+	void set_thread_id(ulint thread_id)
+	{
+		m_thread_id = thread_id;
+	}
 
 	/** Get the space_id present in the DDL log record.
 	@return space_id in the DDL log record. */
-	space_id_t get_space_id() const;
+	space_id_t get_space_id() const
+	{
+		return(m_space_id);
+	}
 
 	/** Set the space id for the DDL log record.
 	@param[in]	space	space id. */
-	void set_space_id(space_id_t space);
+	void set_space_id(space_id_t space)
+	{
+		m_space_id = space;
+	}
 
 	/** Get the page no present in the DDL log record.
 	@return page_no */
-	page_no_t get_page_no() const;
+	page_no_t get_page_no() const
+	{
+		return(m_page_no);
+	}
 
 	/** Set the page number for the DDL log record.
 	@param[in]	page_no	page number. */
-	void set_page_no(page_no_t page_no);
+	void set_page_no(page_no_t page_no)
+	{
+		m_page_no = page_no;
+	}
 
 	/** Get the index id present in the DDL log record.
 	@return index id. */
-	ulint get_index_id() const;
+	ulint get_index_id() const
+	{
+		return(m_index_id);
+	}
 
 	/** Set the index id for the DDL log record.
-	@param[in]	ind_id	index id. */
-	void set_index_id(ulint ind_id);
+	@param[in]	index_id	index id. */
+	void set_index_id(ulint index_id)
+	{
+		m_index_id = index_id;
+	}
 
 	/** Get the table id present in the DDL log record.
 	@return table id from the record. */
-	table_id_t get_table_id() const;
+	table_id_t get_table_id() const
+	{
+		return(m_table_id);
+	}
 
 	/** Set the table if for the DDL log record.
 	@param[in]	table_id	table id. */
-	void set_table_id(table_id_t table_id);
+	void set_table_id(table_id_t table_id)
+	{
+		m_table_id = table_id;
+	}
 
 	/** Get the old file path/name present in the DDL log record.
 	@return old file path/name. */
-	const char* get_old_file_path() const;
+	const char* get_old_file_path() const
+	{
+		return(m_old_file_path);
+	}
 
 	/** Set the old file path from the name for the DDL log record.
 	@param[in]	name	old file name. */
@@ -141,7 +186,10 @@ public:
 
 	/** Get the new file path/name present in the DDL log record.
 	@return new file path/name. */
-	const char* get_new_file_path() const;
+	const char* get_new_file_path() const
+	{
+		return(m_new_file_path);
+	}
 
 	/** Set the new file path/name for the DDL log record.
 	@param[in]	name	name to be set. */
@@ -198,7 +246,8 @@ struct dtuple_t;
 /** Array of DDL records */
 using DDL_Records = std::vector<DDL_Record*>;
 
-/** Wrapper of mysql.innodb_ddl_log table */
+/** Wrapper of mysql.innodb_ddl_log table. Accessing to this table doesn't
+require row lock because thread could only access/modify its own ddl records. */
 class DDL_Log_Table
 {
 public:
@@ -206,35 +255,44 @@ public:
 	DDL_Log_Table();
 
 	/** Constructor and it initalizes transaction and query thread.
+	Once trx is passed in, make sure destructor is called before the
+	trx commits.
 	@param[in,out]	trx	Transaction */
-	DDL_Log_Table(trx_t* trx);
+	explicit DDL_Log_Table(trx_t* trx);
 
 	/** Destructor. */
 	~DDL_Log_Table();
 
 	/** Insert the DDL log record into the innodb_ddl_log table.
+	This is thread safe.
 	@param[in]	record	Record to be inserted.
 	@return DB_SUCCESS or error. */
 	dberr_t insert(const DDL_Record& record);
 
 	/** Search for all records of specified thread_id. The records
-	are kept in reverse order
+	are kept in reverse order.
+	This is thread safe. Because different threads have different thread
+	ids, there should not be any conflict with update.
 	@param[in]	thread_id	thread id to search
 	@param[out]	records		DDL_Records of the specified thread id
 	@return DB_SUCCESS or error. */
 	dberr_t search(ulint thread_id, DDL_Records& records);
 
 	/** Do a reverse scan on the table to fetch all the record.
+	This is only called during recovery
 	@param[out]	records	DDL_Records of the whole table
 	@return DB_SUCCESS or error. */
 	dberr_t search_all(DDL_Records& records);
 
 	/** Delete the innodb_ddl_log record of specified ID.
+	This is thread safe. One thread will only remove its ddl record.
 	@param[in]	id	ID of the DDL_Record
 	@return DB_SUCCESS or error. */
 	dberr_t remove(ulint id);
 
 	/** Delete specified DDL_Records from innodb_ddl_log.
+	This is thread safe. Different threads have their own ddl records
+	to delete. And this could be called during recovery.
 	@param[in]	records		DDL_Record(s) to be deleted
 	@return DB_SUCCESS or error. */
 	dberr_t remove(const DDL_Records& records);
@@ -252,8 +310,8 @@ private:
 	@param[in]	record	DDL log record. */
 	void create_tuple(const DDL_Record& record);
 
-	/** Create tuple for the given index.
-	It can be used for delete or search operation.
+	/** Create tuple for the given index. Used for search by id
+	(and following delete)
 	@param[in]	id	Thread id/ id of the record
 	@param[in]	index	Clustered index or secondary index. */
 	void create_tuple(ulint id, const dict_index_t* index);
@@ -284,7 +342,7 @@ private:
 
 	/** Set the given field of the innodb_ddl_log record from given data.
 	@param[in]	data	data to be set
-	@param[in]	offse	column of the ddl record
+	@param[in]	offset	column of the ddl record
 	@param[in]	len	length of the data
 	@param[in,out]	record	DDL_Record to set */
 	void
@@ -376,6 +434,7 @@ private:
 	mem_heap_t*		m_heap;
 };
 
+/** Class to write and replay ddl logs */
 class Log_DDL {
 public:
 	/** Constructor */
@@ -388,7 +447,7 @@ public:
 	/** Write DDL log for freeing B-tree
 	@param[in,out]	trx		transaction
 	@param[in]	index		dict index
-	@param[in]	is_drop		flag whether dropping index
+	@param[in]	is_drop_table	true if this is drop table
 	@return	DB_SUCCESS or error */
 	dberr_t write_free_tree_log(
 		trx_t*			trx,
@@ -459,7 +518,7 @@ public:
 
 	/** Recover in server startup.
 	Scan innodb_ddl_log table, and replay all log entries.
-	Note: redo log should be applied, and dict transactions
+	Note: redo log should be applied, and DD transactions
 	should be recovered before calling this function.
 	@return	DB_SUCCESS or error */
 	dberr_t recover();
@@ -494,6 +553,7 @@ private:
 		ulint		index_id);
 
 	/** Insert a DELETE log record
+	@param[in,out]	trx		transaction
 	@param[in]	id		log id
 	@param[in]	thread_id	thread id
 	@param[in]	space_id	tablespace id
@@ -604,29 +664,21 @@ private:
 		trx_t*		trx,
 		ib_uint64_t	id);
 
-	/** Scan and replay log records by thread id
-	@param[in]	trx		transaction instance
+	/** Scan, replay and delete log records by thread id
 	@param[in]	thread_id	thread id
-	@param[out]	records		DDL_Records scanned and replayed
 	@return DB_SUCCESS or error */
 	dberr_t	replay_by_thread_id(
-		trx_t*			trx,
-		ulint			thread_id,
-		DDL_Records&		records);
+		ulint		thread_id);
 
 	/** Delete the log records present in the list.
-	@param[in]	trx		transaction instance
 	@param[in]	records		DDL_Records where the IDs are got
 	@return DB_SUCCESS or error. */
 	dberr_t delete_by_ids(
-		trx_t*			trx,
-		DDL_Records&		ids_list);
+		DDL_Records&	records);
 
-	/** Scan and replay all log records
-	@param[out]	records	DDL_Records scanned and replayed
+	/** Scan, replay and delete all log records
 	@return DB_SUCCESS or error */
-	dberr_t	replay_all(
-		DDL_Records&		records);
+	dberr_t	replay_all();
 
 	/** Get next autoinc counter by increasing 1 for innodb_ddl_log
 	@return	new next counter */
