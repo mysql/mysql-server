@@ -23,6 +23,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #endif
+#include <my_dir.h>
 
 /*
   Reads the content of a symbolic link
