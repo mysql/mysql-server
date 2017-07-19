@@ -54,10 +54,9 @@ bool get_and_store_tablespace_name(THD *thd, const T *obj,
     return true;
   }
 
-  if (tablespace_name &&
-      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+  if (tablespace_name)
   {
-    return true;
+    tablespace_set->insert(tablespace_name);
   }
 
   return false;

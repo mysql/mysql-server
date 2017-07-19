@@ -1050,11 +1050,11 @@ def	performance_schema	rwlock_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL
 def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	rwlock_instances	WRITE_LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	performance_schema	rwlock_instances	READ_LOCKED_BY_COUNT	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
-def	performance_schema	session_account_connect_attrs	PROCESSLIST_ID	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references		
+def	performance_schema	session_account_connect_attrs	PROCESSLIST_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	session_account_connect_attrs	ATTR_NAME	2	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_bin	varchar(32)	PRI		select,insert,update,references		
 def	performance_schema	session_account_connect_attrs	ATTR_VALUE	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_bin	varchar(1024)			select,insert,update,references		
 def	performance_schema	session_account_connect_attrs	ORDINAL_POSITION	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	performance_schema	session_connect_attrs	PROCESSLIST_ID	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references		
+def	performance_schema	session_connect_attrs	PROCESSLIST_ID	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	performance_schema	session_connect_attrs	ATTR_NAME	2	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_bin	varchar(32)	PRI		select,insert,update,references		
 def	performance_schema	session_connect_attrs	ATTR_VALUE	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_bin	varchar(1024)			select,insert,update,references		
 def	performance_schema	session_connect_attrs	ORDINAL_POSITION	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		

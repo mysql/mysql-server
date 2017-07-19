@@ -782,7 +782,7 @@ SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 # gone from both I_S and P_S, except it will remain in the
 # P_S event wait history.
 SELECT event_name, object_name, object_type, operation
-FROM performance_schema.events_waits_history_long
+FROM performance_schema.events_waits_history
 WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock

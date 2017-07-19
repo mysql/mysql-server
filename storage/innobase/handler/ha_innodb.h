@@ -362,18 +362,6 @@ public:
 
 	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
 
-	uint8 table_cache_type();
-
-	/**
-	Ask handler about permission to cache table during query registration
-	*/
-	bool register_query_cache_table(
-		THD*			thd,
-		char*			table_key,
-		size_t			key_length,
-		qc_engine_callback*	call_back,
-		ulonglong*		engine_data);
-
 	bool primary_key_is_clustered() const;
 
 	int cmp_ref(const uchar* ref1, const uchar* ref2) const;

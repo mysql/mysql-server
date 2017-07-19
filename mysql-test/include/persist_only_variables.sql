@@ -21,7 +21,6 @@ set @@persist_only.disabled_storage_engines='';
 set @@persist_only.ft_max_word_len=84;
 set @@persist_only.ft_min_word_len=4;
 set @@persist_only.ft_query_expansion_limit=20;
-set @@persist_only.ignore_builtin_innodb=0;
 set @@persist_only.innodb_adaptive_hash_index_parts=8;
 set @@persist_only.innodb_api_disable_rowlock=0;
 set @@persist_only.innodb_api_enable_binlog=0;

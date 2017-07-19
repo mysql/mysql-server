@@ -226,6 +226,7 @@ innodb/io_write_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
+sql/event_scheduler	FOREGROUND
 sql/main	BACKGROUND
 CALL sys.ps_setup_show_enabled(TRUE, TRUE);
 performance_schema_enabled
@@ -269,6 +270,7 @@ innodb/io_write_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
+sql/event_scheduler	FOREGROUND
 sql/main	BACKGROUND
 enabled_instruments	timed
 idle	YES

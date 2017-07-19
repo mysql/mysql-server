@@ -700,8 +700,6 @@ PFS_table_share::destroy_index_stats()
 void
 PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
 {
-  bool old_enabled = m_enabled;
-
   lookup_setup_object(thread,
                       OBJECT_TYPE_TABLE,
                       m_schema_name,
@@ -710,16 +708,6 @@ PFS_table_share::refresh_setup_object_flags(PFS_thread *thread)
                       m_table_name_length,
                       &m_enabled,
                       &m_timed);
-
-  /*
-    If instrumentation for this table was enabled earlier and is disabled now,
-    cleanup slots reserved for lock stats and index stats.
-  */
-  if (old_enabled && !m_enabled)
-  {
-    destroy_lock_stat();
-    destroy_index_stats();
-  }
 }
 
 /**

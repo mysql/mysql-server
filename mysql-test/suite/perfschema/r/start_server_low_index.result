@@ -222,6 +222,8 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+0	TABLE	db1	t1
+0	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'
@@ -233,6 +235,8 @@ from performance_schema.table_io_waits_summary_by_table
 where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME
+0	TABLE	db1	t1
+0	TABLE	db1	t2
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME
 from performance_schema.table_io_waits_summary_by_index_usage
 where OBJECT_SCHEMA='db1'

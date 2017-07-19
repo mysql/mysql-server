@@ -618,9 +618,6 @@ flush tables;
 return 5;
 end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function bug8409() returns int begin reset query cache;
-return 1; end|
-ERROR 0A000: RESET is not allowed in stored function or trigger
 create function bug8409() returns int begin reset master;
 return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger
@@ -643,9 +640,6 @@ create function bug8409() returns int begin flush logs;
 return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin flush status;
-return 1; end|
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create function bug8409() returns int begin flush des_key_file;
 return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create function bug8409() returns int begin flush user_resources;

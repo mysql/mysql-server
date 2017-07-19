@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 static Ndb_cluster_connection *ndb_cluster_connection= 0;
 static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
-static int _unqualified = 0;
+static int _fully_qualified = 0;
 static int _parsable = 0;
 static int show_temp_status = 0;
 
@@ -81,12 +81,24 @@ static void
 list(const char * tabname, 
      NdbDictionary::Object::Type type)
 {
+    /**
+     * Display fully qualified table names if --fully-qualified is set to 1.
+     *
+     * useFq passed to listObjects() and listIndexes() below in this context
+     * actually behaves like 'unqualified'.
+     * useFq == true : Strip off the database and schema (and tableid) and
+     * return the table/index name
+     * useFq == false : Return the full name
+     * (database/schema/[tableid/]indexname|tablename)
+     */
+    bool useFq = !_fully_qualified;
+
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
-	if (dic->listObjects(list, type) == -1)
+	if (dic->listObjects(list, type, useFq) == -1)
 	    fatal_dict("listObjects");
     } else {
-	if (dic->listIndexes(list, tabname) == -1)
+	if (dic->listIndexes(list, tabname, useFq) == -1)
 	    fatal_dict("listIndexes");
     }
     if (!_parsable)
@@ -291,9 +303,9 @@ static struct my_option my_long_options[] =
   { "type", 't', "type",
     (uchar**) &_type, (uchar**) &_type, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "unqualified", 'u', "Use unqualified table names",
-    (uchar**) &_unqualified, (uchar**) &_unqualified, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "fully-qualified", 'f', "Show fully qualified table names",
+    (uchar**) &_fully_qualified, (uchar**) &_fully_qualified, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
     (uchar**) &_parsable, (uchar**) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 

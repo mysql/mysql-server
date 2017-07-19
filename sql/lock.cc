@@ -888,14 +888,6 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
   return false;
 }
 
-// Function generating hash key for Tablespace_hash_set.
-const uchar *tablespace_set_get_key(const uchar *record, size_t *length)
-{
-  const char *tblspace_name= reinterpret_cast<const char *>(record);
-  *length= strlen(tblspace_name);
-  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
-}
-
 /**
   Acquire IX MDL lock each tablespace name from the given set.
 
@@ -912,22 +904,20 @@ bool lock_tablespace_names(
        ulong lock_wait_timeout)
 {
   // Stop if we have nothing to lock
-  if (tablespace_set->is_empty())
+  if (tablespace_set->empty())
     return false;
 
   // Prepare MDL_request's for all tablespace names.
   MDL_request_list mdl_tablespace_requests;
-  Tablespace_hash_set::Iterator it(*tablespace_set);
-  char *tablespace= NULL;
-  while ((tablespace= it++))
+  for (const std::string &tablespace : *tablespace_set)
   {
-    DBUG_ASSERT(strlen(tablespace));
+    DBUG_ASSERT(!tablespace.empty());
 
     MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
     if (tablespace_request == NULL)
       return true;
     MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
-                     "", tablespace, MDL_INTENTION_EXCLUSIVE,
+                     "", tablespace.c_str(), MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
     mdl_tablespace_requests.push_front(tablespace_request);
   }

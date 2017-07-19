@@ -15,32 +15,32 @@ index(c,a)) engine = ndb;
 insert into parent values (1,2,3);
 alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
 insert into child values (2,1,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (1,1,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,1,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 delete from child;
 alter table child drop foreign key fkname;
 alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
 insert into child values (1,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,3,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,1,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`b`,`a`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 delete from child;
 alter table child drop foreign key fkname;
 alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
 insert into child values (1,2,2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,3,1);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 insert into child values (2,2,1);
 delete from parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `fkname` FOREIGN KEY (`c`,`b`) REFERENCES `parent` (`a`,`b`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 drop table child, parent;
 #
 # Bug#21664899 : FAILURE CREATING COMPOSITE FKS REFERENCING COMPOSITE PKS OF PARENT

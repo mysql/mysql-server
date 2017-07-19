@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -266,17 +266,6 @@ Java_myjapi_A_deliver_1ref(JNIEnv * env, jclass cls)
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-JNIEXPORT jobject JNICALL
-Java_myjapi_A_deliver_1null_1ref(JNIEnv * env, jclass cls)
-{
-    TRACE("jobject Java_myjapi_A_deliver_1null_1ref(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_myjapi_A_r, &A::deliver_null_ref >(env, cls);
-#else
-    return gcall_fr< ttrait_myjapi_A_r, &MyApiWrapper::A__deliver_null_ref >(env, cls);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
 JNIEXPORT void JNICALL
 Java_myjapi_A_take_1ptr(JNIEnv * env, jclass cls, jobject p0)
 {
@@ -307,17 +296,6 @@ Java_myjapi_A_take_1ref(JNIEnv * env, jclass cls, jobject p0)
     gcall_fv< ttrait_myjapi_A_r, &A::take_ref >(env, cls, p0);
 #else
     gcall_fv< ttrait_myjapi_A_r, &MyApiWrapper::A__take_ref >(env, cls, p0);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT void JNICALL
-Java_myjapi_A_take_1null_1ref(JNIEnv * env, jclass cls, jobject p0)
-{
-    TRACE("void Java_myjapi_A_take_1null_1ref(JNIEnv *, jclass, jobject)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    gcall_fv< ttrait_myjapi_A_r, &A::take_null_ref >(env, cls, p0);
-#else
-    gcall_fv< ttrait_myjapi_A_r, &MyApiWrapper::A__take_null_ref >(env, cls, p0);
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

@@ -740,7 +740,7 @@ union all
 select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
 t2.id=tree_of_a.rightpar
 )
-select sql_no_cache * from tree_of_a;
+select * from tree_of_a;
 
 --echo # Note that without ORDER BY, order of rows would be random as BNL
 --echo # implies that the randomized t2 is the driving table in the

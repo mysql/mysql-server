@@ -26,6 +26,8 @@ drop event задачка;
 
 --echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
 set global event_scheduler=off;
+--source include/no_running_event_scheduler.inc
+
 select definer, event_name from information_schema.events;
 select get_lock("test_lock1", 20);
 create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
@@ -47,6 +49,7 @@ select count(*) from information_schema.events;
 #
 --echo "ENABLE the scheduler and get a lock"
 set global event_scheduler=on;
+--source include/running_event_scheduler.inc
 select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
@@ -81,7 +84,6 @@ let $wait_condition= select count(*) = 0 from information_schema.processlist
 ## 5. kill the scheduler, it will wait for the child to stop
 ## 6. both processes should be there on show processlist
 ## 7. release the lock and sleep, both scheduler and child should end
-set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 
@@ -98,6 +100,7 @@ select /*3*/ user, host, db, command, state, info
   order by info;
 
 set global event_scheduler=off;
+--source include/no_running_event_scheduler.inc
 
 let $wait_condition= select count(*) =1 from information_schema.processlist
   where (info like "select get_lock%" OR user='event_scheduler');
@@ -114,6 +117,9 @@ let $wait_condition=
   select count(*) = 0 from information_schema.processlist
   where db='events_test' and command = 'Connect' and user=current_user();
 --source include/wait_condition.inc
+# Set event_scheduler ON by default
+set global event_scheduler = ON;
+--source include/running_event_scheduler.inc
 
 ####
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement

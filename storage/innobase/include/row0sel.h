@@ -237,17 +237,6 @@ row_count_rtree_recs(
 	ulint*		n_rows);	/*!< out: number of entries
 					seen in the consistent read */
 
-/** Checks if MySQL at the moment is allowed for this table to retrieve a
-consistent read result, or store it to the query cache.
-@param[in]	thd	thread that is trying to access the query cache
-@param[in]	trx	transaction object
-@param[in]	norm_name concatenation of database name, '/' char, table name
-@return TRUE if storing or retrieving from the query cache is permitted */
-ibool
-row_search_check_if_query_cache_permitted(
-	THD*		thd,
-	trx_t*		trx,
-	const char*	norm_name);
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code */

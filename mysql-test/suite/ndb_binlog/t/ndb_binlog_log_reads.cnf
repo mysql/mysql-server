@@ -22,6 +22,9 @@ binlog-format=row
 log-bin-use-v1-row-events=false
 ndb-log-empty-update
 
+# Enable load data local functionality
+local-infile=true
+
 [mysqld.1.1]
 ndb-log-update-as-write=1
 ndb-log-updated-only=1

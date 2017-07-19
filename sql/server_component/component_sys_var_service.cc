@@ -49,7 +49,7 @@ void comp_sys_var_init_psi_keys(void)
   int count;
 
   count= static_cast<int>(array_elements(comp_sys_var_memory));
-  PSI_MEMORY_CALL(register_memory)(category, comp_sys_var_memory, count);
+  mysql_memory_register(category, comp_sys_var_memory, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 

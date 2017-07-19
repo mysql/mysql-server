@@ -11,6 +11,8 @@ SELECT COUNT(@@SESSION.master_info_repository);
 ERROR HY000: Variable 'master_info_repository' is a GLOBAL variable
 '#---------------------BS_STVARS_002_02----------------------#'
 SET @@GLOBAL.master_info_repository= "FILE";
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SELECT @@GLOBAL.master_info_repository;
 @@GLOBAL.master_info_repository
 FILE

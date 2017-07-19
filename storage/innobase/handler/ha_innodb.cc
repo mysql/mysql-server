@@ -1536,7 +1536,7 @@ thd_is_replication_slave_thread(
 /*============================*/
 	THD*	thd)	/*!< in: thread handle */
 {
-	return((ibool) thd_slave_thread(thd));
+	return(thd != nullptr && (ibool) thd_slave_thread(thd));
 }
 
 /******************************************************************//**
@@ -3015,168 +3015,6 @@ innobase_register_trx(
 	}
 
 	trx_register_for_2pc(trx);
-}
-
-/*	BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
-	------------------------------------------------------------
-
-1) The use of the query cache for TBL is disabled when there is an
-uncommitted change to TBL.
-
-2) When a change to TBL commits, InnoDB stores the current value of
-its global trx id counter, let us denote it by INV_TRX_ID, to the table object
-in the InnoDB data dictionary, and does only allow such transactions whose
-id <= INV_TRX_ID to use the query cache.
-
-3) When InnoDB does an INSERT/DELETE/UPDATE to a table TBL, or an implicit
-modification because an ON DELETE CASCADE, we invalidate the MySQL query cache
-of TBL immediately.
-
-How this is implemented inside InnoDB:
-
-1) Since every modification always sets an IX type table lock on the InnoDB
-table, it is easy to check if there can be uncommitted modifications for a
-table: just check if there are locks in the lock list of the table.
-
-2) When a transaction inside InnoDB commits, it reads the global trx id
-counter and stores the value INV_TRX_ID to the tables on which it had a lock.
-
-3) If there is an implicit table change from ON DELETE CASCADE or SET NULL,
-InnoDB calls an invalidate method for the MySQL query cache for that table.
-
-How this is implemented inside sql_cache.cc:
-
-1) The query cache for an InnoDB table TBL is invalidated immediately at an
-INSERT/UPDATE/DELETE, just like in the case of MyISAM. No need to delay
-invalidation to the transaction commit.
-
-2) To store or retrieve a value from the query cache of an InnoDB table TBL,
-any query must first ask InnoDB's permission. We must pass the thd as a
-parameter because InnoDB will look at the trx id, if any, associated with
-that thd. Also the full_name which is used as key to search for the table
-object. The full_name is a string containing the normalized path to the
-table in the canonical format.
-
-3) Use of the query cache for InnoDB tables is now allowed also when
-AUTOCOMMIT==0 or we are inside BEGIN ... COMMIT. Thus transactions no longer
-put restrictions on the use of the query cache.
-*/
-
-/******************************************************************//**
-The MySQL query cache uses this to check from InnoDB if the query cache at
-the moment is allowed to operate on an InnoDB table. The SQL query must
-be a non-locking SELECT.
-
-The query cache is allowed to operate on certain query only if this function
-returns TRUE for all tables in the query.
-
-If thd is not in the autocommit state, this function also starts a new
-transaction for thd if there is no active trx yet, and assigns a consistent
-read view to it if there is no read view yet.
-
-Why a deadlock of threads is not possible: the query cache calls this function
-at the start of a SELECT processing. Then the calling thread cannot be
-holding any InnoDB semaphores. The calling thread is holding the
-query cache mutex, and this function will reserve the InnoDB trx_sys->mutex.
-Thus, the 'rank' in sync0mutex.h of the MySQL query cache mutex is above
-the InnoDB trx_sys->mutex.
-@return TRUE if permitted, FALSE if not; note that the value FALSE
-does not mean we should invalidate the query cache: invalidation is
-called explicitly */
-static
-bool
-innobase_query_caching_of_table_permitted(
-/*======================================*/
-	THD*	thd,		/*!< in: thd of the user who is trying to
-				store a result to the query cache or
-				retrieve it */
-	const char*	full_name,	/*!< in: normalized path to the table */
-	uint	full_name_len,	/*!< in: length of the normalized path
-				to the table */
-	ulonglong *unused)	/*!< unused for this engine */
-{
-	bool	is_autocommit;
-	char	norm_name[1000];
-	trx_t*	trx = check_trx_exists(thd);
-
-	ut_a(full_name_len < 999);
-
-	if (trx->isolation_level == TRX_ISO_SERIALIZABLE) {
-		/* In the SERIALIZABLE mode we add LOCK IN SHARE MODE to every
-		plain SELECT if AUTOCOMMIT is not on. */
-
-		return(false);
-	}
-
-	innobase_srv_conc_force_exit_innodb(trx);
-
-	if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-
-		is_autocommit = true;
-	} else {
-		is_autocommit = false;
-
-	}
-
-	if (is_autocommit && trx->n_mysql_tables_in_use == 0) {
-		/* We are going to retrieve the query result from the query
-		cache. This cannot be a store operation to the query cache
-		because then MySQL would have locks on tables already.
-
-		TODO: if the user has used LOCK TABLES to lock the table,
-		then we open a transaction in the call of row_.. below.
-		That trx can stay open until UNLOCK TABLES. The same problem
-		exists even if we do not use the query cache. MySQL should be
-		modified so that it ALWAYS calls some cleanup function when
-		the processing of a query ends!
-
-		We can imagine we instantaneously serialize this consistent
-		read trx to the current trx id counter. If trx2 would have
-		changed the tables of a query result stored in the cache, and
-		trx2 would have already committed, making the result obsolete,
-		then trx2 would have already invalidated the cache. Thus we
-		can trust the result in the cache is ok for this query. */
-
-		return(true);
-	}
-
-	/* Normalize the table name to InnoDB format */
-	normalize_table_name(norm_name, full_name);
-
-	innobase_register_trx(innodb_hton_ptr, thd, trx);
-
-	if (row_search_check_if_query_cache_permitted(thd, trx, norm_name)) {
-
-		return(true);
-	}
-
-	return(false);
-}
-
-/*****************************************************************//**
-Invalidates the MySQL query cache for the table. */
-void
-innobase_invalidate_query_cache(
-/*============================*/
-	trx_t*		trx,		/*!< in: transaction which
-					modifies the table */
-	const char*	full_name,	/*!< in: concatenation of
-					database name, path separator,
-					table name, null char NUL;
-					NOTE that in Windows this is
-					always in LOWER CASE! */
-	ulint		full_name_len)	/*!< in: full name length where
-					also the null chars count */
-{
-	/* Note that the sync0mutex.h rank of the query cache mutex is just
-	above the InnoDB trx_sys_t->lock. The caller of this function must
-	not have latches of a lower rank. */
-
-	/* Argument TRUE below means we are using transactions */
-	mysql_query_cache_invalidate4(trx->mysql_thd,
-				      full_name,
-				      (uint32) full_name_len,
-				      TRUE);
 }
 
 /** Quote a standard SQL identifier like tablespace, index or column name.
@@ -5738,17 +5576,6 @@ ha_innobase::max_supported_key_length() const
 	default:
 		return(3500);
 	}
-}
-
-/****************************************************************//**
-Determines if table caching is supported.
-@return HA_CACHE_TBL_ASKTRANSACT */
-
-uint8
-ha_innobase::table_cache_type()
-/*===========================*/
-{
-	return(HA_CACHE_TBL_ASKTRANSACT);
 }
 
 /****************************************************************//**
@@ -18748,34 +18575,6 @@ ha_innobase::cmp_ref(
 	return(0);
 }
 
-/*******************************************************************//**
-Ask InnoDB if a query to a table can be cached.
-@return TRUE if query caching of the table is permitted */
-
-bool
-ha_innobase::register_query_cache_table(
-/*====================================*/
-	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: normalized path to the
-					table */
-	size_t		key_length,	/*!< in: length of the normalized
-					path to the table */
-	qc_engine_callback*
-			call_back,	/*!< out: pointer to function for
-					checking if query caching
-					is permitted */
-	ulonglong	*engine_data)	/*!< in/out: data to call_back */
-{
-	*engine_data = 0;
-
-	*call_back = innobase_query_caching_of_table_permitted;
-
-	return(innobase_query_caching_of_table_permitted(
-			thd, table_key,
-			static_cast<uint>(key_length),
-			engine_data));
-}
-
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -20706,7 +20505,7 @@ innodb_status_output_update(
 	*static_cast<bool*>(var_ptr) = *static_cast<const bool*>(save);
 	/* The lock timeout monitor thread also takes care of this
 	output. */
-	os_event_set(lock_sys->timeout_event);
+	os_event_set(srv_monitor_event);
 }
 
 /** Update the innodb_log_checksums parameter.

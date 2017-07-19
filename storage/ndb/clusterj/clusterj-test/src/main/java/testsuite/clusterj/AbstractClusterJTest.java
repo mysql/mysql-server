@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -260,9 +260,7 @@ public abstract class AbstractClusterJTest extends TestCase {
      */
     protected void getConnection(Properties extraProperties) {
         // characterEncoding = utf8 property is especially useful
-        Properties properties = new Properties();
-        properties.put("user", jdbcUsername);
-        properties.put("password", jdbcPassword);
+        Properties properties = new Properties(props);
         properties.putAll(extraProperties);
         try {
             if (connection != null && !connection.isClosed()) {
@@ -274,7 +272,6 @@ public abstract class AbstractClusterJTest extends TestCase {
         } catch (SQLException ex) {
             ex.printStackTrace();
             throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
-            // TODO Auto-generated catch block
         }
     }
 
@@ -285,7 +282,7 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (connection == null) {
             try {
                 Class.forName(jdbcDriverName, true, ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER);
-                connection = DriverManager.getConnection(jdbcURL, jdbcUsername, jdbcPassword);
+                connection = DriverManager.getConnection(jdbcURL, props);
             } catch (SQLException ex) {
                 throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
             } catch (ClassNotFoundException ex) {
@@ -300,11 +297,10 @@ public abstract class AbstractClusterJTest extends TestCase {
      * @param propertiesFileName the name of the properties file
      */
     protected void getConnection(String propertiesFileName) {
-        loadProperties(propertiesFileName);
-        loadDriver();
+        Properties props = getProperties(propertiesFileName);
         String url = props.getProperty(JDBC_URL);
         try {
-            connection = DriverManager.getConnection(url);
+            connection = DriverManager.getConnection(url, props);
             setAutoCommit(connection, false);
         } catch (SQLException e) {
             throw new RuntimeException("Could not get Connection: " + url, e);
@@ -471,14 +467,7 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     /** Load properties from clusterj.properties */
     protected void loadProperties() {
-        loadProperties(PROPS_FILE_NAME);
-    }
-
-    /** Load properties from an arbitrary file name */
-    protected void loadProperties(String propsFileName) {
-//        if (props == null) {
-            props = getProperties(propsFileName);
-//        }
+        props = getProperties(PROPS_FILE_NAME);
         jdbcDriverName = props.getProperty(Constants.PROPERTY_JDBC_DRIVER_NAME);
         jdbcURL = props.getProperty(Constants.PROPERTY_JDBC_URL);
         jdbcUsername = props.getProperty(Constants.PROPERTY_JDBC_USERNAME);
@@ -486,6 +475,9 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (jdbcPassword == null) {
             jdbcPassword = "";
         }
+        props.put("useSSL", "false");
+        props.put("user", jdbcUsername);
+        props.put("password",jdbcPassword);
     }
 
     /** Load the schema for tests */

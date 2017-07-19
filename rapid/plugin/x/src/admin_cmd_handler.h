@@ -25,12 +25,12 @@
 #include <vector>
 
 #include <google/protobuf/repeated_field.h>
+#include "ngs/protocol_fwd.h"
 
-#include "mysqlx_datatypes.pb.h"
 #include "ngs_common/smart_ptr.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs/error_code.h"
 #include "ngs/interface/sql_session_interface.h"
-#include "ngs/protocol_fwd.h"
 
 namespace xpl
 {

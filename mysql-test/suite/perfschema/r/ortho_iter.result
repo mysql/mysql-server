@@ -63,7 +63,6 @@ and (name in (
 "memory/sql/acl_map_cache",
 "memory/sql/TABLE_SHARE::mem_root",
 "memory/sql/TABLE",
-"memory/sql/Query_cache",
 "memory/sql/native_functions",
 "memory/sql/Event_basic::mem_root",
 "memory/sql/root",

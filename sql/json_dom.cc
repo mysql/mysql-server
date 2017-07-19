@@ -1006,8 +1006,9 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
   value->set_parent(this);
 
   /*
-    We have already an element with this key.  Note we compare utf-8 bytes
-    directly here. It's complicated when when you take into account composed
+    Insert the key and the value into the map. If we have already an element
+    with this key, the old value is replaced. Note we compare utf-8 bytes
+    directly here. It's complicated when you take into account composed
     and decomposed forms of accented characters and ligatures: different
     sequences might encode the same glyphs but we ignore that for now.  For
     example, the code point U+006E (the Latin lowercase "n") followed by
@@ -1026,7 +1027,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
 
     See WL-2048 Add function for Unicode normalization
   */
-  m_map.emplace(key, std::move(value));
+  m_map.emplace(key, nullptr).first->second= std::move(value);
   return false;
 }
 
@@ -1117,6 +1118,51 @@ Json_dom_ptr Json_object::clone() const
   }
 
   return std::move(o);
+}
+
+
+bool Json_object::merge_patch(Json_object_ptr patch)
+{
+  for (auto &member : patch->m_map)
+  {
+    // Remove the member if the value in the patch is the null literal.
+    if (member.second->json_type() == enum_json_type::J_NULL)
+    {
+      remove(member.first);
+      continue;
+    }
+
+    // See if the target has this member, add it if not.
+    Json_dom_ptr &target= m_map.emplace(member.first, nullptr).first->second;
+
+    /*
+      If the value in the patch is not an object and not the null
+      literal, the new value is the patch.
+    */
+    if (member.second->json_type() != enum_json_type::J_OBJECT)
+    {
+      target= std::move(member.second);
+      target->set_parent(this);
+      continue;
+    }
+
+    /*
+      If there is no target value, or if the target value is not an
+      object, use an empty object as the target value.
+    */
+    if (target == nullptr || target->json_type() != enum_json_type::J_OBJECT)
+      target= create_dom_ptr<Json_object>();
+
+    // Recursively merge the target value with the patch.
+    Json_object *target_obj= down_cast<Json_object*>(target.get());
+    Json_object_ptr patch_obj(down_cast<Json_object*>(member.second.release()));
+    if (target_obj == nullptr || target_obj->merge_patch(std::move(patch_obj)))
+      return true;                            /* purecov: inspected */
+
+    target->set_parent(this);
+  }
+
+  return false;
 }
 
 
@@ -1221,9 +1267,51 @@ Json_dom_ptr Json_array::clone() const
 
 
 /**
+  Escape a special character in a JSON string, as described in
+  #double_quote(), and append it to a buffer.
+
+  @param c    the special character to escape
+  @param buf  the destination buffer
+
+  @retval false on success
+  @retval true on memory allocation failure
+*/
+static bool escape_character(char c, String *buf)
+{
+  if (buf->append('\\'))
+    return true;                              /* purecov: inspected */
+
+  switch (c)
+  {
+  case '\b':
+    return buf->append('b');
+  case '\t':
+    return buf->append('t');
+  case '\n':
+    return buf->append('n');
+  case '\f':
+    return buf->append('f');
+  case '\r':
+    return buf->append('r');
+  case '"' :
+  case '\\':
+    return buf->append(c);
+  }
+
+  /*
+    Unprintable control character, use a hexadecimal number.
+    The meaning of such a number determined by ISO/IEC 10646.
+  */
+  return buf->append("u00", 3) ||
+         buf->append(_dig_vec_lower[(c & 0xf0) >> 4]) ||
+         buf->append(_dig_vec_lower[(c & 0x0f)]);
+}
+
+
+/**
   Perform quoting on a JSON string to make an external representation
-  of it. it wraps double quotes (text quotes) around the string (cptr)
-  an also performs escaping according to the following table:
+  of it. It wraps double quotes (text quotes) around the string (cptr)
+  and also performs escaping according to the following table:
   <pre>
   @verbatim
   Common name     C-style  Original unescaped     Transformed to
@@ -1256,59 +1344,37 @@ Json_dom_ptr Json_array::clone() const
 */
 bool double_quote(const char *cptr, size_t length, String *buf)
 {
-  if (buf->append('"'))
+  if (buf->reserve(length + 2, buf->length()) || buf->append('"'))
     return true;                              /* purecov: inspected */
 
-  for (size_t i= 0; i < length; i++)
-  {
-    char esc[2]= {'\\', cptr[i]};
-    bool done= true;
-    switch (cptr[i])
-    {
-    case '"' :
-    case '\\' :
-      break;
-    case '\b':
-      esc[1]= 'b';
-      break;
-    case '\f':
-      esc[1]= 'f';
-      break;
-    case '\n':
-      esc[1]= 'n';
-      break;
-    case '\r':
-      esc[1]= 'r';
-      break;
-    case '\t':
-      esc[1]= 't';
-      break;
-    default:
-      done= false;
-    }
+  const char *const end= cptr + length;
 
-    if (done)
-    {
-      if (buf->append(esc[0]) || buf->append(esc[1]))
-        return true;                          /* purecov: inspected */
-    }
-    else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
-             (cptr[i] < 0x1f))
-    {
-      /*
-        Unprintable control character, use hex a hexadecimal number.
-        The meaning of such a number determined by ISO/IEC 10646.
-      */
-      if (buf->append("\\u00") ||
-          buf->append(_dig_vec_lower[(cptr[i] & 0xf0) >> 4]) ||
-          buf->append(_dig_vec_lower[(cptr[i] & 0x0f)]))
-        return true;                          /* purecov: inspected */
-    }
-    else if (buf->append(cptr[i]))
-    {
+  while (true)
+  {
+    /*
+      We assume that most characters do not need escaping, so append
+      segments of such characters with memcpy().
+    */
+    const char *next_special= std::find_if(cptr, end, [](const char c) {
+        const unsigned char uc= static_cast<unsigned char>(c);
+        return uc <= 0x1f || uc == '"' || uc == '\\';
+      });
+
+    if (buf->append(cptr, next_special - cptr))
       return true;                            /* purecov: inspected */
-    }
+
+    cptr= next_special;
+
+    if (cptr == end)
+      break;
+
+    // We've found a special character. Escape it.
+    if (escape_character(*cptr++, buf))
+      return true;                            /* purecov: inspected */
   }
+
+  DBUG_ASSERT(cptr == end);
+
   return buf->append('"');
 }
 

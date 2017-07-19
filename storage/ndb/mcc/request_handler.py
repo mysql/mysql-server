@@ -103,13 +103,24 @@ def make_rep(req, body=None):
     
     return rep
 
-def get_cred(body):
+def get_cred(HostNm, body):
     """Get the credentials from the message in the form of a (user, pwd) tuple.
-    If there is no ssh object present, or keyBased is present and True, a 
-    (None, None) tuple is returned."""
-    if not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False):
-        return (None, None)
-    return (body['ssh']['user'], body['ssh']['pwd'])
+    If there is no ssh object present, or keyBased is present and True, return 
+    (User, passphrase, key_file) block."""
+    try:
+        if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
+            (HostNm != 'localhost' and HostNm != '127.0.0.1')):
+            # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
+                    body['ssh']['key_file'])
+    except KeyError:
+        if ((not body.has_key('ssh') or util.get_val(body['ssh'], 'keyBased', False)) and 
+            (HostNm != 'localhost' and  HostNm != '127.0.0.1')):
+            # It's key-based, implement new logic. {keyBased: true, key: "", key_user: "", key_passp: "", key_file: ""};
+            return (True, body['ssh']['key_user'], body['ssh']['key_passp'], 
+                    body['ssh']['key_file'])
+    
+    return (False, body['ssh']['user'], body['ssh']['pwd'], None)
 
 def handle_hostInfoReq(req, body):
     """Handler function for hostInfoReq commands. Will connect to the specified
@@ -118,15 +129,16 @@ def handle_hostInfoReq(req, body):
     body - shortcut to the body part of the message
     """
     
-    (user, pwd) = get_cred(body)
-    with produce_ABClusterHost(body['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
         return make_rep(req, { 'host': {'name': ch.host },
                                'hostRes': {'ram':ch.ram, 
                                            'cores': ch.cores, 
                                            'uname': ch.hostInfo.uname,
                                            'installdir': ch.installdir, 
                                            'datadir': ch.hostInfo.pm.join(ch.homedir, 'MySQL_Cluster'),
-                                           'diskfree': ch.hostInfo.disk_free   }})
+                                           'diskfree': ch.hostInfo.disk_free,
+                                           'fqdn': socket.getfqdn(ch.host) }})
 
 
 def start_proc(proc, body):
@@ -135,9 +147,9 @@ def start_proc(proc, body):
     body - the whole message
     """
     f = proc['file']
-    (user, pwd) = get_cred(body)
- 
-    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
+
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pc = proc['procCtrl']
         params = proc['params']
         if f.has_key('autoComplete'): 
@@ -178,10 +190,10 @@ def handle_createFileReq(req, body):
     body - shortcut to the body part of the message
     """
     
-    (user, pwd) = get_cred(body)
     f = body['file']
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
     
-    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         pathname = f['path']
         if f.has_key('name'):
             pathname = ch.path_module.join(f['path'], f['name'])
@@ -207,14 +219,15 @@ def handle_appendFileReq(req, body):
     body - shortcut to the body part of the message
     """
 
-    (user, pwd) = get_cred(body)
     assert (body.has_key('sourceFile') and body.has_key('destinationFile'))
     sf = body['sourceFile']
     df = body['destinationFile']
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
     assert (df.has_key('path') and df.has_key('name') and df.has_key('hostName'))
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    (key_based, user, pwd, key_file) = get_cred(sf['hostName'], body)
+
+    with produce_ABClusterHost(sf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         dp = ch.path_module.join(df['path'], df['name'])
 
@@ -235,12 +248,12 @@ def handle_checkFileReq(req, body):
     body - shortcut to the body part of the message
     """
     
-    (user, pwd) = get_cred(body)
     f = body['file']
+    
+    (key_based, user, pwd, key_file) = get_cred(f['hostName'], body)
 
-    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(f['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(f['path'], f['name'])
-        
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
                 
     _logger.debug('pathname ' + sp + ' checked')
@@ -261,11 +274,11 @@ def handle_getLogTailReq(req, body):
     body - shortcut to the body part of the message
     """
 
-    (user, pwd) = get_cred(body)
     sf = body['logFile']
     assert (sf.has_key('path') and sf.has_key('name') and sf.has_key('hostName'))
+    (key_based, user, pwd, key_file) = get_cred(sf['hostName'], body)
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(sf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
         with ch.open(sp) as logFile:
@@ -293,39 +306,48 @@ class mgmd_reply(dict):
 def handle_runMgmdCommandReq(req, body):
     """Handler function for runMgmdCommandReq commands. Opens a new connection to mgmd, sends command, parses reply and wraps reply in mcc Rep object."""
 
-    hostname = body['hostname'].encode('ascii', 'ignore')
+    hostname = body['hostName'].encode('ascii', 'ignore')
     port = body['port']
-    with util.socket_shutter(socket.create_connection((hostname, port))) as mgmd:
-        mgmd.sendall(body['mgmd_command']+'\n\n')
-        s = mgmd.recv(4096)
-        
-    status = mgmd_reply(s)
-    sd = {}
-    for nk in status.keys():
-        if 'node.' in nk:
-            (x, n, k) = nk.split('.')
-            if not sd.has_key(n):
-                sd[n] = {}
-            sd[n][k] = status[nk]
-                    
-    return make_rep(req, { 'reply_type': status.reply_type, 'reply_properties':sd})
-                
+    # If none is listening, this will lead to Error 10061 (Can't connect to MySQL server)
+    # so need to test first.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = s.connect_ex((hostname, port))
+    s.close()    
 
+    if result == 0:
+        with util.socket_shutter(socket.create_connection((hostname, port))) as mgmd:
+            mgmd.sendall(body['mgmd_command']+'\n\n')
+            s = mgmd.recv(4096)
+            
+        status = mgmd_reply(s)
+        sd = {}
+        for nk in status.keys():
+            if 'node.' in nk:
+                (x, n, k) = nk.split('.')
+                if not sd.has_key(n):
+                    sd[n] = {}
+                sd[n][k] = status[nk]
+                        
+        return make_rep(req, { 'reply_type': status.reply_type, 'reply_properties':sd})
+    else:
+        #, 'reply_properties':'None listening @ '+str(hostname)+'::' + str(port)
+        return make_rep(req, { 'reply_type': 'ERROR'})
+        
 def handle_getConfigIni(req, body):
-    (user, pwd) = get_cred(body)
     cf = body['configFile']
     assert (cf.has_key('path') and cf.has_key('name') and cf.has_key('hostName'))
+    (key_based, user, pwd, key_file) = get_cred(cf['hostName'], body)
 
-    with produce_ABClusterHost(sf['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(cf['hostName'], key_based, user, pwd, key_file) as ch:
         sp = ch.path_module.join(sf['path'], sf['name'])
         assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host
         with ch.open(sp) as ini:
             return make_rep(req, {'config': config_parser.parse_cluster_config_ini_(ini)})
     
 def handle_getNdbConfig(req, body):
-    (user, pwd) = get_cred(body)
+    (key_based, user, pwd, key_file) = get_cred(body['hostName'], body)
 
-    with produce_ABClusterHost(body['hostName'], user, pwd) as ch:
+    with produce_ABClusterHost(body['hostName'], key_based, user, pwd, key_file) as ch:
         ndb_config = ch.path_module.join(body['installpath'], 'ndb_config')
         return make_rep(req, { 'ndb_config': json.dumps(util.xml_to_python(ch.exec_cmdv([ndb_config, '--configinfo', '--xml']))) })
     
@@ -411,6 +433,8 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             dbgmsg = copy.deepcopy(msg)
             if (dbgmsg['body']['ssh'].has_key('pwd')):
                 dbgmsg['body']['ssh']['pwd'] = '*' * len(dbgmsg['body']['ssh']['pwd'])
+            if (dbgmsg['body']['ssh'].has_key('key_passp')):
+                dbgmsg['body']['ssh']['key_passp'] = '*' * len(dbgmsg['body']['ssh']['key_passp'])
             self.server.logger.debug('--> ' + dbgmsg['head']['cmd'] + ':')
             self.server.logger.debug(pprint.pformat(dbgmsg))
             rep = make_rep(msg)

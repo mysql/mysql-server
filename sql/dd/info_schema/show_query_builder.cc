@@ -34,8 +34,7 @@ namespace info_schema {
 
 static const Query_options options=
 {
-  OPTION_SELECT_FOR_SHOW, /* query_spec_options */
-  SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
+  OPTION_SELECT_FOR_SHOW /* query_spec_options */
 };
 
 

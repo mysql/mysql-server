@@ -39,6 +39,7 @@
 #include <signaldata/FsConf.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsRemoveReq.hpp>
+#include <signaldata/FsReadWriteReq.hpp>
 
 #include <signaldata/BackupImpl.hpp>
 #include <signaldata/BackupSignalData.hpp>
@@ -65,6 +66,7 @@
 
 #include <NdbTick.h>
 #include <dbtup/Dbtup.hpp>
+#include <dbtup/Dbtup.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -77,6 +79,20 @@ static const Uint32 WaitDiskBufferCapacityMillis = 1;
 static const Uint32 WaitScanTempErrorRetryMillis = 10;
 
 static NDB_TICKS startTime;
+
+//#define DEBUG_LCP 1
+#ifdef DEBUG_LCP
+#define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_EXTRA_LCP 1
+#ifdef DEBUG_EXTRA_LCP
+#define DEB_EXTRA_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EXTRA_LCP(arglist) do { } while (0)
+#endif
 
 #ifdef VM_TRACE
 #define DEBUG_OUT(x) ndbout << x << endl
@@ -109,6 +125,8 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 #define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
 #define MAX_RAISE_PRIO_MEMORY 16
 
+extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator *p);
+
 void
 Backup::execSTTOR(Signal* signal) 
 {
@@ -120,12 +138,17 @@ Backup::execSTTOR(Signal* signal)
   if (startphase == 1)
   {
     ndbrequire((c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
+    ndbrequire((c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance())) != 0);
+    ndbrequire((c_lgman =
+                (Lgman*)globalData.getBlock(LGMAN, instance())) != 0);
+
     m_words_written_this_period = 0;
     last_disk_write_speed_report = 0;
     next_disk_write_speed_report = 0;
     m_monitor_words_written = 0;
     m_periods_passed_in_monitor_period = 0;
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
+    m_curr_lcp_id = 0;
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_max_own_restart;
     m_overflow_disk_write = 0;
     slowdowns_due_to_io_lag = 0;
@@ -136,15 +159,37 @@ Backup::execSTTOR(Signal* signal)
     m_is_any_node_restarting = false;
     m_node_restart_check_sent = false;
     m_our_node_started = false;
+    m_lcp_ptr_i = RNIL;
+    m_newestRestorableGci = 0;
+    m_delete_lcp_files_ongoing = false;
     m_reset_disk_speed_time = NdbTick_getCurrentTicks();
     m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+    c_initial_start_lcp_not_done_yet = false;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
                         Backup::DISK_SPEED_CHECK_DELAY, 1);
   }
-  if (startphase == 3) {
+  if (startphase == 3)
+  {
     jam();
+
+    c_lqh->get_redo_size(m_redo_size_in_bytes);
+    /**
+     * Get IndexMemory size to be able to calculate use of DataMemory.
+     */
+    const ndb_mgm_configuration_iterator *p =
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+    Uint32 acc_pages = compute_acc_32kpages(p);
+    m_acc_memory_in_bytes = Uint64(acc_pages) * Uint64(sizeof(GlobalPage));
+
     g_TypeOfStart = typeOfStart;
+    if (g_TypeOfStart == NodeState::ST_INITIAL_START ||
+        g_TypeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      c_initial_start_lcp_not_done_yet = true;
+    }
     signal->theData[0] = reference();
     sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
     return;
@@ -157,6 +202,7 @@ Backup::execSTTOR(Signal* signal)
     m_monitor_snapshot_start = NdbTick_getCurrentTicks();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
     m_our_node_started = true;
+    c_initial_start_lcp_not_done_yet = false;
   }
 
   if(startphase == 7 && g_TypeOfStart == NodeState::ST_INITIAL_START &&
@@ -752,6 +798,7 @@ Backup::execCONTINUEB(Signal* signal)
   const Uint32 Tdata0 = signal->theData[0];
   const Uint32 Tdata1 = signal->theData[1];
   const Uint32 Tdata2 = signal->theData[2];
+  const Uint32 Tdata3 = signal->theData[3];
   
   switch(Tdata0) {
   case BackupContinueB::RESET_DISK_SPEED_COUNTER:
@@ -904,7 +951,7 @@ Backup::execCONTINUEB(Signal* signal)
     jam();
     BackupFilePtr filePtr;
     c_backupFilePool.getPtr(filePtr, Tdata1);
-    fragmentCompleted(signal, filePtr);
+    fragmentCompleted(signal, filePtr, Tdata2);
     return;
   }
   break;
@@ -915,7 +962,17 @@ Backup::execCONTINUEB(Signal* signal)
     c_backupPool.getPtr(ptr, Tdata1);
     
     BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+
+    if (ptr.p->is_lcp())
+    {
+      jam();
+      ptr.p->files.getPtr(filePtr, Tdata3);
+    }
+    else
+    {
+      jam();
+      ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+    }
     FsBuffer & buf = filePtr.p->operation.dataBuffer;
     
     if(buf.getFreeSize() < buf.getMaxWrite()) {
@@ -933,8 +990,9 @@ Backup::execCONTINUEB(Signal* signal)
       signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
       signal->theData[1] = Tdata1;
       signal->theData[2] = Tdata2;
+      signal->theData[3] = Tdata3;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
-                          WaitDiskBufferCapacityMillis, 3);
+                          WaitDiskBufferCapacityMillis, 4);
       return;
     }//if
     
@@ -942,7 +1000,7 @@ Backup::execCONTINUEB(Signal* signal)
     c_tablePool.getPtr(tabPtr, Tdata2);
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
-    req->senderData = ptr.i;
+    req->senderData = filePtr.i;
     req->requestType = GetTabInfoReq::RequestById |
       GetTabInfoReq::LongSignalConf;
     req->tableId = tabPtr.p->tableId;
@@ -1003,6 +1061,12 @@ Backup::execCONTINUEB(Signal* signal)
     getFragmentInfo(signal, backupPtr, tabPtr, fragNo);
     return;
   }
+  case BackupContinueB::ZDELETE_LCP_FILE:
+  {
+    jam();
+    delete_lcp_file_processing(signal, signal->theData[1]);
+    return;
+  }
   default:
     ndbrequire(0);
   }//switch
@@ -1012,7 +1076,7 @@ void
 Backup::execBACKUP_LOCK_TAB_CONF(Signal *signal)
 {
   jamEntry();
-  const BackupLockTab *conf = (const BackupLockTab *)signal->getDataPtrSend();
+  const BackupLockTab *conf = (const BackupLockTab *)signal->getDataPtr();
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, conf->m_backupRecordPtr_I);
   TablePtr tabPtr;
@@ -1300,7 +1364,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
     ndbout_c("m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
-             " %ukwords  m_overflow_disk_write: %ukb",
+             " %u kwords  m_overflow_disk_write: %u kb",
               Uint32(4 * m_curr_disk_write_speed / 1024),
               Uint32(m_words_written_this_period / 1024),
               Uint32(m_overflow_disk_write / 1024));
@@ -1370,18 +1434,35 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       ndbrequire(c_backups.first(lcp));
       
       ndbrequire(c_backupPool.getSize() == c_backupPool.getNoOfFree() + 1);
-      if(lcp.p->tables.isEmpty())
-      {
-	ndbrequire(c_tablePool.getSize() == c_tablePool.getNoOfFree());
-	ndbrequire(c_fragmentPool.getSize() == c_fragmentPool.getNoOfFree());
-	ndbrequire(c_triggerPool.getSize() == c_triggerPool.getNoOfFree());
-      }
-      ndbrequire(c_backupFilePool.getSize() == c_backupFilePool.getNoOfFree() + 1);
+      ndbrequire(c_tablePool.getSize() == c_tablePool.getNoOfFree() + 2);
+      ndbrequire(c_fragmentPool.getSize() == c_fragmentPool.getNoOfFree() + 2);
+      ndbrequire(c_triggerPool.getSize() == c_triggerPool.getNoOfFree());
+
+      ndbrequire(c_backupFilePool.getSize() == c_backupFilePool.getNoOfFree() + 6);
+      Uint32 file_pages = 0;
       BackupFilePtr lcp_file;
+
+      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[0]);
+      file_pages += lcp_file.p->pages.getSize();
+
+      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareCtlFilePtr[1]);
+      file_pages += lcp_file.p->pages.getSize();
+
       c_backupFilePool.getPtr(lcp_file, lcp.p->dataFilePtr);
+      file_pages += lcp_file.p->pages.getSize();
+
+      c_backupFilePool.getPtr(lcp_file, lcp.p->prepareDataFilePtr);
+      file_pages += lcp_file.p->pages.getSize();
+
+      c_backupFilePool.getPtr(lcp_file, lcp.p->ctlFilePtr);
+      file_pages += lcp_file.p->pages.getSize();
+
+      c_backupFilePool.getPtr(lcp_file, lcp.p->deleteFilePtr);
+      file_pages += lcp_file.p->pages.getSize();
+
       ndbrequire(c_pagePool.getSize() == 
 		 c_pagePool.getNoOfFree() + 
-		 lcp_file.p->pages.getSize());
+                 file_pages);
     }
   }
 
@@ -2360,47 +2441,47 @@ Backup::checkNodeFail(Signal* signal,
     switch(ptr.p->masterData.gsn){
     case GSN_DEFINE_BACKUP_REQ:
     {
-      DefineBackupRef * ref = (DefineBackupRef*)signal->getDataPtr();
+      DefineBackupRef * ref = (DefineBackupRef*)signal->getDataPtrSend();
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_DEFINE_BACKUP_REF;
       len= DefineBackupRef::SignalLength;
-      pos= Uint32(&ref->nodeId - signal->getDataPtr());
+      pos= Uint32(&ref->nodeId - signal->getDataPtrSend());
       break;
     }
     case GSN_START_BACKUP_REQ:
     {
-      StartBackupRef * ref = (StartBackupRef*)signal->getDataPtr();
+      StartBackupRef * ref = (StartBackupRef*)signal->getDataPtrSend();
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_START_BACKUP_REF;
       len= StartBackupRef::SignalLength;
-      pos= Uint32(&ref->nodeId - signal->getDataPtr());
+      pos= Uint32(&ref->nodeId - signal->getDataPtrSend());
       break;
     }
     case GSN_BACKUP_FRAGMENT_REQ:
     {
-      BackupFragmentRef * ref = (BackupFragmentRef*)signal->getDataPtr();
+      BackupFragmentRef * ref = (BackupFragmentRef*)signal->getDataPtrSend();
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_BACKUP_FRAGMENT_REF;
       len= BackupFragmentRef::SignalLength;
-      pos= Uint32(&ref->nodeId - signal->getDataPtr());
+      pos= Uint32(&ref->nodeId - signal->getDataPtrSend());
       break;
     }
     case GSN_STOP_BACKUP_REQ:
     {
-      StopBackupRef * ref = (StopBackupRef*)signal->getDataPtr();
+      StopBackupRef * ref = (StopBackupRef*)signal->getDataPtrSend();
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       ref->nodeId = getOwnNodeId();
       gsn= GSN_STOP_BACKUP_REF;
       len= StopBackupRef::SignalLength;
-      pos= Uint32(&ref->nodeId - signal->getDataPtr());
+      pos= Uint32(&ref->nodeId - signal->getDataPtrSend());
       break;
     }
     case GSN_WAIT_GCP_REQ:
@@ -2611,6 +2692,7 @@ Backup::execUTIL_SEQUENCE_REF(Signal* signal)
                utilRef->errorCode,
                utilRef->TCErrorCode);
 
+  ndbrequire(false); //Temporary to get crash to analyse problem
   sendBackupRef(signal, ptr, BackupRef::SequenceFailure);
 }//execUTIL_SEQUENCE_REF()
 
@@ -2921,7 +3003,7 @@ void
 Backup::sendCreateTrig(Signal* signal, 
 			   BackupRecordPtr ptr, TablePtr tabPtr)
 {
-  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
+  CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtr();
 
   /*
    * First, setup the structures
@@ -4068,55 +4150,82 @@ void
 Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
 {
   jam();
-  ptr.p->setErrorCode(errCode);
   if(ptr.p->is_lcp()) 
   {
     jam();
-     if (ptr.p->ctlFilePtr == RNIL) {
-       ptr.p->m_gsn = GSN_DEFINE_BACKUP_REF;
-       ndbrequire(ptr.p->errorCode != 0);
-       DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
-       ref->backupId = ptr.p->backupId;
-       ref->backupPtr = ptr.i;
-       ref->errorCode = ptr.p->errorCode;
-       ref->nodeId = getOwnNodeId();
-       sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_REF, signal,
-                  DefineBackupRef::SignalLength, JBB);
-       return;
-     }
+    ptr.p->setPrepareErrorCode(errCode);
+    ptr.p->prepareState = PREPARE_ABORTING;
+    ndbrequire(ptr.p->ctlFilePtr != RNIL);
 
+    /**
+     * This normally happens when a table has been deleted before we got to
+     * start the LCP. This is a normal behaviour.
+     *
+     * At this point we have both the data file and the control file to use
+     * open. At this point it is ok to remove both of them since they will
+     * no longer be needed. This will happen in closeFile since we have set
+     * the error code here.
+     */
     BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-    if (filePtr.p->m_flags & BackupFile::BF_LCP_META)
+    ptr.p->files.getPtr(filePtr, ptr.p->prepareDataFilePtr);
+    if (filePtr.p->m_flags & BackupFile::BF_OPEN &&
+        !(filePtr.p->m_flags & BackupFile::BF_CLOSING))
     {
       jam();
       ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_FILE_THREAD));
       filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
-      if (filePtr.p->m_flags & BackupFile::BF_OPEN)
-      {
-	closeFile(signal, ptr, filePtr);
-	return;
-      }
+      closeFile(signal, ptr, filePtr, true);
     }
-    
-    ndbrequire(filePtr.p->m_flags == 0);
+    else if (filePtr.p->m_flags & BackupFile::BF_CLOSING)
+    {
+      /* Wait for the data file closing */
+      jam();
+      return;
+    }
+    else
+    {
+      jam();
+      ndbrequire(filePtr.p->m_flags == 0);
+    }
+    ptr.p->files.getPtr(filePtr,
+          ptr.p->prepareCtlFilePtr[ptr.p->prepareNextLcpCtlFileNumber]);
+    if (filePtr.p->m_flags & BackupFile::BF_OPEN &&
+        !(filePtr.p->m_flags & BackupFile::BF_CLOSING))
+    {
+      jam();
+      closeFile(signal, ptr, filePtr, true);
+      return;
+    }
+    else if (filePtr.p->m_flags & BackupFile::BF_CLOSING)
+    {
+      /* Wait for the control file to close as well. */
+      jam();
+      return;
+    }
+    else
+    {
+      jam();
+      ndbrequire(filePtr.p->m_flags == 0);
+    }
     
     TablePtr tabPtr;
     FragmentPtr fragPtr;
     
-    ndbrequire(ptr.p->tables.first(tabPtr));
+    ndbrequire(ptr.p->prepare_table.first(tabPtr));
     tabPtr.p->fragments.getPtr(fragPtr, 0);
-    
+    DEB_LCP(("(%u)LCP_PREPARE_REF", instance()));
     LcpPrepareRef* ref= (LcpPrepareRef*)signal->getDataPtrSend();
     ref->senderData = ptr.p->clientData;
     ref->senderRef = reference();
     ref->tableId = tabPtr.p->tableId;
     ref->fragmentId = fragPtr.p->fragmentId;
-    ref->errorCode = errCode;
+    ref->errorCode = ptr.p->prepareErrorCode;
     sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_REF, 
 	       signal, LcpPrepareRef::SignalLength, JBA);
+    ptr.p->prepareState = NOT_ACTIVE;
     return;
   }
+  ptr.p->setErrorCode(errCode);
 
   ptr.p->m_gsn = GSN_DEFINE_BACKUP_REF;
   ndbrequire(ptr.p->errorCode != 0);
@@ -4128,6 +4237,18 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
   ref->nodeId = getOwnNodeId();
   sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_REF, signal, 
 	     DefineBackupRef::SignalLength, JBB);
+}
+
+void
+Backup::init_file(BackupFilePtr filePtr, Uint32 backupPtrI)
+{
+  filePtr.p->tableId = RNIL;
+  filePtr.p->backupPtr = backupPtrI;
+  filePtr.p->filePointer = RNIL;
+  filePtr.p->m_flags = 0;
+  filePtr.p->errorCode = 0;
+  filePtr.p->m_sent_words_in_scan_batch = 0;
+  filePtr.p->m_num_scan_req_on_prioa = 0;
 }
 
 void
@@ -4165,6 +4286,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->m_gsn = GSN_DEFINE_BACKUP_REQ;
   ptr.p->slaveState.forceState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
+  ptr.p->prepareState = NOT_ACTIVE;
   ptr.p->slaveData.dropTrig.tableId = RNIL;
   ptr.p->errorCode = 0;
   ptr.p->clientRef = req->clientRef;
@@ -4196,7 +4318,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   /**
    * Allocate files
    */
-  BackupFilePtr files[3];
+  BackupFilePtr files[6];
   Uint32 noOfPages[] = {
     NO_OF_PAGES_META_FILE,
     2,   // 32k
@@ -4227,79 +4349,172 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   noOfPages[2] = (c_defaults.m_dataBufferSize + sizeof(Page32) - 1) / 
     sizeof(Page32);
 
-  if (ptr.p->is_lcp())
-  {
-    noOfPages[2] = (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / 
-      sizeof(Page32);
-  }
-  
   ptr.p->ctlFilePtr = ptr.p->logFilePtr = ptr.p->dataFilePtr = RNIL;
 
-  for(Uint32 i = 0; i<3; i++) {
+  if (ptr.p->is_lcp())
+  {
+    /**
+     * Allocate table and fragment object LCP prepare and execute
+     * phase once and for all. This means we don't risk getting out
+     * of resource issues for LCPs.
+     */
     jam();
-    if(ptr.p->is_lcp() && i != 2)
+    TablePtr tabPtr;
+    m_lcp_ptr_i = ptr.i;
+    ndbrequire(ptr.p->prepare_table.seizeLast(tabPtr));
+    ndbrequire(tabPtr.p->fragments.seize(1));
+    ndbrequire(ptr.p->tables.seizeLast(tabPtr));
+    ndbrequire(tabPtr.p->fragments.seize(1));
+
+    noOfPages[2] = (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / 
+      sizeof(Page32);
+    for (Uint32 i = 0; i < 6; i++)
     {
-      files[i].i = RNIL;
-      continue;
+      Uint32 minWriteLcp;
+      Uint32 maxWriteLcp;
+      Uint32 maxInsertLcp;
+      Uint32 noOfPagesLcp;
+      ndbrequire(ptr.p->files.seizeFirst(files[i]));
+      init_file(files[i], ptr.i);
+      switch (i)
+      {
+        case 0:
+          jam();
+          minWriteLcp = 1024;
+          maxWriteLcp = 32768;
+          maxInsertLcp = 8192;
+          noOfPagesLcp = 2;
+          ptr.p->ctlFilePtr = files[i].i;
+          files[i].p->fileType = BackupFormat::CTL_FILE;
+          break;
+        case 1:
+          jam();
+          minWriteLcp = 1024;
+          maxWriteLcp = 32768;
+          maxInsertLcp = 8192;
+          noOfPagesLcp = 2;
+          ptr.p->prepareCtlFilePtr[0] = files[i].i;
+          files[i].p->fileType = BackupFormat::CTL_FILE;
+          break;
+        case 2:
+          jam();
+          minWriteLcp = 1024;
+          maxWriteLcp = 32768;
+          maxInsertLcp = 8192;
+          noOfPagesLcp = 2;
+          ptr.p->prepareCtlFilePtr[1] = files[i].i;
+          files[i].p->fileType = BackupFormat::CTL_FILE;
+          break;
+        case 3:
+          minWriteLcp = minWrite[2];
+          maxWriteLcp = maxWrite[2];
+          maxInsertLcp = maxInsert[2];
+          noOfPagesLcp = noOfPages[2];
+          ptr.p->prepareDataFilePtr = files[i].i;
+          files[i].p->fileType = BackupFormat::DATA_FILE;
+          break;
+        case 4:
+          jam();
+          minWriteLcp = minWrite[2];
+          maxWriteLcp = maxWrite[2];
+          maxInsertLcp = maxInsert[2];
+          noOfPagesLcp = noOfPages[2];
+          ptr.p->dataFilePtr = files[i].i;
+          files[i].p->fileType = BackupFormat::DATA_FILE;
+          break;
+        case 5:
+          jam();
+          minWriteLcp = 1024;
+          maxWriteLcp = 32768;
+          maxInsertLcp = 8192;
+          noOfPagesLcp = 2;
+          ptr.p->deleteFilePtr = files[i].i;
+          files[i].p->fileType = BackupFormat::DATA_FILE;
+          break;
+      }
+      Page32Ptr pagePtr;
+      DEB_LCP(("LCP: instance: %u, i: %u, seize %u pages",
+               instance(),
+               i,
+               noOfPagesLcp));
+      ndbrequire(files[i].p->pages.seize(noOfPagesLcp));
+      files[i].p->pages.getPtr(pagePtr, 0);
+      const char * msg = files[i].p->
+        operation.dataBuffer.setup((Uint32*)pagePtr.p, 
+                                   noOfPagesLcp * (sizeof(Page32) >> 2),
+                                   128,
+                                   minWriteLcp >> 2,
+                                   maxWriteLcp >> 2,
+                                   maxInsertLcp);
+      if (msg != 0)
+      {
+        ndbout_c("setup msg = %s, i = %u", msg, i);
+        ndbrequire(false);
+      }
+      files[i].p->operation.m_bytes_total = 0;
+      files[i].p->operation.m_records_total = 0;
     }
-    if (!ptr.p->files.seizeFirst(files[i])) {
-      jam();
-      defineBackupRef(signal, ptr, 
-		      DefineBackupRef::FailedToAllocateFileRecord);
-      return;
-    }//if
-
-    files[i].p->tableId = RNIL;
-    files[i].p->backupPtr = ptr.i;
-    files[i].p->filePointer = RNIL;
-    files[i].p->m_flags = 0;
-    files[i].p->errorCode = 0;
-    files[i].p->m_sent_words_in_scan_batch = 0;
-    files[i].p->m_num_scan_req_on_prioa = 0;
-
-    if(ERROR_INSERTED(10035) || files[i].p->pages.seize(noOfPages[i]) == false)
+  }
+  else
+  {
+    for (Uint32 i = 0; i < 3; i++)
     {
       jam();
-      DEBUG_OUT("Failed to seize " << noOfPages[i] << " pages");
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateBuffers);
-      return;
-    }//if
-    Page32Ptr pagePtr;
-    files[i].p->pages.getPtr(pagePtr, 0);
-    
-    const char * msg = files[i].p->
-      operation.dataBuffer.setup((Uint32*)pagePtr.p, 
-				 noOfPages[i] * (sizeof(Page32) >> 2),
-				 128,
-				 minWrite[i] >> 2,
-				 maxWrite[i] >> 2,
-				 maxInsert[i]);
-    if(msg != 0) {
-      jam();
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedToSetupFsBuffers);
-      return;
-    }//if
+      if (!ptr.p->files.seizeFirst(files[i]))
+      {
+        jam();
+        defineBackupRef(signal, ptr, 
+                        DefineBackupRef::FailedToAllocateFileRecord);
+        return;
+      }//if
+      init_file(files[i], ptr.i);
 
-    switch(i){
-    case 0:
-      files[i].p->fileType = BackupFormat::CTL_FILE;
-      ptr.p->ctlFilePtr = files[i].i;
-      break;
-    case 1:
-      if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
-        files[i].p->fileType = BackupFormat::UNDO_FILE;
-      else
-        files[i].p->fileType = BackupFormat::LOG_FILE;
-      ptr.p->logFilePtr = files[i].i;
-      break;
-    case 2:
-      files[i].p->fileType = BackupFormat::DATA_FILE;
-      ptr.p->dataFilePtr = files[i].i;
-    }
-    files[i].p->operation.m_bytes_total = 0;
-    files[i].p->operation.m_records_total = 0;
-  }//for
+      if(ERROR_INSERTED(10035) || files[i].p->pages.seize(noOfPages[i]) == false)
+      {
+        jam();
+        DEBUG_OUT("Failed to seize " << noOfPages[i] << " pages");
+        defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateBuffers);
+        return;
+      }//if
+
+      Page32Ptr pagePtr;
+      files[i].p->pages.getPtr(pagePtr, 0);
     
+      const char * msg = files[i].p->
+        operation.dataBuffer.setup((Uint32*)pagePtr.p, 
+                                   noOfPages[i] * (sizeof(Page32) >> 2),
+                                   128,
+                                   minWrite[i] >> 2,
+                                   maxWrite[i] >> 2,
+                                   maxInsert[i]);
+      if(msg != 0) {
+        jam();
+        defineBackupRef(signal, ptr, DefineBackupRef::FailedToSetupFsBuffers);
+        return;
+      }//if
+
+      switch(i)
+      {
+        case 0:
+          files[i].p->fileType = BackupFormat::CTL_FILE;
+          ptr.p->ctlFilePtr = files[i].i;
+          break;
+        case 1:
+          if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+            files[i].p->fileType = BackupFormat::UNDO_FILE;
+          else
+            files[i].p->fileType = BackupFormat::LOG_FILE;
+          ptr.p->logFilePtr = files[i].i;
+          break;
+        case 2:
+          files[i].p->fileType = BackupFormat::DATA_FILE;
+          ptr.p->dataFilePtr = files[i].i;
+      }
+      files[i].p->operation.m_bytes_total = 0;
+      files[i].p->operation.m_records_total = 0;
+    }//for
+  }
+
   initReportStatus(signal, ptr);
 
   if (!verifyNodesAlive(ptr, ptr.p->nodes)) {
@@ -4313,18 +4528,19 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     return;
   }//if
 
-  if(ptr.p->backupDataLen == 0) {
-    jam();
-    backupAllData(signal, ptr);
-    return;
-  }//if
-  
   if(ptr.p->is_lcp())
   {
     jam();
     getFragmentInfoDone(signal, ptr);
     return;
   }
+  
+  if (ptr.p->backupDataLen == 0)
+  {
+    jam();
+    backupAllData(signal, ptr);
+    return;
+  }//if
   
   /**
    * Not implemented
@@ -4510,9 +4726,20 @@ Backup::execFSOPENREF(Signal* signal)
   BackupFilePtr filePtr;
   c_backupFilePool.getPtr(filePtr, userPtr);
   
+  ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_OPEN));
+  ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPENING);
+  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_OPENING;
+
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
   ptr.p->setErrorCode(ref->errorCode);
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    openFilesReplyLCP(signal, ptr, filePtr);
+    return;
+  }
   openFilesReply(signal, ptr, filePtr);
 }
 
@@ -4533,8 +4760,20 @@ Backup::execFSOPENCONF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
+  /**
+   * Mark files as "opened"
+   */
   ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_OPEN));
+  ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPENING);
+  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_OPENING;
   filePtr.p->m_flags |= BackupFile::BF_OPEN;
+
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    openFilesReplyLCP(signal, ptr, filePtr);
+    return;
+  }
   openFilesReply(signal, ptr, filePtr);
 }
 
@@ -4543,13 +4782,6 @@ Backup::openFilesReply(Signal* signal,
 		       BackupRecordPtr ptr, BackupFilePtr filePtr)
 {
   jam();
-
-  /**
-   * Mark files as "opened"
-   */
-  ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPENING);
-  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_OPENING;
-  filePtr.p->m_flags |= BackupFile::BF_OPEN;
   /**
    * Check if all files have recived open_reply
    */
@@ -4587,68 +4819,45 @@ Backup::openFilesReply(Signal* signal,
     return;
   }//if
 
-  if(!ptr.p->is_lcp())
-  {
-    /**
-     * Insert file headers
-     */
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-    if(!insertFileHeader(BackupFormat::CTL_FILE, ptr.p, filePtr.p)) {
-      jam();
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
-      return;
-    }//if
+  /**
+   * Insert file headers
+   */
+  ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+  if(!insertFileHeader(BackupFormat::CTL_FILE, ptr.p, filePtr.p)) {
+    jam();
+    defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
+    return;
+  }//if
     
-    BackupFormat::FileType logfiletype;
-    if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
-      logfiletype = BackupFormat::UNDO_FILE;
-    else
-      logfiletype = BackupFormat::LOG_FILE;
-
-    ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
-    if(!insertFileHeader(logfiletype, ptr.p, filePtr.p)) {
-      jam();
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
-      return;
-    }//if
-    
-    ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr);
-    if(!insertFileHeader(BackupFormat::DATA_FILE, ptr.p, filePtr.p)) {
-      jam();
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
-      return;
-    }//if
-  }
+  BackupFormat::FileType logfiletype;
+  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    logfiletype = BackupFormat::UNDO_FILE;
   else
-  {
-    ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr);
-    if(!insertFileHeader(BackupFormat::LCP_FILE, ptr.p, filePtr.p)) {
-      jam();
-      defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
-      return;
-    }//if
-    
-    ptr.p->ctlFilePtr = ptr.p->dataFilePtr;
-  }
+    logfiletype = BackupFormat::LOG_FILE;
+
+  ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
+  if(!insertFileHeader(logfiletype, ptr.p, filePtr.p)) {
+    jam();
+    defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
+    return;
+  }//if
+  
+  ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr);
+  if(!insertFileHeader(BackupFormat::DATA_FILE, ptr.p, filePtr.p)) {
+    jam();
+    defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
+    return;
+  }//if
   
   /**
    * Start CTL file thread
    */
-  if (!ptr.p->is_lcp())
-  {
-    jam();
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-    filePtr.p->m_flags |= BackupFile::BF_FILE_THREAD;
-    
-    signal->theData[0] = BackupContinueB::START_FILE_THREAD;
-    signal->theData[1] = filePtr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  }
-  else
-  {
-    jam();
-    filePtr.p->m_flags |= BackupFile::BF_LCP_META;
-  }
+  ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+  filePtr.p->m_flags |= BackupFile::BF_FILE_THREAD;
+   
+  signal->theData[0] = BackupContinueB::START_FILE_THREAD;
+  signal->theData[1] = filePtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   
   /**
    * Insert table list in ctl file
@@ -4692,7 +4901,8 @@ Backup::openFilesReply(Signal* signal,
   signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
   signal->theData[1] = ptr.i;
   signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  signal->theData[3] = 0;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
   return;
 }
 
@@ -4714,7 +4924,16 @@ Backup::insertFileHeader(BackupFormat::FileType ft,
   BackupFormat::FileHeader* header = (BackupFormat::FileHeader*)dst;
   ndbrequire(sizeof(header->Magic) == sizeof(BACKUP_MAGIC));
   memcpy(header->Magic, BACKUP_MAGIC, sizeof(BACKUP_MAGIC));
-  header->BackupVersion = htonl(NDB_BACKUP_VERSION);
+  if (ft == BackupFormat::LCP_FILE)
+  {
+    jam();
+    header->BackupVersion = htonl(NDBD_USE_PARTIAL_LCP);
+  }
+  else
+  {
+    jam();
+    header->BackupVersion = htonl(NDB_BACKUP_VERSION);
+  }
   header->SectionType   = htonl(BackupFormat::FILE_HEADER);
   header->SectionLength = htonl(sz - 3);
   header->FileType      = htonl(ft);
@@ -4732,13 +4951,66 @@ Backup::insertFileHeader(BackupFormat::FileType ft,
 void
 Backup::execGET_TABINFOREF(Signal* signal)
 {
+  jamEntry();
   GetTabInfoRef * ref = (GetTabInfoRef*)signal->getDataPtr();
+  BackupFilePtr filePtr;
   
   const Uint32 senderData = ref->senderData;
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, senderData);
+  c_backupFilePool.getPtr(filePtr, senderData);
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
-  defineBackupRef(signal, ptr, ref->errorCode);
+  if (filePtr.i == ptr.p->prepareDataFilePtr ||
+      !ptr.p->is_lcp())
+  {
+    jam();
+    defineBackupRef(signal, ptr, ref->errorCode);
+  }
+  else
+  {
+    /**
+     * We create multiple files for an LCP and table is dropped in the
+     * middle of the LCP.
+     */
+    jam();
+    ptr.p->errorCode = ref->errorCode;
+    ptr.p->m_outstanding_operations = 2;
+    ptr.p->m_handle_dropped_table_during_lcp_scan = true;
+    filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
+    c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr);
+    closeFile(signal, ptr, filePtr, false, true);
+    lcp_close_data_file(signal, ptr, true);
+  }
+}
+
+void
+Backup::handle_dropped_table_during_lcp_scan(Signal *signal,
+                                             BackupRecordPtr ptr)
+{
+  ndbrequire(ptr.p->m_outstanding_operations > 0);
+  ptr.p->m_outstanding_operations--;
+  if (ptr.p->m_outstanding_operations > 0)
+  {
+    jam();
+    return;
+  }
+  ptr.p->m_handle_dropped_table_during_lcp_scan = false;
+  BackupFragmentRef *ref = (BackupFragmentRef*)signal->getDataPtrSend();
+  jam();
+  ref->backupId = ptr.p->backupId;
+  ref->backupPtr = ptr.i;
+  ref->nodeId = getOwnNodeId();
+  ref->errorCode = ptr.p->errorCode;
+  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_REF, signal,
+             BackupFragmentRef::SignalLength, JBB);
+
+  ptr.p->errorCode = 0;
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
+  ptr.p->slaveState.forceState(DEFINED);
 }
 
 void
@@ -4751,6 +5023,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     return;
   }//if
 
+  BackupFilePtr filePtr;
   GetTabInfoConf * const conf = (GetTabInfoConf*)signal->getDataPtr();
   //const Uint32 senderRef = info->senderRef;
   const Uint32 len = conf->totalLen;
@@ -4759,7 +5032,8 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   const Uint32 tableId = conf->tableId;
 
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, senderData);
+  c_backupFilePool.getPtr(filePtr, senderData);
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
   SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
@@ -4767,10 +5041,28 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   ndbrequire(dictTabInfoPtr.sz == len);
 
   TablePtr tabPtr ;
-  ndbrequire(findTable(ptr, tabPtr, tableId));
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    if (filePtr.i == ptr.p->prepareDataFilePtr)
+    {
+      jam();
+      ptr.p->prepare_table.first(tabPtr);
+    }
+    else
+    {
+      jam();
+      ptr.p->tables.first(tabPtr);
+    }
+    ndbrequire(tabPtr.p->tableId == tableId);
+  }
+  else
+  {
+    jam();
+    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+    ndbrequire(findTable(ptr, tabPtr, tableId));
+  }
 
-  BackupFilePtr filePtr;
-  ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
   FsBuffer & buf = filePtr.p->operation.dataBuffer;
   Uint32* dst = 0;
   { // Write into ctl file
@@ -4802,6 +5094,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
 
   if(ptr.p->checkError()) {
     jam();
+    ndbrequire(!ptr.p->is_lcp());
     defineBackupRef(signal, ptr);
     return;
   }//if
@@ -4809,7 +5102,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   if (!DictTabInfo::isTable(tabPtr.p->tableType))
   {
     jam();
-
+    ndbrequire(!ptr.p->is_lcp());
     TablePtr tmp = tabPtr;
     removeTableMap(tmp, ptr.i, tmp.p->tableId);
     ptr.p->tables.next(tabPtr);
@@ -4822,6 +5115,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
   if (!parseTableDescription(signal, ptr, tabPtr, dst, len))
   {
     jam();
+    ndbrequire(!ptr.p->is_lcp());
     defineBackupRef(signal, ptr);
     return;
   }
@@ -4851,9 +5145,14 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     }
     return;
   }
-
-  ptr.p->tables.next(tabPtr);
-  afterGetTabinfoLockTab(signal, ptr, tabPtr);
+  else
+  {
+    jam();
+    ndbrequire(filePtr.i == ptr.p->prepareDataFilePtr);
+    lcp_open_data_file_done(signal,
+                            ptr);
+    return;
+  }
 }
 
 void
@@ -4867,13 +5166,8 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
      */
     jam();
     
-    if(ptr.p->is_lcp())
-    {
-      jam();
-      lcp_open_file_done(signal, ptr);
-      return;
-    }
     ndbrequire(ptr.p->tables.first(tabPtr));
+    ndbrequire(!ptr.p->is_lcp());
     DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = ptr.i;
@@ -4895,7 +5189,8 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
   signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
   signal->theData[1] = ptr.i;
   signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  signal->theData[3] = 0;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
   return;
 }
 
@@ -4999,6 +5294,8 @@ Backup::parseTableDescription(Signal* signal,
 
   if (lcp)
   {
+    jam();
+    c_lqh->handleLCPSurfacing(signal);
     Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
   }
@@ -5145,7 +5442,7 @@ Backup::getFragmentInfoDone(Signal* signal, BackupRecordPtr ptr)
 {
   ptr.p->m_gsn = GSN_DEFINE_BACKUP_CONF;
   ptr.p->slaveState.setState(DEFINED);
-  DefineBackupConf * conf = (DefineBackupConf*)signal->getDataPtr();
+  DefineBackupConf * conf = (DefineBackupConf*)signal->getDataPtrSend();
   conf->backupPtr = ptr.i;
   conf->backupId = ptr.p->backupId;
   sendSignal(ptr.p->masterRef, GSN_DEFINE_BACKUP_CONF, signal,
@@ -5230,30 +5527,41 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
    * Get backup record
    */
   BackupRecordPtr ptr;
+  BackupFilePtr filePtr;
+  TablePtr tabPtr;
+
   c_backupPool.getPtr(ptr, ptrI);
+
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    start_execute_lcp(signal, ptr, tabPtr, tableId);
+    if (ptr.p->m_empty_lcp)
+    {
+      /**
+       * No need to start LCP processing in this case, we only
+       * update LCP control file and this process has already
+       * been started when we come here.
+       */
+      jam();
+      return;
+    }
+  }
+  else
+  {
+    jam();
+    /* Backup path */
+    /* Get Table */
+    ndbrequire(findTable(ptr, tabPtr, tableId));
+  }
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
 
   ptr.p->slaveState.setState(SCANNING);
   ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_REQ;
 
-  /**
-   * Get file
-   */
-  BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-  
   ndbrequire(filePtr.p->backupPtr == ptrI);
-  ndbrequire(filePtr.p->m_flags == 
-	     (BackupFile::BF_OPEN | BackupFile::BF_FILE_THREAD));
   
-  /**
-   * Get table
-   */
-  TablePtr tabPtr;
-  ndbrequire(findTable(ptr, tabPtr, tableId));
-
-  /**
-   * Get fragment
-   */
+  /* Get fragment */
   FragmentPtr fragPtr;
   tabPtr.p->fragments.getPtr(fragPtr, fragNo);
 
@@ -5264,8 +5572,12 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   /**
    * Init operation
    */
-  if(filePtr.p->tableId != tableId) {
+  if (filePtr.p->tableId != tableId)
+  {
     jam();
+    DEB_EXTRA_LCP(("Init new tab(%u): maxRecordSize: %u",
+                   tableId,
+                   tabPtr.p->maxRecordSize));
     filePtr.p->operation.init(tabPtr);
     filePtr.p->tableId = tableId;
   }//if
@@ -5275,6 +5587,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
    */
   if(!filePtr.p->operation.newFragment(tableId, fragPtr.p->fragmentId)) {
     jam();
+    ndbrequire(!ptr.p->is_lcp());
     req->count = count + 1;
     sendSignalWithDelay(reference(), GSN_BACKUP_FRAGMENT_REQ, signal,
                         WaitDiskBufferCapacityMillis,
@@ -5294,7 +5607,40 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   {
     jam();
     filePtr.p->fragmentNo = 0;
+    start_lcp_scan(signal, ptr, tabPtr, fragPtr, filePtr);
+    return;
   }
+  ndbrequire(filePtr.p->m_flags == 
+	     (BackupFile::BF_OPEN | BackupFile::BF_FILE_THREAD));
+  sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
+}
+
+void
+Backup::start_lcp_scan(Signal *signal,
+                       BackupRecordPtr ptr,
+                       TablePtr tabPtr,
+                       FragmentPtr fragPtr,
+                       BackupFilePtr filePtr)
+{
+  DEB_EXTRA_LCP(("(%u)Start lcp scan",
+                 instance()));
+
+  c_tup->start_lcp_scan(tabPtr.p->tableId,
+                        fragPtr.p->fragmentId,
+                        ptr.p->m_lcp_max_page_cnt);
+  ptr.p->m_is_lcp_scan_active = true;
+  ptr.p->m_lcp_current_page_scanned = 0;
+  /**
+   * Start file thread now that we will start writing also
+   * fragment checkpoint data.
+   */
+  ndbrequire(filePtr.p->m_flags == BackupFile::BF_OPEN);
+  filePtr.p->m_flags |= BackupFile::BF_FILE_THREAD;
+  
+  signal->theData[0] = BackupContinueB::START_FILE_THREAD;
+  signal->theData[1] = filePtr.i;
+  signal->theData[2] = __LINE__;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
 
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
 }
@@ -5791,6 +6137,51 @@ Backup::execSCAN_HBREP(Signal* signal)
 }
 
 void
+Backup::record_deleted_pageid(Uint32 pageNo, Uint32 record_size)
+{
+  BackupRecordPtr ptr;
+  BackupFilePtr filePtr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+  OperationRecord & op = filePtr.p->operation;
+  Uint32 * dst = op.dst;
+  Uint32 dataLen = 2;
+  Uint32 copy_array[2];
+  copy_array[0] = pageNo;
+  copy_array[1] = record_size;
+  *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_PAGEID_TYPE << 16)));
+  memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
+  op.attrSzTotal += dataLen;
+  ndbrequire(dataLen < op.maxRecordSize);
+  filePtr.p->m_sent_words_in_scan_batch += dataLen;
+  op.finished(dataLen);
+  op.newRecord(dst + dataLen + 1);
+}
+
+void
+Backup::record_deleted_rowid(Uint32 pageNo, Uint32 pageIndex, Uint32 gci)
+{
+  BackupRecordPtr ptr;
+  BackupFilePtr filePtr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+  OperationRecord & op = filePtr.p->operation;
+  Uint32 * dst = op.dst;
+  Uint32 dataLen = 3;
+  Uint32 copy_array[3];
+  copy_array[0] = pageNo;
+  copy_array[1] = pageIndex;
+  copy_array[2] = gci;
+  *dst = htonl(Uint32(dataLen + (BackupFormat::DELETE_BY_ROWID_TYPE << 16)));
+  memcpy(dst + 1, copy_array, dataLen*sizeof(Uint32));
+  op.attrSzTotal += dataLen;
+  ndbrequire(dataLen < op.maxRecordSize);
+  filePtr.p->m_sent_words_in_scan_batch += dataLen;
+  op.finished(dataLen);
+  op.newRecord(dst + dataLen + 1);
+}
+
+void
 Backup::execTRANSID_AI(Signal* signal)
 {
   jamEntryDebug();
@@ -5809,11 +6200,39 @@ Backup::execTRANSID_AI(Signal* signal)
    * Unpack data
    */
   Uint32 * dst = op.dst;
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  Uint32 header;
+  if (ptr.p->is_lcp())
+  {
+    if (ptr.p->m_current_changed_row_page_flag)
+    {
+      /* LCP for CHANGED ROWS pages */
+      jam();
+      header = dataLen + (BackupFormat::WRITE_TYPE << 16);
+    }
+    else
+    {
+      /* LCP for ALL ROWS pages */
+      jam();
+      header = dataLen + (BackupFormat::INSERT_TYPE << 16);
+    }
+#ifdef VM_TRACE
+    Uint32 th = signal->theData[4];
+    ndbassert(! (th & 0x00400000)); /* Is MM_GROWN set */
+#endif
+  }
+  else
+  {
+    /* Backup handling */
+    jam();
+    header = dataLen;
+  }
   if (signal->getNoOfSections() == 0)
   {
     jam();
     const Uint32 * src = &signal->theData[3];
-    * dst = htonl(dataLen);
+    * dst = htonl(header);
     memcpy(dst + 1, src, 4*dataLen);
   }
   else
@@ -5823,6 +6242,7 @@ Backup::execTRANSID_AI(Signal* signal)
     SegmentedSectionPtr dataPtr;
     handle.getSection(dataPtr, 0);
     dataLen = dataPtr.sz;
+    ndbassert(!ptr.p->is_lcp());
 
     * dst = htonl(dataLen);
     copy(dst + 1, dataPtr);
@@ -5830,7 +6250,14 @@ Backup::execTRANSID_AI(Signal* signal)
   }
 
   op.attrSzTotal += dataLen;
-  ndbrequire(dataLen < op.maxRecordSize);
+  if (unlikely(dataLen >= op.maxRecordSize))
+  {
+    g_eventLogger->info("dataLen: %u, op.maxRecordSize = %u, header: %u",
+                        dataLen, op.maxRecordSize, header);
+    jamLine(dataLen);
+    jamLine(op.maxRecordSize);
+    ndbrequire(false);
+  }
 
   filePtr.p->m_sent_words_in_scan_batch += dataLen;
 
@@ -5839,12 +6266,235 @@ Backup::execTRANSID_AI(Signal* signal)
   op.newRecord(dst + dataLen + 1);
 }
 
+bool
+Backup::check_if_in_page_range(Uint32 part_id,
+                               Uint32 start_part,
+                               Uint32 num_parts)
+{
+  Uint32 end_part;
+  if (part_id >= start_part)
+  {
+    if ((start_part + num_parts) > part_id)
+    {
+      return true;
+    }
+  }
+  else
+  {
+    end_part = (start_part + num_parts) % BackupFormat::NDB_MAX_LCP_PARTS;
+    if (part_id < end_part)
+    {
+      return true;
+    }
+  }
+  jam();
+  return false;
+}
+
+Uint32
+Backup::hash_lcp_part(Uint32 page_id) const
+{
+  /**
+   * To ensure proper operation also with small number of pages
+   * we make a complete bit reorder of the 11 least significant
+   * bits of the page id and returns this as the part id to use.
+   * This means that for e.g. 8 pages we get the following parts
+   * used:
+   * 0: 0, 1: 1024, 2: 512, 3: 1536, 4: 256, 5: 1280, 6: 768, 7: 1792
+   *
+   * This provides a fairly good spread also of small number of
+   * pages into the various parts.
+   *
+   * We implement this bit reorder by handling 4 sets of 3 bits,
+   * except for the highest bits where we only use 2 bits.
+   * Each 3 bit set is reversed using a simple static lookup
+   * table and then the result of those 4 lookups is put back
+   * into the hash value in reverse order.
+   *
+   * As a final step we remove bit 0 which is always 0 since we
+   * only use 11 bits and not 12 bits.
+   */
+  static Uint32 reverse_3bits_array[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+  const Uint32 lowest_3bits_page_id = page_id & 7;
+  const Uint32 low_3bits_page_id = (page_id >> 3) & 7;
+  const Uint32 high_3bits_page_id = (page_id >> 6) & 7;
+  const Uint32 highest_3bits_page_id = (page_id >> 9) & 3;
+  Uint32 part_id =
+    reverse_3bits_array[highest_3bits_page_id] +
+    (reverse_3bits_array[high_3bits_page_id] << 3) +
+    (reverse_3bits_array[low_3bits_page_id] << 6) +
+    (reverse_3bits_array[lowest_3bits_page_id] << 9);
+  part_id >>= 1;
+  return part_id;
+}
+
+void
+Backup::get_page_info(BackupRecordPtr ptr,
+                      Uint32 curr_lcp_round,
+                      Uint32 part_id,
+                      Uint32 & scanGCI,
+                      bool & skip_flag,
+                      bool & changed_row_page_flag)
+{
+  if (check_if_in_page_range(part_id,
+                   ptr.p->m_scan_info[curr_lcp_round].m_start_all_part,
+                   ptr.p->m_scan_info[curr_lcp_round].m_num_all_parts))
+    goto all_rows;
+ 
+  /**
+   * Not all rows on this page will be recorded, let's check if changed
+   * rows should be checked on this page.
+   */
+  if (check_if_in_page_range(part_id,
+                   ptr.p->m_scan_info[curr_lcp_round].m_start_change_part,
+                   ptr.p->m_scan_info[curr_lcp_round].m_num_change_parts))
+    goto changed_rows;
+
+  /**
+   * Neither all rows nor changed rows are to be recorded on this page.
+   * This means that we should skip this page.
+   */
+  jam();
+  scanGCI = Uint32(~0);
+  skip_flag = true;
+  changed_row_page_flag = false; /* Ignored when skip_flag = true */
+  return;
+changed_rows:
+  /**
+   * Not all rows to be recorded, only changed rows on this page.
+   */
+  jam();
+  ndbassert(is_partial_lcp_enabled());
+  scanGCI = ptr.p->m_scan_change_gci;
+  skip_flag = false;
+  changed_row_page_flag = true;
+  return;
+all_rows:
+  /**
+   * We are  within range for all parts to be changed.
+   * return scanGCI = 0 such that all rows in this page becomes part
+   * of this LCP.
+   */
+  jam();
+  scanGCI = 0;
+  skip_flag = false;
+  changed_row_page_flag = false;
+  return;
+}
+
+void
+Backup::init_lcp_scan(Uint32 & scanGCI,
+                      bool & skip_page,
+                      bool & changed_row_page_flag)
+{
+  /**
+   * Here we come to get what to do with page 0.
+   *
+   * The number of pages seen at start of LCP scan was set in the method
+   * start_lcp_scan. It is of vital importance that this happens
+   * synchronised with the insertion of the LCP record in the UNDO log
+   * record. There cannot be any signal breaks between setting the
+   * max page count, initialising the LCP scan variable in TUP and
+   * initialising the variables in this block and finally to insert a
+   * start LCP record in UNDO log to allow for proper
+   * handling of commits after start of LCP scan (to ensure that we
+   * set LCP_SKIP and LCP_DELETE bits when necessary). It is important
+   * that we retain exactly the set of rows committed before the start
+   * of the LCP scan (the commit point is when the signal TUP_COMMITREQ
+   * returns to DBLQH) and that rows inserted after this point is not
+   * part of the LCP, this will guarantee that we get synchronisation
+   * between the LCP main memory data and the disk data parts after
+   * executing the UNDO log.
+   *
+   * The number of pages will be stored in the LCP to ensure that we can
+   * remove rowid's that have been deleted before the next LCP starts.
+   * The next LCP will never see any deleted rowid's, so those need to be
+   * deleted before applying the rest of the LCP. The actual LCP contains
+   * DELETE by ROWID for all rowid's in the range of pages still existing,
+   * but for those removed we need to delete all those rows in one go at
+   * start of restore by using the number of pages that is part of LCP.
+   */
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  Uint32 part_id = hash_lcp_part(0);
+  get_page_info(ptr,
+                0,
+                part_id,
+                scanGCI,
+                skip_page,
+                changed_row_page_flag);
+  ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
+}
+
+/**
+ * Return values:
+ * +1 Page have been scanned
+ * -1 Page have not been scanned
+ * 0 Page is scanned, so need to check the page index as well.
+ */
+int
+Backup::is_page_lcp_scanned(Uint32 page_id, bool & all_part)
+{
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  all_part = false;
+
+  if (page_id >= ptr.p->m_lcp_max_page_cnt)
+  {
+    jam();
+    return +1; /* Page will never be scanned */
+  }
+  Uint32 curr_lcp_round = 0;
+  Uint32 part_id = hash_lcp_part(page_id);
+  {
+    Uint32 i = curr_lcp_round;
+    jam();
+    if (check_if_in_page_range(part_id,
+                   ptr.p->m_scan_info[i].m_start_all_part,
+                   ptr.p->m_scan_info[i].m_num_all_parts))
+    {
+      all_part = true;
+      if (!ptr.p->m_is_lcp_scan_active)
+      {
+        /**
+         * LCP scan is already completed.
+         */
+        jam();
+        return +1;
+      }
+      if (page_id < ptr.p->m_lcp_current_page_scanned)
+      {
+        jam();
+        return +1; /* Page have been scanned in this LCP scan round */
+      }
+      else if (page_id > ptr.p->m_lcp_current_page_scanned)
+      {
+        jam();
+        return -1; /* Page to be scanned this LCP scan round, not done yet */
+      }
+      else
+      {
+        jam();
+        return 0; /* Page is currently being scanned. Need more info */
+      }
+    }
+  }
+  /* Must be in CHANGED ROWS page range if not in ALL ROWS pages */
+  ndbrequire(false); /* Code not ready yet */
+  return +1; /* All pages in changed part is handled in first LCP round */
+}
+
 void
 Backup::update_lcp_pages_scanned(Signal *signal,
                                  Uint32 filePtrI,
-                                 Uint32 scanned_pages)
+                                 Uint32 scanned_pages,
+                                 Uint32 & scanGCI,
+                                 bool & skip_page,
+                                 bool & changed_row_page_flag)
 {
   BackupFilePtr filePtr;
+  BackupRecordPtr ptr;
   jamEntry();
 
   c_backupFilePool.getPtr(filePtr, filePtrI);
@@ -5852,6 +6502,28 @@ Backup::update_lcp_pages_scanned(Signal *signal,
   OperationRecord & op = filePtr.p->operation;
  
   op.set_scanned_pages(scanned_pages);
+
+  /**
+   * scanned_pages also contains the Page number which can be used
+   * to deduce the part_id for the page.
+   */
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  Uint32 part_id = hash_lcp_part(scanned_pages);
+  ptr.p->m_lcp_current_page_scanned = scanned_pages;
+  get_page_info(ptr,
+                0,
+                part_id,
+                scanGCI,
+                skip_page,
+                changed_row_page_flag);
+  ptr.p->m_current_changed_row_page_flag = changed_row_page_flag;
+  DEB_EXTRA_LCP(("(%u)LCP scan page: %u, part_id: %u, round: %u, %s",
+          instance(),
+          scanned_pages,
+          part_id,
+          0,
+          skip_page ? "SKIP page" :
+            changed_row_page_flag ? "CHANGED ROWS page" : " ALL ROWS page"));
 }
 
 void 
@@ -6008,6 +6680,9 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     case ScanFragRef::NO_TC_CONNECT_ERROR:
     case ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR:
       jam();
+      DEB_LCP(("(%u)execSCAN_FRAGREF(temp error: %u)",
+               instance(),
+               errCode));
       break;
     case ScanFragRef::TABLE_NOT_DEFINED_ERROR:
     case ScanFragRef::DROP_TABLE_IN_PROGRESS_ERROR:
@@ -6024,7 +6699,8 @@ Backup::execSCAN_FRAGREF(Signal* signal)
        * This handling will ensure that drop table can complete
        * much faster.
        */
-      fragmentCompleted(signal, filePtr);
+      DEB_LCP(("(%u)execSCAN_FRAGREF(DROP_TABLE_IN_PROGRESS)", instance()));
+      fragmentCompleted(signal, filePtr, errCode);
       return;
     default:
       jam();
@@ -6047,6 +6723,7 @@ Backup::execSCAN_FRAGREF(Signal* signal)
   {
     jam();
     filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
+    DEB_LCP(("(%u)execSCAN_FRAGREF(backupFragmentRef)", instance()));
     backupFragmentRef(signal, filePtr);
   }
   else
@@ -6058,9 +6735,20 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     BackupRecordPtr ptr;
     c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
     TablePtr tabPtr;
-    ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
     FragmentPtr fragPtr;
-    tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
+    if (ptr.p->is_lcp())
+    {
+      ptr.p->tables.first(tabPtr);
+      ndbrequire(filePtr.p->fragmentNo == 0);
+      ndbrequire(filePtr.p->tableId == tabPtr.p->tableId);
+      tabPtr.p->fragments.getPtr(fragPtr, 0);
+      DEB_LCP(("(%u)execSCAN_FRAGREF", instance()));
+    }
+    else
+    {
+      ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
+      tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
+    }
     sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr,
                     WaitScanTempErrorRetryMillis);
   }
@@ -6073,16 +6761,27 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
 
   CRASH_INSERTION((10017));
 
-  ScanFragConf * conf = (ScanFragConf*)signal->getDataPtr();
+  ScanFragConf conf = *(ScanFragConf*)signal->getDataPtr();
   
-  const Uint32 filePtrI = conf->senderData;
+  const Uint32 filePtrI = conf.senderData;
   BackupFilePtr filePtr;
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
   OperationRecord & op = filePtr.p->operation;
-  
-  op.scanConf(conf->completedOps, conf->total_len);
-  const Uint32 completed = conf->fragmentCompleted;
+
+  if (c_lqh->handleLCPSurfacing(signal))
+  {
+    jam();
+    BackupRecordPtr ptr;
+    TablePtr tabPtr;
+    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    ptr.p->tables.first(tabPtr);
+    Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+    op.maxRecordSize = tabPtr.p->maxRecordSize =
+      1 + tup->get_max_lcp_record_size(tabPtr.p->tableId);
+  }
+  op.scanConf(conf.completedOps, conf.total_len);
+  const Uint32 completed = conf.fragmentCompleted;
   if(completed != 2) {
     jam();
     
@@ -6096,7 +6795,9 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
 }
 
 void
-Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
+Backup::fragmentCompleted(Signal* signal,
+                          BackupFilePtr filePtr,
+                          Uint32 errCode)
 {
   jam();
 
@@ -6104,6 +6805,7 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
   {
     jam();    
     filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
+    DEB_LCP(("(%u)fragmentCompleted(backupFragmentRef)", instance()));
     backupFragmentRef(signal, filePtr); // Scan completed
     return;
   }//if
@@ -6118,6 +6820,7 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
     jam();
     signal->theData[0] = BackupContinueB::BUFFER_FULL_FRAG_COMPLETE;
     signal->theData[1] = filePtr.i;
+    signal->theData[2] = errCode;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
                         WaitDiskBufferCapacityMillis, 2);
     return;
@@ -6127,12 +6830,46 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
   
   if (ptr.p->is_lcp())
   {
+    /**
+     * Check if we completed last part or if there are still
+     * parts to be done. If more parts are needed to be done
+     * then wait for file to be closed before starting up
+     * the next file part.
+     */
+
+    ptr.p->m_is_lcp_scan_active = false;
+    filePtr.p->operation.dataBuffer.eof();
     /* Maintain LCP totals */
     ptr.p->noOfRecords+= op.noOfRecords;
     ptr.p->noOfBytes+= op.noOfBytes;
-    
+    {
+      jam();
+      TablePtr tabPtr;
+      FragmentPtr fragPtr;
+      ptr.p->tables.first(tabPtr);
+      tabPtr.p->fragments.getPtr(fragPtr, 0);
+      c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
+    }
     ptr.p->slaveState.setState(STOPPING);
-    filePtr.p->operation.dataBuffer.eof();
+
+    /**
+     * Scan is completed, we get the newest GCI involved in the
+     * LCP. We update both LQH and ourselves with this value.
+     */
+    c_lqh->lcp_complete_scan(ptr.p->newestGci);
+
+    /**
+     * The actual complete processing is started from checkFile which is
+     * called regularly from a CONTINUEB loop. We cannot start the complete
+     * processing until all data of the fragment have been sent properly to
+     * the disk. checkFile is called from CONTINUEB(START_FILE_THREAD).
+     *
+     * lcp_start_complete_processing will start by sync:ing UNDO log, sync
+     * the page cache and sync:ing the extent pages. When all this is done
+     * AND the fragment LCP data files are sync:ed and closed then the
+     * LCP is done.
+     */
+    lcp_start_complete_processing(signal, ptr);
   }
   else
   {
@@ -6201,6 +6938,13 @@ Backup::checkScan(Signal* signal,
     /**
      * Close scan
      */
+    if (ptr.p->is_lcp())
+    {
+      jam();
+      DEB_LCP(("(%u) Close LCP scan after receiving error: %u",
+              instance(),
+              filePtr.p->errorCode));
+    }
     op.closeScan();
     ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
     req->senderData = filePtr.i;
@@ -6226,7 +6970,8 @@ Backup::checkScan(Signal* signal,
 
     if (ERROR_INSERTED(10039) && 
 	filePtr.p->tableId >= 2 &&
-	filePtr.p->operation.noOfRecords > 0)
+	filePtr.p->operation.noOfRecords > 0 &&
+        !ptr.p->is_lcp())
     {
       ndbout_c("halting backup for table %d fragment: %d after %llu records",
 	       filePtr.p->tableId,
@@ -6354,6 +7099,10 @@ Backup::checkScan(Signal* signal,
         jam();
         checkReportStatus(signal, ptr);
       }
+      else
+      {
+        jam();
+      }
     }
     return;
   }//if
@@ -6361,6 +7110,11 @@ Backup::checkScan(Signal* signal,
   filePtr.p->m_sent_words_in_scan_batch = 0; 
   filePtr.p->m_num_scan_req_on_prioa = 0;
 
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    DEB_LCP(("(%u)newScan false in checkScan", instance()));
+  }
   signal->theData[0] = BackupContinueB::BUFFER_FULL_SCAN;
   signal->theData[1] = filePtr.i;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
@@ -6383,6 +7137,11 @@ Backup::execFSAPPENDREF(Signal* signal)
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_FILE_THREAD;
   filePtr.p->errorCode = errCode;
 
+  CRASH_INSERTION(10044);
+  CRASH_INSERTION(10045);
+  g_eventLogger->info("Crashing after FSAPPENDREF: error code: %u",
+                      errCode);
+  ndbrequire(false);
   checkFile(signal, filePtr);
 }
 
@@ -6621,7 +7380,17 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   ndbrequire(flags & BackupFile::BF_OPEN);
   ndbrequire(flags & BackupFile::BF_FILE_THREAD);
   
-  closeFile(signal, ptr, filePtr);
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    lcp_close_data_file(signal, ptr, false);
+  }
+  else
+  {
+    jam();
+    closeFile(signal, ptr, filePtr);
+  }
+  return;
 }
 
 
@@ -6807,10 +7576,12 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     return;
   }//if
 
-  if (signal->getNoOfSections())
+  if (isNdbMtLqh())
   {
     jam();
-    SectionHandle handle(this, signal);
+    /* This is the decision point for including
+     * this row change in the log file on ndbmtd
+     */
     TablePtr tabPtr;
     c_tablePool.getPtr(tabPtr, trigPtr.p->tab_ptr_i);
     FragmentPtr fragPtr;
@@ -6818,11 +7589,17 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
     if (fragPtr.p->node != getOwnNodeId()) 
     {
       jam();
-      trigPtr.p->logEntry = 0;      
+      trigPtr.p->logEntry = 0;
+      SectionHandle handle(this,signal);
       releaseSections(handle);
       return;
     }
+  }
 
+  if (signal->getNoOfSections())
+  {
+    jam();
+    SectionHandle handle(this,signal);
     SegmentedSectionPtr dataPtr[3];
     handle.getSection(dataPtr[0], 0);
     handle.getSection(dataPtr[1], 1);
@@ -7019,7 +7796,11 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
 }
 
 void
-Backup::closeFile(Signal* signal, BackupRecordPtr ptr, BackupFilePtr filePtr)
+Backup::closeFile(Signal* signal,
+                  BackupRecordPtr ptr,
+                  BackupFilePtr filePtr,
+                  bool prepare_phase,
+                  bool remove_flag)
 {
   ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPEN);
   ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_OPENING));
@@ -7031,9 +7812,28 @@ Backup::closeFile(Signal* signal, BackupRecordPtr ptr, BackupFilePtr filePtr)
   req->userPointer = filePtr.i;
   req->userReference = reference();
   req->fileFlag = 0;
-  
-  if (ptr.p->errorCode)
+
+  if (prepare_phase)
   {
+    jam();
+    if (ptr.p->prepareErrorCode)
+    {
+      jam();
+      FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
+    }
+  }
+  else
+  {
+    jam();
+    if (ptr.p->errorCode)
+    {
+      jam();
+      FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
+    }
+  }
+  if (remove_flag)
+  {
+    jam();
     FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
   }
 
@@ -7061,7 +7861,58 @@ Backup::execFSCLOSEREF(Signal* signal)
   
   FsConf * conf = (FsConf*)signal->getDataPtr();
   conf->userPointer = filePtrI;
-  
+
+  const char *file_type_str;
+  const char *op_type_str;
+
+  if (ptr.p->errorCode == 0)
+  {
+    ptr.p->errorCode = ref->errorCode;
+  }
+  if (filePtr.p->errorCode == 0)
+  {
+    filePtr.p->errorCode = ref->errorCode;
+  }
+  if (ptr.p->is_lcp())
+  {
+    op_type_str = "LCP";
+    if (ptr.p->prepareCtlFilePtr[0] == filePtrI ||
+        ptr.p->prepareCtlFilePtr[1] == filePtrI)
+      file_type_str = "prepare ctl";
+    else if (ptr.p->prepareDataFilePtr == filePtrI)
+      file_type_str = "prepare data";
+    else if (ptr.p->deleteFilePtr == filePtrI)
+      file_type_str = "delete file";
+    else if (ptr.p->dataFilePtr == filePtrI)
+      file_type_str = "data";
+    else if (ptr.p->ctlFilePtr == filePtrI)
+      file_type_str = "ctl";
+    else
+    {
+      ndbrequire(false);
+      file_type_str = NULL;
+    }
+  }
+  else
+  {
+    op_type_str = "backup";
+    if (ptr.p->ctlFilePtr == filePtrI)
+      file_type_str = "ctl";
+    else if (ptr.p->dataFilePtr == filePtrI)
+      file_type_str = "data";
+    else if (ptr.p->logFilePtr == filePtrI)
+      file_type_str = "log";
+    else
+    {
+      ndbrequire(false);
+      file_type_str = NULL;
+    }
+  }
+  g_eventLogger->warning("FSCLOSEREF: errCode: %d, performing %s"
+                         " for file type %s, ignoring error",
+                         ref->errorCode,
+                         op_type_str,
+                         file_type_str);
   execFSCLOSECONF(signal);
 }
 
@@ -7079,7 +7930,7 @@ Backup::execFSCLOSECONF(Signal* signal)
 #ifdef DEBUG_ABORT
   ndbout_c("***** FSCLOSECONF filePtrI = %u", filePtrI);
 #endif
-  
+
   ndbrequire(filePtr.p->m_flags == (BackupFile::BF_OPEN |
 				    BackupFile::BF_CLOSING));
 
@@ -7107,6 +7958,79 @@ Backup::execFSCLOSECONF(Signal* signal)
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
+  if (ptr.p->is_lcp())
+  {
+    if (ptr.p->prepareDataFilePtr == filePtrI)
+    {
+      /* Close of prepare data file, error condition */
+      jam();
+      ndbrequire(ptr.p->prepareState == PREPARE_ABORTING);
+      defineBackupRef(signal, ptr, ptr.p->errorCode);
+      return;
+    }
+    else if (ptr.p->prepareCtlFilePtr[0] == filePtrI ||
+             ptr.p->prepareCtlFilePtr[1] == filePtrI)
+    {
+      jam();
+      if (ptr.p->prepareState == PREPARE_DROP_CLOSE)
+      {
+        jam();
+        lcp_close_ctl_file_drop_case(signal, ptr);
+        return;
+      }
+      if (ptr.p->prepareState == PREPARE_ABORTING)
+      {
+        jam();
+        defineBackupRef(signal, ptr, ptr.p->errorCode);
+        return;
+      }
+      ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
+      lcp_close_prepare_ctl_file_done(signal, ptr);
+      return;
+    }
+    else if (ptr.p->dataFilePtr == filePtrI)
+    {
+      if (ptr.p->m_handle_dropped_table_during_lcp_scan)
+      {
+        jam();
+        DEB_LCP(("(%u)handle_dropped_table_during_lcp_scan",
+                instance()));
+        handle_dropped_table_during_lcp_scan(signal, ptr);
+      }
+      else
+      {
+        jam();
+        lcp_close_data_file_conf(signal, ptr);
+      }
+      return;
+    }
+    else if (ptr.p->ctlFilePtr == filePtrI)
+    {
+      if (ptr.p->m_handle_dropped_table_during_lcp_scan)
+      {
+        jam();
+        handle_dropped_table_during_lcp_scan(signal, ptr);
+      }
+      else
+      {
+        jam();
+        finalize_lcp_processing(signal, ptr);
+      }
+      return;
+    }
+    else if (ptr.p->deleteFilePtr == filePtrI)
+    {
+      jam();
+      lcp_close_ctl_file_for_rewrite_done(signal, ptr, filePtr);
+      return;
+    }
+    else
+    {
+      ndbrequire(false);
+    }
+  }
+  /* Backup closing files */
   closeFiles(signal, ptr);
 }
 
@@ -7114,15 +8038,6 @@ void
 Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
 {
   jam();
-
-  if(ptr.p->is_lcp())
-  {
-    lcp_close_file_conf(signal, ptr);
-    return;
-  }
-  
-  jam();
-
   /* Record end-of-backup */
   ndbrequire(is_backup_worker());
   //ndbassert(Backup::g_is_backup_running); /* !set on error paths */
@@ -7131,7 +8046,7 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   //error when do insert footer or close file
   if(ptr.p->checkError())
   {
-    StopBackupRef * ref = (StopBackupRef*)signal->getDataPtr();
+    StopBackupRef * ref = (StopBackupRef*)signal->getDataPtrSend();
     ref->backupPtr = ptr.i;
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
@@ -7464,7 +8379,8 @@ Backup::execFSREMOVEREF(Signal* signal)
 }
 
 void
-Backup::execFSREMOVECONF(Signal* signal){
+Backup::execFSREMOVECONF(Signal* signal)
+{
   jamEntry();
 
   FsConf * conf = (FsConf*)signal->getDataPtr();
@@ -7475,6 +8391,13 @@ Backup::execFSREMOVECONF(Signal* signal){
    */
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
+
+  if (ptr.p->is_lcp())
+  {
+    jam();
+    lcp_remove_file_conf(signal, ptr);
+    return;
+  }
   /*
     report of backup status uses these variables to keep track
     if backup ia running and current state
@@ -7485,27 +8408,1094 @@ Backup::execFSREMOVECONF(Signal* signal){
 }
 
 /**
- * LCP execution starts.
+ * Description of how LCP works and its principles
+ * -----------------------------------------------
+ *
+ * Introduction of Partial LCP
+ * ...........................
+ * In MySQL Cluster 7.6 partial LCPs was introduced. This means that each
+ * LCP doesn't record every single row in the system. It only records a subset
+ * of all rows + all changed rows since the last partial LCP.
+ *
+ * This allows partial LCPs to complete more quickly than a full LCP, and
+ * the REDO log to be trimmed more frequently.
+ *
+ * We keep track of changed rows by using the GCI stored on each row. We
+ * know which GCI that was fully part of the previous LCP. Thus if the
+ * previous LCP contained all changes up to and including GCI = 77 this
+ * means that the new LCP will only need to record changes from GCI = 78
+ * and onwards.
+ * 
+ * There is some complication that comes from deletions here.
+ * The restore of the system uses a number of partial LCPs back in time.
+ * For a specific rowid this means that there is a first partial LCP file
+ * where it is recorded. It can either be restored with an inserted value as
+ * part of this LCP, if it isn't then the rowid will be empty after executing
+ * this first partial LCP, further partial LCPs might add it.
+ *
+ * In the following LCPs this rowid will only be part of the LCP if it has
+ * changed since the last LCP. This is absolutely no problem if the row
+ * has been inserted or updated since then the row exists and its value will
+ * be recorded in the LCP as a changed row.
+ *
+ * At start of a partial LCP we decide the number of parts to checkpoint
+ * fully, currently we have divided the page id range into 2048 different
+ * parts. We can checkpoint anything between 1 to 2048 parts in one
+ * partial LCP, this is driven by data size of fragment and change percentage.
+ *
+ * Definition: The set of rows where we record all rows are called ALL ROWS.
+ * The set of rows where we only record the changed rows. We call this
+ * CHANGE ROWS.
+ *
+ * The ALL ROWS parts are the same as used in earlier versions of MySQL
+ * Cluster, and are a 'state dump' containing INSERT BY ROWID operations.
+ * Each row existing at start of LCP will be recorded in pages belonging
+ * to this part.
+ *
+ * The CHANGED ROWS parts are a kind of operation log with WRITE BY ROWID
+ * and DELETE BY ROWID and DELETE BY PAGEID (DELETE by ROWID for all rows in a
+ * page) operations which must be applied.
+ *
+ * For partial LCP we divide up the range of pages into 2048 parts using a hash
+ * function on page id. For a specific LCP we will have one set of parts that
+ * are checkpointed in the ALL ROWS part and the rest is checkpointed in the
+ * CHANGE ROWS part.
+ *
+ * To restore we need to perform the following for each of the 2048 parts.
+ * 1) Find the last LCP where this part belonged to the ALL ROWS part.
+ * 2) Restore this part from this LCP.
+ * 3) For each of the LCP after that up to the LCP we are restoring we will
+ *    restore the CHANGE ROWS part for this part.
+ *
+ * This means that at restore we will never need to go further back than the
+ * oldest ALL ROWS part we have remaining which is restorable. This is
+ * important understanding for knowing when LCP files can be deleted.
+ *
+ * More definitions
+ * ----------------
+ * Rowid: Each row has a rowid (page id and page index) which is a local key
+ * to the fixed size part of the row. The fixed part of the row has references
+ * to the variable sized part and it also has a reference to the disk part of
+ * the row.
+ *
+ * Page Map: The page map takes a rowid as input and gives back the page
+ * pointer to this page. The page map also knows if the page id is empty
+ * and it is also used to keep some page state after page has been deleted
+ * as discussed further below.
+ *
+ * Disk reference: This is the reference in the main memory part of the row
+ * that refers to the disk part of the row. Currently this reference is
+ * located in the fixed size part of the row and the disk data part is a
+ * fixed size part.
+ *
+ * Row content: This is the actual values of the attributes in this row.
+ * 
+ * Row structure:
+ * -------------------------------------------
+ * | Fixed size part in main memory          |
+ * | Tuple header + Fixed size attributes +  |
+ * | disk reference + variable size reference|
+ * | + NULL bits                             |
+ * ------------------------------------------
+ * 
+ * ------------------------------------------
+ * | Var part in main memory                |
+ * | Header part + variable sized attributes|
+ * | + dynamic attributes                   |
+ * |-----------------------------------------
+ *
+ * ------------------------------------------
+ * | Fixed size part on disk page           |
+ * | Header part + Fix size disk attributes |
+ * ------------------------------------------
+ *
+ * The Fixed main memory part header contains also GCI, Checksum. Also the
+ * disk part contains a GCI and a reference to the main memory part.
+ *
+ * Purpose of LCP
+ * ..............
+ * The purpose of the LCP (Local checkpoint) is to ensure that we can cut the
+ * REDO log tail which otherwise grow to infinity. We do this by performing
+ * a regular LCP of each fragment.
+ *
+ * NDB contains both main memory data and disk data. The disk data part is
+ * recovered by using a No Steal approach. This means that only committed
+ * data is ever sent to the pages written to disk. To support this we use an
+ * UNDO log to ensure that the disk data is possible to restore to the
+ * exact state it had at the starting point of the LCP.
+ *
+ * The main memory part of the row content is stored in the LCP files
+ * generated by the LCP. The disk part is stored in its position in the
+ * disk pages by flushing the pages in memory to disk for the disk parts.
+ *
+ * Observation 1:
+ * Only committed rows are written into any LCP for both main memory data and
+ * disk data. Thus after restoring an LCP we only need to roll forward using
+ * a REDO log.
+ *
+ * Observation 2:
+ * Given that the LCP maintains the exact row structure at the start of the
+ * LCP the REDO log can be a logical log (only logging actions (INSERT, DELETE,
+ * UPDATE) and the values changed).
+ *
+ * The REDO log is mainly operating with primary keys, but to ensure that
+ * we synchronize the rowids on different nodes all INSERTs must also log
+ * the rowid they are inserted into.
+ *
+ * Observation 3:
+ * Given that the REDO log is a logical log it location and replication
+ * independent. This means that we can restore the LCP stored locally
+ * and then apply a mix of the local REDO log and REDO logs from other
+ * nodes in the same node group.
+ *
+ * An LCP is performed per fragment. A table consists of multiple fragments
+ * that can be checkpointed in parallel in different LDMs.
+ *
+ * Only one LCP per fragment per LDM instance is currently executed. However
+ * we allow for the prepare phase of the next LCP (opening files and preparing
+ * the LCP execution) to proceed in parallel to the currently running
+ * LCP. In addition the deletion of old LCP files is a background process
+ * going on in the background to both of these processes.
+ *
+ *     Need of LCP_SKIP bit for inserts
+ *     ................................
+ * We need to do the same thing for main memory data. The idea is that we
+ * need a LCP to contain exactly the rows present at the start of the LCP.
+ * This means that we set an LCP_SKIP bit on rows that are inserted during
+ * LCPs to avoid putting those rows into the LCP when we pass by them in
+ * the LCP scan.
+ *
+ * The requirement to have exactly the correct set of rows that existed at
+ * start of LCP comes from that we need the reference in main-memory rows
+ * to disk rows to be correct. The content of the main memory row and
+ * disk data row must not be exactly synchronized but if the row exists
+ * in main memory the referred disk row must exist in disk pages and
+ * vice versa.
+ *
+ * Tables that don't have disk data don't need this requirement, but we
+ * treat them the same way.
+ *
+ * The row content in both the disk data and the main memory data can be
+ * newer than the data at the start of the LCP, but not older.
+ *
+ * The reason is that the REDO log or other synchronisation efforts will
+ * ensure that all updates from before the LCP and until the restoration
+ * point is reapplied, so we will eventually have the correct data in
+ * each row at the restoration point.
+ *
+ *     Need of LCP keep list for deletes
+ *     .................................
+ * Similarly we use an LCP keep list to record deleted rows such that we
+ * record them in the LCP. We use this list to give those recordings a
+ * higher priority since we will release the rowid immediately after
+ * committing the row.
+ *
+ * These two principles ensure that the LCP will contain exactly the same
+ * set of rows as we had at the start of the LCP. The row data might
+ * differ from what it looked at the start of the LCP. This is however
+ * of no significance since the REDO log will ensure that we will
+ * after recovery have the correct state of the data.
+ *
+ * As an example a row with a certain rowid can be deleted before LCP scans
+ * it and then the row will be sent to the LCP keep list. Later a new row
+ * will be inserted while the LCP scan still hasn't arrived at this rowid
+ * and then the INSERT will set the LCP_SKIP to ensure that the new row
+ * is ignored in this rowid.
+ *
+ * This leads to the following observations.
+ *
+ * Observation 1:
+ * ..............
+ * In an LCP there will only be one row existing for a specific rowid. There
+ * will never be two rows with the same rowid in an LCP.
+ *
+ * Proof:
+ * ------
+ * If two rows existed there must have been a delete followed by an insert
+ * in the LCP scan. The delete will ensure that the first row with this
+ * rowid will exist in LCP and the LCP_SKIP bit will ensure that the
+ * second row with this rowid will not exist in the LCP.
+ *
+ * Observation 2:
+ * ..............
+ * It isn't allowed for any updates to change the disk reference. The disk
+ * reference must be stable over a set of LCPs.
+ *
+ * Proof:
+ * ------
+ * If an update did change the disk reference the restored main memory row
+ * would refer to the wrong disk data part which would not work.
+ *
+ * The above is the essential requirement on any LCP that is used in a
+ * restore of NDB tables. We formulate it here as a theorem.
+ *
+ * Theorem 1:
+ * ..........
+ * An LCP used in the recovery of NDB must meet the following requirements.
+ * 1) All committed rows that are present at start of LCP (defined as the
+ *    the time when we write the marker in the UNDO log of disk data) must
+ *    all be part of LCP and no other rows may be present in the LCP.
+ * 2) All links from main memory to disk data and vice versa must be
+ *    consistent in checkpoint.
+ * 3) The row data must be the same as at the time of the start of the LCP
+ *    OR at a time after the start of the LCP.
+ *
+ * Proof:
+ * ------
+ * A proof for this is presented in the Ph.D thesis of Mikael Ronström,
+ * Design and Modelling of a Parallel Data Server for Telecom Applications,
+ * 1998 in chapter 9.2.1. The bearing principle is that the logical REDO
+ * log will replay all transactions from a point which is certain to be
+ * before the start of the LCP, thus all updates, inserts and deletes
+ * happening after the start of the LCP is certain to be part of the
+ * REDO log execution.
+ *
+ * A paper at VLDB 2005 also presents some of the proof behind this in
+ * the paper called "Recovery principles in MySQL Cluster 5.1".
+ *
+ * While applying the REDO log the following events can happen to a row that
+ * existed in LCP. Note that the start of LCP is not known when executing
+ * the REDO log, so this is a theoretical proof of the validity of the
+ * algorithm, not how it works.
+ *
+ * 1) Delete of row before start of LCP, no problems to execute. There are
+ *    two variants, the row is not inserted again, in this case the row
+ *    won't be in the LCP and no REDO log record will reinsert it. In case
+ *    the row is later reinserted the REDO log record will be executed as
+ *    part of recovery and the row is thus certain to be part of the
+ *    restorable state.
+ *
+ *    This operation can discover that the row doesn't exist, but this is
+ *    ok and can only occur before start of LCP.
+ *
+ * 2) Delete of row after start of LCP, this is ok since the row will exist
+ *    before the delete as it existed at start of LCP.
+ *
+ * 3) Update before start of LCP. This is ok, it will restore a value to
+ *    the record that might not be the end state, but if not so there
+ *    will be more updates recorded in the REDO log. The important principle
+ *    here is that the REDO log application must be idempotent. Since the
+ *    REDO log simply restores the values of the attributes it is
+ *    idempotent. It is possible to construct a REDO log that contains
+ *    operations also (like add one to column a). This would not work in
+ *    this algorithm since we don't have exact control how exactly we
+ *    restore a row state. Our algorithm requires an idempotent REDO log.
+ *
+ *    This update might discover that the row doesn't exist, this can only
+ *    occur before start of LCP so it is safe to ignore the REDO log record.
+ *
+ * 4) Update after start of LCP. The value this REDO log entry restores
+ *    could already be in the LCP since we don't care if the LCP records a
+ *    newer record than at the start of the LCP.
+ *
+ * 5) Insert before start of LCP. The REDO log execution will perform this if
+ *    the row doesn't exist. If it existed already we are certain that this
+ *    insert is before start of LCP and it can be safely ignored.
+ *
+ * 6) Insert after start of LCP, the row won't be in LCP, so will always work
+ *    fine.
+ *
+ * So what we see here is that the REDO log can sometimes bring us backwards
+ * in the row history, but it will eventually bring us forward in row history
+ * to the desired state at a particular GCP (global checkpoint).
+ *
+ *     Handling deletes for partial LCPs
+ *     .................................
+ * The problematic part is deletes of a row. This could result in 4 different
+ * scenarios.
+ *
+ *     Special handling with reuse of rowids for partial LCPs
+ *     ......................................................
+ * 1) A first partial LCP has inserted row A into rowid X, after the LCP the
+ *    row is deleted and then the delete is followed by a new insert of row B
+ *    into rowid X. In this case the LCP will attempt to restore a row where
+ *    a row already exists in this rowid. Here we need to remove the old row
+ *    first before inserting the new row to ensure that the primary key hash
+ *    index is correct.
+ *
+ *    To handle this case properly we always need to drop the row in the
+ *    row id position if the primary key has changed from the previous
+ *    LCP to this LCP. One manner is to always drop it first and then
+ *    reinsert it even if it is the same row.
+ *
+ *     Special case of handling deleted rowids with GCI > 0
+ *     ....................................................
+ * 2) A first partial LCP has inserted row A into rowid X, after that the
+ *    row is deleted. At the next LCP this will be recorded as a DELETE
+ *    by ROWID. So when applying this partial LCP the rowid X will be
+ *    set to an empty rowid and the record A will be deleted as part of
+ *    executing that partial LCP. So after executing that partial LCP the
+ *    row will not exist.
+ *
+ *     Special case of empty rowids (GCI = 0) for newly allocated pages
+ *     ...............................................................
+ * 3) The first partial LCP records the rows within page Y, after the LCP
+ *    but before the new LCP the page is dropped, after the drop it is
+ *    allocated again. When the LCP starts the page has at least 1 row in
+ *    it which has been reinserted.
+ *
+ *    The remainder of the rows in the page can have GCI = 0, these rows
+ *    need to have a DELETE by ROWID in the LCP. This DELETE by ROWID might
+ *    encounter a row that actually didn't exist, so DELETE by ROWID at
+ *    restore must be able to handle that the row didn't exist when we
+ *    try to delete it.
+ *
+ *    Special case of empty page slot at start of LCP
+ *    ...............................................
+ * 4) At start of the LCP the page slot is free, in this case we record
+ *    the entire page as deleted, we call this DELETE by PAGEID. In this
+ *    case restore will delete all rows in this position. This only needs
+ *    to happen if the page exists when restoring, if the page slot is
+ *    empty when this is reached, then we can ignore the DELETE by PAGEID
+ *    since it is already handled.
+ *
+ *    We only record DELETE by PAGEID for pages that are part of CHANGE
+ *    ROWS.
+ *
+ *    We record this information by setting a flag on the page that says
+ *    LCP_EMPTY_PAGE_FLAG. This says that the page is now allocated, but
+ *    at start of the LCP scan it was empty, so when we reach this
+ *    page we will see this state and record a DELETE by PAGEID.
+ *    Similarly if we come by an empty page slot that haven't got the
+ *    LCP_SCANNED bit set in the page map as described in 5) we will
+ *    also record this as DELETE by PAGEID.
+ *
+ *    Problematic case of Drop page during LCP scan
+ *    .............................................
+ * 5) In this case the page exists at start of LCP, for ALL ROWS this is not
+ *    a problem, those rows that was deleted since the start of LCP is put
+ *    into the LCP through LCP keep lists. However for CHANGE ROWS we need to
+ *    record DELETE by ROWID for each row that has GCI = 0 or GCI > scanGCI
+ *    for LCP. We cannot drop the page without recording this information
+ *    since there is no way to recreate this information.
+ *
+ *    To solve this issue we use the LCP keep list to enter the information
+ *    about rowids that we need to issue DELETE by ROWID for. This means that
+ *    we are able to drop the page immediately and store its state information
+ *    needed for LCP elsewhere.
+ *
+ *    When dropping the page we will immediately scan the page and each
+ *    rowid that has GCI = 0 or GCI >= lcpScanGCI will be recorded into the
+ *    LCP keep list. However for efficiency reasons we will record multiple
+ *    rowids in each row in the LCP keep list. So each record in the
+ *    LCP keep list will either contain a full row as usual OR it will
+ *    contain an indicator of containing dropped rowids, the number of
+ *    dropped rowids in this row and the rowids in an array (each rowid
+ *    consumes 2 words).
+ *
+ *    However there is one more problem related to this. Once the page has
+ *    been dropped before LCP scan has reached it, it can be reinserted
+ *    again. Now if this page as mentioned above belongs to the CHANGE ROWS
+ *    category then as explained in 4) we want to record it as a
+ *    DELETE by PAGEID. However in this case this is not correct, the page
+ *    has already been scanned by the LCP.
+ *
+ *    We can avoid problems with future updates on the page by setting the
+ *    LCP_SKIP bit on the page when it is reinserted, but we also need some
+ *    information to avoid inserting the DELETE by PAEGID into the LCP.
+ *
+ *    The place where we retain information about dropped pages is the page
+ *    map. We have 2 32-bit words in memory for each page in the current
+ *    set of pages. These 2 words are handled by the DynArr256 data structure.
+ *    We need to temporarily use this place to store information about pages
+ *    dropped during LCP scan in the CHANGE ROW part.
+ *
+ *    To describe how this happens requires a description of the Page Map and
+ *    its workings and how we make use of it in this case.
+ *
+ *    Description of Fragment Page Map
+ *    ................................
+ *
+ *    ------------------
+ *    | Page Map Head  |
+ *    ------------------
+ *    The page map head is a normal head of a doubly linked list that contains
+ *    the logical page id of the first free logical page id slot.
+ *
+ *    The entries in the page map is different dependent on if the slot is
+ *    free or not. First we'll show the non-empty variant (actually the
+ *    second slot can be uninitialised in which case the DynArr256 will return
+ *    RNIL (RNIL cannot be set in any manner since we cannot use page ids
+ *    higher than or equal to RNIL & 0x3fffffff).
+ *    ------------------------------------------
+ *    | Physical page id  | Bit 31 set any rest|
+ *    ------------------------------------------
+ *    Now the empty variant
+ *
+ *     Next reference              Previous reference
+ *    -----------------------------------------------------------
+ *    | Bit 31 set, logicalPageId | Bit 31 set logicalPageId    |
+ *    -----------------------------------------------------------
+ *    So the first position uses bit 31 to indicate that the logical
+ *    page id position is empty, the other 31 bits in this position is used
+ *    to point to the next free logical page id. If all 30 lowest bits
+ *    are set in the logical page id it is FREE_PAGE_RNIL. FREE_PAGE_RNIL
+ *    means that there is no next logical page id.
+ *
+ *    The previous position also contains a reference to a logical page id,
+ *    in this case the previous free logical page id. If there is no free
+ *    previous logical page id then this is set to FREE_PAGE_RNIL as
+ *    well. Bit 31 is set in both words when the entry is free.
+ *
+ *    The reason that Bit 31 is set in both words is to ensure that when
+ *    we scan the fragment page map at drop fragment to release pages
+ *    that we don't release any pages from the second position. The
+ *    iterator delivers each word back and we don't keep track of which
+ *    position is which, so we need bit 31 to be set at all times for
+ *    the second position.
+ *
+ *    The page map is only growing, the only manner to get rid of it is to
+ *    either drop the table or restart the node. At restart the page map
+ *    starts from scratch again.
+ *
+ *    The conclusion is that the page map is a place where we can store
+ *    the special information about that a logical page id has been dropped
+ *    as part of the CHANGE ROWS category and it needs no more LCP scanning
+ *    even if reinserted. So by setting a bit here we can use this information
+ *    to avoid inserting a DELETE by PAGEID into the LCP and we can set some
+ *    some proper information on the page to ensure that we skip this page
+ *    later in the LCP scan (obviously also need the LCP scan to reset this
+ *    bit then).
+ *
+ *    We also use bit 30 in the second word to indicate what the page state
+ *    was at the start of the previous LCP. This enables us to decide what
+ *    to do in those situations when we find that the page or row is not
+ *    used at start of this LCP.
+ *
+ *    Solution:
+ *    ---------
+ *    We will use bit 30 in the first word of the page map to indicate this
+ *    special page state. This has the effect that we can at most have
+ *    2^30 pages in one page map. This limits the size of the main memory
+ *    fixed part to 32 TBytes. If this becomes a problem then we need to
+ *    use 64-bit page id as well and that means that the page map will
+ *    contain 2 64-bit words instead and thus the problem will be resolved.
+ *    We call this bit the LCP_SCANNED_BIT. Bit 31 in the first word is
+ *    already used to store the FREE_PAGE_BIT which indicates if the page
+ *    entry is free or in use, if FREE_PAGE_BIT the two words are used
+ *    as next and prev of a linked list of free page ids for the fragment.
+ *
+ *    Obviously we need to ensure that during all page map operations that
+ *    we take care in handling this special page state.
+ *
+ *    Note: For the pages in the ALL ROWS catoegory where re we record all
+ *    rows we write all the rowids existing at start of LCP, this means that
+ *    a rowid in these parts that isn't recorded as an empty rowid by
+ *    definition. For parts where only record changes we have to ensure that
+ *    we get the same set of rows after executing all changes, so we need to
+ *    record all changes, both new rowids and deleted rowids and updates of
+ *    row content of rows.
+ *
+ *    We will also use the 1 free bit in the second word in the page map.
+ *    This bit will be used to store the LCP state at the previous LCP.
+ *    When we reach a page in the LCP scan we will set the state of the last
+ *    LCP based on the current state and of oter flags as described below.
+ *
+ *    The state that no page map entry exists is also a valid state, this
+ *    state indicates that the previous LCP state was that the page was
+ *    released and that the current state is empty state as well and that
+ *    that the state of the LCP_SCANNED_BIT is 0.
+ *
+ *    So we have three bits in the page map:
+ *    LCP_SCANNED_BIT: Indicates that we have taken care of everything
+ *    related to LCP scans for this page in this LCP.
+ *    FREE_PAGE_BIT: Indicates that the current state of the page is free.
+ *    LAST_LCP_FREE_BIT: Set to 1 indicates that the last LCP state is D
+ *    and set to 0 indicates that the last LCP state is A. This is bit 30
+ *    of the second word in the page map.
+ *
+ *     Detailed discussion of each case of release/allocation of page
+ *     ..............................................................
+ *
+ * A stands for an allocation event, D stands for an release event (drop page)
+ * [AD].. stands for a A followed by D but possibly several ones and possiblhy
+ * also no events.
+ * E stands for empty set of events (no A or D events happened in the period.
+ *
+ * Case 1: Dropped before start of last LCP and dropped at start of this LCP
+ * Desired action for ALL ROWS pages: Ignore page
+ * Desired action for CHANGED ROWS pages: Ignore page, technically acceptable
+ * to record it as DELETE by PAGEID as well.
+ *
+ * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  E           LCP_End(n+1) (1)
+ * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  A           LCP_End(n+1) (2)
+ * D  LCP_Start(n)   [AD]..    LCP_Start(n+1)  [AD].. A    LCP_End(n+1) (3)
+ *
+ * (1) is found by the empty page when the LCP scan finds it and the
+ *     LCP_SCANNED_BIT is not set. Thus ALL ROWS pages knows to ignore the
+ *     the page. CHANGED ROWS pages can ignore it by looking at the state
+ *     of the last LCP and notice that the page was dropped also then and
+ *     thus the page can be ignored.
+ *     
+ *     In this case we set the state of last LCP to D in the LCP scan.
+ *
+ * (2) is found by discovering that page->is_page_to_skip_lcp() is true.
+ *     The LCP_SCANNED_BIT isn't set in this case when the LCP scan reaches
+ *     it. Thus ALL ROWS pages can ignore it. CHANGED ROWS pages will ignore
+ *     it after checking the state of the last LCP.
+ *
+ *     In this case we need to keep the keep the state of last LCP until the
+ *     LCP scan has reached the page. When LCP scan reaches the page we will
+ *     set the state of last LCP to D when page->is_page_to_skip_lcp() is
+ *     true.
+ *    
+ * (3) is found by discovering that LCP_SCANNED_BIT is set since the first
+ *     D event after LCP start handled the page and handled any needed
+ *     DELETE by PAGEID. After discovering this one needs to reset the
+ *     LCP_SCANNED_BIT again.
+ *
+ *     We read the old last LCP state and set the new last LCP state when
+ *     reaching the first D event after start of LCP. The
+ *     page->is_page_to_skip_lcp() flag will assist in determining what
+ *     the state at start of LCP was.
+ *
+ * Case 2: Dropped before start of last LCP and allocated at start of LCP.
+ *
+ * Desired action for ALL ROWS pages: Any rows with committed data at start
+ * of LCP should be recorded as INSERTs into the LCP.
+ *
+ * Desired action for CHANGED ROWS pages: Any rows with committed data at
+ * start of LCP should be recorded as WRITEs into the LCP. All other rows
+ * should be ignored, technically acceptable behaviour is to issue
+ * DELETE by ROWID for those rows that should be ignored as well.
+ * 
+ * D  LCP_Start(n)   [AD].. A  LCP_Start(n+1)  E           LCP_End(n+1) (1)
+ * D  LCP_Start(n)   [AD].. A  LCP_Start(n+1)  D           LCP_End(n+1) (2)
+ * D  LCP_Start(n)   [AD].. A  LCP_Start(n+1)  [DA].. D    LCP_End(n+1) (3)
+ *
+ * (1) is found by that the page exists when being scanned, no LCP_SCANNED_BIT
+ *     is set and also not the page to skip lcp flag is set. Individual rows
+ *     can have their LCP_SKIP flag set. All rows with committed data AND not
+ *     LCP_SKIP flag set will be recorded. All rows with LCP_SKIP flag set
+ *     will be ignored for ALL ROWS pages and will be ignored for CHANGED ROWS
+ *     pages based on the last LCP state. Rows without committed data will be
+ *     ignored for ALL ROWS pages and will be ignored based on the last LCP
+ *     state for CHANGED ROWS pages.
+ *
+ *     When we are done executing a page for the LCP scan we can set the
+ *     last LCP state to A.
+ *
+ * (2) is found when releasing the page. Before page is released it will have
+ *     its rows deleted, for each row that is deleted and wasn't already
+ *     deleted since start of LCP we will record the row using the LCP keep
+ *     list and also setting LCP_SKIP flag on the row. When releasing the
+ *     page we can ignore it based on knowledge of the last LCP state.
+ *
+ *     In this we set the last LCP state and also read it when reaching the
+ *     D event. This event can even occur while we're in the middle of
+ *     scanning the page for the LCP.
+ *
+ * (3) is found by discovering that the LCP_SCANNED_BIT is set. This is set
+ *     by the first D event after start of LCP after handling the page as
+ *     in (2).
+ *
+ *     Last LCP state already set in the first D event after start of LCP.
+ * 
+ * Case 3: Allocated before start of last LCP and dropped at start of this LCP
+ *
+ * Desired action for ALL ROWS pages: Page ignored
+ *
+ * Desired action for CHANGED ROWS pages: DELETE by PAGEID recorded in LCP
+ *
+ * A  LCP_Start(n) D [AD]..    LCP_Start(n+1)  E           LCP_End(n+1) (1)
+ * A  LCP_Start(n) D [AD]..    LCP_Start(n+1)  A           LCP_End(n+1) (2)
+ * A  LCP_Start(n) D [AD]..    LCP_Start(n+1)  [AD].. A    LCP_End(n+1) (3)
+ *
+ * Here we will take the same action for all cases independent of if we know
+ * state of the last LCP or not since the state was allocated before and thus
+ * we need to record the change in state.
+ *
+ * (1) is found by empty page slot and no LCP_SCANNED_BIT set and not skip
+ *     flag set on page. For ALL ROWS pages we will simply ignore those
+ *     pages. For CHANGED ROWS pages we will record DELETE by PAGEID based
+ *     on the state of the last LCP.
+ * (2) is found by discovering page->is_page_to_skip_lcp() is true when LCP
+ *     scan reaches it. For ALL ROWS pages this means we can ignore it, for
+ *     CHANGED ROWS pages we record it as DELETE by PAGEID based on the state
+ *     of the last LCP.
+ * (3) is found by discovering the LCP_SCANNED_BIT set which was set when the
+ *     first D event after start of LCP was found. When this first D event
+ *     occurred we handled the page as in (1) followed by setting the
+ *     LCP_SCANNED_BIT.
+ *
+ * The same principles for handling last LCP state exists here as for Case 1.
+ *
+ * Case 4: Allocated before start of last LCP and allocated before start
+ *         of this LCP
+ *
+ * Desired action for ALL ROWS pages: Record all rows with committed data at
+ * start of LCP. Ignore all rows without committed data at start of LCP.
+ *
+ * Desired action for CHANGED ROWS pages: Record all rows with committed data
+ * at start of LCP. Record all rows without committed data at start of LCP as
+ * DELETE by ROWID.
+ *
+ * A  LCP_Start(n)   [DA]..    LCP_Start(n+1)  E           LCP_End(n+1) (1)
+ * A  LCP_Start(n)   [DA]..    LCP_Start(n+1)  D           LCP_End(n+1) (2)
+ * A  LCP_Start(n)   [DA]..    LCP_Start(n+1)  [DA].. D    LCP_End(n+1) (3)
+ *
+ * (1) is found by an existing page without LCP_SCANNED_BIT set and without
+ *     the page to skip flag set on the page. We will check row by row if the
+ *     row is to be copied to LCP.
+ *
+ *     If a row exists at start of LCP then it will be recorded in the LCP,
+ *     either at LCP scan time or at first delete after the start of the LCP.
+ *     When the first delete have occurred then we set the LCP_SKIP flag on
+ *     the row to indicate that the row has already been processed for this
+ *     LCP. The handling here is the same for ALL ROWS pages and for CHANGED
+ *     ROWS pages.
+ *
+ *     If a row didn't exist at start of LCP then we will ignore it for ALL
+ *     ROWS pages and we will record a DELETE by ROWID for CHANGED ROWS
+ *     pages. We discover this as part of LCP scan for rows not inserted
+ *     again before the LCP scan reaches them. For rows that are inserted
+ *     after start of LCP we will mark them with LCP_SKIP flag for ALL ROWS
+ *     pages. For CHANGED ROWS pages we could record the DELETE by ROWID
+ *     immediately, but there is no safe space to record this information.
+ *     So instead we mark the row with LCP_DELETE to flag to the LCP scan
+ *     that this row needs to generate a DELETE by ROWID.
+ *
+ * (2) is found when releasing a page, at this point the page has already
+ *     recorded everything for ALL ROWS pages. We indicate this by setting
+ *     LCP_SCANNED_BIT on the page.
+ *
+ *     However for CHANGED ROWS pages we can still have a set of rowids that
+ *     was empty at start of LCP that we need to record before moving on.
+ *     We scan the page before moving on, we ignore rows that have the
+ *     LCP_SKIP flag set and rows that have rowGCI < scanGCI which indicates
+ *     that they were empty also at last LCP. All other rows we generate a
+ *     DELETE by ROWID for. Also here we set the LCP_SCANNED_BIT after
+ *     doing this.
+ *
+ * (3) is found by LCP_SCANNED_BIT set when LCP scan reaches it. Any A or D
+ *     event after the first D event will be ignored since LCP_SCANNED_BIT
+ *     is set.
+ *
+ * The same principles for handling last LCP state exists here as for Case 2.
+ *
+ *     Requirement to record number of pages at start of LCP
+ *     .....................................................
+ * For partial LCPs we record the number of pages existing in the whole
+ * fragment at the start of the partial LCP, this has the effect that during
+ * restore we can safely ignore all LCP records on rowids with higher page id
+ * than the recorded number of pages. They could never be part of the LCP even
+ * if they are part of earlier LCPs.
+ *
+ * Let's look at an example here. Each page can be sparse or full, it doesn't
+ * matter for the description, we need to ensure that the restore can recover
+ * the correct set of rows.
+ * 
+ * LCP 1: Contains 17 pages (rowids from page 0 to 16 included)
+ * LCP 2: Contains 13 pages
+ * LCP 3: Contains 14 pages
+ *
+ * When restoring LCP 3 we make use also of parts from LCP 1 and LCP 2.
+ * We start by applying the LCP 1 for rowids in page 0 to 13. Next when
+ * start applying LCP 2 we need to perform DELETE by ROWID for all rows
+ * page id 13. We know that all rowids from page id 13 have either
+ * GCI = 0 or a GCI > lcpScanGci which makes them recorded as changes
+ * in LCP 3.
+ *
+ * If we had not recorded the number of pages in LCPs we would not be
+ * able to know that rows in page id 14 through 16 was deleted since
+ * the LCP scan would not see them since they were not part of the
+ * pages scanned during LCP (simply because the pages no longer existed).
+ *
+ *
+ *     Multiple LCP files to save disk space
+ *     .....................................
+ * Using partial LCP it is essential to be able to drop files as early as
+ * possible. If an LCP file contain too many parts fully written then the
+ * file needs to be retained although most of its data is no longer useful.
+ *
+ * To avoid this we cap the number of parts we use for large fragments
+ * in each file and use a multi-file implementation of each partial LCP.
+ *
+ * What we do here is that we divide the LCP of each fragment into several
+ * files. We will write each of those files in sequential order. Assume that
+ * we have 2048 parts and that this LCP is to record 256 of those parts starting
+ * at part 100. Assume that we divide this LCP into 4 files.
+ *
+ * The first file will record all rows from part 100-163, the second will
+ * contain all rows from part 164-228, the third file will contain all
+ * rows from part 229-292 and the fourth and last file will contain
+ * all rows from part 293-356.
+ *
+ * The rows from the LCP keep list is written into the file currently
+ * used.
+ *
+ * Changed rows are written to any of the files. But we choose to write
+ * them to the first file. The reason is that this means that the biggest
+ * file in the LCP will be removed first and thus it is the most efficient
+ * algorithm to save disk space.
+ *
+ * It is a bit complicated to understand to prove that this brings about
+ * an LCP that can be correctly restored. We prove it in a number of
+ * steps before proving the theorem for Partial LCPs.
+ *
+ * Corollary 1:
+ * ............
+ * For each LCP part we always start by applying an LCP where all rows
+ * of the part is recorded. Then we will execute the change parts of
+ * all LCPs thereafter until the last.
+ *
+ * Proof:
+ * This is the intended recovery algorithm, so proof is not really
+ * needed. Proof is only required to prove that this recovers a
+ * proper LCP according to Theorem 1 above.
+ *
+ * Case 1:
+ * Assume that the row existed at the time of the first LCP used in
+ * restore and is kept all the way until the last LCP, updates can
+ * occur.
+ *
+ * Case 2:
+ * Assume that the row was inserted after initial LCP and is kept
+ * until the last LCP.
+ *
+ * Case 3:
+ * Assume that the row existed at the time of the first LCP but has
+ * been deleted before the final LCP.
+ *
+ * Case 4:
+ * Assume that the row didn't exist at the first LCP and did not
+ * exist at the time of the last LCP.
+ *
+ * Case 4 is obviously ok, no LCP has recorded anything regarding
+ * this row, so it cannot be a problem.
+ *
+ * Case 1 means that the row is restored in first LCP, if any changes
+ * has occurred before the last LCP they will be recorded in any of
+ * the LCP preceding the last LCP or in the last LCP itself. It
+ * could contain a newer value if the last LCP had changes that
+ * occurred after start of the LCP. Thus the row is present with
+ * same or newer data as it should be according to Theorem 1.
+ *
+ * Case 2 means that the row was not present in the first LCP.
+ * It must have been inserted in either of the following LCPs
+ * or the last LCP and since it will be marked with a higher GCI
+ * when inserted it will be part of the next LCP after being
+ * inserted, similary any updates will be recorded in some LCP if
+ * it happens before or during the last LCP. Thus the row exists
+ * after applying rows according to Corollary 1 such that Theorem 1
+ * holds true.
+ *
+ * Finally Case 3 have inserted the row as part of the first LCP. The
+ * row could have been written by the LCP keep list in this first LCP.
+ * However when the row is deleted the GCI of the row will be set to
+ * to a GCI higher than the GCI of the first LCP and this ensures that
+ * the rowid is recorded in LCP as DELETE by ROWID. Finally if the
+ * entire page have been removed before the last LCP we will record
+ * this in the last LCP and this means that we will ignore the row
+ * that exists in the first LCP restored since we know that not any
+ * rows with that rowid is present in the LCP.
+ *
+ * This means that we have proven that the LCP also in case 3 fits
+ * with Theorem 1 in that the row is certain to not be part of the
+ * LCP restored.
+ *
+ * Thus all cases have been proven and Corollary 1 is proven to be
+ * a correct restore method for LCPs with Partial LCPs.
+ *
+ * Corollary 2:
+ * ............
+ * The LCP keep list can be recorded in any LCP file in the case where
+ * multiple files are used to record an LCP.
+ *
+ * Proof:
+ * The record in the LCP from a LCP keep list will always be overwritten
+ * or ignored by the following LCPs. The reason is simply that the GCI of
+ * the delete is higher than LCP scan GCI of the current LCP. Thus the
+ * next LCP will either overwrite this record with a DELETE by ROWID or
+ * the record will be ignored by the next LCP since the entire page has
+ * been dropped or the rowid will be overwritten by another row that
+ * reused the rowid of the deleted row.
+ *
+ * So thus it is safe to store these LCP keep list items as they come
+ * and record them in any list. Obviously all the files of the last
+ * LCP will be kept and applied as part of restore.
+ *
+ * Corollary 3:
+ * ............
+ * When we remove a file from an LCP we could not be interested in any
+ * of the change rows from this LCP. We are only interested in the
+ * parts where we have recorded all rows.
+ *
+ * Proof:
+ * We will only remove the oldest LCP files at any time. Thus when we
+ * remove a file from an LCP we are sure that all the files from the
+ * previous LCP is already deleted. This means that the LCP from where
+ * we delete files can only be used to restore the all rows part as
+ * described in Corollary 1. Thus we will always ignore all parts
+ * with changed rows for an LCP where we are about to delete a file.
+ *
+ * Theorem 2:
+ * ----------
+ * The following algorithm will be applied using multiple files.
+ * If we want to divide the parts where we record all rows into multiple
+ * files we do so in the following manner:
+ * 1) In the first file we will record up to 1/8th of the parts. We will
+ * also record all changed rows for parts where we are not recording
+ * all rows. In addition LCP keep rows are recorded as they arrive.
+ * 2) In the following files we will record also all rows for up to 1/8th
+ * of the parts. Also LCP keep rows for those as they arrive.
+ *
+ * Proof:
+ * ------
+ * Corollary 2 shows that it is correct to record LCP keep rows as they
+ * arrive in any of the files.
+ * Corollary 3 shows that the any algorithm to select where to record
+ * changed rows is correct, in particular this shows that the selected
+ * variant to record all in the first file is correct.
+ * Corollary 1 shows that the restore algorithm for this type of LCP
+ * works as desired.
+ *
+ * Observation 2:
+ * --------------
+ * The selected algorithm of performing an LCP means that we scan the
+ * rows in an order that is not strictly from page id 0 and onwards,
+ * we will however only pass by each page once for scanning it. Thus
+ * we can safely clear the LCP_SKIP bit when we pass by a page as
+ * part of the LCP, so even with multiple files and multiple LCP
+ * scans we will only scan each page once per LCP.
+ *
+ * This means that the BACKUP blocks needs to be involved in checking
+ * if a rowid has been scanned yet or not as part of the LCP_SKIP bit
+ * setting for inserts and the LCP keep list for deletes.
+ *
+ * Lemma 1:
+ * --------
+ * Based on theorem 2 we deduce that each LCP requires a LCP control
+ * file that contains at least the following information.
+ *
+ * MaxGciCompleted:
+ * This is the GCI where which we have all changes for in the LCP. The
+ * LCP can also contain changes for MaxGciCompleted + 1 and
+ * MaxGciCompleted + 2 and beyond.
+ *
+ * MaxPageCount:
+ * This is the number of pages existing (with rowids) in the LCP which
+ * is recorded at the start of the partial LCP.
+ * 
+ * A list of part ranges (one part range per file) and the file numbers.
+ * This is recorded using the following variables in the LCP control file.
+ *
+ * MaxPartPairs:
+ * This is the number of parts used in LCPs.
+ *
+ * NumPartPairs:
+ * This is the number of files used in the restore of this LCP, there is
+ * one part range per file.
+ *
+ * MaxNumberDataFiles:
+ * This is the maximum number of files used, it is used to calculate the
+ * file numbers based on a number of files (NumPartPairs) and the
+ * parameter LastDataFileNumber.
+ *
+ * LastDataFileNumber:
+ * The last LCP file, this will be the final file restored in a restore
+ * situation.
+ *
+ * An array of pairs (startPart, numParts) where the last records the
+ * last LCP file and the first records the first file to start restoring
+ * from.
+ *
+ * In addition we record the following information in the LCP control
+ * file.
+ *
+ * Checksum:
+ * To verify the content of the LCP control file.
+ *
+ * TableId:
+ * Table id of the checkpointed fragment.
+ *
+ * FragmentId:
+ * Fragment id of the checkpointed fragment.
+ *
+ * LcpId:
+ * The global LcpId this LCP belongs to.
+ *
+ * LocalLcpId:
+ * If part of global LCP it is 0, otherwise it is 1, 2, 3 and so forth
+ * for a local LCP executed without control of DIH.
+ *
+ * In addition the LCP control file contains a file header as all LCP
+ * files and backup files. The most important information here is the
+ * version number of the partial LCP changes as such and the version
+ * number that wrote this file. This is important for any upgrade
+ * scenarios.
+ *
+ * LCPs and Restarts:
+ * ------------------
+ * Partial LCP is developed to store less information in LCPs and also
+ * that LCPs can run faster. When LCPs complete faster that means that
+ * we can cut the REDO log much sooner.
+ *
+ * However we still need to make a full checkpoint as part of a restart.
+ * We will describe the implications this has for various types of
+ * restarts.
+ *
+ * System Restart:
+ * ...............
+ * No real implication, we have ensured that doing a full checkpoint is
+ * still divided into separate files to ensure that we save disk space.
+ * There is no updates ongoing during this LCP so this LCP will simply
+ * write the changed contents while executing the REDO log.
+ *
+ * Node restart:
+ * .............
+ * This restart depends to a great extent on how long time the node
+ * was dead, if it was dead for a long time it will have a lot more
+ * to write in a LCP than otherwise.
+ *
+ * Initial node restart:
+ * .....................
+ * This is the trickiest problem to solve. Using partial LCP we aim for
+ * LCPs to complete in 5-10 minutes, but writing the initial LCP after
+ * synching the data with the live node might take many hours if the
+ * node contains terabytes of data.
+ *
+ * We solve this by running local LCPs before we become part of the
+ * global LCP protocol. DIH won't know about these LCPs but it doesn't
+ * really matter, we can make use of it if the node crashes during
+ * restart although DIH didn't know about it. But more importantly
+ * as soon as we participate in the first global LCP we can run that
+ * LCP much faster since we already have logged all rows, so we only
+ * need to record the changes since the last local LCP in the first
+ * global LCP.
+ *
+ * The protocol used to tell the starting node about state of fragments
+ * is called COPY_ACTIVEREQ. This is received 2 times per fragment
+ * per node restart. The first one says that we have completed the
+ * synchronisation. We will use this first signal to put the fragment
+ * in queue for running an LCP.
+ *
+ * When all fragments have been synchronised then DIH will start the
+ * second phase. In this phase each fragment will start using the
+ * REDO log as preparation for the first LCP.
+ *
+ * Note that a local LCP cannot be used to restore the database on
+ * its own. It requires either a node synchronization as part of node
+ * restart which works fine as the rowids are synchronized one by one
+ * and there might be unneeded work done if the live node uses a GCI
+ * from DIH, but it will still be correct.
+ *
+ * It can also be restored in a system restart by using REDO logs from
+ * other nodes, we can avoid applying REDO logs we don't need since we
+ * know what GCP we have completely recorded in the LCP. The proof of
+ * why applying REDO logs will restore a consistent database still
+ * holds.
+ *
+ * Obviously if as part of recovery we are told to execute the REDO log
+ * from GCI 77 to 119 and we know that the LCP is completed for GCI
+ * GCI 144 then we can completely skip the part where we execute the
+ * REDO log for that fragment as part of the recovery. Later it will
+ * be synched up in this case using a live node.
+ *
+ * Local LCPs during restart
+ * .........................
+ * When we receive the first COPY_ACTIVEREQ in DBLQH we will start a
+ * new local LCP. This will insert an UNDO_LOCAL_LCP_FIRST into the
+ * UNDO log. This means that we can move the UNDO log forward, we
+ * still need to retain all UNDO log records from the previous LCP,
+ * and the one before that since we cannot be certain that the previous
+ * LCP actually completed.
+ *
+ * During Local LCP we cannot insert one more UNDO_LOCAL_LCP_FIRST again
+ * until we have completed a Local LCP of each and every fragment to be
+ * restored.
+ *
+ * So what this means is that we will start running a Local LCP as part
+ * of the synchronisation with the live node. It is possible to run an
+ * LCP for an individual fragment several times during this round of
+ * LCP. But we need to complete the Local LCP before allowing the
+ * first COPY_ACTIVEREQ in the second phase to continue. If we didn't
+ * do this we would run a much bigger chance of running out of UNDO
+ * log. In some cases we might still run out of UNDO log and in this
+ * case we will ensure that the LCP gets higher priority and that the
+ * synchronisation process is blocked temporarily. We will do this
+ * when certain thresholds in UNDO log usage is reached.
+ *
+ * We will allow for two choices in how we perform Local LCPs. We will
+ * perform 1 Local LCP for all node restarts before we allow the
+ * REDO logging to be activated (activated by COPY_ACTIVEREQ in second
+ * phase). After completing this first Local LCP we will measure how
+ * much impact introducing the node into the distributed LCP would mean.
+ * If we consider the impact too high we will execute one more round of
+ * Local LCP.
+ *
+ * We will not for the moment consider executing a third Local LCP to
+ * ensure that we don't get stuck in this state for too long.
+ *
+ * Executing 2 Local LCPs should in most cases be sufficient to catch
+ * up with LCP times at other nodes.
+ *
+ * Dropped tables during a node failure
+ * ....................................
+ * This is a tricky problem that requires us to avoid reusing a table id
+ * for a new table until we're sure that all nodes have restarted and
+ * heard that the table have been dropped. We also need to tell starting
+ * nodes that the table is dropped and that it requires all LCP files
+ * to be removed.
+ *
+ * Various implementation details about LCPs
+ * .........................................
+ * When we commit a delete we need to know if the fragment is currently
+ * performing a LCP and if so we need to know if the row has been
+ * scanned yet during LCP.
+ *
+ * With Partial LCP this is a bit more intricate where we need to check
+ * the scan order in the Backup block. However only DBTUP knows if a
+ * page has been deleted and then followed by a new page allocation.
+ *
+ * For parts where we record all rows of the part these pages can be
+ * skipped since all rows inserted into this page occurs after start of
+ * LCP.
+ *
+ * However for parts where we record changed rows we need to scan these
+ * pages and record DELETE by ROWID for those entries that are free.
+ *
+ * LCP signal flow
+ * ---------------
  *
  * Description of local LCP handling when checkpointing one fragment locally in
  * this data node. DBLQH, BACKUP are executing always in the same thread. DICT
  * and NDBFS mostly execute in different threads.
+ *
+ * The LCP_PREPARE_REQ for the next fragment to checkpoint can execute in
+ * parallel with BACKUP_FRAGMENT_REQ processing. This makes LCP processing
+ * faster when there is many small fragments.
  *
 
  DBLQH                        BACKUP             DICT              NDBFS
   |                             |
   |   LCP_PREPARE_REQ           |
   |---------------------------->|
-  |                             |    FSOPENREQ
+  |                             |    2 * FSOPENREQ (control files)
+  |                             |----------------------------------->|
+  |                             |    2 * FSOPENCONF                  |
+  |                             |<-----------------------------------|
+  |                             |    2 * FSREADREQ (control files)
+  |                             |----------------------------------->|
+  |                             |    2 * FSREADCONF                  |
+  |                             |<-----------------------------------|
+  |                             |    FSCLOSEREQ (most recent control file)
+  |                             |----------------------------------->|
+  |                             |    FSCLOSECONF                     |
+  |                             |<-----------------------------------|
+  |                             |    FSOPENREQ (checkpoint data file)
   |                             |----------------------------------->|
   |                             |    FSOPENCONF                      |
   |                             |<-----------------------------------|
+  |                             | CONTINUEB(ZBUFFER_FULL_META) to oneself
+  |                             |--------------------------------------->
   |                             |  GET_TABINFOREQ  |
   |                             |----------------->|
   |                             | GET_TABINFO_CONF |
   |                             |<-----------------|
   |   LCP_PREPARE_CONF          |
   |<----------------------------|
+  ...
   |   BACKUP_FRAGMENT_REQ       |-------> CONTINUEB(START_FILE_THREAD)|
   |---------------------------->|
   |   SCAN_FRAGREQ              |
@@ -7603,57 +9593,316 @@ Backup::execFSREMOVECONF(Signal* signal){
   this signal on priority level A since there is no bound on how
   long it will execute.
 
- DBLQH                        BACKUP             DICT              NDBFS
+ DBLQH      PGMAN   LGMAN     BACKUP             DICT              NDBFS
+  |         SYNC_PAGE_CACHE_REQ
+  |          <------------------|
+  |           sync_log_lcp_lsn  |
+  |                  <----------|
+  |           Flush UNDO log
+  |                  ---------->|
+  |         Flush fragment page cache
+  |         SYNC_PAGE_CACHE_CONF
+  |          ------------------>|
+  |         SYNC_EXTENT_PAGES_REQ
+  |          <------------------|
+  |         Flush all extent pages
+  |         SYNC_EXTENT_PAGES_CONF
+  |          ------------------>|
+  |
+  | After all file writes to LCP data file completed:
+  |
   |                             |     FSCLOSEREQ
   |                             |------------------------------------>|
   |                             |     FSCLOSECONF
   |                             |<------------------------------------|
+
+  When all those activities are completed:
+  1) Sync UNDO log
+  2) Sync page cache
+  3) Sync extent pages (done immediately following sync of page cache)
+  4) Write and close of LCP data file
+  then we are ready to write the LCP control file. After this file
+  is written and closed the LCP of this fragment is completed.
+
+  With this scheme the LCP of a fragment is immediately usable when the
+  LCP of a fragment is completed and the signal of this completion is
+  that a written LCP control file exists. At restart one needs to verify
+  the GCI of this file to ensure that the LCP is restorable. Otherwise
+  the older LCP will be used.
+
+  |                             |     FSWRITEREQ (LCP control file)
+  |                             |----------------------------------->|
+  |                             |     FSWRITECONF
+  |                             |<-----------------------------------|
+  |                             |     FSCLOSEREQ (LCP control file)
+  |                             |----------------------------------->|
+  |                             |     FSCLOSECONF
+  |                             |<-----------------------------------|
+  |                             |
   | BACKUP_FRAGMENT_CONF        |
   |<----------------------------|
   |
-  |                     DIH
+  |                     DIH (local)
   |  LCP_FRAG_REP        |
   |--------------------->|
 
-  Finally after completing all fragments we have a number of signals sent to
-  complete the LCP processing.
+  LCP_FRAG_REP is distributed to all DIHs from the local DIH instance.
 
-  |   END_LCPREQ                |
-  |---------------------------->|
-  |   END_LCPCONF               |
-  |<----------------------------|
-  |
+  Finally after completing all fragments we have a number of signals sent to
+  complete the LCP processing. The only one needed here is the END_LCPREQ
+  to TSMAN to make the dropped pages from any dropped tables available again
+  after completing the LCP. This signal needs no wait for it to complete.
+  DBLQH knows when the last fragment is completed since it will receive a
+  special LCP_FRAG_ORD with lastFragmentFlag set from LQH proxy which in
+  turn received this from DIH.
+
                              LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
+  |   LCP_FRAG_ORD(last)        |
+  |<----------------------------|
+  ......
   | LCP_COMPLETE_REP            |
   |---------------------------->|
 
   Here the LQH Proxy block will wait for all DBLQH instances to complete.
-  After all have complete the following signals will be sent.
+  After all have completed the following signals will be sent.
                              LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
 
-                                | END_LCPREQ |
-                                |----------->|
-                                | END_LCPCONF|
-                                |<-----------|
                                 | END_LCPREQ                        |
                                 |---------------------------------->|
-                                | END_LCPREQ                |
-                                |-------------------------->|
-                                | END_LCPCONF               |
-                                |<--------------------------|
+                                | END_LCPCONF                       |
+                                |<----------------------------------|
                                 |
-                                | LCP_COMPLETE_REP(DBLQH) sent to DIH
+                                | LCP_COMPLETE_REP(DBLQH) sent to DIH(local)
 
-  The TSMAN block doesn't respond to END_LCPREQ. The LGMAN is required to be
-  involved at the end of the LCP to ensure that the UNDO log have been fully
-  synched to disk before we report the LCP as complete. We won't use any
-  fragment LCPs until the full LCP is complete for disk data due to this.
 
   As preparation for this DBLQH sent DEFINE_BACKUP_REQ to setup a backup
   record in restart phase 4. It must get the response DEFINE_BACKUP_CONF for
   the restart to successfully complete. This signal allocates memory for the
   LCP buffers.
- */
+
+  Background deletion process
+  ---------------------------
+  To save file space we try to delete old checkpoint files no longer needed
+  as soon as possible. This is a background process fully handled by the
+  BACKUP block, it is handled outside the normal LCP processing protocol.
+  
+  It could interfere with LCP processing in the exceptional case that we
+  haven't managed to delete the old LCP files for a fragment before starting
+  to prepare the next local checkpoint.
+
+  From DIH's point of view we always have a LCP instance 0 and a LCP instance
+  1 for each fragment. When we complete writing a checkpoint file we need to
+  keep the old checkpoint file until the new checkpoint file is usable in a
+  restore case. At the time when it completes we cannot use it since it can
+  contain rows from a GCI that haven't been fully completed yet. As soon as
+  we get an indication of that the checkpoint is useful for restore we can
+  delete the old checkpoint file.
+
+  To handle this we maintain a list of fragments to handle deletes of fragment
+  checkpoint files.
+
+  We also need a way to handle deletion of old files after crashes. This is
+  actually fairly easy to handle as part of the recovery as we use the
+  checkpoint files to restore, we can as part of that remove any old
+  checkpoint files.
+
+  Local LCP execution
+  -------------------
+  Normally an LCP is executed as a distributed checkpoint where all nodes
+  perform the checkpoint in an synchronised manner. During restarts we might
+  execute extra local LCPs that can be used to cut the logs (REDO and UNDO
+  logs). We don't generate REDO logs until very late in the recovery process,
+  UNDO logs however we generate all the time, so it is mainly the UNDO log
+  we have to protect from being exhausted during a restart.
+
+  Such a local checkpoint can be used to recover a system, but it can normally
+  not be used to recover a node on its own. If the local LCP happens during a
+  system restart there are two options. If we have seen the GCP that we are
+  attempting to restore we have all checkpoints and REDO logs required and
+  a local LCP during restart should not be necessary normally. If our node is
+  behind and we rely on some other node to bring us the latest GCIs then we
+  might have to perform a checkpoint. In this case this local LCP will not
+  be recoverable on its own.
+
+  The reason why these local LCPs are not recoverable on their own is two
+  things. First the synchronisation of data with the other node might not
+  be completed yet when the local LCP starts. This means that the local LCP
+  isn't seeing a united view, some rows will see a very new version whereas
+  other rows will be seeing a very old view. To make a consistent state one
+  more node is required. Second even if the local LCP started after the
+  synchronisation was complete we don't have local REDO log records that
+  can bring the local LCP to a consistent state since we don't write to
+  the REDO log during the synchronisation phase. Even if we did write to
+  the REDO log during synchronisation the various fragments would still be
+  able to recover to different GCIs, thus a consistent restore of the node
+  is still not possible.
+
+  So when a node crashes the first time it is always recoverable on its
+  own from a certain GCI. The node with the highest such GCI per node
+  group is selected as the primary recovery node. Other nodes might have
+  to rely on this node for its further recovery. Obviously each node group
+  need to be restored from the same GCI to restore a consistent database.
+  As soon as we start executing a local LCP the node is no longer able to
+  be restored independent of other nodes. So before starting to execute a
+  local LCP we must first write something to the file system indicating that
+  this node is now not recoverable unless another node gives us assistance.
+
+  So independent of what GCI this can restore according to the system file
+  it cannot be used to recover data to other nodes without first recovering
+  its own data using another node as aid.
+
+  When a node is started we know of the GCI to restore for our node, it
+  is stored in DBLQH in the variable crestartNewestGci during recovery
+  and DBLQH gets it from DBDIH that got it from the system file stored
+  in the DIH blocks.
+
+  For distributed LCPs we use this GCI to restore to check if a fragment
+  LCP can be used for recovery. However for local LCPs this information
+  is normally not sufficient. For local LCPs we either have a fixed
+  new GCI that we need to handle (during system restart) or a moving
+  set of GCPs (during node start).
+
+  So for a restore we need to know the crestartNewestGci from DBLQH, but
+  we also need to know the GCIs that we can use from other nodes. This
+  information must be written into the local system file of this node.
+
+  The local system file is stored in NDBCNTR. It contains the following
+  information:
+  1) Flag whether node is restorable on its own
+  2) Flag whether node have already removed old LCP files
+  3) Last GCI of partial GCPs
+
+  When a node is starting up and we are recovering the data (executing
+  RESTORE_LCP_REQ from restore) we want to delete any files that isn't
+  usable for recovery since they have a MaxGCIWritten that is larger
+  than the above Last GCP of partial GCPs. Once we have completed
+  the RESTORE_LCP_REQ phase we know that we have deleted all old
+  LCP files that can no longer be used and we should only have one
+  copy of each fragment LCP stored at this point. At this point we
+  can set the flag above to indicate that we have already removed the
+  old LCP files.
+
+  The important parameters in the LCP metadata files stored here are
+  the parameters MaxGCIWritten and MaxGCICompleted.
+
+  When we write a local LCP the following holds for MaxGCIWritten.
+  During system restart the MaxGCIWritten will be set to the
+  GCI that the system restart is trying to restore. If the fragment
+  has been fully synchronised before the local LCP started it will
+  have the MaxGCICompleted set to the same GCI, otherwise it will
+  have its value set to the crestartNewestGci (the GCP that was
+  the last GCP we were part of the distributed protocol).
+
+  So for system restarts there are only two GCI values that can be
+  used during a local LCP. It is the GCI we are attempting to
+  restore in the cluster or it is the GCI we were last involved in
+  a distributed protocol for, crestartNewestGci).
+
+  For node restarts the MaxGCIWritten is set according to what
+  was set during the writing of the local LCP of the fragment.
+  It will never be set smaller than crestartNewestGci.
+
+  MaxGCICompleted is set dependent on the state at the start
+  of the local LCP. If the fragment was fully synchronized
+  before the start of the fragment LCP we set MaxGCICompleted
+  to the GCI that was recoverable in the cluster at the time
+  of the start of the local fragment LCP. If the fragment
+  wasn't fully synchronised before the start of the local LCP
+  we set it to crestartNewestGci or the maximum completed GCI
+  in the fragment LCP restored.
+
+  MaxGCIWritten is important during recovery to know whether
+  a local LCP is valid, if MaxGCIWritten is larger than the
+  GCP we have seen complete, the local LCP files cannot be
+  trusted and must be deleted.
+
+  MaxGCICompleted setting can ensure that we don't have to
+  re-execute the local REDO log any more. It also takes
+  into account that we don't have to synchronize more
+  than necessary with the starting node.
+
+  Information needed during restore for local LCP
+  ...............................................
+  We need to know about the crestartNewestGci. We also need
+  to know the maximum GCI that is allowed when we encounter
+  a local fragment LCP to understand which local fragment
+  LCPs to remove.
+  crestartNewestGci is sent as part of RESTORE_LCP_REQ for
+  each restored fragment. We also need to add the max
+  GCI restorable. Actually it is sufficient to send the
+  maximum of those two values. Thus if the local system
+  file says that we can recover on our own we will
+  continue sending crestartNewestGci. Otherwise we will
+  send the maximum of crestartNewestGci and the max GCI
+  found in local system file.
+
+  If any of the MaxGciWritten and MaxGciCompleted is set
+  higher than the max GCI restorable we are sending to
+  the restore block we need to remove that fragment LCP.
+
+  Information needed during write of local LCP
+  ............................................
+  We need to know the state of the synchronisation of the fragment.
+  If m_copy_started_state == AC_NORMAL &&
+     fragStatus == ACTIVE_CREATION in DBLQH then we have completed
+  the synchronisation of the fragment. Otherwise we haven't.
+  We'll get this information from DBLQH at start of write of LCP
+  in the Backup block.
+
+  The backup block is informed about the GCI that is currently
+  completed in the cluster through the signal RESTORABLE_GCI_REP
+  sent from DBLQH. This information DBLQH collects from
+  the GCP_SAVEREQ signal. This information is stored in the
+  Backup block in m_newestRestorableGci.
+
+  MaxGciCompleted is set by DBLQH and retrieved by Backup block
+  in the method lcp_max_completed_gci. For normal distributed
+  LCPs this method will simply set the MaxGciCompleted to the
+  last completed GCI that DBLQH knows of. DBLQH gets to know
+  of completion of a GCI through GCP_SAVEREQ. However for
+  local LCP the procedure is a bit more complicated.
+
+  It will first check if the fragment is fully synchronised.
+  If not it will set MaxGciCompleted to crestartNewestGci.
+  If it is synchronised we will use the same method as for
+  a distributed LCP given that we have completed the
+  GCI fully since the fragment contains the same data as the
+  live node although the data isn't yet recoverable.
+
+  Writing of local system file
+  ............................
+  Before we start a local LCP during recovery we write
+  the local system file to indicate that the node can
+  no longer be restored on its own until recovered again.
+  This sets the following information in the local system
+  file.
+  1) Node restorable on its own flag is set to 0 (false).
+  2) Flag indicating whether local LCPs removed is set to 0 (false).
+  3) max GCP recoverable value is set to
+  System Restart case: GCI cluster is restored to
+  Node Restart case: GCI recoverable at the moment in cluster
+
+  For node restarts we also write the local system file and update
+  the max GCI recoverable value each time a GCI have been made
+  recoverable.
+
+  During recovery we read the local system file to discover
+  whether we can be master in the system restart and also to
+  discover if we can recover on our own.
+
+  We propagate the max GCI recoverable value to DBLQH to ensure
+  that we drop old LCP files that are not of any value in
+  recovery any more.
+
+  After completing the restart we finally write the local system
+  file during phase 50. In this phase all recovery of data is
+  completed and only initialisation of SUMA clients remains, so
+  it is safe to write the local system file here again. This time
+  we set the values to:
+  1) Node restorable on its own flag is set to 1 (true)
+  2) Flag indicating whether local LCPs removed is set to 0 (ignorable)
+  3) max GCP recoverable value is set to 0 (ignorable)
+*/
 void
 Backup::execLCP_PREPARE_REQ(Signal* signal)
 {
@@ -7663,126 +9912,818 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, req.backupPtr);
 
-  ptr.p->m_gsn = GSN_LCP_PREPARE_REQ;
-
   TablePtr tabPtr;
   FragmentPtr fragPtr;
-  if (!ptr.p->tables.isEmpty())
+
+  jamLine(req.tableId);
+
+  ndbrequire(ptr.p->prepareState == NOT_ACTIVE);
+  ptr.p->prepareState = PREPARE_READ_CTL_FILES;
+  ptr.p->prepareErrorCode = 0;
+
+  ptr.p->prepare_table.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+
+  tabPtr.p->tableId = req.tableId;
+  tabPtr.p->tableType = DictTabInfo::UserTable;
+
+  fragPtr.p->fragmentId = req.fragmentId;
+  fragPtr.p->scanned = 0;
+  fragPtr.p->scanning = 0;
+  fragPtr.p->tableId = req.tableId;
+  fragPtr.p->createGci = req.createGci;
+
+  if (req.backupId != ptr.p->backupId ||
+      req.localLcpId != ptr.p->localLcpId ||
+      !ptr.p->m_initial_lcp_started)
   {
     jam();
-    ndbrequire(ptr.p->errorCode);
-    ptr.p->tables.first(tabPtr);
-    if (tabPtr.p->tableId == req.tableId)
+    /**
+     * These variables are only set at the very first LCP_PREPARE_REQ in
+     * an LCP. At this point there is no parallelism, so no need to
+     * care for concurrency on the ptr object here.
+     *
+     * New LCP, reset per-LCP counters. noOfBytes and noOfRecords is other
+     * than here handled by the LCP execution phase.
+     */
+    ptr.p->noOfBytes = 0;
+    ptr.p->noOfRecords = 0;
+    ptr.p->backupId = req.backupId;
+    ptr.p->localLcpId = req.localLcpId;
+    ptr.p->m_initial_lcp_started = true;
+    ndbrequire(ptr.p->m_first_fragment == false);
+    ptr.p->m_first_fragment = true;
+    ptr.p->m_is_lcp_scan_active = false;
+    ptr.p->m_current_lcp_lsn = Uint64(0);
+    DEB_LCP(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    ndbrequire(queue.isEmpty())
+  }
+
+  /**
+   * We need to open both header files. One of them contains the latest
+   * information from the last local checkpoint. We need however to
+   * keep the old information around since this new LCP isn't immediately
+   * useful for recovery. This also has the added benefit that we have the
+   * files replicated. If we crash while we are still writing the new
+   * header file we can always recover using the old header file. We
+   * retain the old header file. This means that we need to open both
+   * files to discover which of them is the most recent one. We should
+   * use the older one to write the new header information into, but
+   * we should use the newer header file to get the information about
+   * which parts to perform the LCP on.
+   */
+  lcp_open_ctl_file(signal, ptr, 0);
+  lcp_open_ctl_file(signal, ptr, 1);
+}
+
+/**
+ * File processing for an LCP
+ * --------------------------
+ * At LCP_PREPARE_REQ we prepare the files for an LCP. There are two control
+ * files for each fragment. These two files are both opened at prepare time.
+ * One contains the description of the previous LCP and one contains the
+ * description of the LCP before that one. Usually only one control file
+ * exist per fragment since as soon as the LCP is fully completed we delete
+ * the now oldest control file.
+ *
+ * So the steps are:
+ * 1) Open both control files
+ * 2) Find out which is the most recent control file.
+ * 3) Use data from most recent control file to prepare which parts we will
+ *    use for the this LCP. Calculate number of next data file to use.
+ * 4) Open the new data file for this LCP.
+ *    The old data file(s) will still exist
+ * 5) Prepare phase is completed
+ * 6) Execute phase of LCP fills the data file with data from this LCP.
+ * 7) Flush and close the new data file.
+ * 8) Write new control file, flush and close it.
+ * 9) Report LCP processing as completed.
+ *
+ * Step 10) and onwards is handled as a background process.
+ *
+ * 10)Calculate data files to delete after this LCP is completed.
+ * 11)Delete old data files no longer needed.
+ * 12)Delete the LCP control no longer needed.
+ */
+void Backup::lcp_open_ctl_file(Signal *signal,
+                               BackupRecordPtr ptr,
+                               Uint32 lcpNo)
+{
+  FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->fileFlags =
+    FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE;
+
+  /**
+   * Compressed files do not support OM_READWRITE, so we will never
+   * use compression for the LCP control files. The files will not
+   * take up very much space. If it is necessary to support
+   * compressed LCP control files then it is easy to do so by first
+   * opening the LCP control files for read in this phase and then
+   * when deciding which file to use for the next LCP we will close
+   * both files and open the file to use with OM_CREATE and also
+   * with OM_TRUNCATE to ensure we overwrite the old file
+   * content.
+   *
+   * O_DIRECT requires very special write semantics which we don't
+   * follow for CTL files. So we never set this option for CTL files.
+   */
+ 
+  FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
+
+  /**
+   * Lcp header file
+   */
+  BackupFilePtr filePtr;
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+
+  c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[lcpNo]);
+  ptr.p->prepare_table.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+
+  ndbrequire(filePtr.p->m_flags == 0);
+  filePtr.p->m_flags |= BackupFile::BF_OPENING;
+  filePtr.p->m_flags |= BackupFile::BF_HEADER_FILE;
+  filePtr.p->tableId = RNIL; // Will force init
+  req->userPointer = filePtr.i;
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
+  FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+}
+
+void
+Backup::lcp_open_ctl_file_done(Signal* signal,
+                               BackupRecordPtr ptr,
+                               BackupFilePtr filePtr)
+{
+  /**
+   * Header file has been opened, now time to read it.
+   * Header file is never bigger than one page. Get page from list of
+   * pages in the file record. Page comes from global page pool.
+   */
+  Page32Ptr pagePtr;
+  FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+
+  filePtr.p->pages.getPtr(pagePtr, 0);
+  filePtr.p->m_flags |= BackupFile::BF_READING;
+
+  req->userPointer = filePtr.i;
+  req->filePointer = filePtr.p->filePointer;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
+
+  Uint32 mem_offset = Uint32((char*)pagePtr.p - (char*)c_startOfPages);
+  req->data.memoryAddress.memoryOffset = mem_offset;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Backup::execFSREADREF(Signal *signal)
+{
+  jamEntry();
+
+  FsRef * ref = (FsRef *)signal->getDataPtr();
+  const Uint32 userPtr = ref->userPointer;
+  
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, userPtr);
+  /**
+   * Since we create the file if it doesn't exist, this should not occur
+   * unless something is completely wrong with the file system.
+   */
+  ndbrequire(false);
+}
+
+void
+Backup::execFSREADCONF(Signal *signal)
+{
+  jamEntry();
+
+  FsConf * conf = (FsConf *)signal->getDataPtr();
+  const Uint32 userPtr = conf->userPointer;
+  
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, userPtr);
+
+  /**
+   * If we created the file in the open call, then bytes_read will be 0.
+   * This will distinguish a non-existing file from an existing file.
+   */
+  filePtr.p->bytesRead = conf->bytes_read;
+  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_READING;
+
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
+  if (ptr.p->deleteFilePtr == filePtr.i)
+  {
+    jam();
+    ndbrequire(filePtr.p->bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+    lcp_read_ctl_file_for_rewrite_done(signal, filePtr);
+    return;
+  }
+  for (Uint32 i = 0; i < 2; i++)
+  {
+    jam();
+    c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]);
+    if ((filePtr.p->m_flags & BackupFile::BF_READING) ||
+        (filePtr.p->m_flags & BackupFile::BF_OPENING))
     {
       jam();
-      ndbrequire(!tabPtr.p->fragments.empty());
-      tabPtr.p->fragments.getPtr(fragPtr, 0);
-      fragPtr.p->fragmentId = req.fragmentId;
-      defineBackupRef(signal, ptr, ptr.p->errorCode);
       return;
+    }
+  }
+  lcp_read_ctl_file_done(signal, ptr);
+}
+
+void
+Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
+{
+  BackupFilePtr filePtr[2];
+  for (Uint32 i = 0; i < 2; i++)
+  {
+    jam();
+    c_backupFilePool.getPtr(filePtr[i], ptr.p->prepareCtlFilePtr[i]);
+    DEB_EXTRA_LCP(("(%u)ctl: %u, bytesRead: %u",
+                   instance(), i, filePtr[i].p->bytesRead));
+    if (filePtr[i].p->bytesRead != 0)
+    {
+      Page32Ptr pagePtr;
+      jam();
+      filePtr[i].p->pages.getPtr(pagePtr, 0);
+      lcp_read_ctl_file(pagePtr, filePtr[i].p->bytesRead, ptr);
+    }
+    else
+    {
+      Page32Ptr pagePtr;
+      jam();
+      filePtr[i].p->pages.getPtr(pagePtr, 0);
+      lcp_init_ctl_file(pagePtr);
+    }
+  }
+  Page32Ptr pagePtr0, pagePtr1;
+  filePtr[0].p->pages.getPtr(pagePtr0, 0);
+  filePtr[1].p->pages.getPtr(pagePtr1, 0);
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr0 =
+    (struct BackupFormat::LCPCtlFile*)pagePtr0.p;
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr1 =
+    (struct BackupFormat::LCPCtlFile*)pagePtr1.p;
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr;
+  Uint32 closeLcpNumber;
+  Uint32 dataFileNumber;
+  Uint32 maxGciCompleted;
+  Uint32 maxGciWritten;
+  Uint32 createGci;
+  Uint32 createTableVersion;
+  Uint32 lqhCreateTableVersion;
+
+  if (lcpCtlFilePtr0->ValidFlag == 0)
+  {
+    jam();
+    lcpCtlFilePtr0->LcpId = 0;
+    lcpCtlFilePtr0->LocalLcpId = 0;
+  }
+  if (lcpCtlFilePtr1->ValidFlag == 0)
+  {
+    jam();
+    lcpCtlFilePtr1->LcpId = 0;
+    lcpCtlFilePtr1->LocalLcpId = 0;
+  }
+  if (lcpCtlFilePtr0->LcpId > lcpCtlFilePtr1->LcpId ||
+      (lcpCtlFilePtr0->LcpId == lcpCtlFilePtr1->LcpId &&
+       lcpCtlFilePtr0->LcpId != 0 &&
+       lcpCtlFilePtr0->LocalLcpId > lcpCtlFilePtr1->LocalLcpId))
+  {
+    jam();
+    dataFileNumber = lcpCtlFilePtr0->LastDataFileNumber;
+    lcpCtlFilePtr = lcpCtlFilePtr1;
+    ptr.p->prepareNextLcpCtlFileNumber = 1;
+    closeLcpNumber = 0;
+    createGci = lcpCtlFilePtr0->CreateGci;
+    createTableVersion = lcpCtlFilePtr0->CreateTableVersion;
+    maxGciCompleted = lcpCtlFilePtr0->MaxGciCompleted;
+    maxGciWritten = lcpCtlFilePtr0->MaxGciWritten;
+    ptr.p->prepareDeleteCtlFileNumber = closeLcpNumber;
+    copy_prev_lcp_info(ptr, lcpCtlFilePtr0);
+  }
+  else
+  {
+    /**
+     * Both can have the same LCP id. This should only happen when none of the
+     * files existed and in this case the LCP id should be 0.
+     * This will happen after a new table is created. If upgrading from 7.4 or
+     * earlier than this is handled as part of node or cluster restart. So this
+     * will not be the reason.
+     */
+    jam();
+    ndbrequire(lcpCtlFilePtr0->LcpId < lcpCtlFilePtr1->LcpId ||
+               (lcpCtlFilePtr0->LcpId == lcpCtlFilePtr1->LcpId &&
+                (lcpCtlFilePtr0->LcpId == 0 ||
+                 lcpCtlFilePtr0->LocalLcpId < lcpCtlFilePtr1->LocalLcpId)));
+    dataFileNumber = lcpCtlFilePtr1->LastDataFileNumber;
+    lcpCtlFilePtr = lcpCtlFilePtr0;
+    ptr.p->prepareNextLcpCtlFileNumber = 0;
+    createGci = lcpCtlFilePtr1->CreateGci;
+    createTableVersion = lcpCtlFilePtr1->CreateTableVersion;
+    maxGciCompleted = lcpCtlFilePtr1->MaxGciCompleted;
+    maxGciWritten = lcpCtlFilePtr1->MaxGciWritten;
+    closeLcpNumber = 1;
+    ptr.p->prepareDeleteCtlFileNumber = closeLcpNumber;
+    if (lcpCtlFilePtr1->LcpId == 0)
+    {
+      jam();
+      /**
+       * None of the files existed before, ensure that we don't delete
+       * any data file since no one exists at this moment. Also ensure
+       * that the other control file is removed.
+       *
+       * lcpCtlFilePtr1->LcpId == 0 => lcpCtlFilePtr0->LcpId == 0 since
+       * lcpCtlFilePtr1->LcpId >= lcpCtlFilePtr0->LcpId when we come
+       * here.
+       *
+       * We set m_num_parts_in_lcp to 0 to indicate this is first LCP for
+       * this fragment and thus needs to always be a full LCP.
+       */
+      ptr.p->prepareDeleteCtlFileNumber = RNIL;
+      ptr.p->m_prepare_num_parts_in_lcp = 0;
+      ptr.p->m_prepare_max_parts_in_lcp = 0;
+      ptr.p->m_prepare_scan_change_gci = 0;
+      ptr.p->m_prepare_first_start_part_in_lcp = 0;
+      ptr.p->preparePrevLcpId = 0;
+      ptr.p->preparePrevLocalLcpId = 0;
+      maxGciCompleted = 0;
+      maxGciWritten = 0;
+      TablePtr tabPtr;
+      FragmentPtr fragPtr;
+      ndbrequire(ptr.p->prepare_table.first(tabPtr));
+      tabPtr.p->fragments.getPtr(fragPtr, 0);
+      createGci = fragPtr.p->createGci;
+      createTableVersion = c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
     }
     else
     {
       jam();
-      release_tables(ptr);
-      ptr.p->errorCode = 0;
-      // fall-through
+      copy_prev_lcp_info(ptr, lcpCtlFilePtr1);
     }
   }
-  
-  if (!ptr.p->tables.seizeLast(tabPtr) || !tabPtr.p->fragments.seize(1))
-  {
-    ndbrequire(false); // TODO
-  }
-  jam();
-  jamLine(req.tableId);
-#ifdef VM_TRACE
-  TablePtr locTabPtr;
-  ndbassert(findTable(ptr, locTabPtr, req.tableId) == false);
-#endif
-  insertTableMap(tabPtr, ptr.i, req.tableId);
-  tabPtr.p->fragments.getPtr(fragPtr, 0);
-  tabPtr.p->tableType = DictTabInfo::UserTable;
-  fragPtr.p->fragmentId = req.fragmentId;
-  fragPtr.p->lcp_no = req.lcpNo;
-  fragPtr.p->scanned = 0;
-  fragPtr.p->scanning = 0;
-  fragPtr.p->tableId = req.tableId;
-
-  if (req.backupId != ptr.p->backupId)
-  {
-    jam();
-    /* New LCP, reset per-LCP counters */
-    ptr.p->noOfBytes = 0;
-    ptr.p->noOfRecords = 0;
-  }
-  ptr.p->backupId= req.backupId;
-  lcp_open_file(signal, ptr);
-}
-
-void
-Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
-{
-  jam();
-  
+  /**
+   * prepareNextLcpCtlFileNumber is the number of the prepareCtlFilePtr's
+   * which will be kept for this LCP. We have written the data in its page
+   * with i-value of 0. This is what lcpCtlFilePtr points to at the moment.
+   * This is the page we will later write after completing the LCP of this
+   * fragment.
+   *
+   * We will always get the last data file number by getting the last
+   * data file number from the control file to close which is the most
+   * recent, then we will add one modulo the max number to get the
+   * new last data file number.
+   */
+  dataFileNumber += 1;
+  dataFileNumber %= BackupFormat::NDB_MAX_LCP_FILES;
+  ptr.p->prepareDataFileNumber = dataFileNumber;
   TablePtr tabPtr;
-  ndbrequire(ptr.p->tables.first(tabPtr));
-  Uint32 tableId = tabPtr.p->tableId;
-
-  BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-  ndbrequire(filePtr.p->m_flags == 0);
-
-  if (ptr.p->m_gsn == GSN_LCP_PREPARE_REQ)
-  {
-    jam();
-    defineBackupRef(signal, ptr, ptr.p->errorCode);
-    return;
-  }
-    
   FragmentPtr fragPtr;
+  ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
-  Uint32 fragmentId = fragPtr.p->fragmentId;
+  ptr.p->prepareMaxGciWritten = maxGciWritten;
+  lqhCreateTableVersion = c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
 
-  release_tables(ptr);
-
-  if (ptr.p->errorCode != 0)
+  Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
+  if ((maxGci < fragPtr.p->createGci &&
+       maxGci != 0 &&
+       createTableVersion < lqhCreateTableVersion) ||
+       (c_initial_start_lcp_not_done_yet &&
+        (ptr.p->preparePrevLocalLcpId != 0 ||
+         ptr.p->preparePrevLcpId != 0)))
   {
     jam();
-    ndbout_c("Fatal : LCP Frag scan failed with error %u",
-             ptr.p->errorCode);
-    ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
-    
-    if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
-    {
-      jam();
-      /* No active scan thread to 'find' the file error.
-       * Scan is closed, so let's send backupFragmentRef 
-       * back to LQH now...
-       */
-      backupFragmentRef(signal, filePtr);
-    }
+    /**
+     * This case is somewhat obscure. Due to the fact that we support the
+     * config variable __at_restart_skip_indexes we can actually come here
+     * for a table (should be a unique index table) that have an LCP file
+     * remaining from the previous use of this table id. It is potentially
+     * possible also when dropping a table while this node is down and then
+     * creating it again before this node has started. In this case we could
+     * come here and find an old LCP file. So what we do here is that we
+     * perform the drop of the old LCP fragments and then we restart the
+     * LCP handling again with an empty set of LCP files as it should be.
+     *
+     * This means first closing the CTL files (deleting the older one and
+     * keeping the newer one to ensure we keep one CTL file until all data
+     * files have been deleted and to integrate easily into the drop file
+     * handling in this block.
+     *
+     * We can only discover this case in a cluster where the master is
+     * on 7.6 version. So in upgrade cases we won't discover this case
+     * since we don't get the createGci from the DICT master in that case
+     * when the fragment is created.
+     *
+     * We can also get here when doing an initial node restart and there
+     * is old LCP files to clean up.
+     */
+    DEB_LCP(("(%u)TAGT Drop case: tab(%u,%u).%u (now %u),"
+             " maxGciCompleted: %u,"
+             " maxGciWritten: %u, createGci: %u",
+            instance(),
+            tabPtr.p->tableId,
+            fragPtr.p->fragmentId,
+            createTableVersion,
+            c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
+            maxGciCompleted,
+            maxGciWritten,
+            fragPtr.p->createGci));
+
+    ptr.p->prepareState = PREPARE_DROP_CLOSE;
+    closeFile(signal, ptr, filePtr[closeLcpNumber]);
+    closeFile(signal,
+              ptr,
+              filePtr[ptr.p->prepareNextLcpCtlFileNumber],
+              true,
+              true);
     return;
   }
+  /* Initialise page to write to next CTL file with new LCP id */
+  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
 
-  OperationRecord & op = filePtr.p->operation;
-  ptr.p->errorCode = 0;
-  
-  BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
-  conf->backupId = ptr.p->backupId;
-  conf->backupPtr = ptr.i;
-  conf->tableId = tableId;
-  conf->fragmentNo = fragmentId;
-  conf->noOfRecordsLow = (op.noOfRecords & 0xFFFFFFFF);
-  conf->noOfRecordsHigh = (op.noOfRecords >> 32);
-  conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
-  conf->noOfBytesHigh = (op.noOfBytes >> 32);
-  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	     BackupFragmentConf::SignalLength, JBA);
+  DEB_LCP(("(%u)TAGC Use ctl file: %u, prev Lcp(%u,%u), curr Lcp(%u,%u)"
+           ", next data file: %u, tab(%u,%u).%u"
+           ", prevMaxGciCompleted: %u, createGci: %u",
+           instance(),
+           ptr.p->prepareNextLcpCtlFileNumber,
+           ptr.p->preparePrevLcpId,
+           ptr.p->preparePrevLocalLcpId,
+           lcpCtlFilePtr->LcpId,
+           lcpCtlFilePtr->LocalLcpId,
+           dataFileNumber,
+           tabPtr.p->tableId,
+           fragPtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(tabPtr.p->tableId),
+           maxGciCompleted,
+           fragPtr.p->createGci));
+
+  /**
+   * lqhCreateTableVersion == 0 means that the table is no longer active.
+   * We will continue as if things were ok, the table is being dropped so
+   * no need to abort here, the file will be dropped anyways.
+   */
+  ndbrequire(createTableVersion == lqhCreateTableVersion ||
+             lqhCreateTableVersion == 0);
+
+
+  /**
+   * We close the file which was the previous LCP control file. We will
+   * retain the oldest one and use this for this LCP, it will then
+   * become the most recent one when we are done. We keep the one to
+   * use open for now, it will be closed later in the LCP processing.
+   */
+  ndbrequire(ptr.p->prepareErrorCode == 0);
+  closeFile(signal,
+            ptr,
+            filePtr[closeLcpNumber],
+            true,
+            (ptr.p->prepareDeleteCtlFileNumber == RNIL));
+  return;
 }
 
 void
-Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
+Backup::copy_prev_lcp_info(BackupRecordPtr ptr,
+                           struct BackupFormat::LCPCtlFile *lcpCtlFilePtr)
+{
+  Uint32 next_start_part = 0;
+  ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
+  ptr.p->m_prepare_max_parts_in_lcp = lcpCtlFilePtr->MaxPartPairs;
+  ptr.p->m_prepare_num_parts_in_lcp = lcpCtlFilePtr->NumPartPairs;
+  for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
+  {
+    jam();
+    Uint32 start_part = lcpCtlFilePtr->partPairs[i].startPart;
+    Uint32 num_parts = lcpCtlFilePtr->partPairs[i].numParts;
+    next_start_part = get_part_add(start_part, num_parts);
+    ptr.p->m_prepare_part_info[i].startPart = start_part;
+    ptr.p->m_prepare_part_info[i].numParts = num_parts;
+  }
+  ptr.p->m_prepare_first_start_part_in_lcp = next_start_part;
+  ptr.p->m_prepare_scan_change_gci = lcpCtlFilePtr->MaxGciCompleted;
+  ptr.p->preparePrevLcpId = lcpCtlFilePtr->LcpId;
+  ptr.p->preparePrevLocalLcpId = lcpCtlFilePtr->LocalLcpId;
+}
+
+Uint32
+Backup::get_part_add(Uint32 start_part, Uint32 num_parts)
+{
+  return (start_part + num_parts) % BackupFormat::NDB_MAX_LCP_PARTS;
+}
+
+Uint32
+Backup::get_file_add(Uint32 start_file, Uint32 num_files)
+{
+  return (start_file + num_files) % BackupFormat::NDB_MAX_LCP_FILES;
+}
+
+void
+Backup::lcp_read_ctl_file(Page32Ptr pagePtr,
+                          Uint32 bytesRead,
+                          BackupRecordPtr ptr)
+{
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)pagePtr.p;
+  /**
+   * This function reads the LCP Control file data and retrieves information
+   * about:
+   * 1) next starting part
+   * 2) LCP id this file is a header for
+   *
+   * This information is used to decide which header file to close (the most
+   * recent one) and which header file to use for the next LCP.
+   */
+  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE == bytesRead);
+  if (!convert_ctl_page_to_host(lcpCtlFilePtr))
+  {
+    jam();
+    lcp_init_ctl_file(pagePtr);
+  }
+  {
+    TablePtr tabPtr;
+    FragmentPtr fragPtr;
+    ptr.p->prepare_table.first(tabPtr);
+    tabPtr.p->fragments.getPtr(fragPtr, 0);
+    ndbrequire(lcpCtlFilePtr->TableId == tabPtr.p->tableId)
+    ndbrequire(lcpCtlFilePtr->FragmentId == fragPtr.p->fragmentId);
+  }
+}
+
+bool
+Backup::convert_ctl_page_to_host(
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr)
+{
+  Uint32 *pageData = (Uint32*)lcpCtlFilePtr;
+  Uint32 numPartPairs = ntohl(lcpCtlFilePtr->NumPartPairs);
+  Uint32 real_bytes_read = (sizeof(*lcpCtlFilePtr) +
+                           (sizeof(struct BackupFormat::PartPair) *
+                            (numPartPairs - 1)));
+
+  /* Checksum is calculated on network byte order */
+  if (numPartPairs > BackupFormat::NDB_MAX_LCP_PARTS)
+  {
+    DEB_LCP(("(%u)numPartPairs: %x", instance(), numPartPairs));
+    ndbassert(false);
+    return false;
+  }
+  Uint32 words = real_bytes_read / sizeof(Uint32);
+  Uint32 chksum = 0;
+  for (Uint32 i = 0; i < words; i++)
+  {
+    chksum ^= pageData[i];
+  }
+  ndbassert(chksum == 0);
+
+  if (chksum != 0)
+  {
+    jam();
+    ndbassert(false);
+    return false;
+  }
+  /* Magic is written/read as is */
+  lcpCtlFilePtr->fileHeader.BackupVersion =
+    ntohl(lcpCtlFilePtr->fileHeader.BackupVersion);
+  lcpCtlFilePtr->fileHeader.SectionType =
+    ntohl(lcpCtlFilePtr->fileHeader.SectionType);
+  lcpCtlFilePtr->fileHeader.SectionLength =
+    ntohl(lcpCtlFilePtr->fileHeader.SectionLength);
+  lcpCtlFilePtr->fileHeader.FileType =
+    ntohl(lcpCtlFilePtr->fileHeader.FileType);
+  lcpCtlFilePtr->fileHeader.BackupId =
+    ntohl(lcpCtlFilePtr->fileHeader.BackupId);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupKey_0 == 0);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupKey_1 == 0);
+  /* ByteOrder as is */
+  lcpCtlFilePtr->fileHeader.NdbVersion =
+    ntohl(lcpCtlFilePtr->fileHeader.NdbVersion);
+  lcpCtlFilePtr->fileHeader.MySQLVersion =
+    ntohl(lcpCtlFilePtr->fileHeader.MySQLVersion);
+
+  lcpCtlFilePtr->ValidFlag = ntohl(lcpCtlFilePtr->ValidFlag);
+  lcpCtlFilePtr->TableId = ntohl(lcpCtlFilePtr->TableId);
+  lcpCtlFilePtr->FragmentId = ntohl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateTableVersion = ntohl(lcpCtlFilePtr->CreateTableVersion);
+  lcpCtlFilePtr->CreateGci = ntohl(lcpCtlFilePtr->CreateGci);
+  lcpCtlFilePtr->MaxGciCompleted = ntohl(lcpCtlFilePtr->MaxGciCompleted);
+  lcpCtlFilePtr->MaxGciWritten = ntohl(lcpCtlFilePtr->MaxGciWritten);
+  lcpCtlFilePtr->LcpId = ntohl(lcpCtlFilePtr->LcpId);
+  lcpCtlFilePtr->LocalLcpId = ntohl(lcpCtlFilePtr->LocalLcpId);
+  lcpCtlFilePtr->MaxPageCount = ntohl(lcpCtlFilePtr->MaxPageCount);
+  lcpCtlFilePtr->MaxNumberDataFiles = ntohl(lcpCtlFilePtr->MaxNumberDataFiles);
+  lcpCtlFilePtr->LastDataFileNumber = ntohl(lcpCtlFilePtr->LastDataFileNumber);
+  lcpCtlFilePtr->MaxPartPairs = ntohl(lcpCtlFilePtr->MaxPartPairs);
+  lcpCtlFilePtr->NumPartPairs = ntohl(lcpCtlFilePtr->NumPartPairs);
+
+  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE >= real_bytes_read);
+  ndbrequire(lcpCtlFilePtr->fileHeader.FileType ==
+             BackupFormat::LCP_CTL_FILE);
+  ndbrequire(memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) == 0);
+  ndbrequire(lcpCtlFilePtr->NumPartPairs <= lcpCtlFilePtr->MaxPartPairs);
+  ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
+  ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP);
+
+  Uint32 total_parts = decompress_part_pairs(lcpCtlFilePtr,
+                                             lcpCtlFilePtr->NumPartPairs);
+  ndbrequire(total_parts <= lcpCtlFilePtr->MaxPartPairs);
+  return true;
+}
+
+void
+Backup::convert_ctl_page_to_network(Uint32 *page)
+{
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)page;
+  Uint32 numPartPairs = lcpCtlFilePtr->NumPartPairs;
+  Uint32 real_bytes_read = (sizeof(*lcpCtlFilePtr) +
+                           (sizeof(struct BackupFormat::PartPair) *
+                            (numPartPairs - 1)));
+
+  ndbrequire(BackupFormat::NDB_LCP_CTL_FILE_SIZE >= real_bytes_read);
+
+  ndbrequire(memcmp(BACKUP_MAGIC, lcpCtlFilePtr->fileHeader.Magic, 8) == 0);
+  ndbrequire(lcpCtlFilePtr->fileHeader.FileType ==
+             BackupFormat::LCP_CTL_FILE);
+  ndbrequire(lcpCtlFilePtr->NumPartPairs <= lcpCtlFilePtr->MaxPartPairs);
+  ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
+  ndbrequire(lcpCtlFilePtr->fileHeader.NdbVersion >= NDBD_USE_PARTIAL_LCP);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupVersion == NDBD_USE_PARTIAL_LCP);
+
+  /* Magic is written/read as is */
+  lcpCtlFilePtr->fileHeader.BackupVersion =
+    htonl(lcpCtlFilePtr->fileHeader.BackupVersion);
+  lcpCtlFilePtr->fileHeader.SectionType =
+    htonl(lcpCtlFilePtr->fileHeader.SectionType);
+  lcpCtlFilePtr->fileHeader.SectionLength =
+    htonl(lcpCtlFilePtr->fileHeader.SectionLength);
+  lcpCtlFilePtr->fileHeader.FileType =
+    htonl(lcpCtlFilePtr->fileHeader.FileType);
+  lcpCtlFilePtr->fileHeader.BackupId =
+    htonl(lcpCtlFilePtr->fileHeader.BackupId);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupKey_0 == 0);
+  ndbrequire(lcpCtlFilePtr->fileHeader.BackupKey_1 == 0);
+  /* ByteOrder as is */
+  lcpCtlFilePtr->fileHeader.NdbVersion =
+    htonl(lcpCtlFilePtr->fileHeader.NdbVersion);
+  lcpCtlFilePtr->fileHeader.MySQLVersion =
+    htonl(lcpCtlFilePtr->fileHeader.MySQLVersion);
+
+  lcpCtlFilePtr->ValidFlag = htonl(lcpCtlFilePtr->ValidFlag);
+  lcpCtlFilePtr->TableId = htonl(lcpCtlFilePtr->TableId);
+  lcpCtlFilePtr->FragmentId = htonl(lcpCtlFilePtr->FragmentId);
+  lcpCtlFilePtr->CreateTableVersion = htonl(lcpCtlFilePtr->CreateTableVersion);
+  lcpCtlFilePtr->CreateGci = htonl(lcpCtlFilePtr->CreateGci);
+  lcpCtlFilePtr->MaxGciCompleted = htonl(lcpCtlFilePtr->MaxGciCompleted);
+  lcpCtlFilePtr->MaxGciWritten = htonl(lcpCtlFilePtr->MaxGciWritten);
+  lcpCtlFilePtr->LcpId = htonl(lcpCtlFilePtr->LcpId);
+  lcpCtlFilePtr->LocalLcpId = htonl(lcpCtlFilePtr->LocalLcpId);
+  lcpCtlFilePtr->MaxPageCount = htonl(lcpCtlFilePtr->MaxPageCount);
+  lcpCtlFilePtr->MaxNumberDataFiles = htonl(lcpCtlFilePtr->MaxNumberDataFiles);
+  lcpCtlFilePtr->LastDataFileNumber = htonl(lcpCtlFilePtr->LastDataFileNumber);
+
+  Uint32 maxPartPairs = lcpCtlFilePtr->MaxPartPairs;
+  lcpCtlFilePtr->MaxPartPairs = htonl(lcpCtlFilePtr->MaxPartPairs);
+  lcpCtlFilePtr->NumPartPairs = htonl(lcpCtlFilePtr->NumPartPairs);
+
+  Uint32 total_parts = compress_part_pairs(lcpCtlFilePtr, numPartPairs);
+  ndbrequire(total_parts <= maxPartPairs);
+
+  /* Checksum is calculated on network byte order */
+  lcpCtlFilePtr->Checksum = 0;
+  Uint32 words = real_bytes_read / sizeof(Uint32);
+  Uint32 chksum = 0;
+  for (Uint32 i = 0; i < words; i++)
+  {
+    chksum ^= page[i];
+  }
+  lcpCtlFilePtr->Checksum = chksum;
+}
+
+Uint32
+Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+                            Uint32 num_parts)
+{
+  Uint32 total_parts = 0;
+  unsigned char *part_array =
+    (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    /**
+     * Compress the 32 bit by only using 12 bits word. This means that we
+     * can fit up to 2048 parts in 8 kBytes.
+     * The start part uses the first byte to store the upper 8 bits of
+     * 12 bits and bits 0-3 of the second byte is bit 0-3 of the start
+     * part. The number of parts has bit 0-3 stored in bit 4-7 of the
+     * second byte and bit 4-11 stored in the third byte.
+     */
+    Uint32 startPart = lcpCtlFilePtr->partPairs[part].startPart;
+    Uint32 numParts = lcpCtlFilePtr->partPairs[part].numParts;
+    Uint32 startPart_bit0_3 = (startPart & 0xF);
+    Uint32 startPart_bit4_11 = (startPart >> 4) & 0xFF;
+    Uint32 numParts_bit0_3 = (numParts & 0xF);
+    Uint32 numParts_bit4_11 = (numParts >> 4) & 0xFF;
+    part_array[0] = (unsigned char)startPart_bit4_11;
+    part_array[1] = (unsigned char)(startPart_bit0_3 + (numParts_bit0_3 << 4));
+    part_array[2] = (unsigned char)numParts_bit4_11;
+    part_array += 3;
+    total_parts += numParts;
+  }
+  return total_parts;
+}
+
+Uint32 Backup::decompress_part_pairs(
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
+  Uint32 num_parts)
+{
+  Uint32 total_parts = 0;
+  unsigned char *part_array =
+    (unsigned char*)&lcpCtlFilePtr->partPairs[0].startPart;
+  memcpy(c_part_array, part_array, 3 * num_parts);
+  for (Uint32 part = 0; part < num_parts; part++)
+  {
+    Uint32 part_0 = c_part_array[0];
+    Uint32 part_1 = c_part_array[1];
+    Uint32 part_2 = c_part_array[2];
+    Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
+    Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    lcpCtlFilePtr->partPairs[part].startPart = startPart;
+    lcpCtlFilePtr->partPairs[part].numParts = numParts;
+    total_parts += numParts;
+  }
+  return total_parts;
+}
+
+void
+Backup::lcp_init_ctl_file(Page32Ptr pagePtr)
+{
+  const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)pagePtr.p;
+
+  memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+  lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
+  lcpCtlFilePtr->fileHeader.SectionLength = sz - 3;
+  lcpCtlFilePtr->fileHeader.FileType = BackupFormat::LCP_CTL_FILE;
+  lcpCtlFilePtr->fileHeader.BackupId = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_0 = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_1 = 0;
+  lcpCtlFilePtr->fileHeader.ByteOrder = 0x12345678;
+  lcpCtlFilePtr->fileHeader.NdbVersion = NDB_VERSION_D;
+  lcpCtlFilePtr->fileHeader.MySQLVersion = NDB_MYSQL_VERSION_D;
+
+  /* Checksum needs to calculated again before write to disk */
+  lcpCtlFilePtr->Checksum = 0;
+  lcpCtlFilePtr->ValidFlag = 0;
+  lcpCtlFilePtr->TableId = 0;
+  lcpCtlFilePtr->FragmentId = 0;
+  lcpCtlFilePtr->CreateTableVersion = 0;
+  lcpCtlFilePtr->CreateGci = 0;
+  lcpCtlFilePtr->MaxGciWritten = 0;
+  lcpCtlFilePtr->MaxGciCompleted = 0;
+  lcpCtlFilePtr->LcpId = 0;
+  lcpCtlFilePtr->LocalLcpId = 0;
+  lcpCtlFilePtr->MaxPageCount = 0;
+  lcpCtlFilePtr->MaxNumberDataFiles = BackupFormat::NDB_MAX_LCP_FILES;
+  lcpCtlFilePtr->LastDataFileNumber = BackupFormat::NDB_MAX_LCP_FILES - 1;
+  lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
+  lcpCtlFilePtr->NumPartPairs = 1;
+  lcpCtlFilePtr->partPairs[0].startPart = 0;
+  lcpCtlFilePtr->partPairs[0].numParts = BackupFormat::NDB_MAX_LCP_PARTS;
+}
+
+void
+Backup::lcp_close_prepare_ctl_file_done(Signal* signal,
+                                        BackupRecordPtr ptr)
+{
+  /**
+   * We have closed the old LCP control file now. We have calculated the
+   * number of the data file to be used in this LCP. We will now open this
+   * data file to be used by this LCP.
+   */
+  lcp_open_data_file(signal, ptr);
+}
+
+void
+Backup::lcp_open_data_file(Signal* signal,
+                           BackupRecordPtr ptr)
 {
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
@@ -7798,49 +10739,56 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
 
   if (c_defaults.m_o_direct)
     req->fileFlags |= FsOpenReq::OM_DIRECT;
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
   
   TablePtr tabPtr;
   FragmentPtr fragPtr;
-  
-  ndbrequire(ptr.p->tables.first(tabPtr));
+  BackupFilePtr filePtr;
+  Uint32 dataFileNumber;
+
+  ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
 
+  c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr);
+  dataFileNumber = ptr.p->prepareDataFileNumber;
+  ndbrequire(ptr.p->prepareState == PREPARE_READ_CTL_FILES);
+  ptr.p->prepareState = PREPARE_OPEN_DATA_FILE;
   /**
    * Lcp file
    */
-  BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
   ndbrequire(filePtr.p->m_flags == 0);
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
   filePtr.p->tableId = RNIL; // Will force init
   req->userPointer = filePtr.i;
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
-  FsOpenReq::v5_setLcpNo(req->fileNumber, fragPtr.p->lcp_no);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, dataFileNumber);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
   FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
 void
-Backup::lcp_open_file_done(Signal* signal, BackupRecordPtr ptr)
+Backup::lcp_open_data_file_done(Signal* signal,
+                                BackupRecordPtr ptr)
 {
   TablePtr tabPtr;
   FragmentPtr fragPtr;
 
-  ndbrequire(ptr.p->tables.first(tabPtr));
+  ndbrequire(ptr.p->prepare_table.first(tabPtr));
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   
   BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);  
+  c_backupFilePool.getPtr(filePtr, ptr.p->prepareDataFilePtr);  
   ndbrequire(filePtr.p->m_flags == 
-	     (BackupFile::BF_OPEN | BackupFile::BF_LCP_META));
+             (BackupFile::BF_OPEN | BackupFile::BF_LCP_META));
   filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
 
-  ptr.p->slaveState.setState(STARTED);
-  
+  ndbrequire(ptr.p->prepareState == PREPARE_READ_TABLE_DESC);
+  ptr.p->prepareState = PREPARED;
+ 
   LcpPrepareConf* conf= (LcpPrepareConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->clientData;
   conf->senderRef = reference();
@@ -7848,44 +10796,2165 @@ Backup::lcp_open_file_done(Signal* signal, BackupRecordPtr ptr)
   conf->fragmentId = fragPtr.p->fragmentId;
   sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_CONF, 
 	     signal, LcpPrepareConf::SignalLength, JBA);
+}
+
+void
+Backup::lcp_set_lcp_id(BackupRecordPtr ptr,
+                       struct BackupFormat::LCPCtlFile *lcpCtlFilePtr)
+{
+  jam();
+  lcpCtlFilePtr->fileHeader.BackupId = ptr.p->backupId;
+  lcpCtlFilePtr->LcpId = ptr.p->backupId;
+  lcpCtlFilePtr->LocalLcpId = ptr.p->localLcpId;
+  if (ptr.p->backupId == ptr.p->preparePrevLcpId)
+  {
+    jam();
+    ndbrequire(ptr.p->localLcpId > ptr.p->preparePrevLocalLcpId);
+  }
+  else
+  {
+    jam();
+    ndbrequire(ptr.p->backupId > ptr.p->preparePrevLcpId);
+  }
+}
+
+void
+Backup::lcp_copy_ctl_page(BackupRecordPtr ptr)
+{
+  Page32Ptr page_ptr, recent_page_ptr;
+  BackupFilePtr file_ptr, recent_file_ptr;
+  Uint32 oldest = ptr.p->prepareNextLcpCtlFileNumber;
+  ndbrequire(oldest <= 1);
+  Uint32 recent = oldest == 0 ? 1 : 0;
+  c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr);
+  c_backupFilePool.getPtr(recent_file_ptr, ptr.p->prepareCtlFilePtr[recent]);
+  file_ptr.p->pages.getPtr(page_ptr, 0);
+  recent_file_ptr.p->pages.getPtr(recent_page_ptr, 0);
+  memcpy(page_ptr.p,
+         recent_page_ptr.p,
+         BackupFormat::NDB_LCP_CTL_FILE_SIZE);
+}
+
+void
+Backup::setRestorableGci(Uint32 restorableGci)
+{
+  jam();
+  if (restorableGci > m_newestRestorableGci)
+  {
+    jam();
+    m_newestRestorableGci = restorableGci;
+  }
+}
+
+void
+Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
+                            Page32Ptr & page_ptr,
+                            BackupFilePtr & file_ptr)
+{
+  Uint32 maxCompletedGci;
+  c_backupFilePool.getPtr(file_ptr, ptr.p->ctlFilePtr);
+  file_ptr.p->pages.getPtr(page_ptr, 0);
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)page_ptr.p;
 
   /**
-   * Start file thread
+   * An idle LCP cannot have written anything since last LCP. The
+   * last LCP was definitely restorable on disk, so there is no
+   * need to set MaxGciCompleted to an unrestorable GCI since we
+   * haven't written this anyways.
+   *
+   * Thus for idle LCPs we need not wait for a GCI to be restorable
+   * ever. We reflect this by sending max_gci_written equal to the
+   * restorable gci in the lcp_max_completed_gci call.
    */
-  filePtr.p->m_flags |= BackupFile::BF_FILE_THREAD;
+  c_lqh->lcp_max_completed_gci(maxCompletedGci,
+                               m_newestRestorableGci,
+                               m_newestRestorableGci);
+  lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
+  c_lqh->lcp_complete_scan(ptr.p->newestGci);
+  if (ptr.p->newestGci != lcpCtlFilePtr->MaxGciWritten)
+  {
+    /**
+     * Can happen when performing a LCP as part of restart
+     * We will set the newestGci as part of the restore to
+     * the GCI we restore.
+     */
+    DEB_LCP(("(%u)newestGci = %u, MaxGciWritten: %u, MaxGciCompleted: %u",
+            instance(),
+            ptr.p->newestGci,
+            lcpCtlFilePtr->MaxGciWritten,
+            lcpCtlFilePtr->MaxGciCompleted));
+  }
+  ndbassert(ptr.p->newestGci == 
+            lcpCtlFilePtr->MaxGciWritten ||
+            !m_our_node_started);
+  /* Check that schema version is ok, 0 means we're currently deleting table */
+  Uint32 lqhCreateTableVersion = c_lqh->getCreateSchemaVersion(lcpCtlFilePtr->TableId);
+  ndbrequire(lcpCtlFilePtr->CreateTableVersion == lqhCreateTableVersion ||
+             lqhCreateTableVersion == 0);
+
+  lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
+
+  ptr.p->m_wait_gci_to_delete = MAX(maxCompletedGci, ptr.p->newestGci);
+
+  lcp_set_lcp_id(ptr, lcpCtlFilePtr);
+
+  ndbrequire(lcpCtlFilePtr->MaxGciWritten <= m_newestRestorableGci);
+  ndbrequire(m_newestRestorableGci != 0);
+  /**
+   * Also idle LCPs have to be careful to ensure that the LCP is valid before
+   * we write it as valid. The reason is that otherwise we won't find the
+   * LCP record in the UNDO log and apply too many UNDO log records.
+   */
+  TablePtr tabPtr;
+  ptr.p->tables.first(tabPtr);
+  Uint32 tableId = tabPtr.p->tableId;
+  ptr.p->m_disk_data_exist = c_lqh->is_disk_columns_in_table(tableId);
+  Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
+  ptr.p->m_lcp_lsn_synced = valid_flag;
+  lcpCtlFilePtr->ValidFlag = valid_flag;
+
+  DEB_LCP(("(%u)TAGY Handle idle LCP, tab(%u,%u).%u, maxGciCompleted = %u"
+           ", validFlag = %u",
+            instance(),
+            lcpCtlFilePtr->TableId,
+            lcpCtlFilePtr->FragmentId,
+            lcpCtlFilePtr->CreateTableVersion,
+            lcpCtlFilePtr->MaxGciCompleted,
+            valid_flag));
+}
+
+void
+Backup::handle_idle_lcp(Signal *signal, BackupRecordPtr ptr)
+{
+  /**
+   * In the prepare phase we opened the data file, we need to
+   * close this file before returning to DBLQH as completed.
+   * 
+   * We also need to write the new LCP control file. The
+   * contents we will take from the most recent LCP control
+   * file updated with a new MaxGciCompleted.
+   *
+   * We need to move data files and control files to the
+   * execution part since we will start preparing a new
+   * LCP immediately after completing this signal execution.
+   * A LCP_PREPARE_REQ is most likely waiting to be executed
+   * as the next signal.
+   */
+  Page32Ptr page_ptr;
+  BackupFilePtr file_ptr;
+  ptr.p->m_empty_lcp = true;
+  ptr.p->m_lcp_rounds = 1;
+  ptr.p->m_handle_dropped_table_during_lcp_scan = false;
+  lcp_copy_ctl_page(ptr);
+  lcp_update_ctl_page(ptr, page_ptr, file_ptr);
+  ptr.p->deleteDataFileNumber = RNIL;
+  lcp_write_ctl_file_to_disk(signal, file_ptr, page_ptr);
+  lcp_close_data_file(signal, ptr, true);
+  ptr.p->m_outstanding_operations = 2;
+}
+
+void
+Backup::prepare_parts_for_lcp(Signal *signal, BackupRecordPtr ptr)
+{
+  /**
+   * We need to switch in prepared data file and ctl file.
+   * We make the previous execute data file and ctl file
+   * record to be the new prepare data and ctl file record.
+   */
+  ptr.p->m_empty_lcp = false;
+  ptr.p->m_handle_dropped_table_during_lcp_scan = false;
+  calculate_number_of_parts(ptr);
+}
+
+#define MIN_SIZE_TO_CONSIDER_PARTS Uint64(128 * 1024)
+void
+Backup::prepare_ranges_for_parts(BackupRecordPtr ptr,
+                                 Uint32 in_parts,
+                                 Uint64 memory_used)
+{
+  Uint64 parts = Uint64(in_parts);
+  ndbrequire(parts > 0);
+  /**
+   * We have selected the number of parts to write in this LCP.
+   * We will also ensure that each file we will write will have
+   * at least 128 kBytes of data in it to avoid too much overhead
+   * in small fragments due to file overhead.
+   *
+   * We will normally use at most 64 parts per LCP round, but if
+   * the fragment size is too small then we will do differently.
+   */
+  Uint64 max_parts_per_round = BackupFormat::NDB_MAX_LCP_PARTS_PER_ROUND;
+  Uint64 number_of_lcp_rounds_rule1 =
+    (parts + (max_parts_per_round - 1)) / max_parts_per_round;
+
+  Uint64 expected_write_size = (memory_used * parts) /
+                               Uint64(BackupFormat::NDB_MAX_LCP_PARTS);
+  Uint64 number_of_lcp_rounds_rule2 =
+    (expected_write_size / Uint64(MIN_SIZE_TO_CONSIDER_PARTS)) + 1;
+
+  Uint32 num_lcp_rounds = Uint32(MIN(number_of_lcp_rounds_rule1,
+                                     number_of_lcp_rounds_rule2));
+
+  /* TODO RONM: Temporary workaround */
+  num_lcp_rounds = 1;
+
+  ptr.p->m_lcp_rounds = num_lcp_rounds;
   
-  signal->theData[0] = BackupContinueB::START_FILE_THREAD;
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = __LINE__;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  Uint32 num_parts_per_round = parts / num_lcp_rounds;
+  Uint32 extra_parts_in_first_round =
+    parts - (num_lcp_rounds * num_parts_per_round);
+  Uint32 start_part = ptr.p->m_first_start_part_in_lcp;
+  for (Uint32 i = 0; i < num_lcp_rounds; i++)
+  {
+    if (i == 0)
+    {
+      jam();
+      ptr.p->m_scan_info[0].m_start_all_part = start_part;
+      ptr.p->m_scan_info[0].m_num_all_parts =
+        num_parts_per_round + extra_parts_in_first_round;
+      start_part = get_part_add(start_part,
+                          num_parts_per_round + extra_parts_in_first_round);
+    }
+    else
+    {
+      jam();
+      ptr.p->m_scan_info[i].m_start_all_part = start_part;
+      ptr.p->m_scan_info[i].m_num_all_parts = num_parts_per_round;
+      ptr.p->m_scan_info[i].m_start_change_part = 0;
+      ptr.p->m_scan_info[i].m_num_change_parts = 0;
+      start_part = get_part_add(start_part, num_parts_per_round);
+    }
+    DEB_EXTRA_LCP(("(%u)m_scan_info[%u].start_all_part = %u, num_all_parts: %u",
+            instance(),
+            i,
+            ptr.p->m_scan_info[i].m_start_all_part,
+            ptr.p->m_scan_info[i].m_num_all_parts));
+  }
+  Uint32 num_change_parts = BackupFormat::NDB_MAX_LCP_PARTS - parts;
+  ptr.p->m_scan_info[0].m_start_change_part = start_part;
+  ptr.p->m_scan_info[0].m_num_change_parts = num_change_parts;
+  ndbassert(is_partial_lcp_enabled() || num_change_parts == 0);
+  DEB_EXTRA_LCP(("(%u)m_scan_info[0].start_change_part = %u, num_all_parts: %u",
+          instance(),
+          ptr.p->m_scan_info[0].m_start_change_part,
+          ptr.p->m_scan_info[0].m_num_change_parts));
+}
+
+void
+Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
+{
+  Uint32 old_num_parts = ptr.p->m_num_parts_in_lcp;
+  Uint32 new_start_part = ptr.p->m_first_start_part_in_lcp;
+  Uint32 new_end_part = new_start_part + new_parts;
+  Uint32 remove_files = 0;
+  if (old_num_parts != 0)
+  {
+    jam();
+    do
+    {
+      jam();
+      Uint32 old_start_part = ptr.p->m_part_info[0].startPart;
+      Uint32 old_parts = ptr.p->m_part_info[0].numParts;
+      Uint32 old_end_part = old_start_part + old_parts;
+      if (new_end_part < old_end_part)
+      {
+        jam();
+        old_end_part += BackupFormat::NDB_MAX_LCP_PARTS;
+      }
+      if (old_end_part > new_end_part)
+      {
+        jam();
+        /* This file has to be kept */
+        break;
+      }
+      old_num_parts--;
+      remove_files++;
+    } while (old_num_parts > 0);
+  }
+  Uint32 remaining_files = ptr.p->m_num_parts_in_lcp - remove_files;
+  for (Uint32 i = 0; i < remaining_files; i++)
+  {
+    ptr.p->m_part_info[i] = ptr.p->m_part_info[i + remove_files];
+  }
+  /**
+   * Calculate file numbers of files to delete after LCP is
+   * completed.
+   */
+  ptr.p->m_lcp_remove_files = remove_files;
+  if (remove_files == 0)
+  {
+    jam();
+    ptr.p->deleteDataFileNumber = RNIL;
+  }
+  else
+  {
+    if (ptr.p->m_current_data_file_number >= remove_files)
+    {
+      jam();
+      ptr.p->deleteDataFileNumber =
+        (ptr.p->m_current_data_file_number - remove_files);
+    }
+    else
+    {
+      jam();
+      ptr.p->deleteDataFileNumber =
+        (BackupFormat::NDB_MAX_LCP_FILES +
+         ptr.p->m_current_data_file_number) - remove_files;
+    }
+    DEB_LCP(("(%u)m_current_data_file_number = %u, deleteDataFileNumber: %u,"
+             " remove_files: %u",
+             instance(),
+             ptr.p->m_current_data_file_number,
+             ptr.p->deleteDataFileNumber,
+             remove_files));
+  }
+
+  ndbrequire(ptr.p->m_lcp_rounds > 0 &&
+             ptr.p->m_lcp_rounds <= BackupFormat::NDB_MAX_FILES_PER_LCP);
+  for (Uint32 i = 0; i < ptr.p->m_lcp_rounds; i++)
+  {
+    jam();
+    ptr.p->m_part_info[i + old_num_parts].startPart =
+      ptr.p->m_scan_info[i].m_start_all_part;
+    ptr.p->m_part_info[i + old_num_parts].numParts =
+      ptr.p->m_scan_info[i].m_num_all_parts;
+    ndbrequire(ptr.p->m_part_info[i + old_num_parts].startPart <
+               BackupFormat::NDB_MAX_LCP_PARTS);
+    ndbrequire(ptr.p->m_part_info[i + old_num_parts].numParts <=
+               BackupFormat::NDB_MAX_LCP_PARTS);
+  }
+  ptr.p->m_num_parts_in_lcp =
+    ptr.p->m_lcp_rounds + old_num_parts;
+  ptr.p->m_max_parts_in_lcp = BackupFormat::NDB_MAX_LCP_PARTS;
+}
+
+Uint32
+Backup::calculate_min_parts(Uint64 row_count,
+                            Uint64 row_change_count,
+                            Uint64 mem_used,
+                            Uint64 total_mem)
+{
+  /**
+   * Calculates
+   *   min_parts  = (((row_change_count / row_count) * 
+   *       (1 + 0.5 * (mem_used /total_mem)) / 1.25) *
+   *       NDB_MAX_LCP_PARTS) + 1
+   * as explained below.
+   *
+   * ((4/5) * row_change_count * NDB_MAX_LCP_PARTS / row_count) +
+   * ((2/5) * (mem_used * NDB_MAX_LCP_PARTS / total_mem) *
+   *  row_change_count / row_count)
+   * + 1
+   * => 
+   * (((4/5) * row_change_count * NDB_MAX_LCP_PARTS +
+   *   (2/5) * mem_used * row_change_count * NDB_MAX_LCP_PARTS / total_mem)
+   * / row_count)
+   * + 1
+   * Broken down to:
+   * memory_used = memory_used / (1024 * 1024)
+   * total_memory = total_memory / (1024 * 1024)
+   * This means we are ignoring anything not in the range of MBytes to ensure
+   * we don't overflow the 64 bits.
+   * min_parts = row_change_count * NDB_MAX_LCP_PARTS * (4/5)
+   * extra_parts = memory_used * (2/5) * row_change_count
+   * extra_parts = extra_parts / total_memory
+   */
+  if (!is_partial_lcp_enabled())
+  {
+    jam();
+    /**
+     * We have configured the defaults to be that we always execute a full LCP.
+     * The LCP can still be a multi-file one, but we will never have to handle
+     * anything related to CHANGE ROWS pages.
+     */
+    return BackupFormat::NDB_MAX_LCP_PARTS;
+  }
+  if (row_count == 0)
+  {
+    jam();
+    row_count = 1;
+  }
+  mem_used /= Uint64(1024 * 1024);
+  total_mem /= Uint64(1024 * 1024);
+  if (total_mem == Uint64(0))
+  {
+    jam();
+    total_mem = 1;
+  }
+
+  Uint64 min_parts = Uint64(BackupFormat::NDB_MAX_LCP_PARTS) *
+                     row_change_count;
+  min_parts /= Uint64(5);
+  min_parts *= Uint64(4);
+
+  Uint64 extra_parts = row_change_count * mem_used;
+  extra_parts /= Uint64(total_mem);
+  extra_parts *= Uint64(2);
+  extra_parts /= Uint64(5);
+  extra_parts *= Uint64(BackupFormat::NDB_MAX_LCP_PARTS);
+
+  min_parts += extra_parts;
+  min_parts /= row_count;
+  min_parts++;
+  if (min_parts > Uint64(BackupFormat::NDB_MAX_LCP_PARTS))
+  {
+    jam();
+    min_parts = BackupFormat::NDB_MAX_LCP_PARTS;
+  }
+  return Uint32(min_parts);
+}
+
+void
+Backup::calculate_number_of_parts(BackupRecordPtr ptr)
+{
+  /**
+   * Here we decide on how many parts we need to use for this LCP.
+   * As input we have:
+   * 1) Row count
+   * 2) Row change count since last LCP
+   * => Percentage of rows changed since last LCP
+   *
+   *   The percentage of rows changed since last LCP is the most
+   *   important to this algorithm. This gives us a minimum number of
+   *   parts that we need to write as part of this LCP.
+   *
+   *   There is an overhead in not writing full LCPs. The overhead is
+   *   dependent on the amount of changed rows in comparison with the
+   *   percentage of parts written.
+   *
+   *   The overhead formula can be written as:
+   *   (1 - x) * (y + 0.5 * z) / x
+   *   where:
+   *   x = percentage of parts fully written in this LCP
+   *   y = percentage of rows changed since last LCP
+   *   z = percentage of rows changed during LCP
+   *
+   *   The (1 - x) comes from that only the parts not written have
+   *   overhead for writing changed rows.
+   *
+   *   The y comes from that writing changed rows is an overhead.
+   *
+   *   The 0.5 * z comes from that writing changed rows during the LCP
+   *   is also an overhead, however only half of those rows will
+   *   actually be written since the LCP scan will not see rows
+   *   changed before the scan pointer.
+   *
+   *   The division comes from that the first part of the formula is
+   *   the overhead cost for one LCP. However a full LCP consists of
+   *   1/x LCPs.
+   *
+   *   We want to select an x such that the overhead becomes smaller
+   *   than some select value.
+   *
+   *   We can also have overhead in that we have written more parts
+   *   than are actually needed. To avoid that this overhead is
+   *   unnecessary big we will enusre that we never write any files
+   *   that contains more than 1/8th of the parts. This means that at
+   *   most we can get 12.5% overhead due to extra parts being written.
+   *
+   *   We will try to ensure that x is chosen such that overhead is
+   *   smaller than 25%. This means that we should at most require
+   *   40% overhead compared to the data memory size. This number
+   *   is based on that we don't have an extreme amount of small
+   *   fragments with very small memory sizes. In this case the
+   *   overhead of writing table meta data as well will make the
+   *   overhead. So with most applications we can guarantee that the
+   *   overhead stays below 40% and actually in most cases we will
+   *   probably even have an overhead of around 20%.
+   *
+   *   So we want to select an x such that:
+   *   (1 - x) (y + z*0.5) / x < 0.25
+   *   =>
+   *   (1 - x) (y + z*0.5) < 0.25 * x
+   *   =>
+   *   (y + 0.5 * z) < 1.25 * x
+   *   x > (y + 0.5 * z) / 1.25
+   *
+   *   Now we know the following:
+   *   row_count, row_change_count, memory_used_in_fragment, total_memory_used
+   *   This gives:
+   *   y = row_change_count / row_count
+   *   z = (row_change_count / row_count) *
+   *       (memory_used_in_fragment / total_memory_used)
+   *
+   *   The calculation of z is a prediction based on history, so a sort of
+   *   Bayesian average.
+   *
+   *   Thus
+   *   x > (row_change_count / row_count) * 
+   *       (1 + 0.5 * (memory_used_in_fragment /total_memory_used)) / 1.25
+   *
+   *   So we calculate the right part of this equation, multiply by the max
+   *   number of parts and finally add one to get the number of parts we
+   *   should use in this LCP at a minimum.
+   *
+   * 3) Total memory size used for memory part of rows
+   * => Memory size needed to log changed rows
+   * => Memory sized needed to write each part of the LCP
+   *
+   *   Total memory used gives us an indication if we need to bother about
+   *   splitting it into parts at all. We don't care about parts smaller
+   *   than 64 kBytes. Also we will never split it into parts smaller than
+   *   64 kBytes.
+   *
+   * 4) Total memory space
+   * 5) Number of LDMs in the node
+   * => Approximate memory space used by this LDM
+   *
+   *   This gives us a good understanding how large this fragment is
+   *   compared to the rest of the memory in this LDM.
+   *
+   * 6) Current disk write speed
+   *
+   *   This gives a good approximation of how long time this particular
+   *   fragment LCP will take, it will also give us an indication of how
+   *   long time the entire LCP will take.
+   *
+   * 7) Total REDO log size for our log part
+   * 8) Total free REDO log size for our log part
+   * 9) => Percentage used of REDO log for our log part
+   * 10) We also keep free REDO log size from last LCP we executed and the
+   *     timestamp for when we last was here. This helps us calculating the
+   *     speed we are writing REDO log at.
+   *
+   *   We mainly use this to see if we are close to running out of REDO
+   *   log, if we are we need to speed up LCP processing by raising the
+   *   speed of disk writes for LCP.
+   *
+   * 11) Time used for last distributed LCP
+   * 12) Time used for last LCP locally
+   */
+
+  Resource_limit res_limit;
+  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
+  /**
+   * Total DataMemory not currently needed
+   * const Uint32 pages_total = res_limit.m_min;
+   * const Uint64 total_size = Uint64(pages_total)*Uint64(sizeof(GlobalPage));
+   * const Uint64 dm_size = total_size - m_acc_memory_in_bytes;
+   */
+  const Uint32 pages_used = res_limit.m_curr;
+  const Uint64 used_size = Uint64(pages_used) * Uint64(sizeof(GlobalPage));
+  const Uint64 dm_used = used_size - m_acc_memory_in_bytes;
+  const Uint64 num_ldms = getLqhWorkers() != 0 ?
+                         (Uint64)getLqhWorkers() : (Uint64)1;
+  const Uint64 total_memory = dm_used / num_ldms;
+
+  /**
+   * There are four rules that apply for choosing the number of parts to
+   * write all rows in.
+   * 1) Make sure that overhead doesn't exceed 25% for partial LCPs
+   *    So we call this rule 1, rule 1 says that we will select the number
+   *    of parts that gives 25% overhead.
+   *
+   * 2) Avoid overhead when it doesn't provide any value, if e.g. we
+   *    have 80% of the rows that have been changed then the calculation
+   *    means that we're going to use actually less than 80% (about 78%)
+   *    since that brings about 25% overhead. Obviously there is no sense
+   *    in creating overhead in this case since we will write 78% of the
+   *    rows + 80% of the remaining 22%. Thus we get an overhead of 25%
+   *    to save 4.4% of the row writes which doesn't make a lot of sense.
+   *
+   *    The formula to get 25% overhead gives that
+   *    percentage_of_parts = 1 / (1 + percentage_rows_changed * 0.25)
+   *    The save is:
+   *    (1 - percentage_rows_changed) * percentage_of_parts
+   *    This gives that when percentage of rows changed is higher than
+   *    70.5% we will save less in writing than the extra overhead we
+   *    we get from writing partial LCPs. In addition we have up to
+   *    12.5% extra overhead to cover for.
+   *
+   *    So rule 2 says that we will select all parts if we have changed
+   *    more than 60% of the rows. Otherwise rule 2 selects 0 parts.
+   *
+   *    An observation here is that during heavy deletes patterns we will
+   *    very often fall back to full LCPs since the number of rows is
+   *    getting smaller whereas the number of changed rows is increasing.
+   *
+   * 3) Avoid overhead when the fragment is too small. We set the limit
+   *    such that we will not write an LCP file unless it is at least
+   *    128 kBytes in size. Otherwise the overhead of writing files and
+   *    overhead in files will give diminishing return for partial LCPs.
+   *    So e.g. if a fragment has 768 kBytes of data in it, this means
+   *    that we will never split it up into more than 6 parts, so with
+   *    a maximum of 2048 parts we will always write at least 340 parts
+   *    in an LCP which isn't empty.
+   *
+   *    So rule 3 will select number of parts to be
+   *    number of parts = 2048 * 128 kByte / Size.
+   *    So e.g. if Size = 1 MByte we will select minimum parts to be
+   *    32.
+   *
+   *  4) First LCP on  fragment must always be a full LCP.
+   *     Rule 4 is 2048 parts when first LCP, otherwise it is 0.
+   *
+   * In conclusion we will select the rule that returns the highest number
+   * of parts.
+   */    
+  Uint64 row_count = ptr.p->m_row_count;
+  Uint64 row_change_count = ptr.p->m_row_change_count;
+  Uint64 memory_used = ptr.p->m_memory_used_in_bytes;
+  Uint32 min_parts_rule1 = calculate_min_parts(row_count,
+                                               row_change_count,
+                                               memory_used,
+                                               total_memory);
+
+  Uint32 min_parts_rule2 = 0;
+  if ((Uint64(6) * row_change_count) >
+      (Uint64(10) * row_count))
+  {
+    jam();
+    min_parts_rule2 = BackupFormat::NDB_MAX_LCP_PARTS;
+  }
+
+  Uint32 min_parts_rule3 = BackupFormat::NDB_MAX_LCP_PARTS;
+  if (ptr.p->m_lcp_max_page_cnt > 1)
+  {
+    jam();
+    min_parts_rule3 = BackupFormat::NDB_MAX_LCP_PARTS /
+                        ptr.p->m_lcp_max_page_cnt;
+  }
+  Uint32 min_parts_rule4 = 0;
+  if (ptr.p->preparePrevLcpId == 0)
+  {
+    jam();
+    min_parts_rule4 = BackupFormat::NDB_MAX_LCP_PARTS;
+  }
+  /**
+   * We can never go below 1 part, this is the absolute minimum even if
+   * all rules say 0.
+   */
+  Uint32 min_parts_rule5 = 1;
+  Uint32 parts = MAX(MAX(min_parts_rule1, min_parts_rule2),
+                     MAX(min_parts_rule3,
+                     MAX(min_parts_rule4, min_parts_rule5)));
+
+  /**
+   * We have now calculated the parts to use in this LCP.
+   * We will now prepare the BackupRecord such that it has all the
+   * information set up to execute this LCP.
+   */
+  prepare_ranges_for_parts(ptr, parts, memory_used);
+  prepare_new_part_info(ptr, parts);
+}
+
+void
+Backup::lcp_swap_tables(BackupRecordPtr ptr,
+                        TablePtr & tabPtr,
+                        Uint32 tableId)
+{
+  ptr.p->prepare_table.first(tabPtr);
+  ndbrequire(tabPtr.p->tableId == tableId);
+  ptr.p->prepare_table.removeFirst(tabPtr);
+
+  TablePtr newPrepareTablePtr;
+  ptr.p->tables.removeFirst(newPrepareTablePtr);
+  ptr.p->tables.addFirst(tabPtr);
+  ptr.p->prepare_table.addFirst(newPrepareTablePtr);
+}
+
+void
+Backup::lcp_swap_data_file(BackupRecordPtr ptr)
+{
+  Uint32 newPrepareDataFilePtr = ptr.p->dataFilePtr;
+  ptr.p->dataFilePtr = ptr.p->prepareDataFilePtr;
+  ptr.p->prepareDataFilePtr = newPrepareDataFilePtr;
+}
+
+void
+Backup::lcp_swap_ctl_file(BackupRecordPtr ptr)
+{
+  Uint32 newPrepareCtlFilePtr = ptr.p->ctlFilePtr;
+  ptr.p->ctlFilePtr =
+    ptr.p->prepareCtlFilePtr[ptr.p->prepareNextLcpCtlFileNumber];
+  ptr.p->prepareCtlFilePtr[ptr.p->prepareNextLcpCtlFileNumber] =
+    newPrepareCtlFilePtr;
+}
+
+void
+Backup::copy_lcp_info_from_prepare(BackupRecordPtr ptr)
+{
+  ptr.p->m_scan_change_gci = ptr.p->m_prepare_scan_change_gci;
+  for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
+  {
+    jam();
+    ptr.p->m_part_info[i] = ptr.p->m_prepare_part_info[i];
+  }
+  ptr.p->m_num_parts_in_lcp = ptr.p->m_prepare_num_parts_in_lcp;
+  ptr.p->m_max_parts_in_lcp = ptr.p->m_prepare_max_parts_in_lcp;
+  ptr.p->m_first_start_part_in_lcp =
+    ptr.p->m_prepare_first_start_part_in_lcp;
+  ptr.p->m_current_data_file_number = ptr.p->prepareDataFileNumber;
+  ptr.p->deleteCtlFileNumber = ptr.p->prepareDeleteCtlFileNumber;
+}
+
+/**
+ * An important part of starting an LCP is to insert a record in the
+ * UNDO log record indicating start of the LCP. This is used to ensure
+ * that main memory rows restored and the disk data restored is in
+ * perfect synch with each other. This UNDO log record must be
+ * completely synchronised with start of LCP scanning.
+ */
+void
+Backup::lcp_write_undo_log(Signal *signal,
+                           BackupRecordPtr ptr)
+{
+  TablePtr tabPtr;
+  ptr.p->tables.first(tabPtr);
+  if (c_lqh->is_disk_columns_in_table(tabPtr.p->tableId))
+  {
+    jam();
+    LcpFragOrd *ord = (LcpFragOrd*)signal->getDataPtr();
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, 0);
+    ord->tableId = tabPtr.p->tableId;
+    ord->fragmentId = fragPtr.p->fragmentId;
+    ord->lcpId = ptr.p->backupId;
+    {
+      Logfile_client lgman(this, c_lgman, 0);
+      ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
+                               c_lqh->get_current_local_lcp_id());
+      ndbrequire(ptr.p->m_current_lcp_lsn > Uint64(0));
+    }
+  }
+  else
+  {
+    jam();
+    ptr.p->m_current_lcp_lsn = Uint64(0);
+  }
+}
+
+/**
+ * Start execution of LCP after receiving BACKUP_FRAGMENT_REQ
+ *
+ * When executing this method we know that there is no
+ * LCP_PREPARE processing ongoing and there is no LCP
+ * execution processing going on. So this is a safe place to
+ * move data from prepare part of BackupRecord to execution
+ * part of the BackupRecord.
+ */
+void
+Backup::start_execute_lcp(Signal *signal,
+                          BackupRecordPtr ptr,
+                          TablePtr & tabPtr,
+                          Uint32 tableId)
+{
+  ptr.p->slaveState.setState(STARTED);
+  ndbrequire(ptr.p->prepareState == PREPARED);
+  ptr.p->prepareState = NOT_ACTIVE;
+  ptr.p->m_lcp_lsn_synced = 1;
+
+  copy_lcp_info_from_prepare(ptr);
+
+  /**
+   * We need to switch places on prepare table
+   * execute table.
+   */
+  lcp_swap_tables(ptr, tabPtr, tableId);
+  lcp_swap_data_file(ptr);
+  lcp_swap_ctl_file(ptr);
+
+  lcp_write_undo_log(signal, ptr);
+  /**
+   * With the introduction of Partial LCPs we need to calculate how
+   * many parts that should be part of this LCP.
+   *
+   * We tell LDM that we are about to start a new LCP. This means that
+   * we want to know the number of rows changed since last LCP. We
+   * want also to know the current number of rows to calculate the
+   * proportion between updated rows and the number of rows in total
+   * in the fragment.
+   *
+   * We treat 0 updated rows as a special case. This means that not a
+   * single commit has changed any rows since the last LCP started.
+   * In this special case we can actually still use the data files
+   * from the old LCP. We do however still need to write a new LCP
+   * control file. This is the case since we need to update the
+   * MaxGciCompleted in the LCP control file which is very
+   * important. It is this value which makes it possible for us to
+   * use the LCP to cut the REDO log tail (which in principle is
+   * the main reason for doing LCPs, to cut the REDO log tail).
+   *
+   * The 0 updated rows is most likely a very common case and will
+   * save us radical amounts of REDO log processing in idle nodes.
+   * If this is the very first LCP we are performing, then we
+   * will still go ahead and perform the LCP to simplify the code.
+   */
+  c_lqh->get_lcp_frag_stats(ptr.p->m_row_count,
+                            ptr.p->m_row_change_count,
+                            ptr.p->m_memory_used_in_bytes,
+                            ptr.p->m_lcp_max_page_cnt);
+  Uint32 newestGci = c_lqh->get_lcp_newest_gci();
+
+#ifdef DEBUG_LCP
+  TablePtr debTabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(debTabPtr);
+  debTabPtr.p->fragments.getPtr(fragPtr, 0);
+  DEB_LCP(("(%u)TAGY LCP_Start: tab(%u,%u).%u, row_count: %llu,"
+           " row_change_count: %llu, "
+           "memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
+           instance(),
+           debTabPtr.p->tableId,
+           fragPtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(debTabPtr.p->tableId),
+           ptr.p->m_row_count,
+           ptr.p->m_row_change_count,
+           ptr.p->m_memory_used_in_bytes,
+           ptr.p->m_lcp_max_page_cnt,
+           ptr.p->m_current_lcp_lsn));
+#endif
+
+  if (ptr.p->m_row_change_count == 0 &&
+      ptr.p->preparePrevLcpId != 0 &&
+      (ptr.p->prepareMaxGciWritten == newestGci &&
+       m_our_node_started))
+  {
+    /**
+     * We don't handle it as an idle LCP when it is the first LCP
+     * executed on the fragment. In this case we need to run a normal
+     * LCP even if it produces an empty LCP data file.
+     *
+     * Also if someone has committed a transaction on the fragment
+     * we will not treat as an idle LCP even if row change count
+     * hasn't changed.
+     */
+    jam();
+    handle_idle_lcp(signal, ptr);
+    return;
+  }
+  else
+  {
+    jam();
+    prepare_parts_for_lcp(signal, ptr);
+  }
+}
+
+/**
+ * We have finished writing of a fragment, the file is written to
+ * disk and we can start the complete processing of the LCP for
+ * this fragment.
+ */
+void
+Backup::lcp_close_data_file(Signal* signal,
+                            BackupRecordPtr ptr,
+                            bool delete_flag)
+{
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+  closeFile(signal, ptr, filePtr, false, delete_flag);
+}
+
+void
+Backup::lcp_start_complete_processing(Signal *signal, BackupRecordPtr ptr)
+{
+  /**
+   * We start wait here for 2 parallel events.
+   * 1) Sync:ing page cache and extent pages
+   * 2) Finalising write of LCP data file and closing it
+   *
+   * After these events are ready we will check if the LSN have been synched
+   * yet. If it hasn't we will still write the LCP control file, but we will
+   * write with an invalid flag set in it. We will later rewrite it before
+   * deleting the data files.
+   *
+   * When all of those are done we will write the control file and when this
+   * write is completed and the file closed then we will report the LCP back
+   * as completed.
+   *
+   * The only reason for syncing the UNDO log is to ensure that if no
+   * pages at all was written as part of LCP for the fragment, then we
+   * still need to ensure that the UNDO_LCP log record is flushed to
+   * disk. We get the LSN of the UNDO_LCP record from DBLQH.
+   *
+   * When we sync the pages we will ensure that any writes will also
+   * sync the UNDO log to the proper point. So we need not worry about
+   * losing any UNDO log records as long as we sync the page cache for
+   * a fragment as part of LCP processing. This is called the
+   * WAL rule.
+   * 
+   * Sync:ing the extent pages will write all dirty extent pages, so no
+   * special phase is needed to write those at the end of all fragment
+   * LCPs.
+   *
+   *
+   * Sync:ing happens in two stages
+   * The first stage is syncing all data pages in the PGMAN which executes
+   * in the same thread as we do. This goes through the list of dirty pages
+   * on the fragment and sync's them one by one with potential throttling of
+   * write speed here.
+   *
+   * The second stage is synching the extent pages. This always happens in
+   * the PGMAN proxy block that takes care of the extent pages. Here we
+   * sync all extent pages that are dirty for each fragment checkpoint. The
+   * reason is that one extent page is shared by many fragments, also the
+   * extent pages are only updated when we allocate a new page, allocate a
+   * new extent or free an extent (only happens at drop table). So normally
+   * we should only dirty a page when adding another page to a fragment.
+   * Also many of those writes will usually occur on the same fragment and
+   * thus the number of writes on those pages will only be high when there
+   * is high insert activity into the database. Also each extent page covers
+   * about 1.3 GByte of disk space. So even with 10 TByte of disk space we
+   * only have a total of 7000 extent pages. So the activity on writing those
+   * to disk cannot be very high.
+   *
+   * By sync:ing data pages and extent pages after writing the main memory
+   * part of the fragment to disk we are sure that we can recover using this
+   * fragment LCP. After this we are ready to write the control files for
+   * this LCP. The LCP is still not 100% ready to use, it still will have
+   * to wait until the global checkpoint is completed of its highest GCI
+   * that was written as part of the checkpoint.
+   *
+   * We don't need to wait for this however since the restart will check
+   * that we don't recover an LCP which has more recent GCI's than we are
+   * to restore. We must however wait with deleting the old LCP control
+   * file and data files until we have seen the GCI being completed that
+   * we wait for.
+   *
+   * The localisation of LCP handling and immediate removal of old LCPs
+   * means that we can no longer restore any older GCPs than the last
+   * completed one. If a requirement comes up for this it is fairly
+   * straightforward to add this feature. What is needed is that we wait
+   * for yet some more time before deleting an old LCP. If we e.g. want
+   * to support restoring up to 100 GCI's back from the last completed
+   * than we have to wait for 100 GCI's after completing the one we waited
+   * for before we can remove the old LCP files. This might require us to
+   * maintain many LCP control files. One could handle this by ensuring
+   * that new LCPs aren't started so fast in this case.
+   * 
+   * However most likely there are better options to restore old versions
+   * of the database by using backups.
+   */
+
+  ptr.p->wait_data_file_close = true;
+  ptr.p->wait_disk_data_sync = true;
+  ptr.p->m_disk_data_exist = false;
+
+  if (ptr.p->m_current_lcp_lsn == Uint64(0))
+  {
+    /**
+     * No entry in log file group created, thus table isn't a disk data
+     * table. So we can safely ignore going to PGMAN to sync data pages.
+     */
+    jam();
+    ptr.p->wait_disk_data_sync = false;
+    lcp_write_ctl_file(signal, ptr);
+    return;
+  }
+  BlockReference ref = numberToRef(PGMAN, instance(), getOwnNodeId());
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+
+  SyncPageCacheReq *sync_req = (SyncPageCacheReq*)signal->getDataPtrSend();
+  sync_req->senderData = ptr.i;
+  sync_req->senderRef = reference();
+  sync_req->tableId = tabPtr.p->tableId;
+  sync_req->fragmentId = fragPtr.p->fragmentId;
+  sendSignal(ref, GSN_SYNC_PAGE_CACHE_REQ, signal,
+             SyncPageCacheReq::SignalLength, JBB);
+}
+
+void
+Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
+{
+  SyncPageCacheConf *conf = (SyncPageCacheConf*)signal->getDataPtr();
+  BackupRecordPtr ptr;
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  jamEntry();
+
+  c_backupPool.getPtr(ptr, conf->senderData);
+  ptr.p->tables.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  ndbrequire(conf->tableId == tabPtr.p->tableId);
+  ndbrequire(conf->fragmentId == fragPtr.p->fragmentId);
+
+  DEB_LCP(("(%u)Completed SYNC_PAGE_CACHE_CONF for tab(%u,%u)"
+                      ", diskDataExistFlag: %u",
+                      instance(),
+                      tabPtr.p->tableId,
+                      fragPtr.p->fragmentId,
+                      conf->diskDataExistFlag));
+
+  if (!conf->diskDataExistFlag)
+  {
+    jam();
+    ptr.p->wait_disk_data_sync = false;
+    lcp_write_ctl_file(signal, ptr);
+    return;
+  }
+  ptr.p->m_disk_data_exist = true;
+  if (!ptr.p->m_first_fragment)
+  {
+    jam();
+    ptr.p->wait_disk_data_sync = false;
+    lcp_write_ctl_file(signal, ptr);
+    return;
+  }
+  /**
+   * Sync extent pages, this is sent to Proxy block that routes the signal to
+   * the "extra" PGMAN worker that handles the extent pages.
+   */
+  SyncExtentPagesReq *req = (SyncExtentPagesReq*)signal->getDataPtrSend();
+  req->senderData = ptr.i;
+  req->senderRef = reference();
+  req->lcpOrder = SyncExtentPagesReq::FIRST_LCP;
+  ptr.p->m_first_fragment = false;
+  sendSignal(PGMAN_REF, GSN_SYNC_EXTENT_PAGES_REQ, signal,
+             SyncExtentPagesReq::SignalLength, JBB);
+  return;
+}
+
+void
+Backup::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
+{
+  SyncExtentPagesConf *conf = (SyncExtentPagesConf*)signal->getDataPtr();
+  BackupRecordPtr ptr;
+  jamEntry();
+
+  c_backupPool.getPtr(ptr, conf->senderData);
+  if (ptr.p->slaveState.getState() == DEFINED)
+  {
+    jam();
+    finish_end_lcp(signal, ptr);
+    return;
+  }
+  ndbrequire(ptr.p->slaveState.getState() == STOPPING);
+  ptr.p->wait_disk_data_sync = false;
+  lcp_write_ctl_file(signal, ptr);
+}
+
+/**
+ * A file has been closed as part of LCP completion processing
+ * for a fragment.
+ */
+void
+Backup::lcp_close_data_file_conf(Signal* signal, BackupRecordPtr ptr)
+{
+  jam();
+  BackupFilePtr filePtr;
+  
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+  ndbrequire(filePtr.p->m_flags == 0);
+  /**
+   * We could have completed only 1 part of this fragment LCP.
+   * Check for this and start up next part.
+   */
+  if (ptr.p->m_empty_lcp)
+  {
+    jam();
+    finalize_lcp_processing(signal, ptr);
+    return;
+  }
+  ndbrequire(ptr.p->wait_data_file_close);
+  ptr.p->wait_data_file_close = false;
+  lcp_write_ctl_file(signal, ptr);
+}
+
+Uint32
+Backup::lcp_pre_sync_lsn(BackupRecordPtr ptr)
+{
+  Uint32 valid_flag = 1;
+  if (ptr.p->m_disk_data_exist)
+  {
+    jam();
+    Uint64 sync_lsn;
+    {
+      Logfile_client lgman(this, c_lgman, 0);
+      sync_lsn = lgman.pre_sync_lsn(ptr.p->m_current_lcp_lsn);
+    }
+    if (sync_lsn < ptr.p->m_current_lcp_lsn)
+    {
+      jam();
+      /**
+       * LSN for UNDO log record of this LCP haven't been sync:ed to disk
+       * yet. We will still write the LCP control file, but we will write
+       * it with an invalid indicator. Later before deleting the LCP data
+       * files we will ensure that the LSN is sync:ed by calling sync_lsn.
+       * We will actually call it with LSN = 0 then since the LSN we called
+       * with here has been recorded already in LGMAN. So there is no need
+       * to remember the individual LSNs for individual fragments. When we
+       * call sync_lsn we will ensure that all fragment LCPs already handled
+       * before will be sync:ed to disk.
+       */
+      valid_flag = 0;
+    }
+  }
+  else
+  {
+    jam();
+  }
+  DEB_LCP(("(%u)Writing first with ValidFlag = %u", instance(), valid_flag));
+  return valid_flag;
+}
+
+void
+Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
+{
+  if (ptr.p->wait_data_file_close ||
+      ptr.p->wait_disk_data_sync)
+  {
+    jam();
+    return;
+  }
+
+  Uint32 valid_flag = lcp_pre_sync_lsn(ptr);
+
+  /**
+   * This function prepares the page for the LCP Control file data
+   * and ensures checksum is correct, values are written in network
+   * byte order when appropriate.
+   *
+   * As soon as this file is properly written to disk, it can be used
+   * in restarts. The restart code will ensure that the GCI is restored
+   * which this LCP cannot roll back from.
+   */
+
+  BackupFilePtr filePtr;
+  Page32Ptr pagePtr;
+
+  jam();
+  ptr.p->m_lcp_lsn_synced = valid_flag;
+  c_backupFilePool.getPtr(filePtr, ptr.p->ctlFilePtr);
+  filePtr.p->pages.getPtr(pagePtr, 0);
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)pagePtr.p;
+
+  Uint32 bytesRead = (sizeof(*lcpCtlFilePtr) +
+                      (sizeof(struct BackupFormat::PartPair) *
+                       (lcpCtlFilePtr->NumPartPairs - 1)));
+
+  memcpy(lcpCtlFilePtr->fileHeader.Magic, BACKUP_MAGIC, 8);
+  lcpCtlFilePtr->fileHeader.BackupVersion = NDBD_USE_PARTIAL_LCP;
+
+  const Uint32 sz = sizeof(BackupFormat::FileHeader) >> 2;
+  lcpCtlFilePtr->fileHeader.SectionType = BackupFormat::FILE_HEADER;
+  lcpCtlFilePtr->fileHeader.SectionLength = sz - 3;
+  lcpCtlFilePtr->fileHeader.FileType = BackupFormat::LCP_CTL_FILE;
+  lcpCtlFilePtr->fileHeader.BackupId = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_0 = 0;
+  lcpCtlFilePtr->fileHeader.BackupKey_1 = 0;
+  lcpCtlFilePtr->fileHeader.ByteOrder = 0x12345678;
+  lcpCtlFilePtr->fileHeader.NdbVersion = NDB_VERSION_D;
+  lcpCtlFilePtr->fileHeader.MySQLVersion = NDB_MYSQL_VERSION_D;
+
+  lcpCtlFilePtr->ValidFlag = valid_flag;
+
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  ptr.p->tables.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+
+  lcpCtlFilePtr->TableId = tabPtr.p->tableId;
+  lcpCtlFilePtr->FragmentId = fragPtr.p->fragmentId;
+  lcpCtlFilePtr->CreateTableVersion =
+    c_lqh->getCreateSchemaVersion(tabPtr.p->tableId);
+
+  Uint32 maxCompletedGci;
+  c_lqh->lcp_max_completed_gci(maxCompletedGci,
+                               ptr.p->newestGci,
+                               m_newestRestorableGci);
+  lcpCtlFilePtr->CreateGci = fragPtr.p->createGci;
+  lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
+  lcpCtlFilePtr->MaxGciWritten = ptr.p->newestGci;
+
+  ptr.p->m_wait_gci_to_delete = MAX(maxCompletedGci, ptr.p->newestGci);
+
+  ndbrequire(m_newestRestorableGci != 0);
+  DEB_LCP(("(%u)tab(%u,%u).%u, use ctl file %u, GCI completed: %u,"
+           " GCI written: %u, createGci: %u",
+           instance(),
+           lcpCtlFilePtr->TableId,
+           lcpCtlFilePtr->FragmentId,
+           lcpCtlFilePtr->CreateTableVersion,
+           (ptr.p->deleteCtlFileNumber == 0 ? 1 : 0),
+           lcpCtlFilePtr->MaxGciCompleted,
+           lcpCtlFilePtr->MaxGciWritten,
+           lcpCtlFilePtr->CreateGci));
+  ndbrequire((lcpCtlFilePtr->MaxGciWritten + 1) >= fragPtr.p->createGci);
+  /**
+   * LcpId and LocalLcpId was set in prepare phase.
+   */
+  if (lcpCtlFilePtr->LocalLcpId != c_lqh->get_current_local_lcp_id())
+  {
+    g_eventLogger->info("(%u)LocalLcpId: %u, local_lcp_id: %u",
+     instance(),
+     lcpCtlFilePtr->LocalLcpId,
+     c_lqh->get_current_local_lcp_id());
+  }
+  ndbrequire(lcpCtlFilePtr->LocalLcpId == c_lqh->get_current_local_lcp_id());
+  lcpCtlFilePtr->MaxPageCount = ptr.p->m_lcp_max_page_cnt;
+  lcpCtlFilePtr->LastDataFileNumber = ptr.p->m_current_data_file_number;
+  lcpCtlFilePtr->MaxNumberDataFiles =
+    BackupFormat::NDB_MAX_LCP_FILES;
+  lcpCtlFilePtr->NumPartPairs = ptr.p->m_num_parts_in_lcp;
+  lcpCtlFilePtr->MaxPartPairs = BackupFormat::NDB_MAX_LCP_PARTS;
+
+  for (Uint32 i = 0; i < ptr.p->m_num_parts_in_lcp; i++)
+  {
+    jam();
+    lcpCtlFilePtr->partPairs[i] = ptr.p->m_part_info[i];
+  }
+
+  Uint32 words = bytesRead / sizeof(Uint32);
+  memset(&pagePtr.p->data[words],
+         0,
+         (BackupFormat::NDB_LCP_CTL_FILE_SIZE - bytesRead));
+
+  /**
+   * Since we calculated checksum with bytes in network order we will write it
+   * without setting it in network order, this will ensure that the XOR will
+   * be over the same bits as here.
+   */
+  lcp_write_ctl_file_to_disk(signal, filePtr, pagePtr);
+}
+
+void
+Backup::lcp_write_ctl_file_to_disk(Signal *signal,
+                                   BackupFilePtr filePtr,
+                                   Page32Ptr pagePtr)
+{
+  convert_ctl_page_to_network((Uint32*)pagePtr.p);
+  filePtr.p->m_flags |= BackupFile::BF_WRITING;
+  FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->userPointer = filePtr.i;
+  req->filePointer = filePtr.p->filePointer;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setSyncFlag(req->operationFlag, 1);
+
+  Uint32 mem_offset = Uint32((char*)pagePtr.p - (char*)c_startOfPages);
+  req->data.memoryAddress.memoryOffset = mem_offset;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Backup::execFSWRITEREF(Signal *signal)
+{
+  ndbrequire(false);
+}
+
+void
+Backup::execFSWRITECONF(Signal *signal)
+{
+  BackupRecordPtr ptr;
+  BackupFilePtr filePtr;
+  FsConf * conf = (FsConf *)signal->getDataPtr();
+  const Uint32 userPtr = conf->userPointer;
+  jamEntry();
+  
+  c_backupFilePool.getPtr(filePtr, userPtr);
+  ndbrequire((filePtr.p->m_flags & BackupFile::BF_WRITING) != 0);
+  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_WRITING;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
+  if (ptr.p->ctlFilePtr == filePtr.i)
+  {
+    jam();
+    closeFile(signal, ptr, filePtr);
+    return;
+  }
+  else if (ptr.p->deleteFilePtr == filePtr.i)
+  {
+    jam();
+    lcp_update_ctl_file_for_rewrite_done(signal, ptr, filePtr);
+    return;
+  }
+  ndbrequire(false);
+}
+
+void
+Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
+{
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  BackupFilePtr filePtr;
+
+  if (ptr.p->m_empty_lcp)
+  {
+    jam();
+    ndbrequire(ptr.p->m_outstanding_operations > 0);
+    ptr.p->m_outstanding_operations--;
+    if (ptr.p->m_outstanding_operations > 0)
+    {
+      jam();
+      return;
+    }
+  }
+  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+  ndbrequire(ptr.p->tables.first(tabPtr));
+  Uint32 tableId = tabPtr.p->tableId;
+
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  Uint32 fragmentId = fragPtr.p->fragmentId;
+ 
+  if (ptr.p->errorCode != 0)
+  {
+    jam();
+    ndbout_c("Fatal : LCP Frag scan failed with error %u"
+             " file error is: %d",
+             ptr.p->errorCode,
+             filePtr.p->errorCode);
+    ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
+    
+    if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
+    {
+      jam();
+      /* No active scan thread to 'find' the file error.
+       * Scan is closed, so let's send backupFragmentRef 
+       * back to LQH now...
+       */
+      backupFragmentRef(signal, filePtr);
+      return;
+    }
+    ndbrequire(false);
+    return;
+  }
+
+  /**
+   * We're fully done with everything related to the LCP of this fragment.
+   * Report this back to LQH such that LQH can order the start of a new
+   * LCP on a new fragment when it is ready to do so.
+   */
+  if (ptr.p->deleteDataFileNumber != RNIL ||
+      ptr.p->deleteCtlFileNumber != RNIL ||
+      !ptr.p->m_lcp_lsn_synced)
+  {
+    /**
+     * We insert a record into the list for files to delete that will ensure
+     * that we will delete old LCP files as soon as possible.
+     * If deleteDataFileNumber is RNIL it means that this was the very first
+     * LCP on this fragment, so no need to delete any old files. It could
+     * also be an LCP that retains all files from the old LCP, but we might
+     * still need to delete a control file.
+     *
+     * We wait an extra GCP before we delete the old LCP files. The reason is
+     * to avoid calling sync_lsn unnecessarily often. Calling sync_lsn will
+     * remove log space (up to one log page) each time it is called and it
+     * needs to sync the LSN on the current page.
+     */
+    jam();
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    ndbrequire(c_deleteLcpFilePool.seize(deleteLcpFilePtr));
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    DEB_LCP(("(%u))TAGI Insert delete file in queue:"
+      " tab(%u,%u).%u, file(%u,%u) GCI: %u, validFlag: %u",
+      instance(),
+      tableId,
+      fragmentId,
+      c_lqh->getCreateSchemaVersion(tableId),
+      ptr.p->deleteDataFileNumber,
+      ptr.p->deleteCtlFileNumber,
+      ptr.p->m_wait_gci_to_delete,
+      ptr.p->m_lcp_lsn_synced));
+
+    Uint32 wait_for_gci = ptr.p->m_wait_gci_to_delete;
+    if (m_our_node_started)
+    {
+      jam();
+      wait_for_gci++;
+    }
+    bool ready_for_delete = (wait_for_gci <= m_newestRestorableGci);
+    Uint32 lastDeleteFileNumber= get_file_add(ptr.p->deleteDataFileNumber,
+                          (ptr.p->m_lcp_remove_files - 1));
+    deleteLcpFilePtr.p->tableId = tableId;
+    deleteLcpFilePtr.p->fragmentId = fragmentId;
+    deleteLcpFilePtr.p->firstFileId = ptr.p->deleteDataFileNumber;
+    deleteLcpFilePtr.p->lastFileId = lastDeleteFileNumber;
+    deleteLcpFilePtr.p->waitCompletedGci = wait_for_gci;
+    deleteLcpFilePtr.p->lcpCtlFileNumber = ptr.p->deleteCtlFileNumber;
+    deleteLcpFilePtr.p->validFlag = ptr.p->m_lcp_lsn_synced;
+    deleteLcpFilePtr.p->lcpLsn = ptr.p->m_current_lcp_lsn;
+
+    if (ready_for_delete)
+    {
+      /**
+       * Add first to delete processing queue since it is already ready for
+       * deletion.
+       */
+      jam();
+      queue.addFirst(deleteLcpFilePtr);
+    }
+    else
+    {
+      jam();
+      queue.addLast(deleteLcpFilePtr);
+    }
+    if (!m_delete_lcp_files_ongoing && ready_for_delete)
+    {
+      jam();
+      m_delete_lcp_files_ongoing = true;
+      signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
+      signal->theData[1] = ptr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    }
+  }
+ 
+  OperationRecord & op = filePtr.p->operation;
+  ptr.p->errorCode = 0;
+  ptr.p->slaveState.forceState(DEFINED);
+
+  BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
+  conf->backupId = ptr.p->backupId;
+  conf->backupPtr = ptr.i;
+  conf->tableId = tableId;
+  conf->fragmentNo = fragmentId;
+  conf->noOfRecordsLow = (op.noOfRecords & 0xFFFFFFFF);
+  conf->noOfRecordsHigh = (op.noOfRecords >> 32);
+  conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
+  conf->noOfBytesHigh = (op.noOfBytes >> 32);
+  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
+	     BackupFragmentConf::SignalLength, JBA);
+}
+
+void
+Backup::execRESTORABLE_GCI_REP(Signal *signal)
+{
+  Uint32 restorable_gci = signal->theData[0];
+  /**
+   * LQH has a more up-to-date view of the node state so use LQHs version
+   * of the node state rather than our own.
+   */
+  if (c_lqh->getNodeState().startLevel >= NodeState::SL_STOPPING_4)
+  {
+    jam();
+    DEB_LCP(("(%u)Ignore RESTORABLE_GCI_REP: %u in SL_STOPPING_4",
+             instance(),
+             restorable_gci));
+    return;
+  }
+  if (restorable_gci > m_newestRestorableGci)
+  {
+    jam();
+    m_newestRestorableGci = restorable_gci;
+  }
+  else
+  {
+    jam();
+    DEB_LCP(("(%u)Already received this restorable gci: %u",
+             instance(),
+             restorable_gci));
+    return;
+  }
+#ifdef DEBUG_LCP
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  queue.first(deleteLcpFilePtr);
+  Uint32 waitGCI = (deleteLcpFilePtr.i != RNIL) ? 
+           deleteLcpFilePtr.p->waitCompletedGci : 0;
+#endif
+  if (m_delete_lcp_files_ongoing)
+  {
+    jam();
+    DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files ongoing)"
+             ", waitGCI: %u",
+             instance(),
+             m_newestRestorableGci,
+             waitGCI));
+    return;
+  }
+  jam();
+  DEB_LCP(("(%u)TAGX Completed GCI: %u (delete files not ongoing)"
+           ", waitGCI: %u, m_lcp_ptr_i = %u",
+           instance(),
+           m_newestRestorableGci,
+           waitGCI,
+           m_lcp_ptr_i));
+  if (m_lcp_ptr_i != RNIL)
+  {
+    jam();
+    m_delete_lcp_files_ongoing = true;
+    delete_lcp_file_processing(signal, m_lcp_ptr_i);
+  }
+  return;
+}
+
+void
+Backup::delete_lcp_file_processing(Signal *signal, Uint32 ptrI)
+{
+  BackupRecordPtr ptr;
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  c_backupPool.getPtr(ptr, ptrI);
+
+  ndbrequire(m_delete_lcp_files_ongoing);
+
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (queue.isEmpty())
+  {
+    jam();
+    ndbrequire(!ptr.p->m_wait_end_lcp);
+    m_delete_lcp_files_ongoing = false;
+    if (ptr.p->prepareState == PREPARE_DROP)
+    {
+      jam();
+      /**
+       * We use this route when we find the obscure case of
+       * finding LCP files belonging to an already dropped table.
+       * We keep the code simple here and even wait until the
+       * queue is completely empty also for this special case to
+       * avoid any unnecessary checks. We then proceed with normal
+       * LCP_PREPARE_REQ handling for this case.
+       */
+      ptr.p->prepareState = PREPARE_READ_CTL_FILES;
+      DEB_LCP(("(%u)TAGT Completed wait delete files for drop case",
+               instance()));
+      lcp_open_ctl_file(signal, ptr, 0);
+      lcp_open_ctl_file(signal, ptr, 1);
+      return;
+    }
+    DEB_LCP(("(%u)TAGB Completed delete files, queue empty, no LCP wait",
+             instance()));
+    return;
+  }
+  queue.first(deleteLcpFilePtr);
+  if (deleteLcpFilePtr.p->waitCompletedGci > m_newestRestorableGci)
+  {
+    jam();
+    DEB_LCP(("(%u)TAGW Wait for completed GCI: %u",
+             instance(),
+             deleteLcpFilePtr.p->waitCompletedGci));
+    m_delete_lcp_files_ongoing = false;
+    return;
+  }
+  /* The delete record is ready for deletion process to start. */
+  ptr.p->currentDeleteLcpFile = deleteLcpFilePtr.i;
+  if (deleteLcpFilePtr.p->validFlag == 0)
+  {
+    jam();
+    sync_log_lcp_lsn(signal, deleteLcpFilePtr, ptr.i);
+    return;
+  }
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  lcp_close_ctl_file_for_rewrite_done(signal, ptr, filePtr);
+}
+
+/**
+ * This segment of code does a rewrite of the LCP control file.
+ * The LCP control file was written with the valid flag set to
+ * to 0. This indicates to the restore block that the LCP control
+ * file isn't safe to use.
+ *
+ * Before the old LCP control file is deleted we must ensure that
+ * the new LCP control file is ready to use by setting the validFlag
+ * to 1.
+ *
+ * The validFlag can however only be set to 1 if we are sure that
+ * the LSN of our UNDO log record for this fragment LCP has been
+ * flushed to disk. This is done by calling sync_lsn.
+ *
+ * Calling sync_lsn for each fragment is not a good solution since
+ * each such call can cause one page of UNDO log space to be wasted.
+ * So to ensure that we minimize the amount of wasted log space we
+ * instead wait for the GCI to be completed before we call sync_lsn.
+ * To ensure that we pack as many sync_lsn into one sync_lsn as
+ * possible we call pre_sync_lsn earlier in the LCP process.
+ *
+ * So the idea is that as much as possible we will wait for the
+ * LSN to be flushed by someone else, if no one has done that job
+ * after almost 2 GCPs we will do it ourselves. If we do it ourselves
+ * we will also ensure that all LSNs of calls to pre_sync_lsn will
+ * be flushed to disk in the same go.
+ *
+ * If we find that pre_sync_lsn call indicates that our LSN has already
+ * been flushed to disk we can avoid this extra round of read and write
+ * of the LCP control file. We also don't need it for tables without
+ * disk data columns.
+ *
+ * After sync:ing the UNDO LSN we will read the LCP control file,
+ * set the ValidFlag in the LCP control file and write it again
+ * and finally close it.
+ *
+ * Then we will continue deleting the old data files and old
+ * LCP control file.
+ */
+void
+Backup::sync_log_lcp_lsn(Signal *signal,
+                         DeleteLcpFilePtr deleteLcpFilePtr,
+                         Uint32 ptrI)
+{
+  Logfile_client::Request req;
+  int ret;
+  req.m_callback.m_callbackData = ptrI;
+  req.m_callback.m_callbackIndex = SYNC_LOG_LCP_LSN;
+  {
+    Logfile_client lgman(this, c_lgman, 0);
+    ret = lgman.sync_lsn(signal, deleteLcpFilePtr.p->lcpLsn, &req, 1);
+    jamEntry();
+  }
+  switch (ret)
+  {
+    case 0:
+    {
+      jam();
+      return;
+    }
+    case -1:
+    {
+      g_eventLogger->info("(%u)Failed to Sync LCP lsn", instance());
+      ndbrequire(false);
+     return; //Will never reach here
+    }
+    default:
+    {
+      jam();
+      execute(signal, req.m_callback, 0);
+      return;
+    }
+  }
+}
+
+void
+Backup::sync_log_lcp_lsn_callback(Signal *signal, Uint32 ptrI, Uint32 res)
+{
+  BackupRecordPtr ptr;
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, ptrI);
+  ndbrequire(res == 0);
+  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  ndbrequire(deleteLcpFilePtr.p->validFlag == 0);
+  /**
+   * The LSN have now been sync:ed, now time to read the LCP control file
+   * again to update the validFlag.
+   */
+  lcp_open_ctl_file_for_rewrite(signal, deleteLcpFilePtr, ptr);
+}
+
+void
+Backup::lcp_open_ctl_file_for_rewrite(Signal *signal,
+                                      DeleteLcpFilePtr deleteLcpFilePtr,
+                                      BackupRecordPtr ptr)
+{
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  FsOpenReq *req = (FsOpenReq*)signal->getDataPtrSend();
+
+  req->userReference = reference();
+  req->fileFlags = FsOpenReq::OM_READWRITE;
+  req->userPointer = filePtr.i;
+
+  ndbrequire(filePtr.p->m_flags == 0);
+  filePtr.p->m_flags = BackupFile::BF_OPENING;
+
+  /**
+   * We use same table id and fragment id as the one we are about to
+   * delete. If we are about to delete LCP control file 0, then we should
+   * rewrite LCP control file 1 and vice versa if we are to delete LCP
+   * control file 1.
+   */
+  Uint32 tableId = deleteLcpFilePtr.p->tableId;
+  Uint32 fragmentId = deleteLcpFilePtr.p->fragmentId;
+  Uint32 lcpNo = (deleteLcpFilePtr.p->lcpCtlFileNumber == 0) ? 1 : 0;
+
+  FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
+  FsOpenReq::v5_setTableId(req->fileNumber, tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, fragmentId);
+
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
+}
+
+void
+Backup::lcp_open_ctl_file_for_rewrite_done(Signal *signal,
+                                           BackupFilePtr filePtr)
+{
+  lcp_read_ctl_file_for_rewrite(signal, filePtr);
+}
+
+void
+Backup::lcp_read_ctl_file_for_rewrite(Signal *signal,
+                                      BackupFilePtr filePtr)
+{
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  Page32Ptr pagePtr;
+
+  filePtr.p->pages.getPtr(pagePtr, 0);
+  ndbrequire(filePtr.p->m_flags == BackupFile::BF_OPEN);
+  filePtr.p->m_flags |= BackupFile::BF_READING;
+
+  req->userPointer = filePtr.i;
+  req->filePointer = filePtr.p->filePointer;
+  req->userReference = reference();
+  req->varIndex = 0;
+  req->numberOfPages = 1;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatMemAddress);
+  FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
+
+  Uint32 mem_offset = Uint32(((char*)pagePtr.p) - ((char*)c_startOfPages));
+  req->data.memoryAddress.memoryOffset = mem_offset;
+  req->data.memoryAddress.fileOffset = 0;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+             FsReadWriteReq::FixedLength + 3, JBA);
+}
+
+void
+Backup::lcp_read_ctl_file_for_rewrite_done(Signal *signal,
+                                           BackupFilePtr filePtr)
+{
+  Page32Ptr pagePtr;
+
+  filePtr.p->pages.getPtr(pagePtr, 0);
+  struct BackupFormat::LCPCtlFile *lcpCtlFilePtr =
+    (struct BackupFormat::LCPCtlFile*)pagePtr.p;
+  ndbrequire(convert_ctl_page_to_host(lcpCtlFilePtr));
+  lcpCtlFilePtr->ValidFlag = 1;
+  lcp_update_ctl_file_for_rewrite(signal, filePtr, pagePtr);
+}
+
+void
+Backup::lcp_update_ctl_file_for_rewrite(Signal *signal,
+                                        BackupFilePtr filePtr,
+                                        Page32Ptr pagePtr)
+{
+  ndbrequire(filePtr.p->m_flags == BackupFile::BF_OPEN);
+  lcp_write_ctl_file_to_disk(signal, filePtr, pagePtr);
+}
+
+void
+Backup::lcp_update_ctl_file_for_rewrite_done(Signal *signal,
+                                             BackupRecordPtr ptr,
+                                             BackupFilePtr filePtr)
+{
+  lcp_close_ctl_file_for_rewrite(signal, ptr, filePtr);
+}
+
+void
+Backup::lcp_close_ctl_file_for_rewrite(Signal *signal,
+                                       BackupRecordPtr ptr,
+                                       BackupFilePtr filePtr)
+{
+  ndbrequire(ptr.p->errorCode == 0);
+  closeFile(signal, ptr, filePtr, false, false);
+#ifdef DEBUG_LCP
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+  DEB_LCP(("(%u)Completed writing with ValidFlag = 1 for tab(%u,%u).%u",
+           instance(),
+           deleteLcpFilePtr.p->tableId,
+           deleteLcpFilePtr.p->fragmentId,
+           c_lqh->getCreateSchemaVersion(deleteLcpFilePtr.p->tableId)));
+#endif
+}
+
+void
+Backup::lcp_close_ctl_file_for_rewrite_done(Signal *signal,
+                                            BackupRecordPtr ptr,
+                                            BackupFilePtr filePtr)
+{
+  ndbrequire(filePtr.p->m_flags == 0);
+  ndbrequire(ptr.p->errorCode == 0);
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+
+  if (deleteLcpFilePtr.p->firstFileId != RNIL)
+  {
+    jam();
+    ptr.p->m_delete_data_file_ongoing = true;
+    lcp_remove_file(signal, ptr, deleteLcpFilePtr);
+  }
+  else if (deleteLcpFilePtr.p->lcpCtlFileNumber != RNIL)
+  {
+    jam();
+    ptr.p->m_delete_data_file_ongoing = false;
+    lcp_remove_file(signal, ptr, deleteLcpFilePtr);
+  }
+  else
+  {
+    jam();
+    finished_removing_files(signal, ptr);
+  }
+}
+
+void
+Backup::lcp_remove_file(Signal* signal,
+                        BackupRecordPtr ptr,
+                        DeleteLcpFilePtr deleteLcpFilePtr)
+{
+  BackupFilePtr filePtr;
+  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  FsRemoveReq * req = (FsRemoveReq *)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = ptr.i;
+  req->directory = 0;
+  req->ownDirectory = 0;
+
+  filePtr.p->m_flags |= BackupFile::BF_REMOVING;
+
+  FsOpenReq::setVersion(req->fileNumber, 5);
+  if (ptr.p->m_delete_data_file_ongoing)
+  {
+    jam();
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+    FsOpenReq::v5_setLcpNo(req->fileNumber, deleteLcpFilePtr.p->firstFileId);
+    DEB_LCP(("(%u)TAGD Remove data file: %u for tab(%u,%u)",
+             instance(),
+             deleteLcpFilePtr.p->firstFileId,
+             deleteLcpFilePtr.p->tableId,
+             deleteLcpFilePtr.p->fragmentId));
+  }
+  else
+  {
+    jam();
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL);
+    FsOpenReq::v5_setLcpNo(req->fileNumber,
+                           deleteLcpFilePtr.p->lcpCtlFileNumber);
+    DEB_LCP(("(%u)TAGD Remove control file: %u for tab(%u,%u)",
+             instance(),
+             deleteLcpFilePtr.p->lcpCtlFileNumber,
+             deleteLcpFilePtr.p->tableId,
+             deleteLcpFilePtr.p->fragmentId));
+  }
+  FsOpenReq::v5_setTableId(req->fileNumber, deleteLcpFilePtr.p->tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, deleteLcpFilePtr.p->fragmentId);
+  sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, FsOpenReq::SignalLength, JBA);
+}
+
+void
+Backup::lcp_remove_file_conf(Signal *signal, BackupRecordPtr ptr)
+{
+  BackupFilePtr filePtr;
+
+  c_backupFilePool.getPtr(filePtr, ptr.p->deleteFilePtr);
+  filePtr.p->m_flags &= (~(BackupFile::BF_REMOVING));
+  ndbrequire(filePtr.p->m_flags == 0);
+
+  if (ptr.p->m_delete_data_file_ongoing)
+  {
+    jam();
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    if (deleteLcpFilePtr.p->firstFileId == deleteLcpFilePtr.p->lastFileId)
+    {
+      jam();
+      /**
+       * We're done with deleting the data files belonging to this LCP which
+       * we no longer need. We continue with deletion of the control LCP
+       * file for this LCP.
+       */
+      ptr.p->m_delete_data_file_ongoing = false;
+      lcp_remove_file(signal, ptr, deleteLcpFilePtr);
+      return;
+    }
+    /* Continue with deleting the next data file. */
+    deleteLcpFilePtr.p->firstFileId++;
+    deleteLcpFilePtr.p->firstFileId %= BackupFormat::NDB_MAX_LCP_FILES;
+    lcp_remove_file(signal, ptr, deleteLcpFilePtr);
+  }
+  else
+  {
+    /**
+     * We are done deleting files for this fragment LCP, send CONTINUEB
+     * to see if more fragment LCPs are ready to be deleted.
+     *
+     * We remove it from queue here to ensure that the next LCP can now
+     * start up again.
+     * It is important to not remove it from queue until we actually deleted
+     * all the files, the logic depends on that only one LCP is allowed to
+     * execute at a time and that this LCP will remove all the files
+     * of the old LCP before the next one is allowed to start.
+     */
+    jam();
+    finished_removing_files(signal, ptr);
+  }
+}
+
+void
+Backup::finished_removing_files(Signal *signal,
+                                BackupRecordPtr ptr)
+{
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  jam();
+  {
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    queue.remove(deleteLcpFilePtr);
+    c_deleteLcpFilePool.release(deleteLcpFilePtr);
+    ptr.p->currentDeleteLcpFile = RNIL;
+  }
+  if (ptr.p->m_informDropTabTableId != Uint32(~0))
+  {
+    jam();
+    sendINFORM_BACKUP_DROP_TAB_CONF(signal, ptr);
+  }
+  else
+  {
+    jam();
+    check_wait_end_lcp(signal, ptr);
+  }
+  {
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    if (!queue.isEmpty())
+    {
+      jam();
+      signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
+      signal->theData[1] = ptr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    }
+    else
+    {
+      jam();
+      delete_lcp_file_processing(signal, ptr.i);
+    }
+  }
+}
+
+void
+Backup::execINFORM_BACKUP_DROP_TAB_REQ(Signal *signal)
+{
+  BackupRecordPtr ptr;
+  ndbrequire(c_backups.first(ptr));
+  ptr.p->m_informDropTabTableId = signal->theData[0];
+  ptr.p->m_informDropTabReference = signal->theData[1];
+  if (ptr.p->currentDeleteLcpFile != RNIL)
+  {
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    jam();
+    c_deleteLcpFilePool.getPtr(deleteLcpFilePtr, ptr.p->currentDeleteLcpFile);
+    if (deleteLcpFilePtr.p->tableId == ptr.p->m_informDropTabTableId)
+    {
+      jam();
+      /**
+       * The current delete record is deleting files and writing files
+       * from the dropped table. Wait until this is completed before
+       * we continue.
+       */
+      return;
+    }
+  }
+  sendINFORM_BACKUP_DROP_TAB_CONF(signal, ptr);
+}
+
+void
+Backup::check_wait_end_lcp(Signal *signal, BackupRecordPtr ptr)
+{
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (queue.isEmpty() && ptr.p->m_wait_end_lcp)
+  {
+    jam();
+    ndbrequire(ptr.p->prepareState != PREPARE_DROP);
+    ptr.p->m_wait_end_lcp = false;
+    sendEND_LCPCONF(signal, ptr);
+  }
+}
+
+void
+Backup::sendINFORM_BACKUP_DROP_TAB_CONF(Signal *signal,
+                                        BackupRecordPtr ptr)
+{
+  /**
+   * Before we send the confirm we have to remove all entries from
+   * drop delete queue that refer to the dropped table. We have already
+   * ensured that the dropped table isn't currently involved in drops.
+   * It would create complex code if we could remove the LCP files
+   * while we were writing them.
+   */
+
+  DEB_LCP(("(%u)Remove all delete file requests for table %u",
+           instance(),
+           ptr.p->m_informDropTabTableId));
+  {
+    DeleteLcpFilePtr deleteLcpFilePtr;
+    DeleteLcpFilePtr nextDeleteLcpFilePtr;
+    LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                  m_delete_lcp_file_head);
+    bool is_next_available = queue.first(deleteLcpFilePtr);
+    while (is_next_available)
+    {
+      nextDeleteLcpFilePtr = deleteLcpFilePtr;
+      is_next_available = queue.next(nextDeleteLcpFilePtr);
+      if (deleteLcpFilePtr.p->tableId == ptr.p->m_informDropTabTableId)
+      {
+        jam();
+        /**
+         * We found an entry that is from the dropped table, we can
+         * ignore this since the table will be dropped and all
+         * LCP files with it.
+         */
+        queue.remove(deleteLcpFilePtr);
+        c_deleteLcpFilePool.release(deleteLcpFilePtr);
+      }
+      deleteLcpFilePtr = nextDeleteLcpFilePtr;
+    }
+  }
+  check_wait_end_lcp(signal, ptr);
+
+  /**
+   * Now we have removed all entries from queue and we are ready to inform
+   * LQH that he can continue dropping the table.
+   * At this point LQH have already ensured that no more LCPs are started
+   * on this table.
+   */
+  BlockReference ref = ptr.p->m_informDropTabReference;
+  Uint32 tableId = ptr.p->m_informDropTabTableId;
+  signal->theData[0] = tableId;
+  sendSignal(ref, GSN_INFORM_BACKUP_DROP_TAB_CONF, signal, 1, JBB);
+  ptr.p->m_informDropTabReference = Uint32(~0);
+  ptr.p->m_informDropTabTableId = Uint32(~0);
+}
+
+void
+Backup::openFilesReplyLCP(Signal* signal, 
+		          BackupRecordPtr ptr,
+                          BackupFilePtr filePtr)
+{
+  /**
+   * Did open succeed
+   */
+  if(ptr.p->checkError()) 
+  {
+    jam();
+    if(ptr.p->errorCode == FsRef::fsErrFileExists)
+    {
+      jam();
+      ptr.p->errorCode = DefineBackupRef::FailedForBackupFilesAleadyExist;
+    }
+    if (ptr.p->dataFilePtr == filePtr.i)
+    {
+      jam();
+      /* Currently we can't handle failures to open data file */
+      g_eventLogger->critical("Fatal: Open file of LCP data file failed,"
+                              " errCode: %u",
+                              ptr.p->errorCode);
+      ndbrequire(false);
+      return;
+    }
+    if (ptr.p->deleteFilePtr == filePtr.i)
+    {
+      jam();
+      g_eventLogger->critical("Fatal: Reopen LCP control file failed,"
+                              " errCode: %u",
+                              ptr.p->errorCode);
+      ndbrequire(false);
+      return;
+    }
+    defineBackupRef(signal, ptr);
+    return;
+  }//if
+
+  if (ptr.p->deleteFilePtr == filePtr.i)
+  {
+    jam();
+    lcp_open_ctl_file_for_rewrite_done(signal, filePtr);
+    return;
+  }
+  if (filePtr.p->m_flags & BackupFile::BF_HEADER_FILE)
+  {
+    jam();
+    filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_HEADER_FILE;
+    ndbrequire(filePtr.i == ptr.p->prepareCtlFilePtr[0] ||
+               filePtr.i == ptr.p->prepareCtlFilePtr[1]);
+    lcp_open_ctl_file_done(signal, ptr, filePtr);
+    return;
+  }
+  ndbrequire(filePtr.i == ptr.p->prepareDataFilePtr ||
+             filePtr.i == ptr.p->dataFilePtr);
+
+  if (!insertFileHeader(BackupFormat::LCP_FILE, ptr.p, filePtr.p))
+  {
+    jam();
+    ndbrequire(false);
+    defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertFileHeader);
+    return;
+  }//if
+  filePtr.p->m_flags |= BackupFile::BF_LCP_META;
+  
+  /**
+   * Insert table list in ctl file
+   */
+  FsBuffer & buf = filePtr.p->operation.dataBuffer;
+  
+  const Uint32 sz = (sizeof(BackupFormat::CtlFile::TableList) >> 2);
+  
+  Uint32 * dst;
+  ndbrequire(sz < buf.getMaxWrite());
+  if (!buf.getWritePtr(&dst, sz))
+  {
+    jam();
+    ndbrequire(false);
+    defineBackupRef(signal, ptr, DefineBackupRef::FailedInsertTableList);
+    return;
+  }//if
+  
+  TablePtr tabPtr;
+  BackupFormat::CtlFile::TableList* tl = 
+    (BackupFormat::CtlFile::TableList*)dst;
+
+  tl->SectionType   = htonl(BackupFormat::TABLE_LIST);
+  tl->SectionLength = htonl(sz);
+
+  if (filePtr.i == ptr.p->prepareDataFilePtr)
+  {
+    jam();
+    ndbrequire(ptr.p->prepareState == PREPARE_OPEN_DATA_FILE);
+    ptr.p->prepareState = PREPARE_READ_TABLE_DESC;
+    ptr.p->prepare_table.first(tabPtr);
+  }
+  else
+  {
+    jam();
+    ptr.p->tables.first(tabPtr);
+  }
+  tl->TableIds[0] = htonl(tabPtr.p->tableId);
+
+  buf.updateWritePtr(sz);
+  
+  /**
+   * Start getting table definition data
+   */
+  signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
+  signal->theData[1] = ptr.i;
+  signal->theData[2] = tabPtr.i;
+  signal->theData[3] = filePtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+  return;
 }
 
 void
 Backup::execEND_LCPREQ(Signal* signal)
 {
-  EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
-
   BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, req->backupPtr);
-  /**
-   * At least one table should exist here, it isn't possible
-   * to drop the system table, so this should always be part
-   * of an LCP. Thus we can be safe that the backupId should
-   * be set (it is set when a LCP is started on a fragment.
-   */
-  ndbrequire(ptr.p->backupId == req->backupId);
+  {
+    EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
+    c_backupPool.getPtr(ptr, req->backupPtr);
+    ptr.p->senderData = req->senderData;
+  }
+  jamEntry();
 
   BackupFilePtr filePtr;
+  ptr.p->files.getPtr(filePtr, ptr.p->prepareCtlFilePtr[0]);
+  ndbrequire(filePtr.p->m_flags == 0);
+  ptr.p->files.getPtr(filePtr, ptr.p->prepareCtlFilePtr[1]);
+  ndbrequire(filePtr.p->m_flags == 0);
+  ptr.p->files.getPtr(filePtr, ptr.p->prepareDataFilePtr);
+  ndbrequire(filePtr.p->m_flags == 0);
   ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
   ndbrequire(filePtr.p->m_flags == 0);
-
-  if (!ptr.p->tables.isEmpty())
-  {
-    jam();
-    ndbrequire(ptr.p->errorCode);
-    release_tables(ptr);
-    ptr.p->errorCode = 0;
-  }
+  ptr.p->files.getPtr(filePtr, ptr.p->dataFilePtr);
+  ndbrequire(filePtr.p->m_flags == 0);
 
   ptr.p->errorCode = 0;
   ptr.p->slaveState.setState(CLEANING);
@@ -7893,11 +12962,126 @@ Backup::execEND_LCPREQ(Signal* signal)
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
 
-  EndLcpConf* conf= (EndLcpConf*)signal->getDataPtr();
-  conf->senderData = ptr.p->clientData;
+  DEB_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
+  /**
+   * As part of ending the LCP we need to ensure that the extent pages
+   * are synchronised. This is to ensure that the case with dropped
+   * tables after completing a fragment LCP is handled properly. These
+   * extent pages need to be synchronised at end of LCP since after the
+   * end of the LCP here we will inform TSMAN that it is free to start
+   * sharing those pages again and then we need to ensure that the
+   * free status is up-to-date in preparation for a potential restart.
+   */
+  {
+    SyncExtentPagesReq *req = (SyncExtentPagesReq*)signal->getDataPtrSend();
+    req->senderData = ptr.i;
+    req->senderRef = reference();
+    req->lcpOrder = SyncExtentPagesReq::END_LCP;
+    ptr.p->m_first_fragment = false;
+    sendSignal(PGMAN_REF, GSN_SYNC_EXTENT_PAGES_REQ, signal,
+               SyncExtentPagesReq::SignalLength, JBB);
+  }
+  return;
+}
+
+void
+Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
+{
+  DEB_LCP(("(%u)TAGE SYNC_EXTENT_PAGES_CONF: lcpId: %u",
+          instance(),
+          ptr.p->backupId));
+
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+  if (!queue.isEmpty())
+  {
+    jam();
+    ptr.p->m_wait_end_lcp = true;
+    return;
+  }
+  /**
+   * The delete LCP file queue is empty, this means that we are sure
+   * that all reported LCP_FRAG_REP's are actually completed. DIH
+   * will not think that any LCP_FRAG_REP is ok to use until we have
+   * received LCP_COMPLETE_REP and so we need to wait with sending
+   * this signal until we have emptied the queue and thus completed
+   * the full LCP.
+   */
+  sendEND_LCPCONF(signal, ptr);
+}
+
+void
+Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+{
+  DEB_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
+          instance(),
+          ptr.p->backupId));
+  ndbrequire(!ptr.p->m_wait_end_lcp);
+  ptr.p->backupId = 0; /* Ensure next LCP_PREPARE_REQ sees a new LCP id */
+  EndLcpConf* conf= (EndLcpConf*)signal->getDataPtrSend();
+  conf->senderData = ptr.p->senderData;
   conf->senderRef = reference();
   sendSignal(ptr.p->masterRef, GSN_END_LCPCONF,
 	     signal, EndLcpConf::SignalLength, JBA);
+}
+
+void
+Backup::lcp_close_ctl_file_drop_case(Signal *signal, BackupRecordPtr ptr)
+{
+  BackupFilePtr filePtr;
+  for (Uint32 i = 0; i < 2; i++)
+  {
+    c_backupFilePool.getPtr(filePtr, ptr.p->prepareCtlFilePtr[i]);
+    if ((filePtr.p->m_flags & BackupFile::BF_OPEN) != 0)
+    {
+      jam();
+      /* Still waiting for second file to close */
+      return;
+    }
+  }
+  /* Now time to start removing data files. */
+  DeleteLcpFilePtr deleteLcpFilePtr;
+  TablePtr tabPtr;
+  FragmentPtr fragPtr;
+  ndbrequire(c_deleteLcpFilePool.seize(deleteLcpFilePtr));
+  LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                m_delete_lcp_file_head);
+
+  /**
+   * We avoid all complexity for this code since it is an obscure case that
+   * should be extremely rare. So we simply delete all potential files.
+   */
+  ptr.p->prepare_table.first(tabPtr);
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  deleteLcpFilePtr.p->tableId = fragPtr.p->tableId;
+  deleteLcpFilePtr.p->fragmentId = fragPtr.p->fragmentId;
+  deleteLcpFilePtr.p->firstFileId = 0;
+  deleteLcpFilePtr.p->lastFileId = BackupFormat::NDB_MAX_LCP_FILES - 1;
+  deleteLcpFilePtr.p->waitCompletedGci = 0;
+  deleteLcpFilePtr.p->validFlag = 1;
+  deleteLcpFilePtr.p->lcpCtlFileNumber =
+    ptr.p->prepareNextLcpCtlFileNumber == 0 ? 1 : 0;
+  queue.addFirst(deleteLcpFilePtr);
+  if (!m_delete_lcp_files_ongoing)
+  {
+    jam();
+    m_delete_lcp_files_ongoing = true;
+    signal->theData[0] = BackupContinueB::ZDELETE_LCP_FILE;
+    signal->theData[1] = ptr.i;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  /**
+   * We have now closed the files and as soon as the queue of
+   * deleted files are empty we can proceed with starting of
+   * the LCP.
+   */
+  ptr.p->prepareState = PREPARE_DROP;
+  DEB_LCP(("(%u)TAGT Insert delete files in queue (drop case):"
+    " tab(%u,%u), createGci: %u, waitCompletedGCI: 0",
+    instance(),
+    fragPtr.p->tableId,
+    fragPtr.p->fragmentId,
+    fragPtr.p->createGci));
 }
 
 inline
@@ -7931,35 +13115,82 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       found_lcp = true;
       
       LcpStatusConf::LcpState state = LcpStatusConf::LCP_IDLE;
-      switch (ptr.p->slaveState.getState())
+      if (ptr.p->m_wait_end_lcp)
       {
-      case STARTED:
         jam();
-        state = LcpStatusConf::LCP_PREPARED;
-        break;
-      case SCANNING:
+        state = LcpStatusConf::LCP_WAIT_END_LCP;
+      }
+      else
+      {
         jam();
-        state = LcpStatusConf::LCP_SCANNING;
-        break;
-      case STOPPING:
-        jam();
-        state = LcpStatusConf::LCP_SCANNED;
-        break;
-      case DEFINED:
-        jam();
-        state = LcpStatusConf::LCP_IDLE;
-        break;
-      default:
-        jam();
-        ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
-                 ptr.p->slaveState.getState());
-        state = LcpStatusConf::LCP_IDLE;
-      };
+        switch (ptr.p->slaveState.getState())
+        {
+        case STARTED:
+          jam();
+          state = LcpStatusConf::LCP_PREPARED;
+          break;
+        case SCANNING:
+          jam();
+          state = LcpStatusConf::LCP_SCANNING;
+          break;
+        case STOPPING:
+          jam();
+          state = LcpStatusConf::LCP_SCANNED;
+          break;
+        case DEFINED:
+          jam();
+          if (ptr.p->prepareState == NOT_ACTIVE ||
+              ptr.p->prepareState == PREPARED)
+          {
+            jam();
+            state = LcpStatusConf::LCP_IDLE;
+          }
+          else if (ptr.p->prepareState == PREPARE_READ_CTL_FILES)
+          {
+            jam();
+            state = LcpStatusConf::LCP_PREPARE_READ_CTL_FILES;
+          }
+          else if (ptr.p->prepareState == PREPARE_OPEN_DATA_FILE)
+          {
+            jam();
+            state = LcpStatusConf::LCP_PREPARE_OPEN_DATA_FILE;
+          }
+          else if (ptr.p->prepareState == PREPARE_READ_TABLE_DESC)
+          {
+            jam();
+            state = LcpStatusConf::LCP_PREPARE_READ_TABLE_DESC;
+          }
+          else if (ptr.p->prepareState == PREPARE_ABORTING)
+          {
+            jam();
+            state = LcpStatusConf::LCP_PREPARE_ABORTING;
+          }
+          else if (ptr.p->prepareState == PREPARE_DROP ||
+                   ptr.p->prepareState == PREPARE_DROP_CLOSE)
+          {
+            jam();
+            state = LcpStatusConf::LCP_PREPARE_WAIT_DROP_CASE;
+          }
+          else
+          {
+            jam();
+            ndbout_c("Unusual LCP prepare state in LCP_STATUS_REQ() : %u",
+                     ptr.p->prepareState);
+            state = LcpStatusConf::LCP_IDLE;
+          }
+          break;
+        default:
+          jam();
+          ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
+                   ptr.p->slaveState.getState());
+          state = LcpStatusConf::LCP_IDLE;
+        };
+      }
         
       /* Not all values are set here */
       const Uint32 UnsetConst = ~0;
       
-      LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
+      LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtrSend();
       conf->senderRef = reference();
       conf->senderData = senderData;
       conf->lcpState = state;
@@ -8028,6 +13259,16 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
                    conf->completionStateLo);
         }
       }
+      else if (state == LcpStatusConf::LCP_WAIT_END_LCP)
+      {
+        jam();
+        DeleteLcpFilePtr deleteLcpFilePtr;
+        LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
+                                      m_delete_lcp_file_head);
+        ndbrequire(!queue.isEmpty());
+        conf->completionStateHi = 0;
+        conf->completionStateLo = m_newestRestorableGci;
+      }
       
       failCode = 0;
     }
@@ -8042,7 +13283,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   }
 
   jam();
-  LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
+  LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtrSend();
   
   ref->senderRef = reference();
   ref->senderData = senderData;

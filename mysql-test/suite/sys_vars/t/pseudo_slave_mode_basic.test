@@ -93,15 +93,15 @@ SET @@session.pseudo_slave_mode = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = TRÜE;
+SET @@session.pseudo_slave_mode = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = ÕN;
+SET @@session.pseudo_slave_mode = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.pseudo_slave_mode = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = ÓFF;
+SET @@session.pseudo_slave_mode = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.pseudo_slave_mode = '¹';
+SET @@session.pseudo_slave_mode = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.pseudo_slave_mode = NO;
 

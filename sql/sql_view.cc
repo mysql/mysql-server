@@ -58,7 +58,6 @@
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sql_admin.h"
 #include "sql_base.h"       // get_table_def_key
-#include "sql_cache.h"      // query_cache
 #include "sql_class.h"      // THD
 #include "sql_const.h"
 #include "sql_digest_stream.h"
@@ -800,9 +799,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
        trans_commit_stmt(thd) || trans_commit(thd);
   if (res)
     goto err_with_rollback;
-
-  if (mode != enum_view_create_mode::VIEW_CREATE_NEW)
-    query_cache.invalidate(thd, view, false);
 
   my_ok(thd);
   lex->link_first_table_back(view, link_to_local);
@@ -1666,12 +1662,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if (view_ref->prelocking_placeholder)
     DBUG_RETURN(false);
 
-  // Move SQL_NO_CACHE & Co to whole query
+  // Move nondeterminism information to whole query.
   old_lex->safe_to_cache_query&= view_lex->safe_to_cache_query;
-
-  // Move SQL_CACHE to whole query
-  if (view_select->active_options() & OPTION_TO_QUERY_CACHE)
-    old_lex->select_lex->add_base_options(OPTION_TO_QUERY_CACHE);
 
   old_lex->subqueries= true;
 
@@ -1913,8 +1905,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
 
     thd->add_to_binlog_accessed_dbs(view->db);
     some_views_deleted= true;
-
-    query_cache.invalidate(thd, view, false);
   }
 
   if (some_views_deleted)

@@ -3,7 +3,6 @@
 # This WL can be tested by checking if session state which is sent
 # as part of OK packet is displayed as part of SELECT sql statement.
 #
-SET @save_query_cache_size=@@query_cache_size;
 CREATE DATABASE wl7766;
 USE wl7766;
 CREATE TABLE t1 (a int);
@@ -371,65 +370,6 @@ CREATE PROCEDURE sel_with_no_session()
 BEGIN
 SELECT * FROM t1 ORDER BY 1;
 END |
-SET GLOBAL query_cache_size=1048576;
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_session();
-a
-1
-2
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-#expect 0 since query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_no_session();
-a
-1
-2
-#expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_no_session();
-a
-1
-2
-RESET QUERY CACHE;
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	0
-CALL sel_with_no_session();
-a
-1
-2
-#expect 1 query is cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_no_session();
-a
-1
-2
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-CALL sel_with_session();
-a
-1
-2
--- Tracker : SESSION_TRACK_STATE_CHANGE
--- 1
-
-#expect 1 as query is not cached
-SHOW STATUS LIKE 'Qcache_queries_in_cache';
-Variable_name	Value
-Qcache_queries_in_cache	1
-SET GLOBAL query_cache_size= @save_query_cache_size;
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SCHEMA

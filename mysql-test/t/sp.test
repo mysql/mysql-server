@@ -3545,30 +3545,6 @@ drop procedure bug9598_2|
 
 
 #
-# BUG#9902: Crash with simple stored function using user defined variables
-#
---disable_warnings ONCE
-drop procedure if exists bug9902|
-create function bug9902() returns int(11)
-begin
-  set @x = @x + 1;
-  return @x;
-end|
-
-set @qcs1 = @@query_cache_size|
-set global query_cache_size = 102400|
-set @x = 1|
-insert into t1 values ("qc", 42)|
-select bug9902() from t1|
-select bug9902() from t1|
-select @x|
-
-set global query_cache_size = @qcs1|
-delete from t1|
-drop function bug9902|
-
-
-#
 # BUG#9102: Stored proccedures: function which returns blob causes crash
 #
 --disable_warnings ONCE
@@ -9228,52 +9204,6 @@ show warnings|
 drop procedure bug4902_2|
 
 #
-# Bug#3583 query cache doesn't work for stored procedures
-#
---disable_warnings
-drop table if exists t1|
---enable_warnings
-create table t1 (
-    id   char(16) not null default '',
-    data int not null
-)|
---disable_warnings
-drop procedure if exists bug3583|
---enable_warnings
---disable_warnings
-drop procedure if exists bug3583|
---enable_warnings
-create procedure bug3583()
-begin
-  declare c int;
-
-  select * from t1;
-  select count(*) into c from t1;
-  select c;
-end|
-
-insert into t1 values ("x", 3), ("y", 5)|
-set @x = @@query_cache_size|
-set global query_cache_size = 10*1024*1024|
-
-flush status|
-flush query cache|
-show status like 'Qcache_hits'|
-call bug3583()|
-show status like 'Qcache_hits'|
-call bug3583()|
-call bug3583()|
-show status like 'Qcache_hits'|
-
-set global query_cache_size = @x|
-flush status|
-flush query cache|
-delete from t1|
-drop procedure bug3583|
-drop table t1|
-
-
-#
 # Bug#6807 Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
 #
 --disable_warnings
@@ -9688,7 +9618,9 @@ CREATE TABLE t3 (a INT);
 
 INSERT INTO t1 VALUES (1, 2);
 
-SET GLOBAL EVENT_SCHEDULER = ON;
+# Make Sure Event scheduler is ON (by default)
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE user = 'event_scheduler' AND command = 'Daemon';
 
 SELECT GET_LOCK('e1_lock', 60);
 
@@ -9726,8 +9658,6 @@ let $wait_condition = SELECT COUNT(*) > 0 FROM t3;
 
 DROP EVENT e1;
 DROP TABLE t1, t2, t3;
-
-SET GLOBAL EVENT_SCHEDULER = OFF;
 
 
 #

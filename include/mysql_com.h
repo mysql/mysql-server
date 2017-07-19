@@ -182,10 +182,6 @@
 */
 #define REFRESH_FAST		32768
 
-/** RESET (remove all queries) from query cache */
-#define REFRESH_QUERY_CACHE	65536
-#define REFRESH_QUERY_CACHE_FREE 0x20000L /**< pack query cache */
-#define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /** FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /** FLUSH OPTIMIZER_COSTS */
@@ -806,13 +802,6 @@ typedef struct st_net {
   unsigned char reading_or_writing;
   char save_char;
   bool compress;
-  /**
-    Pointer to query object in query cache, do not equal NULL (0) for
-    queries in cache that have not stored its results yet
-
-    Unused, please remove with the next incompatible ABI change.
-  */
-  unsigned char *unused;
   unsigned int last_errno;
   unsigned char error;
   /** Client library error message buffer. Actually belongs to struct MYSQL. */

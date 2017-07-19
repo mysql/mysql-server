@@ -3057,10 +3057,6 @@ private:
   Lock_descriptor m_lock_descriptor;
 public:
   GRANT_INFO	grant;
-  /* data need by some engines in query cache*/
-  ulonglong     engine_data;
-  /* call back function for asking handler about caching in query cache */
-  qc_engine_callback callback_func;
 public:
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */

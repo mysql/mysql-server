@@ -102,7 +102,6 @@
 #include "my_psi_config.h"
 #include "myrg_def.h"
 #include "mysqld.h"
-#include "sql_cache.h"                          // query_cache_*
 #include "sql_class.h"                          // THD
 #include "sql_show.h"                           // append_identifier
 #include "sql_table.h"                         // build_table_filename
@@ -810,7 +809,6 @@ int ha_myisammrg::attach_children(void)
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
-  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK,0);

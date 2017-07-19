@@ -28,6 +28,10 @@
 #include "pfs_thread_provider.h"
 #include "pfs_server.h"
 
+extern "C" int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+                                                ulonglong thread_id,
+                                                PSI_thread_attrs *thread_attrs);
+
 /**
   Bitmap identifiers for PSI_notification callbacks.
   @sa PSI_notification
@@ -350,7 +354,7 @@ pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(
+  if (pfs_get_thread_system_attrs_by_id_v1(
         thread, 0, &thread_attrs) != 0)
     return;
 
@@ -378,7 +382,7 @@ pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(
+  if (pfs_get_thread_system_attrs_by_id_v1(
         thread, 0, &thread_attrs) != 0)
     return;
 
@@ -405,7 +409,7 @@ pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(
+  if (pfs_get_thread_system_attrs_by_id_v1(
         thread, 0, &thread_attrs) != 0)
     return;
 
@@ -432,7 +436,7 @@ pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(
+  if (pfs_get_thread_system_attrs_by_id_v1(
         thread, 0, &thread_attrs) != 0)
     return;
 
@@ -459,7 +463,7 @@ pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused)))
 
   PSI_thread_attrs thread_attrs;
 
-  if (PSI_THREAD_CALL(get_thread_system_attrs_by_id)(
+  if (pfs_get_thread_system_attrs_by_id_v1(
         thread, 0, &thread_attrs) != 0)
     return;
 

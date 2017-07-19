@@ -256,19 +256,6 @@ namespace AQP
     const QEP_TAB* const qep_tab= get_qep_tab();
     JOIN* const join= qep_tab->join();
 
-    /**
-     * OLEJA: I think this restriction can be removed
-     * now as WL5558 and other changes has cleaned up the 
-     * ORDER/GROUP BY optimize + execute path.
-     */
-    if (join->group_list && !join->tmp_table_param.quick_group)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "GROUP BY cannot be done using index on grouped columns.";
-      DBUG_VOID_RETURN;
-    }
-
     /* Tables below 'const_tables' has been const'ified, or entirely
      * optimized away due to 'impossible WHERE/ON'
      */

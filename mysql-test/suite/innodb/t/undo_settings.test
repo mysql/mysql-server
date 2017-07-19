@@ -125,6 +125,7 @@ INSERT INTO t2(b) VALUES (repeat('e',15));
 INSERT INTO t3(b) VALUES (repeat('e',15));
 connection default;
 disconnect con1;
+disconnect con2;
 
 --echo #
 --echo # Shutdown mysqld cleanly.

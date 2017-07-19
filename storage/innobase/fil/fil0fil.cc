@@ -7774,6 +7774,7 @@ Fil_Open::write(
 
 	os_offset_t	offset = 0;
 	ulint		len = 0;
+	dberr_t		err;
 
 	/* Simulate a crash before having written anything
 	to disk at all. */
@@ -7787,12 +7788,12 @@ Fil_Open::write(
 		"ib_tablespace_open_write_corrupt_0",
 		char buf[]="0123456789AB";
 		len = strlen(buf);
-		os_file_write(request, path, file, buf, offset, len);
+		err = os_file_write(request, path, file, buf, offset, len);
 		offset += len;
 
 		char buf1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 		len = strlen(buf1);
-		os_file_write(request, path, file, buf1, offset, len);
+		err = os_file_write(request, path, file, buf1, offset, len);
 		offset += len;
 
 		os_file_flush(file);
@@ -7804,14 +7805,14 @@ Fil_Open::write(
 	DBUG_EXECUTE_IF(
 		"ib_tablespace_open_write_corrupt_1",
 		len = sizeof(header) - 1;
-		os_file_write(request, path, file, header, offset, len);
+		err = os_file_write(request, path, file, header, offset, len);
 		offset += len;
 
 		os_file_flush(file);
 		DBUG_SUICIDE(););
 
 	len = sizeof(header);
-	dberr_t	err = os_file_write(request, path, file, header, offset, len);
+	err = os_file_write(request, path, file, header, offset, len);
 	if (err != DB_SUCCESS) {
 		/* print msg to stderr */
 		os_file_get_last_error(true);
@@ -7826,7 +7827,7 @@ Fil_Open::write(
 	DBUG_EXECUTE_IF(
 		"ib_tablespace_open_write_corrupt_2",
 		len = compressed_len - 1;
-		os_file_write(request, path, file, data, offset , len);
+		err = os_file_write(request, path, file, data, offset , len);
 		os_file_flush(file);
 		DBUG_SUICIDE(););
 

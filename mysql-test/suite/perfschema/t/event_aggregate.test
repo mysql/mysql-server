@@ -1,8 +1,5 @@
 # Tests for the performance schema
-#
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
--- source include/have_QC_Disabled.inc
+
 --source ../include/event_aggregate_setup.inc
 --source ../include/event_aggregate_load.inc
 --source ../include/event_aggregate_cleanup.inc

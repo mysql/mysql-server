@@ -17,10 +17,10 @@
  * 02110-1301  USA
  */
 
+#include "ngs/memory.h"
 #include "callback_command_delegate.h"
 
 #include <stddef.h>
-
 #include "xpl_log.h"
 
 namespace xpl {

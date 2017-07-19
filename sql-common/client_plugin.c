@@ -60,9 +60,9 @@
 PSI_memory_key key_memory_root;
 PSI_memory_key key_memory_load_env_plugins;
 
-#ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_mutex_LOCK_load_client_plugin;
 
+#ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_info all_client_plugin_mutexes[]=
 {
   {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL, 0}

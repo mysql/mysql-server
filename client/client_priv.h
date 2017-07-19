@@ -50,7 +50,7 @@ enum options_client
   OPT_DELETE_MASTER_LOGS, OPT_COMPACT,
   OPT_PROMPT, OPT_IGN_LINES, OPT_TRANSACTION, OPT_MYSQL_PROTOCOL,
   OPT_SHARED_MEMORY_BASE_NAME, OPT_FRM, OPT_SKIP_OPTIMIZATION,
-  OPT_COMPATIBLE, OPT_RECONNECT, OPT_DELIMITER, OPT_SECURE_AUTH,
+  OPT_COMPATIBLE, OPT_RECONNECT, OPT_DELIMITER,
   OPT_OPEN_FILES_LIMIT, OPT_SET_CHARSET, OPT_SET_GTID_PURGED,
   OPT_STOP_POSITION, OPT_START_DATETIME, OPT_STOP_DATETIME,
   OPT_SIGINT_IGNORE, OPT_HEXBLOB, OPT_ORDER_BY_PRIMARY, OPT_COUNT,
@@ -144,13 +144,16 @@ enum options_client
 /**
   Client deprecation warnings
 */
+#define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt) \
+  opt " is deprecated and will be removed in a future version\n"
+
+#define CLIENT_WARN_DEPRECATED_MSG(opt, new_opt) \
+  opt " is deprecated and will be removed in a future version. " \
+  "Use " new_opt " instead.\n"
+
 #define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT(opt) \
-  printf("WARNING: " opt \
-         " is deprecated and will be removed in a future version\n")
+  printf("WARNING: " CLIENT_WARN_DEPRECATED_NO_REPLACEMENT_MSG(opt))
 
 #define CLIENT_WARN_DEPRECATED(opt, new_opt) \
-  printf("WARNING: " opt \
-         " is deprecated and will be removed in a future version. " \
-         "Use " new_opt " instead.\n")
-
+  printf("WARNING: " CLIENT_WARN_DEPRECATED_MSG(opt,new_opt))
 #endif

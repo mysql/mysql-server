@@ -714,19 +714,6 @@ unsigned long thd_get_thread_id(const MYSQL_THD thd);
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid);
 
 /**
-  Invalidate the query cache for a given table.
-
-  @param thd         user thread connection handle
-  @param key         databasename/tablename in the canonical format.
-  @param key_length  length of key in bytes, including the PATH separator
-  @param using_trx   flag: TRUE if using transactions, FALSE otherwise
-*/
-void mysql_query_cache_invalidate4(MYSQL_THD thd,
-                                   const char *key, unsigned int key_length,
-                                   int using_trx);
-
-
-/**
   Provide a handler data getter to simplify coding
 */
 void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);

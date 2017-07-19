@@ -25,7 +25,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "ngs_common/connection_type.h"
 #include "ngs/interface/sql_session_interface.h"
-#include "ngs/protocol_encoder.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "streaming_command_delegate.h"
 
 // Use an internal MySQL server user
@@ -49,7 +49,7 @@ class Account_verification_handler;
 
 class Sql_data_context : public ngs::Sql_session_interface {
  public:
-  Sql_data_context(ngs::Protocol_encoder *proto,
+  Sql_data_context(ngs::Protocol_encoder_interface *proto,
                    const bool query_without_authentication = false)
       : m_proto(proto),
         m_mysql_session(NULL),
@@ -121,7 +121,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
   std::string m_address;
   std::string m_db;
 
-  ngs::Protocol_encoder *m_proto;
+  ngs::Protocol_encoder_interface *m_proto;
   MYSQL_SESSION m_mysql_session;
 
   int m_last_sql_errno;

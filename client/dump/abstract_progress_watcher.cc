@@ -87,7 +87,7 @@ void Abstract_progress_watcher::object_processing_ended(
   Table_rows_dump_task* processed_table_task=
     dynamic_cast<Table_rows_dump_task*>(
     finished_process_data->get_process_task_object());
-  if (processed_table_task != NULL && processed_table_task->is_completed()
+  if (processed_table_task != NULL
     && finished_process_data->had_chain_created())
   {
     m_progress.m_table_count++;

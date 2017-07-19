@@ -33,6 +33,77 @@
 #include <BlockNumbers.h>
 #include <NdbConfig.hpp>
 
+static int
+changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
+{
+  int result = NDBT_FAILED;
+  Config conf;
+  NdbRestarter restarter;
+  Uint32 startPartitionedTimeout = ctx->getProperty("STARTPARTITIONTIMEOUT",
+                                                   (Uint32)60000);
+  Uint32 defaultValue = Uint32(~0);
+
+  do
+  {
+    NdbMgmd mgmd;
+    if (!mgmd.connect())
+    {
+      g_err << "Failed to connect to ndb_mgmd." << endl;
+      break;
+    }
+    if (!mgmd.get_config(conf))
+    {
+      g_err << "Failed to get config from ndb_mgmd." << endl;
+      break;
+    }
+    g_err << "Setting StartPartitionedTimeout to " << startPartitionedTimeout
+          << endl;
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+        continue;
+      Uint32 oldValue = 0;
+      if (iter.get(CFG_DB_START_PARTITION_TIMEOUT, oldValue))
+      {
+        if (defaultValue == Uint32(~0))
+        {
+          defaultValue = oldValue;
+        }
+        else if (oldValue != defaultValue)
+        {
+          g_err << "StartPartitionedTimeout is not consistent across nodes" << endl;
+          break;
+        }
+      }
+      iter.set(CFG_DB_START_PARTITION_TIMEOUT, startPartitionedTimeout);
+      iter.closeSection();
+    }
+    /* Save old config value */
+    ctx->setProperty("STARTPARTITIONTIMEOUT", Uint32(defaultValue));
+
+    if (!mgmd.set_config(conf))
+    {
+      g_err << "Failed to set config in ndb_mgmd." << endl;
+      break;
+    }
+    g_err << "Restarting nodes to apply config change" << endl;
+    if (restarter.restartAll())
+    {
+      g_err << "Failed to restart nodes." << endl;
+      break;
+    }
+    if (restarter.waitClusterStarted(120) != 0)
+    {
+      g_err << "Failed waiting for nodes to start." << endl;
+      break;
+    }
+    g_err << "Nodes restarted with StartPartitionedTimeout = "
+          << startPartitionedTimeout << endl;
+    result = NDBT_OK;
+  } while (0);
+  return result;
+}
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -41,6 +112,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -50,6 +122,7 @@ int runFillTable(NDBT_Context* ctx, NDBT_Step* step){
   if (hugoTrans.fillTable(GETNDB(step)) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << hugoTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -75,6 +148,7 @@ int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
   if (utilTrans.clearTable(GETNDB(step),  records) != 0){
     return NDBT_FAILED;
   }
+  g_err << "Latest GCI = " << utilTrans.get_high_latest_gci() << endl;
   return NDBT_OK;
 }
 
@@ -566,12 +640,15 @@ int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int parallelism = ctx->getProperty("Parallelism", 1);
   int abort = ctx->getProperty("AbortProb", (Uint32)0);
   int check = ctx->getProperty("ScanUpdateNoRowCountCheck", (Uint32)0);
+  int retry_max = ctx->getProperty("RetryMax", Uint32(100));
   
   if (check)
     records = 0;
   
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
+  ndbout_c("Set RetryMax to %u", retry_max);
+  hugoTrans.setRetryMax(retry_max);
   while (ctx->isTestStopped() == false) {
     g_info << i << ": ";
     if (hugoTrans.scanUpdateRecords(GETNDB(step), records, abort, 
@@ -1633,6 +1710,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 
   // Assume two replicas
   NdbRestarter restarter;
+
+  return NDBT_OK; /* Until we fix handling of partitioned clusters */
   if (restarter.getNumDbNodes() < 2)
   {
     ctx->stopTest();
@@ -2253,6 +2332,40 @@ retry:
       return NDBT_FAILED;
   }
 
+  return NDBT_OK;
+}
+
+int
+runInitialNodeRestartTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  if (runLoadTable(ctx, step) != NDBT_OK)
+    return NDBT_FAILED;
+
+  {
+    int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
+    res.dumpStateAllNodes(&lcpdump, 1);
+  }
+  sleep(10);
+  int node = res.getRandomNotMasterNodeId(rand());
+  ndbout_c("node: %d", node);
+
+  if (res.restartOneDbNode(node, true, true, true))
+    return NDBT_FAILED;
+
+  if (res.waitNodesNoStart(&node, 1))
+    return NDBT_FAILED;
+
+  if (res.insertErrorInNode(node, 5091))
+    return NDBT_FAILED;
+
+  res.startNodes(&node, 1);
+
+  res.waitNodesStartPhase(&node, 1, 3);
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
   return NDBT_OK;
 }
 
@@ -3340,6 +3453,8 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
   const char * off = NULL;
 #endif
   int offset = off ? atoi(off) : 0;
+  int place = 0;
+  int ret_code = 0;
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
   {
@@ -3354,14 +3469,20 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
 
-    if(hugoOps.startTransaction(pNdb) != 0)
+    if((ret_code = hugoOps.startTransaction(pNdb)) != 0)
+    {
+      place = 1;
       goto err;
+    }
 
     nodeId = hugoOps.getTransaction()->getConnectedNodeId();
     ndbout << "Restart node " << nodeId << " " << err <<endl;
 
     if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    {
+      g_err << "Failed to dumpStateOneNode" << endl;
       return NDBT_FAILED;
+    }
 
     if(restarter.insertErrorInNode(nodeId, err) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
@@ -3391,16 +3512,25 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
      */
     for (int r = row; r < row + rows; r++)
     {
-      if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
+      if ((ret_code = hugoOps.pkUpdateRecord(pNdb, r, batch, rand())) != 0)
+      {
+        place = 2;
         goto err;
+      }
       
       for (int l = 1; l<5; l++)
       {
-        if (hugoOps.execute_NoCommit(pNdb) != 0)
+        if ((ret_code = hugoOps.execute_NoCommit(pNdb)) != 0)
+        {
+          place = 3;
           goto err;
+        }
         
-        if(hugoOps.pkUpdateRecord(pNdb, r, batch, rand()) != 0)
+        if ((ret_code = hugoOps.pkUpdateRecord(pNdb, r, batch, rand())) != 0)
+        {
+          place = 4;
           goto err;
+        }
       }
     }      
 
@@ -3435,6 +3565,7 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
 
   return result;
 err:
+  g_err << "Failed with error = " << ret_code << " in place " << place << endl;
   return NDBT_FAILED;
 }
 
@@ -3562,32 +3693,56 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
 {
   //int result = NDBT_OK;
   NdbRestarter res;
+  int numDbNodes = res.getNumDbNodes();
+  getNodeGroups(res);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
   
-  if (res.getNumDbNodes() < 2)
+  if (res.getNumDbNodes() < 2 || num_replicas < 2)
   {
     return NDBT_OK;
   }
 
   Vector<int> part0; // One node per ng
-  Vector<int> part1; // All other nodes
+  Vector<int> part1; // One node per ng
+  Vector<int> part2; // One node per ng
+  Vector<int> part3; // One node per ng
   Bitmask<255> part0mask;
   Bitmask<255> part1mask;
-  Bitmask<255> ngmask;
+  Bitmask<255> part2mask;
+  Bitmask<255> part3mask;
+  Uint32 ng_count[MAX_NDB_NODE_GROUPS];
+  memset(ng_count, 0, sizeof(ng_count));
+
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
     int nodeId = res.getDbNodeId(i);
     int ng = res.getNodeGroup(nodeId);
-    if (ngmask.get(ng))
+    if (ng_count[ng] == 0)
+    {
+      part0.push_back(nodeId);
+      part0mask.set(nodeId);
+    }
+    else if (ng_count[ng] == 1)
     {
       part1.push_back(nodeId);
       part1mask.set(nodeId);
     }
+    else if (ng_count[ng] == 2)
+    {
+      part2.push_back(nodeId);
+      part2mask.set(nodeId);
+    }
+    else if (ng_count[ng] == 3)
+    {
+      part3.push_back(nodeId);
+      part3mask.set(nodeId);
+    }
     else
     {
-      ngmask.set(ng);
-      part0.push_back(nodeId);
-      part0mask.set(nodeId);
+      ndbout_c("Too many replicas");
+      return NDBT_FAILED;
     }
+    ng_count[ng]++;
   }
 
   printf("part0: ");
@@ -3598,6 +3753,16 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   printf("part1: ");
   for (unsigned i = 0; i<part1.size(); i++)
     printf("%u ", part1[i]);
+  printf("\n");
+
+  printf("part2: ");
+  for (unsigned i = 0; i<part2.size(); i++)
+    printf("%u ", part2[i]);
+  printf("\n");
+
+  printf("part3: ");
+  for (unsigned i = 0; i<part3.size(); i++)
+    printf("%u ", part3[i]);
   printf("\n");
 
   int loops = ctx->getNumLoops();
@@ -3616,12 +3781,26 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       nodes = part0.getBase();
       printf("restarting part0");
     }
-    else if(part1mask.get(master) && part1mask.get(nextMaster))
+    else if (part1mask.get(master) && part1mask.get(nextMaster))
     {
       cmf = true;
       cnt = part1.size();
       nodes = part1.getBase();
       printf("restarting part1");
+    }
+    else if (part2mask.get(master) && part2mask.get(nextMaster))
+    {
+      cmf = true;
+      cnt = part2.size();
+      nodes = part2.getBase();
+      printf("restarting part2");
+    }
+    else if(part3mask.get(master) && part3mask.get(nextMaster))
+    {
+      cmf = true;
+      cnt = part3.size();
+      nodes = part3.getBase();
+      printf("restarting part3");
     }
     else
     {
@@ -3634,9 +3813,9 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
       } 
       else 
       {
-        cnt = part0.size();
-        nodes = part0.getBase();
-        printf("restarting part0");
+        cnt = part1.size();
+        nodes = part1.getBase();
+        printf("restarting part1");
       }
     }
     
@@ -4738,14 +4917,41 @@ runBug48474(NDBT_Context* ctx, NDBT_Step* step)
   ndbout_c("starting uncommitted transaction %u minutes", minutes);
   for (Uint32 m = 0; m < minutes; m++)
   {
-    if (hugoOps.startTransaction(pNdb) != 0)
-      return NDBT_FAILED;
+    int retry = 0;
+    while (retry < 300)
+    {
+      if (hugoOps.startTransaction(pNdb) != 0)
+      {
+        ndbout_c("startTransaction failed");
+        return NDBT_FAILED;
+      }
 
-    if (hugoOps.pkUpdateRecord(pNdb, 0, 50, rand()) != 0)
-      return NDBT_FAILED;
-
-    if (hugoOps.execute_NoCommit(pNdb) != 0)
-      return NDBT_FAILED;
+      if (hugoOps.pkUpdateRecord(pNdb, 0, 50, rand()) != 0)
+      {
+        ndbout_c("pkUpdateRecord failed");
+        return NDBT_FAILED;
+      }
+      int ret_code;
+      if ((ret_code = hugoOps.execute_NoCommit(pNdb)) != 0)
+      {
+        if (ret_code == 410)
+        {
+          hugoOps.closeTransaction(pNdb);
+          NdbSleep_MilliSleep(100);
+          ndbout_c("410 on main node, wait a 100ms");
+          retry++;
+          continue;
+        }
+        ndbout_c("Prepare failed error: %u", ret_code);
+        return NDBT_FAILED;
+      }
+      break;
+    }
+    if (retry >= 300)
+    {
+      ndbout_c("Test stopped due to problems with 410");
+      break;
+    }
 
 
     ndbout_c("sleeping 60s");
@@ -4756,16 +4962,22 @@ runBug48474(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     if (hugoOps.execute_Commit(pNdb) != 0)
+    {
+      ndbout_c("Transaction commit failed");
       return NDBT_FAILED;
+    }
 
     hugoOps.closeTransaction(pNdb);
 
     if (ctx->isTestStopped())
       break;
   }
-
-
   res.dumpStateAllNodes(minlcp, 2); // reset min time between LCP
+  if (res.waitClusterStarted() != 0)
+  {
+    ndbout_c("Failed to start cluster");
+    return NDBT_FAILED;
+  }
 
   ctx->stopTest();
   return NDBT_OK;
@@ -5069,6 +5281,12 @@ int runRestartToDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 dynOrder = ctx->getProperty("DynamicOrder", Uint32(0));
   NdbRestarter restarter;
   Uint32 numNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   Vector<Uint32> currOrder;
   Vector<Uint32> newOrder;
@@ -5296,6 +5514,12 @@ int analyseDynamicOrder(NDBT_Context* ctx, NDBT_Step* step)
   Vector<Uint32> distanceToRemote;
   Vector<Uint32> nodeIdToDynamicIndex;
   Uint32 maxDistanceToRemoteLink = 0;
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   /* TODO :
    * Refactor into :
@@ -5542,6 +5766,13 @@ int runSplitLatency25PctFail(NDBT_Context* ctx, NDBT_Step* step)
    * of the cluster, and can result in cluster failure
    */
   NdbRestarter restarter;
+  Uint32 numNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
 
   /*
    * First set the ConnectCheckIntervalDelay to 1500
@@ -6720,12 +6951,62 @@ runTestLcpFsErr(NDBT_Context* ctx, NDBT_Step* step)
 
 
 int
+runDelayedNodeFail(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int i = 0;
+  int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  while (i < 2 &&
+         !ctx->isTestStopped())
+  {
+    /* Wait a moment or two */
+    ndbout_c("Waiting 20 seconds...");
+    NdbSleep_SecSleep(20);
+    ndbout_c("Restart node: %d", victim);
+    if (restarter.insertErrorInNode(victim, 7008) != 0)
+    {
+      g_err << "Error insert 7008 failed." << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    NdbSleep_SecSleep(10);
+    ndbout_c("  start node");
+    if (restarter.startNodes(&victim, 1) != 0)
+    {
+      g_err << "startNodes failed" << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    ndbout_c("Wait for cluster to start up again");
+    if (restarter.waitClusterStarted() != 0)
+    {
+      g_err << "waitClusterStarted failed" << endl;
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    ndbout_c("Cluster up again");
+    i++;
+  }
+  ndbout_c("Stop test");
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
 runNodeFailGCPOpen(NDBT_Context* ctx, NDBT_Step* step)
 {
   /* Use an error insert to cause node failures, 
    * then bring the cluster back up
    */
   NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas != 2)
+  {
+    return NDBT_OK;
+  }
+
   int i = 0;
   while (i < 10 &&
          !ctx->isTestStopped())
@@ -8233,10 +8514,12 @@ int runRestartandCheckLCPRestored(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 lcp_restored= event.LCPRestored.restored_lcp_id;
   ndbout << "LCP Restored: " << lcp_restored << endl;
   Uint32 first_lcp= ctx->getProperty("LCP", (Uint32)0);
-  if(lcp_restored != first_lcp)
+  if(lcp_restored != first_lcp &&
+     lcp_restored != (first_lcp + 1))
   {
     g_err << "ERROR: LCP " << lcp_restored << " restored, "
-          << "expected restore of LCP " << first_lcp << endl;
+          << "expected restore of LCP " << first_lcp
+          << " or " << (first_lcp + 1) << endl;
     if(restarter.insertErrorInNode(node, 0) != 0)
     {
       g_err << "ERROR: Error insert clear failed" << endl;
@@ -8773,6 +9056,9 @@ TESTCASE("Bug26457", ""){
 TESTCASE("Bug26481", ""){
   INITIALIZER(runBug26481);
 }
+TESTCASE("InitialNodeRestartTest", ""){
+  INITIALIZER(runInitialNodeRestartTest);
+}
 TESTCASE("Bug26450", ""){
   INITIALIZER(runLoadTable);
   INITIALIZER(runBug26450);
@@ -8796,7 +9082,9 @@ TESTCASE("Bug31980", ""){
   INITIALIZER(runBug31980);
 }
 TESTCASE("Bug29364", ""){
+  INITIALIZER(changeStartPartitionedTimeout);
   INITIALIZER(runBug29364);
+  FINALIZER(changeStartPartitionedTimeout);
 }
 TESTCASE("GCP", ""){
   INITIALIZER(runLoadTable);
@@ -9029,6 +9317,14 @@ TESTCASE("LCPScanFragWatchdogIsolation",
 TESTCASE("Bug16834416", "")
 {
   INITIALIZER(runBug16834416);
+}
+TESTCASE("NR_Disk_data_undo_log_local_lcp",
+         "Test node restart when running out of UNDO log to perform"
+         " local LCP")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runDelayedNodeFail);
 }
 TESTCASE("NodeFailGCPOpen",
          "Test behaviour of code to keep GCP open for node failure "

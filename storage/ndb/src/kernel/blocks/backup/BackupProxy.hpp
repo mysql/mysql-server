@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ protected:
   void sendSUM_DUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
   void execEVENT_REP(Signal* );
   void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
+  void execRESTORABLE_GCI_REP(Signal*);
 };
 
 

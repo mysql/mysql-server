@@ -25,6 +25,8 @@
 #include "ngs/interface/authentication_interface.h"
 #include "ngs/interface/client_interface.h"
 #include "ngs/interface/server_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
+#include "ngs/interface/protocol_monitor_interface.h"
 #include "ngs/log.h"
 #include "ngs/ngs_error.h"
 
@@ -37,7 +39,7 @@ using namespace ngs;
 // Code below this line is executed from the network thread
 // ------------------------------------------------------------------------------------------------
 
-Session::Session(Client_interface& client, Protocol_encoder *proto, const Session_id session_id)
+Session::Session(Client_interface& client, Protocol_encoder_interface *proto, const Session_id session_id)
 : m_client(client), // don't hold a real reference to the parent to avoid circular reference
   m_encoder(proto),
   m_auth_handler(),

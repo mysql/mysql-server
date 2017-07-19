@@ -40,7 +40,6 @@
 #include "query_options.h"
 #include "sql_audit.h"      // mysql_audit_table_access_notify
 #include "sql_base.h"       // open_and_lock_tables
-#include "sql_cache.h"      // query_cache
 #include "sql_class.h"      // THD
 #include "sql_const.h"
 #include "sql_lex.h"
@@ -590,10 +589,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
     }
 
     /*
-      No need to invalidate the query cache, queries with temporary
-      tables are not in the cache. No need to write to the binary
-      log a failed row-by-row delete even if under RBR as the table
-      might not exist on the slave.
+      No need to write to the binary log a failed row-by-row delete even if
+      under RBR as the table might not exist on the slave.
     */
   }
   else /* It's not a temporary table. */
@@ -676,15 +673,6 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         binlog_is_trans= false; // Safety.
       }
     }
-
-    /*
-      If we tried to open a MERGE table and failed due to problems with the
-      children tables, the table will have been closed and table_ref->table
-      will be invalid. Reset the pointer here in any case as
-      query_cache_invalidate does not need a valid TABLE object.
-    */
-    table_ref->table= NULL;
-    query_cache.invalidate(thd, table_ref, FALSE);
   }
 
   /* DDL is logged in statement format, regardless of binlog format. */

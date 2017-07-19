@@ -27,10 +27,17 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+<<<<<<< HEAD
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
 wait/synch/mutex/pfs_example/T
+=======
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+>>>>>>> mysql-trunk
 UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 component_urn
@@ -60,10 +67,17 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+<<<<<<< HEAD
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
 wait/synch/mutex/pfs_example/T
+=======
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+>>>>>>> mysql-trunk
 # restart
 select component_urn from mysql.component;
 component_urn
@@ -79,10 +93,17 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+<<<<<<< HEAD
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
 wait/synch/mutex/pfs_example/T
+=======
+wait/synch/mutex/pfs_example/T
+wait/synch/mutex/pfs_example/X
+wait/synch/mutex/pfs_example/Y
+wait/synch/mutex/pfs_example/Z
+>>>>>>> mysql-trunk
 UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 component_urn

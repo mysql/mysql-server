@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ hash_get_nth_cell(
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_ad(n < table->n_cells);
 
-	return(table->array + n);
+	return(table->cells+ n);
 }
 
 /*************************************************************//**
@@ -52,8 +52,8 @@ hash_table_clear(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	memset(table->array, 0x0,
-	       table->n_cells * sizeof(*table->array));
+	memset(table->cells, 0x0,
+	       table->n_cells * sizeof(*table->cells));
 }
 
 /*************************************************************//**

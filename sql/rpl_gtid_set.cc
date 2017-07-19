@@ -62,6 +62,8 @@ using std::list;
 
 #define MAX_NEW_CHUNK_ALLOCATE_TRIES 10
 
+PSI_mutex_key Gtid_set::key_gtid_executed_free_intervals_mutex;
+
 const Gtid_set::String_format Gtid_set::default_string_format=
 {
   "", "", ":", "-", ":", ",\n", "",

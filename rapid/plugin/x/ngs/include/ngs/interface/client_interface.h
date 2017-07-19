@@ -28,6 +28,7 @@ namespace ngs
 {
 
 class Server_interface;
+class Protocol_encoder_interface;
 
 class Client_interface
 {
@@ -48,6 +49,7 @@ public:
 public:
   virtual ~Client_interface() { }
 
+  virtual Protocol_encoder_interface &protocol() const = 0;
   virtual Server_interface &server() const = 0;
   virtual Connection_vio  &connection() = 0;
 

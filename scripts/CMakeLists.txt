@@ -23,15 +23,17 @@ ENDIF()
 SET(COMPILER_ID_AND_VERSION
   "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
-# Check that mysql_system_tables.sql is up-to-date
-IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
-  IF(NOT TARGET ndbinfo_sql_run)
-    MESSAGE(FATAL "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
+IF(NOT WITHOUT_SERVER)
+  # Check that mysql_system_tables.sql is up-to-date
+  IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
+    IF(NOT TARGET ndbinfo_sql_run)
+      MESSAGE(FATAL_ERROR "TARGET ndbinfo_sql_run missing, needed to generate storage/ndb/tools/ndbinfo.sql.")
+    ENDIF()
+    SET(MYSQL_SYSTEM_TABLES_PATCHES
+        ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
+    SET(MYSQL_SYSTEM_TABLES_DEPENDS
+        ndbinfo_sql_run)
   ENDIF()
-  SET(MYSQL_SYSTEM_TABLES_PATCHES
-      ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
-  SET(MYSQL_SYSTEM_TABLES_DEPENDS
-      ndbinfo_sql_run)
 ENDIF()
 
 IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)

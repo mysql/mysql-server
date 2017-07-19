@@ -1487,27 +1487,27 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((
 DROP TABLE t1;
 CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 256.0;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+SELECT COUNT(*) FROM t1 WHERE f1 < 255;
 COUNT(*)
 4
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+SELECT COUNT(*) FROM t1 WHERE f1 < -1;
 COUNT(*)
 0
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+SELECT COUNT(*) FROM t1 WHERE f1 > -1;
 COUNT(*)
 5
 Warnings:
@@ -1515,32 +1515,32 @@ Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exce
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
 INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+SELECT COUNT(*) FROM t1 WHERE f1 < 128.0;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+SELECT COUNT(*) FROM t1 WHERE f1 < 127;
 COUNT(*)
 4
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+SELECT COUNT(*) FROM t1 WHERE f1 > -129.0;
 COUNT(*)
 5
 Warnings:
 Warning	3170	Memory capacity of 50 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+SELECT COUNT(*) FROM t1 WHERE f1 > -128;
 COUNT(*)
 4
 Warnings:

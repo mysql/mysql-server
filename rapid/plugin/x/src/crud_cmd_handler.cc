@@ -39,7 +39,7 @@ template <typename B, typename M>
 ngs::Error_code Crud_command_handler::execute(
     Session &session, const B &builder, const M &msg,
     ngs::Resultset_interface &resultset, Status_variable variable,
-    bool (ngs::Protocol_encoder::*send_ok)()) {
+    bool (ngs::Protocol_encoder_interface::*send_ok)()) {
   session.update_status(variable);
   m_qb.clear();
   try {
@@ -55,7 +55,6 @@ ngs::Error_code Crud_command_handler::execute(
   ngs::Error_code error = session.data_context().execute(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
-
   notice_handling(session, resultset.get_info(), msg);
   (session.proto().*send_ok)();
   return ngs::Success();
@@ -85,7 +84,7 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
   Empty_resultset rset;
   return execute(session, Insert_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_insert,
-                 &ngs::Protocol_encoder::send_exec_ok);
+                 &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
 template <>
@@ -130,7 +129,7 @@ ngs::Error_code Crud_command_handler::execute_crud_update(
   Empty_resultset rset;
   return execute(session, Update_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_update,
-                 &ngs::Protocol_encoder::send_exec_ok);
+                 &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
 template <>
@@ -167,7 +166,7 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
   Empty_resultset rset;
   return execute(session, Delete_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_delete,
-                 &ngs::Protocol_encoder::send_exec_ok);
+                 &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
 template <>
@@ -186,7 +185,7 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
   Streaming_resultset rset(&session.proto(), false);
   return execute(session, Find_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_find,
-                 &ngs::Protocol_encoder::send_exec_ok);
+                 &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
 namespace {
@@ -228,7 +227,7 @@ ngs::Error_code Crud_command_handler::execute_create_view(
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_create_view,
-                 &ngs::Protocol_encoder::send_ok);
+                 &ngs::Protocol_encoder_interface::send_ok);
 }
 
 ngs::Error_code Crud_command_handler::execute_modify_view(
@@ -238,7 +237,7 @@ ngs::Error_code Crud_command_handler::execute_modify_view(
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_modify_view,
-                 &ngs::Protocol_encoder::send_ok);
+                 &ngs::Protocol_encoder_interface::send_ok);
 }
 
 ngs::Error_code Crud_command_handler::execute_drop_view(
@@ -248,7 +247,7 @@ ngs::Error_code Crud_command_handler::execute_drop_view(
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
                  &Common_status_variables::m_crud_drop_view,
-                 &ngs::Protocol_encoder::send_ok);
+                 &ngs::Protocol_encoder_interface::send_ok);
 }
 
 }  // namespace xpl

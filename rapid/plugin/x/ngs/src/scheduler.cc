@@ -87,9 +87,14 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
   {
     create_min_num_workers();
   }
-  catch (std::exception &e)
+  catch (const std::exception &e)
   {
+    /* 'log_debug' isn't defined while building release executable.
+     'e' object is used only by log_debug. Below line disables
+     warnings about unused variables.*/
+    (void)e;
     log_debug("Exception in set minimal number of workers \"%s\"", e.what());
+
     const int32 m = m_workers_count.load();
     log_warning("Unable to set minimal number of workers to %u; actual value is %i", n, m);
     m_min_workers_count.store(m);

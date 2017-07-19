@@ -701,81 +701,6 @@ using Polyfromwkb_instantiator= G_i<I_wkb, wkb_ft::POLYFROMWKB>;
 using Polygonfromwkb_instantiator= G_i<I_wkb, wkb_ft::POLYGONFROMWKB>;
 
 
-class Encrypt_instantiator
-{
-public:
-  static const uint Min_argcount= 1;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    if (!thd->is_error())
-      push_deprecated_warn(thd, "ENCRYPT", "AES_ENCRYPT");
-    switch (args->elements())
-    {
-    case 1:
-      return new (thd->mem_root) Item_func_encrypt(POS(), (*args)[0]);
-    case 2:
-      return new (thd->mem_root)
-        Item_func_encrypt(POS(), (*args)[0], (*args)[1]);
-    default:
-      DBUG_ASSERT(false);
-      return nullptr;
-    }
-  }
-};
-
-
-class Des_encrypt_instantiator
-{
-public:
-  static const uint Min_argcount= 1;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    if (!thd->is_error())
-      push_deprecated_warn(thd, "DES_ENCRYPT", "AES_ENCRYPT");
-    switch (args->elements())
-    {
-    case 1:
-      return new (thd->mem_root) Item_func_des_encrypt(POS(), (*args)[0]);
-    case 2:
-      return new (thd->mem_root)
-        Item_func_des_encrypt(POS(), (*args)[0], (*args)[1]);
-    default:
-      DBUG_ASSERT(false);
-      return nullptr;
-    }
-  }
-};
-
-
-class Des_decrypt_instantiator
-{
-public:
-  static const uint Min_argcount= 1;
-  static const uint Max_argcount= 2;
-
-  Item *instantiate(THD *thd, PT_item_list *args)
-  {
-    if (!thd->is_error())
-      push_deprecated_warn(thd, "DES_DECRYPT", "AES_DECRYPT");
-    switch (args->elements())
-    {
-    case 1:
-      return new (thd->mem_root) Item_func_des_decrypt(POS(), (*args)[0]);
-    case 2:
-      return new (thd->mem_root)
-        Item_func_des_decrypt(POS(), (*args)[0], (*args)[1]);
-    default:
-      DBUG_ASSERT(false);
-      return nullptr;
-    }
-  }
-};
-
-
 } // namespace
 
 class Bin_instantiator
@@ -1551,13 +1476,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "DAYOFMONTH", SQL_FN(Item_func_dayofmonth, 1) },
   { "DAYOFWEEK", SQL_FACTORY(Dayofweek_instantiator) },
   { "DAYOFYEAR", SQL_FN(Item_func_dayofyear, 1) },
-  { "DECODE", SQL_FN(Item_func_decode, 2) },
   { "DEGREES", SQL_FACTORY(Degrees_instantiator) },
-  { "DES_DECRYPT", SQL_FACTORY(Des_decrypt_instantiator) },
-  { "DES_ENCRYPT", SQL_FACTORY(Des_encrypt_instantiator) },
   { "ELT", SQL_FN_V(Item_func_elt, 2, MAX_ARGLIST_SIZE) },
-  { "ENCODE", SQL_FN(Item_func_encode, 2) },
-  { "ENCRYPT", SQL_FACTORY(Encrypt_instantiator) },
   { "EXP", SQL_FN(Item_func_exp, 1) },
   { "EXPORT_SET", SQL_FN_V(Item_func_export_set, 3, 5) },
   { "EXTRACTVALUE", SQL_FN(Item_func_xml_extractvalue, 2) },
@@ -1604,6 +1524,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "JSON_ARRAY", SQL_FN_V_LIST_THD(Item_func_json_array, 0, MAX_ARGLIST_SIZE) },
   { "JSON_REMOVE", SQL_FN_V_LIST_THD(Item_func_json_remove, 2, MAX_ARGLIST_SIZE) },
   { "JSON_MERGE", SQL_FN_V_LIST_THD(Item_func_json_merge, 2, MAX_ARGLIST_SIZE) },
+  { "JSON_MERGE_PATCH", SQL_FN_V_LIST_THD(Item_func_json_merge_patch, 2, MAX_ARGLIST_SIZE) },
+  { "JSON_MERGE_PRESERVE", SQL_FN_V_LIST_THD(Item_func_json_merge_preserve, 2, MAX_ARGLIST_SIZE) },
   { "JSON_QUOTE", SQL_FN_LIST(Item_func_json_quote, 1) },
   { "JSON_STORAGE_FREE", SQL_FN(Item_func_json_storage_free, 1) },
   { "JSON_STORAGE_SIZE", SQL_FN(Item_func_json_storage_size, 1) },

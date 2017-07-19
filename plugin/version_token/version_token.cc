@@ -174,10 +174,10 @@ static void vtoken_init_psi_keys(void)
   int count;
 
   count= static_cast<int>(array_elements(all_vtoken_rwlocks));
-  PSI_RWLOCK_CALL(register_rwlock)(category, all_vtoken_rwlocks, count);
+  mysql_rwlock_register(category, all_vtoken_rwlocks, count);
 
   count= static_cast<int>(array_elements(all_vtoken_memory));
-  PSI_MEMORY_CALL(register_memory)(category, all_vtoken_memory, count);
+  mysql_memory_register(category, all_vtoken_memory, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */

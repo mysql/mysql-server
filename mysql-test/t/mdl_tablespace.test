@@ -1078,12 +1078,12 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
     WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
-  FROM performance_schema.events_waits_history_long
+  FROM performance_schema.events_waits_history
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
 --echo #

@@ -10,8 +10,14 @@ include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-rep
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 SET @@GLOBAL.relay_log_info_repository= "FILE";
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET @@GLOBAL.relay_log_info_repository= "FILE";
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET @@GLOBAL.master_info_repository= "FILE";
+Warnings:
+Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 include/start_slave.inc
 SET @@GLOBAL.relay_log_info_repository= "TABLE";
 ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first

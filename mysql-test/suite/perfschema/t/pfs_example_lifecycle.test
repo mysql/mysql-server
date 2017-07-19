@@ -13,6 +13,10 @@ select component_urn from mysql.component;
 select * from performance_schema.setup_instruments
   where NAME like "%/pfs_example/%";
 
+<<<<<<< HEAD
+=======
+--sorted_result
+>>>>>>> mysql-trunk
 select NAME
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
@@ -38,6 +42,10 @@ select component_urn from mysql.component;
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
+<<<<<<< HEAD
+=======
+--sorted_result
+>>>>>>> mysql-trunk
 select NAME
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";
@@ -50,6 +58,10 @@ select component_urn from mysql.component;
 select * from performance_schema.setup_instruments
   where NAME like "wait/synch/mutex/pfs_example/%";
 
+<<<<<<< HEAD
+=======
+--sorted_result
+>>>>>>> mysql-trunk
 select NAME
   from performance_schema.mutex_instances
   where NAME like "%/pfs_example/%";

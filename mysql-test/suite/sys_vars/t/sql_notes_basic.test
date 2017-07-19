@@ -95,15 +95,15 @@ SET @@session.sql_notes = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_notes = TRÜE;
+SET @@session.sql_notes = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_notes = ÕN;
+SET @@session.sql_notes = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_notes = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_notes = ÓFF;
+SET @@session.sql_notes = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_notes = '¹';
+SET @@session.sql_notes = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_notes = NO;
 

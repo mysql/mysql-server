@@ -9,6 +9,7 @@ sleep(1)
 0
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
 user	host	db	command	state	info
+event_scheduler	localhost	NULL	Daemon	Waiting on empty queue	NULL
 root	localhost	test	Query	executing	SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up'
 send Mysqlx.Session.Reset {
 }

@@ -129,7 +129,7 @@ SHOW CREATE VIEW v2;
 ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 'v2'
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t_select_priv`.`a` AS `a`,`t_select_priv`.`b` AS `b` from `t_select_priv`	latin1	latin1_swedish_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select `t_select_priv`.`a` AS `a`,`t_select_priv`.`b` AS `b` from `t_select_priv`	utf8mb4	utf8mb4_0900_ai_ci
 drop database mysqltest_db1;
 drop user mysqltest_u1@localhost;
 #

@@ -9984,6 +9984,9 @@ send Mysqlx.Crud.Find {
 cont_in	not_cont_in
 1	0
 command ok
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 Got expected error (code 0)
 
 JSON_OBJECT - Create JSON object

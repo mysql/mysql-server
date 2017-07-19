@@ -63,4 +63,3 @@ DROP TABLE fill_it1;
 DROP TABLE fill_it2;
 DROP TABLE fill_it3;
 DROP DATABASE events_test;
-SET GLOBAL event_scheduler=off;

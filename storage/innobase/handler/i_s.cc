@@ -8165,7 +8165,13 @@ i_s_dict_fill_innodb_tablespaces(
 	}
 
 	if (filepath == NULL) {
-		filepath = fil_make_filepath(NULL, name, IBD, false);
+		if (strstr(name, dict_sys_t::file_per_table_name) != 0) {
+			mutex_enter(&dict_sys->mutex);
+			filepath = fil_space_get_first_path(space);
+			mutex_exit(&dict_sys->mutex);
+		} else {
+			filepath = fil_make_filepath(NULL, name, IBD, false);
+		}
 	}
 
 	os_file_stat_t	stat;

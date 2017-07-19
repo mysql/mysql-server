@@ -1300,20 +1300,6 @@ public:
   bool match(ulonglong engine_transaction_id);
 };
 
-class PFS_key_processlist_id_int : public PFS_key_long
-{
-public:
-  PFS_key_processlist_id_int(const char *name) : PFS_key_long(name)
-  {
-  }
-
-  ~PFS_key_processlist_id_int()
-  {
-  }
-
-  bool match(const PFS_thread *pfs);
-};
-
 class PFS_key_thread_os_id : public PFS_key_ulonglong
 {
 public:

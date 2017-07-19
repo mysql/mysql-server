@@ -44,16 +44,16 @@ SET @@session.sql_log_bin = "T";
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'T'
 SET @@session.sql_log_bin = "Y";
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Y'
-SET @@session.sql_log_bin = TRÜE;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'TRÜE'
-SET @@session.sql_log_bin = ÕN;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÕN'
+SET @@session.sql_log_bin = TRÃœE;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'TRÃœE'
+SET @@session.sql_log_bin = Ã•N;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Ã•N'
 SET @@session.sql_log_bin = OF;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
-SET @@session.sql_log_bin = ÓFF;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÓFF'
-SET @@session.sql_log_bin = '¹';
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '¹'
+SET @@session.sql_log_bin = Ã“FF;
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Ã“FF'
+SET @@session.sql_log_bin = 'Â¹';
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Â¹'
 SET @@session.sql_log_bin = NO;
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_156_05----------------------------#'

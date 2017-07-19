@@ -2322,6 +2322,13 @@ int Partition_helper::ph_index_last(uchar *buf)
 {
   DBUG_ENTER("Partition_helper::ph_index_last");
 
+  int error = HA_ERR_END_OF_FILE;
+  uint part_id = m_part_info->get_first_used_partition();
+  if (part_id == MY_BIT_NONE)
+  {
+     /* No partition to scan. */
+      DBUG_RETURN(error);
+  }
   m_index_scan_type= PARTITION_INDEX_LAST;
   m_reverse_order= true;
   DBUG_RETURN(common_first_last(buf));

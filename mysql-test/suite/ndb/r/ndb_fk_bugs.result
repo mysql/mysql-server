@@ -537,9 +537,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,b,c) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2;
 create table t2 (
 a int not null,
@@ -562,9 +562,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2;
 create table t2 (
 a int not null,
@@ -596,9 +596,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a = 1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 create table t1_parent (pk1 char(255) primary key) engine = ndb;
 create table t1 (
@@ -650,9 +650,9 @@ Error	1553	Cannot drop index 't2x1': needed in a foreign key constraint
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10,100),(2,20,200),(3,30,300);
 insert into t2 values (4,40,400);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 delete from t1 where a=1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 # bug#17232212 - NDB DROP NON-EXISTENT FK SUCCEEDS
 create table t1 (
@@ -853,7 +853,7 @@ insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 create table t1 (
 c0 int,
@@ -878,7 +878,7 @@ insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
 #
 # BUG#21308928 :  CANNOT ADD UNIQUE CONSTRAINT ON SET OF FIELDS WITH EXISTING FOREIGN KEY

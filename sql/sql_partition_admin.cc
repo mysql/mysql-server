@@ -42,7 +42,6 @@
 #include "partition_info.h"                 // class partition_info etc.
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_base.h"                       // open_and_lock_tables, etc
-#include "sql_cache.h"                      // query_cache
 #include "sql_class.h"                      // THD
 #include "sql_error.h"
 #include "sql_lex.h"
@@ -493,11 +492,6 @@ bool Sql_cmd_alter_table_exchange_partition::
                                                  part_table_def,
                                                  swap_table_def);
 
-  // Play safe. Invalidate query cache even in case of failure.
-  table_list->table= NULL;
-  table_list->next_local->table= NULL;
-  query_cache.invalidate(thd, table_list, FALSE);
-
   if (ha_error)
   {
     part_table->file->print_error(ha_error, MYF(0));
@@ -766,8 +760,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     we need to remove its TABLE/TABLE_SHARE from TDC now.
   */
   close_all_tables_for_name(thd, first_table->table->s, false, NULL);
-  /* Query Cache invalidation should not access freed TABLE instance. */
-  first_table->table= NULL;
 
   if (!error)
     error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
@@ -798,10 +790,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   if (! error)
     my_ok(thd);
-
-  // Invalidate query cache
-  DBUG_ASSERT(!first_table->next_local);
-  query_cache.invalidate(thd, first_table, FALSE);
 
   DBUG_RETURN(error);
 }

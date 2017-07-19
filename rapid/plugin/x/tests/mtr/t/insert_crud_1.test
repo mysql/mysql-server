@@ -698,7 +698,7 @@ Mysqlx.Crud.Insert {
 }
 -->expecterror ER_TABLEACCESS_DENIED_ERROR,ER_LOCK_WAIT_TIMEOUT
 -->recvresult
--->expecterror ER_LOCK_WAIT_TIMEOUT
+-->expecterror ER_SUCCESS,ER_LOCK_WAIT_TIMEOUT
 -->sql
 SELECT * FROM xplugintest.categories;
 -->endsql

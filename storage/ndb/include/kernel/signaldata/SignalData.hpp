@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,6 +331,20 @@ GSN_PRINT_SIGNATURE(printALLOC_NODEID_REF);
 GSN_PRINT_SIGNATURE(printLCP_STATUS_REQ);
 GSN_PRINT_SIGNATURE(printLCP_STATUS_CONF);
 GSN_PRINT_SIGNATURE(printLCP_STATUS_REF);
+
+GSN_PRINT_SIGNATURE(printLCP_PREPARE_REQ);
+GSN_PRINT_SIGNATURE(printLCP_PREPARE_CONF);
+GSN_PRINT_SIGNATURE(printLCP_PREPARE_REF);
+
+GSN_PRINT_SIGNATURE(printSYNC_PAGE_CACHE_REQ);
+GSN_PRINT_SIGNATURE(printSYNC_PAGE_CACHE_CONF);
+
+GSN_PRINT_SIGNATURE(printEND_LCPREQ);
+GSN_PRINT_SIGNATURE(printEND_LCPCONF);
+
+GSN_PRINT_SIGNATURE(printRESTORE_LCP_REQ);
+GSN_PRINT_SIGNATURE(printRESTORE_LCP_CONF);
+GSN_PRINT_SIGNATURE(printRESTORE_LCP_REF);
 
 GSN_PRINT_SIGNATURE(printCREATE_FK_REQ);
 GSN_PRINT_SIGNATURE(printCREATE_FK_REF);

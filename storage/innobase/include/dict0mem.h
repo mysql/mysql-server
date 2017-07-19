@@ -1707,12 +1707,6 @@ struct dict_table_t {
 	foreign key checks running on it. */
 	ulint					n_foreign_key_checks_running;
 
-	/** Transactions whose view low limit is greater than this number are
-	not allowed to store to the MySQL query cache or retrieve from it.
-	When a trx with undo logs commits, it sets this to the value of the
-	current time. */
-	trx_id_t				query_cache_inv_id;
-
 	/** Transaction id that last touched the table definition. Either when
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
 	commit, and rollback phases). */

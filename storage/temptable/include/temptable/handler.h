@@ -506,10 +506,6 @@ class Handler : public ::handler {
   bool get_error_message(int, String*) override;
 
   /** Not implemented.
-  @return 0 */
-  uint8 table_cache_type() override;
-
-  /** Not implemented.
   @return false */
   bool primary_key_is_clustered() const override;
 

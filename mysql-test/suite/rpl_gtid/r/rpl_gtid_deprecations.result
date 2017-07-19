@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO IGNORE_SERVER_IDS=(1,2,3);
+Warnings:
+Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
+CHANGE MASTER TO MASTER_HOST='dummy', IGNORE_SERVER_IDS=(1) FOR CHANNEL 'ch1';
+Warnings:
+Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
+CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL '';
+SET @@global.gtid_mode=ON_PERMISSIVE;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=OFF;
+SET @@global.gtid_mode=OFF_PERMISSIVE;
+SET @@global.gtid_mode=ON_PERMISSIVE;
+CHANGE MASTER TO MASTER_AUTO_POSITION=1 FOR CHANNEL '';
+SET @@global.gtid_mode=ON;
+Warnings:
+Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
+SET @@global.gtid_mode=ON;
+Warnings:
+Warning	1287	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
+CHANGE MASTER TO IGNORE_SERVER_IDS=() FOR CHANNEL '';
+RESET SLAVE ALL FOR CHANNEL 'ch1';
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+include/rpl_end.inc

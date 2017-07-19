@@ -663,14 +663,6 @@ CALL db1.test_if_commit();
 IMPLICIT COMMIT
 YES
 #
-# SQLCOM_RESET
-#
-INSERT INTO db1.trans (a) VALUES (1);
-reset query cache;
-CALL db1.test_if_commit();
-IMPLICIT COMMIT
-YES
-#
 # SQLCOM_PURGE
 #
 #
@@ -1064,4 +1056,5 @@ DROP TABLE t2;
 DROP TABLE t3;
 USE test;
 DROP DATABASE db1;
+SET GLOBAL EVENT_SCHEDULER = ON;
 End of tests
