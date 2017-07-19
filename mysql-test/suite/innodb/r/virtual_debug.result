@@ -218,6 +218,7 @@ create table ibstd_07 (a int not null, d int not null, b blob not null, c text, 
 insert into ibstd_07 values (2, 2, repeat('rocalrulcrcaurcuccoolrouuocacaooaucauualcucuoucucclolcllloocuarcoorlaccarocouuaoorcolloucraoaaooc','281'),repeat('ouolrculuouocououooalcoraooaulouuacrolrocooraoaooooolaccralacalooolalocoaacoorarorcurccarocucla','317'), default, default, default);
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
 alter table ibstd_07  add primary key (b(11)  desc,a  asc, d );;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
 update ibstd_07 set c=repeat('0.366710324443464crllooolarlollorlulololucrluacoorrrluroluroocouauacacruloulcurlraorcrclrolcocrrcoccolourrooclrcocruruauallo','70');
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 SELECT * FROM ibstd_07;
