@@ -339,7 +339,10 @@ dict_sdi_set(
 				 compressor.get_comp_len(),
 				 compressor.get_data(), trx);
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_INTERRUPTED) {
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(true);
+	} else if (err != DB_SUCCESS) {
 		return(true);
 	} else {
 		return(false);
@@ -435,7 +438,10 @@ dict_sdi_delete(
 
 	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, trx);
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_INTERRUPTED) {
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(true);
+	} else if (err != DB_SUCCESS) {
 		return(true);
 	} else {
 		return(false);
