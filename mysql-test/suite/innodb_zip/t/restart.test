@@ -33,6 +33,8 @@ let $MYSQL_DATA_DIR= `select @@datadir`;
 let $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
 let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+
+let $restart_parameters = restart:--innodb-scan-directories=$MYSQL_TMP_DIR/alt_dir;
 --enable_query_log
 
 set global innodb_file_per_table=on;
@@ -194,7 +196,7 @@ SELECT count(*) FROM t9_restart;
 
 --echo #
 --echo # Start the server and show that tables are still visible and accessible.
---echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_file_per_table';
@@ -289,6 +291,7 @@ SHOW CREATE TABLE t7_restart;
 --echo #
 --echo # Start the server and show the tablespaces.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_file_per_table';
@@ -355,6 +358,7 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --echo # Restart the server
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 
@@ -390,6 +394,7 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --echo # Start the server and check tablespaces.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -423,6 +428,7 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 --echo # Start the server and check tablespaces.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 -- source include/start_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc

@@ -3354,106 +3354,202 @@ static MY_ATTRIBUTE((warn_unused_result))
 bool
 boot_tablespaces(THD* thd)
 {
-	dd::cache::Dictionary_client*			dc
-		= dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
-	std::vector<const dd::Tablespace*>		tablespaces;
+	auto	dc = dd::get_dd_client(thd);
+
+	using Tablespaces = std::vector<const dd::Tablespace*>;
+	using Releaser = dd::cache::Dictionary_client::Auto_releaser;
+
+	Tablespaces	tablespaces;
+	Releaser	releaser(dc);
 
 	/* Initialize the max space_id from sys header */
 	mutex_enter(&dict_sys->mutex);
+
 	mtr_t	mtr;
+
 	mtr_start(&mtr);
-	space_id_t	max_id = mtr_read_ulint(
-		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
-		MLOG_4BYTES, &mtr);
+
+	space_id_t	max_id;
+
+	max_id = mtr_read_ulint(
+		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID, MLOG_4BYTES, &mtr);
+
 	mtr_commit(&mtr);
+
 	fil_set_max_space_id_if_bigger(max_id);
+
 	mutex_exit(&dict_sys->mutex);
 
 	if (dc->fetch_global_components(&tablespaces)) {
 		return(true);
 	}
 
+	auto	heap = mem_heap_create(FN_REFLEN * 2 + 1);
+
 	const bool	validate = recv_needed_recovery
 		&& srv_force_recovery == 0;
+
 	bool		fail = false;
-	mem_heap_t*	heap = mem_heap_create(FN_REFLEN * 2 + 1);
+
 	max_id = 0;
 
-	for (const dd::Tablespace* t : tablespaces) {
+	const auto	sys_space_name = dict_sys_t::sys_space_name;
+	const auto	fpt_str = dict_sys_t::file_per_table_name;
+	const auto	fpt_str_len = strlen(fpt_str);
+
+	for (const auto tablespace : tablespaces) {
+
 		ut_ad(!fail);
 
-		if (t->engine() != innobase_hton_name) {
+		if (tablespace->engine() != innobase_hton_name) {
 			continue;
 		}
 
-		const dd::Properties&	p	= t->se_private_data();
-		uint32			id;
-		uint32			flags	= 0;
+		uint32_t	id;
+		uint32_t	flags = 0;
+		const auto&	p = tablespace->se_private_data();
+		const char*	space_name = tablespace->name().c_str();
+		const auto	se_key_value = dd_space_key_strings;
 
 		/* There should be exactly one file name associated
 		with each InnoDB tablespace, except innodb_system */
-		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
-			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-					&flags)
-			|| (t->files().size() != 1 &&
-			    strcmp(t->name().c_str(),
-				   dict_sys_t::sys_space_name) != 0);
 
-		if (fail) {
+		if (p.get_uint32(se_key_value[DD_SPACE_ID], &id)) {
+
+			/* Failed to fetch the tablespace ID */
+
+			fail = true;
+			break;
+
+		} else if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
+
+			/* Failed to fetch the tablespace flags. */
+
+			fail = true;
+			break;
+
+		} else if (tablespace->files().size() != 1
+			   && strcmp(space_name, sys_space_name) != 0) {
+
+			/* Only the InnoDB system tablespace has support for
+			multiple files per tablespace. For historial reasons. */
+
+			fail = true;
 			break;
 		}
 
 		if (!dict_sys_t::is_reserved(id) && id > max_id) {
+
 			/* Currently try to find the max one only, it should
 			be able to reuse the deleted smaller ones later */
 			max_id = id;
 		}
 
-		const dd::Tablespace_file* f = *t->files().begin();
-		fail = f == nullptr;
-		if (fail) {
+		const auto	file = *tablespace->files().begin();
+
+		if (file == nullptr) {
+
+			fail = true;
 			break;
 		}
 
-		const char*	space_name = t->name().c_str();
-		fil_type_t	purpose = fsp_is_system_temporary(id)
-			? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
-		const char*	filename = f->filename().c_str();
-		char		buf[FN_REFLEN * 2 + 1];
+		if (fsp_is_system_or_temp_tablespace(id)
+		    || fsp_is_undo_tablespace(id)) {
+
+			/* These are tracked and opened separately. */
+			continue;
+		}
+
+		const char*	filename = file->filename().c_str();
+
+		if (fsp_is_ibd_tablespace(id)) {
+
+			auto	new_path = fil_tablespace_path_equals(
+				id, filename);
+
+			if (new_path.length() == 0) {
+
+				/* File found and real path matches. */
+
+			} else if (new_path.compare("MISSING") == 0) {
+
+				ib::info()
+					<< "Tablespace " << id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " is missing!";
+
+				continue;
+
+			} else if (new_path.compare("DELETED") == 0) {
+
+				ib::info()
+					<< "Tablespace " << id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " was deleted!";
+
+				continue;
+
+			}  else {
+
+				ib::error()
+					<< "Tablespace " << id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " has been moved to"
+					<< " '" << new_path << "'";
+
+				filename = new_path.c_str();
+
+				continue;
+			}
+		}
+
+		char	buf[FN_REFLEN * 2 + 1];
 
 		ut_ad(strlen(filename) < sizeof(buf));
+
+		/* Make a copy for extracting the space_name. space_name will
+		be a pointer within this buf if it is derived from buf below. */
+
 		strncpy(buf, filename, strlen(filename) + 1);
 
 		/* Currently, innodb_file_per_table space name is not the one
-		including schema/table, so get it from filename instead */
-		if (strncmp(t->name().c_str(), dict_sys_t::file_per_table_name,
-			    strlen(dict_sys_t::file_per_table_name)) == 0) {
+		including schema/table, so get it from filename instead. */
+
+		if (strncmp(space_name, fpt_str, fpt_str_len) == 0) {
+
 			space_name = filename_to_space_name(buf);
+
 			if (space_name == nullptr) {
 				fail = true;
 				break;
 			}
 		}
 
-		if (fsp_is_system_or_temp_tablespace(id)
-		    || fsp_is_undo_tablespace(id)
-		    || fil_space_for_table_exists_in_mem(
+		if (fil_space_for_table_exists_in_mem(
 			id, space_name, false, true, heap, 0)) {
+
 			continue;
 		}
 
 		dberr_t	err = fil_ibd_open(
-			validate, purpose, id, flags, space_name, filename);
+			validate, FIL_TYPE_TABLESPACE,
+			id, flags, space_name, filename);
+
 		switch (err) {
 		case DB_SUCCESS:
 		case DB_CANNOT_OPEN_FILE:
 			break;
+
 		default:
-			ib::error() << "Unable to open tablespace " << id
-				<< " (flags=" << flags
-				<< ", filename=" << filename << ");";
-				ut_strerr(err);
+			ib::error()
+				<< "Tablespace " << id << ","
+				<< " name '" << space_name << "',"
+				<< " unable to open file"
+				<< " '" << filename << "' - "
+				<< ut_strerr(err);
 		}
 	}
 
@@ -3593,7 +3689,7 @@ innobase_dict_recover(
 			return(true);
 		}
 
-		goto success;
+		break;
 	}
 	case DICT_RECOVERY_RESTART_SERVER:
 		if (boot_tablespaces(thd)) {
@@ -3608,10 +3704,9 @@ innobase_dict_recover(
 		}
 
 		srv_dict_recover_on_restart();
-success:
-		srv_start_threads(
-			dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 	}
+
+	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 
 	return(false);
 }

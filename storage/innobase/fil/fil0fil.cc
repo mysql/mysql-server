@@ -6735,6 +6735,51 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 	}
 }
 
+/** Lookup the tablespace ID and return the path to the file.
+@param[in]	space_id	Tablespace ID to lookup
+@param[in]	path		Path in the data dictionary
+@return { "MISSING", "DELETED", "", NEW_LOCATION } */
+const std::string
+fil_tablespace_path_equals(space_id_t space_id, const char* path)
+{
+	/* Single threaded code, no need to acquire mutex. */
+	const auto&	end = recv_sys->deleted.end();
+	const auto	names = tablespace_files->find(space_id);
+	const auto&	it = recv_sys->deleted.find(space_id);
+
+	if (names == nullptr) {
+
+		/* If it wasn't deleted after finding it on disk then
+		we tag it as missing. */
+
+		if (it == end) {
+
+			recv_sys->missing_ids.insert(space_id);
+		}
+
+		return("MISSING");
+	}
+
+	/* Check that it wasn't deleted. */
+	if (it != end) {
+
+		return("DELETED");
+
+	} else {
+
+		const std::string	real_path = fil_get_real_path(path);
+
+		if (names->front().compare(real_path) != 0) {
+
+			/* File has been moved. */
+			return(names->front());
+		}
+	}
+
+	/* MATCHES */
+	return("");
+}
+
 /** Lookup the tablespace ID.
 @param[in]	space_id		Tablespace ID to lookup
 @return true if the space ID is known. */
@@ -6959,7 +7004,7 @@ fil_tablespace_redo_create(
 		return(ptr);
 	}
 
-	auto	abs_name = fil_get_real_path(name, "");
+	auto	abs_name = fil_get_real_path(name);
 
 	/* Duplicates should have been sorted out before we get here. */
 	ut_a(names->size() == 1);

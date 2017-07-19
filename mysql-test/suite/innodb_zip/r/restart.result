@@ -306,8 +306,7 @@ t7_restart#p#p1#sp#s2.ibd
 t7_restart#p#p1#sp#s3.ibd
 #
 # Start the server and show that tables are still visible and accessible.
-#
-# restart
+# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -605,7 +604,7 @@ t7_restart#p#p1#sp#s3.ibd
 #
 # Start the server and show the tablespaces.
 #
-# restart
+# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -792,7 +791,7 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # Restart the server
 #
-# restart
+# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -889,7 +888,7 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # Start the server and check tablespaces.
 #
-# restart
+# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd
@@ -986,7 +985,7 @@ SUBPARTITION BY HASH (`c1`)
 #
 # Start the server and check tablespaces.
 #
-# restart
+# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4_restart.ibd

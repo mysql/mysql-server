@@ -1389,11 +1389,9 @@ fil_space_open_if_needed(fil_space_t* space)
 		until the files are opened for the first time.
 		fil_space_get_size() will open the file
 		and adjust the size and flags. */
-#ifdef UNIV_DEBUG
-		ulint		size	=
-#endif /* UNIV_DEBUG */
-			fil_space_get_size(space->id);
-		ut_ad(size == space->size);
+		page_no_t	size = fil_space_get_size(space->id);
+
+		ut_a(size == space->size);
 	}
 }
 
@@ -1473,6 +1471,14 @@ fil_tablespace_open_init_for_recovery(bool recovery);
 @return true if space ID is known and open */
 bool
 fil_tablespace_lookup_for_recovery(space_id_t space_id)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Lookup the tablespace ID and return the path to the file.
+@param[in]	space_id	Tablespace ID to lookup
+@param[in]	path		Path in the data dictionary
+@return path to new filename if it doesn't match else "" */
+const std::string
+fil_tablespace_path_equals(space_id_t space_id, const char* path)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** This function should be called after recovery has completed.
