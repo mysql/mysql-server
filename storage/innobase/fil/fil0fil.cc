@@ -6783,7 +6783,8 @@ fil_make_relative_path(const char* old_path, const std::string& new_path)
 
 		if (result.first == real_path.end()) {
 
-			ut_a(path.back() == OS_PATH_SEPARATOR);
+			ut_a(path.back() != OS_PATH_SEPARATOR);
+			ut_a(new_path[real_path.length()] == OS_PATH_SEPARATOR);
 
 			path.append(
 				new_path.substr(
