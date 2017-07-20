@@ -1351,8 +1351,10 @@ dberr_t
 Log_DDL::delete_by_ids(
 	DDL_Records&	records)
 {
+	dberr_t	error = DB_SUCCESS;
+
 	if (records.empty()) {
-		return(DB_SUCCESS);
+		return(error);
 	}
 
 	trx_t*	trx;
@@ -1361,8 +1363,7 @@ Log_DDL::delete_by_ids(
 	trx->ddl_operation = true;
 
 	DDL_Log_Table	ddl_log(trx);
-	ut_d(dberr_t	error =)
-	ddl_log.remove(records);
+	error =	ddl_log.remove(records);
 	ut_ad(error == DB_SUCCESS);
 
 	trx_commit_for_mysql(trx);
