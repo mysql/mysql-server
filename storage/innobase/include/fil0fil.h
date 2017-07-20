@@ -741,8 +741,8 @@ flushed modifications in the files.
 void
 fil_close_log_files(bool free_all);
 
-/** File Node Iterator callback. */
-using fil_node_cbk_t = dberr_t (fil_node_t* node, void* context);
+/** File node iterator callback. */
+using fil_node_cbk_t = dberr_t (fil_node_t* file, void* context);
 
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
@@ -1406,8 +1406,8 @@ fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 /** Note that the file system where the file resides doesn't support PUNCH HOLE
-@param[in,out]	node		Node to set */
-void fil_no_punch_hole(fil_node_t* node);
+@param[in,out]	file		File node to set */
+void fil_no_punch_hole(fil_node_t* file);
 
 #ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 void test_make_filepath();
@@ -1505,12 +1505,12 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Callback to check tablespace size with space header size and extend
-@param[in]	node	file node
+@param[in]	file	file node
 @param[in]	context	callers context, currently unused
 @return	error code */
 dberr_t
 fil_check_extend_space(
-	fil_node_t*	node,
+	fil_node_t*	file,
 	void* 		context MY_ATTRIBUTE((unused)))
 	MY_ATTRIBUTE((warn_unused_result));
 

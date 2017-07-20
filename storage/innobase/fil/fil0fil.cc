@@ -218,7 +218,7 @@ public:
 	}
 
 	/** Get the file names that map to a space ID
-	@param[in]	space_Id	Tablespace ID
+	@param[in]	space_id	Tablespace ID
 	@return the filenames that map to space id */
 	Names* find(space_id_t space_id)
 	{
@@ -4559,7 +4559,7 @@ fil_extend_tablespaces_to_stored_len()
 
 /** Tries to reserve free extents in a file space.
 @param[in]	id		Tablespace ID
-@param[in]	n_free_no	Number of free extents now
+@param[in]	n_free_now	Number of free extents now
 @param[in]	n_to_reserve	How many one wants to reserve
 @return true if succeed */
 bool
@@ -4745,7 +4745,8 @@ fil_node_complete_io(
 @param[in]	space_name	Tablespace name
 @param[in]	byte_offset	Byte offset
 @param[in]	len		I/O length
-@param[in]	is_read		I/O type */
+@param[in]	is_read		I/O type
+@param[in]	line		Line called from */
 static
 void
 fil_report_invalid_page_access_low(
@@ -6015,7 +6016,7 @@ PageCallback::set_page_size(
 
 /** Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables.
-@param[in] ibd_filepath File path of the IBD tablespace */
+@param[in] ibd_filepath		File path of the IBD tablespace */
 void
 fil_delete_file(const char* ibd_filepath)
 {
