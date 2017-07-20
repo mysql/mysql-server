@@ -2503,12 +2503,12 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_low(
 		type, space_id, 0, log_ptr, mtr);
- 
+
 	if (type == MLOG_FILE_CREATE) {
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;
- 	}
- 
+	}
+
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
 
@@ -2547,7 +2547,7 @@ fil_op_write_log(
 		ut_ad(0);
 	}
 }
- 
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Deletes an IBD tablespace, either general or single-table.
@@ -7515,7 +7515,7 @@ fil_tokenize_paths(
 }
 
 /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
- is == 0 on the first page then check for at least two pages with the same
+is == 0 on the first page then check for at least two pages with the same
 tablespace ID. Do a Light weight check before trying with
 DataFile::find_space_id().
 @param[in,out]	ifs		Input file stream
