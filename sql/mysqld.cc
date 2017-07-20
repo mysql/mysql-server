@@ -1082,7 +1082,7 @@ MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
-SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
@@ -7877,11 +7877,6 @@ static int mysql_init_variables()
 
   have_rtree_keys=SHOW_OPTION_YES;
 
-#ifdef HAVE_CRYPT
-  have_crypt=SHOW_OPTION_YES;
-#else
-  have_crypt=SHOW_OPTION_NO;
-#endif
   /* Always true */
   have_compress= SHOW_OPTION_YES;
 #ifdef HAVE_OPENSSL

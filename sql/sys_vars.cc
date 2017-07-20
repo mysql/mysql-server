@@ -5411,10 +5411,6 @@ static Sys_var_have Sys_have_compress(
        "have_compress", "have_compress",
        READ_ONLY NON_PERSIST GLOBAL_VAR(have_compress), NO_CMD_LINE);
 
-static Sys_var_have Sys_have_crypt(
-       "have_crypt", "have_crypt",
-       READ_ONLY NON_PERSIST GLOBAL_VAR(have_crypt), NO_CMD_LINE);
-
 static Sys_var_have Sys_have_dlopen(
        "have_dynamic_loading", "have_dynamic_loading",
        READ_ONLY NON_PERSIST GLOBAL_VAR(have_dlopen), NO_CMD_LINE);

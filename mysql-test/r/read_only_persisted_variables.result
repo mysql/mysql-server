@@ -343,8 +343,6 @@ SET @@persist_only.version_compile_os= "";
 ERROR HY000: Variable 'version_compile_os' is a non persistent read only variable
 SET @@persist_only.have_compress= "";
 ERROR HY000: Variable 'have_compress' is a non persistent read only variable
-SET @@persist_only.have_crypt= "";
-ERROR HY000: Variable 'have_crypt' is a non persistent read only variable
 SET @@persist_only.have_dynamic_loading= "";
 ERROR HY000: Variable 'have_dynamic_loading' is a non persistent read only variable
 SET @@persist_only.license= "";

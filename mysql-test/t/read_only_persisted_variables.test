@@ -378,8 +378,6 @@ SET @@persist_only.version_compile_os= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.have_compress= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.have_crypt= "";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.have_dynamic_loading= "";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
