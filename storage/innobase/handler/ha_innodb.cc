@@ -3592,6 +3592,8 @@ boot_tablespaces(THD* thd)
 
 	mem_heap_free(heap);
 
+	fil_open_for_business();
+
 	return(fail);
 }
 

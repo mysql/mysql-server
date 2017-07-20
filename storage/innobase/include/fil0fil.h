@@ -1546,4 +1546,8 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Free the Tablespace_files instance. */
+void
+fil_open_for_business();
+
 #endif /* fil0fil_h */

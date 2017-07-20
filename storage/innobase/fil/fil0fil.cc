@@ -208,9 +208,9 @@ public:
 	@param[in]	space_id	Tablespace ID
 	@param[in]	name		File name.
 	@return number of files that map to the space ID */
-	size_t add(space_id_t space_id, const std::string& name)
+	static size_t add(space_id_t space_id, const std::string& name)
 	{
-		auto&	names = m_paths[space_id];
+		auto&	names = s_instance->m_paths[space_id];
 
 		names.push_back(name);
 
@@ -220,11 +220,11 @@ public:
 	/** Get the file names that map to a space ID
 	@param[in]	space_id	Tablespace ID
 	@return the filenames that map to space id */
-	Names* find(space_id_t space_id)
+	static Names* find(space_id_t space_id)
 	{
-		auto	it = m_paths.find(space_id);
+		auto	it = s_instance->m_paths.find(space_id);
 
-		if (it != m_paths.end()) {
+		if (it != s_instance->m_paths.end()) {
 			return(&it->second);
 		}
 
@@ -233,21 +233,40 @@ public:
 
 	/** Remove the entry for the space ID.
 	@param[in]	space_id	Tablespace ID mapping to remove */
-	void erase(space_id_t space_id)
+	static void erase(space_id_t space_id)
 	{
-		auto	n_erased = m_paths.erase(space_id);
+		auto	n_erased = s_instance->m_paths.erase(space_id);
 
 		ut_a(n_erased == 1);
 	}
 
+	/** Create a new instance. */
+	static void create()
+	{
+		ut_a(s_instance == nullptr);
+		s_instance = UT_NEW_NOKEY(Tablespace_files());
+	}
+
+	/** Delete the instance. */
+	static void destroy()
+	{
+		if (s_instance != nullptr) {
+			UT_DELETE(s_instance);
+			s_instance = nullptr;
+		}
+	}
+
 private:
 	/** Mapping from tablespace ID to filenames */
-	Paths			m_paths;
+	Paths				m_paths;
+
+	/** Singleton instance of this class. */
+	static Tablespace_files*	s_instance;
 };
 
 /** Tablespace ID to filename mapping that was recovered by scanning the
 directories. */
-static Tablespace_files*	tablespace_files;
+Tablespace_files*	Tablespace_files::s_instance;
 
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
@@ -272,9 +291,6 @@ struct Fil_system {
 
 	/** Tablespace instances hashed on the space name */
 	Names			names;
-
-	/** Track the mapping from tablespace ID to file name on disk. */
-	Tablespace_files	open;
 
 	/** Base node for the LRU list of the most recently used open
 	files with no pending i/o's; if we start an i/o on the file,
@@ -2384,7 +2400,7 @@ from the file map.
 std::string
 fil_system_open_fetch(space_id_t space_id)
 {
-	const auto	names = tablespace_files->find(space_id);
+	const auto	names = Tablespace_files::find(space_id);
 
 	if (names != nullptr) {
 		ut_a(!names->empty());
@@ -5617,7 +5633,10 @@ fil_close()
 
 	mutex_free(&fil_system->mutex);
 
+	Tablespace_files::destroy();
+
 	ut_free(fil_system);
+
 	fil_system = nullptr;
 }
 
@@ -6813,7 +6832,7 @@ fil_tablespace_path_equals(space_id_t space_id, const char* path)
 {
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = tablespace_files->find(space_id);
+	const auto	names = Tablespace_files::find(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (names == nullptr) {
@@ -6860,7 +6879,7 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = tablespace_files->find(space_id);
+	const auto	names = Tablespace_files::find(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (names == nullptr) {
@@ -6893,7 +6912,7 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 		return(false);
 	}
 
-	const auto	names = tablespace_files->find(space_id);
+	const auto	names = Tablespace_files::find(space_id);
 
 	/* Duplicates should have been sorted out before start of recovery. */
 	ut_a(names->size() == 1);
@@ -6982,7 +7001,7 @@ fil_check_missing_tablespaces()
 			continue;
 		}
 
-		const auto	names = tablespace_files->find(space_id);
+		const auto	names = Tablespace_files::find(space_id);
 
 		if (names == nullptr) {
 
@@ -7064,7 +7083,7 @@ fil_tablespace_redo_create(
 		return(nullptr);
 	}
 
-	const auto	names = tablespace_files->find(page_id.space());
+	const auto	names = Tablespace_files::find(page_id.space());
 
 	if (names == nullptr) {
 
@@ -7225,7 +7244,7 @@ fil_tablespace_redo_rename(
 		return(nullptr);
 	}
 
-	auto	names = tablespace_files->find(page_id.space());
+	auto	names = Tablespace_files::find(page_id.space());
 
 	if (names == nullptr) {
 
@@ -7401,7 +7420,7 @@ fil_tablespace_redo_delete(
 		return(nullptr);
 	}
 
-	const auto	names = tablespace_files->find(page_id.space());
+	const auto	names = Tablespace_files::find(page_id.space());
 
 	recv_sys->deleted.insert(page_id.space());
 	recv_sys->missing_ids.erase(page_id.space());
@@ -7429,7 +7448,7 @@ fil_tablespace_redo_delete(
 
 	fil_space_free(page_id.space(), false);
 
-	tablespace_files->erase(page_id.space());
+	Tablespace_files::erase(page_id.space());
 
 	return(ptr);
 }
@@ -7657,7 +7676,7 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 			size_t	n_files;
 
-			n_files = tablespace_files->add(space_id, filename);
+			n_files = Tablespace_files::add(space_id, filename);
 
 			if (n_files > 1) {
 
@@ -7723,8 +7742,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 		<< " '.ibd' and "
 		<< undo_files.size() << " undo files";
 
-	ut_a(tablespace_files == nullptr);
-	tablespace_files = UT_NEW_NOKEY(Tablespace_files());
+	Tablespace_files::create();
 
 	Duplicates	duplicates;
 
@@ -7745,7 +7763,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 	/* Print the duplicate names to the error log. */
 	for (auto space_id : duplicates) {
 
-		const auto	names = tablespace_files->find(space_id);
+		const auto	names = Tablespace_files::find(space_id);
 
 		/* Fixes the order in the mtr tests. */
 		std::sort(names->begin(), names->end());
@@ -7825,4 +7843,11 @@ fil_check_extend_space(
 	}
 
 	return(err);
+}
+
+/** Free the Tablespace_files instance. */
+void
+fil_open_for_business()
+{
+	Tablespace_files::destroy();
 }
