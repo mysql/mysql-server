@@ -55,7 +55,9 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="master-bin-default.00
 
 # Clean up
 RESET SLAVE ALL;
+--disable_warnings
 --replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE
 --eval SET @@global.master_info_repository='$save_mi_repo_type'
 --replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
 --eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
+--enable_warnings

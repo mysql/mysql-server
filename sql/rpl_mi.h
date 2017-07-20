@@ -448,6 +448,15 @@ public:
     auto_position= auto_position_param;
   }
 
+  /**
+    This member function shall return true if there are server
+    ids configured to be ignored.
+
+    @return true if there are server ids to be ignored,
+            false otherwise.
+  */
+  bool is_ignore_server_ids_configured();
+
 private:
   /**
     Format_description_log_event for events received from the master

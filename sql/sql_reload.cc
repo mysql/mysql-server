@@ -22,7 +22,6 @@
 #include "connection_handler_impl.h"
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "debug_sync.h"
-#include "des_key_file.h"
 #include "handler.h"
 #include "hostname.h"    // hostname_cache_refresh
 #include "lex_string.h"
@@ -41,7 +40,6 @@
 #include "rpl_slave.h"   // reset_slave
 #include "sql_admin.h"
 #include "sql_base.h"    // close_cached_tables
-#include "sql_cache.h"   // query_cache
 #include "sql_class.h"   // THD
 #include "sql_connect.h" // reset_mqh
 #include "sql_const.h"
@@ -214,15 +212,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       thd= 0;
     }
   }
-  if (options & REFRESH_QUERY_CACHE_FREE)
-  {
-    query_cache.pack(thd);			// FLUSH QUERY CACHE
-    options &= ~REFRESH_QUERY_CACHE;    // Don't flush cache, just free memory
-  }
-  if (options & (REFRESH_TABLES | REFRESH_QUERY_CACHE))
-  {
-    query_cache.flush(thd);			// RESET QUERY CACHE
-  }
 
   DBUG_ASSERT(!thd || thd->locked_tables_mode ||
               !thd->mdl_context.has_locks() ||
@@ -347,16 +336,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       result= 1;
     }
   }
-#ifdef HAVE_OPENSSL
-   if (options & REFRESH_DES_KEY_FILE)
-   {
-     if (des_key_file && load_des_key_file(des_key_file))
-     {
-       /* NOTE: my_error() has been already called by load_des_key_file(). */
-       result= 1;
-     }
-   }
-#endif
   if (options & REFRESH_OPTIMIZER_COSTS)
     reload_optimizer_cost_constants();
  if (options & REFRESH_SLAVE)

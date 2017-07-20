@@ -3472,7 +3472,16 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
 }
 
 
-bool Item_func_json_merge::val_json(Json_wrapper *wr)
+Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
+                                           PT_item_list *a)
+  : Item_func_json_merge_preserve(thd, pos, a)
+{
+  push_deprecated_warn(thd, "JSON_MERGE",
+                       "JSON_MERGE_PRESERVE/JSON_MERGE_PATCH");
+}
+
+
+bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -3796,4 +3805,98 @@ longlong Item_func_json_storage_free::val_int()
     return error_int();                         /* purecov: inspected */
 
   return space;
+}
+
+
+bool Item_func_json_merge_patch::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+
+  try
+  {
+    if (get_json_wrapper(args, 0, &m_value, func_name(), wr))
+      return error_json();
+
+    null_value= args[0]->null_value;
+
+    Json_wrapper patch_wr;
+    const THD *thd= current_thd;
+    for (uint i= 1; i < arg_count; ++i)
+    {
+      if (get_json_wrapper(args, i, &m_value, func_name(), &patch_wr))
+        return error_json();
+
+      if (args[i]->null_value)
+      {
+        /*
+          The patch is unknown, so the result so far is unknown. We
+          cannot return NULL immediately, since a later patch can give
+          a known result. This is because the result of a merge
+          operation is the patch itself if the patch is not an object,
+          regardless of what the target document is.
+        */
+        null_value= true;
+        continue;
+      }
+
+      /*
+        If a patch is not an object, the result of the merge operation
+        is the patch itself. So just set the result to this patch and
+        go on to the next patch.
+      */
+      if (patch_wr.type() != enum_json_type::J_OBJECT)
+      {
+        *wr= std::move(patch_wr);
+        null_value= false;
+        continue;
+      }
+
+      /*
+        The target document is unknown, and we cannot tell the result
+        from the patch alone when the patch is an object, so go on to
+        the next patch.
+      */
+      if (null_value)
+        continue;
+
+      /*
+        Get the DOM representation of the target document. It should
+        be an object, and we will use an empty object if it is not.
+      */
+      Json_object_ptr target_dom;
+      if (wr->type() == enum_json_type::J_OBJECT)
+      {
+        target_dom.reset(down_cast<Json_object*>(wr->to_dom(thd)));
+        wr->set_alias();
+      }
+      else
+      {
+        target_dom= create_dom_ptr<Json_object>();
+      }
+
+      if (target_dom == nullptr)
+        return error_json();                  /* purecov: inspected */
+
+      // Get the DOM representation of the patch object.
+      Json_object_ptr patch_dom(down_cast<Json_object*>(patch_wr.to_dom(thd)));
+      patch_wr.set_alias();
+
+      // Apply the patch on the target document.
+      if (patch_dom == nullptr || target_dom->merge_patch(std::move(patch_dom)))
+        return error_json();                  /* purecov: inspected */
+
+      // Move the result of the merge operation into the result wrapper.
+      *wr= Json_wrapper(std::move(target_dom));
+      null_value= false;
+    }
+
+    return false;
+  }
+  /* purecov: begin inspected */
+  catch (...)
+  {
+    handle_std_exception(func_name());
+    return error_json();
+  }
+  /* purecov: end */
 }

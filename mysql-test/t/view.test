@@ -1908,11 +1908,6 @@ drop table t1;
 #
 # using encrypt & substring_index in view (Bug#7024)
 #
-CREATE VIEW v1 AS SELECT ENCRYPT("dhgdhgd");
-disable_result_log;
-SELECT * FROM v1;
-enable_result_log;
-drop view v1;
 CREATE VIEW v1 AS SELECT SUBSTRING_INDEX("dkjhgd:kjhdjh", ":", 1);
 SELECT * FROM v1;
 drop view v1;
@@ -4044,6 +4039,7 @@ SELECT * FROM v1 WHERE c2 = 'text2';
 --echo
 
 DROP VIEW v1;
+SET NAMES DEFAULT;
 
 --echo
 --echo # -- End of test case for Bug#32538.
@@ -6085,3 +6081,96 @@ RENAME TABLE t3 TO t1, t4 TO t2;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # BUG#25634576: DATABASE NAME IN SHOW CREATE VIEW
+--echo #
+
+CREATE DATABASE db;
+CREATE TABLE db.t1(fld1 INT);
+CREATE TABLE db.t2(fld2 INT);
+CREATE TABLE t1(fld1 INT);
+CREATE TABLE t2(fld2 INT);
+
+--echo # With patch, db name is appended only to those tables
+--echo # which are not present in the current database.
+
+--echo # Test cases with reference to table within current
+--echo # db and outside current db.
+CREATE VIEW v1 AS SELECT * FROM t1 UNION SELECT * FROM t2;
+SHOW CREATE VIEW v1;
+
+CREATE VIEW v2 AS SELECT * FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v2;
+
+CREATE VIEW v3 AS SELECT fld1 FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v3;
+
+CREATE VIEW v4 AS SELECT t1.fld1 FROM t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v4;
+
+CREATE VIEW v5 AS SELECT * FROM db.t1 UNION SELECT * FROM db.t2;
+SHOW CREATE VIEW v5;
+
+--echo # Test cases with subquery.
+CREATE VIEW v6 AS SELECT * FROM t2 WHERE fld2 IN (SELECT fld1 FROM t1);
+SHOW CREATE VIEW v6;
+
+CREATE VIEW v7 AS SELECT * FROM db.t2 WHERE fld2 IN (SELECT fld1 FROM t1);
+SHOW CREATE VIEW v7;
+
+CREATE VIEW v8 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v8;
+
+CREATE VIEW v9 AS SELECT fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v9;
+
+CREATE VIEW v10 AS SELECT t1.fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v10;
+
+CREATE VIEW v11 AS SELECT * FROM db.t1 WHERE fld1 NOT IN
+                  (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW v11;
+
+--echo # Test cases which uses derived table in sub query.
+CREATE VIEW v12 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW v12;
+
+CREATE VIEW v13 AS SELECT * FROM (SELECT fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v13;
+
+CREATE VIEW v14 AS SELECT * FROM db.t2, (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW v14;
+
+CREATE VIEW v15 AS SELECT * FROM db.t2, (SELECT fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v15;
+
+CREATE VIEW v16 AS SELECT db.t2.fld2 FROM db.t2, (SELECT t1.fld1 FROM db.t1) dummy;
+SHOW CREATE VIEW v16;
+
+--echo # Test cases using CTE.
+CREATE VIEW v17 AS WITH cte AS (SELECT * FROM t1) SELECT * FROM cte; 
+SHOW CREATE VIEW v17;
+
+CREATE VIEW v18 AS WITH cte AS (SELECT fld1 FROM t1) SELECT * FROM cte;
+SHOW CREATE VIEW v18;
+
+CREATE VIEW v19 AS WITH cte AS (SELECT db.t2.fld2 FROM db.t2) SELECT * FROM cte;
+SHOW CREATE VIEW v19;
+
+--echo # Test case added for coverage where view is created in different db.
+CREATE VIEW db.v1 AS SELECT * FROM db.t1 UNION SELECT * FROM t2;
+SHOW CREATE VIEW db.v1;
+
+CREATE VIEW db.v2 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
+SHOW CREATE VIEW db.v2;
+
+CREATE VIEW db.v3 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
+SHOW CREATE VIEW db.v3;
+
+--echo # Cleanup.
+DROP VIEW v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15,
+v16, v17, v18, v19;
+DROP TABLE t1, t2;
+DROP DATABASE db;

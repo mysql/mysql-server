@@ -10256,6 +10256,35 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
 }
 
 /**
+  This function shall issue a deprecation warning if
+  there are server ids tokenized from the CHANGE MASTER
+  TO command while @@global.gtid_mode=ON.
+ */
+static void
+issue_deprecation_warnings_for_channel(THD *thd)
+{
+  LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
+
+  /*
+    Deprecation of GTID_MODE + IGNORE_SERVER_IDS
+
+    Generate deprecation warning when user executes CHANGE
+    MASTER TO IGNORE_SERVER_IDS if GTID_MODE=ON.
+  */
+  enum_gtid_mode gtid_mode=
+    get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP);
+  if (lex_mi->repl_ignore_server_ids.size() > 0 &&
+      gtid_mode == GTID_MODE_ON)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
+                        "(when @@GLOBAL.GTID_MODE = ON)", "");
+  }
+}
+
+/**
   Execute a CHANGE MASTER statement.
 
   Apart from changing the receive/execute configurations/positions,
@@ -10952,6 +10981,12 @@ bool change_master_cmd(THD *thd)
                     mi->rli, lex->mi.channel)))
           goto err;
       }
+
+      /*
+        Issuing deprecation warnings after the change (we make
+        sure that we don't issue warning if there is an error).
+      */
+      issue_deprecation_warnings_for_channel(thd);
 
       my_ok(thd);
     }

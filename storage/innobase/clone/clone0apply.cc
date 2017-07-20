@@ -334,8 +334,11 @@ Clone_Handle::receive_data(
 
 	callback->set_dest_name(file_meta->m_file_name);
 
-	err = file_callback(callback, task, size,
-			    __FILE__, __LINE__);
+	err = file_callback(callback, task, size
+#ifdef UNIV_PFS_IO
+			    , __FILE__, __LINE__
+#endif  /* UNIV_PFS_IO */
+			    );
 
 	return(err);
 }

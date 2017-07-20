@@ -43,7 +43,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -58,7 +58,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 CREATE FUNCTION f()
@@ -70,7 +70,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -86,7 +86,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
 BEGIN
 RETURN '';
-END	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 CREATE FUNCTION f1()
 RETURNS VARCHAR(64) CHARACTER SET ucs2
 BEGIN

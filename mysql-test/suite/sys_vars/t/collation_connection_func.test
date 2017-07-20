@@ -91,6 +91,8 @@ SELECT * FROM t1 WHERE a=_latin1'müller' COLLATE latin1_german1_ci;
 
 # clean up
 DROP TABLE t1;
+--character_set utf8mb4
+set names utf8mb4;
 SET @@global.collation_connection = @global_collation_connection;
 SET @@session.collation_connection = @session_collation_connection;
 #########################################################

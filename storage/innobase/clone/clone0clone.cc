@@ -1130,9 +1130,13 @@ dberr_t
 Clone_Handle::file_callback(
 	Ha_clone_cbk*	cbk,
 	Clone_Task*	task,
-	uint		len,
+	uint		len
+#ifdef UNIV_PFS_IO
+	,
 	const char*	name,
-	uint		line)
+	uint		line
+#endif  /* UNIV_PFS_IO */
+	)
 {
 	int		err;
 	Ha_clone_file	file;
@@ -1171,9 +1175,6 @@ Clone_Handle::file_callback(
 #ifdef UNIV_PFS_IO
 	register_pfs_file_io_end(locker, len);
 #endif  /* UNIV_PFS_IO */
-
-	name = nullptr;
-	line = 0;
 
 	return(err == 0 ? DB_SUCCESS : DB_ERROR);
 }

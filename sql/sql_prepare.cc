@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,7 +127,6 @@ When one supplies long data for a placeholder:
 #include "sp_cache.h"           // sp_cache_enforce_limit
 #include "sql_audit.h"          // mysql_global_audit_mask
 #include "sql_base.h"           // open_tables_for_query, open_temporary_table
-#include "sql_cache.h"          // query_cache
 #include "sql_cmd_ddl_table.h"
 #include "sql_const.h"
 #include "sql_cursor.h"         // Server_side_cursor
@@ -2454,16 +2453,8 @@ void Prepared_statement::close_cursor()
 void Prepared_statement::setup_set_params()
 {
   /*
-    Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
-    db from "prepare" time).
-  */
-  if (thd->variables.query_cache_type == 0 ||
-      query_cache.query_cache_size == 0) // we won't expand the query
-    lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
-
-  /*
-    Decide if we have to expand the query (because we must write it to logs or
-    because we want to look it up in the query cache) or not.
+    Decide if we have to expand the query (because we must write it to logs)
+    or not.
     We don't have to substitute the params when bin-logging DML in RBL.
   */
   if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command) &&
@@ -3316,36 +3307,28 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     else
     {
       /*
-        Try to find it in the query cache, if not, execute it.
-        Note that multi-statements cannot exist here (they are not supported in
-        prepared statements).
+        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+        prepared statements this causes two records to be output:
+
+        Query       EXECUTE <statement name>
+        Execute     <statement SQL text>
+
+        This is considered user-friendly, since in the
+        second log entry we output values of parameter markers.
+
+        Rewriting/password obfuscation:
+
+        - Any passwords in the "Execute" line should be substituted with
+        their hashes, or a notice.
+
+        Rewrite first (if needed); execution might replace passwords
+        with hashes in situ without flagging it, and then we'd make
+        a hash of that hash.
       */
-      if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
-      {
-        /*
-          Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-          prepared statements this causes two records to be output:
-
-          Query       EXECUTE <statement name>
-          Execute     <statement SQL text>
-
-          This is considered user-friendly, since in the
-          second log entry we output values of parameter markers.
-
-          Rewriting/password obfuscation:
-
-          - Any passwords in the "Execute" line should be substituted with
-          their hashes, or a notice.
-
-          Rewrite first (if needed); execution might replace passwords
-          with hashes in situ without flagging it, and then we'd make
-          a hash of that hash.
-        */
-        rewrite_query_if_needed(thd);
-        log_execute_line(thd);
-        thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
-        error= mysql_execute_command(thd, true);
-      }
+      rewrite_query_if_needed(thd);
+      log_execute_line(thd);
+      thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
+      error= mysql_execute_command(thd, true);
     }
   }
 

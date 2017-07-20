@@ -22,7 +22,7 @@
 
 #include "my_inttypes.h"
 #include "ngs/interface/listener_interface.h"
-#include "ngs/socket_events_interface.h"
+#include "ngs/interface/socket_events_interface.h"
 #include "ngs_common/operations_factory_interface.h"
 #include "ngs_common/socket_interface.h"
 

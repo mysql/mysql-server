@@ -22,6 +22,8 @@
 #include <Vector.hpp>
 #include <BaseString.hpp>
 
+#define NDBT_NO_NODE_GROUP_ID (int(-256))
+
 class NdbRestarter {
 public:
   NdbRestarter(const char* _addr = 0, class Ndb_cluster_connection * con = 0);

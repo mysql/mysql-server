@@ -176,6 +176,8 @@ trx_init(
 
 #ifdef UNIV_DEBUG
 	trx->is_dd_trx  = false;
+	trx->in_rollback = false;
+	trx->lock.in_rollback = false;
 #endif /* UNIV_DEBUG */
 
 	ut_d(trx->start_file = 0);
@@ -1327,6 +1329,7 @@ trx_start_low(
 	ut_ad(trx->start_line != 0);
 	ut_ad(trx->start_file != 0);
 	ut_ad(trx->roll_limit == 0);
+	ut_ad(!trx->lock.in_rollback);
 	ut_ad(trx->error_state == DB_SUCCESS);
 	ut_ad(trx->rsegs.m_redo.rseg == NULL);
 	ut_ad(trx->rsegs.m_noredo.rseg == NULL);
@@ -1466,6 +1469,9 @@ trx_start_low(
 	} else {
 		trx->start_time = ut_time();
 	}
+
+	trx->age = 0;
+	trx->age_updated = 0;
 
 	ut_a(trx->error_state == DB_SUCCESS);
 

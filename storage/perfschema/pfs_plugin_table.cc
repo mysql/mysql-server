@@ -28,6 +28,7 @@
 #include <list>
 #include <string>
 
+/* clang-format off */
 /**
   @page PAGE_PFS_TABLE_PLUGIN_SERVICE Plugin table service
   Performance Schema plugin table service is a mechanism which provides
@@ -215,6 +216,7 @@
 
   @enduml
 */
+/* clang-format on */
 
 struct PSI_POS;
 struct PSI_RECORD;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights
+ Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -75,7 +75,13 @@ void QueryOperation::levelIsJoinTable(int level) {
 void QueryOperation::prepare(const NdbQueryOperationDef * root) {
   DEBUG_MARKER(UDEB_DEBUG);
   operationTree = root;
-  definedQuery = ndbQueryBuilder->prepare();
+  /**
+   * OJA: Temp patch to avoid build break due to WL10234 changed the
+   * (non-public) interface to ::prepare(). A 'class Ndb*' should
+   * be provided as argument. 'NULL' is just for avoiding build break,
+   * expects all nodejs tests to fail though
+   */
+  definedQuery = ndbQueryBuilder->prepare(NULL);
 }
 
 int QueryOperation::prepareAndExecute() {

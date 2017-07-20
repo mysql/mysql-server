@@ -677,7 +677,9 @@ static int check_connection(THD *thd)
     return 1;
   }
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_connect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   if (auth_rc == 0 && connect_errors != 0)
   {
@@ -754,7 +756,9 @@ void end_connection(THD *thd)
 
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
@@ -910,7 +914,9 @@ void close_connection(THD *thd, uint sql_errno,
     mysql_audit_notify(thd,
                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
                        sql_errno);
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_disconnect)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   thd->security_context()->logout();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,8 +33,7 @@ private:
     STATS_LOOP = 0,
     BUSY_LOOP = 1,
     CLEANUP_LOOP = 2,
-    LCP_LOOP = 3,
-    LCP_LOCKED = 4
+    LCP_LOOP = 3
   };
 };
 

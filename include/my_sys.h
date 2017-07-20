@@ -967,7 +967,6 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***
 
 #ifdef HAVE_PSI_INTERFACE
 void my_init_mysys_psi_keys(void);
-#endif /* HAVE_PSI_INTERFACE */
 
 extern MYSQL_PLUGIN_IMPORT PSI_thread_bootstrap *psi_thread_hook;
 extern void set_psi_thread_service(void *psi);
@@ -999,6 +998,7 @@ extern MYSQL_PLUGIN_IMPORT PSI_error_bootstrap *psi_error_hook;
 extern void set_psi_error_service(void *psi);
 extern MYSQL_PLUGIN_IMPORT PSI_data_lock_bootstrap *psi_data_lock_hook;
 extern void set_psi_data_lock_service(void *psi);
+#endif /* HAVE_PSI_INTERFACE */
 
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;

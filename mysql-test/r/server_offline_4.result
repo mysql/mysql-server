@@ -18,7 +18,7 @@ t2.MYI
 t2_XXX.sdi
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 SET GLOBAL offline_mode = OFF;
 UNLOCK TABLES;
 disconnect conu1;
@@ -32,7 +32,7 @@ connection default;
 SET GLOBAL offline_mode = ON;
 SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 COUNT(USER)
-1
+2
 disconnect conu1;
 DROP USER 'user1'@'localhost';
 # Restoring the original values.

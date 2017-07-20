@@ -6386,66 +6386,6 @@ func_exit:
 	goto loop;
 }
 
-/** Checks if MySQL at the moment is allowed for this table to retrieve a
-consistent read result, or store it to the query cache.
-@param[in]	thd	thread that is trying to access the query cache
-@param[in]	trx	transaction object
-@param[in]	norm_name concatenation of database name, '/' char, table name
-@return TRUE if storing or retrieving from the query cache is permitted */
-ibool
-row_search_check_if_query_cache_permitted(
-	THD*		thd,
-	trx_t*		trx,
-	const char*	norm_name)
-{
-	dict_table_t*	table;
-	ibool		ret	= FALSE;
-	MDL_ticket*	mdl	= nullptr;
-
-	table = dd_table_open_on_name(thd, &mdl, norm_name,
-				      false, DICT_ERR_IGNORE_NONE);
-
-	if (table == NULL) {
-		return(FALSE);
-	}
-
-	/* Start the transaction if it is not started yet */
-
-	trx_start_if_not_started(trx, false);
-
-	/* If there are locks on the table or some trx has invalidated the
-	cache before this transaction started then this transaction cannot
-	read/write from/to the cache.
-
-	If a read view has not been created for the transaction then it doesn't
-	really matter what this transactin sees. If a read view was created
-	then the view low_limit_id is the max trx id that this transaction
-	saw at the time of the read view creation.  */
-
-	if (lock_table_get_n_locks(table) == 0
-	    && ((trx->id != 0 && trx->id >= table->query_cache_inv_id)
-		|| !MVCC::is_view_active(trx->read_view)
-		|| trx->read_view->low_limit_id()
-		>= table->query_cache_inv_id)) {
-
-		ret = TRUE;
-
-		/* If the isolation level is high, assign a read view for the
-		transaction if it does not yet have one */
-
-		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !srv_read_only_mode
-		    && !MVCC::is_view_active(trx->read_view)) {
-
-			trx_sys->mvcc->view_open(trx->read_view, trx);
-		}
-	}
-
-	dd_table_close(table, thd, &mdl, false);
-
-	return(ret);
-}
-
 /*******************************************************************//**
 Read the AUTOINC column from the current row. If the value is less than
 0 and the type is not unsigned then we reset the value to 0.

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -236,6 +236,69 @@ function getCookie(key) {
 
 // Store a cookie with the given name, value and default expiration
 function setCookie(name, value) {
+    if (name == "hostStore") {
+        // Skip over Empty/AnyHost
+        if (value.length > 200) {
+            mcc.util.dbg("Removing passwords from Host cookie store.");
+            // Remove password.
+            var startIndex = value.indexOf("\"usrpwd\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"usrpwd\": \"\"");
+                }
+                startIndex = value.indexOf("\"usrpwd\": \"", endIndex);
+                endIndex = 0;
+            }
+            // Remove passphrase.
+            var startIndex = value.indexOf("\"key_passp\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"key_passp\": \"\"");
+                }
+                startIndex = value.indexOf("\"key_passp\": \"", endIndex);
+                endIndex = 0;
+            }        
+            // Remove private key.
+            var startIndex = value.indexOf("\"key\": \"");
+            var endIndex = 0;
+            while (startIndex > -1 && startIndex < value.length) {
+                for (i = startIndex;; i++) {
+                    if (value.charAt(i) == ",") {
+                        endIndex = i;
+                        break;
+                    }
+                    if (i == value.length - 1) {
+                        break;
+                    }
+                }
+                if (endIndex > startIndex) {
+                    value = value.replace(value.slice(startIndex, endIndex), "\"key\": \"\"");
+                }
+                startIndex = value.indexOf("\"key\": \"", endIndex);
+                endIndex = 0;
+            }        
+        }
+    }
     var expiration = +predefinedCookies["expiration"].defaultValue;
     // If there isn't a default, use 5 days
     if (!expiration) {

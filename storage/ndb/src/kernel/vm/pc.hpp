@@ -245,6 +245,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define NO_LCP
 #define NO_GCP
 #endif
+#define ZUNDEFINED_GCI_LIMIT 1
 
 /**
  * Ndb kernel blocks assertion handling

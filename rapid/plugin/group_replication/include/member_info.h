@@ -527,6 +527,16 @@ public:
   virtual bool is_conflict_detection_enabled()= 0;
 
   virtual void get_primary_member_uuid(std::string &primary_member_uuid)= 0;
+
+  /**¬
+  Check if majority of the group is unreachable
+
+  This approach is optimistic, right after return the majority can be
+  reestablish or go away.
+
+  @return true if majority of the group is unreachable
+  */
+  virtual bool is_majority_unreachable()= 0;
 };
 
 
@@ -578,6 +588,8 @@ public:
   bool is_conflict_detection_enabled();
 
   void get_primary_member_uuid(std::string &primary_member_uuid);
+
+  bool is_majority_unreachable();
 
 private:
   void clear_members();

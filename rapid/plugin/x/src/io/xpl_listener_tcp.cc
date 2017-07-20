@@ -145,7 +145,8 @@ public:
 
     result_socket->set_socket_thread_owner();
 
-    if (result_socket->bind((const struct sockaddr *)used_ai->ai_addr, used_ai->ai_addrlen) < 0) {
+    if (result_socket->bind((const struct sockaddr *)used_ai->ai_addr,
+                            static_cast<socklen_t>(used_ai->ai_addrlen)) < 0) {
       // lets decide later if its an error or not
       m_system_interface->get_socket_error_and_message(error_code, errstr);
 

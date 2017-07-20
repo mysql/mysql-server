@@ -3426,10 +3426,6 @@ row_merge_lock_table(
 
 	dberr_t err = lock_table_for_trx(table, trx, mode);
 
-	if (err == DB_SUCCESS) {
-		table->ddl_lock_count++;
-	}
-
 	return(err);
 }
 

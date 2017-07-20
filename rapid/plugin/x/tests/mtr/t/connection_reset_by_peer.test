@@ -32,7 +32,7 @@ DELIMITER ;
 
 -->closesession abort
 
--->wait_for 2	SELECT COUNT(*) FROM information_schema.processlist 
+-->wait_for 3	SELECT COUNT(*) FROM information_schema.processlist 
 
 -->stmtadmin list_clients
 -->recvresult client_id user host

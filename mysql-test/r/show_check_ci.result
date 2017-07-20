@@ -786,61 +786,11 @@ use test;
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
 End of 4.1 tests
-DROP VIEW IF EXISTS v1;
-DROP PROCEDURE IF EXISTS p1;
-CREATE VIEW v1 AS SELECT 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
-DROP VIEW v1;
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_NO_CACHE and SQL_CACHE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
-CREATE PROCEDURE p1()
-BEGIN
-SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
-PREPARE stmt FROM @s;
-EXECUTE stmt;
-DROP PREPARE stmt;
-END |
-CALL p1();
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
-DROP PROCEDURE p1;
-DROP VIEW v1;
 SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
+SET GLOBAL EVENT_SCHEDULER = OFF;
 CREATE TABLE t1 (f1 INT, f2 INT);
 INSERT INTO t1 VALUES(10, 20);
 flush status;
@@ -914,6 +864,7 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
 DROP DATABASE IF EXISTS mysqltest1;
 DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
@@ -1645,11 +1596,13 @@ SET NAMES latin1;
 SELECT GET_LOCK('t',1000) AS 'óóóó';;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SET NAMES utf8;
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+###	event_scheduler	###	NULL	Daemon	###	###	NULL
 ###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SELECT RELEASE_LOCK('t');

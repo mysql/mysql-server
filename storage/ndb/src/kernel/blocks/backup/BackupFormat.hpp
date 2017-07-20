@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,22 @@
 static const char BACKUP_MAGIC[] = { 'N', 'D', 'B', 'B', 'C', 'K', 'U', 'P' };
 
 struct BackupFormat {
+
+  static const Uint32 NDB_MAX_LCP_PARTS = 2048;
+  static const Uint32 NDB_MAX_FILES_PER_LCP = 8;
+  static const Uint32 NDB_MAX_LCP_PARTS_PER_ROUND =
+    NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
+  static const Uint32 NDB_MAX_LCP_FILES = 2064;
+  static const Uint32 NDB_LCP_CTL_FILE_SIZE = 4096;
+
+  enum RecordType
+  {
+    INSERT_TYPE            = 0,
+    WRITE_TYPE             = 1,
+    DELETE_BY_ROWID_TYPE   = 2,
+    DELETE_BY_PAGEID_TYPE  = 3,
+    END_TYPE               = 4
+  };
 
   /**
    * Section types in file
@@ -68,7 +84,7 @@ struct BackupFormat {
     Uint32 BackupKey_1;
     Uint32 ByteOrder;
   };
-  
+
   /**
    * File types
    */
@@ -77,9 +93,40 @@ struct BackupFormat {
     LOG_FILE = 2, //redo log file for backup.
     DATA_FILE = 3,
     LCP_FILE = 4,
-    UNDO_FILE = 5 //undo log for backup.
+    UNDO_FILE = 5,//undo log for backup.
+    LCP_CTL_FILE = 6
   };
-  
+
+  struct PartPair
+  {
+    Uint16 startPart;
+    Uint16 numParts;
+  };
+
+  struct LCPCtlFile
+  {
+    struct FileHeader fileHeader;
+    Uint32 Checksum;
+    Uint32 ValidFlag;
+    Uint32 TableId;
+    Uint32 FragmentId;
+    Uint32 CreateTableVersion;
+    Uint32 CreateGci;
+    Uint32 MaxGciCompleted;
+    Uint32 MaxGciWritten;
+    Uint32 LcpId;
+    Uint32 LocalLcpId;
+    Uint32 MaxPageCount;
+    Uint32 MaxNumberDataFiles;
+    Uint32 LastDataFileNumber;
+    Uint32 MaxPartPairs;
+    Uint32 NumPartPairs;
+    /**
+     * Flexible sized array of partPairs, there are
+     * NumPartPairs in the array here.
+     */
+    struct PartPair partPairs[1];
+  };
   /**
    * Data file formats
    */

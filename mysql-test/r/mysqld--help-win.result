@@ -340,9 +340,6 @@ The following options may be given as the first argument:
  Maximum amount of memory available for generating
  histograms
  --host-cache-size=# How many host names should be cached to avoid resolving.
- --ignore-builtin-innodb 
- IGNORED. This option will be removed in future releases.
- Disable initialization of builtin InnoDB plugin
  --information-schema-stats=name 
  If this flag is set to CACHED, INFORMATON_SCHEMA
  retrieves dynamic column statistics stored in dedicated
@@ -893,18 +890,6 @@ The following options may be given as the first argument:
  Limit of query profiling memory
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
- --query-cache-limit=# 
- Don't cache results that are bigger than this
- --query-cache-min-res-unit=# 
- The minimum size for blocks allocated by the query cache
- --query-cache-size=# 
- The memory allocated to store results from old queries
- --query-cache-type=name 
- OFF = Don't cache or retrieve results. ON = Cache all
- results except SELECT SQL_NO_CACHE ... queries. DEMAND =
- Cache only SELECT SQL_CACHE ... queries
- --query-cache-wlock-invalidate 
- Invalidate queries in query cache on LOCK for write
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
  --range-alloc-block-size=# 
@@ -1035,9 +1020,6 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --schema-definition-cache=# 
  The number of cached schema definitions
- --secure-auth       Disallow authentication for accounts that have old
- (pre-4.1) passwords. Deprecated. Always TRUE.
- (Defaults to on; use --skip-secure-auth to disable.)
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -1350,7 +1332,7 @@ div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
-event-scheduler OFF
+event-scheduler ON
 expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
@@ -1369,7 +1351,6 @@ gtid-mode OFF
 help TRUE
 histogram-generation-max-mem-size 20000000
 host-cache-size 279
-ignore-builtin-innodb FALSE
 information-schema-stats CACHED
 init-connect 
 init-file (No default value)
@@ -1385,9 +1366,7 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
-language MYSQL_SHAREDIR/
 lc-messages en_US
-lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile FALSE
 lock-wait-timeout 31536000
@@ -1424,7 +1403,7 @@ master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 4194304
+max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
@@ -1547,11 +1526,6 @@ port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
 query-alloc-block-size 8192
-query-cache-limit 1048576
-query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type OFF
-query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
 range-optimizer-max-mem-size 8388608
@@ -1574,7 +1548,6 @@ require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
-secure-auth TRUE
 server-id 0
 server-id-bits 32
 session-track-gtids OFF

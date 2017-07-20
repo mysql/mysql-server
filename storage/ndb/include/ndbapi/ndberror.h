@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,10 +97,17 @@ typedef struct {
 typedef ndberror_status_enum ndberror_status;
 typedef  ndberror_classification_enum ndberror_classification;
 
+
 const char *ndberror_status_message(ndberror_status);
 const char *ndberror_classification_message(ndberror_classification);
 void ndberror_update(ndberror_struct *);
 int ndb_error_string(int err_no, char *str, int size);
+
+int ndb_error_get_next(int index,
+                       int* err_no,
+                       const char** status_msg,
+                       const char** class_msg,
+                       const char** error_msg);
 
 #endif /* doxygen skip internal*/
 

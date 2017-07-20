@@ -259,7 +259,7 @@ TEST_F(JsonBinaryTest, BasicTest)
     "", "a", "b", "ab", "key1", "key2",
     std::string("key1\0x", 6), std::string("key1\0y", 6)
   };
-  const int64 expected_values[]= { 9, 6, 8, 7, 1, 2, 4, 5 };
+  const int64 expected_values[]= { 10, 6, 8, 7, 3, 2, 4, 5 };
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val14= parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val14.is_valid());

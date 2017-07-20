@@ -2471,7 +2471,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length)
         // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 
-        if (cs == &my_charset_bin)
+        if (cs->pad_attribute == NO_PAD)
         {
           sortorder->is_varlen= true;
         }

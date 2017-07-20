@@ -53,23 +53,25 @@ IF (BUILD_BUNDLED_LZ4)
   )
 ENDIF()
 
+FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
+
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
-                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
+                   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
                    COMMAND comp_err
-                    --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${PROJECT_BINARY_DIR}/sql/share/
+                    --charset=${PROJECT_SOURCE_DIR}/share/charsets
+                    --out-dir=${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/
                     --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                     --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
-                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
-                   DEPENDS ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt
+                    --in_file=${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
+                   DEPENDS ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt
                    ${CMAKE_CURRENT_SOURCE_DIR}/comp_err.cc)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
                   DEPENDS 
                   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
-                  ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
-                  ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+                  ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
+                  ${PROJECT_SOURCE_DIR}/share/errmsg-utf8.txt)
 
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)

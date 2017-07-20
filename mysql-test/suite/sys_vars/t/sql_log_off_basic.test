@@ -93,15 +93,15 @@ SET @@session.sql_log_off = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = "Y";
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_off = TRÜE;
+SET @@session.sql_log_off = TRÃœE;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_off = ÕN;
+SET @@session.sql_log_off = Ã•N;
 --error ER_PARSE_ERROR
 SET @@session.sql_log_off = OF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_off = ÓFF;
+SET @@session.sql_log_off = Ã“FF;
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_log_off = '¹';
+SET @@session.sql_log_off = 'Â¹';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = NO;
 

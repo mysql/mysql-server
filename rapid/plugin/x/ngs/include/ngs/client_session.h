@@ -23,22 +23,21 @@
 #include <assert.h>
 
 #include "interface/authentication_interface.h"
-#include "interface/session_interface.h"
 #include "my_inttypes.h"
-#include "ngs/protocol_encoder.h"
+#include "interface/session_interface.h"
+#include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/thread.h"
 
 namespace ngs
 {
   class Client;
-  class Protocol_encoder;
 
   class Session: public Session_interface
   {
   public:
     typedef int32_t Session_id;
 
-    Session(Client_interface &client, Protocol_encoder *proto, const Session_id session_id);
+    Session(Client_interface &client, Protocol_encoder_interface *proto, const Session_id session_id);
     virtual ~Session();
 
     virtual Session_id session_id() const { return m_id; }
@@ -55,7 +54,7 @@ namespace ngs
 
     Client_interface &client() { return m_client; }
 
-    Protocol_encoder &proto() { return *m_encoder; }
+    Protocol_encoder_interface &proto() { return *m_encoder; }
 
   protected:
     virtual bool handle_auth_message(ngs::Request &command);
@@ -69,7 +68,7 @@ namespace ngs
 
   protected:
     Client_interface &m_client;
-    Protocol_encoder *m_encoder;
+    Protocol_encoder_interface *m_encoder;
     Authentication_interface_ptr m_auth_handler;
     State m_state;
     State m_state_before_close;

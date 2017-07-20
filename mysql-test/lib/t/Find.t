@@ -1,7 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007 MySQL AB
-# Use is subject to license terms.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +43,7 @@ $ENV{MTR_BUILD_DIR}= $mtr_build_dir;
 print "=" x 40, "\n";
 
 my $charset_dir= my_find_dir($basedir,
-			     ["share/mysql", "sql/share", "share"],
+			     ["share/mysql", "share"],
 			     "charsets");
 print "charset_dir: $charset_dir\n";
 print "=" x 40, "\n";

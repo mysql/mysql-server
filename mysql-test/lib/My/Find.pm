@@ -115,7 +115,7 @@ sub my_find_file {
 #
 # Example:
 #    my $charset_set= my_find_dir($basedir,
-#                                 ["mysql/share","sql/share", "share"],
+#                                 ["mysql/share", "share"],
 #                                 ["charset"]);
 # or
 #    my $charset_set= my_find_dir($basedir,
@@ -150,10 +150,6 @@ sub my_find_paths {
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
   push(@paths, "runtime_output_directory");
-
-  #print "base: $base\n";
-  #print "names: @names\n";
-  #print "paths: @paths\n";
 
   # User can select to look in a special build dir
   # which is a subdirectory of any of the paths

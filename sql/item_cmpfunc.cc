@@ -6314,7 +6314,10 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item) ||
       escape_item->check_cols(1))
+  {
+    fixed= false;
     return true;
+  }
 
   if (!escape_item->const_during_execution())
   {

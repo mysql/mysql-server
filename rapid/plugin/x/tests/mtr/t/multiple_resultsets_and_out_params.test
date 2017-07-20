@@ -181,42 +181,42 @@ CALL insert_and_out_param_and_select(@max_val);
 SELECT @max_val;
 
 -->endsql
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 CALL error();
 -->endsql
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 CALL select_and_error();
 -->endsql
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 CALL out_param_and_error(@min_val);
 SELECT @min_val;
 -->endsql
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 CALL select_out_param_and_error(@min_val);
 SELECT @min_val;
 
 -->endsql
--->expecterror 1264
+-->expecterror ER_WARN_DATA_OUT_OF_RANGE
 -->sql
 CALL with_warning();
 SHOW WARNINGS;
 -->endsql
--->expecterror 1264
+-->expecterror ER_WARN_DATA_OUT_OF_RANGE
 -->sql
 CALL select_and_warning();
 SHOW WARNINGS;
 -->endsql
--->expecterror 1264
+-->expecterror ER_WARN_DATA_OUT_OF_RANGE
 -->sql
 CALL out_param_and_warning(@vavg);
 SHOW WARNINGS;
 SELECT @vavg;
 -->endsql
--->expecterror 1406
+-->expecterror ER_DATA_TOO_LONG
 -->sql
 CALL select_out_param_and_warning(@min_val);
 SHOW WARNINGS;

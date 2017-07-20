@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 #include <mt.hpp>
 #include "LocalProxy.hpp"
+#include <pgman.hpp>
 
 //#define DBINFO_SCAN_TRACE
 #ifdef DBINFO_SCAN_TRACE
@@ -302,6 +303,10 @@ LocalProxy::loadWorkers()
     ndbrequire(this->getInstance(instanceNo) == worker);
     c_worker[i] = worker;
 
+    if (number() == PGMAN && i == (c_workers - 1))
+    {
+      ((Pgman*)worker)->set_extra_pgman();
+    }
     mt_add_thr_map(number(), instanceNo);
   }
 }

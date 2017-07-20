@@ -1136,9 +1136,4 @@ typedef my_off_t	ha_rows;
 
 #define HA_VARCHAR_PACKLENGTH(field_length) ((field_length) < 256 ? 1 :2)
 
-/* invalidator function reference for Query Cache */
-C_MODE_START
-typedef void (* invalidator_by_filename)(const char * filename);
-C_MODE_END
-
 #endif /* _my_base_h */

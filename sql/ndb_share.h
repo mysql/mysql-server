@@ -52,7 +52,6 @@ enum Ndb_binlog_type
 */
 struct Ndb_statistics {
   Uint64 row_count;
-  Uint64 commit_count;
   ulong row_size;
   Uint64 fragment_memory;
   Uint64 fragment_extent_space; 
@@ -67,14 +66,11 @@ struct NDB_SHARE {
   mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
   uint use_count;
-  uint commit_count_lock;
-  ulonglong commit_count;
   char *db;
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
   struct Ndb_index_stat* index_stat_list;
-  bool util_thread; // if opened by util thread
   uint32 flags;
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
@@ -111,6 +107,7 @@ struct NDB_SHARE {
   size_t key_length() const;
   const char* key_string() const;
 
+  const char* share_state_string() const;
 };
 
 

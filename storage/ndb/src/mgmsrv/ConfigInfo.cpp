@@ -979,7 +979,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "60000",
+    "0",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
   
@@ -2221,6 +2221,21 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "60",
     "0",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_ENABLE_PARTIAL_LCP,
+    "EnablePartialLcp",
+    DB_TOKEN,
+    "Enable partial LCP, this means a checkpoint only writes the difference"
+    " to the last LCP plus some parts that are fully checkpointed. If this"
+    " isn't enabled then all LCPs are writing a full checkpoint.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
   },
 
   {

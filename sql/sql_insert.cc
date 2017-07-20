@@ -64,7 +64,6 @@
 #include "sql_alter.h"
 #include "sql_array.h"
 #include "sql_base.h"                 // setup_fields
-#include "sql_cache.h"                // query_cache
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_error.h"
@@ -700,18 +699,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
 
     const bool transactional_table= insert_table->file->has_transactions();
 
-    const bool changed= info.stats.copied || info.stats.deleted ||
-                        info.stats.updated;
-    if (changed)
-    {
-      /*
-        Invalidate the table in the query cache if something changed.
-        For the transactional algorithm to work the invalidation must be
-        before binlog writing and ha_autocommit_or_rollback
-      */
-      query_cache.invalidate_single(thd, lex->insert_table_leaf, true);
-      DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
-    }
+    const bool changed MY_ATTRIBUTE((unused))=
+      info.stats.copied || info.stats.deleted || info.stats.updated;
 
     if (!has_error || thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT))
@@ -2237,7 +2226,7 @@ bool Query_result_insert::send_eof()
   int error;
   bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
-  bool changed;
+  bool changed MY_ATTRIBUTE((unused));
   THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
@@ -2249,15 +2238,6 @@ bool Query_result_insert::send_eof()
     error= thd->get_stmt_da()->mysql_errno();
 
   changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
-  if (changed)
-  {
-    /*
-      We must invalidate the table in the query cache before binlog writing
-      and ha_autocommit_or_rollback.
-    */
-    query_cache.invalidate(thd, table, TRUE);
-  }
-
   DBUG_ASSERT(trans_table || !changed || 
               thd->get_transaction()->cannot_safely_rollback(
                 Transaction_ctx::STMT));
@@ -2354,7 +2334,8 @@ void Query_result_insert::abort_result_set()
    */
   if (table)
   {
-    bool changed, transactional_table;
+    bool changed MY_ATTRIBUTE((unused));
+    bool transactional_table;
     /*
       Try to end the bulk insert which might have been started before.
       We don't need to do this if we are in prelocked mode (since we
@@ -2391,8 +2372,6 @@ void Query_result_insert::abort_result_set()
                                    thd->query().length,
                                    transactional_table, FALSE, FALSE, errcode);
         }
-	if (changed)
-	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
 		thd->get_transaction()->cannot_safely_rollback(

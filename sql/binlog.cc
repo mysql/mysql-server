@@ -3478,9 +3478,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
                              enum cache_type io_cache_type_arg)
   :name(NULL), write_error(false), inited(false),
    io_cache_type(io_cache_type_arg),
-#ifdef HAVE_PSI_INTERFACE
    m_key_LOCK_log(key_LOG_LOCK_log),
-#endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
@@ -3540,14 +3538,11 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
-  stage_manager.init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                   m_key_LOCK_flush_queue,
-                   m_key_LOCK_sync_queue,
-                   m_key_LOCK_commit_queue,
-                   m_key_LOCK_done, m_key_COND_done
-#endif
-                   );
+  stage_manager.init(m_key_LOCK_flush_queue,
+                     m_key_LOCK_sync_queue,
+                     m_key_LOCK_commit_queue,
+                     m_key_LOCK_done,
+                     m_key_COND_done);
 }
 
 
@@ -3781,9 +3776,7 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 */
 
 bool MYSQL_BIN_LOG::open(
-#ifdef HAVE_PSI_INTERFACE
                      PSI_file_key log_file_key,
-#endif
                      const char *log_name,
                      const char *new_name,
                      uint32 new_index_number)
@@ -3811,10 +3804,8 @@ bool MYSQL_BIN_LOG::open(
 
   db[0]= 0;
 
-#ifdef HAVE_PSI_INTERFACE
   /* Keep the key for reopen */
   m_log_file_key= log_file_key;
-#endif
 
   if ((file= mysql_file_open(log_file_key,
                              log_file_name, O_CREAT | O_WRONLY,
@@ -5064,11 +5055,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (open(
-#ifdef HAVE_PSI_INTERFACE
-                      m_key_file_log,
-#endif
-                      log_name, new_name, new_index_number))
+  if (open(m_key_file_log,
+           log_name, new_name, new_index_number))
   {
     close_purge_index_file();
     DBUG_RETURN(1);                            /* all warnings issued */

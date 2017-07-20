@@ -49,7 +49,6 @@
 #include "sp_pcontext.h"              // sp_pcontext
 #include "sp_rcontext.h"              // sp_rcontext
 #include "sql_base.h"                 // open_temporary_tables
-#include "sql_cache.h"                // query_cache
 #include "sql_const.h"
 #include "sql_parse.h"                // parse_sql
 #include "sql_plugin.h"
@@ -879,9 +878,6 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     inside a procedure and can contain SP variables in it. Those too need to be
     substituted with NAME_CONST(...))
 
-    We don't have to substitute on behalf of the query cache as
-    queries with SP vars are not cached, anyway.
-
     query_name_consts is used elsewhere in a special case concerning
     CREATE TABLE, but we do not need to do anything about that here.
 
@@ -907,53 +903,42 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   if (need_subst && subst_spvars(thd, this, &m_query))
     return true;
 
-  /*
-    (the order of query cache and subst_spvars calls is irrelevant because
-    queries with SP vars can't be cached)
-  */
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
     query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
                                    thd->query().length);
 
-  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+  rc= validate_lex_and_execute_core(thd, nextp, false);
+
+  if (thd->get_stmt_da()->is_eof())
   {
-    rc= validate_lex_and_execute_core(thd, nextp, false);
+    /* Finalize server status flags after executing a statement. */
+    thd->update_slow_query_status();
 
-    if (thd->get_stmt_da()->is_eof())
-    {
-      /* Finalize server status flags after executing a statement. */
-      thd->update_slow_query_status();
-
-      thd->send_statement_status();
-    }
-
-    query_cache.end_of_result(thd);
-
-    if (!rc && unlikely(log_slow_applicable(thd)))
-    {
-      /*
-        We actually need to write the slow log. Check whether we already
-        called subst_spvars() above, otherwise, do it now.  In the highly
-        unlikely event of subst_spvars() failing (OOM), we'll try to log
-        the unmodified statement instead.
-      */
-      if (!need_subst)
-        rc= subst_spvars(thd, this, &m_query);
-      log_slow_do(thd);
-    }
-
-    /*
-      With the current setup, a subst_spvars() and a mysql_rewrite_query()
-      (rewriting passwords etc.) will not both happen to a query.
-      If this ever changes, we give the engineer pause here so they will
-      double-check whether the potential conflict they created is a
-      problem.
-    */
-    DBUG_ASSERT((thd->query_name_consts == 0) ||
-                (thd->rewritten_query.length() == 0));
+    thd->send_statement_status();
   }
-  else
-    *nextp= get_ip() + 1;
+
+  if (!rc && unlikely(log_slow_applicable(thd)))
+  {
+    /*
+      We actually need to write the slow log. Check whether we already
+      called subst_spvars() above, otherwise, do it now.  In the highly
+      unlikely event of subst_spvars() failing (OOM), we'll try to log
+      the unmodified statement instead.
+    */
+    if (!need_subst)
+      rc= subst_spvars(thd, this, &m_query);
+    log_slow_do(thd);
+  }
+
+  /*
+    With the current setup, a subst_spvars() and a mysql_rewrite_query()
+    (rewriting passwords etc.) will not both happen to a query.
+    If this ever changes, we give the engineer pause here so they will
+    double-check whether the potential conflict they created is a
+    problem.
+  */
+  DBUG_ASSERT((thd->query_name_consts == 0) ||
+              (thd->rewritten_query.length() == 0));
 
   thd->set_query(query_backup);
   thd->query_name_consts= 0;

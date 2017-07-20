@@ -548,7 +548,7 @@ namespace connection_control
       {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL, 0}
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
-    PSI_MUTEX_CALL(register_mutex)(category, connection_delay_mutex_info, count_mutex);
+    mysql_mutex_register(category, connection_delay_mutex_info, count_mutex);
     mysql_mutex_init(key_connection_delay_mutex, &connection_delay_mutex,
                      MY_MUTEX_INIT_FAST);
 
@@ -560,7 +560,7 @@ namespace connection_control
       {&key_connection_delay_wait, "connection_delay_wait_condition", 0}
     };
     int count_cond= array_elements(connection_delay_wait_info);
-    PSI_COND_CALL(register_cond)(category, connection_delay_wait_info, count_cond);
+    mysql_cond_register(category, connection_delay_wait_info, count_cond);
     mysql_cond_init(key_connection_delay_wait, &connection_delay_wait_condition);
 
     /** Register wait condition with THD */

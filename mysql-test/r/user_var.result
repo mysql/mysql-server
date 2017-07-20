@@ -263,7 +263,7 @@ create table t1 select @first_var;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `@first_var` longtext CHARACTER SET latin1
+  `@first_var` longtext
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 set @a=18446744071710965857;

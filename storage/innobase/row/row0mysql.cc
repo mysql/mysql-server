@@ -4041,10 +4041,6 @@ run_again:
 	que_graph_free(thr->graph);
 	trx->op_info = "";
 
-	if (err == DB_SUCCESS) {
-		table->ddl_lock_count++;
-	}
-
 	return(err);
 }
 

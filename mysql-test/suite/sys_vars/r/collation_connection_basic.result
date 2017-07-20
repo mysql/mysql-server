@@ -5,15 +5,15 @@ utf8mb4_0900_ai_ci
 SET @session_start_value = @@collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@local.collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 SET @session_start_value = @@session.collation_connection;
 SELECT @session_start_value;
 @session_start_value
-latin1_swedish_ci
+utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_015_01------------------#'
 SELECT collation_connection;
 ERROR 42S22: Unknown column 'collation_connection' in 'field list'
@@ -1262,4 +1262,4 @@ utf8mb4_0900_ai_ci
 SET @@session.collation_connection = @session_start_value;
 SELECT @@session.collation_connection;
 @@session.collation_connection
-latin1_swedish_ci
+utf8mb4_0900_ai_ci

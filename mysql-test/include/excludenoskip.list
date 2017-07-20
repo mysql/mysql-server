@@ -183,11 +183,6 @@ have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
 
-# 15.0 With QC enabled additional code paths are activated which will change
-# performance schema output.
-have_QC_Disabled.inc
-have_query_cache_disabled.inc
-
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc
 # This also fails with non-debug
@@ -198,3 +193,9 @@ not_discover.inc
 # 17.0 Reason for inclusion: the extra JSON cause on ndb builds is hard to
 # separate. see innodb.sdi test
 have_no_ndb.inc
+
+# 18.0 Test to be run on local machine
+# This file is used by test scenarios that depend on time and it isn't possible
+# to test it in other way. Time based tests are unstable on PB2.
+# Waiting for some kind of in test time simulation functionality.
+is_local_machine.inc

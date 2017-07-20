@@ -186,12 +186,6 @@ private:
 
   XID_STATE m_xid_state;
 
-  /*
-    Tables changed in transaction (that must be invalidated in query cache).
-    List contain only transactional tables, that not invalidated in query
-    cache (instead of full list of changed in transaction tables).
-  */
-  CHANGED_TABLE_LIST* m_changed_tables;
   MEM_ROOT m_mem_root; // Transaction-life memory allocation pool
 
 public:
@@ -254,7 +248,6 @@ public:
   void cleanup()
   {
     DBUG_ENTER("Transaction_ctx::cleanup");
-    m_changed_tables= NULL;
     m_savepoints= NULL;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();

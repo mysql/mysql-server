@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #endif
+#include "ngs_common/config.h"
 
 
 namespace ngs {
@@ -147,15 +148,9 @@ private:
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
 
-#if defined(HAVE_SYS_UN_H)
-#define HAVE_SYS_UN_OR_NOT(U,W) U
-#else
-#define HAVE_SYS_UN_OR_NOT(U,W) W
-#endif // defined(HAVE_SYS_UN_H)
-
 class System: public System_interface {
   virtual int unlink(const char* name) {
-    return HAVE_SYS_UN_OR_NOT(::unlink(name), 0);
+    return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
 
   virtual int get_errno() {
@@ -163,15 +158,15 @@ class System: public System_interface {
   }
 
   virtual int get_ppid() {
-    return HAVE_SYS_UN_OR_NOT(::getppid(), 0);
+    return HAVE_UNIX_SOCKET(::getppid(), 0);
   }
 
   virtual int get_pid() {
-    return HAVE_SYS_UN_OR_NOT(::getpid(), 0);
+    return HAVE_UNIX_SOCKET(::getpid(), 0);
   }
 
   virtual int kill(int pid, int signal) {
-    return HAVE_SYS_UN_OR_NOT(::kill(pid, signal), 0);
+    return HAVE_UNIX_SOCKET(::kill(pid, signal), 0);
   }
 
   virtual int get_socket_errno() {

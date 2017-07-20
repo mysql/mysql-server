@@ -143,7 +143,7 @@ private:
   init_ends(THD *thd);
 
   void
-  report_bad_value(const char *item_name, Item *bad_item);
+  report_bad_value(THD *thd, const char *item_name, Item *bad_item);
 
   void
   check_if_in_the_past(THD *thd, my_time_t ltime_utc);

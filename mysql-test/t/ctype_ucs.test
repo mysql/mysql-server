@@ -120,7 +120,7 @@ drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 --source include/ctype_like.inc
---character_set kio8r
+--character_set koi8r
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
@@ -341,6 +341,7 @@ execute stmt1 using @ivar;
 # Check that ucs2 works with ENUM and SET type
 #
 set names latin1;
+--character_set latin1
 create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
 insert into t1 values ('x');
@@ -366,6 +367,7 @@ insert into t1 values ('x,y');
 insert into t1 values ('x,y,z,д,ж,э');
 select a, hex(a) from t1 order by a;
 drop table t1;
+--character_set utf8mb4
 
 #
 # Bug#7302 UCS2 data in ENUM fields get truncated when new column is added

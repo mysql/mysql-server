@@ -27,7 +27,10 @@ USER_HOST	select 'events_logs_tests' as outside_event
 Check that unlike sub-statements of stored procedures,
 sub-statements of events are present in the general log.
 
-set global event_scheduler=on;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 truncate mysql.general_log;
 create event ev_log_general on schedule at now() on completion not preserve do select 'events_logs_test' as inside_event;
 call select_general_log();
@@ -67,6 +70,5 @@ where sql_text like 'select \'events_logs_test\'%';
 user_host	db	sql_text
 USER_HOST	events_test	select 'events_logs_test' as inside_event, sleep(1.5)
 drop database events_test;
-set global event_scheduler=off;
 set @@global.long_query_time=default;
 set @@session.long_query_time=default;

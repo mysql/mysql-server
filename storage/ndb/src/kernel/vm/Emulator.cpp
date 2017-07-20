@@ -623,7 +623,9 @@ static const char* const jamFileNames[] =
    "IsolateOrd.hpp",                     // 494
    "IsolateOrd.cpp"                      // 495
    "SegmentList.hpp",                    // 496
-   "SegmentList.cpp"                     // 497
+   "SegmentList.cpp",                    // 497
+   "LocalSysfile.hpp",                   // 498
+   "UndoLogLevel.hpp"                    // 499
    };
 
 bool 

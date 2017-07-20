@@ -294,7 +294,6 @@ void NDB_SHARE::print(const char* where, FILE* file) const
           where, db, table_name, use_count);
   fprintf(file, "  - key: '%s', key_length: %lu\n",
           key_string(), (unsigned long)key_length());
-  fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
   if (op)
@@ -305,4 +304,18 @@ void NDB_SHARE::print(const char* where, FILE* file) const
   Ndb_event_data *event_data_ptr= get_event_data_ptr();
   if (event_data_ptr)
     event_data_ptr->print("  -", file);
+}
+
+
+const char*
+NDB_SHARE::share_state_string(void) const
+{
+  switch(state) {
+  case NSS_INITIAL:
+    return "NSS_INITIAL";
+  case NSS_DROPPED:
+    return "NSS_DROPPED";
+  }
+  assert(false);
+  return "<unknown>";
 }

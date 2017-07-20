@@ -1359,9 +1359,10 @@ public:
     m_valid(true),
     m_cursor_idx(cursor_idx)
   {
-    // Cursor can't be stored in Query Cache, so we should prevent opening QC
-    // for try to write results which are absent.
-
+    /*
+      Cursors cause queries to depend on external state, so they are
+      noncacheable.
+    */
     cursor_lex->safe_to_cache_query= false;
   }
 

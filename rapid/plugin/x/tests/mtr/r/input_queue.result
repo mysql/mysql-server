@@ -297,11 +297,13 @@ active session is now 'invalid_1'
 RUN SET GLOBAL mysqlx_max_allowed_packet=1048597
 
 0 rows affected
-While sending client could receive CR_BROKEN_PIPE network which could occur 
+While sending client could receive CR_BROKEN_PIPE network which could occur
 because xplugin stopped read ops
 Got expected error (one of: 0 2007 )
+1
+1
+0 rows affected
 closing session invalid_1
-switched to session default
 Mysqlx.Ok {
   msg: "bye!"
 }

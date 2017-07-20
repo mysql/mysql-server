@@ -61,11 +61,7 @@
 
 #define mysql_cond_init(K, C) mysql_cond_init_with_src(K, C, __FILE__, __LINE__)
 
-#ifdef HAVE_PSI_COND_INTERFACE
 #define mysql_cond_init_with_src(K, C, F, L) inline_mysql_cond_init(K, C, F, L)
-#else
-#define mysql_cond_init_with_src(K, C, F, L) inline_mysql_cond_init(C, F, L)
-#endif
 
 /**
   @def mysql_cond_destroy(C)
@@ -122,13 +118,9 @@
 
 static inline void
 inline_mysql_cond_register(
-#ifdef HAVE_PSI_COND_INTERFACE
-  const char *category, PSI_cond_info *info, int count
-#else
   const char *category MY_ATTRIBUTE((unused)),
-  void *info MY_ATTRIBUTE((unused)),
+  PSI_cond_info *info MY_ATTRIBUTE((unused)),
   int count MY_ATTRIBUTE((unused))
-#endif
   )
 {
 #ifdef HAVE_PSI_COND_INTERFACE
@@ -138,9 +130,7 @@ inline_mysql_cond_register(
 
 static inline int
 inline_mysql_cond_init(
-#ifdef HAVE_PSI_COND_INTERFACE
-  PSI_cond_key key,
-#endif
+  PSI_cond_key key MY_ATTRIBUTE((unused)),
   mysql_cond_t *that,
   const char *src_file MY_ATTRIBUTE((unused)),
   int src_line MY_ATTRIBUTE((unused)))

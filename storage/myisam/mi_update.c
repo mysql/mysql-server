@@ -188,12 +188,6 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
     there is no index change there could be data change.
   */
   (void) _mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  if (info->invalidator != 0)
-  {
-    DBUG_PRINT("info", ("invalidator... '%s' (update)", info->filename));
-    (*info->invalidator)(info->filename);
-    info->invalidator=0;
-  }
   DBUG_RETURN(0);
 
 err:
