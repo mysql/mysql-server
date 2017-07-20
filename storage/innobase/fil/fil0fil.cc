@@ -436,35 +436,6 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 	return(false);
 }
 
-/** Get the real path for a file name, usefule for comparing symlinked files.
-@param[in]	dir		Directory
-@param[in]	filename	Filename without directory prefix
-@return the absolute path of dir + filename */
-static
-std::string
-fil_get_real_path(const char* dir, const std::string& filename = "")
-{
-	char    abspath[FN_REFLEN + 2];
-
-	memset(abspath, 0x0, sizeof(abspath));
-
-	my_realpath(abspath, dir, MYF(0));
-
-	if (filename.length() > 0) {
-		size_t  len = strlen(abspath);
-
-		ut_a(len < sizeof(abspath) - 10 - filename.length());
-
-		if (abspath[len - 1] != OS_PATH_SEPARATOR) {
-			abspath[len] = OS_PATH_SEPARATOR;
-			++len;
-		}
-
-		strncat(abspath, filename.c_str(), filename.length());
-	}
-
-	return(std::string(abspath));
-}
 /** Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
 calculating the byte offset within a space.
@@ -2324,6 +2295,36 @@ fil_check_pending_operations(
 }
 
 #ifndef UNIV_HOTBACKUP
+
+/** Get the real path for a file name, usefule for comparing symlinked files.
+@param[in]	dir		Directory
+@param[in]	filename	Filename without directory prefix
+@return the absolute path of dir + filename */
+static
+std::string
+fil_get_real_path(const char* dir, const std::string& filename = "")
+{
+	char    abspath[FN_REFLEN + 2];
+
+	memset(abspath, 0x0, sizeof(abspath));
+
+	my_realpath(abspath, dir, MYF(0));
+
+	if (filename.length() > 0) {
+		size_t  len = strlen(abspath);
+
+		ut_a(len < sizeof(abspath) - 10 - filename.length());
+
+		if (abspath[len - 1] != OS_PATH_SEPARATOR) {
+			abspath[len] = OS_PATH_SEPARATOR;
+			++len;
+		}
+
+		strncat(abspath, filename.c_str(), filename.length());
+	}
+
+	return(std::string(abspath));
+}
 
 /* Convert the paths into absolute paths and compare them.
 @param[in]	lhs		Filename to compare
@@ -6735,6 +6736,66 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 	}
 }
 
+/** Lookup the tablespace ID and return the path to the file. The idea is to
+make the path as close to the original path as possible. If we can't find a
+match then use the real path that was found during scanning.
+
+FIXME: Use a lookup table so that we don't have to keep doing a full match.
+Will be very expensive when dealing with lots of files that share the same
+prefix path.
+
+@param[in]	old_path	Old/Original path name, could be relative
+@param[in]	new_path	Real path found during the scan
+@return path name that is closer to the old_path or new_path as is */
+static
+std::string
+fil_make_relative_path(const char* old_path, const std::string& new_path)
+{
+	std::string	path(old_path);
+
+	auto	pos = path.rfind(OS_PATH_SEPARATOR);
+
+	while (pos != std::string::npos) {
+
+		path = path.substr(0, pos);
+
+		os_file_type_t	type;
+		bool		exists;
+
+		if (os_file_status(path.c_str(), &exists, &type)
+		    && exists
+		    && type == OS_FILE_TYPE_DIR) {
+
+			std::string	real_path;
+
+			real_path = fil_get_real_path(path.c_str());
+
+			if (real_path.length() < new_path.length()) {
+
+				auto	result = std::mismatch(
+					real_path.begin(), real_path.end(),
+					new_path.begin());
+
+				if (result.first == real_path.end()) {
+
+					ut_a(path.back() == OS_PATH_SEPARATOR);
+
+					path.append(
+						new_path.substr(
+							real_path.length(),
+							new_path.length()));
+
+					return(path);
+				}
+			}
+		}
+
+		pos = path.rfind(OS_PATH_SEPARATOR);
+	}
+
+	return(new_path);
+}
+
 /** Lookup the tablespace ID and return the path to the file.
 @param[in]	space_id	Tablespace ID to lookup
 @param[in]	path		Path in the data dictionary
@@ -6767,12 +6828,13 @@ fil_tablespace_path_equals(space_id_t space_id, const char* path)
 
 	} else {
 
-		const std::string	real_path = fil_get_real_path(path);
+		std::string	real_path = fil_get_real_path(path);
 
 		if (names->front().compare(real_path) != 0) {
 
 			/* File has been moved. */
-			return(names->front());
+
+			return(fil_make_relative_path(path, names->front()));
 		}
 	}
 

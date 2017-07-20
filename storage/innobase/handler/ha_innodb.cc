@@ -3493,7 +3493,7 @@ boot_tablespaces(THD* thd)
 
 			}  else {
 
-				ib::error()
+				ib::warn()
 					<< "Tablespace " << id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
@@ -3505,7 +3505,7 @@ boot_tablespaces(THD* thd)
 				filenames.first = std::string(filename);
 				filenames.second = new_path;
 
-				dd::Object_id	dd_space_id = tablespace->id();
+				auto	dd_space_id = tablespace->id();
 
 				moved.push_back(
 					std::make_pair(dd_space_id, filenames));
