@@ -2232,7 +2232,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
 
       {
         Json_dom_vector hits(key_memory_JSON);
-        if (doc->seek(m_path, &hits, false, true))
+        if (doc->seek(m_path, &hits, true, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() != 0 || // already exists
@@ -2251,7 +2251,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       */
       Json_dom_vector hits(key_memory_JSON);
       const Json_path_leg *leg= m_path.pop();
-      if (doc->seek(m_path, &hits, false, true))
+      if (doc->seek(m_path, &hits, true, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.size() < 1)
