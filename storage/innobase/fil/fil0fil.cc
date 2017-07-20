@@ -1427,8 +1427,6 @@ fil_space_create(
 	ut_ad(fsp_flags_is_valid(flags));
 	ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
 
-	ib::info() << "CREATE: " << id << " -> " << name;
-
 	DBUG_EXECUTE_IF("fil_space_create_failure", return(nullptr););
 
 	/* Must set back to active before returning from function. */
@@ -6753,44 +6751,52 @@ fil_make_relative_path(const char* old_path, const std::string& new_path)
 {
 	std::string	path(old_path);
 
-	auto	pos = path.rfind(OS_PATH_SEPARATOR);
-
-	while (pos != std::string::npos) {
+	for (auto pos = path.rfind(OS_PATH_SEPARATOR);
+	     pos != std::string::npos;
+	     pos = path.rfind(OS_PATH_SEPARATOR)) {
 
 		path = path.substr(0, pos);
 
 		os_file_type_t	type;
 		bool		exists;
 
-		if (os_file_status(path.c_str(), &exists, &type)
-		    && exists
-		    && type == OS_FILE_TYPE_DIR) {
+		if (!os_file_status(path.c_str(), &exists, &type)
+		    || !exists
+		    || (type != OS_FILE_TYPE_DIR
+			&& type != OS_FILE_TYPE_LINK)) {
 
-			std::string	real_path;
-
-			real_path = fil_get_real_path(path.c_str());
-
-			if (real_path.length() < new_path.length()) {
-
-				auto	result = std::mismatch(
-					real_path.begin(), real_path.end(),
-					new_path.begin());
-
-				if (result.first == real_path.end()) {
-
-					ut_a(path.back() == OS_PATH_SEPARATOR);
-
-					path.append(
-						new_path.substr(
-							real_path.length(),
-							new_path.length()));
-
-					return(path);
-				}
-			}
+			continue;
 		}
 
-		pos = path.rfind(OS_PATH_SEPARATOR);
+		std::string	real_path;
+
+		real_path = fil_get_real_path(path.c_str());
+
+		/* 5 == len("a.ibd") */
+		if (real_path.length() >= new_path.length() - 5) {
+
+			continue;
+		}
+
+		auto	result = std::mismatch(
+			real_path.begin(), real_path.end(), new_path.begin());
+
+		if (result.first == real_path.end()) {
+
+			ut_a(path.back() == OS_PATH_SEPARATOR);
+
+			path.append(
+				new_path.substr(
+					real_path.length(), new_path.length()));
+
+			ut_ad(os_file_status(
+				path.c_str(), &exists, &type)
+				&& exists
+				&& (type == OS_FILE_TYPE_FILE
+				    || type == OS_FILE_TYPE_LINK));
+
+			return(path);
+		}
 	}
 
 	return(new_path);
@@ -7558,8 +7564,6 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 
 		space_id = mach_read_from_4(reinterpret_cast<byte*>(buf));
 
-		ib::info() << "SPACE ID: " << space_id;
-
 		if (space_id == 0 || space_id == ULINT32_UNDEFINED) {
 
 			/* We don't write the space ID to new pages. */
@@ -7621,8 +7625,6 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 	if (err != DB_SUCCESS) {
 		return(ULINT32_UNDEFINED);
 	}
-
-	ib::info() << "****** " << space_id << " -> " << filename;
 
 	return(space_id);
 }
