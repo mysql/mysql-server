@@ -140,7 +140,7 @@ DDL_Record::print(std::ostream& out) const
 
 	bool	printed = false;
 
-	out << "[DDL_Record: ";
+	out << "[DDL record: ";
 
 	switch (m_type) {
 	case Log_Type::FREE_TREE_LOG:
@@ -164,6 +164,8 @@ DDL_Record::print(std::ostream& out) const
 	default:
 		ut_ad(0);
 	}
+
+	out << ",";
 
 	if (m_id != ULINT_UNDEFINED) {
 		out << " id=" << m_id;
@@ -1136,7 +1138,7 @@ Log_DDL::insert_drop_log(
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "ddl log drop : " << record;
+	ib::info() << "ddl log insert : " << record;
 
 	return(error);
 }
