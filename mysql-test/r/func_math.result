@@ -953,3 +953,9 @@ number	Round(number, num_digits) > 0	Round(number, 3) > 0
 1	1	1
 0	0	0
 DROP PROCEDURE test_round_fn;
+#
+# CRC32 tests
+#
+select CRC32(NULL), CRC32(''), CRC32('MySQL'), CRC32('mysql'), CRC32('01234567'), CRC32('012345678');
+CRC32(NULL)	CRC32('')	CRC32('MySQL')	CRC32('mysql')	CRC32('01234567')	CRC32('012345678')
+NULL	0	3259397556	2501908538	763378421	939184570
