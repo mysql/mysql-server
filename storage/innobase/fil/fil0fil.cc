@@ -672,7 +672,7 @@ fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 @param[in]	size		file size in entire database blocks
 @param[in,out]	space		tablespace from fil_space_create()
 @param[in]	is_raw		whether this is a raw device or partition
-@param[in]	punch_hole	true if supported for this file 
+@param[in]	punch_hole	true if supported for this file
 @param[in]	atomic_write	true if the file has atomic write enabled
 @param[in]	max_pages	maximum number of pages in file
 @return pointer to the file name
@@ -1092,7 +1092,7 @@ fil_node_close_file(fil_node_t* file, bool lru_close)
 }
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
-mutex. 
+mutex.
 @param[in] print_info   if true, prints information why it cannot close a file
 @return true if success, false if should retry later */
 static
@@ -1619,7 +1619,7 @@ fil_space_get_space(space_id_t id)
 
 				/* The single-table tablespace can't be opened,
 				because the ibd file is missing. */
-				
+
 				return(nullptr);
 			}
 
@@ -4479,7 +4479,7 @@ retry:
 	page_no_t	pages_per_mb = static_cast<page_no_t>(
 		(1024 * 1024) / page_size);
 
-	page_no_t	size_in_pages = 
+	page_no_t	size_in_pages =
 		((file->size / pages_per_mb) * pages_per_mb);
 
 	if (space->id == TRX_SYS_SPACE) {
@@ -4628,7 +4628,7 @@ fil_space_get_n_reserved_extents(space_id_t id)
 /** NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
 
 Prepares a file for i/o. Opens the file if it is closed. Updates the
-pending i/o's field in the file and the system appropriately. Takes the file 
+pending i/o's field in the file and the system appropriately. Takes the file
 off the LRU list if it is in the LRU list. The caller must hold the fil_sys
 mutex.
 @param[in]	file		Tablespace file
@@ -4689,7 +4689,7 @@ fil_node_prepare_for_io(
 
 /** Updates the data structures when an i/o operation finishes. Updates the
 pending i/o's field in the file appropriately.
-@param[in]	file		Tablespace file 
+@param[in]	file		Tablespace file
 @param[in]	system		Tablespace memory cache
 @param[in]	type		Marks the file as modified if type == WRITE */
 static
@@ -5389,7 +5389,7 @@ fil_flush(space_id_t space_id)
 			os_event_set(file.sync_event);
 
 			--file.n_pending_flushes;
-		} 
+		}
 
 		if (file.flush_counter < old_mod_counter) {
 
