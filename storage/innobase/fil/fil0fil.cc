@@ -3869,7 +3869,8 @@ fil_ibd_open_for_recovery(
 
 		const auto&	file = space->files.front();
 
-		if (strcmp(filename, file.name) == 0) {
+		/* Compare the real paths. */
+		if (fil_paths_equal(filename, file.name)) {
 			return(FIL_LOAD_OK);
 		}
 
