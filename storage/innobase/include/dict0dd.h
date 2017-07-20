@@ -548,8 +548,8 @@ dd_open_fk_tables(
 /** Update filename of dd::Tablespace
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_path	new data file path
-@retval false if fail. */
-bool
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_tablespace_update_filename(
 	dd::Object_id		dd_space_id,
 	const char*		new_path);

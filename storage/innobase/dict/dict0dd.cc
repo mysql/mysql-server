@@ -908,34 +908,32 @@ dd_table_close(
 /** Update filename of dd::Tablespace
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_path	new data file path
-@retval true if fail. */
-bool
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_tablespace_update_filename(
 	dd::Object_id		dd_space_id,
 	const char*		new_path)
 {
-	dd::Tablespace*		dd_space = nullptr;
-	dd::Tablespace*		new_space = nullptr;
-	bool			ret = false;
 	THD*			thd = current_thd;
 
 	DBUG_ENTER("dd_tablespace_update_for_rename");
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
-#endif
+#endif /* UNIV_DEBUG */
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(new_path != nullptr);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	/* Get the dd tablespace */
+	dd::Tablespace*		dd_space = nullptr;
 
+	/* Get the dd tablespace */
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
 			dd_space_id, &dd_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_a(dd_space != nullptr);
@@ -943,28 +941,30 @@ dd_tablespace_update_filename(
 	if (dd::acquire_exclusive_tablespace_mdl(
 		    thd, dd_space->name().c_str(), false)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
+
+	dd::Tablespace*		new_space = nullptr;
 
 	/* Acquire the new dd tablespace for modification */
 	if (client->acquire_for_modification<dd::Tablespace>(
 			dd_space_id, &new_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_ad(new_space->files().size() == 1);
 	dd::Tablespace_file*	dd_file = const_cast<
 		dd::Tablespace_file*>(*(new_space->files().begin()));
 	dd_file->set_filename(new_path);
-	bool fail = client->update(new_space);
 
-	if (fail) {
+
+	if (client->update(new_space)) {
 		ut_ad(false);
-		ret = true;
+		DBUG_RETURN(DB_ERROR);
 	}
 
-	DBUG_RETURN(ret);
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /** Validate the table format options.
@@ -4013,7 +4013,7 @@ dd_rename_fts_table(
 		char* new_path = fil_space_get_first_path(table->space);
 
 		if (dd_tablespace_update_filename(
-			    table->dd_space_id, new_path)) {
+			    table->dd_space_id, new_path) != DB_SUCCESS) {
 			ut_a(false);
 		}
 

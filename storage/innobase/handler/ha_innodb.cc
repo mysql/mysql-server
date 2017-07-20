@@ -3356,10 +3356,10 @@ boot_tablespaces(THD* thd)
 {
 	auto	dc = dd::get_dd_client(thd);
 
-	using Tablespaces = std::vector<const dd::Tablespace*>;
+	using DD_tablespaces = std::vector<const dd::Tablespace*>;
 	using Releaser = dd::cache::Dictionary_client::Auto_releaser;
 
-	Tablespaces	tablespaces;
+	DD_tablespaces	tablespaces;
 	Releaser	releaser(dc);
 
 	/* Initialize the max space_id from sys header */
@@ -3396,6 +3396,11 @@ boot_tablespaces(THD* thd)
 	const auto	sys_space_name = dict_sys_t::sys_space_name;
 	const auto	fpt_str = dict_sys_t::file_per_table_name;
 	const auto	fpt_str_len = strlen(fpt_str);
+
+	using Filenames = std::pair<std::string, std::string>;
+	using Tablespaces = std::vector<std::pair<dd::Object_id, Filenames>>;
+
+	Tablespaces	moved;
 
 	for (const auto tablespace : tablespaces) {
 
@@ -3447,12 +3452,6 @@ boot_tablespaces(THD* thd)
 
 		const auto	file = *tablespace->files().begin();
 
-		if (file == nullptr) {
-
-			fail = true;
-			break;
-		}
-
 		if (fsp_is_system_or_temp_tablespace(id)
 		    || fsp_is_undo_tablespace(id)) {
 
@@ -3460,11 +3459,12 @@ boot_tablespaces(THD* thd)
 			continue;
 		}
 
+		std::string	new_path;
 		const char*	filename = file->filename().c_str();
 
 		if (fsp_is_ibd_tablespace(id)) {
 
-			auto	new_path = fil_tablespace_path_equals(
+			new_path = fil_tablespace_path_equals(
 				id, filename);
 
 			if (new_path.length() == 0) {
@@ -3500,9 +3500,17 @@ boot_tablespaces(THD* thd)
 					<< " has been moved to"
 					<< " '" << new_path << "'";
 
-				filename = new_path.c_str();
+				Filenames	filenames;
 
-				continue;
+				filenames.first = std::string(filename);
+				filenames.second = new_path;
+
+				dd::Object_id	dd_space_id = tablespace->id();
+
+				moved.push_back(
+					std::make_pair(dd_space_id, filenames));
+
+				filename = new_path.c_str();
 			}
 		}
 
@@ -3554,6 +3562,33 @@ boot_tablespaces(THD* thd)
 	}
 
 	fil_set_max_space_id_if_bigger(max_id);
+
+	/* The transaction should not be active yet, start it */
+
+	/* If some file paths have changed then update the DD */
+	for (auto tablespace : moved) {
+
+		dberr_t	err;
+
+		err = dd_tablespace_update_filename(
+			tablespace.first, tablespace.second.second.c_str());
+
+		if (err != DB_SUCCESS) {
+
+			ib::error()
+				<< "Unable to update tablespace ID"
+				<< " " << tablespace.first << " path from"
+				<< " '" << tablespace.second.first << "' to"
+				<< " '" << tablespace.second.second << "'";
+		} else {
+
+			ib::info()
+				<< "Updated tablespace ID"
+				<< " " << tablespace.first << " path from"
+				<< " '" << tablespace.second.first << "' to"
+				<< " '" << tablespace.second.second << "'";
+		}
+	}
 
 	mem_heap_free(heap);
 
@@ -14690,7 +14725,9 @@ ha_innobase::rename_table_impl(
 		dd::Object_id		dd_space_id =
 			(*to_table->indexes()->begin())->tablespace_id();
 
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
+		if (dd_tablespace_update_filename(dd_space_id, new_path)
+		    != DB_SUCCESS) {
+
 			ut_a(false);
 		}
 

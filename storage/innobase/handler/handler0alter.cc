@@ -10224,7 +10224,9 @@ alter_part::rename_table(
 		dd::Object_id	dd_space_id =
 			(*dd_part->indexes().begin())->tablespace_id();
 
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
+		if (dd_tablespace_update_filename(dd_space_id, new_path)
+		    != DB_SUCCESS) {
+
 			ut_a(false);
 		}
 
@@ -12562,7 +12564,10 @@ rename_table_for_exchange(
 	}
 
 	if (new_path != nullptr) {
-		if (dd_tablespace_update_filename(dd_space_id, new_path)) {
+
+		if (dd_tablespace_update_filename(dd_space_id, new_path)
+		    != DB_SUCCESS) {
+
 			ut_a(false);
 		}
 
