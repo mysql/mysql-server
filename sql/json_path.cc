@@ -229,24 +229,20 @@ bool Json_path::to_string(String *buf) const
 }
 
 
-static inline bool is_wildcard_or_ellipsis_or_range(const Json_path_leg *leg)
-{
-  switch (leg->get_type())
-  {
-  case jpl_member_wildcard:
-  case jpl_array_cell_wildcard:
-  case jpl_ellipsis:
-  case jpl_array_range:
-    return true;
-  default:
-    return false;
-  }
-}
-
-
 bool Json_path::can_match_many() const
 {
-  return std::any_of(begin(), end(), is_wildcard_or_ellipsis_or_range);
+  return std::any_of(begin(), end(), [](const Json_path_leg *leg) -> bool {
+      switch (leg->get_type())
+      {
+      case jpl_member_wildcard:
+      case jpl_array_cell_wildcard:
+      case jpl_ellipsis:
+      case jpl_array_range:
+        return true;
+      default:
+        return false;
+      }
+    });
 }
 
 
@@ -288,7 +284,7 @@ static inline bool is_whitespace(char ch)
 */
 static inline const char *purge_whitespace(const char *str, const char *end)
 {
-  return std::find_if_not(str, end, is_whitespace);
+  return std::find_if_not(str, end, [](char c) { return is_whitespace(c); });
 }
 
 

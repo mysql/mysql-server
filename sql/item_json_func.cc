@@ -1062,7 +1062,7 @@ enum class enum_json_opaque_type
   For example:
   json_type_string_map[J_OBJECT] == "OBJECT"
 */
-static const char *json_type_string_map[]=
+static constexpr const char *json_type_string_map[]=
 {
   "NULL",
   "DECIMAL",
@@ -1086,25 +1086,34 @@ static const char *json_type_string_map[]=
   "GEOMETRY",
 };
 
-/**
-  Compute the maximum length of the string representation of the Json type
-  literals which we use as output from JSON_TYPE.
-
-  @return the length of the longest literal + 1 (for terminating NUL).
-*/
-static uint32 compute_max_typelit()
+/// A constexpr version of std::strlen.
+static constexpr uint32 strlen_const(const char *str)
 {
-  size_t maxl= 0;
-  for (auto s : json_type_string_map)
-    maxl= std::max(maxl, std::strlen(s));
-  return static_cast<uint32>(maxl + 1);
+  return *str == '\0' ? 0 : 1 + strlen_const(str + 1);
+}
+
+/// std::max isn't constexpr until C++14, so we roll our own for now.
+static constexpr uint32 max_const(uint32 a, uint32 b)
+{
+  return a > b ? a : b;
+}
+
+/// Find the length of the longest string in a range.
+static constexpr uint32 longest_string(const char *const *begin,
+                                       const char *const *end)
+{
+  return begin == end ? 0 : max_const(strlen_const(*begin),
+                                      longest_string(begin + 1, end));
 }
 
 /**
    The maximum length of a string in json_type_string_map including
    a final zero char.
 */
-static const uint32 typelit_max_length= compute_max_typelit();
+static constexpr uint32 typelit_max_length=
+  longest_string(json_type_string_map,
+                 json_type_string_map + array_elements(json_type_string_map))
+  + 1;
 
 bool Item_func_json_type::resolve_type(THD *)
 {
