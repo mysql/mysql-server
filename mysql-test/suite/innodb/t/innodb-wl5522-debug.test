@@ -1237,7 +1237,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for 
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Page 0 at offset 0 looks corrupted in file");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Unable to open tablespace .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for `test_wl5522/t1`");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test_wl5522`.`t1` in the cache");

@@ -22,7 +22,6 @@ EOF
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table `test`\.`t` because the \.ibd file is missing");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot delete tablespace [0-9]+ in DISCARD TABLESPACE: Tablespace not found");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace [0-9]+ because it is not found in the tablespace memory cache");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");

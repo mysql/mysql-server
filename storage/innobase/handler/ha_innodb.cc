@@ -3441,16 +3441,11 @@ boot_tablespaces(THD* thd)
 		case DB_CANNOT_OPEN_FILE:
 			break;
 		default:
-			ib::warn() << "Unable to open tablespace " << id
+			ib::info() << "Unable to open tablespace " << id
 				<< " (flags=" << flags
 				<< ", filename=" << filename << ")."
-				<< " This could be due to a previous"
-				<< " crash during any rename, when"
-				<< " data file rename has been done"
-				<< " but then data file names in"
-				<< " data dictionary haven't been"
-				<< " updated. Please see if DDL"
-				<< " recovery will fix this.";
+				<< " This should be fixed after data"
+				<< " dictionary and DDL recovery later.";
 			ut_strerr(err);
 		}
 	}
