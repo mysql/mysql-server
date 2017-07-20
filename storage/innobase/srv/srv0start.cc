@@ -816,9 +816,10 @@ srv_undo_tablespace_open(space_id_t space_id)
 
 	if (space != nullptr) {
 
-		const auto&	file = space->files.front();
-
+#ifdef UNIV_DEBUG
+		const auto&     file = space->files.front();
 		ut_ad(fil_paths_equal(recover_name.c_str(), file.name));
+#endif /* UNIV_DEBUG */
 
 		fil_flush(space_id);
 
