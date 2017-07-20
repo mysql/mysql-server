@@ -4968,6 +4968,7 @@ innobase_commit(
 	DBUG_ENTER("innobase_commit");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 	DBUG_PRINT("trans", ("ending transaction"));
+	DEBUG_SYNC_C("transaction_commit_start");
 
 	trx_t*	trx = check_trx_exists(thd);
 

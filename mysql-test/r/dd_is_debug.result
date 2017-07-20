@@ -14,3 +14,18 @@ ERROR 70100: Query execution was interrupted
 SET SESSION DEBUG="-d,simulate_kill_query_on_open_table";
 DROP TABLE time_zone;
 SET @@session.information_schema_stats= @old_information_schema_stats;
+#
+# Bug#26318759 ASSERT IN ROW_DROP_TABLE_FOR_MYSQL IN ROW/ROW0MYSQL.CC
+#
+SET SESSION information_schema_stats=latest;
+SET SESSION debug= "+d,information_schema_fetch_table_stats";
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b));
+INSERT INTO t1 VALUES ('a','b');
+SELECT table_name, cardinality  FROM INFORMATION_SCHEMA.STATISTICS
+WHERE cardinality > 0 and table_schema='test';
+TABLE_NAME	CARDINALITY
+t1	1
+t1	1
+DROP TABLE t1;
+SET SESSION debug= "-d,information_schema_fetch_table_stats";
+SET SESSION information_schema_stats=default;

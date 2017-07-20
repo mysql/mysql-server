@@ -2017,6 +2017,34 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
   return false;
 }
 
+bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return true;
+  if (item->type() != FUNC_ITEM)
+    return false;
+  const auto item_func= down_cast<const Item_func*>(item);
+  if (arg_count != item_func->arg_count ||
+      func_name() != item_func->func_name())
+    return false;
+
+  auto cmp= [binary_cmp](const Item *arg1, const Item *arg2)
+  {
+    /*
+      JSON_EXTRACT doesn't care about the collation of its arguments. String
+      literal arguments are considered equal if they have the same character
+      set and binary contents, even if their collations differ.
+    */
+    const bool ignore_collation=
+        binary_cmp || (arg1->type() == STRING_ITEM &&
+                       my_charset_same(arg1->collation.collation,
+                                       arg2->collation.collation));
+    return arg1->eq(arg2, ignore_collation);
+  };
+  const auto item_json= down_cast<const Item_func_json_extract*>(item);
+  return std::equal(args, args + arg_count, item_json->args, cmp);
+}
+
 /**
   If there is no parent in v, we must have a path that specifified either
   - the root ('$'), or

@@ -1939,9 +1939,18 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 [Connection Master]
 # Create tables using the JSON_MERGE_PATCH function
-CREATE TABLE json_data2 SELECT JSON_MERGE_PATCH(JSON_ARRAYAGG(jd), JSON_OBJECTAGG(pk,jd)) AS field1 FROM json_data;
-CREATE TABLE json_data3 SELECT JSON_MERGE_PATCH(JSON_OBJECTAGG(id,gcol), JSON_ARRAYAGG(td)) AS field1 FROM json_data;
-CREATE TABLE json_data4 SELECT JSON_MERGE_PATCH(JSON_OBJECT(id,jd), JSON_ARRAY(gcol)) AS field1 FROM json_data;
+CREATE TABLE json_data2(field1 JSON);
+INSERT INTO json_data2
+SELECT JSON_MERGE_PATCH(JSON_ARRAYAGG(jd), JSON_OBJECTAGG(pk, jd))
+FROM json_data;
+CREATE TABLE json_data3(field1 JSON);
+INSERT INTO json_data3
+SELECT JSON_MERGE_PATCH(JSON_OBJECTAGG(id, gcol), JSON_ARRAYAGG(td))
+FROM json_data;
+CREATE TABLE json_data4(field1 JSON);
+INSERT INTO json_data4
+SELECT JSON_MERGE_PATCH(JSON_OBJECT(id, jd), JSON_ARRAY(gcol))
+FROM json_data;
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
 # Check whether the tables were created on the slave
