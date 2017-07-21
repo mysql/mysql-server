@@ -812,7 +812,6 @@ ulong slow_start_timeout;
 
 bool opt_initialize= 0;
 bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
-bool opt_reckless_slave = 0;
 bool opt_enable_named_pipe= 0;
 bool opt_local_infile, opt_slave_compressed_protocol;
 bool opt_safe_user_create = 0;
@@ -7768,7 +7767,7 @@ To see what values a running MySQL server is using, type\n\
 static int mysql_init_variables()
 {
   /* Things reset to zero */
-  opt_skip_slave_start= opt_reckless_slave = 0;
+  opt_skip_slave_start= 0;
   mysql_home[0]= pidfile_name[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_general_log= opt_slow_log= false;
