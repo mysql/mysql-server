@@ -584,12 +584,19 @@ reopen:
 
 			ut_ad(ib_table != nullptr);
 			ib_table->acquire();
-			mutex_exit(&dict_sys->mutex);
+
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
 		} else {
 			mutex_exit(&dict_sys->mutex);
 
 			ib_table = dd_table_open_on_id_low(
 				thd, mdl, table_id);
+
+			if (dict_locked) {
+				mutex_enter(&dict_sys->mutex);
+			}
 		}
 	} else if (mdl == nullptr || ib_table->is_temporary()
 		   || dict_table_is_sdi(ib_table->id)) {
@@ -598,7 +605,10 @@ reopen:
 		} else {
 			ib_table->acquire();
 		}
-		mutex_exit(&dict_sys->mutex);
+
+		if (!dict_locked) {
+			mutex_exit(&dict_sys->mutex);
+		}
 	} else {
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
@@ -678,11 +688,14 @@ reopen:
 				dd_mdl_release(thd, mdl);
 			}
 		}
+
+		if (dict_locked) {
+			mutex_enter(&dict_sys->mutex);
+		}
 	}
 
-	if (dict_locked) {
-		mutex_enter(&dict_sys->mutex);
-	}
+	ut_ad(dict_locked == mutex_own(&dict_sys->mutex));
+
 	return(ib_table);
 }
 
