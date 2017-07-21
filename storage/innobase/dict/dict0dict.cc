@@ -7881,7 +7881,7 @@ dict_sdi_get_table(
 }
 
 /** Remove the SDI table from table cache.
-@param[in]	space_id	InnoDB tablesapce_id
+@param[in]	space_id	InnoDB tablespace ID
 @param[in]	sdi_table	sdi table
 @param[in]	dict_locked	true if dict_sys mutex acquired */
 void

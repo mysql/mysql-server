@@ -187,7 +187,7 @@ static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
     ut_a(false);
   }
 
-  /* For file per table tablespaces and general tablesapces, we will get
+  /* For file per table tablespaces and general tablespaces, we will get
   the tablespace object and then get space_id. */
   if (dd_client->acquire_for_modification(name, &ts_obj)) {
     ut_a(false);

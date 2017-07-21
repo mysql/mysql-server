@@ -2906,7 +2906,7 @@ dd_table_get_space_name(
 	THD*			thd = current_thd;
 	const char*		space_name;
 
-	DBUG_ENTER("dd_tablee_get_space_name");
+	DBUG_ENTER("dd_table_get_space_name");
 	ut_ad(!srv_is_being_shutdown);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -3520,7 +3520,7 @@ dd_get_fts_tablespace_id(
 
 	} else if (table->space != TRX_SYS_SPACE
 		   && table->space != srv_tmp_space.space_id()) {
-		/* This is a user table that resides in shared tablesapce */
+		/* This is a user table that resides in shared tablespace */
 		ut_ad(!dict_table_is_file_per_table(table));
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 

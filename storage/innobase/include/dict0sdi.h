@@ -23,7 +23,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class Sdi_Compressor {
 
 public:
-	Sdi_Compressor(uint64_t	src_len, const void* sdi) :
+	Sdi_Compressor(uint32_t	src_len, const void* sdi) :
 		m_src_len(src_len),
 		m_comp_len(),
 		m_sdi(sdi),
@@ -83,9 +83,9 @@ public:
 
 private:
 	/** Length of uncompressed SDI */
-	uint64_t	m_src_len;
+	uint32_t	m_src_len;
 	/** Length of compressed SDI */
-	uint64_t	m_comp_len;
+	uint32_t	m_comp_len;
 	/** Uncompressed SDI */
 	const void*	m_sdi;
 	/** Compressed SDI */

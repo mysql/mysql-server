@@ -806,7 +806,7 @@ buf_read_recv_pages(
 
 	/* Extend the tablespace if needed. Required only while
 	recovering from cloned database. */
-	ulint	last_page = page_nos[n_stored - 1];
+	page_no_t	last_page = page_nos[n_stored - 1];
 
 	/* Align size to multiple of extent size */
 	success = fil_space_extend(space,
@@ -867,4 +867,3 @@ buf_read_recv_pages(
 	DBUG_PRINT("ib_buf", ("recovery read-ahead (%u pages)",
 			      unsigned(n_stored)));
 }
-

@@ -613,7 +613,7 @@ struct RecID {
 		:
 		m_space_id(lock->rec_lock.space),
 		m_page_no(lock->rec_lock.page_no),
-		m_heap_no(heap_no),
+		m_heap_no(static_cast<uint32_t>(heap_no)),
 		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
 		ut_ad(m_space_id < UINT32_MAX);
@@ -670,11 +670,11 @@ struct RecID {
 
 	/**
 	Tablespace ID */
-	uint32_t		m_space_id;
+	space_id_t		m_space_id;
 
 	/**
 	Page number within the space ID */
-	uint32_t		m_page_no;
+	page_no_t		m_page_no;
 
 	/**
 	Heap number within the page */

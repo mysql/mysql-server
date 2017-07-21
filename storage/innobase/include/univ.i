@@ -460,9 +460,9 @@ typedef ib_uint64_t		ib_id_t;
 #define IB_ID_MAX		IB_UINT64_MAX
 
 /** Page number */
-typedef uint32			page_no_t;
+typedef uint32_t		page_no_t;
 /** Tablespace identifier */
-typedef uint32			space_id_t;
+typedef uint32_t		space_id_t;
 
 #define SPACE_ID_PF UINT32PF
 #define SPACE_ID_PFS UINT32PFS

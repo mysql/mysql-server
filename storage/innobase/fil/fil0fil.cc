@@ -8446,7 +8446,7 @@ Fil_Open::from_file(bool recovery)
 	{
 		auto	it = std::find( PATHS.begin(), PATHS.end(), opened[i]);
 
-		/* Must fine the filename. */
+		/* Must find the filename. */
 		ut_a(it != PATHS.end());
 
 		/* Ensure that we don't write to the file we just read in
