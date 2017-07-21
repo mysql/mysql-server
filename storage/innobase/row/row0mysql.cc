@@ -3028,7 +3028,12 @@ row_create_table_for_mysql(
 		dict_table_add_system_columns(table, heap);
 		dict_table_add_to_cache(table, TRUE, heap);
 
-		log_ddl->write_remove_cache_log(trx, table);
+		/* During upgrade, etc., the log_ddl may haven't been
+		initialized and we don't need to write DDL logs too.
+		This can only happen for CREATE TABLE. */
+		if (log_ddl != nullptr) {
+			log_ddl->write_remove_cache_log(trx, table);
+		}
 
 		mem_heap_free(heap);
 	}

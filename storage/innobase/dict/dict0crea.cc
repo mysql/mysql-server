@@ -400,7 +400,13 @@ dict_create_index_tree_in_mem(
 		/* FIXME: if it's part of CREATE TABLE, and file_per_table is
 		true, skip ddl log, because during rollback, the whole
 		tablespace would be dropped */
-		err = log_ddl->write_free_tree_log(trx, index, false);
+
+		/* During upgrade, etc., the log_ddl may haven't been
+		initialized and we don't need to write DDL logs too.
+		This can only happen for CREATE TABLE. */
+		if (log_ddl != nullptr) {
+			err = log_ddl->write_free_tree_log(trx, index, false);
+		}
 	}
 
 #if 0

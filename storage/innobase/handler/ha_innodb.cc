@@ -4238,7 +4238,11 @@ void
 innobase_post_ddl(
 	THD*		thd)
 {
-	log_ddl->post_ddl(thd);
+	/* During upgrade, etc., the log_ddl may haven't been
+	initialized and there is nothing to do now. */
+	if (log_ddl != nullptr) {
+		log_ddl->post_ddl(thd);
+	}
 }
 
 /** Initialize the InnoDB storage engine plugin.
