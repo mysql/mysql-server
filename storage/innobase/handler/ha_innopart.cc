@@ -2628,7 +2628,8 @@ ha_innopart::create(
 				     table_name,
 				     remote_path,
 				     tablespace_name,
-				     srv_file_per_table);
+				     srv_file_per_table,
+				     false);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -3397,7 +3398,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 
 			error = innobase_basic_ddl::create_impl(
 				thd, name, table, info, dd_part,
-				file_per_table, true);
+				file_per_table, true, true);
 
 			if (reset) {
 				dd_part->set_tablespace_id(

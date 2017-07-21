@@ -11439,8 +11439,11 @@ create_table_info_t::create_options_are_invalid()
 
 	/* If innodb_strict_mode is not set don't do any more validation.
 	Also, if this table is being put into a shared general tablespace
-	we ALWAYS act like strict mode is ON. */
-	if (!m_use_shared_space && !(THDVAR(m_thd, strict_mode))) {
+	we ALWAYS act like strict mode is ON.
+	Or if caller explicitly asks for skipping strict mode check (if
+	tablespace is not a shared general tablespace), then skip */
+	if (!m_use_shared_space
+	    && (!(THDVAR(m_thd, strict_mode)) || skip_strict())) {
 		return(NULL);
 	}
 
@@ -12930,8 +12933,10 @@ template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
 @param[in]	create_info	Create info (including create statement string)
 @param[in,out]	dd_tab		dd::Table describing table to be created
 @param[in]	file_per_table	whether to create a tablespace too
-@param[in]	evictable	whether the caller wants the dict_table_t
-				to be kept in memory
+@param[in]	evictable	whether the caller wants the
+				dict_table_t to be kept in memory
+@param[in]	skip_strict	whether to skip strict check for create
+				option
 @return	error number
 @retval 0 on success */
 template<typename Table>
@@ -12943,7 +12948,8 @@ innobase_basic_ddl::create_impl(
 	HA_CREATE_INFO*		create_info,
 	Table*			dd_tab,
 	bool			file_per_table,
-	bool			evictable)
+	bool			evictable,
+	bool			skip_strict)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -12965,7 +12971,8 @@ innobase_basic_ddl::create_impl(
 				     norm_name,
 				     remote_path,
 				     tablespace,
-				     file_per_table);
+				     file_per_table,
+				     skip_strict);
 
 	/* Initialize the object. */
 	if ((error = info.initialize())) {
@@ -13062,10 +13069,10 @@ cleanup:
 }
 
 template int innobase_basic_ddl::create_impl<dd::Table>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Table*, bool, bool, bool);
 
 template int innobase_basic_ddl::create_impl<dd::Partition>(
-	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool, bool);
+	THD*, const char*, TABLE*, HA_CREATE_INFO*, dd::Partition*, bool, bool, bool);
 
 
 /** Drop a table.
@@ -13693,7 +13700,7 @@ ha_innobase::create(
 	decisions based on this. */
 	return(innobase_basic_ddl::create_impl(
 		ha_thd(), name, form, create_info, table_def,
-		srv_file_per_table, true));
+		srv_file_per_table, true, false));
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -14033,7 +14040,7 @@ ha_innobase::truncate(dd::Table *table_def)
 
 		error = innobase_basic_ddl::create_impl(
 			thd, name, table, &info, table_def,
-			file_per_table, true);
+			file_per_table, true, true);
 	}
 
 	if (!error) {

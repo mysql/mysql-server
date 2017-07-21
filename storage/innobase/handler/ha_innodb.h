@@ -841,7 +841,8 @@ public:
 		char*		table_name,
 		char*		remote_path,
 		char*		tablespace,
-		bool		file_per_table)
+		bool		file_per_table,
+		bool		skip_strict)
 	:m_thd(thd),
 	m_trx(thd_to_trx(thd)),
 	m_form(form),
@@ -849,7 +850,8 @@ public:
 	m_table_name(table_name),
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
-	m_innodb_file_per_table(file_per_table)
+	m_innodb_file_per_table(file_per_table),
+	m_skip_strict(skip_strict)
 	{}
 
 	/** Initialize the object. */
@@ -909,6 +911,10 @@ public:
 	/** Get table flags2. */
 	ulint flags2() const
 	{ return(m_flags2); }
+
+	/** whether to skip strict check. */
+	bool skip_strict() const
+	{ return(m_skip_strict); }
 
 	/** Return table name. */
 	const char* table_name() const
@@ -1015,6 +1021,9 @@ private:
 
 	/** Table flags2 */
 	ulint		m_flags2;
+
+	/** Skip strict check */
+	bool		m_skip_strict;
 };
 
 /** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */
@@ -1031,8 +1040,10 @@ public:
 					string)
 	@param[in,out]	dd_tab		dd::Table describing table to be created
 	@param[in]	file_per_table	whether to create a tablespace too
-	@param[in]	evictable	whether the caller wants the dict_table_t
-					to be kept in memory
+	@param[in]	evictable	whether the caller wants the
+					dict_table_t to be kept in memory
+	@param[in]	skip_strict	whether to skip strict check for create
+					option
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
@@ -1043,7 +1054,8 @@ public:
 		HA_CREATE_INFO*	create_info,
 		Table*		dd_tab,
 		bool		file_per_table,
-		bool		evictable);
+		bool		evictable,
+		bool		skip_strict);
 
 	/** Drop an InnoDB table.
 	@tparam		Table		dd::Table or dd::Partition
