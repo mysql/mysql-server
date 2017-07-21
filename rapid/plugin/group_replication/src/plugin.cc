@@ -1406,12 +1406,9 @@ bool check_async_channel_running_on_secondary()
 
 void initialize_asynchronous_channels_observer()
 {
-  if (single_primary_mode_var)
-  {
-    asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
-    channel_observation_manager
-        ->register_channel_observer(asynchronous_channels_state_observer);
-  }
+  asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
+  channel_observation_manager
+      ->register_channel_observer(asynchronous_channels_state_observer);
 }
 
 void terminate_asynchronous_channels_observer()

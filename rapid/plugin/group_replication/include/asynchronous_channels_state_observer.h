@@ -55,6 +55,11 @@ public:
   /** Observer for whenever a reset slave is executed */
   int after_reset_slave(Binlog_relay_IO_param *param);
 
+  /** Observer for event applied through applier thread */
+  int applier_log_event(Binlog_relay_IO_param *param,
+                        Trans_param *trans_param,
+                        int& out);
+
 };
 
 #endif /* SINGLE_PRIMARY_CHANNEL_STATE_OBSERVER_INCLUDE */
