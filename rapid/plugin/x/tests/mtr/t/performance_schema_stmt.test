@@ -263,6 +263,10 @@ Mysqlx.Crud.Delete {
 -->recvresult
 -->callmacro Show_sql_history
 
+# silent call for establishing static variables
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult be-quiet
+
 -->callmacro Clear_sql_history
 -->echo ######### list_objects #########
 -->stmtadmin list_objects	{"schema":"xtest"}
