@@ -3938,6 +3938,17 @@ row_discard_tablespace(
 	4) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0,
 	we do not allow the discard. */
 
+	/* For SDI tables, acquire exclusive MDL and set sdi_table->ibd_file_missing
+	to true. Purge on SDI table acquire shared MDL & also check for missing
+	flag. */
+	mutex_exit(&dict_sys->mutex);
+	MDL_ticket*	sdi_mdl = nullptr;
+	err = dd_sdi_acquire_exclusive_mdl(trx->mysql_thd, table->space, &sdi_mdl);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+	mutex_enter(&dict_sys->mutex);
+
 	/* Play safe and remove all insert buffer entries, though we should
 	have removed them already when DISCARD TABLESPACE was called */
 
@@ -4024,6 +4035,16 @@ row_discard_tablespace(
 
 			index->page = FIL_NULL;
 			index->space = FIL_NULL;
+		}
+
+		/* Set SDI tables that ibd is missing */
+		{
+			dict_table_t*	sdi_table = dict_sdi_get_table(
+				table->space, true, false);
+			if (sdi_table) {
+				sdi_table->ibd_file_missing = true;
+				dict_sdi_close_table(sdi_table);
+			}
 		}
 
 		/* If the tablespace did not already exist or we couldn't
