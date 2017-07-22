@@ -139,6 +139,20 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
 
   this->set_primary_key_value(*r);
 
+  /*
+    It is necessary to destroy the Raw_new_record() object after
+    inserting the parent DD object and before creating children
+    DD object. The reason is that, the parent DD object may
+    insert a row in the same DD table (E.g., when storing parent
+    partition metadata in mysql.partitions), in which even the
+    child DD table would end-up inserting a row. (e.g., where
+    storing sub partition metadata in mysql.partitions)
+    Destroying Raw_new_record() enable accurate computation of
+    the auto increment values, for the child partition entry
+    being stored.
+  */
+  r.reset();
+
   if (store_children(otx))
     DBUG_RETURN(true);
 

@@ -206,12 +206,13 @@ dd_table_open_on_dd_obj(
 		ut_ad(&dd_part->table() == &dd_table);
 		ut_ad(dd_table.se_private_id() == dd::INVALID_OBJECT_ID);
 		ut_ad(dd_table_is_partitioned(dd_table));
-		ut_ad(dd_part->level() == (dd_part->parent() != nullptr));
+
+		ut_ad(dd_part->parent_partition_id() == dd::INVALID_OBJECT_ID ||
+                      dd_part->parent() != nullptr);
+
 		ut_ad(((dd_part->table().subpartition_type()
 		       != dd::Table::ST_NONE)
 			  == (dd_part->parent() != nullptr)));
-		ut_ad(dd_part->parent() == nullptr
-		      || dd_part->parent()->level() == 0);
 	}
 
 	/* If this is a internal temporary table, it's impossible
@@ -418,9 +419,9 @@ dd_table_open_on_id_low(
 
 		/* Do more verification for partition table */
 		if (same_name && is_part) {
-			auto end = dd_table->partitions().end();
+			auto end = dd_table->leaf_partitions().end();
 			auto i = std::search_n(
-				dd_table->partitions().begin(), end, 1,
+				dd_table->leaf_partitions().begin(), end, 1,
 				table_id,
 				[](const dd::Partition* p, table_id_t id)
 				{
@@ -712,7 +713,7 @@ dd_table_discard_tablespace(
 	ut_ad(!srv_is_being_shutdown);
 
 	if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
-		ut_ad(table_def->table().partitions()->empty());
+		ut_ad(table_def->table().leaf_partitions()->empty());
 
 		/* For discarding, we need to set new private
 		id to dd_table */
@@ -854,10 +855,10 @@ dd_table_open_on_name(
 	} else {
 		if (dd_table->se_private_id() == dd::INVALID_OBJECT_ID) {
 			/* This must be a partitioned table. */
-			ut_ad(!dd_table->partitions().empty());
+			ut_ad(!dd_table->leaf_partitions().empty());
 			table = nullptr;
 		} else {
-			ut_ad(dd_table->partitions().empty());
+			ut_ad(dd_table->leaf_partitions().empty());
 			dd_table_open_on_dd_obj(
 				client, *dd_table, nullptr, name,
 				table, thd);

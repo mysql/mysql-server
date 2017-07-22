@@ -646,10 +646,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
 
   uint64_t max_auto_inc = UINT64_MAX;
 
-  for (dd::Partition* part_obj : *dd_table->partitions()) {
-    if (!dd_part_is_stored(part_obj)) {
-      continue;
-    }
+  for (dd::Partition* part_obj : *dd_table->leaf_partitions()) {
 
     size_t len = Ha_innopart_share::create_partition_postfix(
         partition_name_start, FN_REFLEN - table_name_len, part_obj);
@@ -811,7 +808,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
 
   normalize_table_name(norm_name, buf);
 
-  bool is_part = dd_table->partitions()->size() != 0;
+  bool is_part = dd_table->leaf_partitions()->size() != 0;
 
   if (is_part) {
     return (dd_upgrade_partitions(thd, norm_name, dd_table, srv_table));

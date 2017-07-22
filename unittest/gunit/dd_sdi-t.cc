@@ -205,7 +205,6 @@ static void mock_dd_obj(dd::Partition_value *pv)
 
 static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
-  p->set_level(0);
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");
