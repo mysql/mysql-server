@@ -29,9 +29,9 @@ INSERT INTO `city` VALUES (5,'Amsterdam','NLD','Noord-Holland',731);
 INSERT INTO `city` VALUES (6,'Rotterdam','NLD','Zuid-Holland',593);
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Invalid user or password'");
 call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Invalid user or password'");
-in main, line 0:ERROR: Invalid user or password (code 1045)
+Application terminated with expected error: Invalid user or password (code 1045)
 not ok
-in main, line 0:ERROR: Invalid user or password (code 1045)
+Application terminated with expected error: Invalid user or password (code 1045)
 not ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"

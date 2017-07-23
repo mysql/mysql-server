@@ -15,7 +15,7 @@ grant all on *.* to xplugin@localhost;
 alter user xplugin@localhost password expire;
 
 Test: Expired password with no support for sandbox mode (should fail)
-in main, line 2:ERROR: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 ok
 
 Test: Expired password with support for sandbox mode (should succeed)
@@ -41,9 +41,9 @@ NOTICE: Account password expired
 Login OK
 ok
 Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice
-in main, line 0:ERROR: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
 alter user root@localhost password expire;
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+not ok
 Test: try connecting with Expired password using root user and expect password expire notice
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -66,10 +66,7 @@ Mysqlx.Ok {
 NOTICE: Account password expired
 Login OK
 ok
-Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice (1)
-in main, line 0:ERROR: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
-Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice (2)
+Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -110,7 +107,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-in main, line 17:ERROR: Invalid user or password (code 1045)
+Got expected error: Invalid user or password (code 1045)
 ok
 set password for root@localhost = '';
 # restart: --disconnect_on_expired_password=off
@@ -118,7 +115,7 @@ Test: expect expired Notice for connection
 NOTICE: Account password expired
 RUN select user(),current_user()
 While executing select user(),current_user():
-in main, line 3:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -129,18 +126,16 @@ Test: expect expired Notice for connection
 NOTICE: Account password expired
 RUN select user(),current_user()
 While executing select user(),current_user():
-in main, line 3:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 NOTICE: Account password expired
-RUN select user(),current_user()
-While executing select user(),current_user():
-in main, line 9:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
-RUN create database xplugin
-While executing create database xplugin:
-in main, line 9:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN select user(),current_user();
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN create database xplugin;
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 RUN set password = 'xplugin'
 
 0 rows affected
@@ -163,12 +158,10 @@ Mysqlx.Ok {
 ok
 # restart: --disconnect_on_expired_password
 NOTICE: Account password expired
-RUN select user(),current_user()
-While executing select user(),current_user():
-in main, line 9:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
-RUN create database xplugin
-While executing create database xplugin:
-in main, line 9:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN select user(),current_user();
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+RUN create database xplugin;
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 RUN set password = 'xplugin'
 
 0 rows affected
@@ -227,7 +220,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-in main, line 30:ERROR: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"
 }

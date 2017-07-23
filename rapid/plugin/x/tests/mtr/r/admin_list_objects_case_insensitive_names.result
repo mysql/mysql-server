@@ -1,0 +1,27 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+Creating collections with similar names
+---------------------------------------
+
+command ok
+Got expected error: Table 'fruit' already exists (code 1050)
+name	type
+fruit	COLLECTION
+command ok
+
+Creating collection in another schema with similar name
+-------------------------------------------------------
+Got expected error: Can't create database 'xtest'; database exists (code 1007)
+Got expected error: Table 'fruit' already exists (code 1050)
+name	type
+fruit	COLLECTION
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

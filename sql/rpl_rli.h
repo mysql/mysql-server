@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,10 +504,11 @@ public:
   int inc_group_relay_log_pos(ulonglong log_pos,
                               bool need_data_lock);
 
-  int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
-		   longlong timeout);
-  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set, longlong timeout);
+  int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
+                   double timeout);
+  int wait_for_gtid_set(THD* thd, String* gtid, double timeout);
+  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
+                        double timeout);
 
   void close_temporary_tables();
 

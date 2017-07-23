@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1366,80 +1366,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
 
 /**
-   Class circular_buffer_queue.
-
-   Content of the being dequeued item is copied to the arg-pointer
-   location.
-
-   @return the queue's array index that the de-queued item
-           located at, or an error as an int outside the legacy
-           [0, size) (value `size' is excluded) range.
-*/
-
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_queue(Element_type *val)
-{
-  ulong ret;
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  ret= entry;
-  *val= m_Q[entry];
-  len--;
-
-  // pre boundary cond
-  if (avail == size)
-    avail= entry;
-  entry= (entry + 1) % size;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return ret;
-}
-
-/**
-   Similar to de_queue() but removing an item from the tail side.
-
-   return  the queue's array index that the de-queued item
-           located at, or an error.
-*/
-template <typename Element_type>
-ulong circular_buffer_queue<Element_type>::de_tail(Element_type *val)
-{
-  if (entry == size)
-  {
-    DBUG_ASSERT(len == 0);
-    return (ulong) -1;
-  }
-
-  avail= (entry + len - 1) % size;
-  *val= m_Q[avail];
-  len--;
-
-  // post boundary cond
-  if (avail == entry)
-    entry= size;
-
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
-
-  return avail;
-}
-
-
-/**
    two index comparision to determine which of the two
    is ordered first.
 
@@ -1713,14 +1639,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   {
     char coordinator_errmsg[MAX_SLAVE_ERRMSG];
 
-    sprintf(coordinator_errmsg,
-            "Coordinator stopped because there were error(s) in the worker(s). "
-            "The most recent failure being: Worker %lu failed executing "
-            "transaction '%s' at master log %s, end_log_pos %llu. "
-            "See error log and/or "
-            "performance_schema.replication_applier_status_by_worker table for "
-            "more details about this failure or others, if any.",
-            id, buff_gtid, log_name, log_pos);
+    my_snprintf(coordinator_errmsg, MAX_SLAVE_ERRMSG,
+                "Coordinator stopped because there were error(s) in the "
+                "worker(s). "
+                "The most recent failure being: Worker %u failed executing "
+                "transaction '%s' at master log %s, end_log_pos %llu. "
+                "See error log and/or "
+                "performance_schema.replication_applier_status_by_worker "
+                "table for "
+                "more details about this failure or others, if any.",
+                internal_id, buff_gtid, log_name, log_pos);
 
     /*
       We want to update the errors in coordinator as well as worker.
@@ -1734,9 +1662,9 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   }
 
   my_snprintf(buff_coord, sizeof(buff_coord),
-          "Worker %lu failed executing transaction '%s' at "
-          "master log %s, end_log_pos %llu",
-          id, buff_gtid, log_name, log_pos);
+              "Worker %u failed executing transaction '%s' at "
+              "master log %s, end_log_pos %llu",
+              internal_id, buff_gtid, log_name, log_pos);
 
   /*
     Error reporting by the worker. The worker updates its error fields as well
@@ -2276,26 +2204,27 @@ bool append_item_to_jobs(slave_job_item *job_item,
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
-
   DBUG_ASSERT(thd == current_thd);
-
-  if (ev_size > rli->mts_pending_jobs_size_max)
-  {
-    char llbuff[22];
-    llstr(rli->get_event_relay_log_pos(), llbuff);
-    my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
-             job_item->data->get_type_str(),
-             rli->get_event_relay_log_name(), llbuff, ev_size,
-             rli->mts_pending_jobs_size_max);
-    /* Waiting in slave_stop_workers() avoidance */
-    rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    return ret;
-  }
 
   mysql_mutex_lock(&rli->pending_jobs_lock);
   new_pend_size= rli->mts_pending_jobs_size + ev_size;
-  // C waits basing on *data* sizes in the queues
-  while (new_pend_size > rli->mts_pending_jobs_size_max)
+  bool big_event= (ev_size > rli->mts_pending_jobs_size_max);
+  /*
+    C waits basing on *data* sizes in the queues.
+    If it is a big event (event size is greater than
+    slave_pending_jobs_size_max but less than slave_max_allowed_packet),
+    it will wait for all the jobs in the workers's queue to be
+    completed. If it is normal event (event size is less than
+    slave_pending_jobs_size_max), then it will wait for
+    enough empty memory to keep the event in one of the workers's
+    queue.
+    NOTE: Receiver thread (I/O thread) is taking care of restricting
+    the event size to slave_max_allowed_packet. If an event from
+    the master is bigger than this value, IO thread will be stopped
+    with error ER_NET_PACKET_TOO_LARGE.
+  */
+  while ( (!big_event && new_pend_size > rli->mts_pending_jobs_size_max)
+          || (big_event && rli->mts_pending_jobs_size != 0 ))
   {
     rli->mts_wq_oversize= TRUE;
     rli->wq_size_waits_cnt++; // waiting due to the total size
@@ -2536,6 +2465,66 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker,
 }
 
 /**
+  Report a not yet reported error to the coordinator if necessary.
+
+  All issues detected when applying binary log events are reported using
+  rli->report(), but when an issue is not reported by the log event being
+  applied, there is a workaround at handle_slave_sql() to report the issue
+  also using rli->report() for the STS applier (or the MTS coordinator).
+
+  This function implements the workaround for a MTS worker.
+
+  @param worker the worker to be evaluated.
+*/
+void report_error_to_coordinator(Slave_worker *worker)
+{
+  THD *thd= worker->info_thd;
+  /*
+    It is possible that the worker had failed to apply the event but
+    did not reported about the failure using rli->report(). An example
+    of such cases are failures caused by setting GTID_NEXT variable with
+    an unsupported GTID mode (GTID_SET when GTID_MODE = OFF, anonymous
+    GTID when GTID_MODE = ON).
+  */
+  if (thd->is_error())
+  {
+    char const *const errmsg= thd->get_stmt_da()->message_text();
+    DBUG_PRINT("info",
+               ("thd->get_stmt_da()->get_mysql_errno()=%d; "
+                "worker->last_error.number=%d",
+                thd->get_stmt_da()->mysql_errno(),
+                worker->last_error().number));
+
+    if (worker->last_error().number == 0 &&
+        /*
+          When another worker that should commit before the current worker
+          being evaluated has failed and the commit order should be preserved
+          the current worker was asked to roll back and would stop with the
+          ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR not yet reported to the
+          coordinator. Reporting this error to the coordinator would be a
+          mistake and would mask the real issue that lead to the MTS stop as
+          the coordinator reports only the last error reported to it as the
+          cause of the MTS failure.
+
+          So, we should skip reporting the error if it was reported because
+          the current transaction had to be rolled back by a failure in a
+          previous transaction in the commit order while the current
+          transaction was waiting to be committed.
+        */
+        thd->get_stmt_da()->mysql_errno() !=
+        ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR)
+    {
+      /*
+        This function is reporting an error which was not reported
+        while executing exec_relay_log_event().
+      */
+      worker->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
+                     "%s", errmsg);
+    }
+  }
+}
+
+/**
   apply one job group.
 
   @note the function maintains worker's CGEP and modifies APH, updates
@@ -2668,6 +2657,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
+    report_error_to_coordinator(worker);
     DBUG_PRINT("info", ("Worker %lu is exiting: killed %i, error %i, "
                         "running_status %d",
                         worker->id, thd->killed, thd->is_error(),

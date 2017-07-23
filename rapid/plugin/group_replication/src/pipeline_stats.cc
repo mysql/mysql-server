@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
 {}
 
 
-Pipeline_stats_member_message::Pipeline_stats_member_message(const unsigned char *buf, size_t len)
+Pipeline_stats_member_message::Pipeline_stats_member_message(const unsigned char *buf, uint64 len)
   : Plugin_gcs_message(CT_PIPELINE_STATS_MEMBER_MESSAGE),
     m_transactions_waiting_certification(0),
     m_transactions_waiting_apply(0),
@@ -160,7 +160,7 @@ Pipeline_stats_member_message::encode_payload(std::vector<unsigned char> *buffer
 
 void
 Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
-                                              size_t length)
+                                              const unsigned char *end)
 {
   DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
   const unsigned char *slider= buffer;
@@ -495,16 +495,19 @@ Flow_control_module::flow_control_step()
                              ? min_certifier_capacity : min_applier_capacity;
 
         // Minimum capacity will never be less than lim_throttle.
-        int64 lim_throttle= 0.05 * std::min(flow_control_certifier_threshold_var,
-                                            flow_control_applier_threshold_var);
+        int64 lim_throttle= static_cast<int64>(0.05 * std::min(flow_control_certifier_threshold_var,
+                                            flow_control_applier_threshold_var));
         min_capacity= std::max(std::min(min_capacity, safe_capacity), lim_throttle);
-        quota_size= (min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota;
+        quota_size= static_cast<int64>((min_capacity * HOLD_FACTOR) / num_writing_members - extra_quota);
         my_atomic_store64(&m_quota_size, quota_size > 1 ? quota_size : 1);
       }
       else
       {
         if (quota_size > 0 && (quota_size * RELEASE_FACTOR) < MAXTPS)
-          quota_size *= RELEASE_FACTOR;
+        {
+          int64 quota_size_next= static_cast<int64>(quota_size * RELEASE_FACTOR);
+          quota_size= quota_size_next > quota_size ? quota_size_next : quota_size + 1;
+        }
         else
           quota_size= 0;
 
@@ -528,7 +531,7 @@ Flow_control_module::flow_control_step()
 
 int
 Flow_control_module::handle_stats_data(const uchar *data,
-                                       size_t len,
+                                       uint64 len,
                                        const std::string& member_id)
 {
   DBUG_ENTER("Flow_control_module::handle_stats_data");

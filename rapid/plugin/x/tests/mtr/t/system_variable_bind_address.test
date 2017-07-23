@@ -17,7 +17,7 @@ SET @@GLOBAL.Mysqlx_bind_address=1;
 
 --echo #
 --echo #
---echo # X Plugin started with 0.0.0.0
+--echo # X Plugin started with *
 --echo #
 --echo #
 --source ../include/xplugin_install_and_wait.inc
@@ -38,8 +38,8 @@ SELECT COUNT(@@local.Mysqlx_bind_address);
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@SESSION.Mysqlx_bind_address);
 
---let $assert_text= Mysqlx_bind_address global variable must is read-only, should hold to 0.0.0.0
---let $assert_cond= [SELECT @@GLOBAL.Mysqlx_bind_address = "0.0.0.0" as Result;, Result, 1] =1
+--let $assert_text= Mysqlx_bind_address global variable must is read-only, should hold to *
+--let $assert_cond= [SELECT @@GLOBAL.Mysqlx_bind_address = "*" as Result;, Result, 1] =1
 --source include/assert.inc
 
 

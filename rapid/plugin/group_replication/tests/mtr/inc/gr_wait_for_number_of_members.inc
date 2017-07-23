@@ -49,25 +49,6 @@ if($group_replication_number_of_members == 0)
 }
 
 --source include/wait_condition.inc
-if (!$success)
-{
-  --echo Current connection: $CURRENT_CONNECTION
-  --echo group_replication_group_name= "$group_replication_group_name"
-  --echo group_replication_number_of_members= $group_replication_number_of_members
-  --echo
-  --echo performance_schema.replication_connection_status
-  --echo ------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --echo
-  --echo performance_schema.replication_group_members
-  --echo --------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_group_members
-  --echo
-  --echo performance_schema.replication_group_member_stats
-  --echo -------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
-  --die Timeout in wait_condition.inc due to incorrect required number of members
-}
 
 --let $include_filename= rpl_gr_wait_for_number_of_members.inc
 --source include/end_include_file.inc

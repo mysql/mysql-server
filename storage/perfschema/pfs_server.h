@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #define PFS_AUTOSIZE_VALUE (-1)
 
 #ifndef PFS_MAX_MUTEX_CLASS
-  #define PFS_MAX_MUTEX_CLASS 200
+  #define PFS_MAX_MUTEX_CLASS 210
 #endif
 #ifndef PFS_MAX_RWLOCK_CLASS
   #define PFS_MAX_RWLOCK_CLASS 40

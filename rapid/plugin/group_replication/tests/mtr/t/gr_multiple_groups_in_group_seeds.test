@@ -63,7 +63,7 @@
 --eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m1, $local_address_m2"
 --eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server1"
 
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 --let $group_replication_member_state= ONLINE
 --source ../inc/gr_wait_for_member_state.inc
@@ -106,7 +106,7 @@ START GROUP_REPLICATION;
 --eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m2, $local_address_m1"
 --eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server2"
 
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 --let $group_replication_member_state= ONLINE
 --source ../inc/gr_wait_for_member_state.inc

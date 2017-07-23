@@ -1,0 +1,101 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/not_crashrep.inc
+--source include/have_innodb_16k.inc
+
+--disable_query_log
+
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+set global innodb_log_checkpoint_now = 1;
+
+DELIMITER |;
+CREATE PROCEDURE create_table(IN SIZE INT)
+BEGIN
+	DECLARE i INT DEFAULT 0;
+	set @t = "veryLongTableNameToCreateMLOG_FILE_NAMErecords";
+	WHILE (i <= SIZE) DO
+		set @s = CONCAT(@t, i);
+		set @u = "";
+		SELECT concat ("CREATE TABLE ",@s,"(a INT PRIMARY KEY)
+				ENGINE=INNODB") into @u;
+		PREPARE stmt1 from @u;
+		EXECUTE stmt1;
+		SET i = i + 1;
+	END WHILE;
+END|
+
+CREATE PROCEDURE drop_table(IN SIZE INT)
+BEGIN
+	DECLARE i INT DEFAULT 0;
+	set @t = "veryLongTableNameToCreateMLOG_FILE_NAMErecords";
+	WHILE (i <= SIZE) DO
+		set @s = CONCAT(@t, i);
+		set @u = "";
+		SELECT concat ("DROP TABLE ",@s,"") into @u;
+		PREPARE stmt1 from @u;
+		EXECUTE stmt1;
+		SET i = i + 1;
+	END WHILE;
+END|
+DELIMITER ;|
+
+--disable_query_log
+call create_table(1300);
+--enable_query_log
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --debug=d,reduce_recv_parsing_buf" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug = "+d, increase_mtr_checkpoint_size";
+set debug = "+d, crash_after_checkpoint";
+--error 2013
+set global innodb_log_checkpoint_now = 1;
+
+--echo # Skip MLOG_FILE_NAME redo records during recovery
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--disable_query_log
+call drop_table(1300);
+--enable_query_log
+
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+set global innodb_log_checkpoint_now = 1;
+
+--echo # Commit the multi-rec mini transaction if mtr size
+--echo # exceeds LOG_CHECKPOINT_FREE_PER_THREAD size during checkpoint.
+
+--disable_query_log
+call create_table(1300);
+--enable_query_log
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+set debug = "+d, crash_after_checkpoint";
+--error 2013
+set global innodb_log_checkpoint_now = 1;
+
+
+--echo # Skip MLOG_FILE_NAME redo records during recovery
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--disable_query_log
+call drop_table(1300);
+--enable_query_log
+
+drop procedure create_table;
+drop procedure drop_table;
+deallocate prepare stmt1;

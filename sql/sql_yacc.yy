@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10993,6 +10993,7 @@ opt_procedure_analyse_clause:
         | PROCEDURE_SYM ANALYSE_SYM
           '(' opt_procedure_analyse_params ')'
           {
+            push_deprecated_warn_no_replacement(YYTHD, "PROCEDURE ANALYSE");
             $$= NEW_PTN PT_procedure_analyse($4);
           }
         ;

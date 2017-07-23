@@ -76,9 +76,7 @@ let $sql_thread_id= `SELECT ID FROM information_schema.processlist
 --disable_query_log
 --eval KILL $sql_thread_id
 --enable_query_log
---let $er_query_interrupted= convert_error(ER_QUERY_INTERRUPTED)
---let $er_mts_inconsistent_data= convert_error(ER_MTS_INCONSISTENT_DATA)
---let $slave_sql_errno= $er_query_interrupted, $er_mts_inconsistent_data
+--let $slave_sql_errno= convert_error(ER_QUERY_INTERRUPTED)
 --source include/wait_for_slave_sql_error.inc
 
 --echo # Restart sql thread to let it finish the replication

@@ -1,0 +1,29 @@
+## This is test file for verification of counting warning notices functionality
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--let $xtest_result= $MYSQL_TMP_DIR/status_variable_notices.tmp
+--write_file $xtest_result
+-->import assert_status_variable.macro
+-->quiet
+-->stmtadmin enable_notices	{"notice":["warnings"]}
+-->recvresult
+
+-->stmtsql SELECT 1/0
+-->recvresult
+-->stmtsql INSERT IGNORE INTO xtest.tab VALUES ('21474836461')
+-->recvresult
+
+-->callmacro Assert_recived_notices
+EOF
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.tab (c INT);
+
+--exec $MYSQLXTEST --import=$MYSQLXTEST_MACRO_DIR -uroot --password='' --file=$xtest_result 2>&1
+
+## Postamble
+--remove_file $xtest_result
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

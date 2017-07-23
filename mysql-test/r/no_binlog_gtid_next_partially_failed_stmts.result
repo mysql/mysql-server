@@ -234,5 +234,78 @@ Error	1146	Table 'test.t_non_existent' doesn't exist
 #
 include/assert.inc [Did not commit gtid MASTER_UUID:15 into @@GLOBAL.GTID_EXECUTED]
 include/assert.inc [Did not save gtid MASTER_UUID:15 into mysql.gtid_executed table]
-SET SESSION GTID_NEXT='MASTER_UUID:15';
+SET SESSION GTID_NEXT='MASTER_UUID:16';
+CREATE USER u1@h;
+SET SESSION GTID_NEXT='MASTER_UUID:17';
+CREATE USER u1@h, u2@h;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'h'
+#
+# The u2 is created into mysql.user which means that CREATE USER
+# can be failed partially.
+#
+SELECT user FROM mysql.user where user='u2';
+user
+u2
+SET SESSION GTID_NEXT='MASTER_UUID:18';
+CREATE USER u1@h, u2@h;
+ERROR HY000: Operation CREATE USER failed for 'u1'@'h','u2'@'h'
+#
+# Verify that the partially failed CREATE USER statement can consume
+# its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did when
+# binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:17 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:17 into mysql.gtid_executed table]
+include/assert.inc [Did not save gtid MASTER_UUID:18 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:19';
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+ERROR HY000: Operation RENAME USER failed for 'u3'@'h'
+#
+# The u1 is renamed on mysql.user which means that RENAME USER
+# can be failed partially.
+#
+SELECT user FROM mysql.user where user='u11';
+user
+u11
+SET SESSION GTID_NEXT='MASTER_UUID:20';
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+ERROR HY000: Operation RENAME USER failed for 'u1'@'h','u3'@'h'
+#
+# Verify that the partially failed RENAME USER statement can consume
+# its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did when
+# binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:19 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:19 into mysql.gtid_executed table]
+include/assert.inc [Did not save gtid MASTER_UUID:20 into mysql.gtid_executed table]
+SELECT password_expired FROM mysql.user where user='u11';
+password_expired
+N
+SET SESSION GTID_NEXT='MASTER_UUID:21';
+ALTER USER u11@h, u3@h PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'u3'@'h'
+#
+# The u11 is altered on mysql.user which means that ALTER USER
+# can be failed partially.
+#
+SELECT password_expired FROM mysql.user where user='u11';
+password_expired
+Y
+SET SESSION GTID_NEXT='MASTER_UUID:22';
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'u1'@'h','u3'@'h'
+#
+# Verify that the partially failed ALTER USER statement can consume
+# its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+# mysql.gtid_executed table when binlog is disabled as it did when
+# binlog is enabled.
+#
+include/assert.inc [Committed gtid MASTER_UUID:21 into @@GLOBAL.GTID_EXECUTED]
+include/assert.inc [Saved gtid MASTER_UUID:21 into mysql.gtid_executed table]
+include/assert.inc [Did not save gtid MASTER_UUID:22 into mysql.gtid_executed table]
+SET SESSION GTID_NEXT='MASTER_UUID:23';
+DROP USER u11@h, u2@h;
+SET SESSION GTID_NEXT='MASTER_UUID:24';
 DROP TABLE t1;

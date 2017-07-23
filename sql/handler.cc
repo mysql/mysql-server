@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1767,14 +1767,13 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
-    }
 
-    if (rw_trans && stmt_has_updated_trans_table(ha_info)
-        && check_readonly(thd, true))
-    {
-      ha_rollback_trans(thd, all);
-      error= 1;
-      goto end;
+      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
+      {
+        ha_rollback_trans(thd, all);
+        error= 1;
+        goto end;
+      }
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -7439,6 +7438,60 @@ int handler::compare_key_icp(const key_range *range) const
   return cmp;
 }
 
+/**
+  Change the offsets of all the fields in a key range.
+
+  @param range	  the key range
+  @param key_part the first key part
+  @param diff	  how much to change the offsets with
+*/
+static inline void
+move_key_field_offsets(const key_range *range, const KEY_PART_INFO *key_part,
+		       my_ptrdiff_t diff)
+{
+  for (size_t len= 0; len < range->length;
+       len+= key_part->store_length, ++key_part)
+    key_part->field->move_field_offset(diff);
+}
+
+/**
+  Check if the key in the given buffer (which is not necessarily
+  TABLE::record[0]) is within range. Called by the storage engine to
+  avoid reading too many rows.
+
+  @param buf  the buffer that holds the key
+  @retval -1 if the key is within the range
+  @retval  0 if the key is equal to the end_range key, and
+             key_compare_result_on_equal is 0
+  @retval  1 if the key is outside the range
+*/
+int handler::compare_key_in_buffer(const uchar *buf) const
+{
+  DBUG_ASSERT(end_range != NULL);
+
+  /*
+    End range on descending scans is only checked with ICP for now, and then we
+    check it with compare_key_icp() instead of this function.
+  */
+  DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
+
+  // Make the fields in the key point into the buffer instead of record[0].
+  const my_ptrdiff_t diff= buf - table->record[0];
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, diff);
+
+  // Compare the key in buf against end_range.
+  int cmp= key_cmp(range_key_part, end_range->key, end_range->length);
+  if (cmp == 0)
+    cmp= key_compare_result_on_equal;
+
+  // Reset the field offsets.
+  if (diff != 0)
+    move_key_field_offsets(end_range, range_key_part, -diff);
+
+  return cmp;
+}
+
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
@@ -8604,6 +8657,59 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
     }
     return true;
+  }
+  return false;
+}
+
+/**
+  Set the transaction isolation level for the next transaction and update
+  session tracker information about the transaction isolation level.
+
+  @param thd           THD session setting the tx_isolation.
+  @param tx_isolation  The isolation level to be set.
+  @param one_shot      True if the isolation level should be restored to
+                       session default after finishing the transaction.
+*/
+bool set_tx_isolation(THD *thd,
+                      enum_tx_isolation tx_isolation,
+                      bool one_shot)
+{
+  Transaction_state_tracker *tst= NULL;
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    tst= (Transaction_state_tracker *)
+           thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+  thd->tx_isolation= tx_isolation;
+
+  if (one_shot)
+  {
+    DBUG_ASSERT(!thd->in_active_multi_stmt_transaction());
+    DBUG_ASSERT(!thd->in_sub_stmt);
+    enum enum_tx_isol_level l;
+    switch (thd->tx_isolation) {
+    case ISO_READ_UNCOMMITTED:
+      l=  TX_ISOL_UNCOMMITTED;
+      break;
+    case ISO_READ_COMMITTED:
+      l=  TX_ISOL_COMMITTED;
+      break;
+    case ISO_REPEATABLE_READ:
+      l= TX_ISOL_REPEATABLE;
+      break;
+    case ISO_SERIALIZABLE:
+      l= TX_ISOL_SERIALIZABLE;
+      break;
+    default:
+      DBUG_ASSERT(0);
+      return true;
+    }
+    if (tst)
+      tst->set_isol_level(thd, l);
+  }
+  else if (tst)
+  {
+    tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
   return false;
 }

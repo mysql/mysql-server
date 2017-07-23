@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -591,6 +591,16 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
 
       /* Update the index of last identifier found. */
       state->m_last_id_index= digest_storage->m_byte_count;
+      break;
+    }
+    case 0:
+    {
+      unsigned int temp_tok;
+      read_token(digest_storage,
+                 digest_storage->m_byte_count-SIZE_OF_A_TOKEN,
+                 & temp_tok);
+      if (temp_tok == ';')
+        digest_storage->m_byte_count-= SIZE_OF_A_TOKEN;
       break;
     }
     default:

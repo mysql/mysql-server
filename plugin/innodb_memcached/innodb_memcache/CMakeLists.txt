@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,13 +31,17 @@ IF(CMAKE_C_FLAGS MATCHES "-Werror")
   STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+# Set extra flags for the C compiler
+IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+ENDIF()
 
 SET(MCD__UTILITITY_SOURCES
 		util-src/config_parser.c
 		util-src/util.c)
 
-ADD_LIBRARY(libmcd_util STATIC ${MCD__UTILITITY_SOURCES})
+ADD_CONVENIENCE_LIBRARY(libmcd_util ${MCD__UTILITITY_SOURCES})
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS}
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/include
@@ -58,7 +62,5 @@ SET(INNODB_ENGINE_SOURCES
 # ADD_LIBRARY(innodb_engine SHARED ${INNODB_ENGINE_SOURCES})
 
 MYSQL_ADD_PLUGIN(innodb_engine ${INNODB_ENGINE_SOURCES}
-		MODULE_ONLY MODULE_OUTPUT_NAME "innodb_engine")
-
-TARGET_LINK_LIBRARIES(innodb_engine libmcd_util)
-
+                 LINK_LIBRARIES libmcd_util
+		 MODULE_ONLY MODULE_OUTPUT_NAME "innodb_engine")

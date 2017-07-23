@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1523,6 +1523,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
+      thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                           com_statement_info[command].m_key,
@@ -3009,7 +3010,7 @@ case SQLCOM_PREPARE:
 
     if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
          (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
-        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
     {
       res= 1;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
@@ -3075,7 +3076,7 @@ case SQLCOM_PREPARE:
     {
       partition_info *part_info= thd->lex->part_info;
       if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+          check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
       {
         res= -1;
         goto end_with_restore_list;
@@ -3559,44 +3560,6 @@ end_with_restore_list:
     break;
   }
   case SQLCOM_REPLACE:
-#ifndef DBUG_OFF
-    if (mysql_bin_log.is_open())
-    {
-      /*
-        Generate an incident log event before writing the real event
-        to the binary log.  We put this event is before the statement
-        since that makes it simpler to check that the statement was
-        not executed on the slave (since incidents usually stop the
-        slave).
-
-        Observe that any row events that are generated will be
-        generated before.
-
-        This is only for testing purposes and will not be present in a
-        release build.
-      */
-
-      binary_log::Incident_event::enum_incident incident=
-                                     binary_log::Incident_event::INCIDENT_NONE;
-      DBUG_PRINT("debug", ("Just before generate_incident()"));
-      DBUG_EXECUTE_IF("incident_database_resync_on_replace",
-                      incident= binary_log::Incident_event::INCIDENT_LOST_EVENTS;);
-      if (incident)
-      {
-        Incident_log_event ev(thd, incident);
-        const char* err_msg= "Generate an incident log event before "
-                             "writing the real event to the binary "
-                             "log for testing purposes.";
-        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/,
-                                         err_msg))
-        {
-          res= 1;
-          break;
-        }
-      }
-      DBUG_PRINT("debug", ("Just after generate_incident()"));
-    }
-#endif
   case SQLCOM_INSERT:
   case SQLCOM_REPLACE_SELECT:
   case SQLCOM_INSERT_SELECT:

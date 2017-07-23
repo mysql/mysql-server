@@ -4414,9 +4414,11 @@ pfs_end_file_open_wait_v1(PSI_file_locker *locker,
   switch (state->m_operation)
   {
   case PSI_FILE_STAT:
+  case PSI_FILE_RENAME:
     break;
   case PSI_FILE_STREAM_OPEN:
   case PSI_FILE_CREATE:
+  case PSI_FILE_OPEN:
     if (result != NULL)
     {
       PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
@@ -4427,7 +4429,6 @@ pfs_end_file_open_wait_v1(PSI_file_locker *locker,
       state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
     }
     break;
-  case PSI_FILE_OPEN:
   default:
     DBUG_ASSERT(false);
     break;

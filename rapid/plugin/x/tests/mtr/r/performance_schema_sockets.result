@@ -35,7 +35,7 @@ Verify [Checking if X Plugin reports 10 connections]
 connecting...
 active session is now 'NAME_11'
 Verify [Checking if X Plugin reports 11 connections]
-Verify [Peer addresses of all sockets should be set to 127.0.0.1]
+Verify [Peer addresses of all sockets should be set to ::ffff:127.0.0.1]
 Verify [Peer ports should be unique]
 Check if we have connection ACTIVE and IDLE state
 STATE

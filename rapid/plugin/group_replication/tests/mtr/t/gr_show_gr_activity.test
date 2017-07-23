@@ -45,7 +45,7 @@ while($i)
 --source include/rpl_connection.inc
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Wait for the table to get synced to M2
 --let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE table_schema = 'test' AND table_name = 't1';

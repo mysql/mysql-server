@@ -367,7 +367,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
 
   delete decoded_members;
 
-  ASSERT_EQ(2,
+  ASSERT_EQ(2U,
             cluster_member_mgr->get_number_of_members());
 
   delete retrieved_local_info;

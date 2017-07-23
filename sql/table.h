@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1450,6 +1450,22 @@ public:
     the next statement.
   */
   void cleanup_gc_items();
+
+ /**
+   Check if table contains any records.
+
+   @param      thd     The thread object
+   @param[out] retval  Pointer to boolean value (true if table is not empty).
+
+   @returns  false for success, true for error
+ */
+ bool contains_records(THD *thd, bool *retval);
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ public:
     @param[in]  data             the packet data
     @param[in]  len              the packet length
   */
-  Data_packet(const uchar *data, uint len)
+  Data_packet(const uchar *data, ulong len)
     : Packet(DATA_PACKET_TYPE), payload(NULL), len(len)
   {
     payload= (uchar*)my_malloc(
@@ -86,7 +86,7 @@ public:
   }
 
   uchar *payload;
-  uint  len;
+  ulong len;
 };
 
 //Define the data packet type
@@ -419,7 +419,7 @@ private:
                   " Error: %d\n", error); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
-    packet= new Data_packet((uchar*)packet_data.ptr(), packet_data.length());
+    packet= new Data_packet((uchar*)packet_data.ptr(), static_cast<ulong>(packet_data.length()));
 
     delete log_event;
     log_event= NULL;
@@ -464,6 +464,9 @@ public:
   /**
     Wait until release.
 
+    @note The continuation will not wait if an error as occurred in the past
+          until reset_error_code() is invoked.
+
     @return the end status
       @retval 0      OK
       @retval !=0    Error returned on the execution
@@ -471,7 +474,7 @@ public:
   int wait()
   {
     mysql_mutex_lock(&lock);
-    while (!ready)
+    while (!ready && !error_code)
     {
       mysql_cond_wait(&cond, &lock); /* purecov: inspected */
     }

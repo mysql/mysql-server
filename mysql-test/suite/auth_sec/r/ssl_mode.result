@@ -57,8 +57,6 @@ Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
-Variable_name	Value
-Ssl_cipher	DHE-RSA-AES256-SHA
 # Check behavior when --ssl-mode is not passed explicitly
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA

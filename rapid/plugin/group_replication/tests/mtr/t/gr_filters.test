@@ -103,7 +103,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 --let $server_uuid_m3 = `SELECT @@GLOBAL.SERVER_UUID`
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 --echo # Wait until donor is confirmed
 --let $wait_condition= SELECT source_uuid <> "" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_recovery" AND service_state="ON"

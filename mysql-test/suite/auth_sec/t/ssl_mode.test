@@ -79,6 +79,7 @@ grant all on *.* to 'user1'@'%' ;
 --error 1
 --exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=root --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert1.pem --ssl-cipher=DHE-RSA-AES256-SHA -e "SHOW STATUS LIKE 'ssl_cipher'"
 
+--error 1
 --exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=root --ssl-mode=VERIFY_CA --ssl-cipher=DHE-RSA-AES256-SHA -e "SHOW STATUS LIKE 'ssl_cipher'"
 
 --exec $MYSQL --host=localhost -P $MASTER_MYPORT --user=root --ssl-mode=VERIFY_IDENTITY --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cipher=DHE-RSA-AES256-SHA -e "SHOW STATUS LIKE 'ssl_cipher'"

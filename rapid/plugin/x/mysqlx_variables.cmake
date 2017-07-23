@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,11 +26,11 @@ STRING(TOUPPER ${MYSQLX_PLUGIN_NAME_FIRST_LETTER} MYSQLX_PLUGIN_NAME_FIRST_LETTE
 SET(MYSQLX_STATUS_VARIABLE_NAME "${MYSQLX_PLUGIN_NAME_FIRST_LETTER}${MYSQLX_PLUGIN_NAME_REST}")
 SET(MYSQLX_SYSTEM_VARIABLE_NAME "${MYSQLX_PLUGIN_NAME}")
 
-SET(MYSQLX_TCP_PORT 33060)
+IF(NOT MYSQLX_TCP_PORT)
+  SET(MYSQLX_TCP_PORT 33060)
+ENDIF(NOT MYSQLX_TCP_PORT)
 
 IF(NOT MYSQLX_UNIX_ADDR)
   GET_FILENAME_COMPONENT(DIR_OF_UNIX_ADDR "${MYSQL_UNIX_ADDR}" PATH)
   SET(MYSQLX_UNIX_ADDR "${DIR_OF_UNIX_ADDR}/mysqlx.sock")
-ENDIF()
-
-SET(MYSQLX_NAMEDPIPE "MySQLX")
+ENDIF(NOT MYSQLX_UNIX_ADDR)

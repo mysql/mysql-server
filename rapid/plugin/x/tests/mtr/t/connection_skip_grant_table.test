@@ -16,6 +16,7 @@ select user(),current_user(),@@bind_address;
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
+-->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 uninstall plugin mysqlx;
 -->endsql
@@ -34,7 +35,9 @@ let $restart_parameters = restart: --skip-grant-tables --plugin-load=$MYSQLXPLUG
 --echo Connection should success with invalid password
 --exec $MYSQLXTEST -u nonblank --password='blank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 FLUSH PRIVILEGES;
---error 1
+
+--let $expected_error_msg= Invalid user or password \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u nonblank --password='blank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 ##uninstall mysqlxplugin when server started with skip-grant-tables option and mysqlx loaded with super user

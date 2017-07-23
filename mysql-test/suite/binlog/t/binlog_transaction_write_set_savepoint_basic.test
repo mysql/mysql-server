@@ -1,0 +1,103 @@
+###############################################################################
+#
+# Basic test to confirm the correct behavior when executing SAVEPOINT,
+# ROLLBACK TO and RELEASE SAVEPOINT commands
+#
+# The execution of SELECT guarantee the correct values on TABLE after process
+# SAVEPOINT commands
+#
+# Test:
+#   0. Create a table to insert data
+#   1. Create a transaction and insert values and savepoints (S1, S2, S3, S4)
+#   2. Release savepoint S4
+#   4. Rollback to a savepoint S2 and verify that savepoint S3 disappeared
+#   5. Insert more values and rollback to S2 to verify that rollback don't
+#   remove savepoint
+#   6. Check the multitable update on 'rollback to savepoint' is proper.
+#   7. Clean-up
+#
+###############################################################################
+
+--source include/have_log_bin.inc
+
+CREATE TABLE t1(a int primary key);
+CREATE TABLE t2(a int primary key);
+
+BEGIN;
+
+--echo #
+--echo # Insert values on table and savepoints
+--echo #
+
+SAVEPOINT S1;
+INSERT INTO t1 values(3);
+INSERT INTO t1 values(4);
+SAVEPOINT S2;
+INSERT INTO t1 values(5);
+INSERT INTO t1 values(6);
+SAVEPOINT S3;
+SAVEPOINT S4;
+
+--echo #
+--echo # RELEASE S4
+--echo #
+
+RELEASE SAVEPOINT S4;
+
+INSERT INTO t1 values(7);
+SELECT * FROM t1;
+
+--echo #
+--echo # ROLLBACK TO S2
+--echo #
+
+ROLLBACK TO S2;
+
+--echo #
+--echo # Confirm S3 was removed when rollbacking to S2
+--echo #
+
+--error ER_SP_DOES_NOT_EXIST
+ROLLBACK TO S3;
+
+SELECT * FROM t1;
+
+INSERT INTO t1 values(7);
+
+SELECT * FROM t1;
+
+--echo #
+--echo # Confirm S2 exists after ROLLBACK TO S2
+--echo #
+
+ROLLBACK TO S2;
+SELECT * FROM t1;
+
+COMMIT;
+
+--echo #
+--echo # Check the multitable update on 'rollback to savepoint'
+--echo #
+
+BEGIN;
+INSERT INTO t1 values (5);
+
+SAVEPOINT S1;
+DELETE FROM t1;
+INSERT INTO t1 values (1);
+INSERT INTO t2 SELECT * FROM t1;
+UPDATE t1,t2 SET t1.a=3, t2.a=3;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+ROLLBACK TO SAVEPOINT S1;
+INSERT INTO t2 SELECT * FROM t1;
+COMMIT;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Clean-up
+DROP TABLE t1;
+DROP TABLE t2;

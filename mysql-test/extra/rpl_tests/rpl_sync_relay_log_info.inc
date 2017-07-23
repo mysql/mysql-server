@@ -51,24 +51,28 @@ if ( `SELECT '$_storage_engine' <> 'INNODB' AND '$_storage_engine' <> 'MYISAM'` 
 # 2 - Simple DDL
 --source include/rpl_connection_master.inc
 --eval CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=$storage_engine
+--source include/sync_slave_io_with_master.inc
 --let $gtid_step_count= 1
 --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
 # 3 - Simple DML
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES (1);
+--source include/sync_slave_io_with_master.inc
 --let $gtid_step_count= 1
 --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
 # 4 - The master has flushed the binary log
 --source include/rpl_connection_master.inc
 FLUSH LOCAL BINARY LOGS;
+--source include/sync_slave_io_with_master.inc
 --let $gtid_step_count= 0
 --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
 # 5 - Simple DDL
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
+--source include/sync_slave_io_with_master.inc
 --let $gtid_step_count= 1
 --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
@@ -172,6 +176,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_after_queue_event';
 # 18 - Simple DDL
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
+--source include/sync_slave_io_with_master.inc
 --let $gtid_step_count= 1
 --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
@@ -181,6 +186,7 @@ if ($_storage_engine == "INNODB")
   # 19 - Simple DDL
   --source include/rpl_connection_master.inc
   --eval CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=$storage_engine
+  --source include/sync_slave_io_with_master.inc
   --let $gtid_step_count= 1
   --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 
@@ -256,6 +262,7 @@ if ($_storage_engine == "INNODB")
   # 25 - Simple DDL
   --source include/rpl_connection_master.inc
   DROP TABLE t1;
+  --source include/sync_slave_io_with_master.inc
   --let $gtid_step_count= 1
   --source extra/rpl_tests/rpl_sync_relay_log_info_assert_pos.inc
 }

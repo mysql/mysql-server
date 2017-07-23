@@ -17,7 +17,7 @@
 ##    - try create table with existing name                          #
 ##  - Drop collection                                                #
 #     - drop table created using xmessage and sql                    #
-#     - negative : drop non existing table                           #  
+#     - negative : drop non existing table                           #
 ##                                                                   #
 #######################################################################
 
@@ -111,7 +111,7 @@ SELECT * FROM table2;
 -- "_id is null as _id is not provided as key in json doc"
 -- "Insert is rejected as _id can not be null"
 -->endsql
--->expecterror 1048
+-->expecterror ER_BAD_NULL_ERROR
 -->sql
 INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400);
 SELECT * FROM table2;
@@ -253,7 +253,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recv
 
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 SHOW CREATE TABLE table2;
 -->endsql
@@ -414,11 +414,11 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## Error
--->expecterror 1142
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
 -->recvresult
 
 -- "show table "
--->expecterror 1142
+-->expecterror ER_TABLEACCESS_DENIED_ERROR
 -->sql
 SHOW CREATE TABLE xplugintest_user_access.table1;
 -->endsql
@@ -428,7 +428,7 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 -- "step 3 - clean user and database"
--->expecterror 1146
+-->expecterror ER_NO_SUCH_TABLE
 -->sql
 SHOW CREATE TABLE xplugintest_user_access.table1;
 DROP USER 'user1'@'localhost';
@@ -452,7 +452,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 5162
+-->expecterror ER_X_INVALID_NAMESPACE
 -->recvresult
 EOF
 --error 1
@@ -493,8 +493,7 @@ Mysqlx.Sql.StmtExecute {
     }
   }
 }
-## error
--->expecterror 5015
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
 -->recvresult
 EOF
 
@@ -526,7 +525,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 5162
+-->expecterror ER_X_INVALID_NAMESPACE
 -->recvresult
 EOF
 
@@ -559,7 +558,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 1049
+-->expecterror ER_BAD_DB_ERROR
 -->recvresult
 EOF
 
@@ -588,7 +587,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 EOF
 
@@ -622,7 +621,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 EOF
 
@@ -654,7 +653,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->expecterror 1050
+-->expecterror ER_TABLE_EXISTS_ERROR
 -->recvresult
 EOF
 
@@ -706,13 +705,14 @@ Mysqlx.Sql.StmtExecute {
 END_MESSAGE
 
  print OUTPUT "-->sql\n";
- print OUTPUT "CREATE DATABASE xplugintest;\n";
+ print OUTPUT "CREATE DATABASE IF NOT EXISTS xplugintest;\n";
  print OUTPUT "USE xplugintest;\n";
- print OUTPUT "CREATE TABLE test_table ( col1 INT );\n";
-  
+ print OUTPUT "CREATE TABLE IF NOT EXISTS test_table ( col1 INT );\n";
+
  print OUTPUT "-->endsql\n";
  for ($i=1;$i<=30;$i++) {
     if ($i%5 == 0) {
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->sql\n";
        print OUTPUT "CREATE TABLE tab_".$i." (_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
        print OUTPUT "-->endsql\n";
@@ -722,9 +722,10 @@ END_MESSAGE
        $find = "table_name";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->recvresult\n";
     }
- } 
+ }
  print OUTPUT "-->sql\n";
  print OUTPUT "INSERT INTO xplugintest.test_table VALUES (1);\n";
  print OUTPUT "-->endsql\n";
@@ -769,13 +770,14 @@ Mysqlx.Sql.StmtExecute {
 END_MESSAGE
 
  print OUTPUT "-->sql\n";
- print OUTPUT "CREATE DATABASE xplugintest;\n";
+ print OUTPUT "CREATE DATABASE IF NOT EXISTS xplugintest;\n";
  print OUTPUT "USE xplugintest;\n";
- print OUTPUT "CREATE TABLE test_table ( col1 INT );\n";
-  
+ print OUTPUT "CREATE TABLE IF NOT EXISTS test_table ( col1 INT );\n";
+
  print OUTPUT "-->endsql\n";
  for ($i=1;$i<=30;$i++) {
     if ($i%5 == 0) {
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->sql\n";
        print OUTPUT "CREATE TABLE tab_".$i." (_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
        print OUTPUT "-->endsql\n";
@@ -785,9 +787,10 @@ END_MESSAGE
        $find = "table_name";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->recvresult\n";
     }
- } 
+ }
  print OUTPUT "-->sql\n";
  print OUTPUT "INSERT INTO xplugintest.test_table VALUES (1);\n";
  print OUTPUT "-->endsql\n";

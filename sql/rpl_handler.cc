@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -793,7 +793,7 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
 
   int ret= 0;
   FOREACH_OBSERVER(ret, before_send_event, thd,
-                   (&param, (uchar *)packet->c_ptr(),
+                   (&param, (uchar *)packet->ptr(),
                     packet->length(),
                     log_file+dirname_length(log_file), log_pos));
   return ret;
@@ -812,7 +812,7 @@ int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_send_event, thd,
-                   (&param, packet->c_ptr(), packet->length(),
+                   (&param, packet->ptr(), packet->length(),
                    skipped_log_file+dirname_length(skipped_log_file),
                     skipped_log_pos));
   return ret;
@@ -834,6 +834,7 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
                                           Master_info *mi)
 {
   param->mysql= mi->mysql;
+  param->channel_name= mi->get_channel();
   param->user= const_cast<char *>(mi->get_user());
   param->host= mi->host;
   param->port= mi->port;
@@ -864,6 +865,18 @@ int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
 
   int ret= 0;
   FOREACH_OBSERVER(ret, thread_stop, thd, (&param));
+  return ret;
+}
+
+int Binlog_relay_IO_delegate::applier_start(THD *thd, Master_info *mi)
+{
+  Binlog_relay_IO_param param;
+  init_param(&param, mi);
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, applier_start, thd, (&param));
   return ret;
 }
 

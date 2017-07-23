@@ -1,0 +1,63 @@
+# ==== Purpose ====
+#
+# This test checks if an event that is drop implicitly by the scheduler is
+# written to the binlog.
+#
+# ==== Implementation ====
+#
+# The event is first created on the master.
+# The test sleeps for enough time so that, when the scheduler is enabled,
+# the event is implicitly dropped because its start and end times have passed.
+# The slave is synchronized with the master to log this drop.
+# Finally, another event is created to check if the implicit drop was successful
+# as it will fail on the slave synchronization, otherwise.
+#
+#
+# ==== References ====
+#
+# BUG#22150112 REPLICATION BREAKS WITH NOT PRESERVE EVENTS
+
+--source include/master-slave.inc
+
+# Save current event scheduler status
+SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
+
+SET GLOBAL EVENT_SCHEDULER= OFF;
+
+CREATE EVENT e1
+  ON SCHEDULE EVERY 1 SECOND
+  STARTS NOW() ENDS NOW() + INTERVAL 2 SECOND
+  ON COMPLETION NOT PRESERVE
+  DO SELECT 1;
+
+# sleep enough so that the event gets dropped automatically when the scheduler
+# is enabled
+--let $interval= 2
+--let $naptime=  `SELECT $interval + 2`
+--sleep $naptime
+
+SET GLOBAL EVENT_SCHEDULER= ON;
+
+--echo Wait until the event is dropped to disable the event scheduler again.
+--let $wait_condition= SELECT COUNT(*) = 0 FROM information_schema.events
+--source include/wait_condition.inc
+SET GLOBAL EVENT_SCHEDULER= OFF;
+
+--source include/sync_slave_sql_with_master.inc
+
+# check that we can create another event with the same name
+--source include/rpl_connection_master.inc
+CREATE EVENT e1
+  ON SCHEDULE EVERY 1 SECOND
+  STARTS NOW() ENDS NOW() + INTERVAL 3 SECOND
+  ON COMPLETION NOT PRESERVE
+  DO SELECT 1;
+
+--source include/sync_slave_sql_with_master.inc
+
+#cleanup
+--source include/rpl_connection_master.inc
+DROP EVENT e1;
+# Restore the scheduler
+SET GLOBAL EVENT_SCHEDULER= @saved_event_scheduler;
+--source include/rpl_end.inc

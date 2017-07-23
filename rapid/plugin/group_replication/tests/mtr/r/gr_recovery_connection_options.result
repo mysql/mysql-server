@@ -47,12 +47,11 @@ SET GLOBAL group_replication_recovery_reconnect_interval= 1;;
 include/assert.inc [The value of the recovery retry count should be equal to 2]
 # Start recovery and wait to verify the member is in recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
-SET GLOBAL group_replication_group_name= "b5eb4110-a3a2-11e3-a5e2-0800200c9a66";
-START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 # Wake up recovery
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
-SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 # The member should error out as it can't connect
 include/gr_wait_for_member_state.inc
 #
@@ -66,11 +65,11 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 # Start recovery and wait to verify the member is in recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
-START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 # Wake up recovery
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
-SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 include/gr_wait_for_member_state.inc
 # Verify that the show slave status shows specific IO_error
 include/stop_group_replication.inc
@@ -84,11 +83,11 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 # Start recovery and wait to verify the member is in recovery
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
-START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 # Wake up recovery
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
-SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 include/gr_wait_for_member_state.inc
 # Verify that show slave status shows specific IO_ERROR
 include/stop_group_replication.inc

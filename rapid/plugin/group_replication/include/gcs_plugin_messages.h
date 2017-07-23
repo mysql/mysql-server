@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ public:
     @param[in] buffer the buffer to decode from.
     @param[in] length the length of the buffer.
   */
-  void decode(const unsigned char* buffer, size_t length);
+  void decode(const unsigned char* buffer, uint64 length);
 
   /**
     Return the cargo type of a given message buffer, without decode
@@ -223,7 +223,7 @@ public:
   */
   static void get_first_payload_item_raw_data(const unsigned char* buffer,
                                               const unsigned char** payload_item_data,
-                                              size_t* payload_item_length);
+                                              uint64* payload_item_length);
 
 protected:
   /**
@@ -245,9 +245,10 @@ protected:
     values according to the values decoded.
 
     @param[in] buffer the buffer to decode from.
-    @param[in] length the length of the buffer.
+    @param[in] end    the end of the buffer.
   */
-  virtual void decode_payload(const unsigned char* buffer, size_t length)= 0;
+  virtual void decode_payload(const unsigned char* buffer,
+                              const unsigned char* end)= 0;
 
   /**
     Encodes the given payload item type and length into the buffer.

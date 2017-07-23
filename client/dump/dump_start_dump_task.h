@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,9 @@ namespace Dump{
 class Dump_start_dump_task : public Abstract_dump_task
 {
 public:
-  Dump_start_dump_task();
+  Dump_start_dump_task(std::string, std::string);
+  std::string m_gtid_mode;
+  std::string m_gtid_executed;
 };
 
 }

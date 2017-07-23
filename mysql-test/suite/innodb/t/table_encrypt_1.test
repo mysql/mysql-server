@@ -273,5 +273,26 @@ ALTER TABLE t1 COMPRESSION='zlib';
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 
 # Cleanup
+DROP TABLE t1;
+
+# Test encryption works fine after alter table.
+SET GLOBAL innodb_file_per_table=ON;
+
+CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY, val varchar(20) NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 (val) VALUES ('Sydney'), ('Melbourne'), ('Brisbane'), ('Perth'), ('Adelaide');
+
+ALTER TABLE t1 ENCRYPTION = 'Y';
+
+ALTER TABLE t1 ADD COLUMN is_capital char(1) NOT NULL DEFAULT 'N' AFTER val;
+SHOW CREATE TABLE t1;
+
+LET $MYSQLD_DATADIR = `select @@datadir`;
+let SEARCH_FILE = $MYSQLD_DATADIR/test/t1.ibd;
+let SEARCH_PATTERN=Sydney;
+# The string should not be found, since it's encrypted.
+--source include/search_pattern.inc
+
+# Cleanup
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;

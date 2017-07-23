@@ -29,6 +29,7 @@ namespace mysqlxtest {
 static Error_entry global_error_names[] =
 {
   { "<No error>", (int)-1, "" },
+  { "ER_SUCCESS", (int)0, "Success" },
 #include <mysqld_ername.h>
 #include "mysqlx_ername.h"
   { 0, 0, 0 }

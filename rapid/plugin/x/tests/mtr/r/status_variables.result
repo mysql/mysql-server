@@ -61,5 +61,5 @@ include/assert.inc [No connections were made, Mysqlx_ssl_finished_accepts must m
 include/assert.inc [No connections were made, Mysqlx_ssl_accepts must match default value which is 0.]
 include/assert.inc [Mysqlx_ssl_server_not_after should be empty]
 include/assert.inc [Mysqlx_ssl_active should be empty]
-include/assert.inc [Mysqlx_address must match default value which is "0.0.0.0"]
+include/assert.inc [Mysqlx_address must match default value which is "::"]
 uninstall plugin mysqlx;

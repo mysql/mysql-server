@@ -489,42 +489,47 @@ enum row_sel_match_mode {
 
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
-        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
+        row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len,sec)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len,sec) \
         row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
 #endif /* UNIV_DEBUG */
 
-/**************************************************************//**
-Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
-function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
-
+/** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
+function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
+@param[in,out]	dest		buffer where to store; NOTE
+				that BLOBs are not in themselves stored
+				here: the caller must allocate and copy
+				the BLOB into buffer before, and pass
+				the pointer to the BLOB in 'data'
+@param[in]	templ		MySQL column template. Its following fields
+				are referenced: type, is_unsigned, mysql_col_len,
+				mbminlen, mbmaxlen
+@param[in]	index		InnoDB index
+@param[in]	field_no	templ->rec_field_no or templ->clust_rec_field_no
+				or templ->icp_rec_field_no
+@param[in]	data		data to store
+@param[in]	len		length of the data
+@param[in]	sec_field	secondary index field no if the secondary index
+				record but the prebuilt template is in
+				clustered index format and used only for end
+				range comparison. */
 void
 row_sel_field_store_in_mysql_format_func(
-/*=====================================*/
-        byte*           dest,   /*!< in/out: buffer where to store; NOTE
-                                that BLOBs are not in themselves
-                                stored here: the caller must allocate
-                                and copy the BLOB into buffer before,
-                                and pass the pointer to the BLOB in
-                                'data' */
-        const mysql_row_templ_t* templ,
-                                /*!< in: MySQL column template.
-                                Its following fields are referenced:
-                                type, is_unsigned, mysql_col_len,
-                                mbminlen, mbmaxlen */
+	byte*				dest,
+	const mysql_row_templ_t*	templ,
 #ifdef UNIV_DEBUG
-        const dict_index_t* index,
-                                /*!< in: InnoDB index */
-        ulint           field_no,
-                                /*!< in: templ->rec_field_no or
-                                templ->clust_rec_field_no or
-                                templ->icp_rec_field_no */
+	const dict_index_t*		index,
+	ulint				field_no,
 #endif /* UNIV_DEBUG */
-        const byte*     data,   /*!< in: data to store */
-        ulint           len);    /*!< in: length of the data */
+	const byte*			data,
+	ulint				len
+#ifdef UNIV_DEBUG
+	,ulint				sec_field
+#endif /* UNIV_DEBUG */
+	);
 
 #ifndef UNIV_NONINL
 #include "row0sel.ic"

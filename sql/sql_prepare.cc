@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -673,7 +673,7 @@ void set_param_datetime(Item_param *param, uchar **pos, ulong len)
   tm.neg= 0;
 
   param->set_time(&tm, MYSQL_TIMESTAMP_DATETIME,
-                  MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+                  MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
 void set_param_date(Item_param *param, uchar **pos, ulong len)
@@ -3318,6 +3318,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
   /* The order is important */
   lex->unit->cleanup(true);
+  lex->clear_values_map();
 
   /* No need to commit statement transaction, it's not started. */
   DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));

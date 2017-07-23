@@ -344,8 +344,108 @@ CHECKSUM TABLE t1, t_non_existent;
 --let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 15]" = 0
 --source include/assert.inc
 
+# Check-13: CREATE USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:16'
+CREATE USER u1@h;
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:17'
+--error ER_CANNOT_USER
+CREATE USER u1@h, u2@h;
+--echo #
+--echo # The u2 is created into mysql.user which means that CREATE USER
+--echo # can be failed partially.
+--echo #
+SELECT user FROM mysql.user where user='u2';
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:18'
+--error ER_CANNOT_USER
+CREATE USER u1@h, u2@h;
+--echo #
+--echo # Verify that the partially failed CREATE USER statement can consume
+--echo # its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table when binlog is disabled as it did when
+--echo # binlog is enabled.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:17 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6:9-14:16-17"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:17 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 17]" = 1
+--source include/assert.inc
+--let $assert_text= Did not save gtid MASTER_UUID:18 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 18]" = 0
+--source include/assert.inc
+
+# Check-14: RENAME USER
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:19'
+--error ER_CANNOT_USER
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+--echo #
+--echo # The u1 is renamed on mysql.user which means that RENAME USER
+--echo # can be failed partially.
+--echo #
+SELECT user FROM mysql.user where user='u11';
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:20'
+--error ER_CANNOT_USER
+RENAME USER u1@h TO u11@h, u3@h TO u33@h;
+--echo #
+--echo # Verify that the partially failed RENAME USER statement can consume
+--echo # its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table when binlog is disabled as it did when
+--echo # binlog is enabled.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:19 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6:9-14:16-17:19"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:19 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 19]" = 1
+--source include/assert.inc
+--let $assert_text= Did not save gtid MASTER_UUID:20 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 20]" = 0
+--source include/assert.inc
+
+# Check-15: ALTER USER
+SELECT password_expired FROM mysql.user where user='u11';
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:21'
+--error ER_CANNOT_USER
+ALTER USER u11@h, u3@h PASSWORD EXPIRE;
+--echo #
+--echo # The u11 is altered on mysql.user which means that ALTER USER
+--echo # can be failed partially.
+--echo #
+SELECT password_expired FROM mysql.user where user='u11';
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:22'
+--error ER_CANNOT_USER
+ALTER USER u1@h, u3@h PASSWORD EXPIRE;
+--echo #
+--echo # Verify that the partially failed ALTER USER statement can consume
+--echo # its gtid and save the gtid into @@GLOBAL.GTID_EXECUTED and
+--echo # mysql.gtid_executed table when binlog is disabled as it did when
+--echo # binlog is enabled.
+--echo #
+--replace_result $master_uuid MASTER_UUID
+--let $assert_text= Committed gtid MASTER_UUID:21 into @@GLOBAL.GTID_EXECUTED
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-6:9-14:16-17:19:21"
+--source include/assert.inc
+--let $assert_text= Saved gtid MASTER_UUID:21 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 21]" = 1
+--source include/assert.inc
+--let $assert_text= Did not save gtid MASTER_UUID:22 into mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_end = 22]" = 0
+--source include/assert.inc
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:23'
+DROP USER u11@h, u2@h;
+
 # Clean up
 --replace_result $master_uuid MASTER_UUID
---eval SET SESSION GTID_NEXT='$master_uuid:15'
+--eval SET SESSION GTID_NEXT='$master_uuid:24'
 DROP TABLE t1;
 

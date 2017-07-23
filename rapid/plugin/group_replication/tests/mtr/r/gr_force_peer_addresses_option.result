@@ -12,6 +12,9 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Member is OFFLINE, it is not possible to force a new group membership");
+call mtr.add_suppression("\\[GCS\\] Peer address .* is not valid.");
+call mtr.add_suppression("\\[GCS\\] The peers list contains invalid addresses.Please provide a list with only valid addresses.");
+call mtr.add_suppression("Error setting group_replication_force_members value .* on group communication interfaces");
 SET SESSION sql_log_bin= 1;
 
 ############################################################
@@ -37,18 +40,24 @@ SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
 
 ############################################################
-# 4. Set empty string value to
+# 4. Set string value to group_replication_force_members on a ONLINE
+#    member with invalid IP addresses.
+SET GLOBAL group_replication_force_members= "256.256.256.777:1234";
+ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of '256.256.256.777:1234'
+include/assert.inc [group_replication_force_members is empty]
+
+############################################################
+# 5. Set empty string value to
 #    group_replication_force_members on a RECOVERING
 #    member.
 STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
-START GROUP_REPLICATION;
-include/gr_wait_for_member_state.inc
+include/start_group_replication.inc
 SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
 
 ############################################################
-# 5. Set group_replication_force_members on a RECOVERING
+# 6. Set group_replication_force_members on a RECOVERING
 #    member.
 include/gr_wait_for_member_state.inc
 SET GLOBAL group_replication_force_members= "127.0.0.1:10000";
@@ -59,7 +68,7 @@ START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 include/gr_wait_for_member_state.inc
 
 ############################################################
-# 6. Restart member with group_replication_force_members
+# 7. Restart member with group_replication_force_members
 #    set. Group Replication start will error out.
 #    2 members.
 [connection server2]
@@ -68,7 +77,7 @@ include/rpl_reconnect.inc
 include/assert.inc [Member 2 is OFFLINE]
 
 ############################################################
-# 7. Start Group Replication while
+# 8. Start Group Replication while
 #    group_replication_force_members is set. Start
 #    will error out.
 include/assert.inc [group_replication_force_members must be 127.0.0.1:10000]
@@ -77,7 +86,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 include/assert.inc [Member 2 is OFFLINE]
 
 ############################################################
-# 8. Clear group_replication_force_members and start
+# 9. Clear group_replication_force_members and start
 #    Group Replication. Group will have the 2 members.
 SET GLOBAL group_replication_force_members= "";
 include/assert.inc [group_replication_force_members is empty]
@@ -93,5 +102,5 @@ include/assert.inc [Server 2 must be present on group members]
 include/assert.inc [group_replication_force_members must be empty]
 
 ############################################################
-# 9. Clean up.
+# 10. Clean up.
 include/group_replication_end.inc

@@ -3111,10 +3111,9 @@ set global innodb_limit_optimistic_insert_debug=
 #
 create table t1(a blob);
 insert into t1 values ('a');
-# The query result is not correct until bug#20692219 is fixed
 select distinct least(1,count(distinct a)) from t1 group by a;
 least(1,count(distinct a))
-0
+1
 drop table t1;
 #
 # Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE

@@ -31,7 +31,11 @@ GRANT ALL PRIVILEGES ON test.* TO test_user_1;
 GRANT ALL PRIVILEGES ON test.* TO test_user_2;
 
 --echo # FILE is needed to use the DATA DIRECTORY or INDEX DIRECTORY option
+--echo # Need to disable warnings as this gives warning 1287 except when
+--echo # running in embedded mode
+--disable_warnings
 GRANT FILE ON *.* TO test_user_2 IDENTIFIED BY 'testpw';
+--enable_warnings
 
 connect (session1, localhost, test_user_1,'testpw',test);
 --sorted_result

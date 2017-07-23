@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -50,6 +50,12 @@ namespace ngs
   class Protocol_encoder
   {
   public:
+   enum Notice_type {
+     k_notice_warning = 1,
+     k_notice_session_variable_changed = 2,
+     k_notice_session_state_changed = 3
+   };
+
     typedef ngs::function<void (int error)> Error_handler;
 
     Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
@@ -64,12 +70,13 @@ namespace ngs
     bool send_ok(const std::string &message);
     bool send_init_error(const Error_code& error_code);
 
-    void send_local_notice(uint32_t type, const std::string &data, bool force_flush = false);
+    void send_local_notice(Notice_type type, const std::string &data,
+                           bool force_flush = false);
     virtual void send_rows_affected(uint64_t value);
 
-    void send_global_notice(uint32_t type, const std::string &data);
+    void send_global_notice(Notice_type type, const std::string &data);
 
-    void send_local_warning(uint32_t type, const std::string &data, bool force_flush = false);
+    void send_local_warning(const std::string &data, bool force_flush = false);
 
     void send_auth_ok(const std::string &data);
     void send_auth_continue(const std::string &data);

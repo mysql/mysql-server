@@ -1,0 +1,91 @@
+# ==== Purpose ====
+#
+# Verify that a single statement on non-transactional table causes to log an
+# incident event with an unique gtid due to the stmt_cache is not big enough
+# to accommodate the changes, and the slave can skip the incident event by
+# its GTID easily.
+#
+# ==== Implementation ====
+#
+# 1. a single statement on non-transactional table causes to log an incident
+#    event with an unique gtid due to the stmt_cache is not big enough to
+#    accommodate the changes.
+#
+# 2. Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+#    event on slave and then stop the slave threads.
+#
+# 3. Prepare the slave to skip the incident event by its GTID.
+#
+# ==== References ====
+#
+# Bug #19594845  INCIDENT LOG EVENTS SHOULD HAVE UNIQUE GTIDS WHEN GTID MODE IS ON
+# See rpl_gtid_skip_incident_caused_by_partially_failed_grant.test
+
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_gtid.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log. An incident event has been "
+                         "written to the binary log which will stop the "
+                         "slaves.");
+
+--let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
+--let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
+
+--disconnect master
+--connect(master,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--let $master_uuid=`SELECT @@SERVER_UUID`
+--let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+
+CREATE TABLE t1(c1 INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
+--echo #
+--echo # A single statement on non-transactional table causes to log an incident
+--echo # event with an unique gtid due to the stmt_cache is not big enough to
+--echo # accommodate the changes.
+--echo #
+--disable_query_log
+--error ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
+eval INSERT INTO t1 (c1, data) VALUES (1,
+       CONCAT($data, $data, $data, $data, $data, $data));
+--enable_query_log
+--let $keep_gtid_events= 1
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/rpl_connection_slave.inc
+--echo #
+--echo # Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+--echo # event on slave and then stop the slave sql thread.
+--echo #
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+--echo #
+--echo # Prepare the slave to skip the incident event by its GTID.
+--echo #
+--replace_result $master_uuid MASTER_GTID
+--eval SET GTID_NEXT='$master_uuid:5'
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+--source include/start_slave_sql.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
+
+--source include/rpl_end.inc

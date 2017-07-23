@@ -16,12 +16,13 @@ include/stop_slave.inc
 include/gtid_step_reset.inc
 [connection master]
 [connection slave]
-include/assert.inc [(MYISAM, sync_rli=0, step=1) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=1) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=1) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=1) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -30,6 +31,7 @@ include/assert.inc [(MYISAM, sync_rli=0, step=2) SQL thread did not synced maste
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -38,14 +40,16 @@ include/assert.inc [(MYISAM, sync_rli=0, step=3) SQL thread did not synced maste
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=4) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=4) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=4) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -57,8 +61,8 @@ include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=6) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=6) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=6) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
@@ -83,16 +87,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=9) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=10) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=10) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=10) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
@@ -117,16 +121,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=13) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=14) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=14) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=14) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
@@ -152,11 +156,12 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=0, step=17) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=0, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -173,49 +178,53 @@ include/stop_slave.inc
 include/gtid_step_reset.inc
 [connection master]
 [connection slave]
-include/assert.inc [(MYISAM, sync_rli=1, step=1) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=1) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=1) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=1) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=2) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=2) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=2) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=2) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=3) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=3) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=3) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=3) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=4) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=4) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=4) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=5) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=5) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=5) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=5) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=6) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=6) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=6) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=MyISAM;
@@ -240,16 +249,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=9) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=9) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=9) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=10) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=10) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=10) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
@@ -274,16 +283,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=13) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=13) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=13) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=14) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=14) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=14) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
@@ -309,16 +318,17 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=17) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=17) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=17) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=1, step=18) SQL thread synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=1, step=18) SQL thread synced master binlog position]
+Wait until (MYISAM, sync_rli=1, step=18) SQL thread synced master binlog file
+Wait until (MYISAM, sync_rli=1, step=18) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 #
 # sync_relay_log_info= 0, transactional (InnoDB) storage engine
@@ -330,12 +340,13 @@ include/stop_slave.inc
 include/gtid_step_reset.inc
 [connection master]
 [connection slave]
-include/assert.inc [(INNODB, sync_rli=0, step=1) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=1) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=1) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=1) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -344,22 +355,25 @@ include/assert.inc [(INNODB, sync_rli=0, step=2) SQL thread did not synced maste
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=3) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=3) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=3) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=3) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=4) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=4) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=4) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -371,8 +385,8 @@ include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=6) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=6) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=6) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
@@ -397,16 +411,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=9) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=10) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=10) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=10) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
@@ -431,16 +445,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=13) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=13) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=13) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=14) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=14) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=14) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
@@ -466,11 +480,12 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=17) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=17) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=17) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -479,6 +494,7 @@ include/assert.inc [(INNODB, sync_rli=0, step=18) SQL thread did not synced mast
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -490,8 +506,8 @@ include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=20) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=20) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=20) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=20) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 BEGIN;
@@ -534,11 +550,12 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=24) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=24) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=0, step=24) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=0, step=24) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
@@ -555,49 +572,53 @@ include/stop_slave.inc
 include/gtid_step_reset.inc
 [connection master]
 [connection slave]
-include/assert.inc [(INNODB, sync_rli=1, step=1) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=1) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=1) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=1) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=2) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=2) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=2) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=2) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (1);
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=3) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=3) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=3) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=3) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 FLUSH LOCAL BINARY LOGS;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=4) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=4) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=4) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=4) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=5) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=5) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=5) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=5) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=6) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=6) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=6) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=6) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
@@ -622,16 +643,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=9) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=9) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=9) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=9) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=10) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=10) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=10) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=10) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 INSERT INTO t1 VALUES (2);
@@ -656,16 +677,16 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=13) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=13) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=13) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=13) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=14) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=14) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=14) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=14) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 SET @v=3;
@@ -691,32 +712,34 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=17) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=17) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=17) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=17) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=18) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=18) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=18) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=18) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 CREATE TABLE t1 (c1 int PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=19) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=19) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=19) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=19) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=20) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=20) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=20) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=20) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=0, only_count=0]
 [connection master]
 BEGIN;
@@ -759,16 +782,17 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=24) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=24) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=24) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=24) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
+include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=1, step=25) SQL thread synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=1, step=25) SQL thread synced master binlog position]
+Wait until (INNODB, sync_rli=1, step=25) SQL thread synced master binlog file
+Wait until (INNODB, sync_rli=1, step=25) SQL thread synced master binlog position
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection slave]
 SET @@GLOBAL.sync_relay_log_info= @saved_sync_relay_log_info;

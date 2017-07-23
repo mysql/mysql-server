@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
   aggr_sel= NULL;
   max_arg_level= -1;
   max_sum_func_level= -1;
+  base_select= thd->lex->current_select();
   return FALSE;
 }
 
@@ -2111,7 +2112,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
     return 0;
   my_decimal *retval= value->val_decimal(val);
   if ((null_value= value->null_value))
-    DBUG_ASSERT(retval == NULL);
+    DBUG_ASSERT(retval == NULL || my_decimal_is_zero(retval));
   return retval;
 }
 
@@ -3189,8 +3190,8 @@ int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
   size_t old_length= result->length();
 
-  if (item->no_appended)
-    item->no_appended= FALSE;
+  if (!item->m_result_finalized)
+    item->m_result_finalized= true;
   else
     result->append(*item->separator);
 
@@ -3467,7 +3468,7 @@ void Item_func_group_concat::clear()
   result.copy();
   null_value= TRUE;
   warning_for_row= FALSE;
-  no_appended= TRUE;
+  m_result_finalized= false;
   if (tree)
     reset_tree(tree);
   if (unique_filter)
@@ -3524,12 +3525,10 @@ bool Item_func_group_concat::add()
       return 1;
   }
   /*
-    If the row is not a duplicate (el->count == 1)
-    we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
-    instead of doing tree traverse later.
+    In case of GROUP_CONCAT with DISTINCT or ORDER BY (or both) don't dump the
+    row to the output buffer here. That will be done in val_str.
   */
-  if (row_eligible && !warning_for_row &&
-      (!tree || (el->count == 1 && distinct && !arg_count_order)))
+  if (row_eligible && !warning_for_row && tree == NULL && !distinct)
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
   return 0;
@@ -3739,9 +3738,16 @@ String* Item_func_group_concat::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  if (no_appended && tree)
-    /* Tree is used for sorting as in ORDER BY */
-    tree_walk(tree, &dump_leaf_key, this, left_root_right);
+
+  if (!m_result_finalized) // Result yet to be written.
+  {
+    if (tree != NULL) // order by
+      tree_walk(tree, &dump_leaf_key, this, left_root_right);
+    else if (distinct) // distinct (and no order by).
+      unique_filter->walk(&dump_leaf_key, this);
+    else
+      DBUG_ASSERT(false); // Can't happen
+  }
 
   if (table && table->blob_storage && 
       table->blob_storage->is_truncated_value())

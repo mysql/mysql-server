@@ -163,6 +163,7 @@ COMMIT;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo
@@ -222,6 +223,7 @@ UPDATE t1 SET a=1 where a=10;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 --echo

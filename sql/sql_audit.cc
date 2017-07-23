@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ public:
     if (m_active && handle())
     {
       /* Error has been rejected. Write warning message. */
-      print_warning(m_warning_message);
+      print_warning(m_warning_message, sql_errno, sqlstate, msg);
 
       m_error_reported = true;
 
@@ -113,11 +113,22 @@ public:
   /**
     @brief Warning print routine.
 
-    @param warn_msg[in] Warning message to be printed.
+    Also prints the underlying error attributes if supplied.
+
+    @param warn_msg[in]  Warning message to be printed.
+    @param sql_errno[in] The error number of the underlying error
+    @param sqlstate[in]  The SQL state of the underlying error. NULL if none
+    @param msg[in]       The text of the underlying error. NULL if none
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning("%s", warn_msg);
+    sql_print_warning("%s. The trigger error was (%d) [%s]: %s", warn_msg,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -205,16 +216,39 @@ struct st_mysql_event_generic
 /**
   @struct st_mysql_subscribe_event
 
-  Plugin event subscription structure.
+  Plugin event subscription structure. Used during acquisition of the plugins
+  into user session.
 */
 struct st_mysql_subscribe_event
 {
-  /* Event class. */
+  /*
+    Event class.
+  */
   mysql_event_class_t event_class;
-  /* Event subclass. */
+  /*
+    Event subclass.
+  */
   unsigned long       event_subclass;
-  /* Event subscription masks. */
-  unsigned long       *subscribe_mask;
+  /*
+    The array that keeps sum (OR) mask of all plugins that subscribe
+    to the event specified by the event_class and event_subclass.
+
+    lookup_mask is acquired during build_lookup_mask call.
+  */
+  unsigned long       lookup_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  /*
+    The array that keeps sum (OR) mask of all plugins that are acquired
+    to the current session as a result of acquire_plugins call.
+
+    subscribed_mask is acquired during acquisition of the plugins
+    (acquire_plugins call).
+  */
+  unsigned long       subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  /*
+    The array that keeps sum (OR) mask of all plugins that were not acquired
+    to the current session as a result of acquire_plugins call.
+  */
+  unsigned long       not_subscribed_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 };
 
 
@@ -230,17 +264,66 @@ static int event_class_dispatch_error(THD *thd,
                                       const char *event_name,
                                       const void *event);
 
+/**
+  Add mask specified by the rhs parameter to the mask parameter.
+
+  @param mask Mask, to which rhs mask is to be added.
+  @param rhs  Mask to be added to mask parameter.
+*/
 static inline
-void add_audit_mask(unsigned long *mask, const unsigned long *rhs)
+void add_audit_mask(unsigned long *mask, unsigned long rhs)
 {
-  mask[0]|= rhs[0];
+  *mask|= rhs;
 }
 
+/**
+  Add entire audit mask specified by the src to dst.
+
+  @param dst Destination mask array pointer.
+  @param src Source mask array pointer.
+*/
+static inline
+void add_audit_mask(unsigned long *dst, const unsigned long *src)
+{
+  int i;
+  for (i= MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
+    add_audit_mask(dst++, *src++);
+}
+
+/**
+  Check, whether masks specified by lhs parameter and rhs parameters overlap.
+
+  @param lhs First mask to check.
+  @param rhs Second mask to check.
+
+  @return false, when masks overlap, otherwise true.
+*/
+static inline
+bool check_audit_mask(const unsigned long lhs,
+                      const unsigned long rhs)
+{
+  return !(lhs & rhs);
+}
+
+/**
+  Check, whether mask arrays specified by the lhs parameter and rhs parameter
+  overlap.
+
+  @param lhs First mask array to check.
+  @param rhs Second mask array to check.
+
+  @return false, when mask array overlap, otherwise true.
+*/
 static inline
 bool check_audit_mask(const unsigned long *lhs,
                       const unsigned long *rhs)
 {
-  return !(lhs[0] & rhs[0]);
+  int i;
+  for (i= MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
+    if (!check_audit_mask(*lhs++, *rhs++))
+      return false;
+
+  return true;
 }
 
 /**
@@ -288,7 +371,7 @@ public:
                                suppressed.
   */
   Ignore_event_error_handler(THD *thd, const char *event_name) :
-    Audit_error_handler(thd, "Event '%s' cannot be aborted."),
+    Audit_error_handler(thd, ""),
     m_event_name(event_name)
   {
   }
@@ -308,9 +391,17 @@ public:
 
   @param warn_msg[in] Placeholding warning message to be printed.
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning(warn_msg, m_event_name);
+    sql_print_warning("Event '%s' cannot be aborted. "
+                      "The trigger error was (%d) [%s]: %s",
+                      m_event_name,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
 private:
@@ -759,8 +850,7 @@ public:
   Ignore_command_start_error_handler(THD *thd,
                                      enum_server_command command,
                                      const char *command_text) :
-    Audit_error_handler(thd, "Command '%s' cannot be aborted.",
-                        ignore_command(command)),
+    Audit_error_handler(thd, "", ignore_command(command)),
     m_command(command),
     m_command_text(command_text)
   {
@@ -781,9 +871,17 @@ public:
 
     @param warn_msg[in] Placeholding warning message text.
   */
-  virtual void print_warning(const char *warn_msg)
+  virtual void print_warning(const char *warn_msg,
+                             uint sql_errno,
+                             const char* sqlstate,
+                             const char* msg)
   {
-    sql_print_warning(warn_msg, m_command_text);
+    sql_print_warning("Command '%s' cannot be aborted. "
+                      "The trigger error was (%d) [%s]: %s",
+                      m_command_text,
+                      sql_errno,
+                      sqlstate ? sqlstate : "<NO_STATE>",
+                      msg ? msg : "<NO_MESSAGE>");
   }
 
   /**
@@ -907,88 +1005,124 @@ int mysql_audit_notify(THD *thd,
 }
 
 /**
-  Acquire and lock any additional audit plugins as required
-  
-  @param[in] thd
-  @param[in] plugin
-  @param[in] arg
+  Acquire plugin masks subscribing to the specified event of the specified
+  class, passed by arg parameter. lookup_mask of the st_mysql_subscribe_event
+  structure is filled, when the plugin is interested in receiving the event.
 
-  @retval FALSE Always  
+  @param         thd    Current session THD.
+  @param         plugin Plugin reference.
+  @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
+
+  @return FALSE is always returned.
 */
-
-static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
+static my_bool acquire_lookup_mask(THD *thd, plugin_ref plugin, void *arg)
 {
-  st_mysql_subscribe_event *evt = (st_mysql_subscribe_event *)arg;
-  st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
-  int i;
+  st_mysql_subscribe_event *evt= static_cast<st_mysql_subscribe_event *>(arg);
+  st_mysql_audit *audit= plugin_data<st_mysql_audit *>(plugin);
 
   /* Check if this plugin is interested in the event */
-  if (check_audit_mask(&data->class_mask[evt->event_class],
-                       &evt->event_subclass))
-    return 0;
+  if (!check_audit_mask(audit->class_mask[evt->event_class],
+                        evt->event_subclass))
+    add_audit_mask(evt->lookup_mask, audit->class_mask);
 
-  /*
-    Check if this plugin may already be registered. This will fail to
-    acquire a newly installed plugin on a specific corner case where
-    one or more event classes already in use by the calling thread
-    are an event class of which the audit plugin has interest.
-  */
-  if (!check_audit_mask(&data->class_mask[evt->event_class],
-                        &thd->audit_class_mask[evt->event_class]))
-    return 0;
+  return FALSE;
+}
 
-  /* Copy subscription masks from the plugin into the array. */
-  for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-    evt->subscribe_mask[i]= data->class_mask[i];
-  
+/**
+  Acquire and lock any additional audit plugins, whose subscription
+  mask overlaps with the lookup_mask.
+
+  @param         thd    Current session THD.
+  @param         plugin Plugin reference.
+  @param[in,out] arg    Opaque st_mysql_subscribe_event pointer.
+
+  @return This function always returns FALSE.
+*/
+static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
+{
+  st_mysql_subscribe_event *evt= static_cast<st_mysql_subscribe_event *>(arg);
+  st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
+
+  /* Check if this plugin is interested in the event */
+  if (check_audit_mask(data->class_mask, evt->lookup_mask))
+  {
+    add_audit_mask(evt->not_subscribed_mask, data->class_mask);
+    return FALSE;
+  }
+
+  /* Copy subscription mask from the plugin into the array. */
+  add_audit_mask(evt->subscribed_mask, data->class_mask);
+
+  /* Prevent from adding the same plugin more than one time. */
+  if (thd->audit_class_plugins.exists(plugin))
+    return FALSE;
+
   /* lock the plugin and add it to the list */
   plugin= my_plugin_lock(NULL, &plugin);
   thd->audit_class_plugins.push_back(plugin);
 
-  return 0;
+  return FALSE;
 }
 
-
 /**
-  @brief Acquire audit plugins
-
-  @param[in]   thd              MySQL thread handle
-  @param[in]   event_class      Audit event class
-
-  @details Ensure that audit plugins interested in given event
+  Acquire audit plugins. Ensure that audit plugins interested in given event
   class are locked by current thread.
+
+  @param thd            MySQL thread handle.
+  @param event_class    Audit event class.
+  @param event_subclass Audit event subclass.
+
+  @return Zero, when there is a plugins interested in the event specified
+          by event_class and event_subclass. Otherwise non zero value is
+          returned.
 */
 int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
-                                 unsigned long event_subclass)
+                                unsigned long event_subclass)
 {
   DBUG_ENTER("mysql_audit_acquire_plugins");
   unsigned long global_mask= mysql_global_audit_mask[event_class];
 
-  if (thd && !check_audit_mask(&global_mask, &event_subclass) &&
-      check_audit_mask(&thd->audit_class_mask[event_class],
-                       &event_subclass))
+  if (thd && !check_audit_mask(global_mask, event_subclass) &&
+      check_audit_mask(thd->audit_class_mask[event_class],
+                       event_subclass))
   {
-    /* There is a plugin registered for the subclass, but THD has not
-       registered yet for this event. Refresh THD class mask. */
-
-    unsigned long masks[MYSQL_AUDIT_CLASS_MASK_SIZE]= { 0, };
-    st_mysql_subscribe_event evt= { event_class, event_subclass, masks };
+    /*
+      There is a plugin registered for the subclass, but THD has not
+      registered yet for this event. Refresh THD class mask.
+    */
+    st_mysql_subscribe_event evt= { event_class, event_subclass,
+                                    { 0, }, { 0, }, { 0, } };
+    plugin_foreach_func *funcs[]= { acquire_lookup_mask,
+                                    acquire_plugins,
+                                    NULL };
+    /*
+      Acquire lookup_mask, which contains mask of all plugins that subscribe
+      event specified by the event_class and event_subclass
+      (acquire_lookup_mask).
+      Load plugins that overlap with the lookup_mask (acquire_plugins).
+    */
+    plugin_foreach(thd, funcs, MYSQL_AUDIT_PLUGIN, &evt);
+    /*
+      Iterate through event masks of the acquired plugin, excluding masks
+      of the the plugin not acquired. It's more likely that these plugins will
+      be acquired during the next audit plugin acquisition.
+    */
     int i;
-    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &evt);
     for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-      add_audit_mask(&thd->audit_class_mask[i], &evt.subscribe_mask[i]);
+      add_audit_mask(&thd->audit_class_mask[i],
+                     (evt.subscribed_mask[i] ^ evt.not_subscribed_mask[i]) &
+                     evt.subscribed_mask[i]);
 
     global_mask= thd->audit_class_mask[event_class];
   }
 
   /* Check whether there is a plugin registered for this event. */
-  DBUG_RETURN(check_audit_mask(&global_mask, &event_subclass) ? 1 : 0);
+  DBUG_RETURN(check_audit_mask(global_mask, event_subclass) ? 1 : 0);
 }
- 
 
 /**
   Release any resources associated with the current thd.
-  
+
   @param[in] thd
 
 */
@@ -996,16 +1130,16 @@ int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
 void mysql_audit_release(THD *thd)
 {
   plugin_ref *plugins, *plugins_last;
-  
+
   if (!thd || thd->audit_class_plugins.empty())
     return;
-  
+
   plugins= thd->audit_class_plugins.begin();
   plugins_last= thd->audit_class_plugins.end();
   for (; plugins != plugins_last; plugins++)
   {
     st_mysql_audit *data= plugin_data<st_mysql_audit*>(*plugins);
-	
+
     /* Check to see if the plugin has a release method */
     if (!(data->release_thd))
       continue;
@@ -1014,10 +1148,10 @@ void mysql_audit_release(THD *thd)
     data->release_thd(thd);
   }
 
-  /* Now we actually unlock the plugins */  
+  /* Now we actually unlock the plugins */
   plugin_unlock_list(NULL, thd->audit_class_plugins.begin(),
                      thd->audit_class_plugins.size());
-  
+
   /* Reset the state of thread values */
   thd->audit_class_plugins.clear();
   thd->audit_class_mask.clear();
@@ -1027,7 +1161,7 @@ void mysql_audit_release(THD *thd)
 
 /**
   Initialize thd variables used by Audit
-  
+
   @param[in] thd
 
 */
@@ -1041,12 +1175,12 @@ void mysql_audit_init_thd(THD *thd)
 
 /**
   Free thd variables used by Audit
-  
+
   @param[in] thd
   @param[in] plugin
   @param[in] arg
 
-  @retval FALSE Always  
+  @retval FALSE Always
 */
 
 void mysql_audit_free_thd(THD *thd)
@@ -1089,7 +1223,7 @@ void mysql_audit_initialize()
 
 
 /**
-  Finalize Audit global variables  
+  Finalize Audit global variables
 */
 
 void mysql_audit_finalize()
@@ -1100,7 +1234,7 @@ void mysql_audit_finalize()
 
 /**
   Initialize an Audit plug-in
-  
+
   @param[in] plugin
 
   @retval FALSE  OK
@@ -1132,7 +1266,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
                     plugin->name.str);
     return 1;
   }
-  
+
   if (plugin->plugin->init && plugin->plugin->init(plugin))
   {
     sql_print_error("Plugin '%s' init function returned error.",
@@ -1142,13 +1276,10 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 
   /* Make the interface info more easily accessible */
   plugin->data= plugin->plugin->info;
-  
+
   /* Add the bits the plugin is interested in to the global mask */
   mysql_mutex_lock(&LOCK_audit_mask);
-  for (i= MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-  {
-    add_audit_mask(&mysql_global_audit_mask[i], &data->class_mask[i]);
-  }
+  add_audit_mask(mysql_global_audit_mask, data->class_mask);
   mysql_mutex_unlock(&LOCK_audit_mask);
 
   return 0;
@@ -1168,21 +1299,14 @@ static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 {
   st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
   if (data)
-  {
-    int i;
-    unsigned long *dst= (unsigned long *)arg;
-    for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
-    {
-      add_audit_mask(&dst[i], &data->class_mask[i]);
-    }
-  }
+    add_audit_mask(reinterpret_cast<unsigned long *>(arg), data->class_mask);
   return 0;
 }
 
 
 /**
   Finalize an Audit plug-in
-  
+
   @param[in] plugin
 
   @retval FALSE  OK
@@ -1191,14 +1315,14 @@ static my_bool calc_class_mask(THD *thd, plugin_ref plugin, void *arg)
 int finalize_audit_plugin(st_plugin_int *plugin)
 {
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  
+
   if (plugin->plugin->deinit && plugin->plugin->deinit(NULL))
   {
     DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                             plugin->name.str));
     DBUG_EXECUTE("finalize_audit_plugin", return 1; );
   }
-  
+
   plugin->data= NULL;
   memset(&event_class_mask, 0, sizeof(event_class_mask));
 
@@ -1221,7 +1345,7 @@ int finalize_audit_plugin(st_plugin_int *plugin)
 
 
 /**
-  Dispatches an event by invoking the plugin's event_notify method.  
+  Dispatches an event by invoking the plugin's event_notify method.
 
   @param[in] thd
   @param[in] plugin
@@ -1238,7 +1362,7 @@ static int plugins_dispatch(THD *thd, plugin_ref plugin, void *arg)
   st_mysql_audit *data= plugin_data<st_mysql_audit*>(plugin);
 
   /* Check to see if the plugin is interested in this event */
-  if (check_audit_mask(&data->class_mask[event_generic->event_class], &subclass))
+  if (check_audit_mask(data->class_mask[event_generic->event_class], subclass))
     return 0;
 
   /* Actually notify the plugin */
@@ -1253,7 +1377,7 @@ static my_bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
 
 /**
   Distributes an audit event to plug-ins
-  
+
   @param[in] thd
   @param[in] event
 */

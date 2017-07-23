@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ typedef struct cfg_app_xcom
  The application will set this pointer before engaging
  xcom
 */
-cfg_app_xcom_st* the_app_xcom_cfg;
+extern cfg_app_xcom_st* the_app_xcom_cfg;
 
 void init_cfg_app_xcom();
 void deinit_cfg_app_xcom();

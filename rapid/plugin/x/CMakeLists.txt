@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/ngs/include
     ${CMAKE_SOURCE_DIR}/include #temporary
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
     ${ZLIB_INCLUDE_DIR}
   )
@@ -134,8 +135,7 @@ ELSE()
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
     COMPILE_FLAGS
-    "-I${xplugin_PROTOBUF_DIR}"
-    "-I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "-I${xplugin_PROTOBUF_DIR}")
 
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
@@ -202,7 +202,7 @@ ELSE()
 
   GET_PROPERTY(OLD_COMPILE_FLAGS TARGET mysqlxtest PROPERTY COMPILE_FLAGS)
   SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS
-    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf -I${CMAKE_CURRENT_BINARY_DIR}/generated/")
+    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
 
     GET_TARGET_PROPERTY(mysqlxtest_compile_definitions
       mysqlxtest COMPILE_DEFINITIONS)

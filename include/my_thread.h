@@ -36,10 +36,16 @@
   MySQL can survive with 32K, but some glibc libraries require > 128K stack
   To resolve hostnames. Also recursive stored procedures needs stack.
 */
-#if SIZEOF_CHARP > 4
-#define DEFAULT_THREAD_STACK	(256*1024L)
+#if defined(__sparc) && (defined(__SUNPRO_CC) || defined(__SUNPRO_C))
+#define STACK_MULTIPLIER 2UL
 #else
-#define DEFAULT_THREAD_STACK	(192*1024)
+#define STACK_MULTIPLIER 1UL
+#endif
+
+#if SIZEOF_CHARP > 4
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 256UL * 1024UL)
+#else
+#define DEFAULT_THREAD_STACK	(STACK_MULTIPLIER * 192UL * 1024UL)
 #endif
 
 #ifdef  __cplusplus

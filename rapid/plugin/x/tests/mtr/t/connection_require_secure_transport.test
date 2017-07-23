@@ -55,8 +55,11 @@ let $restart_parameters = restart: --require_secure_transport=ON;
 
 --error 1
 --exec $MYSQLXTEST -n  -uroot --password='' --file=$MYSQL_TMP_DIR/check_plain_connection.tmp 2>&1
---error 1
+
+--let $expected_error_msg= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
+--source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/check_connection.tmp 2>&1
+
 SET GLOBAL require_secure_transport=OFF;
 
 --error 1
