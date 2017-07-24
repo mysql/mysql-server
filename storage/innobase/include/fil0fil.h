@@ -1320,10 +1320,10 @@ fil_path_to_space_name(const char* filename)
 /** Returns the space ID based on the tablespace name.
 The tablespace must be found in the tablespace memory cache.
 This call is made from external to this module, so the mutex is not owned.
-@param[in]	space		Tablespace name
+@param[in]	name		Tablespace name
 @return space ID if tablespace found, SPACE_UNKNOWN if space not. */
 space_id_t
-fil_space_get_id_by_name(const char* space)
+fil_space_get_id_by_name(const char* name)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Iterate over all the spaces in the space list and fetch the
