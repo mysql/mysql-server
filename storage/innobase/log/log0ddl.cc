@@ -51,11 +51,11 @@ Created 12/1/2016 Shaohua Wang
 /** Object to handle Log_DDL */
 Log_DDL*	log_ddl = nullptr;
 
-/** Whether replaying ddl log
-Note: we should not write ddl log when replaying ddl log. */
+/** Whether replaying DDL log
+Note: we should not write DDL log when replaying DDL log. */
 thread_local bool thread_local_ddl_log_replay = false;
 
-/** Whether in recover(replay) ddl log in startup. */
+/** Whether in recover(replay) DDL log in startup. */
 bool	Log_DDL::m_in_recovery = false;
 
 DDL_Record::DDL_Record()
@@ -914,7 +914,7 @@ Log_DDL::insert_free_tree_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1006,7 +1006,7 @@ Log_DDL::insert_delete_space_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1083,7 +1083,7 @@ Log_DDL::insert_rename_space_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1138,7 +1138,7 @@ Log_DDL::insert_drop_log(
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1205,7 +1205,7 @@ Log_DDL::insert_rename_table_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1270,7 +1270,7 @@ Log_DDL::insert_remove_cache_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "ddl log insert : " << record;
+	ib::info() << "DDL log insert : " << record;
 
 	return(error);
 }
@@ -1297,7 +1297,7 @@ Log_DDL::delete_by_id(
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "ddl log delete : " << "by id " << id;
+	ib::info() << "DDL log delete : " << "by id " << id;
 
 	return(error);
 }
@@ -1364,9 +1364,11 @@ Log_DDL::delete_by_ids(
 	trx_start_if_not_started(trx, true);
 	trx->ddl_operation = true;
 
-	DDL_Log_Table	ddl_log(trx);
-	error =	ddl_log.remove(records);
-	ut_ad(error == DB_SUCCESS);
+	{
+		DDL_Log_Table	ddl_log(trx);
+		error =	ddl_log.remove(records);
+		ut_ad(error == DB_SUCCESS);
+	}
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
@@ -1380,7 +1382,7 @@ Log_DDL::replay(
 {
 	dberr_t		err = DB_SUCCESS;
 
-	ib::info() << "ddl log replay : " << record;
+	ib::info() << "DDL log replay : " << record;
 
 	switch(record.get_type()) {
 	case Log_Type::FREE_TREE_LOG:
@@ -1443,7 +1445,7 @@ Log_DDL::replay_free_tree_log(
 	if (!found) {
 		/* Skip if it is a single table tablespace and the
 		.ibd file is missing*/
-		ib::info() << "ddl log replay : FREE tablespace " << space_id
+		ib::info() << "DDL log replay : FREE tablespace " << space_id
 			<< " is missing.";
 		return;
 	}
@@ -1510,7 +1512,7 @@ Log_DDL::replay_rename_space_log(
 
 	ret = fil_op_replay_rename_for_ddl(page_id, old_file_path, new_file_path);
 	if (!ret) {
-		ib::info() << "ddl log replay : RENAME failed";
+		ib::info() << "DDL log replay : RENAME failed";
 	}
 }
 
@@ -1532,7 +1534,7 @@ Log_DDL::replay_rename_table_log(
 	const char*	new_name)
 {
 	if (is_in_recovery()) {
-		ib::info() << "ddl log replay : in recovery, skip RENAME TABLE";
+		ib::info() << "DDL log replay : in recovery, skip RENAME TABLE";
 		return;
 	}
 
@@ -1560,7 +1562,7 @@ Log_DDL::replay_rename_table_log(
 	trx_free_for_background(trx);
 
 	if (err != DB_SUCCESS) {
-		ib::info() << "ddl log replay : rename table in cache from "
+		ib::info() << "DDL log replay : rename table in cache from "
 			<< old_name << " to " << new_name;
 	} else {
 		/* TODO: Once we get rid of dict_operation_lock,
@@ -1579,7 +1581,7 @@ Log_DDL::replay_remove_cache_log(
 	const char*	table_name)
 {
 	if (is_in_recovery()) {
-		ib::info() << "ddl log replay : in recovery, skip REMOVE CACHE";
+		ib::info() << "DDL log replay : in recovery, skip REMOVE CACHE";
 		return;
 	}
 
@@ -1617,8 +1619,7 @@ Log_DDL::post_ddl(THD*	thd)
 
 	ulint	thread_id = thd_get_thread_id(thd);
 
-	ib::info() << "innodb ddl log : post ddl begin, thread id : "
-		<< thread_id;
+	ib::info() << "DDL log post ddl : begin for thread id : " << thread_id;
 
 	thread_local_ddl_log_replay = true;
 
@@ -1626,8 +1627,7 @@ Log_DDL::post_ddl(THD*	thd)
 
 	thread_local_ddl_log_replay = false;
 
-	ib::info() << "innodb ddl log : post ddl end, thread id : "
-		<< thread_id;
+	ib::info() << "DDL log post ddl : end for thread id : " << thread_id;
 
 	return(DB_SUCCESS);
 }
@@ -1639,7 +1639,7 @@ Log_DDL::recover()
 		return(DB_SUCCESS);
 	}
 
-	ib::info() << "innodb ddl log : recovery begin";
+	ib::info() << "DDL log recovery : begin";
 
 	thread_local_ddl_log_replay = true;
 	m_in_recovery = true;
@@ -1649,7 +1649,7 @@ Log_DDL::recover()
 	thread_local_ddl_log_replay = false;
 	m_in_recovery = false;
 
-	ib::info() << "innodb ddl log : recovery end";
+	ib::info() << "DDL log recovery : end";
 
 	return(DB_SUCCESS);
 }
