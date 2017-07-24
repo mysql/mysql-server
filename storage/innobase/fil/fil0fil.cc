@@ -387,7 +387,7 @@ public:
 
 	/** Tries to close a file in the shard LRU list.
 	The caller must hold the Fil_shard::m_mutex.
-	@param[in] print_info   	if true, prints information
+	@param[in] print_info		if true, prints information
 					why it cannot close a file
 	@return true if success, false if should retry later */
 	bool close_files_in_LRU(bool print_info)
@@ -873,7 +873,7 @@ public:
 
 	/** Tries to close a file in all the LRU lists.
 	The caller must hold the mutex.
-	@param[in] print_info   	if true, prints information why it
+	@param[in] print_info		if true, prints information why it
 					cannot close a file
 	@return true if success, false if should retry later */
 	bool close_file_in_all_LRU(bool print_info)
@@ -2055,7 +2055,7 @@ Fil_system::close_file_in_all_LRU(bool print_info)
 
 		if (print_info) {
 			ib::info()
-		       		<< "fil_sys open file LRU len "
+				<< "fil_sys open file LRU len "
 				<< UT_LIST_GET_LEN(shard->m_LRU);
 		}
 
@@ -2084,7 +2084,7 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 
 	/* Reserve an open slot for this shard. So that this shard's open
 	file succeeds. */
-	
+
 	while (!acquire_open_slot(m_id)) {
 		os_thread_sleep(1000);
 	}
@@ -4244,30 +4244,30 @@ Fil_shard::space_rename(
 			ib::error()
 				<< "Cannot find " << space->name
 				<< " in tablespace memory cache";
-	
+
 			space->stop_ios = false;
-	
+
 			mutex_release();
-	
+
 			return(false);
-	
+
 		} else {
-	
+
 			auto	new_space = get_space_by_name(new_name);
-	
+
 			if (new_space != nullptr) {
-	
+
 				if (new_space == space) {
-	
+
 					mutex_release();
-	
+
 					return(true);
 				}
-	
+
 				ut_a(new_space->id == space->id);
 			}
 		}
-	
+
 		/* We temporarily close the .ibd file because we do
 		not trust that operating systems can rename an open
 		file. For the closing we have to wait until there
@@ -6734,7 +6734,7 @@ Fil_shard::flush_file_spaces(uint8_t purpose)
 
 	for (auto space = UT_LIST_GET_FIRST(m_unflushed_spaces);
 	     space != nullptr;
-	     space = UT_LIST_GET_NEXT(unflushed_spaces, space)) { 
+	     space = UT_LIST_GET_NEXT(unflushed_spaces, space)) {
 
 		if ((to_int(space->purpose) & purpose)
 		    && !space->stop_new_ops) {
@@ -9142,7 +9142,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 dberr_t
 fil_check_extend_space(
 	fil_node_t*	file,
-	void* 		context MY_ATTRIBUTE((unused)))
+	void*		context MY_ATTRIBUTE((unused)))
 {
 	dberr_t	err = DB_SUCCESS;
 	bool	open_node = !file->is_open;
