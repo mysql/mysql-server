@@ -5,7 +5,7 @@ SELECT @global_start_value;
 SET @global_start_max_dirty_lwm_value = @@global.innodb_max_dirty_pages_pct_lwm;
 SELECT @global_start_max_dirty_lwm_value;
 @global_start_max_dirty_lwm_value
-0
+10
 SET @@global.innodb_max_dirty_pages_pct_lwm = 0;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
@@ -169,4 +169,4 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct_lwm = @global_start_max_dirty_lwm_value;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
-0.000000
+10.000000
