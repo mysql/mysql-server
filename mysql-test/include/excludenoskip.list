@@ -17,7 +17,6 @@ have_64bit.inc
 have_little_endian.inc
 have_case_insensitive_file_system.inc
 have_case_sensitive_file_system.inc
-have_crypt.inc
 have_lowercase0.inc
 have_lowercase1.inc
 have_lowercase2.inc

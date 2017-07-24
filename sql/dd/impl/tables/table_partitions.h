@@ -48,7 +48,7 @@ public:
   {
     FIELD_ID,
     FIELD_TABLE_ID,
-    FIELD_LEVEL,
+    FIELD_PARENT_PARTITION_ID,
     FIELD_NUMBER,
     FIELD_NAME,
     FIELD_ENGINE,
@@ -67,6 +67,9 @@ public:
 
 public:
   static Object_key *create_key_by_table_id(Object_id table_id);
+
+  static Object_key *create_key_by_parent_partition_id(
+                       Object_id table_id, Object_id parent_partition_id);
 
   static ulonglong read_table_id(const Raw_record &r);
 

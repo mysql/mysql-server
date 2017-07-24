@@ -181,14 +181,14 @@ ulint
 ut_2_log(
 /*=====*/
 	ulint	n);	/*!< in: number */
-/*************************************************************//**
-Calculates 2 to power n.
+
+/** Calculates 2 to power n.
+@param[in]	n	power of 2
 @return 2 to power n */
 UNIV_INLINE
-ulint
-ut_2_exp(
-/*=====*/
-	ulint	n);	/*!< in: number */
+uint32_t
+ut_2_exp(uint32_t n);
+
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return first power of 2 which is >= n */

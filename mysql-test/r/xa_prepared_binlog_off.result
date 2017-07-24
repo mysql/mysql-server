@@ -815,6 +815,7 @@ XA START 'xa1';
 INSERT INTO t SET a = 1;
 XA END 'xa1';
 SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
 XA PREPARE 'xa1';
 # restart
 XA ROLLBACK 'xa1';
@@ -823,6 +824,7 @@ INSERT INTO t SET a = 1;
 XA END 'xa1';
 XA PREPARE 'xa1';
 SET @@SESSION.pseudo_slave_mode=1;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
 XA COMMIT 'xa1';
 DROP TABLE t;
 include/gtid_utils_end.inc

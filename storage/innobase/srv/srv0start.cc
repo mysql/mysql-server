@@ -821,7 +821,6 @@ srv_undo_tablespace_open(space_id_t space_id)
 		should all be known and synced with the data dictionary. */
 
 		scanned_name = file_name;
-
 	}
 
 	/* Check if it was already opened during redo recovery. */

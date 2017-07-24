@@ -50,9 +50,9 @@ Table_partitions::Table_partitions()
   m_target_def.add_field(FIELD_TABLE_ID,
                          "FIELD_TABLE_ID",
                          "table_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_LEVEL,
-                         "FIELD_LEVEL",
-                         "level TINYINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_PARENT_PARTITION_ID,
+                         "FIELD_PARENT_PARTITION_ID",
+                         "parent_partition_id BIGINT UNSIGNED");
   m_target_def.add_field(FIELD_NUMBER,
                          "FIELD_NUMBER",
                          "number SMALLINT UNSIGNED NOT NULL");
@@ -80,7 +80,7 @@ Table_partitions::Table_partitions()
 
   m_target_def.add_index("PRIMARY KEY(id)");
   m_target_def.add_index("UNIQUE KEY(table_id, name)");
-  m_target_def.add_index("UNIQUE KEY(table_id, level, number)");
+  m_target_def.add_index("UNIQUE KEY(table_id, parent_partition_id, number)");
   m_target_def.add_index("UNIQUE KEY(engine, se_private_id)");
   m_target_def.add_index("KEY(engine)");
 
@@ -95,6 +95,19 @@ Table_partitions::Table_partitions()
 Object_key *Table_partitions::create_key_by_table_id(Object_id table_id)
 {
   return new (std::nothrow) Parent_id_range_key(1, FIELD_TABLE_ID, table_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Table_partitions::create_key_by_parent_partition_id(
+                       Object_id table_id, Object_id parent_partition_id)
+{
+  const int PARENT_PARTITION_INDEX_NO= 2;
+
+  return new (std::nothrow) Sub_partition_range_key(
+                              PARENT_PARTITION_INDEX_NO,
+                              FIELD_TABLE_ID, table_id,
+                              FIELD_PARENT_PARTITION_ID, parent_partition_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
