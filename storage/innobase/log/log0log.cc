@@ -156,7 +156,7 @@ log_buf_pool_get_oldest_modification(void)
 }
 
 /* Note this will work between the two formats 5_7_9 & current because
-the only change is the version number */
+the only change is the version number. Assumes an "empty" redo log. */
 static
 void
 log_downgrade()

@@ -117,10 +117,10 @@ struct fil_node_t {
 	page_no_t		max_size;
 
 	/** count of pending i/o's; is_open must be true if nonzero */
-	ulint			n_pending;
+	size_t			n_pending;
 
 	/** count of pending flushes; is_open must be true if nonzero */
-	ulint			n_pending_flushes;
+	size_t			n_pending_flushes;
 
 	/** e.g., when a file is being extended or just opened. */
 	size_t			in_use;
@@ -138,13 +138,13 @@ struct fil_node_t {
 	bool			punch_hole;
 
 	/** block size to use for punching holes */
-	ulint           	block_size;
+	size_t			block_size;
 
 	/** whether atomic write is enabled for this file */
 	bool			atomic_write;
 
 	/** FIL_NODE_MAGIC_N */
-	ulint			magic_n;
+	size_t			magic_n;
 };
 
 /** Tablespace or log data space */
@@ -156,7 +156,7 @@ struct fil_space_t {
 	/** Tablespace name */
 	char*			name;
 
-	/** Space id */
+	/** Tablespace ID */
 	space_id_t		id;
 
 	/** LSN of the most recent fil_names_write_if_was_clean().

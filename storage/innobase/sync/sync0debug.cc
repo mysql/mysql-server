@@ -805,6 +805,38 @@ LatchDebug::check_order(
 	case SYNC_POOL:
 	case SYNC_POOL_MANAGER:
 	case SYNC_RECV_WRITER:
+	case SYNC_FIL_SHARD_1:
+	case SYNC_FIL_SHARD_2:
+	case SYNC_FIL_SHARD_3:
+	case SYNC_FIL_SHARD_4:
+	case SYNC_FIL_SHARD_5:
+	case SYNC_FIL_SHARD_6:
+	case SYNC_FIL_SHARD_7:
+	case SYNC_FIL_SHARD_8:
+	case SYNC_FIL_SHARD_9:
+	case SYNC_FIL_SHARD_10:
+	case SYNC_FIL_SHARD_11:
+	case SYNC_FIL_SHARD_12:
+	case SYNC_FIL_SHARD_13:
+	case SYNC_FIL_SHARD_14:
+	case SYNC_FIL_SHARD_15:
+	case SYNC_FIL_SHARD_16:
+	case SYNC_FIL_SHARD_17:
+	case SYNC_FIL_SHARD_18:
+	case SYNC_FIL_SHARD_19:
+	case SYNC_FIL_SHARD_20:
+	case SYNC_FIL_SHARD_21:
+	case SYNC_FIL_SHARD_22:
+	case SYNC_FIL_SHARD_23:
+	case SYNC_FIL_SHARD_24:
+	case SYNC_FIL_SHARD_25:
+	case SYNC_FIL_SHARD_26:
+	case SYNC_FIL_SHARD_27:
+	case SYNC_FIL_SHARD_28:
+	case SYNC_FIL_SHARD_29:
+	case SYNC_FIL_SHARD_30:
+	case SYNC_FIL_SHARD_31:
+	case SYNC_FIL_SHARD_32:
 
 		basic_check(latches, level, level);
 		break;
@@ -1012,7 +1044,7 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_DICT:
-		basic_check(latches, level, SYNC_DICT);
+		basic_check(latches, level, level);
 		break;
 
 	case SYNC_MUTEX:
@@ -1409,7 +1441,38 @@ sync_latch_meta_init()
 
 	LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
 
-	LATCH_ADD_MUTEX(FIL_SYSTEM, SYNC_ANY_LATCH, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_1, SYNC_FIL_SHARD_1, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_2, SYNC_FIL_SHARD_2, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_3, SYNC_FIL_SHARD_3, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_4, SYNC_FIL_SHARD_4, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_5, SYNC_FIL_SHARD_5, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_6, SYNC_FIL_SHARD_6, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_7, SYNC_FIL_SHARD_7, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_8, SYNC_FIL_SHARD_8, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_9, SYNC_FIL_SHARD_9, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_10, SYNC_FIL_SHARD_10, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_11, SYNC_FIL_SHARD_11, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_12, SYNC_FIL_SHARD_12, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_13, SYNC_FIL_SHARD_13, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_14, SYNC_FIL_SHARD_14, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_15, SYNC_FIL_SHARD_15, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_16, SYNC_FIL_SHARD_16, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_17, SYNC_FIL_SHARD_17, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_18, SYNC_FIL_SHARD_18, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_19, SYNC_FIL_SHARD_19, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_20, SYNC_FIL_SHARD_20, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_21, SYNC_FIL_SHARD_21, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_22, SYNC_FIL_SHARD_22, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_23, SYNC_FIL_SHARD_23, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_24, SYNC_FIL_SHARD_24, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_25, SYNC_FIL_SHARD_25, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_26, SYNC_FIL_SHARD_26, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_27, SYNC_FIL_SHARD_27, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_28, SYNC_FIL_SHARD_28, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_29, SYNC_FIL_SHARD_29, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_30, SYNC_FIL_SHARD_30, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_31, SYNC_FIL_SHARD_31, fil_system_mutex_key);
+	LATCH_ADD_MUTEX(FIL_SHARD_32, SYNC_FIL_SHARD_32, fil_system_mutex_key);
 
 	LATCH_ADD_MUTEX(FLUSH_LIST, SYNC_BUF_FLUSH_LIST, flush_list_mutex_key);
 

@@ -795,20 +795,33 @@ srv_undo_tablespace_open(space_id_t space_id)
 	undo::Tablespace	undo_space(space_id);
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
+	std::string		recover_name;
 
-	/* See if the previous name in the file map is correct. */
-	std::string	recover_name = fil_system_open_fetch(space_id);
+	if (srv_is_being_started) {
 
-	if (recover_name.length() != 0
-	    && !fil_paths_equal(file_name, recover_name.c_str())) {
-		/* Make sure that this space_id is used by the
-		correctly named undo tablespace. */
-		ib::error() << "Cannot create " << file_name
-			<< " because " << recover_name.c_str()
-			<< " already uses Space ID=" << space_id
-			<< "!  Did you change innodb_undo_directory?";
+		/* See if the previous name in the file map is correct. */
+		recover_name = fil_system_open_fetch(space_id);
 
-		return(DB_WRONG_FILE_NAME);
+		if (recover_name.length() != 0
+		    && !fil_paths_equal(file_name, recover_name.c_str())) {
+
+			/* Make sure that this space_id is used by the
+			correctly named undo tablespace. */
+			ib::error()
+				<< "Cannot create " << file_name
+				<< " because " << recover_name.c_str()
+				<< " already uses Space ID=" << space_id
+				<< "!  Did you change innodb_undo_directory?";
+
+			return(DB_WRONG_FILE_NAME);
+		}
+	} else {
+
+		/* If we are not in recovery then the paths and filenames
+		should all be known and synced with the data dictionary. */
+
+		recover_name = file_name;
+
 	}
 
 	/* Check if it was already opened during redo recovery. */
@@ -1126,8 +1139,10 @@ srv_undo_tablespaces_create(
 
 		undo::spaces->add(space_id);
 
+		++cur_undo_spaces;
+
 		/* Quit when we have enough. */
-		if (++cur_undo_spaces >= target_undo_spaces) {
+		if (cur_undo_spaces >= target_undo_spaces) {
 			break;
 		}
 	}
