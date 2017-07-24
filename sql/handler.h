@@ -1474,7 +1474,8 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @param[in]  sdi         SDI to write into the tablespace
   @param[in]  sdi_len     length of SDI BLOB returned
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
                           const dd::Table *table,
@@ -1486,7 +1487,8 @@ typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
   @param[in]  tablespace  tablespace object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
                              const dd::Table *table,

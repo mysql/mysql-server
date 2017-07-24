@@ -185,11 +185,11 @@ void check_error_state(THD *thd, const char *operation,
                        const dd::Table *tbl,
                        const dd::Tablespace &tspc)
 {
+  // TODO: Bug#26516584 - Handle SDI API error
   if (thd->is_error() || thd->killed)
   {
     // An error should not be set here, but if it is, we don't want to report
     // ER_SDI_OPERATION_FAILED
-    DBUG_ASSERT(thd->is_error() == false);
     return;
   }
   my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,

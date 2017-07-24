@@ -341,8 +341,18 @@ dict_sdi_set(
 
 	if (err == DB_INTERRUPTED) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "dict_sdi_set: " << tablespace.name()
+				<< "," << tablespace.id()
+				<< " InnoDB space_id: " << space_id
+				<< " sdi_key: type: " << sdi_key->type
+				<< " id: " << sdi_key->id
+				<< " trx_id: " << trx->id
+				<< " is interrupted";
+		);
 		return(true);
 	} else if (err != DB_SUCCESS) {
+		ut_ad(0);
 		return(true);
 	} else {
 		return(false);
@@ -440,8 +450,19 @@ dict_sdi_delete(
 
 	if (err == DB_INTERRUPTED) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+
+		DBUG_EXECUTE_IF("ib_sdi",
+		ib::info() << "dict_sdi_delete(" << tablespace.name()
+				<< "," << tablespace.id()
+				<< " InnoDB space_id: " << space_id
+				<< " sdi_key: type: " << sdi_key->type
+				<< " id: " << sdi_key->id
+				<< " trx_id: " << trx->id
+				<< " is interrupted";
+		);
 		return(true);
 	} else if (err != DB_SUCCESS) {
+		ut_ad(0);
 		return(true);
 	} else {
 		return(false);
