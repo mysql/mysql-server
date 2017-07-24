@@ -7306,29 +7306,31 @@ PageCallback::set_page_size(
 
 /** Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables.
-@param[in] ibd_filepath		File path of the IBD tablespace */
+@param[in]	path		File path of the IBD tablespace */
 void
-fil_delete_file(const char* ibd_filepath)
+fil_delete_file(const char* path)
 {
 	/* Force a delete of any stale .ibd files that are lying around. */
 
-	ib::info() << "Deleting " << ibd_filepath;
+	os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
 
-	os_file_delete_if_exists(innodb_data_file_key, ibd_filepath, nullptr);
+	char*	cfg_filepath = fil_make_filepath(path, nullptr, CFG, false);
 
-	char*	cfg_filepath = fil_make_filepath(
-		ibd_filepath, nullptr, CFG, false);
 	if (cfg_filepath != nullptr) {
+
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfg_filepath, nullptr);
+
 		ut_free(cfg_filepath);
 	}
 
-	char*	cfp_filepath = fil_make_filepath(
-		ibd_filepath, nullptr, CFP, false);
+	char*	cfp_filepath = fil_make_filepath(path, nullptr, CFP, false);
+
 	if (cfp_filepath != nullptr) {
+
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfp_filepath, nullptr);
+
 		ut_free(cfp_filepath);
 	}
 }

@@ -611,15 +611,6 @@ NOTE: temporary tablespaces are never imported.
 @param[in]	space_id	Tablespace ID */
 void
 fil_space_set_imported(space_id_t space_id);
-
-# ifdef UNIV_DEBUG
-/** Determine if a tablespace is temporary.
-@param[in]	space_id	Tablespace ID
-@return whether it is a temporary tablespace */
-bool
-fsp_is_temporary(space_id_t space_id)
-	MY_ATTRIBUTE((warn_unused_result, pure));
-# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Append a file to the chain of files of a space.
@@ -984,7 +975,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name used in
 				fil_space_create().
-@param[in]	print_err_if_not_exist	Print detailed error information to the
+@param[in]	print_er	detailed error information to the
 				error log if a matching tablespace is
 				not found from memory.
 @param[in]	adjust_space	Whether to adjust spaceid on mismatch
@@ -995,7 +986,7 @@ bool
 fil_space_for_table_exists_in_mem(
 	space_id_t	space_id,
 	const char*	name,
-	bool		print_err_if_not_exist,
+	bool		print_err,
 	bool		adjust_space,
 	mem_heap_t*	heap,
 	table_id_t	table_id)
