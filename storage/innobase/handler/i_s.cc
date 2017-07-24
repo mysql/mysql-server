@@ -7080,11 +7080,11 @@ struct st_mysql_plugin	i_s_innodb_columns =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_VIRTUAL **************************************************/
+/**  INNODB_VIRTUAL **************************************************/
 /** Fields of the dynamic table INFORMATION_SCHEMA.INNODB_VIRTUAL */
 static ST_FIELD_INFO	innodb_virtual_fields_info[] =
 {
-#define SYS_VIRTUAL_TABLE_ID		0
+#define INNODB_VIRTUAL_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -7093,7 +7093,7 @@ static ST_FIELD_INFO	innodb_virtual_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_VIRTUAL_POS			1
+#define INNODB_VIRTUAL_POS			1
 	{STRUCT_FLD(field_name,		"POS"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7102,7 +7102,7 @@ static ST_FIELD_INFO	innodb_virtual_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_VIRTUAL_BASE_POS		2
+#define INNODB_VIRTUAL_BASE_POS		2
 	{STRUCT_FLD(field_name,		"BASE_POS"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -7114,7 +7114,6 @@ static ST_FIELD_INFO	innodb_virtual_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-#ifdef INNODB_NO_NEW_DD
 /** Function to populate the information_schema.innodb_virtual with
 related information
 param[in]	thd		thread
@@ -7125,7 +7124,7 @@ param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
-i_s_dict_fill_sys_virtual(
+i_s_dict_fill_innodb_virtual(
 	THD*		thd,
 	table_id_t	table_id,
 	ulint		pos,
@@ -7134,44 +7133,43 @@ i_s_dict_fill_sys_virtual(
 {
 	Field**		fields;
 
-	DBUG_ENTER("i_s_dict_fill_sys_virtual");
+	DBUG_ENTER("i_s_dict_fill_innodb_virtual");
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_VIRTUAL_TABLE_ID]->store(table_id, true));
+	OK(fields[INNODB_VIRTUAL_TABLE_ID]->store(table_id, true));
 
-	OK(fields[SYS_VIRTUAL_POS]->store(pos, true));
+	OK(fields[INNODB_VIRTUAL_POS]->store(pos, true));
 
-	OK(fields[SYS_VIRTUAL_BASE_POS]->store(base_pos, true));
+	OK(fields[INNODB_VIRTUAL_BASE_POS]->store(base_pos, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
 	DBUG_RETURN(0);
 }
-#endif /* INNODB_NO_NEW_DD */
 
 /** Function to fill information_schema.innodb_virtual with information
-collected by scanning SYS_VIRTUAL table.
+collected by scanning INNODB_VIRTUAL table.
 param[in]	thd		thread
 param[in,out]	tables		tables to fill
 param[in]	item		condition (not used)
 @return 0 on success */
 static
 int
-i_s_sys_virtual_fill_table(
+i_s_innodb_virtual_fill_table(
 	THD*		thd,
 	TABLE_LIST*	tables,
 	Item*		)
 {
-#ifdef INNODB_NO_NEW_DD
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
-	ulint		pos;
-	ulint		base_pos;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
+	MDL_ticket*	mdl = nullptr;
+	dict_table_t*	dd_columns;
+	bool		ret;
 
-	DBUG_ENTER("i_s_sys_virtual_fill_table");
+	DBUG_ENTER("i_s_innodb_columns_fill_table");
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7182,28 +7180,31 @@ i_s_sys_virtual_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dict_startscan_system(&pcur, &mtr, SYS_VIRTUAL);
+	/* Start scan the mysql.columns */
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  DD_COLUMNS, &dd_columns);
 
 	while (rec) {
-		const char*	err_msg;
 		table_id_t	table_id;
+		ulint*		pos;
+		ulint*		base_pos;
+		ulint		n_row;
 
 		/* populate a dict_col_t structure with information from
-		a SYS_VIRTUAL row */
-		err_msg = dict_process_sys_virtual_rec(heap, rec,
-						       &table_id, &pos,
-						       &base_pos);
+		a row */
+		ret = dd_process_dd_virtual_columns_rec(
+			heap, rec, &table_id, &pos,
+			&base_pos, &n_row, dd_columns, &mtr);
 
-		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
-		if (!err_msg) {
-			i_s_dict_fill_sys_virtual(thd, table_id, pos, base_pos,
-						  tables->table);
-		} else {
-			push_warning_printf(thd, Sql_condition::SL_WARNING,
-					    ER_CANT_FIND_SYSTEM_REC, "%s",
-					    err_msg);
+		if (ret) {
+			for (ulint i = 0; i < n_row; i++) {
+				i_s_dict_fill_innodb_virtual(thd, table_id,
+							     *(pos++),
+							     *(base_pos++),
+							     tables->table);
+			}
 		}
 
 		mem_heap_empty(heap);
@@ -7211,17 +7212,15 @@ i_s_sys_virtual_fill_table(
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
 		mtr_start(&mtr);
-		rec = dict_getnext_system(&pcur, &mtr);
+		rec = dd_getnext_system_rec(&pcur, &mtr);
 	}
 
 	mtr_commit(&mtr);
+	dd_table_close(dd_columns, thd, &mdl, true);
 	mutex_exit(&dict_sys->mutex);
 	mem_heap_free(heap);
 
 	DBUG_RETURN(0);
-#else
-	return(0);
-#endif /* INNODB_NO_NEW_DD */
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.innodb_virtual
@@ -7239,7 +7238,7 @@ innodb_virtual_init(
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_virtual_fields_info;
-	schema->fill_table = i_s_sys_virtual_fill_table;
+	schema->fill_table = i_s_innodb_virtual_fill_table;
 
 	DBUG_RETURN(0);
 }
@@ -7264,7 +7263,7 @@ struct st_mysql_plugin	i_s_innodb_virtual =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "InnoDB SYS_VIRTUAL"),
+	STRUCT_FLD(descr, "InnoDB INNODB_VIRTUAL"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */

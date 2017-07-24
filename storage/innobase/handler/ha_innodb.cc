@@ -21659,12 +21659,6 @@ i_s_innodb_tablestats,
 i_s_innodb_indexes,
 i_s_innodb_tablespaces,
 i_s_innodb_columns,
-#ifdef INNODB_NO_NEW_DD
-i_s_innodb_fields,
-i_s_innodb_foreign,
-i_s_innodb_foreign_cols,
-i_s_innodb_datafiles,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_virtual,
 i_s_innodb_cached_indexes
 

@@ -3928,7 +3928,7 @@ dd_getnext_system_rec(
 @param[in,out]	nth_v_col	nth v column
 @param[in]	dd_columns	dict_table_t obj of mysql.columns
 @param[in]	mtr		the mini-transaction
-@retval true if index is filled */
+@retval true if column is filled */
 bool
 dd_process_dd_columns_rec(
 	mem_heap_t*		heap,
@@ -4025,6 +4025,122 @@ dd_process_dd_columns_rec(
 	return(true);
 }
 
+/** Process one mysql.columns record for virtual columns
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.columns record
+@param[in,out]	table_id	table id
+@param[in,out]	pos		position
+@param[in,out]	base_pos	base column position
+@param[in,out]	n_row		number of rows
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in]	mtr		the mini-transaction
+@retval true if virtual info is filled */
+bool
+dd_process_dd_virtual_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	table_id_t*		table_id,
+	ulint**			pos,
+	ulint**			base_pos,
+	ulint*			n_row,
+	dict_table_t*		dd_columns,
+	mtr_t*			mtr)
+{
+	ulint		len;
+	const byte*	field;
+	ulint		origin_pos;
+	bool		is_hidden;
+	bool		is_virtual;
+
+	ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
+
+	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
+					  ULINT_UNDEFINED, &heap);
+
+	/* Get the is_virtual attibute, and skip if it's not a virtual column. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 21, &len);
+	is_virtual = mach_read_from_1(field) & 0x01;
+	if (!is_virtual) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get the hidden attibute, and skip if it's a hidden column. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
+	is_hidden = mach_read_from_1(field) & 0x01;
+	if (is_hidden) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	/* Get the position. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 5, &len);
+	origin_pos = mach_read_from_4(field) - 1;
+
+	/* Get the se_private_data field. */
+	field = (const byte*)rec_get_nth_field(rec, offsets, 27, &len);
+
+	if (len == 0 || len == UNIV_SQL_NULL) {
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	char* p_ptr = (char*)mem_heap_strdupl(heap, (const char*) field, len);
+	dd::String_type prop((char*)p_ptr);
+	dd::Properties* p = dd::Properties::parse_properties(prop);
+
+	/* Load the table and get the col. */
+	if (!p || !p->exists(dd_index_key_strings[DD_TABLE_ID])) {
+		if (p) {
+			delete p;
+		}
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	if (!p->get_uint64(dd_index_key_strings[DD_TABLE_ID], (uint64*)table_id)) {
+		THD*		thd = current_thd;
+		dict_table_t*	table;
+		MDL_ticket*	mdl = NULL;
+		dict_v_col_t*	vcol = NULL;
+
+		/* Commit before we try to load the table. */
+		mtr_commit(mtr);
+		table = dd_table_open_on_id(*table_id, thd, &mdl, true, true);
+
+		if (!table) {
+			delete p;
+			return(false);
+		}
+
+		vcol = dict_table_get_nth_v_col_mysql(table, origin_pos);
+
+		/* Copy info. */
+		if (vcol == NULL || vcol->num_base == 0) {
+			dd_table_close(table, thd, &mdl, true);
+			delete p;
+			return(false);
+		}
+
+		*pos = static_cast<ulint*>(mem_heap_alloc(heap, vcol->num_base * sizeof(ulint)));
+		*base_pos = static_cast<ulint*>(
+			mem_heap_alloc(heap, vcol->num_base * sizeof(ulint)));
+		*n_row = vcol->num_base;
+		for (ulint i = 0; i < *n_row; i++) {
+			(*pos)[i] = dict_create_v_col_pos(vcol->v_pos, vcol->m_col.ind);
+			(*base_pos)[i] = vcol->base_col[i]->ind;
+		}
+
+		dd_table_close(table, thd, &mdl, true);
+		delete p;
+	} else {
+		delete p;
+		mtr_commit(mtr);
+		return(false);
+	}
+
+	return(true);
+}
 /** Process one mysql.indexes record and get dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record

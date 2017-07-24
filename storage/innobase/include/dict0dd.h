@@ -465,6 +465,27 @@ dd_process_dd_columns_rec(
 	dict_table_t*		dd_columns,
 	mtr_t*			mtr);
 
+/** Process one mysql.columns record for virtual columns
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.columns record
+@param[in,out]	table_id	table id
+@param[in,out]	pos		position
+@param[in,out]	base_pos	base column position
+@param[in,out]	n_row		number of rows
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in]	mtr		the mini-transaction
+@retval true if virtual info is filled */
+bool
+dd_process_dd_virtual_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	table_id_t*		table_id,
+	ulint**			pos,
+	ulint**			base_pos,
+	ulint*			n_row,
+	dict_table_t*		dd_columns,
+	mtr_t*			mtr);
+
 /** Get next record of new DD system tables
 @param[in,out]	pcur		persistent cursor
 @param[in]		mtr			the mini-transaction
