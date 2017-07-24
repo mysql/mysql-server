@@ -87,7 +87,7 @@ struct fil_node_t {
 	/** tablespace containing this file */
 	fil_space_t*		space;
 
-	/** file name; protected by fil_system->mutex and log_sys->mutex. */
+	/** file name; protected by Fil_shard::m_mutex and log_sys->mutex. */
 	char*			name;
 
 	/** whether this file is open. Note: We set the is_open flag after
@@ -219,7 +219,7 @@ struct fil_space_t {
 	/** This is positive when we have pending operations against this
 	tablespace. The pending operations can be ibuf merges or lock
 	validation code trying to read a block.  Dropping of the tablespace
-	is forbidden if this is positive.  Protected by fil_system->mutex. */
+	is forbidden if this is positive.  Protected by Fil_shard::m_mutex. */
 	uint32_t		n_pending_ops;
 
 #ifndef UNIV_HOTBACKUP
@@ -565,28 +565,27 @@ or the caller should be in single-threaded crash recovery mode
 (no user connections that could drop tablespaces).
 If this is not the case, fil_space_acquire() and fil_space_release()
 should be used instead.
-@param[in]	id	tablespace ID
+@param[in]	space_id	Tablespace ID
 @return tablespace, or nullptr if not found */
 fil_space_t*
-fil_space_get(
-	space_id_t	id)
+fil_space_get(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns the latch of a file space.
-@param[in]	id	space id
+@param[in]	space_id	Tablespace ID
 @param[out]	flags	tablespace flags
 @return latch protecting storage allocation */
 rw_lock_t*
-fil_space_get_latch(
-	space_id_t	id,
-	ulint*		flags);
+fil_space_get_latch(space_id_t id, ulint* flags)
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 /** Gets the type of a file space.
-@param[in]	id	tablespace identifier
+@param[in]	space_id	Tablespace ID
 @return file type */
 fil_type_t
-fil_space_get_type(space_id_t id);
+fil_space_get_type(space_id_t space_id)
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
@@ -594,18 +593,17 @@ It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
 Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
-@param[in]	id	tablespace identifier */
+@param[in]	space_id	Tablespace ID */
 void
-fil_space_set_imported(
-	space_id_t	id);
+fil_space_set_imported(space_id_t space_id);
 
 # ifdef UNIV_DEBUG
 /** Determine if a tablespace is temporary.
-@param[in]	id	tablespace identifier
+@param[in]	space_id	Tablespace ID
 @return whether it is a temporary tablespace */
 bool
-fsp_is_temporary(ulint id)
-MY_ATTRIBUTE((warn_unused_result, pure));
+fsp_is_temporary(space_id_t space_idd)
+	MY_ATTRIBUTE((warn_unused_result, pure));
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -631,16 +629,16 @@ fil_node_create(
 /** Create a space memory object and put it to the fil_system hash table.
 The tablespace name is independent from the tablespace file-name.
 Error messages are issued to the server log.
-@param[in]	name	tablespace name
-@param[in]	id	tablespace identifier
-@param[in]	flags	tablespace flags
-@param[in]	purpose	tablespace purpose
+@param[in]	name		Tablespace name
+@param[in]	space_id	Tablespace ID
+@param[in]	flags		tablespace flags
+@param[in]	purpose		tablespace purpose
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
 fil_space_t*
 fil_space_create(
 	const char*	name,
-	space_id_t	id,
+	space_id_t	space_id,
 	ulint		flags,
 	fil_type_t	purpose)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -651,16 +649,17 @@ is not enough, we may need to recycle id's.
 @param[in,out]	space_id		New space ID
 @return true if assigned, false if not */
 bool
-fil_assign_new_space_id(space_id_t* space_id);
+fil_assign_new_space_id(space_id_t* space_id)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns the path from the first fil_node_t found with this space ID.
 The caller is responsible for freeing the memory allocated here for the
 value returned.
-@param[in]	id	Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return own: A copy of fil_node_t::path, nullptr if space ID is zero
 	or not found. */
 char*
-fil_space_get_first_path(space_id_t id)
+fil_space_get_first_path(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns the size of the space in pages. The tablespace must be cached
@@ -668,7 +667,7 @@ in the memory cache.
 @param[in]	id		Tablespace ID
 @return space size, 0 if space not found */
 page_no_t
-fil_space_get_size(space_id_t id)
+fil_space_get_size(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns the flags of the space. The tablespace must be cached
@@ -689,7 +688,7 @@ fil_space_set_flags(
 	ulint		flags);
 
 /** Open each file of a tablespace if not already open.
-@param[in]	space_id	tablespace identifier
+@param[in]	space_id	Tablespace ID
 @retval	true	if all file nodes were opened
 @retval	false	on failure */
 bool
@@ -697,18 +696,18 @@ fil_space_open(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Close each file of a tablespace if open.
-@param[in]	space_id	tablespace identifier */
+@param[in]	space_id	Tablespace ID */
 void
 fil_space_close(space_id_t space_id);
 
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
-@param[in]	id		Tablespace id
+@param[in]	space_id	Tablespace ID
 @param[out]	found		true if tablespace was found
 @return page size */
 const page_size_t
 fil_space_get_page_size(
-	space_id_t	id,
+	space_id_t	space_id,
 	bool*		found)
 	MY_ATTRIBUTE((warn_unused_result));
 
@@ -775,19 +774,19 @@ fil_write_flushed_lsn(lsn_t lsn)
 /** Acquire a tablespace when it could be dropped concurrently.
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t*
-fil_space_acquire(space_id_t id)
+fil_space_acquire(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Acquire a tablespace that may not exist.
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t*
-fil_space_acquire_silent(space_id_t id)
+fil_space_acquire_silent(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Release a tablespace acquired with fil_space_acquire().
@@ -800,13 +799,13 @@ fil_space_release(fil_space_t* space);
 /** Deletes an IBD tablespace, either general or single-table.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	id		Tablespace id
+@param[in]	space_id	Tablespace ID
 @param[in]	buf_remove	Specify the action to take on the pages
 for this table in the buffer pool.
 @return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
 dberr_t
 fil_delete_tablespace(
-	space_id_t	id,
+	space_id_t	space_id,
 	buf_remove_t	buf_remove)
 	MY_ATTRIBUTE((warn_unused_result));
 
@@ -821,8 +820,8 @@ fil_paths_equal(const char* lhs, const char* rhs)
 
 /** Fetch the file name opened for a space_id during recovery
 from the file map.
-@param[in]	space_id	Undo tablespace id
-@return file name that was opened, empty string if space id not found. */
+@param[in]	space_id	Undo tablespace ID
+@return file name that was opened, empty string if space ID not found. */
 std::string
 fil_system_open_fetch(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
@@ -840,12 +839,10 @@ fil_truncate_tablespace(
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @param[in,out]	trx		Transaction covering the close
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return DB_SUCCESS or error */
 dberr_t
-fil_close_tablespace(
-	trx_t*		trx,
-	space_id_t	id)
+fil_close_tablespace(trx_t* trx, space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Discards a single-table tablespace. The tablespace must be cached in the
@@ -860,16 +857,16 @@ memory cache. Discarding is like deleting a tablespace, but
     same id as it originally had.
 
  4. Free all the pages in use by the tablespace if rename=true.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return DB_SUCCESS or error */
 dberr_t
-fil_discard_tablespace(space_id_t id)
+fil_discard_tablespace(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Test if a tablespace file can be renamed to a new filepath by checking
 if that the old filepath exists and the new filepath does not exist.
-@param[in]	space_id	Tablespace id
+@param[in]	space_id	Tablespace ID
 @param[in]	old_path	Old filepath
 @param[in]	new_path	New filepath
 @param[in]	is_discarded	Whether the tablespace is discarded
@@ -884,7 +881,7 @@ fil_rename_tablespace_check(
 
 /** Rename a single-table tablespace.
 The tablespace must exist in the memory cache.
-@param[in]	id		Tablespace identifier
+@param[in]	space_id	Tablespace ID
 @param[in]	old_path	Old file name
 @param[in]	new_name	New table name in the databasename/tablename
 				format
@@ -893,7 +890,7 @@ The tablespace must exist in the memory cache.
 @return true if success */
 bool
 fil_rename_tablespace(
-	space_id_t	id,
+	space_id_t	space_id,
 	const char*	old_path,
 	const char*	new_name,
 	const char*	new_path_in)
@@ -950,7 +947,7 @@ The fil_node_t::handle will not be left open.
 				(read the first page of the file and
 				check that the space id in it matches id)
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	id		tablespace ID
+@param[in]	space_id	Tablespace ID
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
@@ -960,7 +957,7 @@ dberr_t
 fil_ibd_open(
 	bool		validate,
 	fil_type_t	purpose,
-	space_id_t	id,
+	space_id_t	space_id,
 	ulint		flags,
 	const char*	space_name,
 	const char*	path_in)
@@ -969,7 +966,7 @@ fil_ibd_open(
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache. Note that if we have not done a crash recovery at the database
 startup, there may be many tablespaces which are not yet in the memory cache.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name used in
 				fil_space_create().
 @param[in]	print_err_if_not_exist	Print detailed error information to the
@@ -981,7 +978,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
-	space_id_t	id,
+	space_id_t	space_id,
 	const char*	name,
 	bool		print_err_if_not_exist,
 	bool		adjust_space,
@@ -1000,7 +997,7 @@ fil_extend_tablespaces_to_stored_len();
 #endif /* !UNIV_HOTBACKUP */
 
 /** Try to extend a tablespace if it is smaller than the specified size.
-@param[in,out]	space		tablespace
+@param[in,out]	space		Tablespace ID
 @param[in]	size		desired size in pages
 @return whether the tablespace is at least as big as requested */
 bool
@@ -1010,31 +1007,31 @@ fil_space_extend(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Tries to reserve free extents in a file space.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @param[in]	n_free_now	Number of free extents now
 @param[in]	n_to_reserve	How many one wants to reserve
 @return true if succeed */
 bool
 fil_space_reserve_free_extents(
-	space_id_t	id,
+	space_id_t	space_id,
 	ulint		n_free_now,
 	ulint		n_to_reserve)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Releases free extents in a file space.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @param[in]	n_reserved	How many were reserved */
 void
 fil_space_release_free_extents(
-	space_id_t	id,
+	space_id_t	space_id,
 	ulint		n_reserved);
 
 /** Gets the number of reserved extents. If the database is silent, this
 number should be zero.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return the number of reserved extents */
 ulint
-fil_space_get_n_reserved_extents(space_id_t id)
+fil_space_get_n_reserved_extents(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Read or write data. This operation could be asynchronous (aio).
@@ -1184,20 +1181,20 @@ Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 
 #ifdef UNIV_DEBUG
 /** Increase redo skipped of a tablespace.
-@param[in]	id		Tablespace id */
+@param[in]	space_id	Tablespace ID */
 void
-fil_space_inc_redo_skipped_count(space_id_t id);
+fil_space_inc_redo_skipped_count(space_id_t space_id);
 
 /** Decrease redo skipped of a tablespace.
-@param[in]	id		Tablespace id */
+@param[in]	space_id	Tablespace ID */
 void
-fil_space_dec_redo_skipped_count(space_id_t id);
+fil_space_dec_redo_skipped_count(space_id_t space_id);
 
 /** Check whether a single-table tablespace is redo skipped.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return true if redo skipped */
 bool
-fil_space_is_redo_skipped(space_id_t id);
+fil_space_is_redo_skipped(space_id_t space_id);
 #endif /* UNIV_DEBUG */
 
 /** Delete the tablespace file and any related files like .cfg.
