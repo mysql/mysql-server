@@ -791,25 +791,25 @@ srv_undo_tablespace_open(space_id_t space_id)
 	bool			success;
 	ulint			flags;
 	bool			atomic_write;
+	std::string		scanned_name;
 	dberr_t			err = DB_ERROR;
 	undo::Tablespace	undo_space(space_id);
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
-	std::string		recover_name;
 
 	if (srv_is_being_started) {
 
 		/* See if the previous name in the file map is correct. */
-		recover_name = fil_system_open_fetch(space_id);
+		scanned_name = fil_system_open_fetch(space_id);
 
-		if (recover_name.length() != 0
-		    && !fil_paths_equal(file_name, recover_name.c_str())) {
+		if (scanned_name.length() != 0
+		    && !fil_paths_equal(file_name, scanned_name.c_str())) {
 
 			/* Make sure that this space_id is used by the
 			correctly named undo tablespace. */
 			ib::error()
 				<< "Cannot create " << file_name
-				<< " because " << recover_name.c_str()
+				<< " because " << scanned_name.c_str()
 				<< " already uses Space ID=" << space_id
 				<< "!  Did you change innodb_undo_directory?";
 
@@ -820,7 +820,7 @@ srv_undo_tablespace_open(space_id_t space_id)
 		/* If we are not in recovery then the paths and filenames
 		should all be known and synced with the data dictionary. */
 
-		recover_name = file_name;
+		scanned_name = file_name;
 
 	}
 
@@ -831,7 +831,7 @@ srv_undo_tablespace_open(space_id_t space_id)
 
 #ifdef UNIV_DEBUG
 		const auto&     file = space->files.front();
-		ut_ad(fil_paths_equal(recover_name.c_str(), file.name));
+		ut_ad(fil_paths_equal(scanned_name.c_str(), file.name));
 #endif /* UNIV_DEBUG */
 
 		fil_flush(space_id);
@@ -944,7 +944,7 @@ dberr_t
 srv_undo_tablespaces_open(
 	ulong	target_undo_spaces)
 {
-	dberr_t					err;
+	dberr_t		err;
 
 	/* Build a list of existing undo tablespaces from the references
 	in the TRX_SYS page. (not including the system tablespace) */
