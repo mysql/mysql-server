@@ -960,6 +960,7 @@ public:
 	static bool space_belongs_in_LRU(const fil_space_t* space)
 		MY_ATTRIBUTE((warn_unused_result));
 
+#ifdef UNIV_DEBUG
 	/** Validate a shard
 	@param[in]	shard	shard to validate */
 	void validate_shard(const Fil_shard* shard) const;
@@ -968,6 +969,7 @@ public:
 	@return true if ok */
 	bool validate() const
 		MY_ATTRIBUTE((warn_unused_result));
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 
@@ -1093,7 +1095,95 @@ static ulint	srv_data_written;
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
-# define FIL_VALIDATE_SKIP	17
+static const size_t	FIL_VALIDATE_SKIP = 17;
+/** Checks the consistency of the tablespace cache some of the time.
+@return true if ok or the check was skipped */
+static
+bool
+fil_validate_skip()
+{
+	/** The fil_validate() call skip counter. Use a signed type
+	because of the race condition below. */
+	static int fil_validate_count = FIL_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly fil_validate() check
+	in debug builds. */
+	--fil_validate_count;
+
+	if (fil_validate_count > 0) {
+		return(true);
+	}
+
+	fil_validate_count = FIL_VALIDATE_SKIP;
+	return(fil_validate());
+}
+
+/** Validate a shard
+@param[in]	shard	shard to validate */
+void
+Fil_system::validate_shard(const Fil_shard* shard) const
+{
+	ut_ad(shard->mutex_owned());
+
+	size_t	n_open = 0;
+
+	for (auto elem : shard->m_spaces) {
+
+		ulint	size = 0;
+		auto	space = elem.second;
+
+		for (const auto& file : space->files) {
+
+			ut_a(file.is_open || !file.n_pending);
+
+			if (file.is_open) {
+				++n_open;
+			}
+
+			size += file.size;
+		}
+
+		ut_a(space->size == size);
+	}
+
+	UT_LIST_CHECK(shard->m_LRU);
+
+	for (auto file  = UT_LIST_GET_FIRST(shard->m_LRU);
+	     file != nullptr;
+	     file = UT_LIST_GET_NEXT(LRU, file)) {
+
+		ut_a(file->is_open);
+		ut_a(file->n_pending == 0);
+		ut_a(space_belongs_in_LRU(file->space));
+	}
+}
+
+/** Checks the consistency of the tablespace cache.
+@return true if ok */
+bool
+Fil_system::validate() const
+{
+	for (const auto shard : m_shards) {
+
+		shard->mutex_acquire();
+
+		validate_shard(shard);
+
+		shard->mutex_release();
+	}
+
+	return(true);
+}
+/** Checks the consistency of the tablespace cache.
+@return true if ok */
+bool
+fil_validate()
+{
+	return(fil_system->validate());
+}
+#endif /* UNIV_DEBUG */
 
 /** Constructor.
 @param[in]	n_shards	Number of shards to create
@@ -1308,31 +1398,6 @@ Fil_shard::space_rename(fil_space_t* space, char* name)
 
 	ut_a(it.second);
 }
-
-/** Checks the consistency of the tablespace cache some of the time.
-@return true if ok or the check was skipped */
-static
-bool
-fil_validate_skip()
-{
-	/** The fil_validate() call skip counter. Use a signed type
-	because of the race condition below. */
-	static int fil_validate_count = FIL_VALIDATE_SKIP;
-
-	/* There is a race condition below, but it does not matter,
-	because this call is only for heuristic purposes. We want to
-	reduce the call frequency of the costly fil_validate() check
-	in debug builds. */
-	--fil_validate_count;
-
-	if (fil_validate_count > 0) {
-		return(true);
-	}
-
-	fil_validate_count = FIL_VALIDATE_SKIP;
-	return(fil_validate());
-}
-#endif /* UNIV_DEBUG */
 
 /** Check if the name is an undo tablespace name.
 @param[in]	name	Tablespace name
@@ -6763,71 +6828,6 @@ Fil_system::flush_file_spaces(uint8_t purpose)
 
 		shard->flush_file_spaces(purpose);
 	}
-}
-
-/** Validate a shard
-@param[in]	shard	shard to validate */
-void
-Fil_system::validate_shard(const Fil_shard* shard) const
-{
-	ut_ad(shard->mutex_owned());
-
-	size_t	n_open = 0;
-
-	for (auto elem : shard->m_spaces) {
-
-		ulint	size = 0;
-		auto	space = elem.second;
-
-		for (const auto& file : space->files) {
-
-			ut_a(file.is_open || !file.n_pending);
-
-			if (file.is_open) {
-				++n_open;
-			}
-
-			size += file.size;
-		}
-
-		ut_a(space->size == size);
-	}
-
-	UT_LIST_CHECK(shard->m_LRU);
-
-	for (auto file  = UT_LIST_GET_FIRST(shard->m_LRU);
-	     file != nullptr;
-	     file = UT_LIST_GET_NEXT(LRU, file)) {
-
-		ut_a(file->is_open);
-		ut_a(file->n_pending == 0);
-		ut_a(space_belongs_in_LRU(file->space));
-	}
-}
-
-/** Checks the consistency of the tablespace cache.
-@return true if ok */
-bool
-Fil_system::validate() const
-{
-	for (const auto shard : m_shards) {
-
-		shard->mutex_acquire();
-
-		validate_shard(shard);
-
-		shard->mutex_release();
-	}
-
-	return(true);
-}
-
-/** Checks the consistency of the tablespace cache.
-@return true if ok */
-bool
-fil_validate()
-{
-	return(fil_system->validate());
 }
 
 /** Flush to disk the writes in file spaces of the given type

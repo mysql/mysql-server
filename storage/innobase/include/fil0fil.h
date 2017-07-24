@@ -1101,10 +1101,12 @@ possibly cached by the OS.
 void
 fil_flush_file_spaces(uint8_t purpose);
 
+#ifdef UNIV_DEBUG
 /** Checks the consistency of the tablespace cache.
 @return true if ok */
 bool
 fil_validate();
+#endif /* UNIV_DEBUG */
 
 /** Returns true if file address is undefined.
 @param[in]	addr		File address to check

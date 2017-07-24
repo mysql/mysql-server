@@ -939,7 +939,7 @@ SysTablespace::open_or_create(
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
-		ut_a(fil_validate());
+		ut_ad(fil_validate());
 
 		page_no_t	max_size = (++node_counter == m_files.size()
 				    ? (m_last_file_size_max == 0

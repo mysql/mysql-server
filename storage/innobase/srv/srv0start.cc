@@ -400,8 +400,9 @@ create_log_files(
 		"innodb_redo_log", dict_sys_t::log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
-	ut_a(fil_validate());
-	ut_a(log_space != NULL);
+
+	ut_ad(fil_validate());
+	ut_a(log_space != nullptr);
 
 	/* Once the redo log is set to be encrypted,
 	initialize encryption information. */
@@ -881,8 +882,8 @@ srv_undo_tablespace_open(space_id_t space_id)
 		space = fil_space_create(
 			undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
 
-		ut_a(space);
-		ut_a(fil_validate());
+		ut_a(space != nullptr);
+		ut_ad(fil_validate());
 
 		os_offset_t size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t)-1);
@@ -2280,8 +2281,8 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
-		ut_a(fil_validate());
-		ut_a(log_space);
+		ut_ad(fil_validate());
+		ut_a(log_space != nullptr);
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
