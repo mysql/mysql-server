@@ -34,10 +34,10 @@ WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'test%'
 	ORDER BY t.name, i.name;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
-test/t1	5	0	PRIMARY	5	3	4	50
-test/t2	5	1	PRIMARY	5	3	4	50
-test/t3	5	41	PRIMARY	5	3	4	50
-test/t4	5	33	PRIMARY	5	3	4	50
+test/t1	5	0	PRIMARY	4	3	4	50
+test/t2	5	1	PRIMARY	4	3	4	50
+test/t3	5	41	PRIMARY	4	3	4	50
+test/t4	5	33	PRIMARY	4	3	4	50
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 innodb_file_per_table.##	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1.ibd
