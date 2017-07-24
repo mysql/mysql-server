@@ -687,17 +687,15 @@ DROP TABLE b,bb;
 CREATE TABLE t1 (
   col_varchar_255_latin1_key varchar(255) DEFAULT NULL,
   pk int(11) NOT NULL AUTO_INCREMENT,
-  PRIMARY KEY (pk DESC),
+  KEY (pk DESC),
   KEY k3 (col_varchar_255_latin1_key DESC)
 );
 INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
-('some',23), ('gbpmqht',22), ('the',21), ('good',20), ('zbycehdfocd',19),
-('k',18), ('f',17), ('g',16), ('w',15), ('u',14), ('one',13), ('ohdbyix',12),
-('n',11), ('his',10), ('c',9), ('how',8), ('e',7), ('look',6), ('of',5),
-('l',4), ('something',3), ('ycyoybhug',2), ('my',1);
-
-INSERT INTO t1(col_varchar_255_latin1_key, pk)
-  SELECT col_varchar_255_latin1_key, pk+23 FROM t1;
+('l',4), ('something',3), ('ycyoybhug',2), ('l',5), ('my',1),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
 
 SELECT
 t1 . pk AS field1,
