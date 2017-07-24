@@ -335,7 +335,7 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
---replace_regex /BINARY// /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
+--replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
 --exec $MYSQLXTEST -uroot --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
 
 ## Cleanup
