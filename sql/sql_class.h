@@ -222,8 +222,7 @@ public:
 };
 
 
-#define TC_LOG_PAGE_SIZE   8192
-#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
+#define TC_LOG_MIN_PAGES   6
 
 typedef struct st_user_var_events
 {
