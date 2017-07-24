@@ -1295,6 +1295,7 @@ srv_undo_tablespaces_upgrade()
 /** Downgrade undo tablespaces by deleting the new undo tablespaces which
 are not referenced by the TRX_SYS page.
 @return error code */
+static
 void
 srv_undo_tablespaces_downgrade()
 {

@@ -168,6 +168,9 @@ enum fil_operation_t {
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
+/** Sentinel for empty open slot. */
+static const size_t EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
+
 /** Hash a NUL terminated 'string' */
 struct Char_Ptr_Hash {
 
@@ -300,6 +303,12 @@ public:
 
 		ut_a(UT_LIST_GET_LEN(m_LRU) == 0);
 		ut_a(UT_LIST_GET_LEN(m_unflushed_spaces) == 0);
+	}
+
+	/** @return the shard ID */
+	size_t id() const
+	{
+		return(m_id);
 	}
 
 #ifndef UNIV_HOTBACKUP
@@ -470,7 +479,7 @@ public:
 	bool prepare_file_for_io(fil_node_t* file, bool extend)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Reserves the fil_system mutex and tries to make sure we can
+	/** Reserves the mutex and tries to make sure we can
 	open at least one file while holding it. This should be called
 	before calling prepare_file_for_io(), because that function
 	may need to open a file.
@@ -579,11 +588,35 @@ public:
 	bool space_truncate(space_id_t space_id, page_no_t size_in_pages)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Create a space memory object and put it to the fil_system hash
+	table. The tablespace name is independent from the tablespace file-name.
+	Error messages are issued to the server log.
+	@param[in]	name	Tablespace name
+	@param[in]	id	Tablespace identifier
+	@param[in]	flags	Tablespace flags
+	@param[in]	purpose	Tablespace purpose
+	@return pointer to created tablespace
+	@retval nullptr on failure (such as when the same tablespace exists) */
+	fil_space_t* space_create(
+		const char*	name,
+		space_id_t	space_id,
+		ulint		flags,
+		fil_type_t	purpose)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
 	static void space_free_low(fil_space_t* space);
 
+	/** Reserve a slot for opening a file.
+	@param[in]	shard_id	ID of shard that wants to reserve
+	@return true if slot has been reserved. */
+	static bool acquire_open_slot(size_t shard_id);
+
+	/** Release the reserved  slot for opening a file.
+	@param[in]	shard_id	ID of shard that wants to release */
+	static void release_open_slot(size_t shard_id);
 private:
 
 	/** Prepare for truncating a single-table tablespace.
@@ -629,7 +662,7 @@ private:
 
 	/** Fil_shard ID */
 
-	size_t		m_id;
+	const size_t	m_id;
 
 	/** Tablespace instances hashed on the space id */
 
@@ -661,6 +694,10 @@ private:
 	/** Number of files currently open */
 
 	static std::atomic_size_t	s_n_open;
+
+	/** ID of shard that has reserved the open slot. */
+
+	static std::atomic_size_t	s_open_slot;
 
 	// Disable copying
 	Fil_shard(Fil_shard&&) = delete;
@@ -985,6 +1022,9 @@ static Fil_system*	fil_system = nullptr;
 /** Total number of open files. */
 std::atomic_size_t	Fil_shard::s_n_open;
 
+/** Slot reserved for opening a file. */
+std::atomic_size_t	Fil_shard::s_open_slot;
+
 #ifdef UNIV_HOTBACKUP
 static ulint	srv_data_read;
 static ulint	srv_data_written;
@@ -1004,6 +1044,10 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
 	m_max_assigned_id(),
 	m_space_id_reuse_warned()
 {
+	ut_ad(Fil_shard::s_open_slot == 0);
+
+	Fil_shard::s_open_slot = EMPTY_OPEN_SLOT;
+
 	for (size_t i = 0; i < n_shards; ++i) {
 
 		auto	shard = UT_NEW_NOKEY(Fil_shard(i));
@@ -1015,6 +1059,10 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
 /** Destructor */
 Fil_system::~Fil_system()
 {
+	ut_ad(Fil_shard::s_open_slot == EMPTY_OPEN_SLOT);
+
+	Fil_shard::s_open_slot = 0;
+
 	for (auto shard : m_shards) {
 
 		UT_DELETE(shard);
@@ -1066,6 +1114,30 @@ Fil_shard::Fil_shard(size_t id)
 	UT_LIST_INIT(m_LRU, &fil_node_t::LRU);
 
 	UT_LIST_INIT(m_unflushed_spaces, &fil_space_t::unflushed_spaces);
+}
+
+/** Reserve a slot for opening a file.
+@param[in]	shard_id	ID of shard that wants to reserve
+@return true if slot has been reserved. */
+bool
+Fil_shard::acquire_open_slot(size_t shard_id)
+{
+	size_t	expected = EMPTY_OPEN_SLOT;
+
+	return(s_open_slot.compare_exchange_weak(expected, shard_id));
+}
+
+/** Release the reserved  slot for opening a file.
+@param[in]	shard_id	ID of shard that wants to release */
+void
+Fil_shard::release_open_slot(size_t shard_id)
+{
+	size_t	expected = shard_id;
+
+	bool	success = s_open_slot.compare_exchange_weak(
+		expected, EMPTY_OPEN_SLOT);
+
+	ut_a(success);
 }
 
 /** Map the space ID and name to the tablespace instance.
@@ -1141,6 +1213,9 @@ Fil_shard::close_file(space_id_t space_id)
 	auto	space = get_space_by_id(space_id);
 
 	if (space == nullptr) {
+
+		mutex_release();
+
 		return(false);
 	}
 
@@ -1862,7 +1937,6 @@ Fil_shard::close_file(fil_node_t* file, bool LRU_close)
 }
 
 /** Tries to close a file in the LRU list.
-The caller must hold the fil_sys mutex.
 @param[in]	print_info	if true, prints information why it cannot close
 				a file
 @return true if success, false if should retry later */
@@ -1917,7 +1991,6 @@ Fil_shard::close_files_in_LRU(bool print_info)
 }
 
 /** Tries to close a file in the LRU list.
-The caller must hold the fil_sys mutex.
 @param[in] print_info   if true, prints information why it cannot close a file
 @return true if success, false if should retry later */
 bool
@@ -1945,7 +2018,7 @@ Fil_system::close_file_in_all_LRU(bool print_info)
 	return(false);
 }
 
-/** Reserves the fil_system mutex and tries to make sure we can open at least
+/** Reserves the mutex and tries to make sure we can open at least
 one file while holding it. This should be called before calling
 prepare_file_for_io(), because that function may need to open a file.
 @param[in]	space_id	Tablespace ID */
@@ -1955,6 +2028,13 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 	ulint		count = 0;
 	ulint		count2 = 0;
 	bool		print_info = false;
+
+	/* Reserve an open slot for this shard. So that this shard's open
+	file succeeds. */
+	
+	while (!acquire_open_slot(m_id)) {
+		os_thread_sleep(1000);
+	}
 
 	for (;;) {
 
@@ -1969,6 +2049,7 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 			another read from the insert buffer. The insert buffer
 			is in tablespace TRX_SYS_SPACE, and we cannot end up
 			waiting in this function. */
+
 			return;
 		}
 
@@ -2037,6 +2118,7 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 		while (s_n_open >= fil_system->m_max_n_open) {
 
 			if (fil_system->close_file_in_all_LRU(print_info)) {
+
 				break;
 			}
 		}
@@ -2254,36 +2336,26 @@ Error messages are issued to the server log.
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
 fil_space_t*
-fil_space_create(
+Fil_shard::space_create(
 	const char*	name,
-	space_id_t	id,
+	space_id_t	space_id,
 	ulint		flags,
 	fil_type_t	purpose)
 {
-	ut_ad(fsp_flags_is_valid(flags));
-	ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
-
-	DBUG_EXECUTE_IF("fil_space_create_failure", return(nullptr););
-
-	/* Must set back to active before returning from function. */
-	clone_mark_abort(true);
-
-	auto	shard = fil_system->shard_by_id(id);
-
-	shard->mutex_acquire();
+	ut_ad(mutex_owned());
 
 	/* Look for a matching tablespace. */
-	fil_space_t*	space = shard->get_space_by_name(name);
+	fil_space_t*	space = get_space_by_name(name);
 
 	ut_a(space == nullptr);
 
-	space = shard->get_space_by_id(id);
+	space = get_space_by_id(space_id);
 
 	ut_a(space == nullptr);
 
 	space = static_cast<fil_space_t*>(ut_zalloc_nokey(sizeof(*space)));
 
-	space->id = id;
+	space->id = space_id;
 
 	space->name = mem_strdup(name);
 
@@ -2291,8 +2363,8 @@ fil_space_create(
 
 	if (fil_type_is_data(purpose)
 	    && !recv_recovery_on
-	    && fil_system->is_greater_than_max_id(id)
-	    && !dict_sys_t::is_reserved(id)) {
+	    && fil_system->is_greater_than_max_id(space_id)
+	    && !dict_sys_t::is_reserved(space_id)) {
 
 		fil_system->set_maximum_space_id(space);
 	}
@@ -2311,9 +2383,42 @@ fil_space_create(
 		ut_d(space->latch.set_temp_fsp());
 	}
 
-	shard->space_add(space);
+	space_add(space);
 
-	shard->mutex_release();
+	return(space);
+}
+
+/** Create a space memory object and put it to the fil_system hash table.
+The tablespace name is independent from the tablespace file-name.
+Error messages are issued to the server log.
+@param[in]	name	Tablespace name
+@param[in]	id	Tablespace identifier
+@param[in]	flags	Tablespace flags
+@param[in]	purpose	Tablespace purpose
+@return pointer to created tablespace, to be filled in with fil_node_create()
+@retval nullptr on failure (such as when the same tablespace exists) */
+fil_space_t*
+fil_space_create(
+	const char*	name,
+	space_id_t	space_id,
+	ulint		flags,
+	fil_type_t	purpose)
+{
+	ut_ad(fsp_flags_is_valid(flags));
+	ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
+
+	DBUG_EXECUTE_IF("fil_space_create_failure", return(nullptr););
+
+	fil_system->mutex_acquire_all();
+
+	/* Must set back to active before returning from function. */
+	clone_mark_abort(true);
+
+	auto	shard = fil_system->shard_by_id(space_id);
+
+	auto	space = shard->space_create(name, space_id, flags, purpose);
+
+	fil_system->mutex_release_all();
 
 	clone_mark_active();
 
@@ -2418,6 +2523,8 @@ Fil_shard::space_load(space_id_t space_id)
 		mutex_acquire_and_prepare_for_io(). */
 
 		mutex_acquire_and_prepare_for_io(space_id);
+
+		release_open_slot(m_id);
 
 		/* We are still holding the mutex. Check if the space is
 		still in memory cache. */
@@ -5193,7 +5300,6 @@ fil_space_for_table_exists_in_mem(
 
 /** Return the space ID based on the tablespace name.
 The tablespace must be found in the tablespace memory cache.
-This call is made from external to this module, so the mutex is not owned.
 @param[in]	name		Tablespace name
 @return space ID if tablespace found, SPACE_UNKNOWN if space not. */
 space_id_t
@@ -5295,6 +5401,8 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			/* Space already big enough */
 			mutex_release();
 
+			release_open_slot(m_id);
+
 			return(true);
 		}
 
@@ -5315,6 +5423,8 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			break;
 		}
 
+		release_open_slot(m_id);
+
 		/* Another thread is currently using the file. Wait
 		for it to finish.  It'd have been better to use an event
 		driven mechanism but the entire module is peppered with
@@ -5325,7 +5435,11 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 		os_thread_sleep(100000);
 	}
 
-	if (!prepare_file_for_io(file, true)) {
+	bool	opened = prepare_file_for_io(file, true);
+
+	release_open_slot(m_id);
+
+	if (!opened) {
 
 		/* The tablespace data file, such as .ibd file, is missing */
 		ut_a(file->in_use > 0);
@@ -5946,7 +6060,7 @@ fil_io(
 
 	auto	shard = fil_system->shard_by_id(page_id.space());
 
-	/* Reserve the fil_system mutex and make sure that we can open at
+	/* Reserve the mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
 	shard->mutex_acquire_and_prepare_for_io(page_id.space());
@@ -5957,11 +6071,11 @@ fil_io(
 	operations on that. However, we do allow write operations and
 	sync read operations. */
 	if (space == nullptr
-	    || (req_type.is_read()
-		&& !sync
-		&& space->stop_new_ops)) {
+	    || (req_type.is_read() && !sync && space->stop_new_ops)) {
 
 		shard->mutex_release();
+
+		Fil_shard::release_open_slot(shard->id());
 
 		if (!req_type.ignore_missing()) {
 			if (space == nullptr) {
@@ -6010,7 +6124,11 @@ fil_io(
 	} else if (space->files.empty()) {
 
 		if (req_type.ignore_missing()) {
+
 			shard->mutex_release();
+
+			Fil_shard::release_open_slot(shard->id());
+
 			return(DB_ERROR);
 		}
 
@@ -6041,17 +6159,19 @@ fil_io(
 
 			shard->mutex_release();
 
+			Fil_shard::release_open_slot(shard->id());
+
 			return(DB_TABLESPACE_DELETED);
 
 		} else  if (req_type.ignore_missing()) {
 
 			shard->mutex_release();
 
+			Fil_shard::release_open_slot(shard->id());
+
 			return(DB_ERROR);
 
 		} else {
-
-			ib::error() << "SIZE: " << f.size;
 
 			/* This is a hard error. */
 			fil_report_invalid_page_access(
@@ -6062,7 +6182,11 @@ fil_io(
 	}
 
 	/* Open file if closed */
-	if (!shard->prepare_file_for_io(file, false)) {
+	bool	opened = shard->prepare_file_for_io(file, false);
+
+	Fil_shard::release_open_slot(shard->id());
+
+	if (!opened) {
 
 		if (fil_type_is_data(space->purpose)
 		    && fsp_is_ibd_tablespace(space->id)) {
