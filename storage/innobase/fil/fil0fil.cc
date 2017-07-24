@@ -604,6 +604,59 @@ public:
 		fil_type_t	purpose)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Returns true if a matching tablespace exists in the InnoDB
+	tablespace memory cache. Note that if we have not done a crash
+	recovery at the database startup, there may be many tablespaces
+	which are not yet in the memory cache.
+	@param[in]	space_id	Tablespace ID
+	@param[in]	name		Tablespace name used in space_create().
+	@param[in]	print_err	Print detailed error information to the
+					error log if a matching tablespace is
+					not found from memory.
+	@param[in]	adjust_space	Whether to adjust space id on mismatch
+	@param[in]	heap			Heap memory
+	@param[in]	table_id		table id
+	@return true if a matching tablespace exists in the memory cache */
+	bool space_check_exists(
+		space_id_t	space_id,
+		const char*	name,
+		bool		print_err_if_not_exist,
+		bool		adjust_space,
+		mem_heap_t*	heap,
+		table_id_t	table_id)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Read or write data. This operation could be asynchronous (aio).
+	@param[in,out]	type		IO context
+	@param[in]	sync		whether synchronous aio is desired
+	@param[in]	page_id		page id
+	@param[in]	page_size	page size
+	@param[in]	byte_offset	remainder of offset in bytes; in AIO
+					this must be divisible by the OS
+					block size
+	@param[in]	len		how many bytes to read or write;
+					this must not cross a file boundary;
+					in AIO this must be a block size
+					multiple
+	@param[in,out]	buf		buffer where to store read data
+					or from where to write; in AIO
+					this must be appropriately aligned
+	@param[in]	message		message for AIO handler if !sync,
+					else ignored
+	@return error code
+	@retval DB_SUCCESS on success
+	@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
+	dberr_t do_io(
+		const IORequest&	type,
+		bool			sync,
+		const page_id_t&	page_id,
+		const page_size_t&	page_size,
+		ulint			byte_offset,
+		ulint			len,
+		void*			buf,
+		void*			message)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
@@ -902,7 +955,6 @@ public:
 	static bool space_belongs_in_LRU(const fil_space_t* space)
 		MY_ATTRIBUTE((warn_unused_result));
 
-#ifdef UNIV_DEBUG
 	/** Validate a shard
 	@param[in]	shard	shard to validate */
 	void validate_shard(const Fil_shard* shard) const;
@@ -911,7 +963,6 @@ public:
 	@return true if ok */
 	bool validate() const
 		MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 
@@ -5125,7 +5176,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	id			Tablespace ID
 @param[in]	name			Tablespace name used in
 					fil_space_create().
-@param[in]	print_err_if_not_exist	Print detailed error information to the
+@param[in]	print_err		Print detailed error information to the
 					error log if a matching tablespace is
 					not found from memory.
 @param[in]	adjust_space		Whether to adjust space id on mismatch
@@ -5133,22 +5184,21 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	table_id		table id
 @return true if a matching tablespace exists in the memory cache */
 bool
-fil_space_for_table_exists_in_mem(
-	space_id_t	id,
+Fil_shard::space_check_exists(
+	space_id_t	space_id,
 	const char*	name,
-	bool		print_err_if_not_exist,
+	bool		print_err,
 	bool		adjust_space,
 	mem_heap_t*	heap,
 	table_id_t	table_id)
 {
 	fil_space_t*	fnamespace = nullptr;
-	auto		shard = fil_system->shard_by_id(id);
 
-	shard->mutex_acquire();
+	mutex_acquire();
 
 	/* Look if there is a space with the same id */
 
-	fil_space_t*	space = fil_space_get_by_id(id);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
 
 	if (space != nullptr
 	    && FSP_FLAGS_GET_SHARED(space->flags)
@@ -5160,11 +5210,11 @@ fil_space_for_table_exists_in_mem(
 		char*	old_name = space->name;
 		char*	new_name = mem_strdup(name);
 
-		shard->space_rename(space, new_name);
+		space_rename(space, new_name);
 
 		ut_free(old_name);
 
-		shard->mutex_release();
+		mutex_release();
 
 		return(true);
 
@@ -5174,18 +5224,18 @@ fil_space_for_table_exists_in_mem(
 		    && !srv_sys_tablespaces_open) {
 
 			/* No need to check the name */
-			shard->mutex_release();
+			mutex_release();
 
 			return(true);
 		}
 
 		/* If this space has the expected name, use it. */
-		fnamespace = shard->get_space_by_name(name);
+		fnamespace = get_space_by_name(name);
 
 		if (space == fnamespace) {
 
 			/* Found */
-			shard->mutex_release();
+			mutex_release();
 
 			return(true);
 		}
@@ -5203,7 +5253,7 @@ fil_space_for_table_exists_in_mem(
 	    && row_is_mysql_tmp_table_name(space->name)
 	    && !row_is_mysql_tmp_table_name(name)) {
 
-		shard->mutex_release();
+		mutex_release();
 
 		DBUG_EXECUTE_IF("ib_crash_before_adjust_fil_space",
 				DBUG_SUICIDE(););
@@ -5216,7 +5266,7 @@ fil_space_for_table_exists_in_mem(
 
 			clone_mark_abort(true);
 
-			bool	success = fil_rename_tablespace(
+			bool	success = space_rename(
 				fnamespace->id,
 				fnamespace->files.front().name,
 				tmp_name, nullptr);
@@ -5231,8 +5281,8 @@ fil_space_for_table_exists_in_mem(
 
 		clone_mark_abort(true);
 
-		bool	success = fil_rename_tablespace(
-			id, space->files.front().name, name, nullptr);
+		bool	success = space_rename(
+			space_id, space->files.front().name, name, nullptr);
 
 		ut_a(success);
 
@@ -5242,15 +5292,15 @@ fil_space_for_table_exists_in_mem(
 				DBUG_SUICIDE(););
 
 
-		shard->mutex_acquire();
+		mutex_acquire();
 
-		fnamespace = shard->get_space_by_name(name);
+		fnamespace = get_space_by_name(name);
 
 		ut_ad(space == fnamespace);
 
 		matching_exists = true;
 
-	} else if (!print_err_if_not_exist) {
+	} else if (!print_err) {
 
 		;
 
@@ -5258,13 +5308,14 @@ fil_space_for_table_exists_in_mem(
 
 		if (fnamespace == nullptr) {
 
-			if (print_err_if_not_exist) {
-				fil_report_missing_tablespace(name, id);
+			if (print_err) {
+				fil_report_missing_tablespace(name, space_id);
 			}
 
 		} else {
-			ib::error() << "Table " << name << " in InnoDB data"
-				" dictionary has tablespace id " << id
+			ib::error()
+				<< "Table " << name << " in InnoDB data"
+				" dictionary has tablespace id " << space_id
 				<< ", but a tablespace with that id does not"
 				" exist. There is a tablespace of name "
 				<< fnamespace->name << " and id "
@@ -5278,9 +5329,10 @@ fil_space_for_table_exists_in_mem(
 
 		ib::error()
 			<< "Table " << name << " in InnoDB data dictionary"
-			" has tablespace id " << id << ", but the tablespace"
-			" with that id has name " << space->name << "."
-			" Have you deleted or moved .ibd files?";
+			" has tablespace id " << space_id << ", but the"
+		        " tablespace with that id has name "
+			<< space->name << ". Have you deleted or moved .ibd"
+			" files?";
 
 		if (fnamespace != nullptr) {
 
@@ -5293,9 +5345,36 @@ fil_space_for_table_exists_in_mem(
 		ib::warn() << TROUBLESHOOT_DATADICT_MSG;
 	}
 
-	shard->mutex_release();
+	mutex_release();
 
 	return(matching_exists);
+}
+
+/** Returns true if a matching tablespace exists in the InnoDB tablespace
+memory cache. Note that if we have not done a crash recovery at the database
+startup, there may be many tablespaces which are not yet in the memory cache.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name used in space_create().
+@param[in]	print_err	Print detailed error information to the
+				error log if a matching tablespace is
+				not found from memory.
+@param[in]	adjust_space	Whether to adjust space id on mismatch
+@param[in]	heap		Heap memory
+@param[in]	table_id	table ID
+@return true if a matching tablespace exists in the memory cache */
+bool
+fil_space_for_table_exists_in_mem(
+	space_id_t	space_id,
+	const char*	name,
+	bool		print_err,
+	bool		adjust_space,
+	mem_heap_t*	heap,
+	table_id_t	table_id)
+{
+	auto	shard = fil_system->shard_by_id(space_id);
+
+	return(shard->space_check_exists(
+		space_id, name, print_err, adjust_space, heap, table_id));
 }
 
 /** Return the space ID based on the tablespace name.
@@ -5969,17 +6048,19 @@ fil_io_set_encryption(
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in]	byte_offset	remainder of offset in bytes; in aio this
-must be divisible by the OS block size
+				must be divisible by the OS block size
 @param[in]	len		how many bytes to read or write; this must
-not cross a file boundary; in aio this must be a block size multiple
+				not cross a file boundary; in AIO this must
+				be a block size multiple
 @param[in,out]	buf		buffer where to store read data or from where
-to write; in aio this must be appropriately aligned
+				to write; in aio this must be appropriately
+				aligned
 @param[in]	message		message for aio handler if !sync, else ignored
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 dberr_t
-fil_io(
+Fil_shard::do_io(
 	const IORequest&	type,
 	bool			sync,
 	const page_id_t&	page_id,
@@ -6058,14 +6139,12 @@ fil_io(
 		srv_stats.data_written.add(len);
 	}
 
-	auto	shard = fil_system->shard_by_id(page_id.space());
-
 	/* Reserve the mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
-	shard->mutex_acquire_and_prepare_for_io(page_id.space());
+	mutex_acquire_and_prepare_for_io(page_id.space());
 
-	fil_space_t*	space = shard->get_space_by_id(page_id.space());
+	fil_space_t*	space = get_space_by_id(page_id.space());
 
 	/* If we are deleting a tablespace we don't allow async read
 	operations on that. However, we do allow write operations and
@@ -6073,9 +6152,9 @@ fil_io(
 	if (space == nullptr
 	    || (req_type.is_read() && !sync && space->stop_new_ops)) {
 
-		shard->mutex_release();
+		mutex_release();
 
-		Fil_shard::release_open_slot(shard->id());
+		release_open_slot(m_id);
 
 		if (!req_type.ignore_missing()) {
 			if (space == nullptr) {
@@ -6125,9 +6204,9 @@ fil_io(
 
 		if (req_type.ignore_missing()) {
 
-			shard->mutex_release();
+			mutex_release();
 
-			Fil_shard::release_open_slot(shard->id());
+			release_open_slot(m_id);
 
 			return(DB_ERROR);
 		}
@@ -6157,17 +6236,17 @@ fil_io(
 			/* Page access request for a page that is
 			outside the truncated UNDO tablespace bounds. */
 
-			shard->mutex_release();
+			mutex_release();
 
-			Fil_shard::release_open_slot(shard->id());
+			release_open_slot(m_id);
 
 			return(DB_TABLESPACE_DELETED);
 
 		} else  if (req_type.ignore_missing()) {
 
-			shard->mutex_release();
+			mutex_release();
 
-			Fil_shard::release_open_slot(shard->id());
+			release_open_slot(m_id);
 
 			return(DB_ERROR);
 
@@ -6182,16 +6261,16 @@ fil_io(
 	}
 
 	/* Open file if closed */
-	bool	opened = shard->prepare_file_for_io(file, false);
+	bool	opened = prepare_file_for_io(file, false);
 
-	Fil_shard::release_open_slot(shard->id());
+	release_open_slot(m_id);
 
 	if (!opened) {
 
 		if (fil_type_is_data(space->purpose)
 		    && fsp_is_ibd_tablespace(space->id)) {
 
-			shard->mutex_release();
+			mutex_release();
 
 			if (!req_type.ignore_missing()) {
 
@@ -6229,9 +6308,9 @@ fil_io(
 			should return with DB_ERROR and let caller decide
 			what to do. */
 
-			shard->complete_io(file, req_type);
+			complete_io(file, req_type);
 
-			shard->mutex_release();
+			mutex_release();
 
 			return(DB_ERROR);
 		}
@@ -6242,7 +6321,7 @@ fil_io(
 	}
 
 	/* Now we have made the changes in the data structures of fil_system */
-	shard->mutex_release();
+	mutex_release();
 
 	/* Calculate the low 32 bits and the high 32 bits of the file offset */
 
@@ -6359,14 +6438,48 @@ fil_io(
 
 		fil_system->mutex_acquire_by_id(page_id.space());
 
-		shard->complete_io(file, req_type);
+		complete_io(file, req_type);
 
-		shard->mutex_release();
+		mutex_release();
 
 		ut_ad(fil_validate_skip());
 	}
 
 	return(err);
+}
+
+/** Read or write data. This operation could be asynchronous (aio).
+@param[in,out]	type		IO context
+@param[in]	sync		whether synchronous aio is desired
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	byte_offset	remainder of offset in bytes; in aio this
+must be divisible by the OS block size
+@param[in]	len		how many bytes to read or write; this must
+not cross a file boundary; in aio this must be a block size multiple
+@param[in,out]	buf		buffer where to store read data or from where
+to write; in aio this must be appropriately aligned
+@param[in]	message		message for aio handler if !sync, else ignored
+@return error code
+@retval DB_SUCCESS on success
+@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
+dberr_t
+fil_io(
+	const IORequest&	type,
+	bool			sync,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			byte_offset,
+	ulint			len,
+	void*			buf,
+	void*			message)
+{
+	auto	shard = fil_system->shard_by_id(page_id.space());
+
+	return(shard->do_io(
+		type, sync, page_id, page_size,
+		byte_offset, len, buf, message));
+
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -6440,7 +6553,7 @@ flushed then remove from the unflushed list.
 void
 Fil_shard::remove_from_unflushed_list(fil_space_t* space)
 {
-	mutex_owned();
+	ut_ad(mutex_owned());
 
 	if (space->is_in_unflushed_spaces
 	    && space_is_flushed(space)) {
@@ -6651,15 +6764,6 @@ Fil_system::flush_file_spaces(uint8_t purpose)
 	}
 }
 
-/** Flush to disk the writes in file spaces of the given type
-possibly cached by the OS.
-@param[in]     purpose FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be ORred */
-void
-fil_flush_file_spaces(uint8_t purpose)
-{
-	fil_system->flush_file_spaces(purpose);
-}
-
 /** Validate a shard
 @param[in]	shard	shard to validate */
 void
@@ -6723,6 +6827,15 @@ bool
 fil_validate()
 {
 	return(fil_system->validate());
+}
+
+/** Flush to disk the writes in file spaces of the given type
+possibly cached by the OS.
+@param[in]     purpose FIL_TYPE_TABLESPACE or FIL_TYPE_LOG, can be ORred */
+void
+fil_flush_file_spaces(uint8_t purpose)
+{
+	fil_system->flush_file_spaces(purpose);
 }
 
 /** Returns true if file address is undefined.
@@ -7613,8 +7726,6 @@ fil_set_encryption(
 bool
 Fil_system::encryption_rotate_in_a_shard(Fil_shard* shard)
 {
-	//ut_ad(shard->mutex_owned());
-
 	byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
 	for (auto& elem : shard->m_spaces) {
@@ -7678,11 +7789,8 @@ Fil_system::encryption_rotate_all()
 	for (auto shard : m_shards) {
 
 		// FIXME: We don't acquire the fil_sys::mutex here. Why?
-		//shard->mutex_acquire();
 
 		bool	success = encryption_rotate_in_a_shard(shard);
-
-		//shard->mutex_release();
 
 		if (!success) {
 			return(false);
