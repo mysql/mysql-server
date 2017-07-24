@@ -272,6 +272,7 @@ EOF
 
 --echo Performing DDL/DML operations on server 1
 --exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
+--source include/rpl_sync.inc
 
 # Temp file for performing ddl and dml on server2
 # Copying the contents of the "macro.tmp" so that the macros available can be
@@ -361,6 +362,7 @@ EOF
 
 --echo Performing DDL/DML operations on server 2
 --exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
+--source include/rpl_sync.inc
 
 # Temp file for performing ddl and dml on server3
 # Copying the contents of the "macro.tmp" so that the macros available can be

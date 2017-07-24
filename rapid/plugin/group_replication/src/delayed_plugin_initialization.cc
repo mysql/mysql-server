@@ -165,8 +165,8 @@ int Delayed_initialization_thread::initialization_thread_handler()
     sql_command_interface= new Sql_service_command_interface();
     if (sql_command_interface->
             establish_session_connection(PSESSION_INIT_THREAD,
-                                         get_plugin_pointer()) ||
-        sql_command_interface->set_interface_user(GROUPREPL_USER))
+                                         GROUPREPL_USER,
+                                         get_plugin_pointer()))
     {
       /* purecov: begin inspected */
       log_message(MY_ERROR_LEVEL,

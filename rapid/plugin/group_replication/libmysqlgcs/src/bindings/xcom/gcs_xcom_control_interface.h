@@ -27,6 +27,7 @@
 #include "mysql/gcs/gcs_message.h"
 #include "mysql/gcs/gcs_types.h"
 #include "mysql/gcs/gcs_view.h"
+#include "mysql/gcs/gcs_psi.h"
 
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_state_exchange.h"

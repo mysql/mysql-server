@@ -31,6 +31,7 @@
 #include "mysql/gcs/xplatform/my_xp_cond.h"
 #include "mysql/gcs/gcs_logging_system.h"
 #include "mysql/gcs/gcs_interface.h"
+#include "mysql/gcs/gcs_psi.h"
 
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_control_interface.h"

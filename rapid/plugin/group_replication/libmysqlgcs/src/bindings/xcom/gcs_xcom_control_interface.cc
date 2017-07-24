@@ -341,7 +341,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   /* Spawn XCom's main loop thread. */
   if (local_port != 0)
   {
-    m_xcom_thread.create(NULL, xcom_taskmain_startup, (void *) this);
+    m_xcom_thread.create(key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
+                         NULL, xcom_taskmain_startup, (void *) this);
   }
   else
   {
@@ -496,9 +497,10 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
   set_terminate_suspicion_thread(false);
 
   // Initialize thread to deal with suspicions
-  m_suspicions_processing_thread.create(NULL,
-                                        suspicions_processing_thread,
-                                        (void *) this);
+  m_suspicions_processing_thread.create(
+    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread, NULL,
+    suspicions_processing_thread,
+    (void *) this);
   MYSQL_GCS_LOG_TRACE("Started the suspicions processing thread...");
   m_view_control->end_join();
 

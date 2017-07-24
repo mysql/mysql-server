@@ -99,7 +99,9 @@ enum_gcs_error Gcs_async_buffer::initialize()
   m_free_buffer_mutex->init(NULL);
 
   m_terminated= false;
-  if ((ret_thread= m_consumer->create(NULL, consumer_function, (void *) this)))
+  if ((ret_thread= m_consumer->create(
+    key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
+    NULL, consumer_function, (void *) this)))
   {
 /* purecov: begin deadcode */
     std::cerr << "Unable to create Gcs_async_buffer consumer thread, "

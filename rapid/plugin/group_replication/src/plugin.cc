@@ -462,13 +462,8 @@ int plugin_group_replication_start()
 
   // Setup SQL service interface.
   if (sql_command_interface->
-          establish_session_connection(PSESSION_DEDICATED_THREAD,plugin_info_ptr))
-  {
-    error =1; /* purecov: inspected */
-    goto err; /* purecov: inspected */
-  }
-
-  if (sql_command_interface->set_interface_user(GROUPREPL_USER))
+          establish_session_connection(PSESSION_DEDICATED_THREAD,
+                                       GROUPREPL_USER, plugin_info_ptr))
   {
     error =1; /* purecov: inspected */
     goto err; /* purecov: inspected */

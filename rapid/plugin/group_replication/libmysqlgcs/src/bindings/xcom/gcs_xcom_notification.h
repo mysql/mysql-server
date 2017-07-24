@@ -22,6 +22,7 @@
 #include "mysql/gcs/xplatform/my_xp_mutex.h"
 #include "mysql/gcs/xplatform/my_xp_cond.h"
 #include "mysql/gcs/gcs_control_interface.h"
+#include "mysql/gcs/gcs_psi.h"
 
 #include "gcs_xcom_utils.h"
 #include "gcs_xcom_group_member_information.h"

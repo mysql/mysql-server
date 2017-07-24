@@ -41,56 +41,61 @@ public:
     Internal method to set the super read only mode.
 
     @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
 
     @return error code during execution of the sql query.
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_set_super_read_only(Sql_service_interface *sql_interface);
+  long internal_set_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
 
   /**
     Internal method to reset the super read only mode.
 
     @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
 
     @return error code during execution of the sql query.
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_reset_super_read_only(Sql_service_interface *sql_interface);
+  long internal_reset_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
 
   /**
     Internal method to reset the super read only mode.
 
     @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
 
     @return error code during execution of the sql query.
        @retval 0  - success
        @retval >0 - failure
   */
-  long internal_reset_read_only(Sql_service_interface *sql_interface);
+  long internal_reset_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
 
   /**
    Internal method to get the super read only mode.
 
    @param sql_interface the server session interface for query execution
+   @param arg a generic argument to give the method info or get a result
 
    @retval -1  Error reading the value
    @retval  0  Not in super read mode
    @retval  1  In read super mode
   */
-  long internal_get_server_super_read_only(Sql_service_interface *sql_interface);
+  long internal_get_server_super_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
 
   /**
     Internal method to get the super read only mode.
 
     @param sql_interface the server session interface for query execution
+    @param arg a generic argument to give the method info or get a result
 
     @retval -1  Error reading the value
     @retval  0  Not in super read mode
     @retval  1  In read super mode
   */
-  long internal_get_server_read_only(Sql_service_interface *sql_interface);
+  long internal_get_server_read_only(Sql_service_interface *sql_interface, void* arg= NULL);
 
   /**
     Method to return the server gtid_executed by executing the corresponding
@@ -105,6 +110,20 @@ public:
   */
   int internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
                                         std::string& gtid_executed);
+
+  /**
+    Method to return the server gtid_executed by executing the corresponding
+    sql query.
+
+    @param sql_interface        the server session interface for query execution
+    @param [out] gtid_executed  The void pointer that should be a std::string
+
+    @return the error value returned
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  long internal_get_server_gtid_executed_generic(Sql_service_interface *sql_interface,
+                                                void* gtid_executed);
 
   /**
     Method to wait for the server gtid_executed to match the given GTID string
@@ -125,7 +144,7 @@ public:
 
 struct st_session_method
 {
-  long (Sql_service_commands::*method)(Sql_service_interface*);
+  long (Sql_service_commands::*method)(Sql_service_interface*, void*);
   bool terminated;
 };
 
@@ -141,12 +160,13 @@ public:
     Launch a new thread that will create a new server session.
 
     @param plugin_pointer_var the plugin pointer for session creation
+    @param user               the user for the connection
 
     @return the operation was successful
       @retval 0      OK
       @retval !=0    Error
   */
-  int launch_session_thread(void *plugin_pointer_var);
+  int launch_session_thread(void *plugin_pointer_var, const char *user);
 
   /**
     Terminate the thread and close the session.
@@ -167,7 +187,7 @@ public:
      @param method    method to executed
      @param terminate termination flag to the class
   */
-  void queue_new_method_for_application(long (Sql_service_commands::*method)(Sql_service_interface*),
+  void queue_new_method_for_application(long (Sql_service_commands::*method)(Sql_service_interface*, void*),
                                         bool terminate=false);
 
   /**
@@ -178,6 +198,15 @@ public:
 
   Sql_service_interface *get_service_interface();
 
+  /**
+    Sets a pointer that the next queued method will use to return a value
+    @param pointer the pointer where the method will store some return value
+  */
+  void set_return_pointer(void* pointer)
+  {
+    return_object= pointer;
+  }
+
 private:
   Sql_service_commands *command_interface;
 
@@ -186,6 +215,9 @@ private:
   Synchronized_queue<st_session_method*> *incoming_methods;
 
   void *m_plugin_pointer;
+
+  /** The value for returning on methods */
+  void* return_object;
 
   /** Session thread handle */
   my_thread_handle m_plugin_session_pthd;
@@ -196,6 +228,8 @@ private:
   mysql_mutex_t m_method_lock;
   mysql_cond_t m_method_cond;
 
+  /**The user for the session connection*/
+  const char* session_user;
   /** Session thread method completion flag */
   bool m_method_execution_completed;
   /** The method return value */
@@ -220,6 +254,7 @@ public:
     @param isolation_param  session creation requirements: use current thread,
                             use thread but initialize it or create it in a
                             dedicated thread
+    @param user             the user for the connection
     @param plugin_pointer   the plugin pointer for threaded connections
 
     @return the connection was successful
@@ -227,6 +262,7 @@ public:
       @retval !=0    Error
   */
   int establish_session_connection(enum_plugin_con_isolation isolation_param,
+                                   const char *user,
                                    void *plugin_pointer= NULL);
 
   /**

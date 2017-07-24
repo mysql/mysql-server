@@ -178,7 +178,8 @@ void Gcs_xcom_engine::initialize(
 {
   assert(m_notification_queue.empty());
   assert(m_schedule);
-  m_engine_thread.create(NULL, process_notification_thread, (void *) this);
+  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
+                         NULL, process_notification_thread, (void *) this);
 }
 
 

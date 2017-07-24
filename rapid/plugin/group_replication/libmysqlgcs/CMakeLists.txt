@@ -88,7 +88,8 @@ SET(GCS_INTERFACE_SOURCES
   src/interface/gcs_types.cc
   src/interface/gcs_message.cc
   src/interface/gcs_member_identifier.cc
-  src/interface/gcs_group_identifier.cc)
+  src/interface/gcs_group_identifier.cc
+  src/interface/gcs_psi.cc)
 
 
 SET(GCS_SOURCES
@@ -147,6 +148,9 @@ ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
 ENDIF()
+
+ADD_COMPILE_FLAGS(${XCOM_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
+ADD_COMPILE_FLAGS(${GCS_SOURCES} COMPILE_FLAGS "-DMYSQL_DYNAMIC_PLUGIN")
 
 ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
 

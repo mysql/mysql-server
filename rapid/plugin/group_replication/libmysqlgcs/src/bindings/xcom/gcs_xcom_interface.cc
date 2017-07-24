@@ -236,6 +236,8 @@ Gcs_xcom_interface::initialize(const Gcs_interface_parameters &interface_params)
   if (is_initialized())
     return GCS_OK;
 
+  register_gcs_thread_psi_keys();
+
   last_config_id.group_id= 0;
 
   m_wait_for_ssl_init_mutex.init(NULL);
