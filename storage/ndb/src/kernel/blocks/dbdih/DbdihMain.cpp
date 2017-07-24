@@ -95,11 +95,18 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 
 extern EventLogger * g_eventLogger;
 
-//#define DEBUG_LCP 1
+#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+#define DEBUG_LCP_COMP 1
+#ifdef DEBUG_LCP_COMP
+#define DEB_LCP_COMP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_COMP(arglist) do { } while (0)
 #endif
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
@@ -18092,6 +18099,11 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
      * to worry about this. If any node fails in the state of me being
      * started, I will fail as well.
      */
+    if (!isMaster())
+    {
+      ndbrequire(c_lcpState.m_participatingDIH.get(nodeId) == 0);
+      ndbrequire(c_lcpState.m_participatingLQH.get(nodeId) == 0);
+    }
     NodeRecordPtr nodePtr;
     if (req->participatingDIH.get(nodeId) ||
         req->participatingLQH.get(nodeId))
@@ -18109,34 +18121,6 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
   }
   c_lcpState.m_participatingDIH = req->participatingDIH;
   c_lcpState.m_participatingLQH = req->participatingLQH;
-
-  for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
-  {
-    /**
-     * We could have a race here, a node could die while the START_LCP_REQ
-     * is in flight. We need remove the node from the set of nodes
-     * participating in this case. Not removing it here could lead to a
-     * potential LCP deadlock.
-     *
-     * For the PAUSE LCP code where we are included in the LCP we don't need
-     * to worry about this. If any node fails in the state of me being
-     * started, I will fail as well.
-     */
-    NodeRecordPtr nodePtr;
-    if (req->participatingDIH.get(nodeId) ||
-        req->participatingLQH.get(nodeId))
-    {
-      nodePtr.i = nodeId;
-      ptrAss(nodePtr, nodeRecord);
-      if (nodePtr.p->nodeStatus != NodeRecord::ALIVE)
-      {
-        jam();
-        jamLine(nodeId);
-        req->participatingDIH.clear(nodeId);
-        req->participatingLQH.clear(nodeId);
-      }
-    }
-  }
 
   c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
   if(isMaster())
@@ -21703,7 +21687,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
 
   CRASH_INSERTION(7191);
 
-#if 0
+#if 1
   g_eventLogger->info("LCP_COMPLETE_REP"); 
   printLCP_COMPLETE_REP(stdout, 
 			signal->getDataPtr(),
@@ -21952,17 +21936,26 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     jam();
     c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.clearWaitingFor(nodeId);
     ndbrequire(!c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId));
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ(LQH)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   case DBDIH:
     jam();
     ndbrequire(isMaster());
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor(nodeId);
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ(DIH)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   case 0:
     jam();
     ndbrequire(!isMaster());
     ndbrequire(c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false);
     c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = true;
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ(0)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   default:
     ndbrequire(false);
@@ -21979,6 +21972,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (c_lcpState.lcpStatus != LCP_TAB_SAVED) {
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LCP_TAB_SAVED"));
     /**
      * We have not sent LCP_COMPLETE_REP to master DIH yet
      */
@@ -21987,11 +21981,13 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done()){
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LQH not done"));
     return;
   }
 
   if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.done()){
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, DIH not done"));
     return;
   }
 
@@ -21999,6 +21995,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
       c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false){
     jam();
     /**
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, Master not done"));
      * Wait until master DIH has signalled lcp is complete
      */
     return;
