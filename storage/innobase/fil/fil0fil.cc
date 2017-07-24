@@ -625,7 +625,7 @@ public:
 	bool space_check_exists(
 		space_id_t	space_id,
 		const char*	name,
-		bool		print_err_if_not_exist,
+		bool		print_err,
 		bool		adjust_space,
 		mem_heap_t*	heap,
 		table_id_t	table_id)
@@ -1156,16 +1156,16 @@ Fil_system::space_belongs_in_LRU(const fil_space_t* space)
 
 /** Constructor
 @param[id]	shard_id	Shard ID  */
-Fil_shard::Fil_shard(size_t id)
+Fil_shard::Fil_shard(size_t shard_id)
 	:
-	m_id(id),
+	m_id(shard_id),
 	m_spaces(),
 	m_names(),
 	m_modification_counter()
 {
 	latch_id_t	latch_id = LATCH_ID_FIL_SHARD_1;
 
-	latch_id = static_cast<latch_id_t>(to_int(latch_id) + id);
+	latch_id = static_cast<latch_id_t>(to_int(latch_id) + m_id);
 
 	ut_ad(latch_id >= LATCH_ID_FIL_SHARD_1
 	      && latch_id <= LATCH_ID_FIL_SHARD_32);
@@ -1202,7 +1202,6 @@ Fil_shard::release_open_slot(size_t shard_id)
 }
 
 /** Map the space ID and name to the tablespace instance.
-@param[in]	space_id	Tablespace ID
 @param[in]	space		Tablespace instance */
 void
 Fil_shard::space_add(fil_space_t* space)
@@ -1441,7 +1440,7 @@ fil_space_get(space_id_t space_id)
 
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
-@param[out]	flags	tablespace flags
+@param[out]	flags		Tablespace flags
 @return latch protecting storage allocation */
 rw_lock_t*
 fil_space_get_latch(space_id_t space_id, ulint* flags)

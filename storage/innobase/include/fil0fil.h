@@ -617,7 +617,7 @@ fil_space_set_imported(space_id_t space_id);
 @param[in]	space_id	Tablespace ID
 @return whether it is a temporary tablespace */
 bool
-fsp_is_temporary(space_id_t space_idd)
+fsp_is_temporary(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result, pure));
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
@@ -679,7 +679,7 @@ fil_space_get_first_path(space_id_t space_id)
 
 /** Returns the size of the space in pages. The tablespace must be cached
 in the memory cache.
-@param[in]	id		Tablespace ID
+@param[in]	space_id	Tablespace ID
 @return space size, 0 if space not found */
 page_no_t
 fil_space_get_size(space_id_t space_id)
@@ -1327,10 +1327,10 @@ fil_path_to_space_name(const char* filename)
 /** Returns the space ID based on the tablespace name.
 The tablespace must be found in the tablespace memory cache.
 This call is made from external to this module, so the mutex is not owned.
-@param[in]	tablespace	Tablespace name
+@param[in]	space		Tablespace name
 @return space ID if tablespace found, SPACE_UNKNOWN if space not. */
 space_id_t
-fil_space_get_id_by_name(const char* tablespace)
+fil_space_get_id_by_name(const char* space)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Iterate over all the spaces in the space list and fetch the
