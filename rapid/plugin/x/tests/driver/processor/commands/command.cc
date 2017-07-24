@@ -89,12 +89,14 @@ class Backup_and_restore {
 
 }  // namespace
 
+
 ngs::chrono::time_point Command::m_start_measure;
 
 Command::Command() {
   m_commands["title "] = &Command::cmd_title;
   m_commands["echo "] = &Command::cmd_echo;
-  m_commands["recvtype "] = &Command::cmd_recvtype;
+  m_commands["recvtype "]  = &Command::cmd_recvtype;
+  m_commands["recvok"]     = &Command::cmd_recvok;
   m_commands["recverror "] = &Command::cmd_recverror;
   m_commands["recvresult"] = &Command::cmd_recvresult;
   m_commands["recvtovar "] = &Command::cmd_recvtovar;
@@ -268,6 +270,55 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   catch (std::exception &e) {
     context->print_error_red(context->m_script_stack, e, '\n');
     if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
+  }
+
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_recvok(std::istream &input,
+                                    Execution_context *context,
+                                    const std::string &args) {
+  xcl::XError error;
+  xcl::XProtocol::Server_message_type_id out_msgid;
+
+  Message_ptr msg{
+    context->session()->get_protocol().recv_single_message(
+        &out_msgid, &error)
+  };
+
+  context->print("RUN recvok\n");
+
+  if (error) {
+    context->m_console.print_error(error);
+
+    return context->m_options.m_fatal_errors ?
+        Result::Stop_with_failure :
+        Result::Continue;
+  }
+
+  if (nullptr == msg.get()) {
+    context->print("Command recvok didn't receive any data.\n");
+    return Result::Stop_with_failure;
+  }
+
+  if (Mysqlx::ServerMessages::OK != out_msgid) {
+    if (Mysqlx::ServerMessages::ERROR != out_msgid) {
+      context->print("Got unexpected message:\n");
+      context->print(formatter::message_to_text(*msg), "\n");
+
+      return context->m_options.m_fatal_errors ?
+          Result::Stop_with_failure :
+          Result::Continue;
+    }
+
+    auto msg_error = static_cast<Mysqlx::Error*>(msg.get());
+
+    if (!context->m_expected_error.check_error(
+          xcl::XError(msg_error->code(), msg_error->msg())))
+      return Result::Stop_with_failure;
+  } else {
+    if (!context->m_expected_error.check_ok())
+      return Result::Stop_with_failure;
   }
 
   return Result::Continue;
@@ -1650,6 +1701,9 @@ void print_help_commands() {
   std::cout << "-->recvtype <msgtype> [" << CMD_ARG_BE_QUIET << "]\n";
   std::cout << "  Read one message and print it, checking that its type is "
                "the specified one\n";
+  std::cout << "-->recvok\n";
+  std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
+               "'expecterror' command.\n";
   std::cout << "-->recvuntil <msgtype> [do_not_show_intermediate]\n";
   std::cout << "  Read messages and print them, until a msg of the specified "
                "type (or Error) is received\n";
@@ -1692,7 +1746,7 @@ void print_help_commands() {
   std::cout << "-->expecterror <errno>\n";
   std::cout << "  Expect a specific error for the next command and fail if "
                "something else occurs\n";
-  std::cout << "  Works for: newsession, closesession, recvresult\n";
+  std::cout << "  Works for: newsession, closesession, recvresult, recvok\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Create a new connection with given name and account (use - "
                "as user for no-auth)\n";

@@ -499,20 +499,20 @@ send Mysqlx.Expect.Open {
 Mysqlx.Error {
   severity: ERROR
   code: 5160
-  msg: "Unknown condition key"
+  msg: "Unknown condition key: 0"
   sql_state: "HY000"
 }
 
 send Mysqlx.Expect.Open {
   cond {
-    condition_key: 2
+    condition_key: 1200
   }
 }
 
 Mysqlx.Error {
   severity: ERROR
   code: 5160
-  msg: "Unknown condition key"
+  msg: "Unknown condition key: 1200"
   sql_state: "HY000"
 }
 

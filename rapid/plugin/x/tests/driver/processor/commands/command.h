@@ -74,6 +74,9 @@ class Command {
                    const std::string &args);
   Result cmd_recvtype(std::istream &input, Execution_context *context,
                       const std::string &args);
+  Result cmd_recvok(std::istream &input,
+                    Execution_context *context,
+                    const std::string &args);
   Result cmd_recverror(std::istream &input, Execution_context *context,
                        const std::string &args);
   Result cmd_recvtovar(std::istream &input, Execution_context *context,
