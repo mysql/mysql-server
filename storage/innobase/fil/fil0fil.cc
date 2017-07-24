@@ -8166,9 +8166,13 @@ fil_make_relative_path(const char* old_path, const std::string& new_path)
 /** Lookup the tablespace ID and return the path to the file.
 @param[in]	space_id	Tablespace ID to lookup
 @param[in]	path		Path in the data dictionary
-@return { "MISSING", "DELETED", "", NEW_LOCATION } */
-const std::string
-fil_tablespace_path_equals(space_id_t space_id, const char* path)
+@param[out]	new_path	New path if scanned path not equal to path
+@return status of the match. */
+Fil_path
+fil_tablespace_path_equals(
+	space_id_t	space_id,
+	const char*	path,
+	std::string*	new_path)
 {
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
@@ -8185,13 +8189,13 @@ fil_tablespace_path_equals(space_id_t space_id, const char* path)
 			recv_sys->missing_ids.insert(space_id);
 		}
 
-		return("MISSING");
+		return(Fil_path::MISSING);
 	}
 
 	/* Check that it wasn't deleted. */
 	if (it != end) {
 
-		return("DELETED");
+		return(Fil_path::DELETED);
 
 	} else {
 
@@ -8201,12 +8205,12 @@ fil_tablespace_path_equals(space_id_t space_id, const char* path)
 
 			/* File has been moved. */
 
-			return(fil_make_relative_path(path, names->front()));
+			*new_path = fil_make_relative_path(
+				path, names->front());
 		}
 	}
 
-	/* MATCHES */
-	return("");
+	return(Fil_path::MATCHES);
 }
 
 /** Lookup the tablespace ID.

@@ -63,6 +63,21 @@ enum fil_type_t : uint8_t {
 	FIL_TYPE_LOG = 8
 };
 
+/** Result of comparing a path. */
+enum class Fil_path {
+	/** The path matches what was found during the scan. */
+	MATCHES,
+
+	/** No MLOG_FILE_DELETE record and the file could not be found. */
+	MISSING,
+
+	/** A MLOG_FILE_DELETE was found, file was deleted. */
+	DELETED,
+
+	/** Space ID matches but the paths don't match. */
+	MOVED
+};
+
 /** Check if fil_type is any of FIL_TYPE_TEMPORARY, FIL_TYPE_IMPORT
 or FIL_TYPE_TABLESPACE.
 @param[in]	type	variable of type fil_type_t
@@ -1474,8 +1489,11 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 @param[in]	space_id	Tablespace ID to lookup
 @param[in]	path		Path in the data dictionary
 @return path to new filename if it doesn't match else "" */
-const std::string
-fil_tablespace_path_equals(space_id_t space_id, const char* path)
+Fil_path
+fil_tablespace_path_equals(
+	space_id_t	space_id,
+	const char*	path,
+	std::string*	new_path)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** This function should be called after recovery has completed.

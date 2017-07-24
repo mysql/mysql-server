@@ -3464,14 +3464,13 @@ boot_tablespaces(THD* thd)
 
 		if (fsp_is_ibd_tablespace(id)) {
 
-			new_path = fil_tablespace_path_equals(
-				id, filename);
+			switch(fil_tablespace_path_equals(
+					id, filename, &new_path)) {
 
-			if (new_path.length() == 0) {
+			case Fil_path::MATCHES:
+				break;
 
-				/* File found and real path matches. */
-
-			} else if (new_path.compare("MISSING") == 0) {
+			case Fil_path::MISSING:
 
 				ib::info()
 					<< "Tablespace " << id << ","
@@ -3481,7 +3480,7 @@ boot_tablespaces(THD* thd)
 
 				continue;
 
-			} else if (new_path.compare("DELETED") == 0) {
+			case Fil_path::DELETED:
 
 				ib::info()
 					<< "Tablespace " << id << ","
@@ -3491,7 +3490,7 @@ boot_tablespaces(THD* thd)
 
 				continue;
 
-			}  else {
+			case Fil_path::MOVED:
 
 				ib::warn()
 					<< "Tablespace " << id << ","
@@ -3511,6 +3510,7 @@ boot_tablespaces(THD* thd)
 					std::make_pair(dd_space_id, filenames));
 
 				filename = new_path.c_str();
+				break;
 			}
 		}
 
