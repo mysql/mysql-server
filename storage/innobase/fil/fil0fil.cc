@@ -110,7 +110,14 @@ file, we may close the file at the end of the LRU-list. When an I/O-operation
 is pending on a file, the file cannot be closed. We take the file nodes with
 pending I/O-operations out of the LRU-list and keep a count of pending
 operations. When an operation completes, we decrement the count and return
-the file to the LRU-list if the count drops to zero. */
+the file to the LRU-list if the count drops to zero.
+
+The data structure (Fil_shard) that keeps track of the tablespace ID to
+fil_space_t* mapping are hashed on the tablespace ID. The tablespace name to
+fil_space_t* mapping is stored in the same shard.
+
+When updating the global/shared data in Fil_system acquire the mutexes of
+all shards. */
 
 /** This tablespace name is used internally during recovery to open a
 general tablespace before the data dictionary are recovered and available. */
@@ -256,6 +263,7 @@ public:
 		}
 	}
 
+	/** @return the class singleton instance. */
 	static Tablespace_files* instance()
 	{
 		return(s_instance);
@@ -1045,7 +1053,7 @@ public:
 
 private:
 	/** Fil_shards managed */
-	Fil_shards			m_shards;
+	Fil_shards		m_shards;
 
 	/** n_open is not allowed to exceed this */
 	const size_t		m_max_n_open;
@@ -1059,6 +1067,11 @@ private:
 	/** true if fil_space_create() has issued a warning about
 	potential space_id reuse */
 	bool			m_space_id_reuse_warned;
+
+	// Disable copying
+	Fil_system(Fil_system&&) = delete;
+	Fil_system(const Fil_system&) = delete;
+	Fil_system& operator=(const Fil_system&) = delete;
 
 	friend class Fil_shard;
 };
