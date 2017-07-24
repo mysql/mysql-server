@@ -8971,11 +8971,7 @@ fil_check_missing_tablespaces()
 
 		if (recv_sys->deleted.find(space_id) == end
 		    && recv_sys->missing_ids.find(space_id)
-		    != recv_sys->missing_ids.end()
-#ifdef INNODB_NO_NEW_DD
-		    && dict_space_is_empty(space_id)
-#endif /* INNODB_NO_NEW_DD */
-			) {
+		    != recv_sys->missing_ids.end()) {
 			page_no_t	page_no;
 
 			page_no = page_get_page_no(page.m_page);

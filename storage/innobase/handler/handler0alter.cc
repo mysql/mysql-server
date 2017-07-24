@@ -7960,9 +7960,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 			trx_rollback_for_mysql(trx);
 		} else {
 			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
-#ifdef INNODB_NO_NEW_DD
-			ut_ad(trx_is_rseg_updated(trx));
-#endif /* INNODB_NO_NEW_DD */
 
 			/* The following call commits the
 			mini-transaction, making the data dictionary

@@ -2814,25 +2814,6 @@ srv_dict_recover_on_restart()
 		so that tablespace names and other metadata can be
 		found. */
 		srv_sys_tablespaces_open = true;
-
-#ifdef INNODB_NO_NEW_DD
-	}
-
-	/* We can't start any (DDL) transactions if UNDO logging has
-	been disabled. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
-
-		/* Drop any auxiliary tables that were not
-		dropped when the parent table was
-		dropped. This can happen if the parent table
-		was dropped but the server crashed before the
-		auxiliary tables were dropped. */
-		fts_drop_orphaned_tables();
-#endif /* INNODB_NO_NEW_DD */
 	}
 }
 
