@@ -58,6 +58,8 @@ perl;
     s/\b393216\b/262144/;
     # Replacing port number with string
     s/^port \d+/port ####/;
+    # log-tc-size varies by platform
+    s/^log-tc-size \d+/log-tc-size #####/;
     foreach $var (@env) { s/$ENV{$var}/$var/ }
     next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
     next if $skip;
