@@ -98,9 +98,6 @@ if (!$group_replication_found_primary_out_var)
 }
 --let $rpl_primary_server_name= $group_replication_primary_connection_out_var
 
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
 --let $rpl_connection_name= $rpl_primary_server_name
 --source include/rpl_connection.inc
 
@@ -108,6 +105,8 @@ INSERT INTO test1(`name`) VALUES("First ROW created in third query"), ("Second R
 INSERT INTO test1(`name`) VALUES("First ROW created in fourth query"), ("Second ROW created in fourth query");
 UPDATE test1 SET `name`="3 query" WHERE `name` LIKE '%third query%';
 UPDATE test1 SET `name`="Second ROW" WHERE `name` LIKE '%2 ROW%';
+
+--source include/rpl_sync.inc
 
 --echo
 --echo ## CHECK SECONDARY SERVERS THAT ARE SET IN READ ONLY MODE
@@ -118,10 +117,6 @@ while($server_num<5)
 
   if ($current_server !=  $rpl_primary_server_name)
   {
-   --let $sync_slave_connection= $current_server
-   --connection $rpl_primary_server_name
-   --source include/rpl_sync.inc
-
     --connection $current_server
     --error ER_OPTION_PREVENTS_STATEMENT
     TRUNCATE TABLE `test1`;

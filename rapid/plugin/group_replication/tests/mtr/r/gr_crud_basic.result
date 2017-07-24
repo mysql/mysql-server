@@ -1,0 +1,792 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+install plugin mysqlx soname "mysqlx.so";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+install plugin mysqlx soname "mysqlx.so";
+include/start_group_replication.inc
+[connection server3]
+install plugin mysqlx soname "mysqlx.so";
+include/start_group_replication.inc
+Performing DDL/DML operations on server 1
+RUN USE test
+
+0 rows affected
+RUN CREATE TABLE T1 (C1 INT PRIMARY KEY, C2 INT );
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 12
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1234
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 3
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 98765
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "c1"
+    }
+    operation: SET
+    value {
+      type: OPERATOR
+      operator {
+        name: "+"
+        param {
+          type: IDENT
+          identifier {
+            name: "c1"
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_UINT
+            v_unsigned_int: 10
+          }
+        }
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Rows matched: 3  Changed: 3  Warnings: 0
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "C2"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Performing DDL/DML operations on server 2
+RUN USE test
+
+0 rows affected
+RUN CREATE TABLE T2 (C1 CHAR(20) PRIMARY KEY, C2 INT );
+
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "ABC"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 23
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  operation {
+    source {
+      name: "C2"
+    }
+    operation: SET
+    value {
+      type: OPERATOR
+      operator {
+        name: "+"
+        param {
+          type: IDENT
+          identifier {
+            name: "C2"
+          }
+        }
+        param {
+          type: LITERAL
+          literal {
+            type: V_UINT
+            v_unsigned_int: 27
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 4
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 34
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "ABCDEF"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 23
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 5
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1234
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "ABCDEFGHIJ"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 23
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "C1"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "ABC"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Performing DDL/DML operations on server 3
+RUN USE test;
+
+0 rows affected
+RUN CREATE TABLE T3 (C1 INT PRIMARY KEY, C2 VARCHAR(20) );
+
+0 rows affected
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+}
+
+
+5 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 12345
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T3"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "1"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "1234"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 1234
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T1"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 7
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 98765
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "XYZ"
+        }
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 23
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Update {
+  collection {
+    name: "T2"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "C1"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "XYZ"
+          }
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      name: "C1"
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "ABC"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T3"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 2
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "2"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "T3"
+    schema: "test"
+  }
+  data_model: TABLE
+  projection {
+    name: "C1"
+  }
+  projection {
+    name: "C2"
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_SINT
+        v_signed_int: 3
+      }
+    }
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "3"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "T3"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          name: "C1"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc ['Checking the Value on T1']
+include/assert.inc ['Checking the Value on T2']
+Deleting all the tables.
+RUN USE test;
+
+0 rows affected
+RUN DROP TABLE T1;
+
+0 rows affected
+RUN DROP TABLE T2;
+
+0 rows affected
+RUN DROP TABLE T3;
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection server1]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+[connection server2]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+[connection server3]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+include/group_replication_end.inc

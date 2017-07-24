@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -101,6 +101,8 @@ use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 
+push @INC, ".";
+
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
@@ -133,6 +135,9 @@ my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
+
+our $num_tests_for_report;      # for test-progress option
+our $remaining;
 
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -279,6 +284,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
+our $opt_test_progress;
 my $opt_max_connections;
 our $opt_report_times= 0;
 
@@ -296,6 +302,7 @@ my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
+our $opt_report_unstable_tests;
 my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
@@ -357,6 +364,7 @@ my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
+our $opt_summary_report;
 our $opt_xml_report;
 
 select(STDOUT);
@@ -420,6 +428,10 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
+
+  $num_tests_for_report = $num_tests * $opt_repeat;
+  $remaining= $num_tests_for_report;
+
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
@@ -461,6 +473,9 @@ sub main {
     print_global_resfile();
   }
 
+  if ($opt_summary_report) {
+    mtr_summary_file_init($opt_summary_report);
+  }
   if ($opt_xml_report) {
     mtr_xml_init($opt_xml_report);
   }
@@ -1072,10 +1087,12 @@ sub print_global_resfile {
   resfile_global("suite-timeout", $opt_suite_timeout);
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
   resfile_global("warnings", $opt_warnings ? 1 : 0);
+  resfile_global("test-progress", $opt_test_progress ? 1 : 0);
   resfile_global("max-connections", $opt_max_connections);
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
   resfile_global("xml-report", $opt_xml_report);
+  resfile_global("summary-report", $opt_summary_report);
   # Somewhat hacky code to convert numeric version back to dot notation
   my $v1= int($mysql_version_id / 10000);
   my $v2= int(($mysql_version_id % 10000)/100);
@@ -1143,6 +1160,7 @@ sub command_line_setup {
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
+             'test-progress'            => \$opt_test_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -1231,6 +1249,7 @@ sub command_line_setup {
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
+             'report-unstable-tests'    => \$opt_report_unstable_tests,
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \&report_option,
@@ -1255,7 +1274,8 @@ sub command_line_setup {
 	     'list-options'             => \$opt_list_options,
              'skip-test-list=s'         => \@opt_skip_test_list,
              'do-test-list=s'           => \$opt_do_test_list,
-            'xml-report=s'          => \$opt_xml_report
+             'xml-report=s'             => \$opt_xml_report,
+             'summary-report=s'         => \$opt_summary_report
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -2587,7 +2607,6 @@ sub environment_setup {
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
-  
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
@@ -2769,6 +2788,17 @@ sub environment_setup {
   if ($mysqld_safe)
   {
     $ENV{'MYSQLD_SAFE'}= $mysqld_safe;
+  }
+
+  # ----------------------------------------------------
+  # mysqldumpslow
+  # ----------------------------------------------------
+  my $mysqldumpslow=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqldumpslow") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqldumpslow");
+  if ($mysqldumpslow)
+  {
+    $ENV{'MYSQLDUMPSLOW'}= $mysqldumpslow;
   }
 
 
@@ -3976,6 +4006,23 @@ sub mysql_install_db {
   {
       mtr_tofile($bootstrap_sql_file, "CREATE DATABASE sys;\n");
   }
+
+  # Create the SQL session user need for plugins that use this service
+  mtr_tofile($bootstrap_sql_file,
+             "INSERT IGNORE INTO mysql.user VALUES ('localhost',
+             'mysql.session','N','N','N','N','N','N','N','N','N','N','N',
+             'N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N',
+             'N','N','','','','',0,0,0,0,'mysql_native_password',
+             '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',
+              CURRENT_TIMESTAMP,NULL,'Y');\n");
+  mtr_tofile($bootstrap_sql_file,
+             "INSERT INTO mysql.tables_priv VALUES ('localhost','mysql',
+             'mysql.session','user','root\@localhost', CURRENT_TIMESTAMP,
+             'Select', '');\n");
+  mtr_tofile($bootstrap_sql_file,
+             "INSERT INTO mysql.db VALUES ('localhost', 'performance_schema',
+             'mysql.session','Y','N','N','N','N','N','N','N','N','N','N',
+             'N','N','N','N','N','N','N','N');\n");
 
   # Make sure no anonymous accounts exists as a safety precaution
   mtr_tofile($bootstrap_sql_file,
@@ -5728,13 +5775,26 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   my $found_no_console= 0;
   my $found_log_error= 0;
+
+  # On windows, do not add console if log-error found in .cnf file
+  open (CONFIG_FILE, " < $path_config_file") or
+    die("Could not open output file $path_config_file");
+
+  while (<CONFIG_FILE>)
+  {
+    if (m/^log[-_]error/)
+    {
+      $found_log_error= 1;
+    }
+  }
+  close (CONFIG_FILE);
+
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
-   
 
-    if ($arg eq "--log-error")
+    if ($arg =~ /^--log[-_]error/)
     {
       $found_log_error= 1;
     }
@@ -6322,16 +6382,14 @@ sub start_servers($) {
     my $mysqld_basedir= $mysqld->value('basedir');
     if ( $basedir eq $mysqld_basedir )
     {
-      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+      if (!$opt_start_dirty)	# If dirty, keep possibly grown system db
       {
-	# Copy datadir from installed system db
-	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
-	    if -d $install_db;
-	}
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
+        # Copy datadir from installed system db
+        my $path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
+        my $install_db= "$path/install.db";
+        copytree($install_db, $datadir) if -d $install_db;
+        mtr_error("Failed to copy system db to '$datadir'")
+          unless -d $datadir;
       }
     }
     else
@@ -7266,6 +7324,7 @@ Options for test case authoring
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
+  test-progress         Print the percentage of tests completed
 
 Options that pass on options (these may be repeated)
 
@@ -7373,6 +7432,11 @@ Misc options
                         to $opt_retry_failure
   retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
+  report-unstable-tests Mark tests which fail initially but pass on at least
+                        one retry attempt as unstable tests and report them
+                        separately in the end summary. If all failures
+                        encountered are due to unstable tests, MTR will print
+                        a warning and exit with a zero status code.
   help                  Get this help text
 
   testcase-timeout=MINUTES Max test case run time (default $opt_testcase_timeout)
@@ -7408,6 +7472,8 @@ Misc options
                         mysql-stress-test.pl. Options are separated by comma.
   suite-opt             Run the particular file in the suite as the suite.opt.
   xml-report=FILE       Generate a XML report file compatible with JUnit.
+  summary-report=FILE   Generate a plain text file of the test summary only,
+                        suitable for sending by email.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

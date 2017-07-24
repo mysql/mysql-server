@@ -82,6 +82,7 @@ include/sync_slave_sql_with_master.inc
 ## 3.9 Signal the waiting thread on server1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ## 3.10 Transaction originated on server2 will be successful without
@@ -109,7 +110,6 @@ COMMIT;
 ## 4.2 Wait until server_1 connection reaches the
 ## group_replication_before_message_broadcast debug sync point.
 [connection server1]
-Timeout in wait_condition.inc for SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 
 ## 4.3 Execute a non-conflicting transaction on server2, that will reach
 ##    first certification, since server_1 is blocked before broadcast.
@@ -120,6 +120,7 @@ include/sync_slave_sql_with_master.inc
 ## 4.4 Signal the waiting thread on server_1 to resume.
 [connection server1]
 SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC= 'RESET';
 SET @@GLOBAL.DEBUG= @debug_save;
 
 ## 4.5 Transaction will be executed

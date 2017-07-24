@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,11 @@
 */
 enum enum_event_modifier
 {
-  TRANSACTION_BEGIN= 1, //transaction start event
-  TRANSACTION_END= 2,   //transaction end event
-  UNMARKED_EVENT= 3,    //transaction regular event
+  TRANSACTION_BEGIN= 1, ///< transaction start event
+  TRANSACTION_END= 2,   ///< transaction end event
+  UNMARKED_EVENT= 3,    ///< transaction regular event
+  SINGLE_VIEW_EVENT= 4, ///< the current Pipeline_event only contains
+                        ///< a single view event injected from GCS
 };
 
 /**

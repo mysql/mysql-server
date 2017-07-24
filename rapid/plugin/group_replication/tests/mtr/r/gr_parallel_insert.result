@@ -33,13 +33,35 @@ include/rpl_sync.inc
 # 2. Executing the same transaction on both server (almost)
 #    in parallel, one will be committed, the other will be
 #    aborted.
-include/rpl_sync.inc
+[connection server1]
+include/sync_slave_sql_with_master.inc
+[connection server2]
+include/sync_slave_sql_with_master.inc
 ############################################################
 # 3. Validate servers state is equal.
 [connection server1]
 [connection server2]
-include/diff_tables.inc [server1:t1, server2:t1]
 include/assert.inc [server1 GTID_EXECUTED must be equal to server2 GTID_EXECUTED]
+include/diff_tables.inc [server1:t0, server2:t0]
+include/diff_tables.inc [server1:t1, server2:t1]
+include/diff_tables.inc [server1:t2, server2:t2]
+include/diff_tables.inc [server1:t3, server2:t3]
+include/diff_tables.inc [server1:t4, server2:t4]
+include/diff_tables.inc [server1:t5, server2:t5]
+include/diff_tables.inc [server1:t6, server2:t6]
+include/diff_tables.inc [server1:t7, server2:t7]
+include/diff_tables.inc [server1:t8, server2:t8]
+include/diff_tables.inc [server1:t9, server2:t9]
+include/diff_tables.inc [server1:t10, server2:t10]
+include/diff_tables.inc [server1:t11, server2:t11]
+include/diff_tables.inc [server1:t12, server2:t12]
+include/diff_tables.inc [server1:t13, server2:t13]
+include/diff_tables.inc [server1:t14, server2:t14]
+include/diff_tables.inc [server1:t15, server2:t15]
+include/diff_tables.inc [server1:t16, server2:t16]
+include/diff_tables.inc [server1:t17, server2:t17]
+include/diff_tables.inc [server1:t18, server2:t18]
+include/diff_tables.inc [server1:t19, server2:t19]
 
 ############################################################
 # 4. Clean up.

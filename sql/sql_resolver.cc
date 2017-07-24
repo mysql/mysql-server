@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -151,7 +151,8 @@ bool SELECT_LEX::prepare(THD *thd)
   }
 
   // Precompute and store the row types of NATURAL/USING joins.
-  if (setup_natural_join_row_types(thd, join_list, &context))
+  if (leaf_table_count >= 2 &&
+      setup_natural_join_row_types(thd, join_list, &context))
     DBUG_RETURN(true);
 
   Mem_root_array<Item_exists_subselect *, true>
@@ -3673,7 +3674,8 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
         */
         if (!item->is_derived_used() &&
             item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
-          item->set_derived_used();
+          item->walk(&Item::propagate_set_derived_used,
+                     Item::WALK_SUBQUERY_POSTFIX, NULL);
 
         if (!item->is_derived_used())
         {

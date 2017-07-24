@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1(c1 INT UNSIGNED NOT NULL, c2 INT SIGNED NULL, c3 INT, INDEX idx2(c2));
 INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+Warnings:
+Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -1115,6 +1117,8 @@ count(*)
 drop table mt1,mt2,mt3;
 CREATE TABLE t1(c1 TINYINT UNSIGNED NOT NULL, c2 TINYINT SIGNED NULL, c3 INT, INDEX idx2(c2));
 INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+Warnings:
+Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -1907,6 +1911,8 @@ c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED NOT NULL, c2 SMALLINT SIGNED NULL, c3 INT, INDEX idx2(c2));
 INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+Warnings:
+Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -2673,6 +2679,8 @@ c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED NOT NULL, c2 MEDIUMINT SIGNED NULL, c3 INT, INDEX idx2(c2));
 INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+Warnings:
+Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0
@@ -3435,6 +3443,8 @@ c1	c2	c3	c1	c2
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL, c2 BIGINT SIGNED NULL, c3 INT, INDEX idx2(c2));
 INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+Warnings:
+Warning	1287	'\N' is deprecated and will be removed in a future release. Please use NULL instead
 SELECT * FROM t1;
 c1	c2	c3
 0	-128	0

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -57,7 +57,6 @@ public:
 
   virtual void on_client_closed(const Client_interface &client) = 0;
   virtual void restart_client_supervision_timer() = 0;
-
 };
 
 } // namespace ngs

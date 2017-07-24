@@ -1,0 +1,19 @@
+USE test;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SELECT * FROM t1;
+id
+1
+2
+3
+4
+5
+USE performance_schema;
+SELECT EVENT_NAME,COUNT_STAR FROM performance_schema.file_summary_by_event_name
+WHERE EVENT_NAME like "%inno%";
+EVENT_NAME	COUNT_STAR
+wait/io/file/innodb/innodb_data_file	5
+wait/io/file/innodb/innodb_log_file	5
+wait/io/file/innodb/innodb_temp_file	5
+USE test;
+DROP table t1;

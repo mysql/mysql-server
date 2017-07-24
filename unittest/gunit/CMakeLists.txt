@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -387,6 +387,13 @@ IF (MERGE_UNITTESTS)
     ${MERGE_SMALL_TESTS}
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
+  # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+  IF(WIN32)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "/bigobj")
+  ENDIF()
+
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")

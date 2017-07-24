@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "records.h"                            // READ_RECORD
 #include "sql_base.h"                           // open_and_lock_tables
 #include "sql_class.h"                          // THD
+#include "sql_lex.h"                      // lex_start/lex_end
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE
 #include "thr_lock.h"                           // TL_READ
@@ -434,6 +435,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
   DBUG_ASSERT(thd);
   thd->thread_stack= pointer_cast<char*>(&thd);
   thd->store_globals();
+  lex_start(thd);
 
   TABLE_LIST tables[2];
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
@@ -462,6 +464,7 @@ static void read_cost_constants(Cost_model_constants* cost_constants)
 
   trans_commit_stmt(thd);
   close_thread_tables(thd);
+  lex_end(thd->lex);
 
   // Delete the locally created THD
   delete thd;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1135,12 +1135,10 @@ row_undo_mod_parse_undo_rec(
 		return;
 	}
 
-	if (node->table->ibd_file_missing) {
+	if (node->table->ibd_file_missing ||
+	    fil_space_is_being_truncated(node->table->space) ) {
 		dict_table_close(node->table, dict_locked, FALSE);
-
-		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
-
 		return;
 	}
 

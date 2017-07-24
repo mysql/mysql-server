@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1120,6 +1120,7 @@ share_error:
 
 	DBUG_ASSERT(table != NULL);
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);
@@ -3125,6 +3126,10 @@ ha_innopart::truncate()
 	DBUG_RETURN(error);
 }
 
+#ifdef WL6742
+
+/* Removing Wl6742 as part of Bug#23046302 */
+
 /** Total number of rows in all used partitions.
 Returns the exact number of records that this client can see using this
 handler object.
@@ -3159,6 +3164,7 @@ ha_innopart::records(
 	}
 	DBUG_RETURN(0);
 }
+#endif
 
 /** Estimates the number of index records in a range.
 @param[in]	keynr	Index number.

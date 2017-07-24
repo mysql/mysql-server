@@ -85,14 +85,14 @@ select ST_astext(ST_symdifference(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))
 select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), ST_GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 
 # Buffer() tests
---replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
+--replace_numeric_round 5
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((1 1, 10 10, 0 8, 1 1))'));
---replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
+--replace_numeric_round 5
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
 select ST_NUMPOINTS(ST_EXTERIORRING(ST_buffer(geom,2))) from t1;
 
@@ -651,7 +651,7 @@ SELECT ST_DISTANCE(ST_GeomFromText('POLYGON((0 0, 1 1))'), ST_GeomFromText('POLY
 
 select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(2 2)')));
 select st_astext(st_makeenvelope(geomfromtext('point(0 0)'), geomfromtext('point(-22 -11)')));
---replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
+--replace_numeric_round 5
 select st_distance_sphere(geomfromtext('point(-120 45)'), geomfromtext('point(30.24 68.37)'));
 
 --echo #
@@ -1211,7 +1211,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))')
 --echo #
 --echo # Bug#20510010 ST_BUFFER() : MYSQLD GOT SIGNAL 11
 --echo #
---replace_regex /([0-9]+)\.[0-9]+/\1/
+--replace_numeric_round 0
 SELECT
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((12 -12,-15 19),(2 -9,-4 -8,18 3,-9 -8),(13 11,-15 9,-16 6,-17 5)),
                                                         LINESTRING(14 -16,-3 18,-13 -7,-10 1))'), 6561)) as result;

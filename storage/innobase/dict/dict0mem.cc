@@ -832,7 +832,12 @@ dict_mem_fill_vcol_from_v_indexes(
 		index;
 		index = dict_table_get_next_index(index)) {
 
-		if (!dict_index_has_virtual(index)) {
+		/* Skip if the index have newly added
+		virtual column because field name is NULL.
+		Later virtual column set will be
+		refreshed during loading of table. */
+		if (!dict_index_has_virtual(index)
+		    || index->has_new_v_col) {
 			continue;
 		}
 

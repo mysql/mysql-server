@@ -37,7 +37,7 @@ SET @@GLOBAL.DEBUG= 'd,recovery_thread_start_wait';
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 SET GLOBAL group_replication_bootstrap_group= 1;
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Wait for the debug sync to be reached.
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE User='system user' AND (State='Suspending' OR State='System lock' OR State='Locking system tables')

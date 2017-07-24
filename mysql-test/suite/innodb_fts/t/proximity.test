@@ -162,6 +162,8 @@ DROP TABLE t1;
 
 set global innodb_file_per_table=1;
 
+set names utf8;
+--character_set utf8
 # Test fts with externally stored long column
 CREATE TABLE t1 (
 	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,

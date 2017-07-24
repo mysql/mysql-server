@@ -122,12 +122,6 @@ Query_string_builder &Query_string_builder::quote_string(const char *s, size_t l
 }
 
 
-Query_string_builder &Query_string_builder::dot()
-{
-  return put(".", 1);
-}
-
-
 Query_string_builder &Query_string_builder::put(const char *s, size_t length)
 {
   if (m_in_quoted)
@@ -140,63 +134,6 @@ Query_string_builder &Query_string_builder::put(const char *s, size_t length)
   return *this;
 }
 
-
-Query_string_builder &Query_string_builder::put(const int64_t i)
-{
-  char buf[24];
-  size_t len = my_snprintf(buf, sizeof(buf), "%lli", i);
-  m_str.append(buf, len);
-  return *this;
-}
-
-
-Query_string_builder &Query_string_builder::put(const uint64_t ui)
-{
-  char buf[24];
-  size_t len = my_snprintf(buf, sizeof(buf), "%llu", ui);
-  m_str.append(buf, len);
-  return *this;
-}
-
-
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
-Query_string_builder &Query_string_builder::put(const int32_t i)
-{
-  char buf[24];
-  size_t len = my_snprintf(buf, sizeof(buf), "%i", i);
-  m_str.append(buf, len);
-  return *this;
-}
-*/
-
-
-Query_string_builder &Query_string_builder::put(const uint32_t ui)
-{
-  char buf[24];
-  size_t len = my_snprintf(buf, sizeof(buf), "%u", ui);
-  m_str.append(buf, len);
-  return *this;
-}
-
-
-Query_string_builder &Query_string_builder::put(const float f)
-{
-  char buf[100];
-  my_gcvt(f, MY_GCVT_ARG_FLOAT, sizeof(buf)-1, buf, NULL);
-  m_str.append(buf);
-  return *this;
-}
-
-
-Query_string_builder &Query_string_builder::put(const double d)
-{
-  char buf[100];
-  my_gcvt(d, MY_GCVT_ARG_DOUBLE, sizeof(buf)-1, buf, NULL);
-  m_str.append(buf);
-  return *this;
-}
 
 Query_formatter Query_string_builder::format()
 {

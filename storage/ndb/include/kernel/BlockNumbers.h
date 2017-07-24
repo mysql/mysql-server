@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,16 +102,5 @@ static inline void __hide_warnings_unused_ref_vars(void) {
 const BlockNumber MIN_BLOCK_NO = BACKUP;
 const BlockNumber MAX_BLOCK_NO = TRPMAN;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
-
-/**
- * Used for printing and stuff
- */
-struct BlockName {
-  const char* name;
-  BlockNumber number;
-};
-
-extern const BlockName BlockNames[];
-extern const BlockNumber NO_OF_BLOCK_NAMES;
 
 #endif

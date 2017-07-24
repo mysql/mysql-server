@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,6 @@ public:
 		m_name(),
 		m_filepath(),
 		m_filename(),
-		m_handle(OS_FILE_CLOSED),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(),
 		m_order(),
@@ -70,7 +69,9 @@ public:
 		m_encryption_key(NULL),
 		m_encryption_iv(NULL)
 	{
-		/* No op */
+
+		m_handle.m_file = OS_FILE_CLOSED;
+
 	}
 
 	Datafile(const char* name, ulint flags, ulint size, ulint order)
@@ -78,7 +79,6 @@ public:
 		m_name(mem_strdup(name)),
 		m_filepath(),
 		m_filename(),
-		m_handle(OS_FILE_CLOSED),
 		m_open_flags(OS_FILE_OPEN),
 		m_size(size),
 		m_order(order),
@@ -96,7 +96,8 @@ public:
 		m_encryption_iv(NULL)
 	{
 		ut_ad(m_name != NULL);
-		/* No op */
+		m_handle.m_file = OS_FILE_CLOSED;
+
 	}
 
 	Datafile(const Datafile& file)
@@ -146,9 +147,7 @@ public:
 
 		m_size = file.m_size;
 		m_order = file.m_order;
-		m_type = file.m_type;
-
-		ut_a(m_handle == OS_FILE_CLOSED);
+		ut_a(m_handle.m_file == OS_FILE_CLOSED);
 		m_handle = file.m_handle;
 
 		m_exists = file.m_exists;
@@ -289,7 +288,7 @@ public:
 
 	/** Get Datafile::m_handle.
 	@return m_handle */
-	os_file_t	handle()	const
+	pfs_os_file_t	handle()	const
 	{
 		return(m_handle);
 	}
@@ -319,7 +318,7 @@ public:
 	@return true if m_handle is open, false if not */
 	bool	is_open()	const
 	{
-		return(m_handle != OS_FILE_CLOSED);
+		return(m_handle.m_file != OS_FILE_CLOSED);
 	}
 
 	/** Get Datafile::m_is_valid.
@@ -428,7 +427,7 @@ private:
 	char*			m_filename;
 
 	/** Open file handle */
-	os_file_t		m_handle;
+	pfs_os_file_t		m_handle;
 
 	/** Flags to use for opening the data file */
 	os_file_create_t	m_open_flags;

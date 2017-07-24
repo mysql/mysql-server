@@ -879,7 +879,7 @@ Mysqlx.Crud.Find {
     }
   }
 }
--->recvresult
+-->recverror ER_WRONG_FIELD_WITH_GROUP
 
 ## Cleanup
 -->echo ================================================================================

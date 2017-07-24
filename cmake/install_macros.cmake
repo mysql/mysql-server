@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -246,7 +246,8 @@ ENDFUNCTION()
 
 # Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
 # (unless multi-config generator is used like Visual Studio or Xcode). 
-# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
+# For single-config generators like Makefile generators we default Debug
+# build directory to ${buildroot}/../debug.
 GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
 SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
 
@@ -267,7 +268,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
   ENDIF()
   GET_TARGET_PROPERTY(target_location ${target} LOCATION)
-  IF(CMAKE_GENERATOR MATCHES "Makefiles")
+  IF(BUILD_IS_SINGLE_CONFIG)
    STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
   ELSE()
    STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )

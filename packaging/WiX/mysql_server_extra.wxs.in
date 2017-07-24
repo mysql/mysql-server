@@ -2,7 +2,7 @@
          xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,7 +93,74 @@
     <ComponentRef Id='RegKeys'/>
     </Feature>
 
-    </Include>
+    <!-- Datafiles that installation will copy to CommonAppData (initial database)
+    They are declared Permanent and NeverOverwrite since it is user data -->
+    <DirectoryRef Id='TARGETDIR'>
+    <Directory Id="CommonAppDataFolder">
+      <Directory Id="datadir.mysql" Name="MySQL">
+        <Directory Id="datadir.mysql.mysqlserver"
+          Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@">
+          <Directory Id="DATADIR" Name=".">
+            <Component Id="component.datadir" Guid="d3491319-5dbc-4477-95f3-4f809ef1dd2d">
+              <CreateFolder>
+                <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+              </CreateFolder>
+            </Component>
+            <Directory Id="datadir.mysql.mysqlserver.data" Name="data">
+              <Component Id="component.datadir.data"
+                Guid="1d9a385d-6edf-4fb7-8652-35973c399d0c"
+                Permanent="yes" NeverOverwrite="yes">
+                <CreateFolder>
+                  <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                </CreateFolder>
+                @DATADIR_FILES@
+              </Component>                  
+              <Directory Id="datadir.mysql.mysqlserver.data.mysql" Name="mysql">
+                <Component Id="component.datadir.mysql"
+                  Guid="19ec0f1f-1a7f-424e-a788-b09346c0a709"
+                  Permanent="yes" NeverOverwrite="yes">
+                  <CreateFolder>
+                    <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                  </CreateFolder>
+                  @DATADIR_MYSQL_FILES@
+                </Component>
+              </Directory>
+              <Directory Id="datadir.mysql.mysqlserver.data.performance_schema"
+                 Name="performance_schema">
+                <Component Id="component.datadir.performance_schema"
+                  Guid="af2a6776-2655-431f-a748-9e9f4645acc3"
+                  Permanent="yes" NeverOverwrite="yes">
+                  <CreateFolder>
+                    <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                  </CreateFolder>
+                  @DATADIR_PERFORMANCE_SCHEMA_FILES@
+                </Component>
+              </Directory>
+              <Directory Id="datadir.mysql.mysqlserver.data.test" Name="test">
+                <Component Id="component.datadir.test" Guid="52fa9f0a-fcd1-420a-b2ac-95a8f70ad20a">
+                  <CreateFolder/>
+                </Component>
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+    </DirectoryRef>
+
+    <Feature Id='UserEditableDataFiles' 
+       Title='Server data files'
+       Description='Server data files'
+       ConfigurableDirectory='DATADIR'
+       Level='1'>
+    <ComponentRef Id="component.datadir"/>
+    <ComponentRef Id="component.datadir.data"/>
+    <ComponentRef Id="component.datadir.mysql"/>
+    <ComponentRef Id="component.datadir.performance_schema"/>
+    <ComponentRef Id="component.datadir.test"/>
+    </Feature>
+
+</Include>
 
 
 

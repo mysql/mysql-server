@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ public:
     @param[in] buf raw data
     @param[in] len raw length
   */
-  Recovery_message(const uchar* buf, size_t len);
+  Recovery_message(const uchar* buf, uint64 len);
 
   /** Returns this recovery message type */
   Recovery_message_type get_recovery_message_type()
@@ -99,9 +99,9 @@ protected:
     Message decoding method
 
     @param[in] buffer the received data
-    @param[in] length the received data size
+    @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char* buffer, size_t length);
+  void decode_payload(const unsigned char* buffer, const unsigned char* end);
 
 private:
   /**The message type*/

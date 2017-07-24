@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,7 +37,12 @@ IF(CMAKE_C_FLAGS MATCHES "-Werror")
   STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+# Set extra flags for the C compiler
+IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+ENDIF()
+
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h
@@ -51,7 +56,7 @@ SET(LIBMEMCACHED_UTILITIES_SOURCES
 		utilities/genhash_int.h
 		utilities/util.c)
 
-ADD_LIBRARY(memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
+ADD_CONVENIENCE_LIBRARY(memcached_utilities ${LIBMEMCACHED_UTILITIES_SOURCES})
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/daemon")
 
@@ -75,12 +80,12 @@ SET(MEMCACHED_SOURCES
 		daemon/topkeys.h
 		trace.h)
 
-MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
-		MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
-
-TARGET_LINK_LIBRARIES(libmemcached ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
-TARGET_LINK_LIBRARIES(libmemcached memcached_utilities)
-
+SET(SASL_LIBRARY)
 IF(ENABLE_MEMCACHED_SASL)
-  TARGET_LINK_LIBRARIES(libmemcached sasl2)
+  SET(SASL_LIBRARY "sasl2")
 ENDIF()
+
+MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
+                 LINK_LIBRARIES ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+                 memcached_utilities ${SASL_LIBRARY}
+		 MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")

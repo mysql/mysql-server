@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,7 @@ Created 2014/01/16 Jimmy Yang
 #include "trx0trx.h"
 #include "srv0mon.h"
 #include "gis0geo.h"
+#include "sync0sync.h"
 
 #endif /* UNIV_HOTBACKUP */
 

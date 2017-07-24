@@ -1,6 +1,7 @@
 #
 # WL#9262: All system tables should support 32 character length user names
 #
+call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
 CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
 CREATE USER user_name_robert_golebiowski1234@localhost;
@@ -58,10 +59,16 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 CREATE DATABASE db_1;
 CREATE TABLE db_1.test_table(ID INT);
 CREATE USER user_name_robert_golebiowski@localhost;
+ERROR HY000: Cannot load from mysql.procs_priv. The table is probably corrupted
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@localhost WITH GRANT OPTION;
+ERROR 42000: Can't find any matching row in the user table
 #Create user with length > 77 (username length + hostname length)
 CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+ERROR HY000: Cannot load from mysql.procs_priv. The table is probably corrupted
 GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+ERROR 42000: Can't find any matching row in the user table
+connect(localhost,user_name_robert_golebiowski,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'user_name_robert_golebiowski'@'localhost' (using password: NO)
 # This will change CURRENT_USER from user_name_robert_golebiowski@localhost to
 # user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 # We have to do this in the server code as we are not able to simulate connecting to
@@ -71,25 +78,34 @@ FLUSH PRIVILEGES;
 SET DEBUG='-d,wl_9262_set_max_length_hostname';
 SELECT CURRENT_USER();
 CURRENT_USER()
-user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+root@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 CREATE USER lucky_user@localhost;
+ERROR HY000: Cannot load from mysql.procs_priv. The table is probably corrupted
 # Now we should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
 # is longer then mysql.tables_priv.Grantor column length - 77 chars)
 GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
-ERROR HY000: It seems that your db schema is old. The Grantor column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+ERROR 42000: Can't find any matching row in the user table
 CREATE PROCEDURE db_1.p_def() SQL SECURITY DEFINER SELECT 1;
+Warnings:
+Note	1449	The user specified as a definer ('root'@'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char') does not exist
 # We should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
 # is longer then mysql.procs_priv.Grantor column length - 77 chars)
 GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
-ERROR HY000: It seems that your db schema is old. The Grantor column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+ERROR 42000: Can't find any matching row in the user table
 #Now we make sure if usernames with length of 77 or less work with
 #this old db schema
 #First create user of length 77 chars.
 CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+ERROR HY000: Cannot load from mysql.procs_priv. The table is probably corrupted
 GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+ERROR 42000: Can't find any matching row in the user table
 #Create user for connecting
 CREATE USER robert_golebiows@localhost;
+ERROR HY000: Cannot load from mysql.procs_priv. The table is probably corrupted
 GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
+ERROR 42000: Can't find any matching row in the user table
+connect(localhost,robert_golebiows,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'robert_golebiows'@'localhost' (using password: NO)
 # Again we change localhost to oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 # for CURRENT_USER
 SET DEBUG='+d,wl_9262_set_max_length_hostname';
@@ -97,24 +113,22 @@ FLUSH PRIVILEGES;
 SET DEBUG='-d,wl_9262_set_max_length_hostname';
 SELECT CURRENT_USER();
 CURRENT_USER()
-robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+root@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 # Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 #Now it should pass as mysql.tables_priv.Grantor is 77 chars
 GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+ERROR 42000: Can't find any matching row in the user table
 SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
 Grantor
-robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
 LENGTH(Grantor)
-77
 #Now it should pass as mysql.procs_priv.Grantor is 77 chars
 GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+ERROR 42000: Can't find any matching row in the user table
 SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
 Grantor
-robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
 LENGTH(Grantor)
-77
 #cleanup
 Restore mysql.procs_priv
 SET @orig_sql_mode= @@sql_mode;
@@ -136,10 +150,5 @@ MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 SET sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-DROP USER user_name_robert_golebiowski@localhost;
-DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
-DROP USER robert_golebiows@localhost;
-DROP USER lucky_user@localhost;
 DROP PROCEDURE db_1.p_def;
 DROP DATABASE db_1;

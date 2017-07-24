@@ -12,18 +12,21 @@ INSERT INTO xtest.xcoll (doc) VALUES
 ('{"_id": 3, "age": 3, "name": "baz", "date": {"day": 20, "month": "Apr"}} '),
 ('{"_id": 4, "age": 7, "name": "foo"}'),
 ('{"_id": 5, "age": 17, "name": "buz"}');
+group by name
 doc
 {"name": "bar"}
 {"name": "baz"}
 {"name": "buz"}
 {"name": "foo"}
 command ok
+group by name and count
 doc
 {"name": "bar", "count": 1}
 {"name": "baz", "count": 1}
 {"name": "buz", "count": 1}
 {"name": "foo", "count": 2}
 command ok
+group by name, age and count
 doc
 {"age": 2, "name": "bar", "count": 1}
 {"age": 3, "name": "baz", "count": 1}
@@ -31,11 +34,15 @@ doc
 {"age": 1, "name": "foo", "count": 1}
 {"age": 7, "name": "foo", "count": 1}
 command ok
+no projection - error expected
 Got expected error: Invalid empty projection list for grouping (code 5114)
+group by name, count name and criteria on count
+Got expected error: Invalid expression in grouping criteria (code 5154)
+group by name, criteria on max(age)
 doc
-{"name": "foo", "count": 2}
+{"my_age": "17", "my_name": "buz"}
+{"my_age": "7", "my_name": "foo"}
 command ok
-Got expected error: Unknown column 'nowhere' in grouping criteria (code 5117)
 Mysqlx.Ok {
   msg: "bye!"
 }

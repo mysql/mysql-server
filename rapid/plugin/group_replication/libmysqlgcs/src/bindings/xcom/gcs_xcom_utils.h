@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "xcom_base.h"
 #include "task_net.h"
 #include "node_connection.h"
+#include "node_no.h"
 
 #include <vector>
 #include <string>
@@ -86,6 +87,18 @@ public:
   static
   void process_peer_nodes(const std::string *peer_nodes,
                           std::vector<std::string> &processed_peers);
+
+  /**
+    Validates peer nodes according with IP/Address rules enforced by
+    is_valid_hostname function
+
+    @param [in,out] peers input list of peer nodes. It will be cleansed of
+                    invalid peers
+    @param [in,out] invalid_peers This list will contain all invalid peers.
+   */
+  static
+  void validate_peer_nodes(std::vector<std::string> &peers,
+                           std::vector<std::string> &invalid_peers);
 
   /**
    Simple multiplicative hash.
@@ -794,6 +807,22 @@ public:
   */
 
   unsigned int get_size() const;
+
+
+  /**
+    Return with the configuration is valid or not.
+  */
+  inline bool is_valid() const
+  {
+    /*
+      Unfortunately a node may get notifications even when its configuration
+      inside XCOM is not properly established and this may trigger view
+      changes and may lead to problems because the node is not really ready.
+
+      We detect this fact by checking the node identification is valid.
+    */
+    return m_node_no != VOID_NODE_NO;
+  }
 
 private:
   /*

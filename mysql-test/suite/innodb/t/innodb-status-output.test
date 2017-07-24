@@ -65,8 +65,13 @@ COMMIT;
 --source include/shutdown_mysqld.inc
 
 # We should not see any extra output.
-let SEARCH_PATTERN= ready for connections.*\nVersion:.*\n.*(a chance to die gracefully|Shutting down|Normal shutdown);
+
+let SEARCH_PATTERN= ready for connections.*\nVersion:;
 --source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= .*(a chance to die gracefully|Shutting down|Normal shutdown);
+--source include/search_pattern_in_file.inc
+
 --remove_file $SEARCH_FILE
 
 --exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name

@@ -343,3 +343,264 @@ SET optimizer_trace_max_mem_size=DEFAULT;
 SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
 DROP TABLE t0,t1,t2;
+#
+# Bug #21749123: SELECT DISTINCT, WRONG RESULTS COMBINED WITH
+#                USE_INDEX_EXTENSIONS=OFF
+#
+CREATE TABLE t1 (
+pk_col INT AUTO_INCREMENT PRIMARY KEY,
+a1 CHAR(64),
+KEY a1_idx (a1)
+) ENGINE=INNODB;
+INSERT INTO t1 (a1) VALUES ('a'),('a'),('a'),('a'), ('a');
+CREATE TABLE t2 (
+pk_col1 INT NOT NULL,
+pk_col2 INT NOT NULL,
+a1 CHAR(64),
+a2 CHAR(64),
+PRIMARY KEY(pk_col1, pk_col2),
+KEY a1_idx (a1),
+KEY a1_a2_idx (a1, a2)
+) ENGINE=INNODB;
+INSERT INTO t2 (pk_col1, pk_col2, a1, a2) VALUES (1,1,'a','b'),(1,2,'a','b'),
+(1,3,'a','c'),(1,4,'a','c'),
+(2,1,'a','d');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,a1_idx	a1_idx	69	NULL	2	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where ((`test`.`t1`.`a1` = 'a') and ((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)))
+SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+a1
+a
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a1_idx	a1_idx	69	NULL	6	100.00	Using index for group-by (scanning)
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`pk_col`
+SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+COUNT(DISTINCT a1)
+1
+1
+1
+1
+1
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a1_idx,a1_a2_idx	a1_idx	69	NULL	3	100.00	Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t2` group by `test`.`t2`.`a1`,`test`.`t2`.`pk_col1`
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+COUNT(DISTINCT a1)
+1
+1
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a1_a2_idx	a1_a2_idx	130	NULL	4	100.00	Using index for group-by (scanning)
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t2` group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+COUNT(DISTINCT a1)
+1
+1
+1
+SET @optimizer_switch_save=@@optimizer_switch;
+SET @@optimizer_switch= "use_index_extensions=off";
+EXPLAIN SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY,a1_idx	a1_idx	65	const	5	40.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where ((`test`.`t1`.`a1` = 'a') and ((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)))
+SELECT DISTINCT a1
+FROM t1
+WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
+a1
+a
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	a1_idx	a1_idx	65	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t1` group by `test`.`t1`.`a1`,`test`.`t1`.`pk_col`
+SELECT COUNT(DISTINCT a1)
+FROM t1
+GROUP BY a1,pk_col;
+COUNT(DISTINCT a1)
+1
+1
+1
+1
+1
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	index	a1_idx,a1_a2_idx	a1_idx	65	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t2` group by `test`.`t2`.`a1`,`test`.`t2`.`pk_col1`
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,pk_col1;
+COUNT(DISTINCT a1)
+1
+1
+EXPLAIN SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	a1_a2_idx	a1_a2_idx	130	NULL	4	100.00	Using index for group-by (scanning)
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a1`) AS `COUNT(DISTINCT a1)` from `test`.`t2` group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+SELECT COUNT(DISTINCT a1)
+FROM t2
+GROUP BY a1,a2;
+COUNT(DISTINCT a1)
+1
+1
+1
+SET @@optimizer_switch= @optimizer_switch_save;
+DROP TABLE t1, t2;
+#
+# Bug #24671968: WHEN THE OPTIMISER IS USING INDEX FOR GROUP-BY IT OFTEN
+#                OFTEN GIVES WRONG RESULTS
+#
+CREATE TABLE t1 (
+id int NOT NULL,
+c1 int NOT NULL,
+c2 int,
+PRIMARY KEY(id),
+INDEX c1_c2_idx(c1, c2));
+INSERT INTO t1 (id, c1, c2) VALUES (1,1,1), (2,2,2), (10,10,1), (11,10,8),
+(12,10,1), (13,10,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	c1_c2_idx	c1_c2_idx	9	NULL	6	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` where exists(/* select#2 */ select 1 from DUAL  where (`test`.`t1`.`c2` = 2))
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	c1_c2_idx	c1_c2_idx	9	NULL	6	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (1 in (2,(/* select#2 */ select 1 from DUAL  where (`test`.`t1`.`c2` = 2)),3))
+EXPLAIN SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1_c2_idx	c1_c2_idx	9	NULL	4	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c2` = 2)
+EXPLAIN SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	c1_c2_idx	NULL	NULL	NULL	6	100.00	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` IGNORE INDEX (`c1_c2_idx`) where exists(/* select#2 */ select 1 from DUAL  where (`test`.`t1`.`c2` = 2))
+EXPLAIN SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	c1_c2_idx	NULL	NULL	NULL	6	100.00	Using where; Using temporary
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` IGNORE INDEX (`c1_c2_idx`) where (1 in (2,(/* select#2 */ select 1 from DUAL  where (`test`.`t1`.`c2` = 2)),3))
+SET optimizer_trace="enabled=on";
+SELECT DISTINCT c1
+FROM t1
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "keypart_reference_from_where_clause";
+@trace RLIKE "keypart_reference_from_where_clause"
+1
+SET optimizer_trace="enabled=off";
+SELECT DISTINCT c1
+FROM t1
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1
+WHERE c2 = 2;
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE EXISTS (SELECT *
+FROM DUAL
+WHERE (c2 = 2));
+c1
+2
+10
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX (c1_c2_idx)
+WHERE 1 IN (2,
+(SELECT 1
+FROM DUAL
+WHERE (c2 = 2)),
+3);
+c1
+2
+10
+DROP TABLE t1;

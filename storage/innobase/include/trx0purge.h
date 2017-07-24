@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,6 +35,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
+#include "srv0start.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -195,7 +196,7 @@ namespace undo {
 			:
 			m_undo_for_trunc(ULINT_UNDEFINED),
 			m_rseg_for_trunc(),
-			m_scan_start(1),
+			m_scan_start(srv_undo_space_id_start),
 			m_purge_rseg_truncate_frequency(
 				static_cast<ulint>(
 				srv_purge_rseg_truncate_frequency))
@@ -224,13 +225,6 @@ namespace undo {
 		void mark(ulint undo_id)
 		{
 			m_undo_for_trunc = undo_id;
-
-			m_scan_start = (undo_id + 1)
-					% (srv_undo_tablespaces_active + 1);
-			if (m_scan_start == 0) {
-				/* Note: UNDO tablespace ids starts from 1. */
-				m_scan_start = 1;
-			}
 
 			/* We found an UNDO-tablespace to truncate so set the
 			local purge rseg truncate frequency to 1. This will help
@@ -286,6 +280,12 @@ namespace undo {
 		ulint get_scan_start() const
 		{
 			return(m_scan_start);
+		}
+
+		/** Set the tablespace id to start scanning from. */
+		void set_scan_start(ulint	space_id)
+		{
+			m_scan_start = space_id;
 		}
 
 		/** Check if the tablespace needs fix-up (based on presence of

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -76,7 +76,31 @@ typedef void* (*os_posix_f_t) (void*);
 
 #ifdef HAVE_PSI_INTERFACE
 /* Define for performance schema registration key */
-typedef unsigned int    mysql_pfs_key_t;
+struct mysql_pfs_key_t {
+public:
+
+        /** Default Constructor */
+        mysql_pfs_key_t() {
+                s_count++;
+        }
+
+        /** Constructor */
+        mysql_pfs_key_t(unsigned int    val) : m_value(val) {}
+
+        /** Retreive the count.
+        @return number of keys defined */
+        static int get_count() {
+                return s_count;
+        }
+
+        /* Key value. */
+        unsigned int            m_value;
+
+private:
+
+        /** To keep count of number of PS keys defined. */
+        static unsigned int     s_count;
+};
 #endif /* HAVE_PSI_INTERFACE */
 
 /** Number of threads active. */

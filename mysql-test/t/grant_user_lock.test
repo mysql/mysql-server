@@ -294,27 +294,31 @@ ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTER
 SHOW CREATE USER u1@localhost;
 
 --echo # MySQL user table layout from the before ACCOUNT LOCK option
+call mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+
 connection default;
 CREATE TABLE temp_user LIKE mysql.user;
 INSERT INTO temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 CREATE USER backuser@localhost IDENTIFIED BY 'pass';
 SELECT COUNT(*) FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
 --error ER_BAD_FIELD_ERROR
 SELECT user, account_locked FROM mysql.user WHERE (user = 'backuser' and host = 'localhost');
-connect(backuser_conn, localhost, backuser, pass);
-disconnect backuser_conn;
 connection default;
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ALTER USER backuser@localhost ACCOUNT LOCK;
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ALTER USER backuser@localhost ACCOUNT UNLOCK;
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 DROP USER backuser@localhost;
 DROP TABLE mysql.user;
 ALTER TABLE temp_user RENAME mysql.user;

@@ -1,0 +1,8 @@
+################################################################################
+# This test verifies that the slave server with binlog enabled is able to
+# replicate from a member which is part of a Group, even when the slave server
+# is configured with database parallel applier.
+#
+# Please see gr_replicate_group_to_server.test for further details.
+################################################################################
+--source gr_replicate_group_to_server.test

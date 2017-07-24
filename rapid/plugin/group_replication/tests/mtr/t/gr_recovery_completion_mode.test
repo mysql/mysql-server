@@ -91,11 +91,8 @@ LOCK TABLE t2 READ;
 --connection server2
 --echo server2
 
---eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
-
---let $group_replication_member_state= RECOVERING
---source ../inc/gr_wait_for_member_state.inc
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
 
 --echo #
 --echo # Insert some transaction on server 1 that will be cached on server 2
@@ -201,10 +198,8 @@ LOCK TABLE t2 READ;
 --connection server2
 --echo server2
 
-START GROUP_REPLICATION;
-
---let $group_replication_member_state= RECOVERING
---source ../inc/gr_wait_for_member_state.inc
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
 
 --echo #
 --echo # Insert some transaction on server 1 that will be cached on server 2

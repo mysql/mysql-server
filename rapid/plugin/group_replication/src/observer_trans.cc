@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "observer_trans.h"
 #include "plugin_log.h"
+#include "plugin.h"
 #include <mysql/service_rpl_transaction_ctx.h>
 #include <mysql/service_rpl_transaction_write_set.h>
 #include "sql_command_test.h"
@@ -122,7 +123,7 @@ int add_write_set(Transaction_context_log_event *tcle,
     int8store(buff, set->write_set[i]);
     uint64 const tmp_str_sz= base64_needed_encoded_length((uint64) BUFFER_READ_PKE);
     char *write_set_value= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
-                                              tmp_str_sz, MYF(MY_WME));
+                                              static_cast<size_t>(tmp_str_sz), MYF(MY_WME));
     if (!write_set_value)
     {
       /* purecov: begin inspected */
@@ -337,6 +338,9 @@ int group_replication_trans_before_commit(Trans_param *param)
   }
 
   // Transaction information.
+  const ulong transaction_size_limit= get_transaction_size_limit();
+  my_off_t transaction_size= 0;
+
   const bool is_gtid_specified= param->gtid_info.type == GTID_GROUP;
   Gtid gtid= { param->gtid_info.sidno, param->gtid_info.gno };
   if (!is_gtid_specified)
@@ -362,6 +366,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   // Binlog cache.
   bool is_dml= true;
+  bool may_have_sbr_stmts= !is_dml;
   IO_CACHE *cache_log= NULL;
   my_off_t cache_log_position= 0;
   bool reinit_cache_log_required= false;
@@ -378,6 +383,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     cache_log= param->stmt_cache_log;
     cache_log_position= stmt_cache_log_position;
     is_dml= false;
+    may_have_sbr_stmts= true;
   }
   else
   {
@@ -478,14 +484,37 @@ int group_replication_trans_before_commit(Trans_param *param)
       cleanup_transaction_write_set(write_set);
       DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
+    else
+    {
+      /*
+        For empty transactions we should set the GTID may_have_sbr_stmts. See
+        comment at binlog_cache_data::may_have_sbr_stmts().
+      */
+      may_have_sbr_stmts= true;
+    }
   }
 
   // Write transaction context to group replication cache.
   tcle->write(cache);
 
   // Write Gtid log event to group replication cache.
-  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1, gtid_specification);
+  gle= new Gtid_log_event(param->server_id, is_dml, 0, 1,
+                          may_have_sbr_stmts,
+                          gtid_specification);
   gle->write(cache);
+
+  transaction_size= cache_log_position + my_b_tell(cache);
+  if (is_dml && transaction_size_limit &&
+     transaction_size > transaction_size_limit)
+  {
+    log_message(MY_ERROR_LEVEL, "Error on session %u. "
+                "Transaction of size %llu exceeds specified limit %lu. "
+                "To increase the limit please adjust group_replication_transaction_size_limit option.",
+                param->thread_id, transaction_size,
+                transaction_size_limit);
+    error= pre_wait_error;
+    goto err;
+  }
 
   // Reinit group replication cache to read.
   if (reinit_cache(cache, READ_CACHE, 0))
@@ -710,7 +739,7 @@ IO_CACHE* observer_trans_get_io_cache(my_thread_id thread_id,
     if (!cache || (!my_b_inited(cache) &&
                    open_cached_file(cache, mysql_tmpdir,
                                     "group_replication_trans_before_commit",
-                                    cache_size, MYF(MY_WME))))
+                                    static_cast<size_t>(cache_size), MYF(MY_WME))))
     {
       /* purecov: begin inspected */
       my_free(cache);
@@ -814,7 +843,8 @@ Transaction_Message::encode_payload(std::vector<unsigned char>* buffer) const
 }
 
 void
-Transaction_Message::decode_payload(const unsigned char* buffer, size_t length)
+Transaction_Message::decode_payload(const unsigned char* buffer,
+                                    const unsigned char* end)
 {
   DBUG_ENTER("Transaction_Message::decode_payload");
   const unsigned char *slider= buffer;

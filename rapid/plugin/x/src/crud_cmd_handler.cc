@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -55,7 +55,7 @@ ngs::Error_code Crud_command_handler::execute(
   {
     return error;
   }
-
+  log_debug("CRUD query: %s", m_qb.get().c_str());
   Sql_data_context::Result_info info;
   ngs::Error_code error = sql_execute<M>(session, info);
   if (error)
@@ -242,11 +242,13 @@ ngs::Error_code Crud_command_handler::error_handling(
   case ER_BAD_FIELD_ERROR:
     std::string::size_type pos = std::string::npos;
     if (check_message(error.message, "having clause", pos))
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%sgrouping criteria",
-                        error.message.substr(0, pos - 1).c_str());
+      return ngs::Error(ER_X_EXPR_BAD_VALUE,
+                        "Invalid expression in grouping criteria");
+
     if (check_message(error.message, "where clause", pos))
       return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%sselection criteria",
                         error.message.substr(0, pos - 1).c_str());
+
     if (check_message(error.message, "field list", pos))
       return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%scollection",
                         error.message.substr(0, pos - 1).c_str());

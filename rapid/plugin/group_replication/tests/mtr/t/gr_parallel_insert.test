@@ -53,7 +53,17 @@ while($t < $transactions)
   --reap
 }
 --enable_query_log
---source include/rpl_sync.inc
+
+# Sync server1, server2
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $sync_slave_connection= server1
+--source include/sync_slave_sql_with_master.inc
 
 --echo ############################################################
 --echo # 3. Validate servers state is equal.
@@ -66,12 +76,18 @@ while($t < $transactions)
 --source include/rpl_connection.inc
 --let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
 
---let $diff_tables= server1:t1, server2:t1
---source include/diff_tables.inc
-
 --let $assert_text= server1 GTID_EXECUTED must be equal to server2 GTID_EXECUTED
 --let $assert_cond= "$server1_gtid_executed" = "$server2_gtid_executed"
 --source include/assert.inc
+
+# Check that all tables has same data in server1, server2
+--let $i=0
+while($i < $tables)
+{
+  --let $diff_tables= server1:t$i, server2:t$i
+  --source include/diff_tables.inc
+  --inc $i
+}
 
 --echo
 --echo ############################################################

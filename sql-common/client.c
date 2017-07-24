@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -717,6 +717,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 {
   size_t total_len, len;
   uchar *pos, *saved_pos;
+  my_ulonglong affected_rows, insert_id;
   char *db;
 
   struct charset_info_st *saved_cs;
@@ -730,15 +731,29 @@ void read_ok_ex(MYSQL *mysql, ulong length)
 
   pos= mysql->net.read_pos + 1;
 
-  /* affected rows */
-  mysql->affected_rows= net_field_length_ll(&pos);
-  /* insert id */
-  mysql->insert_id= net_field_length_ll(&pos);
+  affected_rows = net_field_length_ll(&pos); /* affected rows */
+  insert_id = net_field_length_ll(&pos); /* insert id */
 
-  DBUG_PRINT("info",("affected_rows: %lu  insert_id: %lu",
-                     (ulong) mysql->affected_rows,
-                     (ulong) mysql->insert_id));
+  /*
+   The following check ensures that we skip the assignment for the
+   above read fields (i.e. affected_rows and insert_id) wherein the
+   EOF packets are deprecated and the server sends OK packet instead
+   with a packet header of 0xFE (254) to identify it as an EOF packet.
+   We ignore this assignment as the valid contents of EOF packet include
+   packet marker, server status and warning count only. However, we would
+   assign these values to the connection handle if it was an OK packet
+   with a packet header of 0x00.
+  */
+  if (!((mysql->server_capabilities & CLIENT_DEPRECATE_EOF) &&
+        mysql->net.read_pos[0] == 254))
+  {
+    mysql->affected_rows= affected_rows;
+    mysql->insert_id= insert_id;
 
+    DBUG_PRINT("info",("affected_rows: %lu  insert_id: %lu",
+                       (ulong) mysql->affected_rows,
+                       (ulong) mysql->insert_id));
+  }
   /* server status */
   mysql->server_status= uint2korr(pos);
   pos += 2;
@@ -1717,16 +1732,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
 
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-#define SET_SSL_OPTION(opt_var, arg, mode) \
-  do { \
-    SET_OPTION(opt_var, arg); \
-    if (mysql->options.opt_var) \
-    { \
-      ENSURE_EXTENSIONS_PRESENT(&mysql->options); \
-      mysql->options.extension->ssl_mode= mode; \
-    } \
-  } while (0)
-
 #define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
   do { \
     EXTENSION_SET_STRING(OPTS, X, STR); \
@@ -1734,18 +1739,13 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
       (OPTS)->extension->ssl_mode= mode; \
   } while (0)
 #else
-#define SET_SSL_OPTION(opt_var, arg, mode) \
-    do { \
-      ; \
-    } while(0)
 #define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
     do { \
       ; \
     } while(0)
 #endif
 
-static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
-                                        const char *arg, unsigned int mode)
+static char *set_ssl_option_unpack_path(const char *arg)
 {
   char *opt_var= NULL;
   if (arg)
@@ -1754,8 +1754,6 @@ static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
                                   MYF(MY_WME));
     unpack_filename(buff, (char *)arg);
     opt_var= my_strdup(key_memory_mysql_options, buff, MYF(MY_WME));
-    ENSURE_EXTENSIONS_PRESENT(options);
-    options->extension->ssl_mode= mode;
     my_free(buff);
   }
   return opt_var;
@@ -3514,6 +3512,21 @@ cli_establish_ssl(MYSQL *mysql)
                              ER(CR_SSL_CONNECTION_ERROR),
                              "SSL is required but the server doesn't "
                              "support it");
+    goto error;
+  }
+
+  /*
+    If the ssl_mode is VERIFY_CA or VERIFY_IDENTITY, make sure that the
+    connection doesn't succeed without providing the CA certificate.
+  */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode > SSL_MODE_REQUIRED &&
+      !(mysql->options.ssl_ca || mysql->options.ssl_capath))
+  {
+    set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                             ER(CR_SSL_CONNECTION_ERROR),
+                             "CA certificate is required if ssl-mode "
+                             "is VERIFY_CA or VERIFY_IDENTITY");
     goto error;
   }
 
@@ -5506,29 +5519,25 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_KEY:
     if (mysql->options.ssl_key)
       my_free(mysql->options.ssl_key);
-    mysql->options.ssl_key= set_ssl_option_unpack_path(&mysql->options, arg,
-                                                       SSL_MODE_PREFERRED);
+    mysql->options.ssl_key= set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_SSL_CERT:
     if (mysql->options.ssl_cert)
       my_free(mysql->options.ssl_cert);
-    mysql->options.ssl_cert= set_ssl_option_unpack_path(&mysql->options, arg,
-                                                        SSL_MODE_PREFERRED);
+    mysql->options.ssl_cert= set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_SSL_CA:
     if (mysql->options.ssl_ca)
       my_free(mysql->options.ssl_ca);
-    mysql->options.ssl_ca= set_ssl_option_unpack_path(&mysql->options, arg,
-                                                      SSL_MODE_VERIFY_CA);
+    mysql->options.ssl_ca= set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_SSL_CAPATH:
     if (mysql->options.ssl_capath)
       my_free(mysql->options.ssl_capath);
-    mysql->options.ssl_capath= set_ssl_option_unpack_path(&mysql->options, arg,
-                                                          SSL_MODE_VERIFY_CA);
+    mysql->options.ssl_capath= set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_SSL_CIPHER:
-    SET_SSL_OPTION(ssl_cipher, arg, SSL_MODE_PREFERRED);
+    SET_OPTION(ssl_cipher, arg);
     break;
   case MYSQL_OPT_SSL_CRL:
     if (mysql->options.extension)
@@ -5536,8 +5545,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crl=
-                   set_ssl_option_unpack_path(&mysql->options, arg,
-                                              SSL_MODE_PREFERRED);
+                   set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_SSL_CRLPATH:
     if (mysql->options.extension)
@@ -5545,13 +5553,11 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crlpath=
-                   set_ssl_option_unpack_path(&mysql->options, arg,
-                                              SSL_MODE_PREFERRED);
+                   set_ssl_option_unpack_path(arg);
     break;
   case MYSQL_OPT_TLS_VERSION:
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    EXTENSION_SET_SSL_STRING(&mysql->options, tls_version, arg,
-                             SSL_MODE_PREFERRED);
+    EXTENSION_SET_STRING(&mysql->options, tls_version, arg);
     if ((mysql->options.extension->ssl_ctx_flags=
            process_tls_version(mysql->options.extension->tls_version)) == -1)
       DBUG_RETURN(1);

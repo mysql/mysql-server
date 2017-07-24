@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -78,10 +78,9 @@ public:
   MOCK_CONST_METHOD0(get_worker_scheduler, ngs::shared_ptr<Scheduler_dynamic> ());
   MOCK_CONST_METHOD0(ssl_context, Ssl_context *());
   MOCK_METHOD1(on_client_closed, void (const Client_interface &));
-  MOCK_METHOD0(restart_client_supervision_timer, void());
   MOCK_METHOD3(create_session, ngs::shared_ptr<Session_interface> (Client_interface &, Protocol_encoder &, int));
   MOCK_METHOD0(get_client_exit_mutex, Mutex &());
-
+  MOCK_METHOD0(restart_client_supervision_timer, void ());
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
   MOCK_METHOD2(get_authentication_mechanisms_void, bool (std::vector<std::string> &auth_mech, Client_interface &client));
@@ -121,7 +120,6 @@ public:
 
   MOCK_METHOD0(session, ngs::shared_ptr<ngs::Session_interface> ());
   MOCK_METHOD0(supports_expired_passwords, bool ());
-
 public:
   MOCK_METHOD1(on_session_reset_void, bool (ngs::Session_interface &));
   MOCK_METHOD1(on_session_close_void, bool (ngs::Session_interface &));
@@ -132,6 +130,7 @@ public:
   MOCK_METHOD0(on_auth_timeout_void, bool ());
   MOCK_METHOD0(on_server_shutdown_void, bool ());
   MOCK_METHOD1(run_void, bool (bool));
+  MOCK_METHOD0(reset_accept_time_void, bool ());
 
   void on_session_reset(ngs::Session_interface &arg)
   {
@@ -171,6 +170,11 @@ public:
   void run(bool arg)
   {
     run_void(arg);
+  }
+
+  void reset_accept_time()
+  {
+    reset_accept_time_void();
   }
 };
 

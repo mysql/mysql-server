@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,10 +12,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
-#ifndef HAVE_REPLICATION
-#define HAVE_REPLICATION
-#endif
 
 #include "rpl_group_replication.h"
 #include "rpl_channel_service_interface.h"
@@ -142,6 +138,7 @@ Group_replication_handler* group_replication_handler= NULL;
 /*
   Group Replication plugin handler function accessors.
 */
+#ifdef HAVE_REPLICATION
 int group_replication_init(const char* plugin_name)
 {
   if (initialize_channel_service_interface())
@@ -165,6 +162,7 @@ int group_replication_init(const char* plugin_name)
 
   return 1;
 }
+#endif
 
 int group_replication_cleanup()
 {
@@ -318,14 +316,16 @@ unsigned int get_group_replication_members_number_info()
 }
 
 
+
 /*
   Server methods exported to plugin through
   include/mysql/group_replication_priv.h
 */
-
+#ifdef HAVE_REPLICATION
 void get_server_parameters(char **hostname, uint *port, char** uuid,
-                           unsigned int *out_server_version)
-{
+                           unsigned int *out_server_version,
+                           st_server_ssl_variables* server_ssl_variables)
+  {
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -367,8 +367,19 @@ void get_server_parameters(char **hostname, uint *port, char** uuid,
 
   *out_server_version= v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
 
+  server_ssl_variables->have_ssl_opt= (have_ssl == SHOW_OPTION_YES);
+  server_ssl_variables->ssl_ca= opt_ssl_ca;
+  server_ssl_variables->ssl_capath= opt_ssl_capath;
+  server_ssl_variables->tls_version= opt_tls_version;
+  server_ssl_variables->ssl_cert= opt_ssl_cert;
+  server_ssl_variables->ssl_cipher= opt_ssl_cipher;
+  server_ssl_variables->ssl_key= opt_ssl_key;
+  server_ssl_variables->ssl_crl= opt_ssl_crl;
+  server_ssl_variables->ssl_crlpath= opt_ssl_crlpath;
+
   return;
 }
+#endif
 
 ulong get_server_id()
 {

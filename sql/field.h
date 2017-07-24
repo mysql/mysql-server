@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -646,8 +646,12 @@ public:
   key_map key_start;                /* Keys that starts with this field */
   /// Indexes which contain this field entirely (not only a prefix)
   key_map part_of_key;
-  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
   key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
+  /**
+    All keys that include this field, but not extended by the storage engine to
+    include primary key columns.
+  */
+  key_map part_of_key_not_extended;
 
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
@@ -1572,6 +1576,19 @@ public:
     TRUE   - If field is char/varchar/.. and is part of write set.
 */
   virtual bool is_updatable() const { return FALSE; }
+
+  /**
+    Check whether field is part of the index taking the index extensions flag
+    into account.
+
+    @param[in]     thd             THD object
+    @param[in]     cur_index       Index of the key
+
+    @retval true  Field is part of the key
+    @retval false otherwise
+
+  */
+  bool is_part_of_actual_key(THD *thd, uint cur_index);
 
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -3884,7 +3901,7 @@ public:
     before we compute the new BLOB 'value'. For more information @see
     Field_blob::keep_old_value().
   */
-  void need_to_keep_old_value()
+  void set_keep_old_value(bool old_value_flag)
   {
     /*
       We should only need to keep a copy of the blob 'value' in the case
@@ -3893,10 +3910,10 @@ public:
     DBUG_ASSERT(is_virtual_gcol());
 
     /*
-      Ensure that 'value' is copied to 'old_value' when keep_old_value() is
-      called.
+      If set to true, ensure that 'value' is copied to 'old_value' when
+      keep_old_value() is called.
     */
-    m_keep_old_value= true;
+    m_keep_old_value= old_value_flag;
   }
 
   /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,18 +134,17 @@ class Applier_module_interface
 public:
   virtual ~Applier_module_interface() {}
   virtual Certification_handler* get_certification_handler()= 0;
-  virtual bool is_own_event_channel(my_thread_id id)= 0;
   virtual int wait_for_applier_complete_suspension(bool *abort_flag,
                                                    bool wait_for_execution= true)= 0;
   virtual void awake_applier_module()= 0;
   virtual void interrupt_applier_suspension_wait()= 0;
-  virtual int wait_for_applier_event_execution(ulonglong timeout)= 0;
-  virtual ulong get_message_queue_size()= 0;
+  virtual int wait_for_applier_event_execution(double timeout)= 0;
+  virtual size_t get_message_queue_size()= 0;
   virtual Member_applier_state get_applier_status()= 0;
   virtual void add_suspension_packet()= 0;
   virtual void add_view_change_packet(View_change_packet *packet)= 0;
   virtual void add_single_primary_action_packet(Single_primary_action_packet *packet)= 0;
-  virtual int handle(const uchar *data, uint len)= 0;
+  virtual int handle(const uchar *data, ulong len)= 0;
   virtual int handle_pipeline_action(Pipeline_action *action)= 0;
   virtual Flow_control_module* get_flow_control_module()= 0;
   virtual int purge_applier_queue_and_restart_applier_module()= 0;
@@ -264,7 +263,7 @@ public:
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle(const uchar *data, uint len)
+  int handle(const uchar *data, ulong len)
   {
     this->incoming->push(new Data_packet(data, len));
     return 0;
@@ -326,7 +325,7 @@ public:
   /**
    This method informs the applier module that an applying thread stopped
   */
-  void inform_of_applier_stop(my_thread_id thread_id, bool aborted);
+  void inform_of_applier_stop(char* channel_name, bool aborted);
 
   // Packet based interface methods
 
@@ -439,7 +438,7 @@ public:
       @retval -1     A timeout occurred
       @retval -2     An error occurred
   */
-  virtual int wait_for_applier_event_execution(ulonglong timeout);
+  virtual int wait_for_applier_event_execution(double timeout);
 
   /**
     Returns the handler instance in the applier module responsible for
@@ -454,21 +453,11 @@ public:
   virtual Certification_handler* get_certification_handler();
 
   /**
-     Checks if the given id matches any of  the event applying threads in the applier module handlers
-     @param id  the thread id
-
-     @return if it belongs to a thread
-       @retval true   the id matches a SQL or worker thread
-       @retval false  the id doesn't match any thread
-   */
-  virtual bool is_own_event_channel(my_thread_id id);
-
-  /**
     Returns the applier module's queue size.
 
     @return the size of the queue
   */
-  virtual ulong get_message_queue_size()
+  virtual size_t get_message_queue_size()
   {
     return incoming->size();
   }

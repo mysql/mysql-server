@@ -1,0 +1,40 @@
+## Simple list objects with case sensitive names
+
+--source include/have_case_sensitive_file_system.inc
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.tmp
+--write_file $xtest_file
+-->quiet
+## Test data
+
+-->title -Creating collections with similar names
+-->stmtadmin create_collection	{"schema":"xtest", "name":"fruit"}
+-->recvresult
+-->stmtadmin create_collection	{"schema":"xtest", "name":"Fruit"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"_rui_"}
+-->recvresult
+
+-->title -Creating collection in another schema with similar name
+-->stmtsql CREATE SCHEMA Xtest DEFAULT CHARSET 'utf8mb4';
+-->recvresult
+-->stmtadmin create_collection	{"schema":"Xtest", "name":"fruiT"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"_rui_"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"Xtest", "pattern":"_rui_"}
+-->recvresult
+EOF
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+
+## Postamble
+--remove_file $xtest_file
+DROP SCHEMA IF EXISTS xtest;
+DROP SCHEMA IF EXISTS Xtest;
+UNINSTALL PLUGIN mysqlx;
+

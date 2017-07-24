@@ -428,7 +428,7 @@ plugin	mysql_native_password
 authentication_string	#
 password_expired	N
 password_last_changed	#
-password_lifetime	NULL
+password_lifetime	0
 ALTER USER u3@localhost
 REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
            WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
@@ -535,7 +535,7 @@ plugin	mysql_native_password
 authentication_string	#
 password_expired	N
 password_last_changed	#
-password_lifetime	NULL
+password_lifetime	80
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
             BY 'auth_string' REQUIRE CIPHER 'DHE-RSA-AES256-SHA';
 SELECT user,ssl_type,ssl_cipher,x509_issuer,x509_subject,

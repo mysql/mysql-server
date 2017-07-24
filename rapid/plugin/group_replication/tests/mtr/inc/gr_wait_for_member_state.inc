@@ -57,39 +57,6 @@ let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group
   WHERE member_id="$_member_id" AND
   member_state="$group_replication_member_state";
 --source include/wait_condition.inc
-if (!$success)
-{
-  --echo Current connection: $CURRENT_CONNECTION
-  --echo group_replication_group_name= "$group_replication_group_name"
-  --echo group_replication_member_id= "$_member_id"
-  --echo group_replication_member_state= "$group_replication_member_state"
-  --echo
-  --echo performance_schema.replication_connection_status
-  --echo ------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --echo
-  --echo performance_schema.replication_applier_status
-  --echo ---------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_applier_status
-  --echo
-  --echo performance_schema.replication_applier_status_by_coordinator
-  --echo ------------------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_coordinator
-  --echo
-  --echo performance_schema.replication_applier_status_by_worker
-  --echo -------------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_applier_status_by_worker
-  --echo
-  --echo performance_schema.replication_group_members
-  --echo --------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_group_members
-  --echo
-  --echo performance_schema.replication_group_member_stats
-  --echo -------------------------------------------------
-  --query_vertical SELECT * FROM performance_schema.replication_group_member_stats
-  --die Timeout in wait_condition.inc due to incorrect expected member state
-}
-
 
 --let $include_filename= gr_wait_for_member_state.inc
 --source include/end_include_file.inc

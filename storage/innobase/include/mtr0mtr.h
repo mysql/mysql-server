@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -261,8 +261,12 @@ struct mtr_t {
 	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 	The caller must invoke log_mutex_enter() and log_mutex_exit().
 	This is to be used at log_checkpoint().
-	@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
-	void commit_checkpoint(lsn_t checkpoint_lsn);
+	@param[in]	checkpoint_lsn		the LSN of the log checkpoint
+	@param[in]	write_mlog_checkpoint	Write MLOG_CHECKPOINT marker
+						if it is enabled. */
+	void commit_checkpoint(
+		lsn_t	checkpoint_lsn,
+		bool	write_mlog_checkpoint);
 
 	/** Return current size of the buffer.
 	@return	savepoint */

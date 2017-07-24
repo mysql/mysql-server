@@ -89,14 +89,6 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 
 --let $wait_condition= SELECT Last_Conflict_Free_Transaction = '8a94f357-aab4-11df-86ab-c80aa9422222:5' from performance_schema.replication_group_member_stats
 --source include/wait_condition.inc
-if (!$success)
-{
-  --echo Current connection: $CURRENT_CONNECTION
-  --query_vertical SELECT * FROM performance_schema.replication_connection_status
-  --query_vertical SELECT * FROM performance_schema.replication_group_members
-  --die Timeout in wait_condition.inc
-}
-
 
 --echo
 --echo ############################################################

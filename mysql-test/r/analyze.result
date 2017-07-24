@@ -41,6 +41,8 @@ test.t1	analyze	status	OK
 drop table t1;
 CREATE TABLE t1 (a int);
 prepare stmt1 from "SELECT * FROM t1 PROCEDURE ANALYSE()";
+Warnings:
+Warning	1681	'PROCEDURE ANALYSE' is deprecated and will be removed in a future release.
 execute stmt1;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 execute stmt1;

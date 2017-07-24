@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,4 +22,5 @@ Description: MySQL client library
 Version: @LIBMYSQL_OS_SHLIB_VERSION@
 Cflags: -I${includedir} @CFLAGS@
 Libs: -L${libdir} -l@LIBMYSQL_OS_OUTPUT_NAME@
-Libs.private: @CONFIG_CLIENT_LIBS@
+Libs.private: @QUOTED_CMAKE_CXX_LINK_FLAGS@ @CONFIG_LIBS_PRIVATE@
+Requires.private: @CONFIG_REQUIRES_PRIVATE@

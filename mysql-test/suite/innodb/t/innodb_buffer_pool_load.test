@@ -230,5 +230,5 @@ let $restart_parameters=;
 
 # Remove residue files and data folder
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 --remove_file $BOOTSTRAP_SQL

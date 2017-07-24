@@ -40,9 +40,4 @@ START GROUP_REPLICATION;
 --let $wait_condition= SELECT count(*)=1 FROM performance_schema.replication_group_members WHERE member_id= '$server_uuid' ;
 --source include/wait_condition.inc
 
-if (!$success)
-{
-  --die Timeout in wait_condition.inc
-}
-
 --source include/stop_group_replication.inc

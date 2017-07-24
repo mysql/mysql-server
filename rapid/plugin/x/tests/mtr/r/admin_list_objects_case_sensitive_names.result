@@ -1,0 +1,36 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+Creating collections with similar names
+---------------------------------------
+
+command ok
+
+command ok
+name	type
+Fruit	COLLECTION
+fruit	COLLECTION
+command ok
+
+Creating collection in another schema with similar name
+-------------------------------------------------------
+
+1 rows affected
+
+command ok
+name	type
+Fruit	COLLECTION
+fruit	COLLECTION
+command ok
+name	type
+fruiT	COLLECTION
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+DROP SCHEMA IF EXISTS Xtest;
+UNINSTALL PLUGIN mysqlx;

@@ -17,7 +17,8 @@
 #  C. The applier fails and its initialization processes catches the error.
 #     During the start, it is known that the applier failed so the START
 #     GROUP_REPLICATION fails with error ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
-# 5. Clean up
+# 5. Verify that member is offline after stop
+# 6. Clean up
 #
 
 --source ../inc/have_group_replication_plugin.inc
@@ -80,19 +81,22 @@ INSERT INTO t1 VALUES (1);
 --error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
-#Either on A. or B. the member will be alone in the end (ERROR or OFFLINE)
+#Either on A. B. or C. the member will be alone in the end (ERROR or OFFLINE)
 --let $wait_timeout= 120
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members;
 --source include/wait_condition.inc
 
 --echo #
---echo # 5. Clean up
+--echo # 5. Verify that member is offline after stop
 --echo #
 
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-
 --source include/stop_group_replication.inc
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo #
+--echo # 6. Clean up
+--echo #
 
 DROP TABLE t1;
 

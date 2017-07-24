@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -32,7 +32,6 @@
 
 #define MYSQLX_TCP_PORT             @MYSQLX_TCP_PORT@U
 #define MYSQLX_UNIX_ADDR            "@MYSQLX_UNIX_ADDR@"
-#define MYSQLX_NAMEDPIPE            "@MYSQLX_NAMEDPIPE@"
 
 #define MYSQLX_PLUGIN_VERSION ( (MYSQLX_PLUGIN_VERSION_MAJOR << 8) | MYSQLX_PLUGIN_VERSION_MINOR )
 #define MYSQLX_PLUGIN_VERSION_STRING "@MYSQLX_PLUGIN_VERSION_MAJOR@.@MYSQLX_PLUGIN_VERSION_MINOR@.@MYSQLX_PLUGIN_VERSION_PATCH@"

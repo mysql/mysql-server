@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -67,10 +67,10 @@ void xpl::Find_statement_builder::add_document_statement_with_grouping(const Fin
   add_collection(msg.collection());
   add_filter(msg.criteria());
   add_grouping(msg.grouping());
+  add_grouping_criteria(msg.grouping_criteria());
   add_order(msg.order());
   add_limit(msg.limit(), false);
   m_builder.put(") AS ").put(DERIVED_TABLE_NAME);
-  add_grouping_criteria(msg.grouping_criteria());
 }
 
 

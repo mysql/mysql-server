@@ -4,6 +4,13 @@
 # works fine.  
 #
 
+# "Flush" commands are logged as rotate events in the binary
+# log without gtid events. So it is correct to check master
+# and slave sync logic with positions instead gtids numbers.
+# Hence for this test script, making use_gtids to false
+# in all the cases (GTID_MODE ON or OFF).
+--let $use_gtids=0
+
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 connection master;

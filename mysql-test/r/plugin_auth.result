@@ -264,7 +264,7 @@ CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server'
 AS 'grant_plug_dest'
 CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
-GRANT USAGE ON *.* TO ''@'','proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'

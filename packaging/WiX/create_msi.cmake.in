@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
+SET(LINK_STATIC_RUNTIME_LIBRARIES "@LINK_STATIC_RUNTIME_LIBRARIES@")
 SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CMAKE_CURRENT_SOURCE_DIR "@CMAKE_CURRENT_SOURCE_DIR@")
 SET(CANDLE_EXECUTABLE "@CANDLE_EXECUTABLE@")
@@ -242,21 +243,36 @@ MACRO(GENERATE_GUID VarName)
  OUTPUT_STRIP_TRAILING_WHITESPACE)
 ENDMACRO()
 
-SET(INC_VAR 0)
+# Make sure that WIX identifier created from a path matches all the rules:
+# - it is shorter than 72 characters
+# - doesn't contain reserver characters ('+', '-' and '/')
+# ID_SET contains a global list of all identifiers which are too long.
+# Every time we use an identifier which is too long we use its index in
+# ID_SET to shorten the name.
+SET_PROPERTY(GLOBAL PROPERTY ID_SET)
 MACRO(MAKE_WIX_IDENTIFIER str varname)
   STRING(REPLACE "/" "." ${varname} "${str}")
+  STRING(REPLACE "+" "p" ${varname} "${str}")
+  STRING(REPLACE "-" "m" ${varname} "${str}")
   STRING(REGEX REPLACE "[^a-zA-Z_0-9.]" "_" ${varname} "${${varname}}")
   STRING(LENGTH "${${varname}}" len)
+  # FIXME: the prefix length has to be controlled better
   # Identifier should be smaller than 72 character
-  # We have to cut down the length to 70 chars, since we add 2 char prefix
+  # We have to cut down the length to 40 chars, since we add prefixes
   # pretty often
-  IF(len GREATER 70)
-   STRING(SUBSTRING  "${${varname}}" 0 67 shortstr)
-   MATH(EXPR INC_VAR ${INC_VAR}+1)
-   SET(${varname} "${shortstr}${INC_VAR}")
+  IF(len GREATER 40)   
+    STRING(SUBSTRING  "${${varname}}" 0 37 shortstr)
+    GET_PROPERTY(LOCAL_LIST GLOBAL PROPERTY ID_SET)
+    LIST(FIND LOCAL_LIST "${${varname}}" STRING_ID)
+    IF(${STRING_ID} EQUAL -1)
+      LIST(APPEND LOCAL_LIST "${${varname}}")
+      SET_PROPERTY(GLOBAL PROPERTY ID_SET "${LOCAL_LIST}")
+      LIST(LENGTH LOCAL_LIST STRING_ID)
+      MATH(EXPR STRING_ID "${STRING_ID}-1" )
+    ENDIF()
+    SET(${varname} "${shortstr}${STRING_ID}")
   ENDIF()
 ENDMACRO()
-
 
 FUNCTION(TRAVERSE_FILES dir topdir file file_comp  dir_root)
   FILE(RELATIVE_PATH dir_rel ${topdir} ${dir})

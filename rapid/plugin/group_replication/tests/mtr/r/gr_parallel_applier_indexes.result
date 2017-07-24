@@ -36,14 +36,14 @@ include/stop_group_replication.inc
 #
 [connection server4]
 Matching lines are:
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=5	sequence_number=7
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=no
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=yes
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=5	sequence_number=7	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=8	rbr_only=yes
 Occurrences of 'last_committed' in the input file: 8
 include/include/assert_logical_timestamps.inc [0 0;0 0;0 0;0 0;4 5;5 6;5 7;6 8]
 
@@ -78,11 +78,11 @@ include/rpl_sync.inc
 #
 [connection server2]
 Matching lines are:
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes
 Occurrences of 'last_committed' in the input file: 5
 include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5]
 
@@ -91,10 +91,10 @@ include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5]
 #
 [connection server1]
 Matching lines are:
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=yes
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes
 Occurrences of 'last_committed' in the input file: 4
 include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;1 4]
 
@@ -118,12 +118,12 @@ include/rpl_sync.inc
 #
 [connection server2]
 Matching lines are:
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=7
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=2	sequence_number=4	rbr_only=yes
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=4	sequence_number=5	rbr_only=yes
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=6	sequence_number=7	rbr_only=yes
 Occurrences of 'last_committed' in the input file: 6
 include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5;6 7]
 
@@ -132,11 +132,11 @@ include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;2 4;4 5;6 7]
 #
 [connection server1]
 Matching lines are:
-#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0
-#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3
-#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4
-#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6
+#time# ##:##:## server id 1  end_log_pos ## 	GTID	last_committed=0	sequence_number=0	rbr_only=no
+#time# ##:##:## server id 3  end_log_pos ## 	GTID	last_committed=1	sequence_number=2	rbr_only=yes
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=2	sequence_number=3	rbr_only=yes
+#time# ##:##:## server id 4  end_log_pos ## 	GTID	last_committed=1	sequence_number=4	rbr_only=yes
+#time# ##:##:## server id 2  end_log_pos ## 	GTID	last_committed=5	sequence_number=6	rbr_only=yes
 Occurrences of 'last_committed' in the input file: 5
 include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;1 4;5 6]
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,31 @@ int group_replication_thread_stop(Binlog_relay_IO_param *param)
   return error;
 }
 
+int group_replication_applier_start(Binlog_relay_IO_param *param)
+{
+  int error= 0;
+  if (channel_observation_manager == NULL)
+  {
+    return error; /* purecov: inspected */
+  }
+
+  channel_observation_manager->read_lock_channel_list();
+
+  std::list<Channel_state_observer*>* channel_observers=
+      channel_observation_manager->get_channel_state_observers();
+
+  std::list<Channel_state_observer*>::const_iterator obs_iterator;
+  for (obs_iterator = channel_observers->begin();
+       obs_iterator != channel_observers->end();
+       ++obs_iterator)
+  {
+    error+= (*obs_iterator)->applier_start(param);
+  }
+
+  channel_observation_manager->unlock_channel_list();
+
+  return error;
+}
 
 int group_replication_applier_stop(Binlog_relay_IO_param *param, bool aborted)
 {
@@ -219,6 +244,7 @@ Binlog_relay_IO_observer binlog_IO_observer= {
 
     group_replication_thread_start,
     group_replication_thread_stop,
+    group_replication_applier_start,
     group_replication_applier_stop,
     group_replication_before_request_transmit,
     group_replication_after_read_event,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1081,7 +1081,7 @@ struct PolicyMutex
 	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
 	{
 		ut_ad(m_ptr == 0);
-		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
+		m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
 	}
 
 private:

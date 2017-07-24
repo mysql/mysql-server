@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -311,6 +311,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Item *item;
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
+
+      if (item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
       fields_vars.push_back(item->real_item());
     }
     bitmap_set_all(table->write_set);
@@ -948,8 +954,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1182,8 +1189,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1396,8 +1404,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -2160,6 +2169,15 @@ int READ_INFO::read_xml()
       
     case '>': /* end tag - read tag value */
       in_tag= false;
+      /* Skip all whitespaces */
+      while (' ' == (chr= my_tospace(GET)))
+      {
+      }
+      /*
+        Push the first non-whitespace char back to Stack. This char would be
+        read in the upcoming call to read_value()
+       */
+      PUSH(chr);
       chr= read_value('<', &value);
       if(chr == my_b_EOF)
         goto found_eof;

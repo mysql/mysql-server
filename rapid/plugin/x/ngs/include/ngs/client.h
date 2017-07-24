@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -57,7 +57,7 @@ namespace ngs
 
     virtual void activate_tls();
 
-    virtual void reset_accept_time(const Client_state new_state = Client_accepted);
+    virtual void reset_accept_time();
 
     virtual void on_auth_timeout();
     virtual void on_server_shutdown();

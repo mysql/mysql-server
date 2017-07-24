@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1242,6 +1242,9 @@ char *get_56_lenc_string(char **buffer,
 {
   static char empty_string[1]= { '\0' };
   char *begin= *buffer;
+  uchar *pos= (uchar *)begin;
+  size_t required_length= 9;
+
 
   if (*max_bytes_available == 0)
     return NULL;
@@ -1262,6 +1265,27 @@ char *get_56_lenc_string(char **buffer,
     return empty_string;
   }
 
+  /* Make sure we have enough bytes available for net_field_length_ll */
+  DBUG_EXECUTE_IF("buffer_too_short_3",
+                  *pos= 252; *max_bytes_available= 2;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_4",
+                  *pos= 253; *max_bytes_available= 3;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_9",
+                  *pos= 254; *max_bytes_available= 8;
+  );
+
+  if (*pos <= 251)
+    required_length= 1;
+  if (*pos == 252)
+    required_length= 3;
+  if (*pos == 253)
+    required_length= 4;
+
+  if (*max_bytes_available < required_length)
+    return NULL;
+
   *string_length= (size_t)net_field_length_ll((uchar **)buffer);
 
   DBUG_EXECUTE_IF("sha256_password_scramble_too_long",
@@ -1269,6 +1293,9 @@ char *get_56_lenc_string(char **buffer,
   );
 
   size_t len_len= (size_t)(*buffer - begin);
+
+  DBUG_ASSERT((*max_bytes_available >= len_len) &&
+              (len_len == required_length));
   
   if (*string_length > *max_bytes_available - len_len)
     return NULL;
@@ -2045,6 +2072,12 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                   {
                     if (!acl_user->use_default_password_lifetime &&
                         acl_user->password_lifetime)
+                      password_time_expired= true;
+                  });
+  DBUG_EXECUTE_IF("force_password_interval_expire_for_time_type",
+                  {
+                    if (acl_user->password_last_changed.time_type !=
+                        MYSQL_TIMESTAMP_ERROR)
                       password_time_expired= true;
                   });
   return password_time_expired;

@@ -128,7 +128,7 @@ performance_schema_max_file_instances	10000
 performance_schema_max_index_stat	5000
 performance_schema_max_memory_classes	320
 performance_schema_max_metadata_locks	10000
-performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_classes	210
 performance_schema_max_mutex_instances	0
 performance_schema_max_prepared_statements_instances	100
 performance_schema_max_program_instances	5000
@@ -153,7 +153,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_mutex_classes";
 Variable_name	Value
-performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_classes	210
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/synch/mutex/%";
 count(*) > 0

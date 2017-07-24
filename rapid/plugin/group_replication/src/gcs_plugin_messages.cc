@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,10 +71,11 @@ void Plugin_gcs_message::encode(std::vector<unsigned char>* buffer) const
 }
 
 void Plugin_gcs_message::decode(const unsigned char* buffer,
-                                size_t length)
+                                uint64 length)
 {
   DBUG_ENTER("Plugin_gcs_message::decode");
   const unsigned char *slider= buffer;
+  const unsigned char *end= buffer + length;
 
   m_version= uint4korr(slider);
   slider += WIRE_VERSION_SIZE;
@@ -92,7 +93,7 @@ void Plugin_gcs_message::decode(const unsigned char* buffer,
       s_cargo_type;
   slider += WIRE_CARGO_TYPE_SIZE;
 
-  decode_payload(slider, length);
+  decode_payload(slider, end);
 
   DBUG_VOID_RETURN;
 }
@@ -118,7 +119,7 @@ Plugin_gcs_message::get_cargo_type(const unsigned char* buffer)
 void
 Plugin_gcs_message::get_first_payload_item_raw_data(const unsigned char* buffer,
                                                     const unsigned char** payload_item_data,
-                                                    size_t* payload_item_length)
+                                                    uint64* payload_item_length)
 {
   DBUG_ENTER("Plugin_gcs_message::get_first_payload_item_raw_data");
   const unsigned char *slider= buffer +

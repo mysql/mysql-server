@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -610,16 +610,17 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
                        const Format_description_event *description_event)
  : Binary_log_event(&buffer, description_event->binlog_version,
                     description_event->server_version),
-    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT)
+    last_committed(SEQ_UNINIT), sequence_number(SEQ_UNINIT),
+    may_have_sbr_stmts(true)
 {
   /*
     The layout of the buffer is as follows:
     +------+--------+-------+-------+--------------+---------------+
-    |unused|SID     |GNO    |lt_type|last_committed|sequence_number|
+    |flags |SID     |GNO    |lt_type|last_committed|sequence_number|
     |1 byte|16 bytes|8 bytes|1 byte |8 bytes       |8 bytes        |
     +------+--------+-------+-------+--------------+---------------+
 
-    The 'unused' field is not used.
+    The 'flags' field contains gtid flags.
 
     lt_type (for logical timestamp typecode) is always equal to the
     constant LOGICAL_TIMESTAMP_TYPECODE.
@@ -632,6 +633,10 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
     beginning of post-header
   */
   char const *ptr_buffer= buffer;
+
+  unsigned char gtid_flags= *ptr_buffer;
+
+  may_have_sbr_stmts= gtid_flags & FLAG_MAY_HAVE_SBR;
 
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 

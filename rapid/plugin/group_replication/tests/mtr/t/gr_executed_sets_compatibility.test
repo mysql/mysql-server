@@ -112,6 +112,10 @@ RESET MASTER;
 --let $group_replication_number_of_members= 1
 --source ../inc/gr_wait_for_number_of_members.inc
 
+# Wait until View_change_log_event from server 2 join is logged on binary log
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "$group_replication_group_name:1-4"
+--source include/wait_condition.inc
+
 --echo #
 --echo # Test case 2: Try to add a member with more group transactions
 --echo # The start group replication command shall fail

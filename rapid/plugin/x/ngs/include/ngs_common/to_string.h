@@ -23,6 +23,7 @@
 #include <string>
 #include <cstdlib>
 #include "mysql/service_my_snprintf.h"
+#include "m_string.h"
 
 namespace ngs {
 
@@ -32,6 +33,13 @@ template <typename T>
 inline std::string to_string(const char* const str, T value) {
   char buffer[32];
   (void)my_snprintf(buffer, sizeof(buffer), str, value);
+  return buffer;
+}
+
+template <typename T>
+inline std::string to_string(const my_gcvt_arg_type arg_type, T value) {
+  char buffer[100];
+  my_gcvt(value, arg_type, sizeof(buffer)-1, buffer, NULL);
   return buffer;
 }
 
@@ -59,6 +67,14 @@ inline std::string to_string(unsigned long value) {
 
 inline std::string to_string(unsigned long long value) {
   return detail::to_string("%llu", value);
+}
+
+inline std::string to_string(float value) {
+  return detail::to_string(MY_GCVT_ARG_FLOAT, value);
+}
+
+inline std::string to_string(double value) {
+  return detail::to_string(MY_GCVT_ARG_DOUBLE, value);
 }
 
 inline int stoi(const std::string& str) { return std::atoi(str.c_str()); }

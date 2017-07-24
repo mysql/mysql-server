@@ -61,7 +61,7 @@ connect(server3_2,localhost,root,,test,$SERVER_MYPORT_3,$SERVER_MYSOCK_3);
 --connection server3_2
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
-START GROUP_REPLICATION;
+--source include/start_group_replication_command.inc
 
 # Find a non-donor
 --let $wait_timeout= 100

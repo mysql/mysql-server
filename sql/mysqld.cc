@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4945,28 +4945,6 @@ int mysqld_main(int argc, char **argv)
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
-  else
-  {
-    /*
-      Execute an I_S query to implicitly check for tables using the deprecated
-      partition engine. No need to do this during bootstrap. We ignore the
-      return value from the query execution.
-    */
-    if (!opt_disable_partition_check)
-    {
-      sql_print_information(
-              "Executing 'SELECT * FROM INFORMATION_SCHEMA.TABLES;' "
-              "to get a list of tables using the deprecated partition "
-              "engine. You may use the startup option "
-              "'--disable-partition-engine-check' to skip this check. ");
-
-      sql_print_information("Beginning of list of non-natively partitioned tables");
-      (void) bootstrap_single_query(
-              "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
-              "WHERE CREATE_OPTIONS LIKE '%partitioned%';");
-      sql_print_information("End of list of non-natively partitioned tables");
-    }
-  }
 
   if (opt_init_file && *opt_init_file)
   {
@@ -5014,6 +4992,30 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+
+  if (!opt_bootstrap)
+  {
+    /*
+      Execute an I_S query to implicitly check for tables using the deprecated
+      partition engine. No need to do this during bootstrap. We ignore the
+      return value from the query execution. Note that this must be done after
+      NDB is initialized to avoid polluting the server with invalid table shares.
+    */
+    if (!opt_disable_partition_check)
+    {
+      sql_print_information(
+              "Executing 'SELECT * FROM INFORMATION_SCHEMA.TABLES;' "
+              "to get a list of tables using the deprecated partition "
+              "engine. You may use the startup option "
+              "'--disable-partition-engine-check' to skip this check. ");
+
+      sql_print_information("Beginning of list of non-natively partitioned tables");
+      (void) bootstrap_single_query(
+              "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES "
+              "WHERE CREATE_OPTIONS LIKE '%partitioned%';");
+      sql_print_information("End of list of non-natively partitioned tables");
+    }
+  }
 
   /*
     Set opt_super_readonly here because if opt_super_readonly is set
@@ -5883,6 +5885,7 @@ struct my_option my_long_options[]=
    0, GET_UINT, OPT_ARG, 0, 0, UINT_MAX, 0, 0, 0},
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   {"temp-pool", 0,
+   "This option is deprecated and will be removed in a future version. "
 #if defined(__linux__)
    "Using this option will cause most temporary files created to use a small "
    "set of names, rather than a unique name for each new file.",
