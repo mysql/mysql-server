@@ -975,7 +975,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name used in
 				fil_space_create().
-@param[in]	print_er	detailed error information to the
+@param[in]	print_err	detailed error information to the
 				error log if a matching tablespace is
 				not found from memory.
 @param[in]	adjust_space	Whether to adjust spaceid on mismatch

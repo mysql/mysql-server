@@ -1245,7 +1245,7 @@ Fil_system::space_belongs_in_LRU(const fil_space_t* space)
 }
 
 /** Constructor
-@param[id]	shard_id	Shard ID  */
+@param[in]	shard_id	Shard ID  */
 Fil_shard::Fil_shard(size_t shard_id)
 	:
 	m_id(shard_id),
