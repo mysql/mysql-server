@@ -3753,10 +3753,9 @@
       <tt>`--check-testcases`</tt>
 
       Check test cases for side effects. This is done by checking the
-      system state before and after each test case; if there is any
-      difference, a warning to that effect is written, but the test
-      case is not marked as failed because of it. This check is
-      enabled by default. To disable it, use the
+      system state before and after each test case. If there is any
+      difference, the test case is marked as failed because of it.
+      This check is enabled by default. To disable it, use the
       <b>`--nocheck-testcases`</b> option.
     </li>
 
@@ -4102,16 +4101,6 @@
       Do not perform controlled shutdown when servers need to be
       restarted or at the end of the test run. This is equivalent to
       using <b>`--shutdown-timeout`=0</b>.
-    </li>
-
-    <li>
-      <tt>`--fail-check-testcases`</tt>
-
-      Enabling this option when a test is run, causes it to fail if
-      MTR's internal check of the test case fails. If this option is
-      disabled, only a warning is generated while the test passes.
-      This option is enabled by default. For additional information,
-      see the description of the <b>`--check-testcases`</b> option.
     </li>
 
     <li>
