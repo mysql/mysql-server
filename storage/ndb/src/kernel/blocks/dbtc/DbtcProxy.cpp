@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -186,9 +186,9 @@ DbtcProxy::sendTCGETOPSIZECONF(Signal* signal, Uint32 ssId)
 
   signal->theData[0] = ss.m_req[0];
   signal->theData[1] = ss.m_sum;
-  sendSignal(ss.m_req[1], GSN_TCGETOPSIZECONF,
-             signal, 2, JBB);
+  signal->theData[2] = ss.m_req[1];
 
+  sendSignal(DBDIH_REF, GSN_CHECK_LCP_IDLE_ORD, signal, 3, JBB);
   ssRelease<Ss_TCGETOPSIZEREQ>(ssId);
 }
 
