@@ -235,6 +235,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_GCICONF, &Dbdih::execCOPY_GCICONF);
   addRecSignal(GSN_COPY_TABREQ, &Dbdih::execCOPY_TABREQ);
   addRecSignal(GSN_COPY_TABCONF, &Dbdih::execCOPY_TABCONF);
+  addRecSignal(GSN_CHECK_LCP_IDLE_ORD, &Dbdih::execCHECK_LCP_IDLE_ORD);
   addRecSignal(GSN_TCGETOPSIZECONF, &Dbdih::execTCGETOPSIZECONF);
   addRecSignal(GSN_TC_CLOPSIZECONF, &Dbdih::execTC_CLOPSIZECONF);
 
