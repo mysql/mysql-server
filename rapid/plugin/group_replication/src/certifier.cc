@@ -1689,11 +1689,6 @@ void Certifier::enable_conflict_detection()
   conflict_detection_enable= true;
   local_member_info->enable_conflict_detection();
   mysql_mutex_unlock(&LOCK_certification_info);
-
-  log_message(MY_INFORMATION_LEVEL,
-              "A new primary was elected, enabled conflict detection "
-              "until the new primary applies all relay logs");
-
   DBUG_VOID_RETURN;
 }
 

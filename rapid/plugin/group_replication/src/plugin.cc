@@ -559,6 +559,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     goto err;
   }
   group_replication_running= true;
+  log_primary_member_details();
 
 err:
   if (error)
@@ -649,6 +650,17 @@ int configure_group_member_manager(char *hostname, char *uuid,
   //Create the membership info visible for the group
   delete group_member_mgr;
   group_member_mgr= new Group_member_info_manager(local_member_info);
+
+  log_message(MY_INFORMATION_LEVEL,
+              "Member configuration: "
+              "member_id: %lu; "
+              "member_uuid: \"%s\"; "
+              "single-primary mode: \"%s\"; "
+              "group_replication_auto_increment_increment: %lu; ",
+              get_server_id(),
+              (local_member_info != NULL) ? local_member_info->get_uuid().c_str() : "NULL",
+              single_primary_mode_var ? "true" : "false",
+              auto_increment_increment_var);
 
   DBUG_RETURN(0);
 }
@@ -798,6 +810,8 @@ int plugin_group_replication_stop()
     shared_plugin_stop_lock->release_write_lock();
     DBUG_RETURN(0);
   }
+  log_message(MY_INFORMATION_LEVEL,
+              "Plugin 'group_replication' is stopping.");
 
   plugin_is_waiting_to_set_server_read_mode= true;
 
@@ -817,6 +831,8 @@ int plugin_group_replication_stop()
 
   group_replication_running= false;
   shared_plugin_stop_lock->release_write_lock();
+  log_message(MY_INFORMATION_LEVEL,
+              "Plugin 'group_replication' has been stopped.");
 
   // Enable super_read_only.
   if (!server_shutdown_status &&

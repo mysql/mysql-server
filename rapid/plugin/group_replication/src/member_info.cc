@@ -849,6 +849,26 @@ bool Group_member_info_manager::is_majority_unreachable()
   return ret;
 }
 
+std::string
+Group_member_info_manager::get_string_current_view_active_hosts() const
+{
+  std::stringstream hosts_string;
+  map<string, Group_member_info*>::iterator all_members_it= members->begin();
+
+  while (all_members_it != members->end())
+  {
+    Group_member_info* member_info= (*all_members_it).second;
+    if (member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE ||
+        member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY)
+      hosts_string << member_info->get_hostname() << ":" << member_info->get_port();
+    all_members_it++;
+    if (all_members_it != members->end())
+      hosts_string<<", ";
+  }
+
+  return hosts_string.str();
+}
+
 Group_member_info_manager_message::Group_member_info_manager_message()
   : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE)
 {
