@@ -16,6 +16,8 @@
 # FLUSH LOGS returns an error.
 ###############################################################################
 
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_gtid.inc
 # Test in this file is binlog format agnostic, thus no need
