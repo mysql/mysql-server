@@ -395,11 +395,11 @@ bool has_cascade_foreign_key(TABLE *table, THD *thd)
  Helper method to create table information for the hook call
  */
 void
-Trans_delegate::prepare_table_info(THD* thd,
-                                   Trans_table_info*& table_info_list,
-                                   uint& number_of_tables)
+prepare_table_info(THD* thd,
+                   Trans_table_info*& table_info_list,
+                   uint& number_of_tables)
 {
-  DBUG_ENTER("Trans_delegate::prepare_table_info");
+  DBUG_ENTER("prepare_table_info");
 
   TABLE* open_tables= thd->open_tables;
 
@@ -975,6 +975,24 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
   int ret= 0;
   FOREACH_OBSERVER(ret, after_reset_slave, (&param));
   return ret;
+}
+
+int
+Binlog_relay_IO_delegate::applier_log_event(THD *thd, int& out)
+{
+  DBUG_ENTER("Binlog_relay_IO_delegate::applier_skip_event");
+  Trans_param trans_param;
+  TRANS_PARAM_ZERO(trans_param);
+  Binlog_relay_IO_param param;
+
+  param.server_id= thd->server_id;
+  param.thread_id= thd->thread_id();
+
+  prepare_table_info(thd, trans_param.tables_info, trans_param.number_of_tables);
+
+  int ret= 0;
+  FOREACH_OBSERVER(ret, applier_log_event, (&param, &trans_param, out));
+  DBUG_RETURN(ret);
 }
 
 int register_trans_observer(Trans_observer *observer, void *p)
