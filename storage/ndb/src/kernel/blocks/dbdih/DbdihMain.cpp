@@ -21936,7 +21936,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     jam();
     c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.clearWaitingFor(nodeId);
     ndbrequire(!c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId));
-    DEB_LCP_COMP(("LCP_COMPLETE_REQ(LQH)(%u), LCP: %u",
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(LQH)(%u), LCP: %u",
                    nodeId,
                    lcpId));
     break;
@@ -21944,7 +21944,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     jam();
     ndbrequire(isMaster());
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor(nodeId);
-    DEB_LCP_COMP(("LCP_COMPLETE_REQ(DIH)(%u), LCP: %u",
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(DIH)(%u), LCP: %u",
                    nodeId,
                    lcpId));
     break;
@@ -21953,7 +21953,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     ndbrequire(!isMaster());
     ndbrequire(c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false);
     c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = true;
-    DEB_LCP_COMP(("LCP_COMPLETE_REQ(0)(%u), LCP: %u",
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(0)(%u), LCP: %u",
                    nodeId,
                    lcpId));
     break;
