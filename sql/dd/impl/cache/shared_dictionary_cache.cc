@@ -79,6 +79,14 @@ void Shared_dictionary_cache::reset(bool keep_dd_entities)
 }
 
 
+// Woraround to be used during recovery at server restart.
+bool Shared_dictionary_cache::reset_tables_and_tablespaces(THD *thd)
+{
+  return (instance()->m_map<Abstract_table>()->reset(thd) ||
+          instance()->m_map<Tablespace>()->reset(thd));
+}
+
+
 // Get an element from the cache, given the key.
 template <typename K, typename T>
 bool Shared_dictionary_cache::get(THD *thd, const K &key,

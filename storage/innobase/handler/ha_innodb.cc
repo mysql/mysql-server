@@ -3535,6 +3535,30 @@ innobase_dict_cache_reset(
 	}
 }
 
+/** Invalidate user table dict cache after Replication Plugin recovers. Table
+definition could be different with XA commit/rollback of DDL operations */
+static
+void
+innobase_dict_cache_reset_tables_and_tablespaces()
+{
+	dict_table_t*	table = nullptr;
+
+	/* There should be no DDL/DML activity at this stage, so access
+	the LRU chain without mutex. We only invalidates the table
+	in LRU list */
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
+             table = UT_LIST_GET_NEXT(table_LRU, table)) {
+		if (dict_table_is_system(table->id)) {
+			continue;
+		}
+		btr_drop_ahi_for_table(table);
+
+		mutex_enter(&dict_sys->mutex);
+		dict_table_remove_from_cache(table);
+		mutex_exit(&dict_sys->mutex);
+	}
+}
+
 /** Perform high-level recovery in InnoDB as part of initializing the
 data dictionary.
 @param[in]	dict_recovery_mode	How to do recovery
@@ -4308,6 +4332,8 @@ innodb_init(
 
 	innobase_hton->dict_cache_reset=
 		innobase_dict_cache_reset;
+	innobase_hton->dict_cache_reset_tables_and_tablespaces=
+		innobase_dict_cache_reset_tables_and_tablespaces;
 
 	innobase_hton->dict_recover=
 		innobase_dict_recover;
