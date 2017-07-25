@@ -3548,7 +3548,7 @@ innobase_dict_cache_reset_tables_and_tablespaces()
 	in LRU list */
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
              table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		if (dict_table_is_system(table->id)) {
+		if (dict_table_is_system(table->id) || table->is_dd_table) {
 			continue;
 		}
 		btr_drop_ahi_for_table(table);
