@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -143,7 +143,13 @@ sub collect_test_cases ($$$$) {
 
   if ( @$opt_cases )
   {
-    # A list of tests was specified on the command line
+    # A list of tests was specified on the command line.
+    # Among those, the tests which are not already collected will be
+    # collected and stored temporarily in an array of hashes pointed
+    # by the below reference. This array is eventually appeneded to
+    # the one having all collected test cases.
+    my $cmdline_cases;
+
     # Check that the tests specified was found
     # in at least one suite
     foreach my $test_name_spec ( @$opt_cases )
@@ -162,20 +168,56 @@ sub collect_test_cases ($$$$) {
       }
       if ( not $found )
       {
-	$sname= "main" if !$opt_reorder and !$sname;
-	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
-	# If suite was part of name, find it there, may come with combinations
-	my @this_case = collect_one_suite($sname, [ $tname ]);
-	if (@this_case)
+        if ( $sname )
         {
-	  push (@$cases, @this_case);
-	}
-	else
-	{
-	  mtr_error("Could not find '$tname' in '$sname' suite");
+	  # If suite was part of name, find it there, may come with combinations
+	  my @this_case = collect_one_suite($sname, [ $tname ]);
+
+          # If a test is specified multiple times on the command line, all
+          # instances of the test need to be picked. Hence, such tests are
+          # stored in the temporary array instead of adding them to $cases
+          # directly so that repeated tests are not run only once
+	  if (@this_case)
+          {
+	    push (@$cmdline_cases, @this_case);
+	  }
+	  else
+	  {
+	    mtr_error("Could not find '$tname' in '$sname' suite");
+          }
+        }
+        else
+        {
+          if ( !$opt_reorder )
+          {
+            # If --no-reorder is passed and if suite was not part of name,
+            # search in all the suites
+            foreach my $suite (split(",", $suites))
+            {
+              my @this_case = collect_one_suite($suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cmdline_cases, @this_case);
+                $found= 1;
+              }
+              @this_case= collect_one_suite("i_".$suite, [ $tname ]);
+              if ( @this_case )
+              {
+                push (@$cmdline_cases, @this_case);
+                $found= 1;
+              }
+            }
+          }
+          if ( !$found )
+          {
+            mtr_error("Could not find '$tname' in '$suites' suite(s)");
+          }
         }
       }
     }
+    # Add test cases collected in the temporary array to the one
+    # containing all previously collected test cases
+    push (@$cases, @$cmdline_cases) if $cmdline_cases;
   }
 
   if ( $opt_reorder && !$quick_collect)
