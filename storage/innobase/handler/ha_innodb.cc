@@ -3732,8 +3732,8 @@ innobase_dict_recover(
 		}
 
 		/* Check and extend space files, if needed. */
-		if (fil_iterate_tablespace_files(false, nullptr,
-			fil_check_extend_space) != DB_SUCCESS) {
+		if (fil_iterate_tablespace_files(
+			false, nullptr, fil_check_extend_space) != DB_SUCCESS) {
 
 			return(true);
 		}

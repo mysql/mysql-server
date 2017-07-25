@@ -2508,6 +2508,8 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 		unit = batch_size;
 	}
 
+	auto	start_time = ut_time();
+
 	for (const auto& space : *recv_sys->spaces) {
 
 		if (space.first != TRX_SYS_SPACE
@@ -2528,8 +2530,20 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 			++applied;
 
 			if (unit == 0 || (applied % unit) == 0) {
+
 				ib::info() << pct << "%";
+
 				pct += PCT;
+
+				start_time = ut_time();
+
+			} else if (ut_time() - start_time > 10) {
+
+				start_time = ut_time();
+
+				ib::info()
+					<< "Records left to apply: "
+					<< recv_sys->n_addrs;
 			}
 		}
 	}

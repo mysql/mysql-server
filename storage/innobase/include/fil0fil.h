@@ -1513,6 +1513,7 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Callback to check tablespace size with space header size and extend
+Caller must own the Fil_shard mutex that the file belongs to.
 @param[in]	file	file node
 @param[in]	context	callers context, currently unused
 @return	error code */

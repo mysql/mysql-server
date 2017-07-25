@@ -178,6 +178,12 @@ fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 /** Sentinel for empty open slot. */
 static const size_t EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
 
+/** Maximum number of shards supported. */
+static const size_t	MAX_SHARDS = 32;
+
+/** We want to store the line number from where it was called. */
+#define mutex_acquire()	acquire(__LINE__)
+
 /** Hash a NUL terminated 'string' */
 struct Char_Ptr_Hash {
 
@@ -321,10 +327,13 @@ public:
 
 #ifndef UNIV_HOTBACKUP
 
-	/** Acquire the mutex. */
-	void mutex_acquire() const
+	/** Acquire the mutex.
+	@param[in]	line	Line number from where it was called */
+	void acquire(int line) const
 	{
-		mutex_enter(&m_mutex);
+		m_mutex.enter(
+			srv_n_spin_wait_rounds, srv_spin_wait_delay,
+			__FILE__, line);
 	}
 
 	/** Release the mutex. */
@@ -488,8 +497,10 @@ public:
 	open at least one file while holding it. This should be called
 	before calling prepare_file_for_io(), because that function
 	may need to open a file.
-	@param[in]	space_id	Tablespace ID */
-	void mutex_acquire_and_prepare_for_io(space_id_t space_id);
+	@param[in]	space_id	Tablespace ID
+	@return true if a slot was reserved. */
+	bool mutex_acquire_and_prepare_for_io(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Remap the the tablespace to the new name. Set space->name to name.
 	@param[in,out]	space		Tablespace instance
@@ -662,19 +673,38 @@ public:
 		void*			message)
 		MY_ATTRIBUTE((warn_unused_result));
 
+	/** Iterate through all persistent tablespace files
+	(FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
+	@param[in]	include_log	include log files
+	@param[in]	context		callback function context
+	@param[in]	callback	callback function
+	@return any error returned by the callback function. */
+	dberr_t iterate_files(
+		bool		include_log,
+		void*		context,
+		fil_node_cbk_t*	callback)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Free a tablespace object on which fil_space_detach() was invoked.
 	There must not be any pending i/o's or flushes on the files.
 	@param[in,out]	space		tablespace */
 	static void space_free_low(fil_space_t* space);
 
-	/** Reserve a slot for opening a file.
-	@param[in]	shard_id	ID of shard that wants to reserve
-	@return true if slot has been reserved. */
-	static bool acquire_open_slot(size_t shard_id);
+	/** Wait for an empty slot to reserve for opening a file.
+	@return true on success. */
+	static bool reserve_open_slot(size_t shard_id)
+		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Release the reserved  slot for opening a file.
-	@param[in]	shard_id	ID of shard that wants to release */
+	/** Release the slot reserved for opening a file.
+	@param[in]	shard_id	ID of shard relasing the slot */
 	static void release_open_slot(size_t shard_id);
+
+	/** We are going to do a rename file and want to stop new I/O
+	for a while.
+	@param[in,out]	space		Tablespace for which we want to
+					wait for IO to stop */
+	static void wait_for_io_to_stop(fil_space_t* space);
+
 private:
 
 	/** Prepare for truncating a single-table tablespace.
@@ -893,20 +923,6 @@ public:
 	/** Close all the log files in all shards.
 	@param[in]	free_all	If set then free all instances */
 	void close_all_log_files(bool free_all);
-
-	/** Iterate through all persistent tablespace files
-	(FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
-	@param[in,out]	shard		Tablespaces shard
-	@param[in]	include_log	include log files
-	@param[in]	context		callback function context
-	@param[in]	callback	callback function
-	@return any error returned by the callback function. */
-	dberr_t iterate_files_in_a_shard(
-		Fil_shard*		shard,
-		bool		include_log,
-		void*		context,
-		fil_node_cbk_t*	callback)
-		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Iterate through all persistent tablespace files
 	(FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
@@ -1196,7 +1212,6 @@ Fil_system::Fil_system(size_t n_shards, size_t max_open)
 	m_space_id_reuse_warned()
 {
 	ut_ad(Fil_shard::s_open_slot == 0);
-
 	Fil_shard::s_open_slot = EMPTY_OPEN_SLOT;
 
 	for (size_t i = 0; i < n_shards; ++i) {
@@ -1267,25 +1282,25 @@ Fil_shard::Fil_shard(size_t shard_id)
 	UT_LIST_INIT(m_unflushed_spaces, &fil_space_t::unflushed_spaces);
 }
 
-/** Reserve a slot for opening a file.
-@param[in]	shard_id	ID of shard that wants to reserve
-@return true if slot has been reserved. */
+/** Wait for an empty slot to reserve for opening a file.
+@return true on success. */
 bool
-Fil_shard::acquire_open_slot(size_t shard_id)
+Fil_shard::reserve_open_slot(size_t shard_id)
 {
 	size_t	expected = EMPTY_OPEN_SLOT;
 
 	return(s_open_slot.compare_exchange_weak(expected, shard_id));
 }
 
-/** Release the reserved  slot for opening a file.
-@param[in]	shard_id	ID of shard that wants to release */
+
+/** Release the slot reserved for opening a file.
+@param[in]	shard_id	ID of shard relasing the slot */
 void
 Fil_shard::release_open_slot(size_t shard_id)
 {
-	size_t	expected = shard_id;
+	size_t  expected = shard_id;
 
-	bool	success = s_open_slot.compare_exchange_weak(
+	bool    success = s_open_slot.compare_exchange_weak(
 		expected, EMPTY_OPEN_SLOT);
 
 	ut_a(success);
@@ -2119,7 +2134,8 @@ Fil_system::close_file_in_all_LRU(bool print_info)
 
 		if (print_info) {
 			ib::info()
-				<< "fil_sys open file LRU len "
+				<< "Open file list len in shard "
+				<< shard->id() << " is "
 				<< UT_LIST_GET_LEN(shard->m_LRU);
 		}
 
@@ -2135,146 +2151,174 @@ Fil_system::close_file_in_all_LRU(bool print_info)
 	return(false);
 }
 
-/** Reserves the mutex and tries to make sure we can open at least
-one file while holding it. This should be called before calling
-prepare_file_for_io(), because that function may need to open a file.
-@param[in]	space_id	Tablespace ID */
+/** We are going to do a rename file and want to stop new I/O for a while.
+@param[in,out]	space		Tablespace for which we want to wait for IO
+				to stop */
 void
-Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
+Fil_shard::wait_for_io_to_stop(fil_space_t* space)
 {
-	ulint		count = 0;
-	ulint		count2 = 0;
-	bool		print_info = false;
+	/* Note: We are reading the value of space->stop_ios without the
+	cover of the Fil_shard::mutex. We incremented the in_use counter
+	before waiting for IO to stop. */
 
-	/* Reserve an open slot for this shard. So that this shard's open
-	file succeeds. */
+	auto	begin_time = ut_time();
+	auto	start_time = begin_time;
 
-	while (!acquire_open_slot(m_id)) {
-		os_thread_sleep(1000);
-	}
+	/* Spam the log after every minute. Ignore any race here. */
 
-	for (;;) {
+	while (space->stop_ios) {
 
-		mutex_acquire();
+		if ((ut_time() - start_time) == 30) {
 
-		if (space_id == TRX_SYS_SPACE
-		    || dict_sys_t::is_reserved(space_id)) {
+			start_time = ut_time();
 
-			/* We keep log files and system tablespace files always
-			open; this is important in preventing deadlocks in this
-			module, as a page read completion often performs
-			another read from the insert buffer. The insert buffer
-			is in tablespace TRX_SYS_SPACE, and we cannot end up
-			waiting in this function. */
-
-			return;
+			ib::warn()
+				<< "Tablespace " << space->name << ", "
+				<< " waiting for IO to stop for "
+				<< ut_time() - begin_time << " seconds";
 		}
-
-		fil_space_t*	space = get_space_by_id(space_id);
-
-		if (space != nullptr && space->stop_ios) {
-
-			/* We are going to do a rename file and want to stop
-			new I/O's for a while. */
-
-			if (count2 > 20000) {
-				ib::warn()
-					<< "Tablespace " << space->name
-					<< " has I/O ops stopped for a long"
-					" time " << count2;
-			}
-
-			mutex_release();
 
 #ifndef UNIV_HOTBACKUP
 
-			/* Wake the i/o-handler threads to make sure pending
-			I/O's are performed */
-			os_aio_simulated_wake_handler_threads();
-
-			/* The sleep here is just to give IO helper threads a
-			bit of time to do some work. It is not required that
-			all IO related to the tablespace being renamed must
-			be flushed here as we do fil_flush() in
-			fil_rename_tablespace() as well. */
-			os_thread_sleep(20000);
+		/* Wake the I/O handler threads to make sure
+		pending I/O's are performed */
+		os_aio_simulated_wake_handler_threads();
 
 #endif /* UNIV_HOTBACKUP */
 
-			/* Flush tablespaces so that we can close modified
-			files in the LRU list */
+		/* Give the IO threads some time to work. */
+		os_thread_yield();
+	}
+}
 
-			fil_system->flush_file_spaces(
-				to_int(FIL_TYPE_TABLESPACE));
+/** Reserves the mutex and tries to make sure we can open at least
+one file while holding it. This should be called before calling
+prepare_file_for_io(), because that function may need to open a file.
+@param[in]	space_id	Tablespace ID
+@return if a slot was reserved. */
+bool
+Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
+{
+	mutex_acquire();
 
-			os_thread_sleep(20000);
+	if (space_id == TRX_SYS_SPACE || dict_sys_t::is_reserved(space_id)) {
 
-			++count2;
+		/* We keep log files and system tablespace
+		files always open; this is important in
+		preventing deadlocks in this module, as
+		a page read completion often performs
+		another read from the insert buffer. The
+		insert buffer is in tablespace TRX_SYS_SPACE,
+		and we cannot end up waiting in this
+		function. */
 
-			continue;
-		}
 
-		/* If the file is already open, no need to do anything; if the
-		space does not exist, we handle the situation in the function
-		which called this function. */
+		return(false);
+	}
 
-		if (space == nullptr || space->files.front().is_open) {
+	auto	space = get_space_by_id(space_id);
 
-			return;
-		}
+	if (space == nullptr) {
+		/* Caller handles the case of a missing tablespce. */
+		return(false);
+	}
 
-		if (count > 1) {
-			print_info = true;
-		}
+	ut_ad(space->files.size() == 1);
 
-		/* Too many files are open, try to close some. We need try
-		and close files from all shards. */
+	auto	is_open = space->files.front().is_open;
 
-		mutex_release();
+	if (is_open) {
+		/* Ensure that the file is not closed behind our back. */
+		++space->files.front().in_use;
+	}
 
-		while (s_n_open >= fil_system->m_max_n_open) {
+	mutex_release();
 
-			if (fil_system->close_file_in_all_LRU(print_info)) {
+	if (is_open) {
 
-				break;
+		wait_for_io_to_stop(space);
+
+		mutex_acquire();
+
+		/* We are guaranteed that this file cannot be closed
+		because we now own the mutex. */
+
+		ut_ad(space->files.front().in_use > 0);
+		--space->files.front().in_use;
+
+		return(false);
+	}
+
+	/* The number of open file descriptors is a shared resource, in
+	order to guarantee that we don't over commit, we use a ticket system
+	to reserve a slot/ticket to open a file. This slot/ticket should
+	be released after the file is opened. */
+	
+	while (!reserve_open_slot(m_id)) {
+		os_thread_yield();
+	}
+
+	auto	begin_time = ut_time();
+	auto	start_time = begin_time;
+
+	size_t	i;
+
+	for (i = 0; i < 3; ++i) {
+
+		/* Flush tablespaces so that we can close modified
+		files in the LRU list */
+
+		auto	type = to_int(FIL_TYPE_TABLESPACE);
+
+		fil_system->flush_file_spaces(type);
+
+		os_thread_yield();
+
+		/* Reserve an open slot for this shard. So that this
+		shard's open file succeeds. */
+
+		while (fil_system->m_max_n_open <= s_n_open
+		       && !fil_system->close_file_in_all_LRU(i > 1)) {
+
+			if (ut_time() - start_time == 30) {
+
+				start_time = ut_time();
+
+				ib::warn()
+					<< "Trying to close a file for "
+					<< ut_time() - begin_time << " seconds"
+					<< ". Configuration only allows for "
+					<< fil_system->m_max_n_open
+					<<" open files.";
 			}
 		}
 
-		if (Fil_shard::s_n_open < fil_system->m_max_n_open) {
-
-			mutex_acquire();
-
-			return;
-		}
-
-		if (count >= 2) {
-
-			ib::warn()
-				<< "Too many (" << Fil_shard::s_n_open
-				<< ") files stay open while the maximum"
-				" allowed value would be "
-				<< fil_system->m_max_n_open << ". You may need"
-				" to raise the value of innodb_open_files in"
-				" my.cnf.";
-
-			return;
+		if (fil_system->m_max_n_open > s_n_open) {
+			break;
 		}
 
 #ifndef UNIV_HOTBACKUP
-		/* Wake the i/o-handler threads to make sure pending i/o's are
+		/* Wake the I/O-handler threads to make sure pending I/Os are
 		performed */
 		os_aio_simulated_wake_handler_threads();
 
-		os_thread_sleep(20000);
+		os_thread_yield();
 #endif /* !UNIV_HOTBACKUP */
-
-		/* Flush tablespaces so that we can close modified files in
-		the LRU list. */
-
-		fil_system->flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
-
-		++count;
 	}
+
+	if (i >= 2) {
+
+		ib::warn()
+			<< "Too many (" << s_n_open
+			<< ") files are open the maximum allowed"
+			<< " value is " << fil_system->m_max_n_open
+			<< ". You should raise the value of"
+			<< " --innodb-open-files in my.cnf.";
+	}
+
+	mutex_acquire();
+
+	return(true);
 }
 
 /** Prepare to free a file. Remove from the unflushed list if there
@@ -2636,9 +2680,7 @@ Fil_shard::space_load(space_id_t space_id)
 		the mutex. Check for this after completing the call to
 		mutex_acquire_and_prepare_for_io(). */
 
-		mutex_acquire_and_prepare_for_io(space_id);
-
-		release_open_slot(m_id);
+		auto	slot = mutex_acquire_and_prepare_for_io(space_id);
 
 		/* We are still holding the mutex. Check if the space is
 		still in memory cache. */
@@ -2646,6 +2688,10 @@ Fil_shard::space_load(space_id_t space_id)
 		space = get_space_by_id(space_id);
 
 		if (space == nullptr) {
+
+			if (slot) {
+				release_open_slot(m_id);
+			}
 
 			return(nullptr);
 		}
@@ -2661,7 +2707,13 @@ Fil_shard::space_load(space_id_t space_id)
 			we have not opened the file yet; the following
 			calls will open it and update the size fields */
 
-			if (!prepare_file_for_io(file, false)) {
+			bool	success = prepare_file_for_io(file, false);
+
+			if (slot) {
+				release_open_slot(m_id);
+			}
+
+			if (!success) {
 
 				/* The single-table tablespace can't be opened,
 				because the ibd file is missing. */
@@ -2832,7 +2884,7 @@ fil_init(ulint max_n_open)
 
 	ut_a(max_n_open > 0);
 
-	fil_system = UT_NEW_NOKEY(Fil_system(32, max_n_open));
+	fil_system = UT_NEW_NOKEY(Fil_system(MAX_SHARDS, max_n_open));
 
 	if (Tablespace_files::instance() == nullptr) {
 		Tablespace_files::create();
@@ -3049,35 +3101,14 @@ returning the nodes via callback function cbk.
 @param[in]	callback	callback function
 @return any error returned by the callback function. */
 dberr_t
-fil_iterate_tablespace_files(
+Fil_shard::iterate_files(
 	bool		include_log,
 	void*		context,
 	fil_node_cbk_t*	callback)
 {
-	dberr_t	err;
+	mutex_acquire();
 
-	err = fil_system->iterate_all_files(include_log, context, callback);
-
-	return(err);
-}
-
-/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
-returning the nodes via callback function cbk.
-@param[in,out]	shard		Fil_shard in which to iterate over
-@param[in]	include_log	include log files
-@param[in]	context		callback function context
-@param[in]	callback	callback function
-@return any error returned by the callback function. */
-dberr_t
-Fil_system::iterate_files_in_a_shard(
-	Fil_shard*	shard,
-	bool		include_log,
-	void*		context,
-	fil_node_cbk_t*	callback)
-{
-	ut_ad(shard->mutex_owned());
-
-	for (auto& elem : shard->m_spaces) {
+	for (auto& elem : m_spaces) {
 
 		auto	space = elem.second;
 
@@ -3089,14 +3120,20 @@ Fil_system::iterate_files_in_a_shard(
 
 		for (auto& file: space->files) {
 
+			/* Note: The callback can release the mutex. */
+
 			dberr_t	err = callback(&file, context);
 
 			if (err != DB_SUCCESS) {
+
+				mutex_release();
 
 				return(err);;
 			}
 		}
 	}
+
+	mutex_release();
 
 	return(DB_SUCCESS);
 }
@@ -3117,19 +3154,33 @@ Fil_system::iterate_all_files(
 
 	for (auto shard : m_shards) {
 
-		shard->mutex_acquire();
-
-		err = iterate_files_in_a_shard(
-			shard, include_log, context, callback);
-
-		shard->mutex_release();
+		err = shard->iterate_files(include_log, context, callback);
 
 		if (err != DB_SUCCESS) {
 			break;
 		}
 	}
 
-	return(DB_SUCCESS);
+	return(err);
+}
+
+/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
+returning the nodes via callback function cbk.
+@param[in]	include_log	include log files
+@param[in]	context		callback function context
+@param[in]	callback	callback function
+@return any error returned by the callback function. */
+dberr_t
+fil_iterate_tablespace_files(
+	bool		include_log,
+	void*		context,
+	fil_node_cbk_t*	callback)
+{
+	dberr_t	err;
+
+	err = fil_system->iterate_all_files(include_log, context, callback);
+
+	return(err);
 }
 
 /** Sets the max tablespace id counter if the given number is bigger than the
@@ -5527,12 +5578,13 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			space->print_xdes_pages("xdes_pages.log"););
 
 	fil_node_t*	file;
+	size_t		slot;
 	size_t		phy_page_size;
 	bool		success = true;
 
 	for (;;) {
 
-		mutex_acquire_and_prepare_for_io(space->id);
+		slot = mutex_acquire_and_prepare_for_io(space->id);
 
 		/* Note:If the file is being opened for the first time then
 		we don't have the file physical size. There is no guarantee
@@ -5543,7 +5595,9 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			/* Space already big enough */
 			mutex_release();
 
-			release_open_slot(m_id);
+			if (slot) {
+				release_open_slot(m_id);
+			}
 
 			return(true);
 		}
@@ -5565,7 +5619,9 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			break;
 		}
 
-		release_open_slot(m_id);
+		if (slot) {
+			release_open_slot(m_id);
+		}
 
 		/* Another thread is currently using the file. Wait
 		for it to finish.  It'd have been better to use an event
@@ -5579,7 +5635,9 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 
 	bool	opened = prepare_file_for_io(file, true);
 
-	release_open_slot(m_id);
+	if (slot) {
+		release_open_slot(m_id);
+	}
 
 	if (!opened) {
 
@@ -6208,7 +6266,7 @@ Fil_shard::do_io(
 	/* Reserve the mutex and make sure that we can open at
 	least one file while holding it, if the file is not already open */
 
-	mutex_acquire_and_prepare_for_io(page_id.space());
+	auto	slot = mutex_acquire_and_prepare_for_io(page_id.space());
 
 	fil_space_t*	space = get_space_by_id(page_id.space());
 
@@ -6218,9 +6276,11 @@ Fil_shard::do_io(
 	if (space == nullptr
 	    || (req_type.is_read() && !sync && space->stop_new_ops)) {
 
-		mutex_release();
+		if (slot) {
+			release_open_slot(m_id);
+		}
 
-		release_open_slot(m_id);
+		mutex_release();
 
 		if (!req_type.ignore_missing()) {
 			if (space == nullptr) {
@@ -6270,9 +6330,11 @@ Fil_shard::do_io(
 
 		if (req_type.ignore_missing()) {
 
-			mutex_release();
+			if (slot) {
+				release_open_slot(m_id);
+			}
 
-			release_open_slot(m_id);
+			mutex_release();
 
 			return(DB_ERROR);
 		}
@@ -6302,17 +6364,21 @@ Fil_shard::do_io(
 			/* Page access request for a page that is
 			outside the truncated UNDO tablespace bounds. */
 
-			mutex_release();
+			if (slot) {
+				release_open_slot(m_id);
+			}
 
-			release_open_slot(m_id);
+			mutex_release();
 
 			return(DB_TABLESPACE_DELETED);
 
 		} else  if (req_type.ignore_missing()) {
 
-			mutex_release();
+			if (slot) {
+				release_open_slot(m_id);
+			}
 
-			release_open_slot(m_id);
+			mutex_release();
 
 			return(DB_ERROR);
 
@@ -6329,7 +6395,9 @@ Fil_shard::do_io(
 	/* Open file if closed */
 	bool	opened = prepare_file_for_io(file, false);
 
-	release_open_slot(m_id);
+	if (slot) {
+		release_open_slot(m_id);
+	}
 
 	if (!opened) {
 
@@ -9136,7 +9204,8 @@ fil_scan_for_tablespaces(const std::string& directories)
 	return(err);
 }
 
-/** Callback to check tablespace size with space header size and extend
+/** Callback to check tablespace size with space header size and extend.
+Caller must own the Fil_shard mutex that the file belongs to.
 @param[in]	file	Tablespace file
 @param[in]	context	callers context, currently unused
 @return	error code */
@@ -9162,6 +9231,8 @@ fil_check_extend_space(
 		return(DB_CANNOT_OPEN_FILE);
 	}
 
+	shard->mutex_release();
+
 	if (space->size < space->size_in_header) {
 
 		ib::info()
@@ -9179,6 +9250,8 @@ fil_check_extend_space(
 			err = DB_OUT_OF_FILE_SPACE;
 		}
 	}
+
+	shard->mutex_acquire();
 
 	/* Close the file if it was opened by current function */
 	if (open_node) {
