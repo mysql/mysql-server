@@ -151,6 +151,7 @@ int Delayed_initialization_thread::initialization_thread_handler()
 
     //Avoid unnecessary operations
     bool enabled_super_read_only= false;
+    bool read_only_mode= false, super_read_only_mode=false;
 
     char *hostname, *uuid;
     uint port;
@@ -175,6 +176,28 @@ int Delayed_initialization_thread::initialization_thread_handler()
       goto err;
       /* purecov: end */
     }
+
+    /*
+     At this point in the code, set the super_read_only mode here on the
+     server to protect recovery and version module of the Group Replication.
+
+     Save the current read mode state to restore it in case Group Replication
+     fail to start.
+    */
+
+    get_read_mode_state(sql_command_interface, &read_only_mode,
+                        &super_read_only_mode);
+
+    if (enable_super_read_only_mode(sql_command_interface))
+    {
+      error =1; /* purecov: inspected */
+      log_message(MY_ERROR_LEVEL,
+                  "Could not enable the server read only mode and guarantee a "
+                  "safe recovery execution"); /* purecov: inspected */
+      goto err; /* purecov: inspected */
+    }
+
+    enabled_super_read_only= true;
 
     if ((error= configure_group_communication(&server_ssl_variables)))
       goto err; /* purecov: inspected */
@@ -210,21 +233,6 @@ int Delayed_initialization_thread::initialization_thread_handler()
     initialize_asynchronous_channels_observer();
     initialize_group_partition_handler();
 
-    /*
-     At this point in the code, set the super_read_only mode here on the
-     server to protect recovery and version module of the Group Replication.
-    */
-
-    if (read_mode_handler->set_super_read_only_mode(sql_command_interface))
-    {
-      error =1; /* purecov: inspected */
-      log_message(MY_ERROR_LEVEL,
-                  "Could not enable the server read only mode and guarantee a "
-                  "safe recovery execution"); /* purecov: inspected */
-      goto err; /* purecov: inspected */
-    }
-    enabled_super_read_only= true;
-
     if ((error= start_group_communication()))
     {
       //terminate the before created pipeline
@@ -254,7 +262,13 @@ int Delayed_initialization_thread::initialization_thread_handler()
     if (error)
     {
       leave_group();
-      terminate_plugin_modules(enabled_super_read_only);
+      terminate_plugin_modules();
+      if (!server_shutdown_status && server_engine_initialized()
+          && enabled_super_read_only)
+      {
+        set_read_mode_state(sql_command_interface, read_only_mode,
+                            super_read_only_mode);
+      }
       if (certification_latch != NULL)
       {
         delete certification_latch; /* purecov: inspected */

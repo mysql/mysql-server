@@ -18,7 +18,6 @@
 #include "plugin.h"
 #include <mysql/group_replication_priv.h>
 
-
 using std::string;
 
 static void *launch_handler_thread(void* arg)
@@ -147,7 +146,7 @@ void Group_partition_handling::kill_transactions_and_leave()
     shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode)
-    set_server_read_mode(PSESSION_INIT_THREAD);
+    enable_server_read_mode(PSESSION_INIT_THREAD);
 
   DBUG_VOID_RETURN;
 }

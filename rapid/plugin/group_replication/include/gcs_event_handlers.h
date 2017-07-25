@@ -62,8 +62,7 @@ public:
   Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                             Recovery_module* recovery_module,
                             Plugin_gcs_view_modification_notifier* vc_notifier,
-                            Compatibility_module* compatibility_manager,
-                            Read_mode_handler* read_mode_handler);
+                            Compatibility_module* compatibility_manager);
   virtual ~Plugin_gcs_events_handler();
 
   /*
@@ -266,8 +265,6 @@ private:
   Plugin_gcs_view_modification_notifier* view_change_notifier;
 
   Compatibility_module* compatibility_manager;
-
-  Read_mode_handler* read_mode_handler;
 
   /**The status of this member when it joins*/
   st_compatibility_types* joiner_compatibility_status;

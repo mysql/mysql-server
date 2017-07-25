@@ -295,6 +295,14 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   shared_plugin_stop_lock->grab_read_lock();
 
+  if (is_plugin_waiting_to_set_server_read_mode())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "Transaction cannot be executed while Group Replication is stopping.");
+    shared_plugin_stop_lock->release_read_lock();
+    DBUG_RETURN(1);
+  }
+
   /* If the plugin is not running, before commit should return success. */
   if (!plugin_is_group_replication_running())
   {
