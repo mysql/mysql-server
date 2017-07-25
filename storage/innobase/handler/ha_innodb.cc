@@ -3548,7 +3548,16 @@ innobase_dict_cache_reset_tables_and_tablespaces()
 	in LRU list */
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
              table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		if (dict_table_is_system(table->id) || table->is_dd_table) {
+		/* Make sure table->is_dd_table is set */
+                char	db_buf[NAME_LEN + 1];
+                char	tbl_buf[NAME_LEN + 1];
+
+		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
+				  nullptr, nullptr);
+
+		/* TODO: Remove follow if we have better way to identify
+		DD "system table" */
+		if (strcmp(db_buf, "mysql") == 0 || table->is_dd_table) {
 			continue;
 		}
 		btr_drop_ahi_for_table(table);
