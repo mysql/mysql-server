@@ -89,6 +89,7 @@ while($restart_cnt)
     --connection server$s_id1
 
     STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
 
     --let $s_id2= $s_id1
     while ($s_id2 == $s_id1)
@@ -105,6 +106,7 @@ while($restart_cnt)
     --source ../inc/gr_wait_for_number_of_members.inc
 
     STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
 
     --connection server$s_id1
     --source include/start_group_replication_command.inc

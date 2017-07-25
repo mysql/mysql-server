@@ -725,9 +725,9 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
   if (set_read_mode)
   {
     if (threaded_sql_session)
-      set_server_read_mode(PSESSION_INIT_THREAD);
+      enable_server_read_mode(PSESSION_INIT_THREAD);
     else
-      set_server_read_mode(PSESSION_USE_THREAD);
+      enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
   DBUG_VOID_RETURN;

@@ -14,9 +14,3 @@ include/assert.inc [The read_only mode must be 0]
 ############################################################
 # 3. Leave group and assert super_read_only value.
 include/stop_group_replication.inc
-include/assert.inc [The super_read_only mode must be 1]
-include/assert.inc [The read_only mode must be 1]
-
-############################################################
-# 4. Clean up.
-SET @@GLOBAL.read_only= 0;
