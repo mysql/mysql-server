@@ -675,14 +675,10 @@ public:
 
 	/** Iterate through all persistent tablespace files
 	(FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
-	@param[in]	include_log	include log files
-	@param[in]	context		callback function context
-	@param[in]	callback	callback function
+	@param[in]	include_log	include log files, if true
+	@param[in]	f		Callback
 	@return any error returned by the callback function. */
-	dberr_t iterate_files(
-		bool		include_log,
-		void*		context,
-		fil_node_cbk_t*	callback)
+	dberr_t iterate(bool include_log, Fil_iterator::Function& f)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Free a tablespace object on which fil_space_detach() was invoked.
@@ -926,14 +922,10 @@ public:
 
 	/** Iterate through all persistent tablespace files
 	(FIL_TYPE_TABLESPACE) returning the nodes via callback function cbk.
-	@param[in]	include_log	include log files
-	@param[in]	context		callback function context
-	@param[in]	callback	callback function
+	@param[in]	include_log	Include log files, if true
+	@param[in]	f		Callback
 	@return any error returned by the callback function. */
-	dberr_t iterate_all_files(
-		bool		include_log,
-		void*		context,
-		fil_node_cbk_t*	callback)
+	dberr_t iterate(bool include_log, Fil_iterator::Function& f)
 		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Rotate the tablespace keys by new master key.
@@ -3096,15 +3088,11 @@ fil_close_log_files(bool free_all)
 
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
-@param[in]	include_log	include log files
-@param[in]	context		callback function context
-@param[in]	callback	callback function
+@param[in]	include_log	Include log files, if true
+@param[in]	f		Callback
 @return any error returned by the callback function. */
 dberr_t
-Fil_shard::iterate_files(
-	bool		include_log,
-	void*		context,
-	fil_node_cbk_t*	callback)
+Fil_shard::iterate(bool include_log, Fil_iterator::Function& f)
 {
 	mutex_acquire();
 
@@ -3122,7 +3110,7 @@ Fil_shard::iterate_files(
 
 			/* Note: The callback can release the mutex. */
 
-			dberr_t	err = callback(&file, context);
+			dberr_t	err = f(&file);
 
 			if (err != DB_SUCCESS) {
 
@@ -3140,47 +3128,33 @@ Fil_shard::iterate_files(
 
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
-@param[in]	include_log	include log files
-@param[in]	context		callback function context
-@param[in]	callback	callback function
+@param[in]	include_log	include log files, if true
+@param[in]	f		callback function
 @return any error returned by the callback function. */
 dberr_t
-Fil_system::iterate_all_files(
-	bool		include_log,
-	void*		context,
-	fil_node_cbk_t*	callback)
+Fil_system::iterate(bool include_log, Fil_iterator::Function& f)
 {
-	dberr_t	err = DB_SUCCESS;
-
 	for (auto shard : m_shards) {
 
-		err = shard->iterate_files(include_log, context, callback);
+		dberr_t	err = shard->iterate(include_log, f);
 
 		if (err != DB_SUCCESS) {
-			break;
+			return(err);
 		}
 	}
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
 returning the nodes via callback function cbk.
-@param[in]	include_log	include log files
-@param[in]	context		callback function context
-@param[in]	callback	callback function
+@param[in]	include_log	include log files, if true
+@param[in]	f		Callback
 @return any error returned by the callback function. */
 dberr_t
-fil_iterate_tablespace_files(
-	bool		include_log,
-	void*		context,
-	fil_node_cbk_t*	callback)
+Fil_iterator::iterate(bool include_log, Function&& f)
 {
-	dberr_t	err;
-
-	err = fil_system->iterate_all_files(include_log, context, callback);
-
-	return(err);
+	return(fil_system->iterate(include_log, f));
 }
 
 /** Sets the max tablespace id counter if the given number is bigger than the
@@ -9207,12 +9181,9 @@ fil_scan_for_tablespaces(const std::string& directories)
 /** Callback to check tablespace size with space header size and extend.
 Caller must own the Fil_shard mutex that the file belongs to.
 @param[in]	file	Tablespace file
-@param[in]	context	callers context, currently unused
 @return	error code */
 dberr_t
-fil_check_extend_space(
-	fil_node_t*	file,
-	void*		context MY_ATTRIBUTE((unused)))
+fil_check_extend_space(fil_node_t* file)
 {
 	dberr_t	err = DB_SUCCESS;
 	bool	open_node = !file->is_open;

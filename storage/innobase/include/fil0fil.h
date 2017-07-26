@@ -746,21 +746,28 @@ flushed modifications in the files.
 void
 fil_close_log_files(bool free_all);
 
-/** File node iterator callback. */
-using fil_node_cbk_t = dberr_t (fil_node_t* file, void* context);
+/** Iterate over the files in all the tablespaces. */
+class Fil_iterator {
+public:
+	using Function = std::function<dberr_t(fil_node_t*)>;
 
-/** Iterate through all persistent tablespace files (FIL_TYPE_TABLESPACE)
-returning the nodes via callback function cbk.
-@param[in]	include_log	include log files
-@param[in]	context		callback function context
-@param[in]	callback	callback function
-@return any error returned by the callback function. */
-dberr_t
-fil_iterate_tablespace_files(
-	bool		include_log,
-	void*		context,
-	fil_node_cbk_t*	callback)
-	MY_ATTRIBUTE((warn_unused_result));
+	/** For each data file, exclude redo log files.
+	@param[in]	include_log	include files, if true
+	@param[in]	f		Callback */
+	template<typename F>
+	static dberr_t for_each_file(bool include_log, F&& f)
+	{
+		return(iterate(include_log, [=](fil_node_t* file)
+		{
+			return(f(file));
+		}));
+	}
+
+	/** Iterate over the spaces and file lists.
+	@param[in]	include_log	if true then fetch log files too
+	@param[in,out]	f		Callback */
+	static dberr_t iterate(bool include_log, Function&& f);
+};
 
 /** Sets the max tablespace id counter if the given number is bigger than the
 previous value.
@@ -1515,12 +1522,9 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 /** Callback to check tablespace size with space header size and extend
 Caller must own the Fil_shard mutex that the file belongs to.
 @param[in]	file	file node
-@param[in]	context	callers context, currently unused
 @return	error code */
 dberr_t
-fil_check_extend_space(
-	fil_node_t*	file,
-	void* 		context MY_ATTRIBUTE((unused)))
+fil_check_extend_space(fil_node_t* file)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the space IDs active in the system.

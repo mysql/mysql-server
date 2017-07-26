@@ -29,25 +29,6 @@ Innodb copy snapshot data
 #include "buf0dump.h"
 #include "dict0dict.h"
 
-/** Callback to add a tablespace file node to current snapshot
-@param[in]	node	file node
-@param[in]	context	snapshot
-@return	error code */
-static dberr_t
-add_node_callback(
-	fil_node_t*	node,
-	void*		context)
-{
-	dberr_t err;
-
-	Clone_Snapshot*	snapshot;
-	snapshot = static_cast<Clone_Snapshot*>(context);
-
-	err = snapshot->add_node(node);
-
-	return(err);
-}
-
 /** Callback to add an archived redo file to current snapshot
 @param[in]	file_name	file name
 @param[in]	file_size	file size in bytes
@@ -214,8 +195,10 @@ Clone_Snapshot::init_file_copy()
 	include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
 
 	/* Iterate all tablespace files and add persistent data files. */
-	err = fil_iterate_tablespace_files(include_log,
-		context, add_node_callback);
+	err = Fil_iterator::for_each_file(include_log, [&] (fil_node_t* file)
+	{
+		return(add_node(file));
+	});
 
 	if (err != DB_SUCCESS) {
 

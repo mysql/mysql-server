@@ -3686,6 +3686,7 @@ innobase_dict_recover(
 	dict_recovery_mode_t		dict_recovery_mode,
 	uint				version)
 {
+	dberr_t		err;
 	THD*		thd = current_thd;
 
 	switch (dict_recovery_mode) {
@@ -3731,9 +3732,15 @@ innobase_dict_recover(
 			return(true);
 		}
 
-		/* Check and extend space files, if needed. */
-		if (fil_iterate_tablespace_files(
-			false, nullptr, fil_check_extend_space) != DB_SUCCESS) {
+		/* Check and extend space files, if needed, ignore
+		redo log files. */
+
+		err = Fil_iterator::for_each_file(false, [=](fil_node_t* file)
+		{
+			return(fil_check_extend_space(file));
+		});
+
+		if (err != DB_SUCCESS){
 
 			return(true);
 		}
