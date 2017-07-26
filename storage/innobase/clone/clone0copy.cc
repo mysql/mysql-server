@@ -185,14 +185,8 @@ Clone_Snapshot::init_file_copy()
 		return(err);
 	}
 
-	/* Collect data file metadata from tablespace nodes. */
-	void*	context;
-	bool	include_log;
-
-	context = static_cast<void*>(this);
-
-	/* For blocking clone, include redo files in file list. */
-	include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
+	/* Do not include redo files in file list. */
+	bool	include_log = (m_snapshot_type == HA_CLONE_BLOCKING);
 
 	/* Iterate all tablespace files and add persistent data files. */
 	err = Fil_iterator::for_each_file(include_log, [&] (fil_node_t* file)
