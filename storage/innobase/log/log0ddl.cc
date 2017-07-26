@@ -56,7 +56,7 @@ Note: we should not write DDL log when replaying DDL log. */
 thread_local bool thread_local_ddl_log_replay = false;
 
 /** Whether in recover(replay) DDL log in startup. */
-bool	Log_DDL::m_in_recovery = false;
+bool	Log_DDL::s_in_recovery = false;
 
 DDL_Record::DDL_Record()
 	:
@@ -314,71 +314,71 @@ DDL_Log_Table::create_tuple(const DDL_Record& record)
 	const ulint	rec_id = record.get_id();
 
 	if (rec_id != ULINT_UNDEFINED) {
-		buf = static_cast<byte*>(mem_heap_alloc(m_heap, ID_COL_LEN));
+		buf = static_cast<byte*>(mem_heap_alloc(m_heap, s_id_col_len));
 		mach_write_to_8(buf, rec_id);
-		dfield = dtuple_get_nth_field(m_tuple, ID_COL_NO);
-		dfield_set_data(dfield, buf, ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_id_col_no);
+		dfield_set_data(dfield, buf, s_id_col_len);
 	}
 
 	if (record.get_thread_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-			m_heap, THREAD_ID_COL_LEN));
+			m_heap, s_thread_id_col_len));
 		mach_write_to_8(buf, record.get_thread_id());
-		dfield = dtuple_get_nth_field(m_tuple, THREAD_ID_COL_NO);
-		dfield_set_data(dfield, buf, THREAD_ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_thread_id_col_no);
+		dfield_set_data(dfield, buf, s_thread_id_col_len);
 	}
 
 	ut_ad(record.get_type() >= Log_Type::SMALLEST_LOG);
 	ut_ad(record.get_type() <= Log_Type::BIGGEST_LOG);
-	buf = static_cast<byte*>(mem_heap_alloc(m_heap, TYPE_COL_LEN));
+	buf = static_cast<byte*>(mem_heap_alloc(m_heap, s_type_col_len));
 	mach_write_to_4(
 		buf,
 		static_cast<typename std::underlying_type<Log_Type>::type>(
 			record.get_type()));
-	dfield = dtuple_get_nth_field(m_tuple, TYPE_COL_NO);
-	dfield_set_data(dfield, buf, TYPE_COL_LEN);
+	dfield = dtuple_get_nth_field(m_tuple, s_type_col_no);
+	dfield_set_data(dfield, buf, s_type_col_len);
 
 	if (record.get_space_id() != SPACE_UNKNOWN) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-			m_heap, SPACE_ID_COL_LEN));
+			m_heap, s_space_id_col_len));
 		mach_write_to_4(buf, record.get_space_id());
-		dfield = dtuple_get_nth_field(m_tuple, SPACE_ID_COL_NO);
-		dfield_set_data(dfield, buf, SPACE_ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_space_id_col_no);
+		dfield_set_data(dfield, buf, s_space_id_col_len);
 	}
 
 	if (record.get_page_no() != FIL_NULL) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-			m_heap, PAGE_NO_COL_LEN));
+			m_heap, s_page_no_col_len));
 		mach_write_to_4(buf, record.get_page_no());
-		dfield = dtuple_get_nth_field(m_tuple, PAGE_NO_COL_NO);
-		dfield_set_data(dfield, buf, PAGE_NO_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_page_no_col_no);
+		dfield_set_data(dfield, buf, s_page_no_col_len);
 	}
 
 	if (record.get_index_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-			m_heap, INDEX_ID_COL_LEN));
+			m_heap, s_index_id_col_len));
 		mach_write_to_8(buf, record.get_index_id());
-		dfield = dtuple_get_nth_field(m_tuple, INDEX_ID_COL_NO);
-		dfield_set_data(dfield, buf, INDEX_ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_index_id_col_no);
+		dfield_set_data(dfield, buf, s_index_id_col_len);
 	}
 
 	if (record.get_table_id() != ULINT_UNDEFINED) {
 		buf = static_cast<byte*>(mem_heap_alloc(
-			m_heap, TABLE_ID_COL_LEN));
+			m_heap, s_table_id_col_len));
 		mach_write_to_8(buf, record.get_table_id());
-		dfield = dtuple_get_nth_field(m_tuple, TABLE_ID_COL_NO);
-		dfield_set_data(dfield, buf, TABLE_ID_COL_LEN);
+		dfield = dtuple_get_nth_field(m_tuple, s_table_id_col_no);
+		dfield_set_data(dfield, buf, s_table_id_col_len);
 	}
 
 	if (record.get_old_file_path() != nullptr) {
 		ulint m_len = strlen(record.get_old_file_path()) + 1;
-		dfield = dtuple_get_nth_field(m_tuple, OLD_FILE_PATH_COL_NO);
+		dfield = dtuple_get_nth_field(m_tuple, s_old_file_path_col_no);
 		dfield_set_data(dfield, record.get_old_file_path(), m_len);
 	}
 
 	if (record.get_new_file_path() != nullptr) {
 		ulint m_len = strlen(record.get_new_file_path()) + 1;
-		dfield = dtuple_get_nth_field(m_tuple, NEW_FILE_PATH_COL_NO);
+		dfield = dtuple_get_nth_field(m_tuple, s_new_file_path_col_no);
 		dfield_set_data(dfield, record.get_new_file_path(), m_len);
 	}
 }
@@ -397,11 +397,11 @@ DDL_Log_Table::create_tuple(ulint id, const dict_index_t* index)
 	dict_index_copy_types(m_tuple, index, 1);
 
 	if (index->is_clustered()) {
-		len = ID_COL_LEN;
-		table_col_offset = ID_COL_NO;
+		len = s_id_col_len;
+		table_col_offset = s_id_col_no;
 	} else {
-		len = THREAD_ID_COL_LEN;
-		table_col_offset = THREAD_ID_COL_NO;
+		len = s_thread_id_col_len;
+		table_col_offset = s_thread_id_col_no;
 	}
 
 	index_col_offset = index->get_col_pos(table_col_offset);
@@ -490,10 +490,10 @@ DDL_Log_Table::parse_id(
 	const ulint*		offsets)
 {
 	ulint	len;
-	ulint	index_offset = index->get_col_pos(ID_COL_NO);
+	ulint	index_offset = index->get_col_pos(s_id_col_no);
 
 	byte* data = rec_get_nth_field(rec, offsets, index_offset, &len);
-	ut_ad(len == ID_COL_LEN);
+	ut_ad(len == s_id_col_len);
 
 	return(mach_read_from_8(data));
 }
@@ -508,41 +508,41 @@ DDL_Log_Table::set_field(
 	dict_index_t*	index = dict_sys->ddl_log->first_index();
 	ulint		col_offset = index->get_col_no(index_offset);
 
-	if (col_offset == NEW_FILE_PATH_COL_NO) {
+	if (col_offset == s_new_file_path_col_no) {
 		record.set_new_file_path(data, len);
 		return;
 	}
 
-	if (col_offset == OLD_FILE_PATH_COL_NO) {
+	if (col_offset == s_old_file_path_col_no) {
 		record.set_old_file_path(data, len);
 		return;
 	}
 
 	ulint value = fetch_value(data, col_offset);
 	switch(col_offset) {
-	case ID_COL_NO:
+	case s_id_col_no:
 		record.set_id(value);
 		break;
-	case THREAD_ID_COL_NO:
+	case s_thread_id_col_no:
 		record.set_thread_id(value);
 		break;
-	case TYPE_COL_NO:
+	case s_type_col_no:
 		record.set_type(static_cast<Log_Type>(value));
 		break;
-	case SPACE_ID_COL_NO:
+	case s_space_id_col_no:
 		record.set_space_id(value);
 		break;
-	case PAGE_NO_COL_NO:
+	case s_page_no_col_no:
 		record.set_page_no(value);
 		break;
-	case INDEX_ID_COL_NO:
+	case s_index_id_col_no:
 		record.set_index_id(value);
 		break;
-	case TABLE_ID_COL_NO:
+	case s_table_id_col_no:
 		record.set_table_id(value);
 		break;
-	case OLD_FILE_PATH_COL_NO:
-	case NEW_FILE_PATH_COL_NO:
+	case s_old_file_path_col_no:
+	case s_new_file_path_col_no:
 	default:
 		ut_ad(0);
 	}
@@ -555,19 +555,19 @@ DDL_Log_Table::fetch_value(
 {
 	ulint	value = 0;
 	switch(offset) {
-	case ID_COL_NO:
-	case THREAD_ID_COL_NO:
-	case INDEX_ID_COL_NO:
-	case TABLE_ID_COL_NO:
+	case s_id_col_no:
+	case s_thread_id_col_no:
+	case s_index_id_col_no:
+	case s_table_id_col_no:
 		value = mach_read_from_8(data);
 		return(value);
-	case TYPE_COL_NO:
-	case SPACE_ID_COL_NO:
-	case PAGE_NO_COL_NO:
+	case s_type_col_no:
+	case s_space_id_col_no:
+	case s_page_no_col_no:
 		value = mach_read_from_4(data);
 		return(value);
-	case NEW_FILE_PATH_COL_NO:
-	case OLD_FILE_PATH_COL_NO:
+	case s_new_file_path_col_no:
+	case s_old_file_path_col_no:
 	default:
 		ut_ad(0);
 		break;
@@ -1642,12 +1642,12 @@ Log_DDL::recover()
 	ib::info() << "DDL log recovery : begin";
 
 	thread_local_ddl_log_replay = true;
-	m_in_recovery = true;
+	s_in_recovery = true;
 
 	replay_all();
 
 	thread_local_ddl_log_replay = false;
-	m_in_recovery = false;
+	s_in_recovery = false;
 
 	ib::info() << "DDL log recovery : end";
 

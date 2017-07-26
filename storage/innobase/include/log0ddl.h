@@ -370,52 +370,52 @@ private:
 
 private:
 	/** Column number of mysql.innodb_ddl_log.id. */
-	static constexpr unsigned	ID_COL_NO = 0;
+	static constexpr unsigned	s_id_col_no = 0;
 
 	/** Column length of mysql.innodb_ddl_log.id. */
-	static constexpr unsigned	ID_COL_LEN = 8;
+	static constexpr unsigned	s_id_col_len = 8;
 
 	/** Column number of mysql.innodb_ddl_log.thread_id. */
-	static constexpr unsigned	THREAD_ID_COL_NO = 1;
+	static constexpr unsigned	s_thread_id_col_no = 1;
 
 	/** Column length of mysql.innodb_ddl_log.thread_id. */
-	static constexpr unsigned	THREAD_ID_COL_LEN = 8;
+	static constexpr unsigned	s_thread_id_col_len = 8;
 
 	/** Column number of mysql.innodb_ddl_log.type. */
-	static constexpr unsigned	TYPE_COL_NO = 2;
+	static constexpr unsigned	s_type_col_no = 2;
 
 	/** Column length of mysql.innodb_ddl_log.type. */
-	static constexpr unsigned	TYPE_COL_LEN = 4;
+	static constexpr unsigned	s_type_col_len = 4;
 
 	/** Column number of mysql.innodb_ddl_log.space_id. */
-	static constexpr unsigned	SPACE_ID_COL_NO = 3;
+	static constexpr unsigned	s_space_id_col_no = 3;
 
 	/** Column length of mysql.innodb_ddl_log.space_id. */
-	static constexpr unsigned	SPACE_ID_COL_LEN = 4;
+	static constexpr unsigned	s_space_id_col_len = 4;
 
 	/** Column number of mysql.innodb_ddl_log.page_no. */
-	static constexpr unsigned	PAGE_NO_COL_NO = 4;
+	static constexpr unsigned	s_page_no_col_no = 4;
 
 	/** Column length of mysql.innodb_ddl_log.page_no. */
-	static constexpr unsigned	PAGE_NO_COL_LEN = 4;
+	static constexpr unsigned	s_page_no_col_len = 4;
 
 	/** Column number of mysql.innodb_ddl_log.index_id. */
-	static constexpr unsigned	INDEX_ID_COL_NO = 5;
+	static constexpr unsigned	s_index_id_col_no = 5;
 
 	/** Column length of mysql.innodb_ddl_log.index_id. */
-	static constexpr unsigned	INDEX_ID_COL_LEN = 8;
+	static constexpr unsigned	s_index_id_col_len = 8;
 
 	/** Column number of mysql.innodb_ddl_log.table_id. */
-	static constexpr unsigned	TABLE_ID_COL_NO = 6;
+	static constexpr unsigned	s_table_id_col_no = 6;
 
 	/** Column length of mysql.innodb_ddl_log.table_id. */
-	static constexpr unsigned	TABLE_ID_COL_LEN = 8;
+	static constexpr unsigned	s_table_id_col_len = 8;
 
 	/** Column number of mysql.innodb_ddl_log.old_file_path. */
-	static constexpr unsigned	OLD_FILE_PATH_COL_NO = 7;
+	static constexpr unsigned	s_old_file_path_col_no = 7;
 
 	/** Column number of mysql.innodb_ddl_log.new_file_path. */
-	static constexpr unsigned	NEW_FILE_PATH_COL_NO = 8;
+	static constexpr unsigned	s_new_file_path_col_no = 8;
 
 	/** innodb_ddl_log table. */
 	dict_table_t*		m_table;
@@ -526,7 +526,7 @@ public:
 	/** Is it in ddl recovery in server startup.
 	@return	true if it's in ddl recover */
 	static bool is_in_recovery() {
-		return(m_in_recovery);
+		return(s_in_recovery);
 	}
 
 private:
@@ -694,7 +694,7 @@ private:
 
 private:
 	/** Whether in recover(replay) ddl log in startup. */
-	static bool		m_in_recovery;
+	static bool		s_in_recovery;
 };
 
 #endif /* log0ddl_h */
