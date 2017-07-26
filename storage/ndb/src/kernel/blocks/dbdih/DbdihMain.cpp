@@ -18101,7 +18101,6 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
      */
     if (!isMaster())
     {
-      ndbrequire(c_lcpState.m_participatingDIH.get(nodeId) == 0);
       ndbrequire(c_lcpState.m_participatingLQH.get(nodeId) == 0);
     }
     NodeRecordPtr nodePtr;
