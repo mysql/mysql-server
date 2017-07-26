@@ -12047,7 +12047,15 @@ void Dbtc::execTCGETOPSIZEREQ(Signal* signal)
   BlockReference Tusersblkref = signal->theData[1];/* DBDIH BLOCK REFERENCE */
   signal->theData[0] = Tuserpointer;
   signal->theData[1] = coperationsize;
-  sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
+  if (isNdbMt())
+  {
+    sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
+  }
+  else
+  {
+    signal->theData[2] = Tusersblkref;
+    sendSignal(DBDIH_REF, GSN_CHECK_LCP_IDLE_ORD, signal, 3, JBB);
+  }
 }//Dbtc::execTCGETOPSIZEREQ()
 
 void Dbtc::execTC_CLOPSIZEREQ(Signal* signal) 
