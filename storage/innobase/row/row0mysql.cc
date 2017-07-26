@@ -3005,7 +3005,6 @@ row_create_table_for_mysql(
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
-		//trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	case TRX_DICT_OP_TABLE:
 		break;
 	case TRX_DICT_OP_INDEX:
@@ -4762,7 +4761,7 @@ row_rename_table_for_mysql(
 		the table is stored in a single-table tablespace */
 
 		err = dict_table_rename_in_cache(
-			table, new_name, !new_is_tmp, log);
+			table, new_name, !new_is_tmp);
 		if (err != DB_SUCCESS) {
 			trx->error_state = DB_SUCCESS;
 			goto funct_exit;

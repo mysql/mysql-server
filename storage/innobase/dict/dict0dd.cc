@@ -4278,7 +4278,7 @@ dd_process_dd_indexes_rec(
 			}
 		}
 
-		if (*index == NULL) {
+		if (*index == nullptr) {
 			dd_table_close(table, thd, mdl, true);
 			delete p;
 			return(false);

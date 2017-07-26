@@ -802,10 +802,10 @@ Log_DDL::Log_DDL()
 }
 
 inline
-ib_uint64_t
+uint64_t
 Log_DDL::next_id()
 {
-	ib_uint64_t	autoinc;
+	uint64_t	autoinc;
 
 	dict_table_autoinc_lock(dict_sys->ddl_log);
 	autoinc = dict_table_autoinc_read(dict_sys->ddl_log);
@@ -845,7 +845,7 @@ Log_DDL::write_free_tree_log(
 		return(DB_SUCCESS);
 	}
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 	dberr_t		err;
 
@@ -873,7 +873,7 @@ dberr_t
 Log_DDL::insert_free_tree_log(
 	trx_t*			trx,
 	const dict_index_t*	index,
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id)
 {
 	ut_ad(index->page != FIL_NULL);
@@ -935,7 +935,7 @@ Log_DDL::write_delete_space_log(
 		return(DB_SUCCESS);
 	}
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 	dberr_t		err;
 
@@ -961,7 +961,7 @@ Log_DDL::write_delete_space_log(
 dberr_t
 Log_DDL::insert_delete_space_log(
 	trx_t*			trx,
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id,
 	space_id_t		space_id,
 	const char*		file_path,
@@ -1033,7 +1033,7 @@ Log_DDL::write_rename_space_log(
 		return(DB_SUCCESS);
 	}
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	trx->ddl_operation = true;
@@ -1050,7 +1050,7 @@ Log_DDL::write_rename_space_log(
 
 dberr_t
 Log_DDL::insert_rename_space_log(
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id,
 	space_id_t		space_id,
 	const char*		old_file_path,
@@ -1099,7 +1099,7 @@ Log_DDL::write_drop_log(
 
 	trx->ddl_operation = true;
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	dberr_t	err;
@@ -1112,7 +1112,7 @@ Log_DDL::write_drop_log(
 dberr_t
 Log_DDL::insert_drop_log(
 	trx_t*			trx,
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id,
 	const table_id_t	table_id)
 {
@@ -1155,7 +1155,7 @@ Log_DDL::write_rename_table_log(
 		return(DB_SUCCESS);
 	}
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	trx->ddl_operation = true;
@@ -1172,7 +1172,7 @@ Log_DDL::write_rename_table_log(
 
 dberr_t
 Log_DDL::insert_rename_table_log(
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id,
 	table_id_t		table_id,
 	const char*		old_name,
@@ -1221,7 +1221,7 @@ Log_DDL::write_remove_cache_log(
 		return(DB_SUCCESS);
 	}
 
-	ib_uint64_t	id = next_id();
+	uint64_t	id = next_id();
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	trx->ddl_operation = true;
@@ -1238,7 +1238,7 @@ Log_DDL::write_remove_cache_log(
 
 dberr_t
 Log_DDL::insert_remove_cache_log(
-	ib_uint64_t		id,
+	uint64_t		id,
 	ulint			thread_id,
 	table_id_t		table_id,
 	const char*		table_name)
@@ -1278,7 +1278,7 @@ Log_DDL::insert_remove_cache_log(
 dberr_t
 Log_DDL::delete_by_id(
 	trx_t*		trx,
-	ib_uint64_t	id)
+	uint64_t	id)
 {
 	dberr_t	error;
 
@@ -1462,8 +1462,6 @@ Log_DDL::replay_free_tree_log(
 	mtr_commit(&mtr);
 
 	mutex_exit(&dict_sys->mutex);
-
-	return;	
 }
 
 extern ib_mutex_t	master_key_id_mutex;
@@ -1612,10 +1610,8 @@ Log_DDL::post_ddl(THD*	thd)
 		return(DB_SUCCESS);
 	}
 
-	if (srv_force_recovery > 0) {
-		/* In this mode, DROP TABLE is allowed, so here only
-		DELETE and DROP log can be replayed. */
-	}
+	/* If srv_force_recovery > 0, DROP TABLE is allowed, and here only
+	DELETE and DROP log can be replayed. */
 
 	ulint	thread_id = thd_get_thread_id(thd);
 

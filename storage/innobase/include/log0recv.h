@@ -384,7 +384,7 @@ public:
 	was truncated */
 	byte* parseMetadataLog(
 		table_id_t	id,
-		uint64		version,
+		uint64_t	version,
 		byte*		ptr,
 		byte*		end);
 

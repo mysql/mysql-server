@@ -3447,7 +3447,6 @@ row_merge_drop_indexes(
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
-//	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	index = table->first_index();

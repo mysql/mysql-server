@@ -337,12 +337,13 @@ dict_build_index_def(
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
+@param[in,out]	index	InnoDB index object
+@param[in]	trx	transaction
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree_in_mem(
-/*==========================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+	dict_index_t*	index,
+	trx_t*		trx)
 {
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
@@ -366,12 +367,7 @@ dict_create_index_tree_in_mem(
 
 		return(DB_SUCCESS);
 	}
-#if 0
-	/* NewDD TODO: Try to remove this mutex completely */
-	if (!index->table->is_intrinsic()) {
-		mutex_exit(&dict_sys->mutex);
-	}
-#endif
+
 	mtr_start(&mtr);
 
 	if (index->table->is_temporary()) {

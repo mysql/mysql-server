@@ -1366,9 +1366,8 @@ ha_innopart::close()
 		m_row_read_type_parts = NULL;
 	}
 
-	if (m_bitset != nullptr) {
-		ut_free(m_bitset);
-	}
+	ut_free(m_bitset);
+	m_bitset = nullptr;
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
@@ -3372,8 +3371,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 		info->min_rows = 0;
 
 		if (file_per_table) {
-			error = ha_innobase::truncate_rename_tablespace<
-				dd::Partition>(name, dd_part);
+			error = ha_innobase::truncate_rename_tablespace(name);
 			if (error != 0) {
 				break;
 			}

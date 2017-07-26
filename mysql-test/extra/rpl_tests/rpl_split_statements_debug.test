@@ -10,7 +10,7 @@
 # removal of events, stored routines and tables in SEs supporting
 # atomic DDL will be rolled back. Removal of tables in SEs which
 # don't support atomic DDL can't be rolled back and will be logged
-# as a group of DROP TABLE IF EXISTS statements, with one DROP 
+# as a group of DROP TABLE IF EXISTS statements, with one DROP
 # statement per table.
 #
 # If GTID_NEXT='UUID:NUMBER', the statement will not be logged and

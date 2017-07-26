@@ -1366,7 +1366,7 @@ trx_start_low(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (trx->mysql_thd != NULL && !trx->ddl_operation) {
+	if (trx->mysql_thd != nullptr && !trx->ddl_operation) {
 		trx->ddl_operation = thd_is_dd_update_stmt(trx->mysql_thd);
 	}
 

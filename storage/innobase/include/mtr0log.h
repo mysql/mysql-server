@@ -178,7 +178,7 @@ byte*
 mlog_write_initial_dict_log_record(
 	mlog_id_t	type,
 	table_id_t	id,
-	uint64		version,
+	uint64_t	version,
 	byte*		log_ptr,
 	mtr_t*		mtr);
 

@@ -586,14 +586,10 @@ protected:
 	int end_stmt();
 
 	/** Rename tablespace file name for truncate
-	@tparam		Table		dd::Table or dd::Partition
-	@param[in]	name		table name
-	@param[in]	dd_tab		dd::Table or dd::Partition of the table
+	@param[in]	name	table name
 	@return 0 on success, error code on failure */
-	template<typename Table>
 	int truncate_rename_tablespace(
-		const char*		name,
-		const Table*		dd_tab);
+		const char*	name);
 
 	/** Implementation of prepare_inplace_alter_table()
 	@tparam		Table		dd::Table or dd::Partition

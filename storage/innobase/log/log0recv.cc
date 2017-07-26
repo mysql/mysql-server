@@ -278,7 +278,7 @@ was truncated */
 byte*
 MetadataRecover::parseMetadataLog(
 	table_id_t	id,
-	uint64		version,
+	uint64_t	version,
 	byte*		ptr,
 	byte*		end)
 {

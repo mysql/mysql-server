@@ -3706,7 +3706,6 @@ ib_sdi_drop(space_id_t tablespace_id)
 
 	/* We use separate mtrs because latching IBUF BITMAP Page and
 	a B-Tree Index page in same mtr will cause latch violation */
-	/* WL#9536 TODO: write DROP_TREE record */
 	mtr.start();
 	page_no_t	root_page_num = fsp_sdi_get_root_page_num(
 			tablespace_id, page_size, &mtr);

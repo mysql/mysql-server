@@ -4884,7 +4884,6 @@ innobase_commit(
 	}
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
-//	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	/* Transaction is deregistered only in a commit or a rollback. If
 	it is deregistered we know there cannot be resources to be freed
@@ -12188,7 +12187,10 @@ create_table_info_t::prevent_eviction()
 				to be evicted by prevent_eviction()
 @param[in]	dict_locked	True if dict_sys mutex is held */
 void
-create_table_info_t::detach(bool force, bool prevented, bool dict_locked)
+create_table_info_t::detach(
+	bool	force,
+	bool	prevented,
+	bool	dict_locked)
 {
 	if (!dict_locked) {
 		mutex_enter(&dict_sys->mutex);
@@ -13854,37 +13856,20 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** Rename tablespace file name for truncate
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	name		Table name
-@param[in]	dd_tab		dd::Table or dd::Partition of the table
+@param[in]	name	Table name
 @return	0 on success, error code on failure */
-template<typename Table>
 int
 ha_innobase::truncate_rename_tablespace(
-	const char*		name,
-	const Table*		dd_tab)
+	const char*	name)
 {
-	THD*			thd = ha_thd();
-	char			norm_name[FN_REFLEN];
-
-	dd::cache::Dictionary_client* client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-	dict_table_t*		table;
+	char		norm_name[FN_REFLEN];
+	dict_table_t*	table;
 
 	normalize_table_name(norm_name, name);
+	table = dd_table_open_on_name_in_mem(norm_name, false);
 
-	int error = dd_table_open_on_dd_obj(
-		client, dd_tab->table(),
-		(!dd_table_is_partitioned(dd_tab->table())
-		 ? NULL
-		 : reinterpret_cast<const dd::Partition*>(dd_tab)),
-		norm_name, table, thd);
-	ut_a(error == 0);
-	ut_a(table != NULL);
-
+	ut_ad(table != nullptr);
 	ut_ad(dict_table_is_file_per_table(table));
-
 	ut_ad(!table->is_temporary());
 	ut_ad(table->trunc_name.m_name == nullptr);
 
@@ -13917,8 +13902,14 @@ ha_innobase::truncate_rename_tablespace(
 	if (err == DB_SUCCESS) {
 
 		mutex_enter(&dict_sys->mutex);
+
+		clone_mark_abort(true);
+
 		bool	success = fil_rename_tablespace(
 			table->space, old_path, temp_name, new_path);
+
+		clone_mark_active();
+
 		mutex_exit(&dict_sys->mutex);
 
 		if (!success) {
@@ -13933,15 +13924,10 @@ ha_innobase::truncate_rename_tablespace(
 	ut_free(old_path);
 	ut_free(new_path);
 
-	dd_table_close(table, thd, NULL, false);
+	dd_table_close(table, nullptr, nullptr, false);
 
-	return(convert_error_code_to_mysql(err, table->flags, NULL));
+	return(convert_error_code_to_mysql(err, table->flags, nullptr));
 }
-
-template int ha_innobase::truncate_rename_tablespace<dd::Table>(
-	const char*, const dd::Table*);
-template int ha_innobase::truncate_rename_tablespace<dd::Partition>(
-	const char*, const dd::Partition*);
 
 /** DROP and CREATE an InnoDB table.
 @param[in,out]	table_def	dd::Table describing table to be
@@ -14022,9 +14008,9 @@ ha_innobase::truncate(dd::Table *table_def)
 
 	int	error = 0;
 
-	/* Rename tablespace file to avoid existing file in create.*/
+	/* Rename tablespace file to avoid existing file in create. */
 	if (file_per_table) {
-		error = truncate_rename_tablespace(name, table_def);
+		error = truncate_rename_tablespace(name);
 	}
 
 	DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););

@@ -2194,13 +2194,13 @@ public:
 
 	/** Set the dynamic metadata version.
 	@param[in]	version		dynamic metadata version */
-	void set_version(uint64 version)
+	void set_version(uint64_t version)
 	{
 		m_version = version;
 	}
 
 	/** Get the dynamic metadata version */
-	uint64 get_version() const
+	uint64_t get_version() const
 	{
 		return(m_version);
 	}
@@ -2214,7 +2214,7 @@ public:
 	/** Set the autoinc counter of the table if it's bigger
 	@param[in]	autoinc	autoinc counter */
 	void set_autoinc_if_bigger(
-		ib_uint64_t	autoinc) {
+		uint64_t	autoinc) {
 		/* We only set the biggest autoinc counter. Callers don't
 		guarantee passing a bigger number in. */
 		if (autoinc > m_autoinc) {
@@ -2225,13 +2225,13 @@ public:
 	/** Set the autoinc counter of the table
 	@param[in]	autoinc	autoinc counter */
 	void set_autoinc(
-		ib_uint64_t	autoinc) {
+		uint64_t	autoinc) {
 		m_autoinc = autoinc;
 	}
 
 	/** Get the autoinc counter of the table
 	@return the autoinc counter */
-	ib_uint64_t get_autoinc() const {
+	uint64_t get_autoinc() const {
 		return(m_autoinc);
 	}
 
@@ -2240,13 +2240,13 @@ private:
 	table_id_t		m_id;
 
 	/** Table dynamic metadata version of the change */
-	uint64			m_version;
+	uint64_t		m_version;
 
 	/** Storing the corrupted indexes' ID if exist, or else empty */
 	corrupted_ids_t		m_corrupted_ids;
 
 	/** Autoinc counter of the table */
-	ib_uint64_t		m_autoinc;
+	uint64_t		m_autoinc;
 
 	/* TODO: We will add update_time, etc. here and APIs accordingly */
 };

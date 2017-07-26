@@ -112,9 +112,7 @@ handle_new_error:
 	case DB_LOCK_TABLE_FULL:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
-		if (is_sdi) {
-			ut_ad(0);
-		}
+		ut_ad(!is_sdi);
 		trx_rollback_for_mysql(trx);
 		break;
 

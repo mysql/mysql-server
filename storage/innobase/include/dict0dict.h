@@ -370,12 +370,10 @@ dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	const char*	new_name,	/*!< in: new name */
-	ibool		rename_also_foreigns,
+	ibool		rename_also_foreigns)
 					/*!< in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
-	bool		log_rename = false)
-					/*!< in: whether to log rename table */
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Removes an index from the dictionary cache.
@@ -1700,9 +1698,9 @@ public:
 	@return DB_SUCCESS or error code */
 	dberr_t	replace(
 		table_id_t	id,
-		uint64		version,
+		uint64_t	version,
 		const byte*	metadata,
-		ulint		len);
+		size_t		len);
 
 	/** Remove the whole row for a specific table
 	@param[in]	id	table id

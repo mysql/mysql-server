@@ -2827,11 +2827,9 @@ srv_dict_recover_on_restart()
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		/* Fixme: only rollback ddl transacations. */
-		if (trx_sys_need_rollback()) {
-			trx_rollback_or_clean_recovered(FALSE);
-		}
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
+	    && trx_sys_need_rollback()) {
+		trx_rollback_or_clean_recovered(FALSE);
 	}
 
 	/* Do after all DD transactions recovery, to get consistent metadata */
@@ -3097,6 +3095,7 @@ srv_shutdown()
 	ibuf_close();
 	clone_free();
 	arch_free();
+	ddl_log_close();
 	log_shutdown();
 	trx_sys_close();
 	lock_sys_close();
@@ -3107,7 +3106,6 @@ srv_shutdown()
 	btr_search_sys_free();
 	undo_spaces_deinit();
 
-	UT_DELETE(log_ddl);
 	UT_DELETE(srv_dict_metadata);
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside

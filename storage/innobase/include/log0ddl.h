@@ -540,7 +540,7 @@ private:
 	dberr_t	insert_free_tree_log(
 		trx_t*			trx,
 		const dict_index_t*	index,
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id);
 
 	/** Replay FREE log(free B-tree if exist)
@@ -562,7 +562,7 @@ private:
 	@return DB_SUCCESS or error */
 	dberr_t insert_delete_space_log(
 		trx_t*			trx,
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id,
 		space_id_t		space_id,
 		const char*		file_path,
@@ -583,7 +583,7 @@ private:
 	@param[in]	new_file_path	file path before rename
 	@return DB_SUCCESS or error */
 	dberr_t insert_rename_space_log(
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id,
 		space_id_t		space_id,
 		const char*		old_file_path,
@@ -606,7 +606,7 @@ private:
 	@return DB_SUCCESS or error */
 	dberr_t insert_drop_log(
 		trx_t*			trx,
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id,
 		const table_id_t	table_id);
 
@@ -622,7 +622,7 @@ private:
 	@param[in]	new_name	table name before rename
 	@return DB_SUCCESS or error */
 	dberr_t insert_rename_table_log(
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id,
 		table_id_t		table_id,
 		const char*		old_name,
@@ -644,7 +644,7 @@ private:
 	@param[in]	table_name	table name
 	@return DB_SUCCESS or error */
 	dberr_t insert_remove_cache_log(
-		ib_uint64_t		id,
+		uint64_t		id,
 		ulint			thread_id,
 		table_id_t		table_id,
 		const char*		table_name);
@@ -662,7 +662,7 @@ private:
 	@return DB_SUCCESS or error */
 	dberr_t	delete_by_id(
 		trx_t*		trx,
-		ib_uint64_t	id);
+		uint64_t	id);
 
 	/** Scan, replay and delete log records by thread id
 	@param[in]	thread_id	thread id
@@ -682,7 +682,7 @@ private:
 
 	/** Get next autoinc counter by increasing 1 for innodb_ddl_log
 	@return	new next counter */
-	inline ib_uint64_t next_id();
+	inline uint64_t next_id();
 
 	/** Check if we need to skip ddl log for a table.
 	@param[in]	table	dict table
@@ -696,5 +696,12 @@ private:
 	/** Whether in recover(replay) ddl log in startup. */
 	static bool		s_in_recovery;
 };
+
+extern Log_DDL*		log_ddl;
+
+inline void ddl_log_close()
+{
+	UT_DELETE(log_ddl);
+}
 
 #endif /* log0ddl_h */

@@ -4327,13 +4327,7 @@ prepare_inplace_alter_table_dict(
 		mem_heap_alloc(ctx->heap, ctx->num_to_add_index
 			       * sizeof *ctx->add_key_numbers));
 
-	/* This transaction should be dictionary operation, so that
-	the data dictionary will be locked during crash recovery. */
-
-	//ut_ad(ctx->trx->dict_operation == TRX_DICT_OP_INDEX);
-
 	/* Acquire a lock on the table before creating any indexes. */
-
 	if (ctx->online) {
 		error = DB_SUCCESS;
 	} else {

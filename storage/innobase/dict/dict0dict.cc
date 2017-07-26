@@ -1667,10 +1667,9 @@ dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	const char*	new_name,	/*!< in: new name */
-	ibool		rename_also_foreigns,/*!< in: in ALTER TABLE we want
+	ibool		rename_also_foreigns)/*!< in: in ALTER TABLE we want
 					to preserve the original table name
 					in constraints which reference it */
-	bool		log_rename)	 /*< in: whether to log rename table */
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
@@ -7137,9 +7136,9 @@ DDTableBuffer::update_set_metadata(
 dberr_t
 DDTableBuffer::replace(
 	table_id_t	id,
-	uint64		version,
+	uint64_t	version,
 	const byte*	metadata,
-	ulint		len)
+	size_t		len)
 {
 	dtuple_t*	entry;
 	dfield_t*	dfield;
@@ -7713,12 +7712,12 @@ Persisters::remove(
 @param[in]	metadata	metadata to serialize
 @param[out]	buffer		buffer to store the serialized metadata
 @return the length of serialized metadata */
-ulint
+size_t
 Persisters::write(
-	PersistentTableMetadata&metadata,
-	byte*			buffer)
+	PersistentTableMetadata&	metadata,
+	byte*				buffer)
 {
-	ulint			size = 0;
+	size_t			size = 0;
 	byte*			pos = buffer;
 	persistent_type_t	type;
 

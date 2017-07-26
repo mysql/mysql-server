@@ -3881,7 +3881,8 @@ fseg_free_extent(
 	     i < FSP_EXTENT_SIZE; i++) {
 
 		if (!logged && space == 0) {
-			ib::info() << "Set was freed for " << space << " : " << first_page_in_extent + i;
+			ib::info() << "Set was freed for " << space
+				<< " : " << first_page_in_extent + i;
 			logged = true;
 		}
 

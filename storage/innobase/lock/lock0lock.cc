@@ -1612,15 +1612,14 @@ RecLock::create(
 	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
 
 #ifdef UNIV_DEBUG
-	/* GAP lock shouldn't be taken on DD tables, but give exemption to
-	9 : spatial_reference table
-	29 & 30 : stats tables
-	31 : innodb_ddl_log */
+	/* GAP lock shouldn't be taken on DD tables with some exceptions */
 	if (m_index->table->is_dd_table
-	    && m_index->table->id != 9
-	    && m_index->table->id != 29
-	    && m_index->table->id != 30
-	    && m_index->table->id != 31) {
+	    && strstr(m_index->table->name.m_name,
+		      "mysql/st_spatial_reference_systems") != 0
+	    && strstr(m_index->table->name.m_name,
+		      "mysql/innodb_table_stats") != 0
+	    && strstr(m_index->table->name.m_name,
+		      "mysql/innodb_index_stats")) {
 
 		ut_ad(((m_mode - (LOCK_MODE_MASK & m_mode))
 		       - (LOCK_TYPE_MASK & m_mode)
