@@ -3402,7 +3402,18 @@ boot_tablespaces(THD* thd)
 
 	Tablespaces	moved;
 
+	size_t	count = 0;
+	auto	start_time = ut_time();
+
 	for (const auto tablespace : tablespaces) {
+
+		++count;
+
+		if (ut_time() - start_time >= 10) {
+
+			ib::info() << "Check " << count << " tablespaces";
+			start_time = ut_time();
+		}
 
 		ut_ad(!fail);
 
@@ -3461,8 +3472,6 @@ boot_tablespaces(THD* thd)
 
 		std::string	new_path;
 		const char*	filename = file->filename().c_str();
-
-		ib::info() << filename;
 
 		if (fsp_is_ibd_tablespace(space_id)) {
 
@@ -3570,7 +3579,32 @@ boot_tablespaces(THD* thd)
 	/* If some file paths have changed then update the DD */
 	for (auto tablespace : moved) {
 
+		trx_t*	trx = check_trx_exists(thd);
+
+		trx_start_if_not_started_xa(trx, false);
+
+		row_mysql_lock_data_dictionary(trx);
+
 		dberr_t	err;
+
+		err = row_rename_table_for_mysql(
+			tablespace.second.first.c_str(),
+			tablespace.second.second.c_str(),
+			nullptr, trx, true);
+
+		row_mysql_unlock_data_dictionary(trx);
+
+		if (err != DB_SUCCESS){
+
+			ib::warn()
+				<< "Failed to rename '"
+				<< tablespace.second.first << "' to '"
+				<< tablespace.second.second << "'"
+				<< " in the InnoDB data dictionary."
+				<< " err: " << ut_strerr(err);
+
+			continue;
+		}
 
 		err = dd_tablespace_update_filename(
 			tablespace.first, tablespace.second.second.c_str());
@@ -3589,6 +3623,7 @@ boot_tablespaces(THD* thd)
 				<< " " << tablespace.first << " path from"
 				<< " '" << tablespace.second.first << "' to"
 				<< " '" << tablespace.second.second << "'";
+
 		}
 	}
 
