@@ -2537,13 +2537,13 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 
 				start_time = ut_time();
 
-			} else if (ut_time() - start_time > 10) {
+			} else if (ut_time() - start_time >= 30) {
 
 				start_time = ut_time();
 
 				ib::info()
-					<< "Records left to apply: "
-					<< recv_sys->n_addrs;
+					<< "Applied: "
+					<< applied << "/" << batch_size;
 			}
 		}
 	}

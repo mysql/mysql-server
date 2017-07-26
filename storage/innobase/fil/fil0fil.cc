@@ -2251,7 +2251,7 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 	order to guarantee that we don't over commit, we use a ticket system
 	to reserve a slot/ticket to open a file. This slot/ticket should
 	be released after the file is opened. */
-	
+
 	while (!reserve_open_slot(m_id)) {
 		os_thread_yield();
 	}
