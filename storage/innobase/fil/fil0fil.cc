@@ -114,10 +114,14 @@ the file to the LRU-list if the count drops to zero.
 
 The data structure (Fil_shard) that keeps track of the tablespace ID to
 fil_space_t* mapping are hashed on the tablespace ID. The tablespace name to
-fil_space_t* mapping is stored in the same shard.
+fil_space_t* mapping is stored in the same shard. A shard tracks the flushing
+and open state of a file. When we run out open file handles, we use a ticketing
+system to serialize the file open, see Fil_shard::reserve_open_slot() and
+Fil_shard::release_open_slot().
 
 When updating the global/shared data in Fil_system acquire the mutexes of
-all shards. */
+all shards in ascending order. The shard mutex covers the fil_space_t data
+members as noted in the fil_space_t and fil_node_t definition. */
 
 /** This tablespace name is used internally during recovery to open a
 general tablespace before the data dictionary are recovered and available. */
