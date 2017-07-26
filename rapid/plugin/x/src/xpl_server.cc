@@ -347,11 +347,11 @@ int xpl::Server::main(MYSQL_PLUGIN p)
 }
 
 
-int xpl::Server::exit(MYSQL_PLUGIN)
+int xpl::Server::exit(MYSQL_PLUGIN p)
 {
   // this flag will trigger the on_verify_server_state() timer to trigger an acceptor thread exit
   exiting = true;
-  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exiting");
+  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Exiting");
 
   if (instance)
   {
@@ -378,7 +378,9 @@ int xpl::Server::exit(MYSQL_PLUGIN)
     instance = NULL;
   }
 
-  my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "Exit done");
+  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Exit done");
+  xpl::plugin_handle = nullptr;
+
   return 0;
 }
 
