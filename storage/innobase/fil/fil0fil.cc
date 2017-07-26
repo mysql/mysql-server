@@ -1954,7 +1954,9 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 
 			space->size_in_header = size;
 			space->free_limit = free_limit;
-			space->free_len = free_len;
+
+			ut_a(free_len < std::numeric_limits<uint32_t>::max());
+			space->free_len = (uint32_t) free_len;
 		}
 
 		ut_free(buf2);
@@ -2521,7 +2523,8 @@ Fil_shard::space_create(
 
 	space->purpose = purpose;
 
-	space->flags = flags;
+	ut_a(flags < std::numeric_limits<uint32_t>::max());
+	space->flags = (uint32_t) flags;
 
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
@@ -5878,7 +5881,8 @@ fil_space_reserve_free_extents(
 	if (space->n_reserved_extents + n_to_reserve > n_free_now) {
 		success = false;
 	} else {
-		space->n_reserved_extents += n_to_reserve;
+		ut_a(n_to_reserve < std::numeric_limits<uint32_t>::max());
+		space->n_reserved_extents += (uint32_t) n_to_reserve;
 		success = true;
 	}
 
@@ -5899,9 +5903,10 @@ fil_space_release_free_extents(space_id_t space_id, ulint n_reserved)
 
 	fil_space_t*	space = shard->get_space_by_id(space_id);
 
+	ut_a(n_reserved < std::numeric_limits<uint32_t>::max());
 	ut_a(space->n_reserved_extents >= n_reserved);
 
-	space->n_reserved_extents -= n_reserved;
+	space->n_reserved_extents -= (uint32_t) n_reserved;
 
 	shard->mutex_release();
 }
@@ -7975,7 +7980,10 @@ fil_space_set_flags(
 	ut_ad(fsp_flags_is_valid(flags));
 
 	rw_lock_x_lock(&space->latch);
-	space->flags = flags;
+
+	ut_a(flags < std::numeric_limits<uint32_t>::max());
+	space->flags = (uint32_t) flags;
+
 	rw_lock_x_unlock(&space->latch);
 }
 
