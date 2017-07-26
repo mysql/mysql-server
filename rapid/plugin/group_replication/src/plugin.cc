@@ -1088,6 +1088,25 @@ int plugin_group_replication_deinit(void *p)
   return observer_unregister_error;
 }
 
+static int plugin_group_replication_check_uninstall(void *)
+{
+  DBUG_ENTER("plugin_group_replication_check_uninstall");
+
+  int result= 0;
+
+  if (plugin_is_group_replication_running() &&
+      group_member_mgr->is_majority_unreachable())
+  {
+    result= 1;
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0),
+                "group_replication", "Plugin is busy, it cannot be uninstalled. To"
+                " force a stop run STOP GROUP_REPLICATION and then UNINSTALL"
+                " PLUGIN group_replication.");
+  }
+
+  DBUG_RETURN(result);
+}
+
 static bool init_group_sidno()
 {
   DBUG_ENTER("init_group_sidno");
@@ -2968,15 +2987,15 @@ mysql_declare_plugin(group_replication_plugin)
   &group_replication_descriptor,
   group_replication_plugin_name,
   "ORACLE",
-  "Group Replication (1.0.0)",      /* Plugin name with full version*/
+  "Group Replication (1.1.0)",               /* Plugin name with full version*/
   PLUGIN_LICENSE_GPL,
-  plugin_group_replication_init,    /* Plugin Init */
-  NULL,                             /* Plugin Check uninstall */
-  plugin_group_replication_deinit,  /* Plugin Deinit */
-  0x0100,                           /* Plugin Version: major.minor */
-  group_replication_status_vars,    /* status variables */
-  group_replication_system_vars,    /* system variables */
-  NULL,                             /* config options */
-  0,                                /* flags */
+  plugin_group_replication_init,             /* Plugin Init */
+  plugin_group_replication_check_uninstall,  /* Plugin Check uninstall */
+  plugin_group_replication_deinit,           /* Plugin Deinit */
+  0x0101,                                    /* Plugin Version: major.minor */
+  group_replication_status_vars,             /* status variables */
+  group_replication_system_vars,             /* system variables */
+  NULL,                                      /* config options */
+  0,                                         /* flags */
 }
 mysql_declare_plugin_end;
