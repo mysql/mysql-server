@@ -820,17 +820,6 @@ public:
 					can be ORred */
 	void flush_file_spaces(uint8_t purpose);
 
-	/** Fetch the fil_space_t instance that maps to space_id.
-	@param[in]	space_id	Tablespace ID to lookup
-	@return tablespace instance or nullptr if not found. */
-	fil_space_t* get_space_by_id(space_id_t space_id)
-		MY_ATTRIBUTE((warn_unused_result))
-	{
-		auto	shard = shard_by_id(space_id);
-
-		return(shard->get_space_by_id(space_id));
-	}
-
 	/** Fetch the fil_space_t instance that maps to the name.
 	@param[in]	name		Tablespace name to lookup
 	@return tablespace instance or nullptr if not found. */
@@ -860,6 +849,8 @@ public:
 	bool is_greater_than_max_id(space_id_t space_id) const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
+		ut_ad(mutex_owned_all());
+
 		return(space_id > m_max_assigned_id);
 	}
 
@@ -883,14 +874,14 @@ public:
 	}
 
 	/** Update the maximim known space ID if it's smaller than max_id.
-	@param[in]	max_id		Value to set if it's greater */
-	void update_maximum_space_id(space_id_t max_id)
+	@param[in]	space_id		Value to set if it's greater */
+	void update_maximum_space_id(space_id_t space_id)
 	{
 		mutex_acquire_all();
 
-		if (m_max_assigned_id < max_id) {
+		if (is_greater_than_max_id(space_id)){
 
-			m_max_assigned_id = max_id;
+			m_max_assigned_id = space_id;
 		}
 
 		mutex_release_all();
@@ -2520,9 +2511,9 @@ Fil_shard::space_create(
 
 	new(&space->files) fil_space_t::Files();
 
-	if (fil_type_is_data(purpose)
+	if (fil_system->is_greater_than_max_id(space_id)
+	    && fil_type_is_data(purpose)
 	    && !recv_recovery_on
-	    && fil_system->is_greater_than_max_id(space_id)
 	    && !dict_sys_t::is_reserved(space_id)) {
 
 		fil_system->set_maximum_space_id(space);
@@ -4900,13 +4891,15 @@ fil_ibd_open(
 
 	/* For encryption tablespace, initialize encryption information.*/
 	if (is_encrypted && !for_import) {
+
 		dberr_t err;
 		byte*	key = df.m_encryption_key;
 		byte*	iv = df.m_encryption_iv;
+
 		ut_ad(key && iv);
 
-		err = fil_set_encryption(space->id, Encryption::AES,
-					 key, iv);
+		err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+
 		if (err != DB_SUCCESS) {
 			return(DB_ERROR);
 		}
