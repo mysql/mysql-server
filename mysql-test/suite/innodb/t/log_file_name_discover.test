@@ -9,6 +9,13 @@ let MYSQLD_DATADIR= `select @@datadir`;
 
 SET GLOBAL innodb_file_per_table=ON;
 
+--disable_query_log
+# TODO: We have to use this because the two DDs get out of sync.
+call mtr.add_suppression("InnoDB: Table .*test.*t1.*does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
+# TODO: The physical file discover/t1.ibd is not removed either.
+call mtr.add_suppression(".*Problem while dropping database.*remove database directory.*");
+--enable_query_log
+
 CREATE DATABASE discover;
 use discover;
 
@@ -26,11 +33,6 @@ SET SESSION debug="+d,fil_ibd_create_log";
 CREATE TABLE discover.t1(c INT) engine=InnoDB;
 
 --source include/start_mysqld.inc
-
-# TODO: We have to use this because the two DDs get out of sync.
-call mtr.add_suppression("InnoDB: Table .*test.*t1.*does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-# TODO: The physical file discover/t1.ibd is not removed either.
-call mtr.add_suppression(".*Problem while dropping database. Can't remove database directory.*");
 
 CREATE TABLE discover.t2(c INT) ENGINE=InnoDB;
 

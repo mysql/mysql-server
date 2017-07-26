@@ -6,8 +6,6 @@ SET SESSION debug="+d,fil_ibd_create_log";
 CREATE TABLE discover.t1(c INT) engine=InnoDB;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
-call mtr.add_suppression("InnoDB: Table .*test.*t1.*does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-call mtr.add_suppression(".*Problem while dropping database. Can't remove database directory.*");
 CREATE TABLE discover.t2(c INT) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t2 VALUES(1);

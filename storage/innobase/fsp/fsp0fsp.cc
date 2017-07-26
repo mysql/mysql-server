@@ -1575,8 +1575,8 @@ fsp_fill_free_list(
 
 		i += FSP_EXTENT_SIZE;
 	}
-
-	space->free_len += count;
+	ut_a(count < std::numeric_limits<uint32_t>::max());
+	space->free_len += (uint32_t) count;
 }
 
 /** Allocates a new free extent.
