@@ -1740,6 +1740,27 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   c_start.m_lastGci = conf->latest_gci;
   c_start.m_lastLcpId = conf->latest_lcp_id;
 
+  if (unlikely(ctypeOfStart == NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE &&
+               c_local_sysfile.m_max_restorable_gci < c_start.m_lastGci))
+  {
+    jam();
+    /**
+     * We were able to write the distributed sysfile with a restorable
+     * GCI higher than the one recorded in the local sysfile. This can
+     * happen with a crash directly after completing a restart and
+     * before writing the local sysfile. The distributed sysfile will have
+     * precedence here.
+     */
+    ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+    c_local_sysfile.m_max_restorable_gci = c_start.m_lastGci;
+    c_local_sysfile.m_restorable_flag =
+      ReadLocalSysfileReq::NODE_RESTORABLE_ON_ITS_OWN;
+    g_eventLogger->info("Distributed sysfile more recent:"
+                        " Local sysfile: %s, gci: %u, version: %x",
+       get_restorable_flag_string(c_local_sysfile.m_restorable_flag),
+       c_local_sysfile.m_max_restorable_gci,
+       c_local_sysfile.m_data[0]);
+  }
   cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
@@ -1780,29 +1801,8 @@ Ndbcntr::execREAD_LOCAL_SYSFILE_CONF(Signal *signal)
   else if (c_local_sysfile.m_restorable_flag ==
            ReadLocalSysfileReq::NODE_NOT_RESTORABLE_ON_ITS_OWN)
   {
-    if (unlikely(c_local_sysfile.m_max_restorable_gci < c_start.m_lastGci))
-    {
-      jam();
-      /**
-       * We were able to write the distributed sysfile with a restorable
-       * GCI higher than the one recorded in the local sysfile. This can
-       * happen with a crash directly after completing a restart and
-       * before writing the local sysfile. The distributed sysfile will have
-       * precedence here.
-       */
-      ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
-      c_local_sysfile.m_max_restorable_gci = c_start.m_lastGci;
-      g_eventLogger->info("Distributed sysfile more recent:"
-                          " Local sysfile: %s, gci: %u, version: %x",
-         get_restorable_flag_string(c_local_sysfile.m_restorable_flag),
-         c_local_sysfile.m_max_restorable_gci,
-         c_local_sysfile.m_data[0]);
-    }
-    else
-    {
-      jam();
-      ctypeOfStart = NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE;
-    }
+    jam();
+    ctypeOfStart = NodeState::ST_SYSTEM_RESTART_NOT_RESTORABLE;
   }
   else if (c_local_sysfile.m_restorable_flag ==
            ReadLocalSysfileReq::NODE_REQUIRE_INITIAL_RESTART)
