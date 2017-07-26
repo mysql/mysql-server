@@ -27,28 +27,28 @@
 
 #define JAM_FILE_ID 415
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_FREE 1
+//#define DEBUG_LCP_FREE 1
 #ifdef DEBUG_LCP_FREE
 #define DEB_LCP_FREE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_FREE(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) \
   do { g_eventLogger->info arglist ; } while (0)

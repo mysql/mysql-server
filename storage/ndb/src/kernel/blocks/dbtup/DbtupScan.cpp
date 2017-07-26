@@ -28,28 +28,28 @@
 
 #define JAM_FILE_ID 408
 
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DEL 1
 #ifdef DEBUG_LCP_DEL
 #define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_DEL_EXTRA 1
+//#define DEBUG_LCP_DEL_EXTRA 1
 #ifdef DEBUG_LCP_DEL_EXTRA
 #define DEB_LCP_DEL_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_DEL_EXTRA(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP 1
 #ifdef DEBUG_LCP_SKIP
 #define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -63,7 +63,7 @@
 #define DEB_LCP_SKIP_EXTRA(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_KEEP 1
+//#define DEBUG_LCP_KEEP 1
 #ifdef DEBUG_LCP_KEEP
 #define DEB_LCP_KEEP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -84,7 +84,7 @@
 #define DEB_NR_SCAN_EXTRA(arglist) do { } while (0)
 #endif
 
-#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_LCP_SCANNED_BIT 1
 
 #ifdef VM_TRACE
 #define dbg(x) globalSignalLoggers.log x
