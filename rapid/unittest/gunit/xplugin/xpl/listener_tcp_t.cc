@@ -262,6 +262,9 @@ TEST_P(Listener_tcp_retry_testsuite, setup_listener_retry_socket_allocation_when
 
   const int n = GetParam().m_expected_retries;
 
+  ON_CALL(*m_mock_system, get_socket_error_and_message(_,_))
+    .WillByDefault(DoAll(SetArgReferee<0>(0), SetArgReferee<1>("")));
+
   EXPECT_CALL(*m_mock_socket, get_socket_fd())
     .Times(n).WillRepeatedly(Return(INVALID_SOCKET));
   EXPECT_CALL(*m_mock_factory, create_socket(KEY_socket_x_tcpip, AF_INET6, SOCK_STREAM, 0))

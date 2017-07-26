@@ -10,7 +10,7 @@ CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 --enable_connect_log
 
 --enable_connect_log
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 # Create the memcached tables
@@ -241,4 +241,4 @@ DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
 DROP USER mysqltest2@localhost;
  
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

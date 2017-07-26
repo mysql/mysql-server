@@ -992,6 +992,9 @@ Binlog_relay_IO_delegate::applier_log_event(THD *thd, int& out)
 
   int ret= 0;
   FOREACH_OBSERVER(ret, applier_log_event, (&param, &trans_param, out));
+
+  my_free(trans_param.tables_info);
+
   DBUG_RETURN(ret);
 }
 

@@ -8826,8 +8826,6 @@ static Log_event* next_event(Relay_log_info* rli)
       DBUG_RETURN(ev);
     }
     DBUG_ASSERT(thd==rli->info_thd);
-    if (opt_reckless_slave)                     // For mysql-test
-      cur_log->error = 0;
     if (cur_log->error < 0)
     {
       errmsg = "slave SQL thread aborted because of I/O error";

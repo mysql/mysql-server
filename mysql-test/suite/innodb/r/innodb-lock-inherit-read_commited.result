@@ -10,8 +10,8 @@ ENGINE=INNODB;
 SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
-SET @old_tx_isolation = @@tx_isolation;
-SET GLOBAL tx_isolation = 'READ-COMMITTED';
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -42,7 +42,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
-SET GLOBAL tx_isolation = @old_tx_isolation;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t1 (
@@ -54,8 +54,8 @@ ENGINE=INNODB;
 SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
-SET @old_tx_isolation = @@tx_isolation;
-SET GLOBAL tx_isolation = 'READ-COMMITTED';
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -86,7 +86,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
-SET GLOBAL tx_isolation = @old_tx_isolation;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';
 #

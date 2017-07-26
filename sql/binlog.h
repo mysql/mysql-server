@@ -938,6 +938,19 @@ typedef struct st_load_file_info
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
+/**
+  Check if at least one of transacaction and statement binlog caches contains
+  an empty transaction, other one is empty or contains an empty transaction,
+  which has two binlog events "BEGIN" and "COMMIT".
+
+  @param thd The client thread that executed the current statement.
+
+  @retval true  At least one of transacaction and statement binlog caches
+                contains an empty transaction, other one is empty or
+                contains an empty transaction.
+  @retval false Otherwise.
+*/
+bool is_empty_transaction_in_binlog_cache(const THD* thd);
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
 bool ending_trans(THD* thd, const bool all);

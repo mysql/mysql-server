@@ -5077,7 +5077,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                         table->file->primary_key_is_clustered());
       // Don't allow backward scans on indexes with mixed ASC/DESC key parts
       if (skip_quick)
-        tab->table()->quick_keys.clear_bit(nr);
+        table->quick_keys.clear_bit(nr);
 
       /* 
         Don't use an index scan with ORDER BY without limit.

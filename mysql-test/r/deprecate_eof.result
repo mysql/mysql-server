@@ -261,7 +261,7 @@ DECLARE v1 int;
 DECLARE done INT DEFAULT FALSE;
 DECLARE cur1 CURSOR FOR SELECT * FROM t1;
 DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 OPEN cur1;
 read_loop: LOOP
 FETCH cur1 INTO v1;
@@ -276,7 +276,7 @@ CALL cursor1();
 v1
 6
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
+-- transaction_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE
@@ -288,7 +288,7 @@ DECLARE x int;
 DECLARE y int;
 DECLARE c1 CURSOR FOR SELECT * FROM t1 limit 1;
 DECLARE c2 CURSOR FOR SELECT * FROM t2 limit 1;
-SET @@session.tx_isolation='READ-COMMITTED';
+SET @@session.transaction_isolation='READ-COMMITTED';
 OPEN c1;
 OPEN c2;
 FETCH c1 INTO x;
@@ -302,7 +302,7 @@ CALL cursor2();
 (x+y)
 2
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- tx_isolation
+-- transaction_isolation
 -- READ-COMMITTED
 
 -- Tracker : SESSION_TRACK_STATE_CHANGE

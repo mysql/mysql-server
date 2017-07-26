@@ -910,3 +910,14 @@ SELECT * FROM t1 WHERE (
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #25899921: INCORRECT BEHAVIOR WITH DESC INDEX AND
+--echo #                IMPOSSIBLE CONDITION
+--echo #
+
+CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
+SET @g:='1';
+DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
+DROP TABLE t1;
+
+--echo # End of test for Bug#25899921

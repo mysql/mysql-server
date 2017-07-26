@@ -765,7 +765,7 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
   const bool ignore_no_such_table = true;
 
   // Set needed isolation level to be independent from server settings
-  my_thd->variables.tx_isolation= ISO_REPEATABLE_READ;
+  my_thd->variables.transaction_isolation= ISO_REPEATABLE_READ;
   // Turn autocommit on
   // This is needed to ensure calls to mysqld.delete_rows commits.
   my_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;

@@ -1,8 +1,8 @@
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET @old_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout=1;
-SELECT @@global.tx_isolation;
-@@global.tx_isolation
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
 READ-COMMITTED
 # keep_locks == 0
 CREATE USER mysqltest@localhost;

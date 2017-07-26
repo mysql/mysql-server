@@ -34,7 +34,8 @@
 #include "processor/variable_container.h"
 
 
-typedef std::unique_ptr<xcl::XProtocol::Message> Message_ptr;
+using Message_ptr = std::unique_ptr<xcl::XProtocol::Message>;
+
 class Connection_manager {
  public:
   Connection_manager(const Connection_options &co,

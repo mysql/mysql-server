@@ -13,16 +13,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+SET(MYSQLX_PROTOBUF_INCLUDE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 FILE(GLOB MYSQLX_PROTOBUF_FILES
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_datatypes.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_connection.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_expect.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_expr.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_crud.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_sql.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_session.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_notice.proto"
-  "${CMAKE_CURRENT_SOURCE_DIR}/mysqlx_resultset.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_datatypes.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_connection.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_expect.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_expr.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_crud.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_sql.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_session.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_notice.proto"
+  "${MYSQLX_PROTOBUF_INCLUDE_DIR}/mysqlx_resultset.proto"
 )
 
