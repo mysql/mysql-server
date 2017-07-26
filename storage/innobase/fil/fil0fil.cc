@@ -9106,6 +9106,8 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 	fil_tokenize_paths(directories, dirs, ";");
 
+	auto	start_time = ut_time();
+
 	/* Should be trivial to parallelize the scan and ID check. */
 	for (const auto& dir : dirs) {
 
@@ -9132,6 +9134,15 @@ fil_scan_for_tablespaces(const std::string& directories)
 				   path.c_str(), path.length())) {
 
 				undo_files.push_back(path);
+			}
+
+			if (ut_time() - start_time >= 15) {
+
+				ib::info()
+					<< "Number of files scanned so far: "
+					<< ibd_files.size() << " data files"
+					<< " and "
+					<< undo_files.size() << " undo files";
 			}
 		});
 	}
