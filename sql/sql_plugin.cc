@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2213,6 +2213,19 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
              "Stop any active semisynchronous I/O threads on this slave first.");
+    goto err;
+  }
+
+  /* If Group Replication is in use, the plugin can't be uninstalled.
+   * The command STOP GROUP_REPLICATION should be used before uninstall.
+  */
+  if (plugin->ref_count && !strcmp(name->str, "group_replication"))
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
+             "Plugin is busy, it cannot be uninstalled. To force a"
+             " stop run STOP GROUP_REPLICATION and then UNINSTALL"
+             " PLUGIN group_replication.");
     goto err;
   }
 #endif
