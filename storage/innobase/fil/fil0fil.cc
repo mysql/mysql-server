@@ -179,11 +179,14 @@ enum fil_operation_t {
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
-/** Sentinel for empty open slot. */
-static const size_t EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
-
 /** Maximum number of shards supported. */
 static const size_t	MAX_SHARDS = 32;
+
+/** Maximum pages to check for valid space ID during start up. */
+static const size_t	MAX_PAGES_TO_CHECK = 32;
+
+/** Sentinel for empty open slot. */
+static const size_t	EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
 
 /** We want to store the line number from where it was called. */
 #define mutex_acquire()	acquire(__LINE__)
@@ -8912,8 +8915,8 @@ fil_tokenize_paths(
 
 			} else {
 				ib::warn()
-				<< "'" << path << "' ignored"
-				<< " os_file_status() failed.";
+					<< "'" << path << "' ignored"
+					<< " os_file_status() failed.";
 			}
 		} else {
 			ib::warn()
@@ -8934,8 +8937,8 @@ fil_tokenize_paths(
 }
 
 /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
-is == 0 on the first page then check for at least two pages with the same
-tablespace ID. Do a Light weight check before trying with
+is == 0 on the first page then check for at least MAX_PAGES_TO_CHECK  pages
+with the same tablespace ID. Do a Light weight check before trying with
 DataFile::find_space_id().
 @param[in,out]	ifs		Input file stream
 @param[in]	filename	File name to check
@@ -8949,7 +8952,7 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 	space_id_t	space_id = ULINT32_UNDEFINED;
 	space_id_t	prev_space_id = ULINT32_UNDEFINED;
 
-	for (page_no_t page_no = 0; page_no < 32; ++page_no) {
+	for (page_no_t page_no = 0; page_no < MAX_PAGES_TO_CHECK; ++page_no) {
 
 		off_t	off;
 
@@ -9056,6 +9059,10 @@ static
 void
 fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 {
+	size_t	count = 0;
+	bool	printed_msg = false;
+	auto	start_time = ut_time();
+
 	for (const auto& filename : files) {
 
 		std::ifstream	ifs(filename, std::ios::binary);
@@ -9089,6 +9096,24 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 		}
 
 		ifs.close();
+
+		++count;
+
+		if (ut_time() - start_time >= 10) {
+
+			ib::info()
+				<< "Checked "
+				<< count << "/" << files.size()
+				<< " files";
+
+			start_time = ut_time();
+
+			printed_msg = true;
+		}
+	}
+
+	if (printed_msg) {
+		ib::info() << "Checked " << count << " files";
 	}
 }
 
@@ -9163,7 +9188,8 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 	if (!duplicates.empty()) {
 
-		ib::error() << "Multiple files found for tablespace ID(s)";
+		ib::error()
+			<< "Multiple files found for the same tablespace ID:";
 
 		err = DB_FAIL;
 	} else {
