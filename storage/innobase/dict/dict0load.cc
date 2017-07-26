@@ -2669,7 +2669,6 @@ dict_get_and_save_space_name(
 		}
 	}
 
-#if 0
 	/* Read it from the dictionary. */
 	if (srv_sys_tablespaces_open) {
 		if (!dict_mutex_own) {
@@ -2683,7 +2682,6 @@ dict_get_and_save_space_name(
 			dict_mutex_exit_for_mysql();
 		}
 	}
-#endif
 }
 
 /** Loads a table definition and also all its index definitions, and also

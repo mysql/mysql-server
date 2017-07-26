@@ -4810,10 +4810,6 @@ static int init_server_components()
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (dd::reset_tables_and_tablespaces())
-  {
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
   ha_post_recover();
 
   /// @todo: this looks suspicious, revisit this /sven

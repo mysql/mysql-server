@@ -64,5 +64,5 @@ test.t	analyze	status	OK
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 COUNT(*)
-0
+1
 DROP TABLE t;
