@@ -3410,7 +3410,7 @@ boot_tablespaces(THD* thd)
 			continue;
 		}
 
-		uint32_t	id;
+		space_id_t	space_id;
 		uint32_t	flags = 0;
 		const auto&	p = tablespace->se_private_data();
 		const char*	space_name = tablespace->name().c_str();
@@ -3419,7 +3419,7 @@ boot_tablespaces(THD* thd)
 		/* There should be exactly one file name associated
 		with each InnoDB tablespace, except innodb_system */
 
-		if (p.get_uint32(se_key_value[DD_SPACE_ID], &id)) {
+		if (p.get_uint32(se_key_value[DD_SPACE_ID], &space_id)) {
 
 			/* Failed to fetch the tablespace ID */
 
@@ -3443,17 +3443,17 @@ boot_tablespaces(THD* thd)
 			break;
 		}
 
-		if (!dict_sys_t::is_reserved(id) && id > max_id) {
+		if (!dict_sys_t::is_reserved(space_id) && space_id > max_id) {
 
 			/* Currently try to find the max one only, it should
 			be able to reuse the deleted smaller ones later */
-			max_id = id;
+			max_id = space_id;
 		}
 
 		const auto	file = *tablespace->files().begin();
 
-		if (fsp_is_system_or_temp_tablespace(id)
-		    || fsp_is_undo_tablespace(id)) {
+		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)) {
 
 			/* These are tracked and opened separately. */
 			continue;
@@ -3462,10 +3462,12 @@ boot_tablespaces(THD* thd)
 		std::string	new_path;
 		const char*	filename = file->filename().c_str();
 
-		if (fsp_is_ibd_tablespace(id)) {
+		ib::info() << filename;
+
+		if (fsp_is_ibd_tablespace(space_id)) {
 
 			switch(fil_tablespace_path_equals(
-					id, filename, &new_path)) {
+					space_id, filename, &new_path)) {
 
 			case Fil_path::MATCHES:
 				break;
@@ -3473,7 +3475,7 @@ boot_tablespaces(THD* thd)
 			case Fil_path::MISSING:
 
 				ib::info()
-					<< "Tablespace " << id << ","
+					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
 					<< " is missing!";
@@ -3483,7 +3485,7 @@ boot_tablespaces(THD* thd)
 			case Fil_path::DELETED:
 
 				ib::info()
-					<< "Tablespace " << id << ","
+					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
 					<< " was deleted!";
@@ -3493,7 +3495,7 @@ boot_tablespaces(THD* thd)
 			case Fil_path::MOVED:
 
 				ib::warn()
-					<< "Tablespace " << id << ","
+					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
 					<< " has been moved to"
@@ -3537,14 +3539,14 @@ boot_tablespaces(THD* thd)
 		}
 
 		if (fil_space_for_table_exists_in_mem(
-			id, space_name, false, true, heap, 0)) {
+			space_id, space_name, false, true, heap, 0)) {
 
 			continue;
 		}
 
 		dberr_t	err = fil_ibd_open(
 			validate, FIL_TYPE_TABLESPACE,
-			id, flags, space_name, filename);
+			space_id, flags, space_name, filename);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -3553,7 +3555,7 @@ boot_tablespaces(THD* thd)
 
 		default:
 			ib::error()
-				<< "Tablespace " << id << ","
+				<< "Tablespace " << space_id << ","
 				<< " name '" << space_name << "',"
 				<< " unable to open file"
 				<< " '" << filename << "' - "

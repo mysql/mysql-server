@@ -8265,6 +8265,8 @@ fil_tablespace_path_equals(
 
 			*new_path = fil_make_relative_path(
 				path, names->front());
+
+			return(Fil_path::MOVED);
 		}
 	}
 
