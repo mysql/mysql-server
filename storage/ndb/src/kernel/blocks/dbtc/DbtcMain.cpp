@@ -12047,12 +12047,22 @@ void Dbtc::execTCGETOPSIZEREQ(Signal* signal)
   BlockReference Tusersblkref = signal->theData[1];/* DBDIH BLOCK REFERENCE */
   signal->theData[0] = Tuserpointer;
   signal->theData[1] = coperationsize;
-  if (isNdbMt())
+  if (refToNode(Tusersblkref) == getOwnNodeId())
   {
+    /**
+     * The message goes to the DBTC proxy before being processed by
+     * DBDIH.
+     */
     sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
   }
   else
   {
+    /**
+     * No proxy used, so this is the only DBTC instance.
+     * Thus we go directly to the DBDIH to ensure that we have
+     * completed the LCP locally before allowing a new one to
+     * start.
+     */
     signal->theData[2] = Tusersblkref;
     sendSignal(DBDIH_REF, GSN_CHECK_LCP_IDLE_ORD, signal, 3, JBB);
   }
