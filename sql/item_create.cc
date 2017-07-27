@@ -1657,7 +1657,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
-  { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
+  { "ST_ISSIMPLE", SQL_FN(Item_func_st_issimple, 1) },
   { "ST_ISVALID", SQL_FN(Item_func_isvalid, 1) },
   { "ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1) },
   { "ST_LENGTH", SQL_FN(Item_func_st_length, 1) },

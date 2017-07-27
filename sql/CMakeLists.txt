@@ -210,6 +210,7 @@ SET(SQL_GIS_SOURCES
   gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
+  gis/is_simple.cc
   gis/length.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
