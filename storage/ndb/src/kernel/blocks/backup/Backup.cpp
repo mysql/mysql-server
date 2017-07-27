@@ -13768,6 +13768,22 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         conf->completionStateHi = 0;
         conf->completionStateLo = m_newestRestorableGci;
       }
+      else if (state == LcpStatusConf::LCP_PREPARED)
+      {
+        /**
+         * We are in state of closing LCP control files with a
+         * idle fragment LCP.
+         */
+        jam();
+        TablePtr tabPtr;
+        FragmentPtr fragPtr;
+        ptr.p->tables.first(tabPtr);
+        ndbrequire(tabPtr.i != RNIL);
+        tabPtr.p->fragments.getPtr(fragPtr, 0);
+        ndbrequire(fragPtr.p->tableId == tabPtr.p->tableId);
+        conf->tableId = tabPtr.p->tableId;
+        conf->fragId = fragPtr.p->fragmentId;
+      }
       
       failCode = 0;
     }
