@@ -7446,7 +7446,7 @@ Backup::checkScan(Signal* signal,
 
   if (ptr.p->is_lcp())
   {
-    DEB_LCP(("(%u)newScan false in checkScan", instance()));
+    DEB_EXTRA_LCP(("(%u)newScan false in checkScan", instance()));
   }
   signal->theData[0] = BackupContinueB::BUFFER_FULL_SCAN;
   signal->theData[1] = filePtr.i;
