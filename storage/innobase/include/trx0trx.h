@@ -1093,6 +1093,7 @@ struct trx_t {
 					change */
 	bool		ddl_must_flush; /*!< True if this trx involves dd table
 					change, and must flush */
+	bool		in_truncate;	/* This trx is doing truncation */
 
 	/* Fields protected by the srv_conc_mutex. */
 	bool		declared_to_be_inside_innodb;

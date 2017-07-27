@@ -3151,7 +3151,9 @@ trx_is_strict(
 /*==========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode));
+	/* Relax strict check if table is in truncate create table */
+	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode)
+	       && (!trx->in_truncate));
 }
 
 /**************************************************************//**
@@ -14028,9 +14030,13 @@ ha_innobase::truncate(dd::Table *table_def)
 			dd_index->se_private_data().clear();
 		}
 
+		trx_t*	trx = check_trx_exists(thd);
+		trx->in_truncate = true;
+
 		error = innobase_basic_ddl::create_impl(
 			thd, name, table, &info, table_def,
 			file_per_table, true, true);
+		trx->in_truncate = false;
 	}
 
 	if (!error) {

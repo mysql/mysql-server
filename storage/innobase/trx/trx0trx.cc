@@ -174,6 +174,7 @@ trx_init(
 
 	trx->internal = false;
 
+	trx->in_truncate = false;
 #ifdef UNIV_DEBUG
 	trx->is_dd_trx  = false;
 	trx->in_rollback = false;
