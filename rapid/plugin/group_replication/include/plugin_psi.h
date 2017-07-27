@@ -93,6 +93,7 @@ extern PSI_mutex_key
               key_GR_LOCK_force_members_running,
               key_GR_LOCK_write_lock_protection,
               key_GR_LOCK_pipeline_stats_flow_control,
+              key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
               key_GR_LOCK_trx_unlocking;
 
 extern PSI_cond_key
