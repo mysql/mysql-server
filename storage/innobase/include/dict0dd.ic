@@ -59,61 +59,76 @@ dd_get_space_id(const dd::Partition& partition)
 	return(id);
 }
 
-/** partition name separator */
-extern	const char* part_sep;
+#ifdef DBUG_OFF
+#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l))
+#else
+#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l), (f))
+#endif /* DBUG_OFF */
 
-/** Parse a table file name into table name and database name
-@param[in]	tbl_name	table name including database and table name
+/** Parse a file name into table name and database name
+@param[in]	filename	file name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_ptn_name	partition name to be filled if not NULL
 @return true if table name is parsed properly, false if the table name
-is invalid */
+	is invalid */
 inline
 bool
 dd_parse_tbl_name(
-	const char*	tbl_name,
+	const char*	filename,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
 	char*		dd_ptn_name)
 {
-	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
-	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
-	ulint	db_len = dict_get_db_name_len(tbl_name);
-	char*	is_part;
+	/** partition name separator */
+	extern	const char	part_sep[4];
 
-	if (db_len == 0) {
+	std::string	path{filename};
+
+	ut_ad(!fil_has_ibd_suffix(path) != 0);
+
+	auto pos = path.rfind(OS_PATH_SEPARATOR);
+
+	if (pos == std::string::npos || path.back() == OS_PATH_SEPARATOR) {
+
 		return(false);
 	}
 
-	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
-	memcpy(db_buf, tbl_name, db_len);
-	db_buf[db_len] = 0;
-	memcpy(tbl_buf, tbl_name + db_len + 1,
-	       strlen(tbl_name) - db_len - 1);
-	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
+	std::string	db_name = path.substr(0, pos);
+	std::string	table_name = path.substr(pos + 1, path.length());
 
-	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1
-#ifndef DBUG_OFF
-			      , true
-#endif /* DBUG_OFF */
-	);
+	constexpr const auto	MAX_DB_LEN = MAX_DATABASE_NAME_LEN;
 
-	is_part = strstr(tbl_buf, part_sep);
+	ut_ad(db_name.length() <= MAX_DATABASE_NAME_LEN + 1);
 
-	if (is_part) {
-		*is_part = 0;
+	path_to_tablename(db_name.c_str(), dd_db_name, MAX_DB_LEN, true);
+
+	/* Check if the name is that of a partition. */
+	pos = table_name.find(part_sep);
+
+	std::string	ptn_name;
+
+	if (pos != std::string::npos) {
+
+		ut_a(pos > 0);
+
+		ptn_name = table_name.substr(pos);
+		table_name = table_name.substr(0, pos);
 	}
 
-	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
-#ifndef DBUG_OFF
-			      , true
-#endif /* DBUG_OFF */
-	);
+	auto	ptr = table_name.c_str();
 
-	if (is_part && dd_ptn_name) {
-		filename_to_tablename((is_part + 3), dd_ptn_name,
-				      MAX_TABLE_NAME_LEN + 1);
+	constexpr const auto	MAX_TBL_LEN = MAX_TABLE_NAME_LEN;
+
+	path_to_tablename(ptr, dd_tbl_name, MAX_TBL_LEN, true);
+
+	if (dd_ptn_name != nullptr && pos != std::string::npos) {
+
+		ut_a(ptn_name.length() > 0);
+
+		ptr = ptn_name.c_str();
+
+		path_to_tablename(ptr, dd_ptn_name, MAX_TBL_LEN, true);
 	}
 
 	return(true);

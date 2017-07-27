@@ -1563,4 +1563,18 @@ fil_mtr_rename_log(
 void
 fil_open_for_business();
 
+/** Check if the file has the .ibd suffix
+@param[in]	path		Filename to check
+@return true if it has the the ".ibd" suffix. */
+inline
+bool
+fil_has_ibd_suffix(const std::string& path)
+{
+	static const char	suffix[] = ".ibd";
+	static constexpr auto	len = sizeof(suffix) - 1;
+
+	return(path.size() >= len
+	       && path.compare(path.size() - len, len, suffix) == 0);
+}
+
 #endif /* fil0fil_h */

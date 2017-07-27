@@ -2627,12 +2627,15 @@ dict_save_data_dir_path(
 			NULL, table->name.m_name, IBD, false);
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
+
 			ulint pathlen = strlen(filepath);
+
 			ut_a(pathlen < OS_FILE_MAX_PATH);
-			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
+			ut_a(fil_has_ibd_suffix(filepath));
 
 			table->data_dir_path = mem_heap_strdup(
 				table->heap, filepath);
+
 			os_file_make_data_dir_path(table->data_dir_path);
 		}
 

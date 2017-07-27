@@ -3384,12 +3384,11 @@ boot_tablespaces(THD* thd)
 		return(true);
 	}
 
+	bool	fail = false;
 	auto	heap = mem_heap_create(FN_REFLEN * 2 + 1);
 
 	const bool	validate = recv_needed_recovery
 		&& srv_force_recovery == 0;
-
-	bool		fail = false;
 
 	max_id = 0;
 
@@ -3403,16 +3402,20 @@ boot_tablespaces(THD* thd)
 	Tablespaces	moved;
 
 	size_t	count = 0;
+	bool	print_msg = false;
 	auto	start_time = ut_time();
 
 	for (const auto tablespace : tablespaces) {
 
 		++count;
 
-		if (ut_time() - start_time >= 10) {
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 			ib::info() << "Check " << count << " tablespaces";
+
 			start_time = ut_time();
+
+			print_msg = true;
 		}
 
 		ut_ad(!fail);
@@ -3572,9 +3575,23 @@ boot_tablespaces(THD* thd)
 		}
 	}
 
+	if (fail) {
+		mem_heap_free(heap);
+
+		return(true);
+	}
+
+	if (print_msg) {
+		ib::info() << "Checked " << count << " tablespaces";
+	}
+
+	count = 0;
+	print_msg = false;
+	start_time = ut_time();
+
 	fil_set_max_space_id_if_bigger(max_id);
 
-	/* The transaction should not be active yet, start it */
+	size_t	failed = 0;
 
 	/* If some file paths have changed then update the DD */
 	for (auto tablespace : moved) {
@@ -3585,12 +3602,21 @@ boot_tablespaces(THD* thd)
 
 		row_mysql_lock_data_dictionary(trx);
 
+		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
 		dberr_t	err;
 
+		auto	from_name = fil_path_to_space_name(
+			tablespace.second.first.c_str());
+
+		auto	to_name = fil_path_to_space_name(
+			tablespace.second.second.c_str());
+
 		err = row_rename_table_for_mysql(
-			tablespace.second.first.c_str(),
-			tablespace.second.second.c_str(),
-			nullptr, trx, true);
+			from_name, to_name, nullptr, trx, true);
+
+		ut_free(to_name);
+		ut_free(from_name);
 
 		row_mysql_unlock_data_dictionary(trx);
 
@@ -3602,6 +3628,8 @@ boot_tablespaces(THD* thd)
 				<< tablespace.second.second << "'"
 				<< " in the InnoDB data dictionary."
 				<< " err: " << ut_strerr(err);
+
+			++failed;
 
 			continue;
 		}
@@ -3616,15 +3644,27 @@ boot_tablespaces(THD* thd)
 				<< " " << tablespace.first << " path from"
 				<< " '" << tablespace.second.first << "' to"
 				<< " '" << tablespace.second.second << "'";
-		} else {
+		}
+
+		++count;
+
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 			ib::info()
-				<< "Updated tablespace ID"
-				<< " " << tablespace.first << " path from"
-				<< " '" << tablespace.second.first << "' to"
-				<< " '" << tablespace.second.second << "'";
+				<< "Updated "
+				<< count << "/"  << moved.size()
+				<< " tablespace paths. Failures " << failed;
 
+			start_time = ut_time();
+			print_msg = true;
 		}
+	}
+
+	if (print_msg) {
+
+		ib::info()
+			<< "Updated " << count << " tablespace paths"
+			<< ", failures " << failed;
 	}
 
 	mem_heap_free(heap);
@@ -3772,10 +3812,8 @@ innobase_dict_recover(
 		/* Check and extend space files, if needed, ignore
 		redo log files. */
 
-		err = Fil_iterator::for_each_file(false, [=](fil_node_t* file)
-		{
-			return(fil_check_extend_space(file));
-		});
+		err = Fil_iterator::for_each_file(
+			false, fil_check_extend_space);
 
 		if (err != DB_SUCCESS){
 
@@ -6581,9 +6619,6 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
-/** partition separator */
-extern const char*	part_sep;
-
 /** Open an InnoDB table.
 @param[in]	name		table name
 @param[in]	open_flags	flags for opening table from SQL-layer.
@@ -6602,6 +6637,9 @@ ha_innobase::open(
 	THD*			thd;
 	char*			is_part = NULL;
 	bool			cached = false;
+
+	/** Partition separator */
+	extern const char	part_sep[4];
 
 	DBUG_ENTER("ha_innobase::open");
 	DBUG_ASSERT(table_share == table->s);
@@ -14261,27 +14299,33 @@ validate_create_tablespace_info(
 
 	/* It must end with '.ibd' and contain a basename of at least
 	1 character before the.ibd extension. */
-	ulint dirname_len = dirname_length(filepath);
-	const char* basename = filepath + dirname_len;
-	ulint	basename_len = strlen(basename);
-	if (basename_len < 5) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-		alter_info->data_file_name);
-		ut_free(filepath);
-		return(HA_WRONG_CREATE_OPTION);
-	}
-	if (memcmp(&basename[basename_len - 4], DOT_IBD, 5)) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
+
+	ulint		dirname_len = dirname_length(filepath);
+	const char*	basename = filepath + dirname_len;
+	auto		basename_len = strlen(basename);
+
+	if (basename_len <= 4 || !fil_has_ibd_suffix(basename)) {
+
+		if (basename_len <= 4) {
+			my_error(
+				ER_WRONG_FILE_NAME, MYF(0),
+				alter_info->data_file_name);
+		} else {
+
+			my_printf_error(
+				ER_WRONG_FILE_NAME,
 				"An IBD filepath must end with `.ibd`.",
 				MYF(0));
+		}
+
 		ut_free(filepath);
+
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
 	/* Do not allow an invalid colon in the file name. */
-	const char* colon = strchr(filepath, ':');
+	const char*	colon = strchr(filepath, ':');
+
 	if (colon != NULL) {
 #ifdef _WIN32
 		/* Do not allow names like "C:name.ibd" because it

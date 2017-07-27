@@ -220,7 +220,7 @@ Tablespace::add_datafile(
 	/* The path provided ends in ".ibd".  This was assured by
 	validate_create_tablespace_info() */
 	ut_d(const char* dot = strrchr(datafile_added, '.'));
-	ut_ad(dot != NULL && 0 == strcmp(dot, DOT_IBD));
+	ut_ad(dot != NULL && fil_has_ibd_suffix(dot));
 
 	char* filepath = mem_strdup(datafile_added);
 	if (filepath == NULL) {

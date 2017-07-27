@@ -669,4 +669,9 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type
 {
         return(static_cast<typename std::underlying_type<T>::type>(v));
 }
+
+/** If we are doing something that takes longer than this many seconds then
+print an informative message. Type should be return type of ut_time(). */
+static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
+
 #endif

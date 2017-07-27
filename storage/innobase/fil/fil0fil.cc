@@ -2160,7 +2160,7 @@ Fil_shard::wait_for_io_to_stop(fil_space_t* space)
 
 	while (space->stop_ios) {
 
-		if ((ut_time() - start_time) == 30) {
+		if ((ut_time() - start_time) == PRINT_INTERVAL_SECS) {
 
 			start_time = ut_time();
 
@@ -2272,7 +2272,7 @@ Fil_shard::mutex_acquire_and_prepare_for_io(space_id_t space_id)
 		while (fil_system->m_max_n_open <= s_n_open
 		       && !fil_system->close_file_in_all_LRU(i > 1)) {
 
-			if (ut_time() - start_time == 30) {
+			if (ut_time() - start_time == PRINT_INTERVAL_SECS) {
 
 				start_time = ut_time();
 
@@ -4971,54 +4971,47 @@ fil_space_read_name_and_filepath(
 	return(success);
 }
 
-/** Convert a file name to a tablespace name.
+/** Convert a file name to a tablespace name. Strip the file name
+prefix and suffix, leaving only databasename/tablename.
 @param[in]	filename	directory/databasename/tablename.ibd
 @return database/tablename string, to be freed with ut_free() */
 char*
-fil_path_to_space_name(
-	const char*	filename)
+fil_path_to_space_name(const char* filename)
 {
-	/* Strip the file name prefix and suffix, leaving
-	only databasename/tablename. */
-	ulint		filename_len	= strlen(filename);
-	const char*	end		= filename + filename_len;
-#ifdef HAVE_MEMRCHR
-	const char*	tablename	= 1 + static_cast<const char*>(
-		memrchr(filename, OS_PATH_SEPARATOR,
-			filename_len));
-	const char*	dbname		= 1 + static_cast<const char*>(
-		memrchr(filename, OS_PATH_SEPARATOR,
-			tablename - filename - 1));
-#else /* HAVE_MEMRCHR */
-	const char*	tablename	= filename;
-	const char*	dbname		= nullptr;
+	std::string	path{filename};
 
-	while (const char* t = static_cast<const char*>(
-		       memchr(tablename, OS_PATH_SEPARATOR,
-			      end - tablename))) {
-		dbname = tablename;
-		tablename = t + 1;
+	auto pos = path.rfind(OS_PATH_SEPARATOR);
+
+	ut_a(pos != std::string::npos && path.back() != OS_PATH_SEPARATOR);
+
+	std::string	db_name = path.substr(0, pos);
+	std::string	space_name = path.substr(pos + 1, path.length());
+
+	/* If it is a path such as a/b/c.ibd, ignore everything before 'b'. */
+	pos = db_name.rfind(OS_PATH_SEPARATOR);
+
+	if (pos != std::string::npos){
+		db_name = db_name.substr(pos + 1);
 	}
-#endif /* HAVE_MEMRCHR */
-
-	ut_ad(dbname != nullptr);
-	ut_ad(tablename > dbname);
-	ut_ad(tablename < end);
-	ut_ad(end - tablename > 4);
 
 	char*	name;
 
-	if (!memcmp(end - 4, DOT_IBD, 4)) {
-		name = mem_strdupl(dbname, (end - 4) - dbname);
+	if (fil_has_ibd_suffix(space_name)) {
 
-		ut_ad(name[tablename - dbname - 1] == OS_PATH_SEPARATOR);
-#if OS_PATH_SEPARATOR != '/'
-		/* space->name uses '/', not OS_PATH_SEPARATOR. */
-		name[tablename - dbname - 1] = '/';
-#endif
+		/* fil_space_t::name uses '/', not OS_PATH_SEPARATOR. */
+
+		path = db_name.append("/");
+
+		/* Strip the ".ibd" suffix. */
+		path.append(space_name.substr(0, space_name.length() - 4));
+
+		name = mem_strdupl(path.c_str(), path.length());
+
 	} else {
-		ut_ad(!memcmp(tablename, "undo", 4));
-		name = mem_strdupl(filename, filename_len);
+		/* Must have an "undo" prefix. */
+		ut_ad(space_name.find("undo") == 0);
+
+		name = mem_strdupl(space_name.c_str(), space_name.length());
 	}
 
 	return(name);
@@ -8473,7 +8466,7 @@ fil_tablespace_redo_create(
 
 	ptr += len;
 
-	if (memcmp(ptr - 5, DOT_IBD, 5) != 0) {
+	if (!fil_has_ibd_suffix(name)) {
 
 		recv_sys->found_corrupt_log = true;
 
@@ -8571,7 +8564,7 @@ fil_tablespace_redo_rename(
 
 	ptr += from_len;
 
-	if (memcmp(ptr - 5, DOT_IBD, 5) != 0) {
+	if (!fil_has_ibd_suffix(abs_from_name)) {
 
 		ib::error()
 			<< "MLOG_FILE_RENAME: From file name doesn't end in"
@@ -8629,7 +8622,7 @@ fil_tablespace_redo_rename(
 
 	ptr += to_len;
 
-	if (memcmp(ptr - 5, DOT_IBD, 5) != 0) {
+	if (!fil_has_ibd_suffix(abs_to_name)) {
 
 		ib::error()
 			<< "MLOG_FILE_RENAME: To file name doesn't end in"
@@ -8810,7 +8803,7 @@ fil_tablespace_redo_delete(
 
 	ptr += len;
 
-	if (memcmp(ptr - 5, DOT_IBD, 5) != 0) {
+	if (!fil_has_ibd_suffix(name)) {
 
 		recv_sys->found_corrupt_log = true;
 
@@ -9094,7 +9087,7 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 		++count;
 
-		if (ut_time() - start_time >= 10) {
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 			ib::info()
 				<< "Checked "
@@ -9156,7 +9149,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 				undo_files.push_back(path);
 			}
 
-			if (ut_time() - start_time >= 15) {
+			if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 				ib::info()
 					<< "Number of files scanned so far: "

@@ -2537,7 +2537,8 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 
 				start_time = ut_time();
 
-			} else if (ut_time() - start_time >= 30) {
+			} else if (ut_time() - start_time
+                                   >= PRINT_INTERVAL_SECS) {
 
 				start_time = ut_time();
 
