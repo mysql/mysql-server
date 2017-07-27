@@ -7008,7 +7008,7 @@ os_fusionio_get_sector_size()
 
 		/* Try to write the file with different sector size
 		alignment. */
-		ptr = static_cast<byte*>(ut_malloc_nokey(2 * MAX_SECTOR_SIZE));
+		ptr = static_cast<byte*>(ut_zalloc_nokey(2 * MAX_SECTOR_SIZE));
 
 		while (sector_size <= MAX_SECTOR_SIZE) {
 			block_ptr = static_cast<byte*>(
