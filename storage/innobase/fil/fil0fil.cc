@@ -62,6 +62,9 @@ The tablespace memory cache */
 #include <fstream>
 #include <list>
 #include <array>
+#include <mutex>
+#include <thread>
+#include <functional>
 #include <unordered_map>
 
 using Dirs = std::vector<std::string>;
@@ -183,7 +186,7 @@ fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 static const size_t	MAX_SHARDS = 32;
 
 /** Maximum pages to check for valid space ID during start up. */
-static const size_t	MAX_PAGES_TO_CHECK = 32;
+static const size_t	MAX_PAGES_TO_CHECK = 4;
 
 /** Sentinel for empty open slot. */
 static const size_t	EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
@@ -9045,13 +9048,19 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 @param[in,out]	duplicates	Duplicate space IDs found */
 static
 void
-fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
+fil_check_for_duplicate_ids(
+	std::mutex*			mutex,
+	const Dirs::const_iterator&	start,
+	const Dirs::const_iterator&	end,
+	Duplicates*			duplicates)
 {
 	size_t	count = 0;
 	bool	printed_msg = false;
 	auto	start_time = ut_time();
 
-	for (const auto& filename : files) {
+	for (auto it = start; it != end; ++it) {
+
+		const auto&	filename = *it;
 
 		std::ifstream	ifs(filename, std::ios::binary);
 
@@ -9067,6 +9076,8 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 		ut_a(space_id != 0);
 
 		if (space_id != ULINT32_UNDEFINED) {
+
+			std::lock_guard<std::mutex> guard(*mutex);
 
 			size_t	n_files;
 
@@ -9091,7 +9102,7 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 			ib::info()
 				<< "Checked "
-				<< count << "/" << files.size()
+				<< count << "/" << (end - start)
 				<< " files";
 
 			start_time = ut_time();
@@ -9102,6 +9113,39 @@ fil_check_for_duplicate_ids(const Dirs& files, Duplicates* duplicates)
 
 	if (printed_msg) {
 		ib::info() << "Checked " << count << " files";
+	}
+}
+
+static
+void
+fil_print_duplicates(const Duplicates&  duplicates)
+{
+	/* Print the duplicate names to the error log. */
+	for (auto space_id : duplicates) {
+
+		const auto	names = Tablespace_files::find(space_id);
+
+		/* Fixes the order in the mtr tests. */
+		std::sort(names->begin(), names->end());
+
+		ut_a(names->size() > 1);
+
+		std::ostringstream	oss;
+
+		oss << "Tablespace ID: " << space_id << " = [";
+
+		for (size_t i = 0; i < names->size(); ++i) {
+
+			oss << "'" << (*names)[i] << "'";
+
+			if (i < names->size() - 1) {
+				oss << ", ";
+			}
+		}
+
+		oss << "]" << std::endl;
+
+		ib::error() << oss.str();
 	}
 }
 
@@ -9169,8 +9213,49 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 	Duplicates	duplicates;
 
-	fil_check_for_duplicate_ids(ibd_files, &duplicates);
-	fil_check_for_duplicate_ids(undo_files, &duplicates);
+	size_t	n_threads = (ibd_files.size() / 50000);
+
+	std::vector<std::thread>	workers;
+
+	std::mutex	m;
+
+	for (size_t i = 0; n_threads > 0 && i < n_threads - 1; ++i) {
+
+		size_t	slice = ibd_files.size() / n_threads;
+		auto	start = (i + 1) * slice;
+
+		if (i == n_threads - 1) {
+			slice = ibd_files.size() - start;
+		}
+
+		ib::info()
+			<< "Thread: " << (i + 1) << ", "
+			<< start << ", " << slice;
+
+		ut_a(ibd_files.begin() + start + slice <= ibd_files.end());
+
+		auto	begin = ibd_files.begin() + start;
+		auto	end = begin + slice;
+
+		workers.push_back(std::thread{
+			fil_check_for_duplicate_ids,
+			&m, begin, end, &duplicates});
+	}
+
+	fil_check_for_duplicate_ids(
+		&m, ibd_files.begin(),
+		ibd_files.begin() + (ibd_files.size() / n_threads),
+		&duplicates);
+
+	fil_check_for_duplicate_ids(
+		&m, undo_files.begin(), undo_files.end(), &duplicates);
+
+	for (auto& worker : workers) {
+
+		worker.join();
+	}
+
+	ib::info() << "Completed space ID check";
 
 	dberr_t	err;
 
@@ -9179,37 +9264,13 @@ fil_scan_for_tablespaces(const std::string& directories)
 		ib::error()
 			<< "Multiple files found for the same tablespace ID:";
 
+		_exit(1);
+
+		fil_print_duplicates(duplicates);
+
 		err = DB_FAIL;
 	} else {
 		err = DB_SUCCESS;
-	}
-
-	/* Print the duplicate names to the error log. */
-	for (auto space_id : duplicates) {
-
-		const auto	names = Tablespace_files::find(space_id);
-
-		/* Fixes the order in the mtr tests. */
-		std::sort(names->begin(), names->end());
-
-		ut_a(names->size() > 1);
-
-		std::ostringstream	oss;
-
-		oss << "Tablespace ID: " << space_id << " = [";
-
-		for (size_t i = 0; i < names->size(); ++i) {
-
-			oss << "'" << (*names)[i] << "'";
-
-			if (i < names->size() - 1) {
-				oss << ", ";
-			}
-		}
-
-		oss << "]" << std::endl;
-
-		ib::error() << oss.str();
 	}
 
 	return(err);
