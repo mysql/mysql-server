@@ -3812,8 +3812,10 @@ innobase_dict_recover(
 		/* Check and extend space files, if needed, ignore
 		redo log files. */
 
-		err = Fil_iterator::for_each_file(
-			false, fil_check_extend_space);
+		err = Fil_iterator::for_each_file(false, [](fil_node_t* file)
+		{
+			return(fil_check_extend_space(file));
+		});
 
 		if (err != DB_SUCCESS){
 
