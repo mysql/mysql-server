@@ -42,6 +42,7 @@ PSI_mutex_key  key_GR_LOCK_applier_module_run,
                key_GR_LOCK_force_members_running,
                key_GR_LOCK_write_lock_protection,
                key_GR_LOCK_pipeline_stats_flow_control,
+               key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
                key_GR_LOCK_trx_unlocking;
 
 PSI_cond_key   key_GR_COND_applier_module_run,
@@ -106,6 +107,7 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
   {&key_GR_LOCK_force_members_running, "LOCK_force_members_running", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_write_lock_protection, "LOCK_write_lock_protection", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_pipeline_stats_flow_control, "LOCK_pipeline_stats_flow_control", PSI_FLAG_GLOBAL},
+  {&key_GR_LOCK_pipeline_stats_transactions_waiting_apply, "LOCK_pipeline_stats_transactions_waiting_apply", PSI_FLAG_GLOBAL},
   {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking", PSI_FLAG_GLOBAL}
 };
 
