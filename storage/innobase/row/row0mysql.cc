@@ -752,6 +752,7 @@ handle_new_error:
 	case DB_LOCK_WAIT:
 
 		trx_kill_blocking(trx);
+		DEBUG_SYNC_C("before_lock_wait_suspend");
 
 		lock_wait_suspend_thread(thr);
 

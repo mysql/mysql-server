@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,32 +17,24 @@
  * 02110-1301  USA
  */
 
-#ifndef _XPL_EXPECT_GTID_H_
-#define _XPL_EXPECT_GTID_H_
+#ifndef X_SRC_EXPECT_EXPECT_CONDITION_FIELD_H
+#define X_SRC_EXPECT_EXPECT_CONDITION_FIELD_H
 
-#include "expect.h"
-
-namespace xpl
-{
-  class Expect_gtid : public Expect_condition
-  {
-  public:
-    explicit Expect_gtid(const std::string &data);
-    virtual ngs::Error_code check();
-
-    virtual Expect_condition *copy()
-    {
-      return new Expect_gtid(*this);
-    }
-
-    void set_timeout(int t) { m_timeout = t; }
-
-  private:
-    Expect_gtid() {}
-    int m_timeout;
-    std::list<std::string> m_gtids;
-  };
-}
+#include <string>
+#include "expect/expect_condition.h"
 
 
-#endif
+namespace xpl {
+
+class Expect_condition_field: public Expect_condition {
+ public:
+  explicit Expect_condition_field(const std::string &expected_field);
+  Expect_condition_field(const Expect_condition_field &other);
+
+  Expect_condition_ptr clone() override;
+  ngs::Error_code check_if_error() override;
+};
+
+}  // namespace xpl
+
+#endif  // X_SRC_EXPECT_EXPECT_CONDITION_FIELD_H

@@ -107,7 +107,7 @@ IF(INSTALL_MYSQLTESTDIR)
     COMPONENT Test
   )
   INSTALL(
-    DIRECTORY tests/mtr/t tests/mtr/r tests/mtr/inc
+    DIRECTORY tests/mtr/t tests/mtr/r tests/mtr/inc tests/mtr/extra
     DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/group_replication"
     USE_SOURCE_PERMISSIONS
     COMPONENT Test

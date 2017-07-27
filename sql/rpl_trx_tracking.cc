@@ -16,6 +16,8 @@
 #include "rpl_trx_tracking.h"
 
 #include "mysqld.h"
+#include "current_thd.h"
+#include "binlog.h"
 
 
 Logical_clock::Logical_clock()
@@ -179,6 +181,13 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
   Rpl_transaction_write_set_ctx *write_set_ctx=
     thd->get_transaction()->get_transaction_write_set_ctx();
   std::vector<uint64> *writeset= write_set_ctx->get_write_set();
+
+#ifndef DBUG_OFF
+  /* The writeset of an empty transaction must be empty. */
+  if (is_empty_transaction_in_binlog_cache(thd))
+    DBUG_ASSERT(writeset->size() == 0);
+#endif
+
   /*
     Check if this transaction has a writeset, if the writeset will overflow the
     history size, if the transaction_write_set_extraction is consistent
@@ -188,7 +197,12 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
   */
   bool can_use_writesets=
     // empty writeset implies DDL or similar, except if there are missing keys
-    (writeset->size() != 0 || write_set_ctx->get_has_missing_keys()) &&
+    (writeset->size() != 0 || write_set_ctx->get_has_missing_keys() ||
+     /*
+       The empty transactions do not need to clear the writeset history, since
+       they can be executed in parallel.
+     */
+     is_empty_transaction_in_binlog_cache(thd)) &&
     // hashing algorithm for the session must be the same as used by other rows in history
     (global_system_variables.transaction_write_set_extraction ==
      thd->variables.transaction_write_set_extraction) &&
@@ -364,7 +378,13 @@ void
 Transaction_dependency_tracker::rotate()
 {
   m_commit_order.rotate();
-  m_writeset.rotate(0);
+  /*
+    To make slave appliers be able to execute transactions in parallel
+    after rotation, set the minimum commit_parent to 1 after rotation.
+  */
+  m_writeset.rotate(1);
+  if (current_thd)
+    current_thd->get_transaction()->sequence_number= 2;
 }
 
 int64 Transaction_dependency_tracker::get_max_committed_timestamp()

@@ -255,14 +255,16 @@ dd_first_index(const dd::Partition* partition)
 	return(dd_first<dd::Partition,dd::Partition_index>(partition));
 }
 
+#ifdef UNIV_DEBUG
 /** Determine if a partition is materialized.
 @param[in]	part		partition
 @return whether the partition is materialized */
 inline bool dd_part_is_stored(const dd::Partition* part)
 {
 	return(part->table().subpartition_type() == dd::Table::ST_NONE
-	       || part->level() == 1);
+	       || part->parent());
 }
+#endif /* UNIV_DEBUG */
 
 /** Get the explicit dd::Tablespace::id of a table.
 @param[in]	table	non-partitioned table

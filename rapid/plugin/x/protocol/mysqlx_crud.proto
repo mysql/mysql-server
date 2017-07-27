@@ -18,12 +18,14 @@
  */
 syntax = "proto2";
 
+
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
 // Basic CRUD operations
 package Mysqlx.Crud;
 option java_package = "com.mysql.cj.mysqlx.protobuf";
 
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 import "mysqlx_expr.proto";
 import "mysqlx_datatypes.proto";
 
@@ -135,6 +137,8 @@ message Find {
   repeated Mysqlx.Expr.Expr grouping = 8;
   optional Mysqlx.Expr.Expr grouping_criteria = 9;
   optional RowLock locking = 12;
+
+  option (client_message_id) = CRUD_FIND; // comment_out_if PROTOBUF_LITE
 };
 
 // Insert documents/rows into a collection/table
@@ -158,6 +162,8 @@ message Insert {
   repeated TypedRow row = 4;
   repeated Mysqlx.Datatypes.Scalar args = 5;
   optional bool upsert = 6 [default = false];
+
+  option (client_message_id) = CRUD_INSERT; // comment_out_if PROTOBUF_LITE
 };
 
 // Update documents/rows in a collection/table
@@ -180,6 +186,8 @@ message Update {
   repeated Order order = 6;
 
   repeated UpdateOperation operation = 7;
+
+  option (client_message_id) = CRUD_UPDATE; // comment_out_if PROTOBUF_LITE
 };
 
 // Delete documents/rows from a Collection/Table
@@ -199,6 +207,8 @@ message Delete {
   repeated Mysqlx.Datatypes.Scalar args = 6;
   optional Limit limit = 4;
   repeated Order order = 5;
+
+  option (client_message_id) = CRUD_DELETE; // comment_out_if PROTOBUF_LITE
 };
 
 
@@ -248,6 +258,8 @@ message CreateView {
   repeated string column = 6;
   required Find stmt = 7;
   optional bool replace_existing = 8 [default = false];
+
+  option (client_message_id) = CRUD_CREATE_VIEW; // comment_out_if PROTOBUF_LITE
 }
 
 
@@ -271,6 +283,8 @@ message ModifyView {
 
   repeated string column = 6;
   optional Find stmt = 7;
+
+  option (client_message_id) = CRUD_MODIFY_VIEW; // comment_out_if PROTOBUF_LITE
 }
 
 
@@ -282,4 +296,6 @@ message ModifyView {
 message DropView {
   required Collection collection = 1;
   optional bool if_exists = 2 [ default = false ];
+
+  option (client_message_id) = CRUD_DROP_VIEW; // comment_out_if PROTOBUF_LITE
 }

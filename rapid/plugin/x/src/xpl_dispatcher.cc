@@ -21,8 +21,7 @@
 
 #include "admin_cmd_handler.h"
 #include "crud_cmd_handler.h"
-#include "expect.h"
-#include "ngs/interface/protocol_encoder_interface.h"
+#include "expect/expect_stack.h"
 #include "expr_generator.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/mysqlx/getter_any.h"

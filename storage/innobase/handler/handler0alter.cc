@@ -9483,7 +9483,6 @@ public:
 		const dd::Partition*	old_part,
 		dd::Partition*		new_part)
 	{
-		ut_ad(old_part->level() == new_part->level());
 		ut_ad(old_part->name() == new_part->name());
 
 		dd_copy_private<dd::Partition>(*new_part, *old_part);
@@ -9880,7 +9879,6 @@ alter_part_change::try_commit(
 {
 	ut_ad(old_part != nullptr);
 	ut_ad(new_part != nullptr);
-	ut_ad(old_part->level() == new_part->level());
 	ut_ad(old_part->name() == new_part->name());
 
 	dd_table_close(m_old, nullptr, nullptr, false);
@@ -10508,18 +10506,14 @@ alter_parts::prepare_or_commit_for_new(
 	TABLE*			altered_table,
 	bool			prepare)
 {
-	auto			oldp = old_dd_tab.partitions().begin();
+	auto			oldp = old_dd_tab.leaf_partitions().begin();
 	uint			new_part_id = 0;
 	uint			old_part_id = 0;
 	uint			drop_seq = 0;
 	const dd::Partition*	old_part = nullptr;
 	int			error = 0;
 
-	for (auto new_part : *new_dd_tab.partitions()) {
-
-		if (!dd_part_is_stored(new_part)) {
-			continue;
-		}
+	for (auto new_part : *new_dd_tab.leaf_partitions()) {
 
 		ut_ad(new_part_id < m_news.size());
 
@@ -10528,13 +10522,10 @@ alter_parts::prepare_or_commit_for_new(
 		partition_state s = m_news[new_part_id]->state();
 		if (is_common_state(s)) {
 			bool	found = false;
-			for (; oldp != old_dd_tab.partitions().end() && !found;
+			for (; oldp != old_dd_tab.leaf_partitions().end() && !found;
 			     ++oldp) {
 				old_part = *oldp;
 
-				if (!dd_part_is_stored(old_part)) {
-					continue;
-				}
 
 				++old_part_id;
 				if (drop_seq < m_to_drop.size()
@@ -10560,7 +10551,7 @@ alter_parts::prepare_or_commit_for_new(
 		} else {
 			ut_ad(s == PART_TO_BE_ADDED);
 			/* Let's still set one to get the old table name */
-			old_part = *(old_dd_tab.partitions().begin());
+			old_part = *(old_dd_tab.leaf_partitions().begin());
 		}
 
 		alter_part*	alter_part = m_news[new_part_id];
@@ -10612,15 +10603,14 @@ alter_parts::prepare_or_commit_for_old(
 	bool			prepare)
 {
 	uint		old_part_id = 0;
-	auto		dd_part = old_dd_tab.partitions().begin();
+	auto		dd_part = old_dd_tab.leaf_partitions().begin();
 	int		error = 0;
 
 	for (alter_part* alter_part : m_to_drop) {
 		const dd::Partition*	old_part = nullptr;
 
-		for (; dd_part != old_dd_tab.partitions().end(); ++dd_part) {
-			if (!dd_part_is_stored(*dd_part)
-			    || old_part_id++ < alter_part->part_id()) {
+		for (; dd_part != old_dd_tab.leaf_partitions().end(); ++dd_part) {
+			if (old_part_id++ < alter_part->part_id()) {
 				continue;
 			}
 
@@ -10856,14 +10846,10 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*	save_data_file_name =
 		ha_alter_info->create_info->data_file_name;
 
-	auto	oldp = old_table_def->partitions().begin();
-	auto	newp = new_table_def->partitions()->begin();
+	auto	oldp = old_table_def->leaf_partitions().begin();
+	auto	newp = new_table_def->leaf_partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
-		if (!dd_part_is_stored(*newp)) {
-			continue;
-		}
 
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		set_partition(i);
@@ -10872,7 +10858,6 @@ ha_innopart::prepare_inplace_alter_table(
 		dd::Partition*		new_part = *newp;
 		ut_ad(old_part != nullptr);
 		ut_ad(new_part != nullptr);
-		ut_ad(old_part->level() == new_part->level());
 		ut_ad(m_prebuilt->table->id == old_part->se_private_id());
 
 		ha_alter_info->handler_ctx = nullptr;
@@ -10960,14 +10945,10 @@ ha_innopart::inplace_alter_table(
 		return(false);
 	}
 
-	auto	oldp = old_table_def->partitions().begin();
-	auto	newp = new_table_def->partitions()->begin();
+	auto	oldp = old_table_def->leaf_partitions().begin();
+	auto	newp = new_table_def->leaf_partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
-		if (!dd_part_is_stored(*newp)) {
-			continue;
-		}
 
 		const dd::Partition*	old_part = *oldp;
 		dd::Partition*		new_part = *newp;
@@ -11072,22 +11053,14 @@ ha_innopart::commit_inplace_alter_table(
 end:
 	/* All are done successfully, now write back metadata to DD */
 	if (commit && !res) {
-		auto	oldp = old_table_def->partitions().begin();
-		auto	newp = new_table_def->partitions()->begin();
+		auto	oldp = old_table_def->leaf_partitions().begin();
+		auto	newp = new_table_def->leaf_partitions()->begin();
 
 		for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-			ut_ad(dd_part_is_stored(*oldp)
-			      == dd_part_is_stored(*newp));
-
-			if (!dd_part_is_stored(*newp)) {
-				continue;
-			}
-
 			const dd::Partition*	old_part = *oldp;
 			dd::Partition*		new_part = *newp;
 			ut_ad(old_part != nullptr);
 			ut_ad(new_part != nullptr);
-			ut_ad(old_part->level() == new_part->level());
 
 			ha_innobase_inplace_ctx*	ctx =
 				static_cast<ha_innobase_inplace_ctx*>(
@@ -11109,10 +11082,7 @@ end:
 #ifdef UNIV_DEBUG
 		if (!res) {
 			uint i = 0;
-			for (auto part : *new_table_def->partitions()) {
-				if (!dd_part_is_stored(part)) {
-					continue;
-				}
+			for (auto part : *new_table_def->leaf_partitions()) {
 				ha_innobase_inplace_ctx*	ctx =
 					static_cast<ha_innobase_inplace_ctx*>(
 						ctx_parts->ctx_array[i++]);
@@ -11482,10 +11452,7 @@ ha_innopart::exchange_partition_low(
 	/* Find the specified dd::Partition object */
 	uint		id = 0;
 	dd::Partition*	dd_part = nullptr;
-	for (auto part : *part_table->partitions()) {
-		if (!dd_part_is_stored(part)) {
-			continue;
-		}
+	for (auto part : *part_table->leaf_partitions()) {
 
 		ut_d(dict_table_t* table = m_part_share->get_table_part(id));
 		ut_ad(table->n_ref_count == 1);

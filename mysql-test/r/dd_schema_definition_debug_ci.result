@@ -257,7 +257,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 192	18	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
 193	19	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
 194	19	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-195	19	level	3	MYSQL_TYPE_TINY	0	0	1	3	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+195	19	parent_partition_id	3	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 196	19	number	4	MYSQL_TYPE_SHORT	0	0	1	5	5	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 197	19	name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
 198	19	engine	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
@@ -687,7 +687,7 @@ index_id	ordinal_position	column_id	length	order	hidden
 52	2	197	192	ASC	0
 53	4	193	NULL	ASC	1
 53	1	194	8	ASC	0
-53	2	195	1	ASC	0
+53	2	195	8	ASC	0
 53	3	196	2	ASC	0
 54	3	193	NULL	ASC	1
 54	1	198	192	ASC	0

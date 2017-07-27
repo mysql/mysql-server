@@ -46,10 +46,6 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 # Add runs of rpl and binlog test suites with additional
 # MTR or mysqld options in this section
 
-#relay-log-info-repository
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_relay --vardir=var-rpl_crash_safe_relay --do-suite=rpl --mysqld=--relay-log-info-repository=FILE  --no-skip
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master --vardir=var-rpl_crash_safe_master --do-suite=rpl --mysqld=--master-info-repository=FILE  --no-skip
-
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --debug-server --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
 perl mysql-test-run.pl --debug-server --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-mts-rpl_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip

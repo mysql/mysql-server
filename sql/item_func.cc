@@ -9563,6 +9563,26 @@ longlong Item_func_is_visible_dd_object::val_int()
 }
 
 
+/**
+  Get table statistics from dd::info_schema::Statistics_cache.
+
+  @param      args       List of parameters in following order,
+
+                         - Schema_name
+                         - Table_name
+                         - Engine_name
+                         - se_private_id
+                         - Hidden_table
+                         - Tablespace_se_private_data
+                         - Table_se_private_data (Used if stype is AUTO_INC)
+
+  @param      stype      Type of statistics that is requested
+
+  @param[out] null_value Marked true indicating NULL, if there is no value.
+
+  @returns ulonglong representing the statistics requested.
+*/
+
 static ulonglong get_statistics_from_cache(
                    Item** args,
                    dd::info_schema::enum_statistics_type stype,
@@ -9580,13 +9600,14 @@ static ulonglong get_statistics_from_cache(
   String *schema_name_ptr=args[0]->val_str(&schema_name);
   String *table_name_ptr=args[1]->val_str(&table_name);
   String *engine_name_ptr=args[2]->val_str(&engine_name);
-  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  bool skip_hidden_table= args[4]->val_int();
+  String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
   String *tbl_se_private_data_ptr= nullptr;
   if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
-    tbl_se_private_data_ptr= args[5]->val_str(&tbl_se_private_data);
+    tbl_se_private_data_ptr= args[6]->val_str(&tbl_se_private_data);
 
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
-      engine_name_ptr == nullptr)
+      engine_name_ptr == nullptr || skip_hidden_table)
   {
     *null_value= TRUE;
     DBUG_RETURN(0);

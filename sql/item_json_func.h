@@ -497,6 +497,8 @@ public:
   }
 
   bool val_json(Json_wrapper *wr) override;
+
+  bool eq(const Item *item, bool binary_cmp) const override;
 };
 
 /**

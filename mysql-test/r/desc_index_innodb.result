@@ -1316,16 +1316,15 @@ DROP TABLE b,bb;
 CREATE TABLE t1 (
 col_varchar_255_latin1_key varchar(255) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
-PRIMARY KEY (pk DESC),
+KEY (pk DESC),
 KEY k3 (col_varchar_255_latin1_key DESC)
 );
 INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
-('some',23), ('gbpmqht',22), ('the',21), ('good',20), ('zbycehdfocd',19),
-('k',18), ('f',17), ('g',16), ('w',15), ('u',14), ('one',13), ('ohdbyix',12),
-('n',11), ('his',10), ('c',9), ('how',8), ('e',7), ('look',6), ('of',5),
-('l',4), ('something',3), ('ycyoybhug',2), ('my',1);
-INSERT INTO t1(col_varchar_255_latin1_key, pk)
-SELECT col_varchar_255_latin1_key, pk+23 FROM t1;
+('l',4), ('something',3), ('ycyoybhug',2), ('l',5), ('my',1),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
+('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
 SELECT
 t1 . pk AS field1,
 t1 . pk AS field2
@@ -1335,95 +1334,34 @@ WHERE t1 . pk <> 4
 ORDER BY field1, field2 DESC;
 field1	field2
 1	1
-1	1
 2	2
-2	2
-3	3
 3	3
 5	5
 5	5
-6	6
-6	6
-7	7
-7	7
-8	8
-8	8
-9	9
-9	9
-10	10
-10	10
-11	11
-11	11
-12	12
-12	12
-13	13
-13	13
-14	14
-14	14
-15	15
-15	15
-16	16
-16	16
-17	17
-17	17
-18	18
-18	18
-19	19
-19	19
-20	20
-20	20
-21	21
-21	21
-22	22
-22	22
-23	23
-23	23
-24	24
-24	24
-25	25
-25	25
-26	26
-26	26
-27	27
-27	27
-28	28
-28	28
-29	29
-29	29
-30	30
-30	30
-31	31
-31	31
-32	32
-32	32
-33	33
-33	33
-34	34
-34	34
-35	35
-35	35
-36	36
-36	36
-37	37
-37	37
-38	38
-38	38
-39	39
-39	39
-40	40
-40	40
-41	41
-41	41
-42	42
-42	42
-43	43
-43	43
-44	44
-44	44
-45	45
-45	45
-46	46
-46	46
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
+5	5
 EXPLAIN SELECT
 t1 . pk AS field1,
 t1 . pk AS field2
@@ -1432,7 +1370,7 @@ ON  t1 . col_varchar_255_latin1_key =  t2 . col_varchar_255_latin1_key
 WHERE t1 . pk <> 4
 ORDER BY field1, field2 DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	#	#	Using where; Backward index scan
+1	SIMPLE	t1	NULL	range	pk	pk	4	NULL	#	#	Using index condition; Backward index scan
 1	SIMPLE	t2	NULL	ref	k3	k3	1023	test.t1.col_varchar_255_latin1_key	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1`,`test`.`t1`.`pk` AS `field2` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`col_varchar_255_latin1_key` = `test`.`t1`.`col_varchar_255_latin1_key`)) where (`test`.`t1`.`pk` <> 4) order by `field1`
@@ -1651,3 +1589,14 @@ a	b
 47	1
 15	1
 DROP TABLE t1;
+#
+# Bug #25899921: INCORRECT BEHAVIOR WITH DESC INDEX AND
+#                IMPOSSIBLE CONDITION
+#
+CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
+SET @g:='1';
+DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
+Warnings:
+Warning	1292	Incorrect date value: '1' for column 'b' at row 1
+DROP TABLE t1;
+# End of test for Bug#25899921

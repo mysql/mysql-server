@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
 #define ER_X_INVALID_COLLECTION          5156
 #define ER_X_INVALID_ADMIN_COMMAND       5157
 #define ER_X_EXPECT_NOT_OPEN             5158
-#define ER_X_EXPECT_FAILED               5159
+#define ER_X_EXPECT_NO_ERROR_FAILED      5159
 
 #define ER_X_EXPECT_BAD_CONDITION        5160
 #define ER_X_EXPECT_BAD_CONDITION_VALUE  5161
@@ -62,5 +62,6 @@
 #define ER_X_CANNOT_DISABLE_NOTICE       5164
 #define ER_X_BAD_CONFIGURATION           5165
 #define ER_X_MYSQLX_ACCOUNT_MISSING_PERMISSIONS 5167
+#define ER_X_EXPECT_FIELD_EXISTS_FAILED  5168
 
 #endif // _XPL_ERROR_H_

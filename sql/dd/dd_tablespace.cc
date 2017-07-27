@@ -114,6 +114,21 @@ fill_table_and_parts_tablespace_names(THD *thd,
       for (const dd::Partition_index *part_idx_obj : part_obj->indexes())
         if (get_and_store_tablespace_name(thd, part_idx_obj, tablespace_set))
           return true;
+
+      // Iterate through tablespace names used by subpartition/indexes.
+      for (const dd::Partition *sub_part_obj : part_obj->sub_partitions())
+      {
+        if (get_and_store_tablespace_name(thd, sub_part_obj, tablespace_set))
+          return true;
+
+        for (const dd::Partition_index *subpart_idx_obj :
+               sub_part_obj->indexes())
+          if (get_and_store_tablespace_name(thd,
+                                            subpart_idx_obj,
+                                            tablespace_set))
+            return true;
+      }
+
     }
   }
 

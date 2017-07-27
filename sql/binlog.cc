@@ -648,6 +648,42 @@ public:
     return flags.with_sbr || !flags.with_rbr;
   }
 
+  /**
+    Check if the binlog cache contains an empty transaction, which has
+    two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    /*
+      The empty transaction has two events in trx/stmt binlog cache
+      and no changes (no SBR changing content and no RBR events).
+      Other transaction should not have two events. So we can identify
+      if this is an empty transaction by the event counter and the
+      cache flags.
+    */
+    return (event_counter == 2 && // Two binlog events
+            !flags.with_sbr &&    // No statements changing content
+            !flags.with_rbr &&    // No rows changing content
+            !flags.immediate &&   // Not a DDL
+            !flags.with_xid);     // Not a XID transaction and not
+                                  // an atomic DDL Query-log-event
+  }
+
+  /**
+    Check if the binlog cache is empty or contains an empty transaction,
+    which has two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache is empty or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool is_empty_or_has_empty_transaction()
+  {
+    return is_binlog_empty() || has_empty_transaction();
+  }
+
 protected:
   /*
     This structure should have all cache variables/flags that should be restored
@@ -1014,6 +1050,23 @@ public:
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
     return 0;
+  }
+
+  /**
+    Check if at least one of transacaction and statement binlog caches
+    contains an empty transaction, other one is empty or contains an
+    empty transaction.
+
+    @return true  At least one of transacaction and statement binlog
+                  caches an empty transaction, other one is emptry
+                  or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    return (trx_cache.is_empty_or_has_empty_transaction() &&
+            stmt_cache.is_empty_or_has_empty_transaction() &&
+            !is_binlog_empty());
   }
 
   binlog_stmt_cache_data stmt_cache;
@@ -2998,6 +3051,21 @@ err:
   }
   DBUG_RETURN(-1);
 }
+
+
+bool is_empty_transaction_in_binlog_cache(const THD* thd)
+{
+  DBUG_ENTER("is_empty_transaction_in_binlog_cache");
+
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr != NULL && cache_mngr->has_empty_transaction())
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /** 
   This function checks if a transactional table was updated by the

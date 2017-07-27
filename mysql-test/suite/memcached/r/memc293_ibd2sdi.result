@@ -2271,7 +2271,7 @@ DROP TABLESPACE ts1;
 SET DEBUG = '-d, skip_sdi';
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
-SET GLOBAL tx_isolation = default;
+SET GLOBAL transaction_isolation = default;
 SET DEBUG = '+d, skip_sdi';
 DROP TABLE t3;
 SET DEBUG = '-d, skip_sdi';

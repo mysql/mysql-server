@@ -312,7 +312,6 @@ inline void set_attributes(dd::Table *obj, const dd::String_type &name,
 
   dd::Partition *part_obj= obj->add_partition();
   part_obj->set_name("table_part1");
-  part_obj->set_level(1);
   part_obj->set_number(2);
   part_obj->set_comment("Partition comment");
   part_obj->set_tablespace_id(1);

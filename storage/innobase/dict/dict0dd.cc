@@ -206,12 +206,13 @@ dd_table_open_on_dd_obj(
 		ut_ad(&dd_part->table() == &dd_table);
 		ut_ad(dd_table.se_private_id() == dd::INVALID_OBJECT_ID);
 		ut_ad(dd_table_is_partitioned(dd_table));
-		ut_ad(dd_part->level() == (dd_part->parent() != nullptr));
+
+		ut_ad(dd_part->parent_partition_id() == dd::INVALID_OBJECT_ID ||
+                      dd_part->parent() != nullptr);
+
 		ut_ad(((dd_part->table().subpartition_type()
 		       != dd::Table::ST_NONE)
 			  == (dd_part->parent() != nullptr)));
-		ut_ad(dd_part->parent() == nullptr
-		      || dd_part->parent()->level() == 0);
 	}
 
 	/* If this is a internal temporary table, it's impossible
@@ -408,9 +409,9 @@ dd_table_open_on_id_low(
 
 		/* Do more verification for partition table */
 		if (same_name && is_part) {
-			auto end = dd_table->partitions().end();
+			auto end = dd_table->leaf_partitions().end();
 			auto i = std::search_n(
-				dd_table->partitions().begin(), end, 1,
+				dd_table->leaf_partitions().begin(), end, 1,
 				table_id,
 				[](const dd::Partition* p, table_id_t id)
 				{
@@ -706,7 +707,7 @@ dd_table_discard_tablespace(
 	ut_ad(!srv_is_being_shutdown);
 
 	if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
-		ut_ad(table_def->table().partitions()->empty());
+		ut_ad(table_def->table().leaf_partitions()->empty());
 
 		/* For discarding, we need to set new private
 		id to dd_table */
@@ -848,10 +849,10 @@ dd_table_open_on_name(
 	} else {
 		if (dd_table->se_private_id() == dd::INVALID_OBJECT_ID) {
 			/* This must be a partitioned table. */
-			ut_ad(!dd_table->partitions().empty());
+			ut_ad(!dd_table->leaf_partitions().empty());
 			table = nullptr;
 		} else {
-			ut_ad(dd_table->partitions().empty());
+			ut_ad(dd_table->leaf_partitions().empty());
 			dd_table_open_on_dd_obj(
 				client, *dd_table, nullptr, name,
 				table, thd);
@@ -2910,7 +2911,7 @@ dd_table_get_space_name(
 	THD*			thd = current_thd;
 	const char*		space_name;
 
-	DBUG_ENTER("dd_tablee_get_space_name");
+	DBUG_ENTER("dd_table_get_space_name");
 	ut_ad(!srv_is_being_shutdown);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -4569,7 +4570,7 @@ dd_get_fts_tablespace_id(
 
 	} else if (table->space != TRX_SYS_SPACE
 		   && table->space != srv_tmp_space.space_id()) {
-		/* This is a user table that resides in shared tablesapce */
+		/* This is a user table that resides in shared tablespace */
 		ut_ad(!dict_table_is_file_per_table(table));
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 

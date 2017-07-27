@@ -3485,14 +3485,16 @@ bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
-  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()) &&
+      ! skip_hidden_table)
   {
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;
@@ -3544,14 +3546,16 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
   String *table_name_ptr= nullptr;
   String engine_name;
   String *engine_name_ptr= nullptr;
+  bool skip_hidden_table= args[4]->val_int();
   String ts_se_private_data;
-  String *ts_se_private_data_ptr= args[4]->val_str(&ts_se_private_data);
+  String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
   ulonglong unixtime= 0;
 
   if ((schema_name_ptr=args[0]->val_str(&schema_name)) != nullptr &&
       (table_name_ptr=args[1]->val_str(&table_name)) != nullptr &&
       (engine_name_ptr=args[2]->val_str(&engine_name)) != nullptr &&
-      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()))
+      ! is_infoschema_db(schema_name_ptr->c_ptr_safe()) &&
+      ! skip_hidden_table)
   {
     dd::Object_id se_private_id= (dd::Object_id) args[3]->val_uint();
     THD *thd= current_thd;

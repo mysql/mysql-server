@@ -799,7 +799,7 @@ srv_undo_tablespace_open(space_id_t space_id)
 	fil_node_t*		node = nullptr;
 
 	/* See if the previous name in the file map is correct. */
-	std::string	recover_name = fil_system_open_fetch(space_id); // KLTEST
+	std::string	recover_name = fil_system_open_fetch(space_id);
 	if (recover_name.length() != 0
 	    && !fil_paths_equal(file_name, recover_name.c_str())) {
 		/* Make sure that this space_id is used by the
