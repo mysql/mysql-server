@@ -812,6 +812,8 @@ trx_resurrect_locks()
 				if (trx->state == TRX_STATE_PREPARED) {
 					trx->mod_tables.insert(table);
 				}
+				DICT_TF2_FLAG_SET(
+				table, DICT_TF2_RESURRECT_PREPARED);
 
 				lock_table_ix_resurrect(table, trx);
 

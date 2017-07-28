@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "auth_common.h"                   // acl_init
+#include "auto_thd.h"                        // Auto_thd
 #include "binlog_event.h"
 #include "bootstrap.h"                     // bootstrap::bootstrap_functor
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
@@ -27,6 +28,7 @@
 #include "dd/dd_schema.h"                  // dd::Schema_MDL_locker
 #include "dd_sql_view.h"                   // update_referencing_views_metadata
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
+#include "dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
 #include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
@@ -596,4 +598,22 @@ bool drop_native_table(THD *thd, const char *schema_name, const char *table_name
                                                  table_name);
 }
 
+bool reset_tables_and_tablespaces()
+{
+  Auto_THD thd;
+  handlerton *ddse= ha_resolve_by_legacy_type(thd.thd ,DB_TYPE_INNODB);
+
+  // Acquire transactional metadata locks and evict all cached objects.
+  if (dd::cache::Shared_dictionary_cache::reset_tables_and_tablespaces(thd.thd))
+    return true;
+
+  // Evict all cached objects in the DD cache in the DDSE.
+  if (ddse->dict_cache_reset_tables_and_tablespaces != nullptr)
+    ddse->dict_cache_reset_tables_and_tablespaces();
+
+  // Release transactional metadata locks.
+  thd.thd->mdl_context.release_transactional_locks();
+
+  return false;
+}
 }

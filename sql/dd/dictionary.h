@@ -362,6 +362,18 @@ bool create_native_table(THD *thd, const Plugin_table *pt);
 
 bool drop_native_table(THD *thd, const char* schema_name, const char* table_name);
 
+
+/**
+  Reset the tables and tablespace partitions in the DD cache,
+  and invalidate the entries in the DDSE cache.
+
+  @note This is a temporary workaround to support proper recovery
+        after ha_recover().
+
+  @returns false on success, otherwise true.
+*/
+bool reset_tables_and_tablespaces();
+
 }
 
 #endif // DD__DICTIONARY_INCLUDED

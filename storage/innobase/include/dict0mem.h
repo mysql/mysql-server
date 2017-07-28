@@ -233,7 +233,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			10
+#define DICT_TF2_BITS			11
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -268,6 +268,9 @@ it is not created by user and so not visible to end-user. */
 
 /** FTS AUX hidden table bit. */
 #define DICT_TF2_AUX			512
+
+/** Table is opened by resurrected trx during crash recovery. */
+#define DICT_TF2_RESURRECT_PREPARED	1024
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\

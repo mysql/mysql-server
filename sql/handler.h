@@ -1612,6 +1612,15 @@ typedef void (*dict_cache_reset_t)(const char* schema_name,
                                    const char* table_name);
 
 
+/**
+  Invalidate all table and tablespace entries in the local dictionary cache.
+
+  Needed for recovery during server restart.
+ */
+
+typedef void (*dict_cache_reset_tables_and_tablespaces_t)();
+
+
 /** Mode for data dictionary recovery. */
 enum dict_recovery_mode_t
 {
@@ -1892,6 +1901,8 @@ struct handlerton
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
   dict_cache_reset_t dict_cache_reset;
+  dict_cache_reset_tables_and_tablespaces_t
+    dict_cache_reset_tables_and_tablespaces;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */

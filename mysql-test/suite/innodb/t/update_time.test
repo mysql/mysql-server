@@ -58,6 +58,7 @@ SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 XA COMMIT 'xatrx';
 
+# Table reset after XA commit, so update time should be NULL
 ANALYZE TABLE t;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
