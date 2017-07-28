@@ -874,10 +874,6 @@ dd_table_open_on_name(
 			if (strlen(part_buf) != 0) {
 				const dd::Partition*	dd_part = nullptr;
 				for (auto part : dd_table->leaf_partitions()) {
-					if (!dd_part_is_stored(part)) {
-						continue;
-					}
-
 					if (part->parent() != nullptr) {
 						ut_ad(strlen(sub_buf) != 0);
 						if (part->name() == sub_buf
