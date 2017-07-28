@@ -153,8 +153,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "dict0sdi.h"
 
+/** Stop printing warnings, if the count exceeds this threshold. */
+static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
+
 /** fil_space_t::flags for hard-coded tablespaces */
-static ulint			predefined_flags;
+static ulint	predefined_flags;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -3396,6 +3399,7 @@ boot_tablespaces(THD* thd)
 	const auto	fpt_str = dict_sys_t::file_per_table_name;
 	const auto	fpt_str_len = strlen(fpt_str);
 
+	size_t	moved = 0;
 	size_t	count = 0;
 	bool	print_msg = false;
 	auto	start_time = ut_time();
@@ -3406,7 +3410,16 @@ boot_tablespaces(THD* thd)
 
 		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
-			ib::info() << "Check " << count << " tablespaces";
+			if (moved == 0) {
+				ib::info()
+					<< "Checked " << count
+					<< " tablespaces";
+			} else {
+				ib::warn()
+					<< "Checked " << count
+					<< " tablespaces, moved count "
+					<< moved;
+			}
 
 			start_time = ut_time();
 
@@ -3502,14 +3515,26 @@ boot_tablespaces(THD* thd)
 
 			case Fil_path::MOVED:
 
+				filename = new_path.c_str();
+
+				++moved;
+
+				if (moved >= MOVED_FILES_PRINT_THRESHOLD) {
+
+					ib::warn()
+						<< "Too many files have"
+						<< " have been moved, disabling"
+						<< " logging of messages";
+
+					break;
+				}
+
 				ib::warn()
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
 					<< " has been moved to"
 					<< " '" << new_path << "'";
-
-				filename = new_path.c_str();
 
 				break;
 			}
