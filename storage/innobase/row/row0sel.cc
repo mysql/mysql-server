@@ -3199,8 +3199,8 @@ row_sel_store_mysql_rec(
 	const ulint*	offsets,
 	bool		clust_templ_for_sec)
 {
-	ulint			i;
-	std::vector<ulint>	template_col;
+	ulint				i;
+	std::vector<const dict_col_t*>	template_col;
 
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
@@ -3212,13 +3212,16 @@ row_sel_store_mysql_rec(
 	}
 
 	if (clust_templ_for_sec) {
-		/* Store all clustered index field of
+		/* Store all clustered index column of
 		secondary index record. */
 		for (i = 0; i < dict_index_get_n_fields(
 				prebuilt->index); i++) {
 			ulint	sec_field = dict_index_get_nth_field_pos(
 				index, prebuilt->index, i);
-			template_col.push_back(sec_field);
+			const dict_field_t*	field =
+					index->get_field(sec_field);
+			const dict_col_t*	col = field->col;
+			template_col.push_back(col);
 		}
 	}
 
@@ -3299,10 +3302,12 @@ row_sel_store_mysql_rec(
 
 		if (clust_templ_for_sec) {
 
-			std::vector<ulint>::iterator	it;
+			std::vector<const dict_col_t*>::iterator	it;
+			const dict_field_t*	field = index->get_field(i);
+			const dict_col_t*	col = field->col;
 
 			it = std::find(template_col.begin(),
-				       template_col.end(), field_no);
+				       template_col.end(), col);
 
 			if (it == template_col.end()) {
 				continue;
@@ -5153,6 +5158,11 @@ rec_loop:
 	}
 
 	if (page_rec_is_supremum(rec)) {
+
+		DBUG_EXECUTE_IF("compare_end_range",
+				if (end_loop < 100) {
+					end_loop = 100;
+				});
 
 		/** Compare the last record of the page with end range
 		passed to InnoDB when there is no ICP and number of
