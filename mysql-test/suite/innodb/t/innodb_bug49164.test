@@ -7,7 +7,7 @@ connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 connection con1;
-SET tx_isolation = 'READ-COMMITTED';
+SET transaction_isolation = 'READ-COMMITTED';
 
 CREATE TABLE bug49164 (a INT, b BIGINT, c TINYINT, PRIMARY KEY (a, b))
 ENGINE=InnoDB;
@@ -24,7 +24,7 @@ update bug49164 set c=7;
 
 connection con2;
 
-SET tx_isolation = 'READ-COMMITTED'; 
+SET transaction_isolation = 'READ-COMMITTED';
 begin;
 select * from bug49164;
 commit;

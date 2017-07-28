@@ -1874,8 +1874,10 @@ lock_rec_add_to_queue(
 		ut_error;
 	}
 
-	if (!(type_mode & (LOCK_WAIT | LOCK_GAP))) {
-		lock_mode	mode = (type_mode & LOCK_MODE_MASK) == LOCK_S
+	if (!(type_mode & (LOCK_WAIT | LOCK_GAP))
+	    && trx->in_rw_trx_list) {
+		lock_mode	mode =
+			(type_mode & LOCK_MODE_MASK) == LOCK_S
 			? LOCK_X
 			: LOCK_S;
 		const lock_t*	other_lock
@@ -5938,7 +5940,8 @@ lock_rec_queue_validate(
 		if (lock->trx->in_rollback
 		    || lock->trx->lock.in_rollback
 		    || lock->trx->lock.was_chosen_as_deadlock_victim
-		    || lock->trx->error_state == DB_DEADLOCK) {
+		    || lock->trx->error_state == DB_DEADLOCK
+		    || !(lock->trx->in_rw_trx_list)) {
 
 			return(true);
 		}
@@ -5959,7 +5962,8 @@ lock_rec_queue_validate(
 					lock->trx);
 
 			ut_a(!other_lock
-			     || other_lock->trx->lock.in_rollback);
+			     || other_lock->trx->lock.in_rollback
+			     || !(other_lock->trx->in_rw_trx_list));
 
 		} else if (lock->is_waiting() && !lock->is_gap()) {
 
@@ -7244,6 +7248,7 @@ lock_trx_release_locks(
 
 	/* Don't take lock_sys mutex if trx didn't acquire any lock. */
 	if (release_lock) {
+		DEBUG_SYNC_C("before_lock_trx_release_locks");
 
 		/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 		is protected by both the lock_sys->mutex and the trx->mutex. */

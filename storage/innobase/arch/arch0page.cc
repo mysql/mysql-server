@@ -380,10 +380,10 @@ Arch_Block::end_write()
 bool
 Arch_Block::add_page(
 	buf_page_t*	page,
-	Arch_Page_Pos*    pos)
+	Arch_Page_Pos*	pos)
 {
-	ib_uint32_t	space_id;
-	ib_uint32_t	page_num;
+	space_id_t	space_id;
+	page_no_t	page_num;
 	byte*		data_ptr;
 
 	ut_ad(pos->m_offset <= ARCH_PAGE_BLK_SIZE);

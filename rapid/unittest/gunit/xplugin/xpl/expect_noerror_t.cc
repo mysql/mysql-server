@@ -17,7 +17,8 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "expect.h"
+#include "expect/expect.h"
+#include "expect/expect_stack.h"
 #include "ngs/error_code.h"
 #include "ngs_common/protocol_protobuf.h"
 #include "xpl_error.h"
@@ -116,13 +117,13 @@ namespace xpl
 
 #define EXPECT_ok_cmd() ASSERT_EQ(success, simulate_instruction(xs, 1, ngs::Error_code()))
 #define EXPECT_error_cmd() ASSERT_EQ(ngs::Error_code(1234, "whatever"), simulate_instruction(xs, 2, ngs::Error_code(1234, "whatever")))
-#define EXPECT_fail(exp) ASSERT_EQ(ngs::Error_code(ER_X_EXPECT_FAILED, "Expectation failed: " exp), simulate_instruction(xs, 3, ngs::Error_code()))
+#define EXPECT_fail(error_code, exp) ASSERT_EQ(ngs::Error_code(error_code, "Expectation failed: " exp), simulate_instruction(xs, 3, ngs::Error_code()))
 
 #define EXPECT_open_ok(msg) ASSERT_EQ(success, simulate_open(xs, msg))
-#define EXPECT_open_fail(msg, exp) ASSERT_EQ(ngs::Error_code(ER_X_EXPECT_FAILED, "Expectation failed: " exp), simulate_open(xs, msg))
+#define EXPECT_open_fail(msg, error_code, exp) ASSERT_EQ(ngs::Error_code(error_code, "Expectation failed: " exp), simulate_open(xs, msg))
 
 #define EXPECT_close_ok() ASSERT_EQ(success, simulate_close(xs))
-#define EXPECT_close_fail(exp) ASSERT_EQ(ngs::Error_code(ER_X_EXPECT_FAILED, "Expectation failed: " exp), simulate_close(xs))
+#define EXPECT_close_fail(error_code, exp) ASSERT_EQ(ngs::Error_code(error_code, "Expectation failed: " exp), simulate_close(xs))
 
 
     TEST(expect, plain)
@@ -164,11 +165,11 @@ namespace xpl
       // error command 2
       EXPECT_error_cmd();
       // now everything fails
-      EXPECT_fail("no_error");
-      EXPECT_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       // now close the block
-      EXPECT_close_fail("no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       // now commands should succeed again
       EXPECT_ok_cmd();
@@ -186,11 +187,11 @@ namespace xpl
         EXPECT_open_ok(Noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_ok_cmd();
       EXPECT_EQ(ngs::Error_code(ER_X_EXPECT_NOT_OPEN, "Expect block currently not open"), xs.close());
@@ -200,12 +201,12 @@ namespace xpl
       EXPECT_ok_cmd();
       EXPECT_error_cmd();
       {
-        EXPECT_open_fail(Noerror(), "no_error");
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_open_fail(Noerror(), ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_ok_cmd();
       EXPECT_EQ(ngs::Error_code(ER_X_EXPECT_NOT_OPEN, "Expect block currently not open"), xs.close());
@@ -217,11 +218,11 @@ namespace xpl
         EXPECT_open_ok(Inherit());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_ok_cmd();
     }
@@ -251,12 +252,12 @@ namespace xpl
       EXPECT_ok_cmd();
       EXPECT_error_cmd();
       {
-        EXPECT_open_fail(Plain(), "no_error");
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_open_fail(Plain(), ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_ok_cmd();
       EXPECT_EQ(ngs::Error_code(ER_X_EXPECT_NOT_OPEN, "Expect block currently not open"), xs.close());
@@ -268,11 +269,11 @@ namespace xpl
         EXPECT_open_ok(Inherit());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_open_ok(Noerror());
       EXPECT_ok_cmd();
@@ -280,11 +281,11 @@ namespace xpl
         EXPECT_open_ok(Inherit_and_add_noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_fail("no_error");
-      EXPECT_close_fail("no_error");
+      EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_open_ok(Noerror());
       EXPECT_ok_cmd();
@@ -312,8 +313,8 @@ namespace xpl
         EXPECT_open_ok(Noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
       EXPECT_ok_cmd();
       EXPECT_close_ok();
@@ -354,8 +355,8 @@ namespace xpl
         EXPECT_open_ok(Inherit_and_add_noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
       EXPECT_ok_cmd();
       EXPECT_close_ok();
@@ -373,10 +374,10 @@ namespace xpl
         EXPECT_open_ok(Inherit_and_add_noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
-      EXPECT_close_fail("no_error");
+      EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
 
       EXPECT_open_ok(Noerror());
       EXPECT_ok_cmd();
@@ -395,8 +396,8 @@ namespace xpl
         EXPECT_open_ok(Inherit_and_add_noerror());
         EXPECT_ok_cmd();
         EXPECT_error_cmd();
-        EXPECT_fail("no_error");
-        EXPECT_close_fail("no_error");
+        EXPECT_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
+        EXPECT_close_fail(ER_X_EXPECT_NO_ERROR_FAILED, "no_error");
       }
       EXPECT_close_ok();
 
@@ -439,28 +440,41 @@ namespace xpl
     class Expect_surprise : public xpl::Expect_condition
     {
     public:
-      Expect_surprise(bool v) : m_value(v) {}
-
-      virtual Expect_condition *copy()
+      Expect_surprise(const uint32_t k, const std::string &v)
+      : xpl::Expect_condition(k, ""),
+        m_surprise_value(v)
       {
-        Expect_surprise *exp = new Expect_surprise(m_value);
-        return exp;
       }
 
-      virtual ngs::Error_code check()
+      Expect_condition_ptr clone() override
       {
-        if (m_value)
-          return ngs::Error_code(1, "surprise");
-        return ngs::Error_code();
+        return Expect_condition_ptr{
+          new Expect_surprise(key(), m_surprise_value)
+        };
       }
 
-      void set(bool flag)
+      ngs::Error_code check_if_error() override
       {
-        m_value = flag;
+        const std::string valid_value = "true";
+
+        if (m_surprise_value == valid_value)
+          return {};
+
+        return ngs::Error_code(ER_X_EXPECT_NO_ERROR_FAILED, "");
+      }
+
+      void set(const std::string &flag)
+      {
+        m_surprise_value = flag;
+      }
+
+      const std::string &value() override
+      {
+        return m_surprise_value;
       }
 
     private:
-      bool m_value;
+      std::string m_surprise_value;
     };
 
 
@@ -468,22 +482,53 @@ namespace xpl
     {
       Expectation expect;
 
-      Expect_surprise *surp;
-      ASSERT_EQ(ngs::Error_code(), expect.check());
-      expect.add_condition(surp = new Expect_surprise(false));
-      surp->set_key(1234);
-      ASSERT_EQ(ngs::Error_code(), expect.check());
-      surp->set(true);
-      ASSERT_EQ(ngs::Error_code(1, "surprise"), expect.check());
+      Expect_surprise *surp = new Expect_surprise(1234, "false");
+      ASSERT_FALSE(expect.check_conditions());
+      expect.add_condition(std::unique_ptr<Expect_condition>{surp});
+      ASSERT_TRUE(expect.check_conditions());
+      surp->set("true");
+      ASSERT_FALSE(expect.check_conditions());
+      surp->set("false");
       {
         Expectation copy(expect);
 
-        ASSERT_EQ(ngs::Error_code(1, "surprise"), expect.check());
-        ASSERT_EQ(ngs::Error_code(1, "surprise"), copy.check());
-        expect.unset(1234);
-        ASSERT_EQ(ngs::Error_code(), expect.check());
-        ASSERT_EQ(ngs::Error_code(1, "surprise"), copy.check());
+        ASSERT_TRUE(expect.check_conditions());
+        ASSERT_TRUE(copy.check_conditions());
+        expect.unset(1234, "");
+        ASSERT_FALSE(expect.check_conditions());
+        ASSERT_TRUE(copy.check_conditions());
       }
+    }
+
+    TEST(expect, condition_unset)
+    {
+      const uint32_t expect_key = 1234u;
+      Expectation expect;
+
+      Expect_surprise *surp[4];
+
+      ASSERT_FALSE(expect.check_conditions());
+
+      for (int i = 0; i < 4; ++i) {
+        surp[i] = new Expect_surprise(expect_key, "true");
+
+        expect.add_condition(std::unique_ptr<Expect_condition>{surp[i]});
+      }
+
+      ASSERT_FALSE(expect.check_conditions());
+
+      surp[0]->set("false");
+      ASSERT_TRUE(expect.check_conditions());
+
+      const auto cond_value = surp[0]->value();
+      expect.unset(surp[0]->key(), cond_value);
+      ASSERT_FALSE(expect.check_conditions());
+      surp[1]->set("false");
+      ASSERT_TRUE(expect.check_conditions());
+
+      expect.unset(expect_key, "");
+      ASSERT_FALSE(expect.check_conditions());
+
     }
 
   } // namespace test

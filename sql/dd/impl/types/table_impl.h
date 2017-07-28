@@ -285,15 +285,22 @@ public:
   virtual Partition_collection *partitions()
   { return &m_partitions; }
 
+  virtual const Partition_leaf_vector &leaf_partitions() const
+  { return m_leaf_partitions; }
+
+  virtual Partition_leaf_vector *leaf_partitions()
+  { return &m_leaf_partitions; }
+
+  // non-virtual
+  void add_leaf_partition(Partition *p)
+  { m_leaf_partitions.push_back(p); }
+
   const Partition *get_partition(Object_id partition_id) const
   { return const_cast<Table_impl *> (this)->get_partition(partition_id); }
 
   Partition *get_partition(Object_id partition_id);
 
   Partition *get_partition(const String_type &name);
-
-  /** Find and set parent partitions for subpartitions. */
-  virtual void fix_partitions();
 
 
   // Fix "inherits ... via dominance" warnings
@@ -419,6 +426,7 @@ private:
   Index_collection m_indexes;
   Foreign_key_collection m_foreign_keys;
   Partition_collection m_partitions;
+  Partition_leaf_vector m_leaf_partitions;
   Trigger_collection m_triggers;
 
   // References to other objects.

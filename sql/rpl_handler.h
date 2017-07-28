@@ -180,10 +180,6 @@ public:
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
-private:
-  void prepare_table_info(THD* thd,
-                          Trans_table_info*& table_info_list,
-                          uint& number_of_tables);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -294,6 +290,7 @@ public:
                         const char *event_buf, ulong event_len,
                         bool synced);
   int after_reset_slave(THD *thd, Master_info *mi);
+  int applier_log_event(THD *thd, int& out);
 private:
   void init_param(Binlog_relay_IO_param *param, Master_info *mi);
 };

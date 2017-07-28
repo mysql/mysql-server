@@ -3265,7 +3265,7 @@ ib_sdi_open_table(
 
 	DBUG_EXECUTE_IF("ib_sdi",
 		if (err != DB_SUCCESS) {
-			ib::warn() << "Unable to open SDI dict table for tablesapce: " <<
+			ib::warn() << "Unable to open SDI dict table for tablespace: " <<
 				tablespace_id << " error returned is " << err;
 		}
 	);

@@ -115,7 +115,7 @@ Case 4: IS query under SERIALIZABLE ISOLATION + AUTO_COMMIT OFF
 DROP TABLE should success. If I_S query doesn't do non-locking read,
 then the DROP TABLE would block, waiting for innodb lock to be release
 until transaction is committed.
-SET TX_ISOLATION='SERIALIZABLE';
+SET TRANSACTION_ISOLATION='SERIALIZABLE';
 SET AUTOCOMMIT=0;
 LOCK TABLES t1 READ;
 SELECT COUNT(*) > 0 FROM information_schema.tables;
@@ -123,7 +123,7 @@ COUNT(*) > 0
 1
 DROP TABLE t2;
 UNLOCK TABLES;
-SET TX_ISOLATION=default;
+SET TRANSACTION_ISOLATION=default;
 SET AUTOCOMMIT=default;
 DROP TABLE t1, t3;
 DROP VIEW v1;

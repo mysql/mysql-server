@@ -4916,6 +4916,7 @@ innobase_commit(
 	DBUG_ENTER("innobase_commit");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 	DBUG_PRINT("trans", ("ending transaction"));
+	DEBUG_SYNC_C("transaction_commit_start");
 
 	trx_t*	trx = check_trx_exists(thd);
 
@@ -20701,13 +20702,13 @@ static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, innodb_max_dirty_pages_pct_update, 75.0, 0, 99.999, 0);
+  NULL, innodb_max_dirty_pages_pct_update, 90.0, 0, 99.999, 0);
 
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct_lwm,
   srv_max_dirty_pages_pct_lwm,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages at which flushing kicks in.",
-  NULL, innodb_max_dirty_pages_pct_lwm_update, 0, 0, 99.999, 0);
+  NULL, innodb_max_dirty_pages_pct_lwm_update, 10, 0, 99.999, 0);
 
 static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
   srv_adaptive_flushing_lwm,
@@ -20938,7 +20939,7 @@ static MYSQL_SYSVAR_ULONG(flush_neighbors, srv_flush_neighbors,
   " 1 (flush contiguous neighbors from buffer pool)"
   " or 2 (flush neighbors from buffer pool),"
   " when flushing a block",
-  NULL, NULL, 1, 0, 2, 0);
+  NULL, NULL, 0, 0, 2, 0);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
@@ -21644,12 +21645,6 @@ i_s_innodb_tablestats,
 i_s_innodb_indexes,
 i_s_innodb_tablespaces,
 i_s_innodb_columns,
-#ifdef INNODB_NO_NEW_DD
-i_s_innodb_fields,
-i_s_innodb_foreign,
-i_s_innodb_foreign_cols,
-i_s_innodb_datafiles,
-#endif /* INNODB_NO_NEW_DD */
 i_s_innodb_virtual,
 i_s_innodb_cached_indexes
 

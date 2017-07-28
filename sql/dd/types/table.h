@@ -41,6 +41,16 @@ public:
   typedef Collection<Partition*> Partition_collection;
   typedef Collection<Trigger*> Trigger_collection;
 
+  /*
+    The type Partition_collection object 'own' the Partition* object. That
+    means that the object Partition* would be deleted when the
+    Partition_collection is deleted. However the Partition_leaf_vector type
+    does not 'own' the Partition* object and points to one of element
+    owned by Partition_collection. Deleting Partition_leaf_vector will not
+    delete the Partition* objects pointed by it.
+  */
+  typedef std::vector<Partition*> Partition_leaf_vector;
+
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
   virtual bool update_aux_key(aux_key_type *key) const
@@ -221,12 +231,17 @@ public:
 
   virtual Partition_collection *partitions() = 0;
 
-  /**
-    Find and set parent partitions for subpartitions.
+  /*
+    This API to list only the leaf partition entries of a table. This depicts
+    the real physical partitions. In case of table with no sub-partitions,
+    this API returns list of all partitions. In case of table with
+    sub-partitions, the API lists only the sub-partition entries.
 
-    TODO: Adjust API and code to avoid need for this method.
+    @return Partition_leaf_vector  - List of pointers to dd::Partition objects.
   */
-  virtual void fix_partitions() = 0;
+  virtual const Partition_leaf_vector &leaf_partitions() const = 0;
+
+  virtual Partition_leaf_vector *leaf_partitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Trigger collection.

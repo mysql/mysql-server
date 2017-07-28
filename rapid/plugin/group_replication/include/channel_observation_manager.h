@@ -43,6 +43,9 @@ public:
                                 unsigned long event_len,
                                 uint32 flags)= 0;
   virtual int after_reset_slave(Binlog_relay_IO_param *param)= 0;
+  virtual int applier_log_event(Binlog_relay_IO_param *param,
+                                Trans_param *trans_param,
+                                int& out)= 0;
 };
 
 /*

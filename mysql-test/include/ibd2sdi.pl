@@ -147,7 +147,7 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/g;
 
     # Remove se_private_data: id & trx_id output. retain the root page number value
-    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=X;root=Y;trx_id=Z"/g;
+    $_=~ s/("se_private_data":) "id=[0-9]+;root=[0-9]+;trx_id=[0-9]+;"/$1 "id=A;root=B;trx_id=C"/g;
 
     # Remove se_private_data: table_id.
     $_=~ s/("se_private_data":) "table_id=[0-9]+;"/$1 "table_id=X"/g;

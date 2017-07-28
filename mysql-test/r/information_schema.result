@@ -1152,8 +1152,8 @@ table_schema='information_schema' AND
  OR column_type = 'varchar(30)')
 GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
-varchar(7)	information_schema.VIEWS	1
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
+varchar(7)	information_schema.INNODB_TABLESPACE_BRIEF,information_schema.VIEWS	2
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;

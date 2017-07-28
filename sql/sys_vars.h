@@ -2160,10 +2160,16 @@ public:
 };
 
 
-class Sys_var_tx_isolation: public Sys_var_enum
+/**
+  Class representing the 'transaction_isolation' system variable. This
+  variable can also be indirectly set using 'SET TRANSACTION ISOLATION
+  LEVEL'.
+*/
+
+class Sys_var_transaction_isolation: public Sys_var_enum
 {
 public:
-  Sys_var_tx_isolation(const char *name_arg,
+  Sys_var_transaction_isolation(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
@@ -2185,12 +2191,12 @@ public:
   only.
 */
 
-class Sys_var_tx_read_only: public Sys_var_bool
+class Sys_var_transaction_read_only: public Sys_var_bool
 {
 public:
-  Sys_var_tx_read_only(const char *name_arg, const char *comment, int flag_args,
-                       ptrdiff_t off, size_t size, CMD_LINE getopt,
-                       bool def_val, PolyLock *lock,
+  Sys_var_transaction_read_only(const char *name_arg, const char *comment,
+                       int flag_args, ptrdiff_t off, size_t size,
+                       CMD_LINE getopt, bool def_val, PolyLock *lock,
                        enum binlog_status_enum binlog_status_arg,
                        on_check_function on_check_func)
     :Sys_var_bool(name_arg, comment, flag_args, off, size, getopt,

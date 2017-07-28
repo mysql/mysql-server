@@ -812,7 +812,6 @@ ulong slow_start_timeout;
 
 bool opt_initialize= 0;
 bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
-bool opt_reckless_slave = 0;
 bool opt_enable_named_pipe= 0;
 bool opt_local_infile, opt_slave_compressed_protocol;
 bool opt_safe_user_create = 0;
@@ -1082,7 +1081,7 @@ MY_LOCALE *my_default_lc_time_names;
 
 SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
-SHOW_COMP_OPTION have_crypt, have_compress;
+SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 
@@ -6720,14 +6719,14 @@ struct my_option my_long_options[]=
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   {"transaction-isolation", 0,
    "Default transaction isolation level.",
-   &global_system_variables.tx_isolation,
-   &global_system_variables.tx_isolation, &tx_isolation_typelib,
+   &global_system_variables.transaction_isolation,
+   &global_system_variables.transaction_isolation, &tx_isolation_typelib,
    GET_ENUM, REQUIRED_ARG, ISO_REPEATABLE_READ, 0, 0, 0, 0, 0},
   {"transaction-read-only", 0,
    "Default transaction access mode. "
    "True if transactions are read-only.",
-   &global_system_variables.tx_read_only,
-   &global_system_variables.tx_read_only, 0,
+   &global_system_variables.transaction_read_only,
+   &global_system_variables.transaction_read_only, 0,
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -7774,7 +7773,7 @@ To see what values a running MySQL server is using, type\n\
 static int mysql_init_variables()
 {
   /* Things reset to zero */
-  opt_skip_slave_start= opt_reckless_slave = 0;
+  opt_skip_slave_start= 0;
   mysql_home[0]= pidfile_name[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_general_log= opt_slow_log= false;
@@ -7883,11 +7882,6 @@ static int mysql_init_variables()
 
   have_rtree_keys=SHOW_OPTION_YES;
 
-#ifdef HAVE_CRYPT
-  have_crypt=SHOW_OPTION_YES;
-#else
-  have_crypt=SHOW_OPTION_NO;
-#endif
   /* Always true */
   have_compress= SHOW_OPTION_YES;
 #ifdef HAVE_OPENSSL
@@ -8083,7 +8077,7 @@ mysqld_get_one_option(int optid,
     break;
   case 'a':
     global_system_variables.sql_mode= MODE_ANSI;
-    global_system_variables.tx_isolation= ISO_SERIALIZABLE;
+    global_system_variables.transaction_isolation= ISO_SERIALIZABLE;
     break;
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,6 +17,8 @@
  * 02110-1301  USA
  */
 syntax = "proto2";
+
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
@@ -49,9 +51,12 @@ message StmtExecute {
   required bytes stmt = 1;
   repeated Mysqlx.Datatypes.Any args = 2;
   optional bool compact_metadata = 4 [ default = false ];
+
+  option (client_message_id) = SQL_STMT_EXECUTE; // comment_out_if PROTOBUF_LITE
 }
 
 // statement executed successful
 message StmtExecuteOk {
+  option (server_message_id) = SQL_STMT_EXECUTE_OK; // comment_out_if PROTOBUF_LITE
 }
 

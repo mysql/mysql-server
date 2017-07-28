@@ -113,6 +113,7 @@ Database: information_schema
 | INNODB_METRICS                        |
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
+| INNODB_TABLESPACE_BRIEF               |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |
@@ -177,6 +178,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_METRICS                        |
 | INNODB_TABLES                         |
 | INNODB_TABLESPACES                    |
+| INNODB_TABLESPACE_BRIEF               |
 | INNODB_TABLESTATS                     |
 | INNODB_TEMP_TABLE_INFO                |
 | INNODB_TRX                            |

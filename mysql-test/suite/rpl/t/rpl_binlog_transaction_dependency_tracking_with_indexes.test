@@ -220,7 +220,7 @@ while ($explicit_pk < 2)
         COMMIT;
 
         --echo # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-        if ($pk)  { --let $logical_timestamps= 0 2
+        if ($pk)  { --let $logical_timestamps= 1 2
         }
         if (!$pk) { --let $logical_timestamps= 1 2
         }
@@ -232,9 +232,9 @@ while ($explicit_pk < 2)
         DELETE FROM t1 WHERE a = 2;
 
         --echo # now t1 contains one row: (1, 1, 1)
-        if ($pk)  { --let $logical_timestamps= 0 3;2 4
+        if ($pk)  { --let $logical_timestamps= 1 3;2 4
         }
-        if (!$pk) { --let $logical_timestamps= 0 3;3 4
+        if (!$pk) { --let $logical_timestamps= 1 3;3 4
         }
         --source include/assert_logical_timestamps.inc
 
@@ -245,12 +245,12 @@ while ($explicit_pk < 2)
 
         --echo # now t1 contains one row: (1, 2, 2)
         if ($pk) {
-          if ($unique)  { --let $logical_timestamps= 0 5;4 6
+          if ($unique)  { --let $logical_timestamps= 1 5;4 6
           }
-          if (!$unique) { --let $logical_timestamps= 0 5;1 6
+          if (!$unique) { --let $logical_timestamps= 1 5;1 6
           }
         }
-        if (!$pk) { --let $logical_timestamps= 0 5;5 6
+        if (!$pk) { --let $logical_timestamps= 1 5;5 6
         }
         --source include/assert_logical_timestamps.inc
 
@@ -261,7 +261,7 @@ while ($explicit_pk < 2)
           INSERT INTO t1 VALUES (3, NULL, 2);
 
           --echo # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-          if ($pk)  { --let $logical_timestamps= 0 7
+          if ($pk)  { --let $logical_timestamps= 1 7
           }
           if (!$pk) { --let $logical_timestamps= 6 7
           }
@@ -273,9 +273,9 @@ while ($explicit_pk < 2)
           INSERT INTO t1 VALUES (4, NULL, 2);
 
           --echo # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-          if ($pk)  { --let $logical_timestamps= 0 8;0 9
+          if ($pk)  { --let $logical_timestamps= 1 8;1 9
           }
-          if (!$pk) { --let $logical_timestamps= 0 8;8 9
+          if (!$pk) { --let $logical_timestamps= 1 8;8 9
           }
           --source include/assert_logical_timestamps.inc
 
@@ -285,9 +285,9 @@ while ($explicit_pk < 2)
           DELETE FROM t1 WHERE a = 3;
 
           --echo # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-          if ($pk) {  --let $logical_timestamps= 0 10;7 11
+          if ($pk) {  --let $logical_timestamps= 1 10;7 11
           }
-          if (!$pk) { --let $logical_timestamps= 0 10;10 11
+          if (!$pk) { --let $logical_timestamps= 1 10;10 11
           }
           --source include/assert_logical_timestamps.inc
 
