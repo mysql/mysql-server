@@ -9152,7 +9152,7 @@ Tablespace_dirs::tokenize_paths(
 
 	using type = Paths::value_type;
 
-	std::sort(dirs.begin(), dirs.end(), [](const type& lhs, type& rhs)
+	std::sort(dirs.begin(), dirs.end(), [](const type& lhs, const type& rhs)
 	{
 		return(lhs.second < rhs.second);
 	});
