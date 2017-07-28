@@ -674,4 +674,10 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type
 print an informative message. Type should be return type of ut_time(). */
 static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
 
+#ifdef _WIN32
+constexpr char PARTITION_SEPARATOR[4] = "#p#";
+#else
+constexpr char PARTITION_SEPARATOR[4] = "#P#";
+#endif /* _WIN32 */
+
 #endif

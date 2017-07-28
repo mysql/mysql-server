@@ -6551,9 +6551,6 @@ ha_innobase::open(
 	char*			is_part = NULL;
 	bool			cached = false;
 
-	/** Partition separator */
-	extern const char	part_sep[4];
-
 	DBUG_ENTER("ha_innobase::open");
 	DBUG_ASSERT(table_share == table->s);
 
@@ -6574,7 +6571,7 @@ ha_innobase::open(
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. */
-	is_part = strstr(norm_name, part_sep);
+	is_part = strstr(norm_name, PARTITION_SEPARATOR);
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
