@@ -334,11 +334,9 @@ dict_build_index_def(
 	index->trx_id = trx->id;
 }
 
-
-/***************************************************************//**
-Creates an index tree for the index if it is not a member of a cluster.
+/** Creates an index tree for the index if it is not a member of a cluster.
 @param[in,out]	index	InnoDB index object
-@param[in]	trx	transaction
+@param[in,out]	trx	transaction
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree_in_mem(

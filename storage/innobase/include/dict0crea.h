@@ -80,13 +80,13 @@ dict_build_index_def(
 					handle */
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
-Don't update SYSTEM TABLES.
+@param[in,out]	index	InnoDB index object
+@param[in,out]	trx	transaction
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree_in_mem(
-/*==========================*/
-	dict_index_t*	index,		/*!< in/out: index */
-	trx_t*		trx);		/*!< in: InnoDB transaction handle */
+	dict_index_t*	index,
+	trx_t*		trx);
 
 /** Drop an index tree belonging to a temporary table.
 @param[in]	index		index in a temporary table

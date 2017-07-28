@@ -2055,8 +2055,9 @@ trx_commit_in_memory(
 			/* Do nothing yet */
 			trx->must_flush_log_later = true;
 
-			/* if we need to flush log later, we must
-			remember the DDL operation */
+			/* Remember current ddl_operation, because trx_init()
+			later will set ddl_operation to false. And the final
+			flush is even later. */
 			trx->ddl_must_flush = trx->ddl_operation;
 		} else if ((srv_flush_log_at_trx_commit == 0
 			    || thd_requested_durability(trx->mysql_thd)

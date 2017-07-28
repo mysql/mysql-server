@@ -2493,7 +2493,7 @@ public:
 	@param[in]	metadata	metadata to serialize
 	@param[out]	buffer		buffer to store the serialized metadata
 	@return the length of serialized metadata */
-	ulint write(
+	size_t write(
 		PersistentTableMetadata&metadata,
 		byte*			buffer);
 
