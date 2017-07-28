@@ -63,12 +63,29 @@ The tablespace memory cache */
 #include <list>
 #include <array>
 #include <mutex>
+#include <tuple>
 #include <thread>
 #include <functional>
 #include <unordered_map>
 
 using Dirs = std::vector<std::string>;
-using Duplicates = std::set<space_id_t>;
+using Space_id_set = std::set<space_id_t>;
+
+/** Used for collecting the data in boot_tablespaces() */
+namespace dd_fil {
+
+	static const size_t OBJECT_ID = 0;
+	static const size_t OLD_PATH = 2;
+	static const size_t NEW_PATH = 3;
+
+	using Moved = std::tuple<
+		dd::Object_id, space_id_t, std::string, std::string>;
+
+	using Tablespaces = std::vector<Moved>;
+}
+
+/* uint16_t is the index into Tablespace_dirs::m_dirs */
+using Scanned_files = std::vector<std::pair<uint16_t, std::string>>;
 
 #ifdef UNIV_PFS_IO
 mysql_pfs_key_t  innodb_tablespace_open_file_key;
@@ -219,83 +236,194 @@ struct Char_Ptr_Compare {
 	}
 };
 
+/** Tablespace files disovered during startup. */
 class Tablespace_files {
 public:
 	using Names = std::vector<std::string, ut_allocator<std::string>>;
 	using Paths = std::unordered_map<space_id_t, Names>;
 
-	/** Default constructor */
-	Tablespace_files() : m_paths() { }
+	/** Default constructor
+	@param[in]	dir		Directory that the files are under */
+	explicit Tablespace_files(const std::string& dir);
 
 	/** Add a space ID to filename mapping.
 	@param[in]	space_id	Tablespace ID
 	@param[in]	name		File name.
 	@return number of files that map to the space ID */
-	static size_t add(space_id_t space_id, const std::string& name)
-	{
-		auto&	names = s_instance->m_paths[space_id];
-
-		names.push_back(name);
-
-		return(names.size());
-	}
+	size_t add(space_id_t space_id, const std::string& name)
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Get the file names that map to a space ID
 	@param[in]	space_id	Tablespace ID
 	@return the filenames that map to space id */
-	static Names* find(space_id_t space_id)
+	Names* find(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
 	{
-		auto	it = s_instance->m_paths.find(space_id);
+		ut_ad(space_id != TRX_SYS_SPACE);
 
-		if (it != s_instance->m_paths.end()) {
-			return(&it->second);
+		if (dict_sys_t::is_reserved(space_id)
+		    && space_id != dict_sys_t::space_id) {
+
+			auto	it = m_undo_paths.find(space_id);
+
+			if (it != m_undo_paths.end()) {
+				return(&it->second);
+			}
+
+		} else {
+
+			auto	it = m_ibd_paths.find(space_id);
+
+			if (it != m_ibd_paths.end()) {
+				return(&it->second);
+			}
 		}
 
 		return(nullptr);
 	}
 
 	/** Remove the entry for the space ID.
-	@param[in]	space_id	Tablespace ID mapping to remove */
-	static void erase(space_id_t space_id)
+	@param[in]	space_id	Tablespace ID mapping to remove
+	@return true if erase successful */
+	bool erase(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
 	{
-		auto	n_erased = s_instance->m_paths.erase(space_id);
+		ut_ad(space_id != TRX_SYS_SPACE);
 
-		ut_a(n_erased == 1);
-	}
+		if (dict_sys_t::is_reserved(space_id)
+		    && space_id != dict_sys_t::space_id) {
 
-	/** Create a new instance. */
-	static void create()
-	{
-		ut_a(s_instance == nullptr);
-		s_instance = UT_NEW_NOKEY(Tablespace_files());
-	}
+			auto	n_erased = m_undo_paths.erase(space_id);
 
-	/** Delete the instance. */
-	static void destroy()
-	{
-		if (s_instance != nullptr) {
-			UT_DELETE(s_instance);
-			s_instance = nullptr;
+			return(n_erased == 1);
+		} else {
+			auto	n_erased = m_ibd_paths.erase(space_id);
+
+			return(n_erased == 1);
 		}
+
+		return(false);
 	}
 
-	/** @return the class singleton instance. */
-	static Tablespace_files* instance()
+	/** Clear all the tablespace data. */
+	void clear()
 	{
-		return(s_instance);
+		m_ibd_paths.clear();
+	}
+
+	/** @return the real path of the directory searched. */
+	const std::string& real_path() const
+	{
+		return(m_real_path);
 	}
 
 private:
-	/** Mapping from tablespace ID to filenames */
-	Paths				m_paths;
+	/** Mapping from tablespace ID to data filenames */
+	Paths				m_ibd_paths;
 
-	/** Singleton instance of this class. */
-	static Tablespace_files*	s_instance;
+	/** Mapping from tablespace ID to Undo files */
+	Paths				m_undo_paths;
+
+	/** Real path of directory that was scanned. */
+	const std::string		m_real_path;
 };
 
-/** Tablespace ID to filename mapping that was recovered by scanning the
-directories. */
-Tablespace_files*	Tablespace_files::s_instance;
+/** Directories scanned during startup and the files discovered. */
+class Tablespace_dirs {
+public:
+	/** Constructor */
+	Tablespace_dirs() : m_dirs() { }
+
+	/** Discover tablespaces by reading the header from .ibd files.
+	@param[in]	directories	Directories to scan
+	@return DB_SUCCESS if all goes well */
+	dberr_t scan(const std::string& directories)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Clear all the tablespace data. */
+	void clear()
+	{
+		for (auto& elem : m_dirs) {
+			elem.second.clear();
+		}
+	}
+
+	/** Erase a space ID to filename mapping.
+	@param[in]	space_id	Tablespace ID to erase
+	@return true if successful */
+	bool erase(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		for (auto& elem : m_dirs) {
+
+			auto&	dir = elem.second;
+
+			if (dir.erase(space_id)) {
+
+				return(true);
+			}
+		}
+
+		return(false);
+	}
+
+	/* Find the first matching space ID -> name mapping.
+	@param[in]	space_id	Tablespace ID
+	@return filename that maps to the space ID */
+	Tablespace_files::Names* find(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		for (auto& elem : m_dirs) {
+
+			auto&		dir = elem.second;
+			const auto	names = dir.find(space_id);
+
+			if (names != nullptr) {
+				return(names);
+			}
+		}
+
+		return(nullptr);
+	}
+
+private:
+	/** Print the duplicate filenames for a tablespce ID to the log
+	@param[in]	duplicates	Duplicate tablespace IDs*/
+	void print_duplicates(const Space_id_set&  duplicates);
+
+private:
+	using Scanned = std::vector<std::pair<std::string, Tablespace_files>>;
+
+	/** Tokenize a path specification. Convert relative paths to
+	absolute paths. Check if the paths are valid and filter out
+	invalid or unreadable directories.  Sort and filter out duplicates
+	from dirs.
+	@param[in]	str		Path specification to tokenize
+	@param[out]	dirs		Parsed directory paths
+	@param[in]	delimiters	Delimiters */
+	void tokenize_paths(
+		const std::string&	str,
+		const std::string&	delimiters);
+
+	using const_iter = Scanned_files::const_iterator;
+
+	/** Check for duplicate tablespace IDs.
+	@param[in,out]	mutex		Mutex protecting the global state
+	@param[in]	begin		Start of slice
+	@param[in]	end		End of slice
+	@param[in,out]	unique		To check for duplciates
+	@param[in,out]	duplicates	Duplicate space IDs found */
+	void duplicate_check(
+		std::mutex*		mutex,
+		const const_iter&	begin,
+		const const_iter&	end,
+		Space_id_set*		unique,
+		Space_id_set*		duplicates);
+
+private:
+	/** Directories scanned and the files discovered under them. */
+	Scanned			m_dirs;
+};
 
 /** Determine if user has explicitly disabled fsync(). */
 #ifndef _WIN32
@@ -304,7 +432,7 @@ Tablespace_files*	Tablespace_files::s_instance;
 	 && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
-#endif /* __WIN32 */
+#endif /* _WIN32 */
 
 class Fil_shard {
 
@@ -817,6 +945,48 @@ public:
 	/** Destructor */
 	~Fil_system();
 
+	/** Fetch the file names opened for a space_id during recovery.
+	@param[in]	space_id	Tablespace ID to lookup
+	@return names that map to space_id or nullptr if not found */
+	Tablespace_files::Names* get_scanned_files(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(s_dirs.find(space_id));
+	}
+
+	/** Fetch the file name opened for a space_id during recovery
+	from the file map.
+	@param[in]	space_id	Undo tablespace ID
+	@return file name that was opened, empty string if space ID
+		not found. */
+	std::string find(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		auto	names = get_scanned_files(space_id);
+
+		if (names != nullptr) {
+			return(names->front());
+		}
+
+		return("");
+	}
+
+	/** Erase a tablespace ID and its mapping from the scanned files.
+	@param[in]	space_id	Tablespace ID to erase
+	@return true if successful */
+	bool erase(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(s_dirs.erase(space_id));
+	}
+
+	/** Free the Tablespace_files instance.
+	@param[in]	read_only_mode	true if InnoDB is started in
+					read only mode.
+	@return DB_SUCCESS if all OK */
+	dberr_t open_for_business(bool read_only_mode)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** Flush to disk the writes in file spaces of the given type
 	possibly cached by the OS.
 	@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG,
@@ -963,11 +1133,55 @@ public:
 		return(m_max_assigned_id);
 	}
 
+	/** Lookup the tablespace ID.
+	@param[in]	space_i		Tablespace ID to lookup
+	@return true if the space ID is known. */
+	bool lookup_for_recovery(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Open a tablespace that has a redo log record to apply.
+	@param[in]	space_id		Tablespace ID
+	@return true if the open was successful */
+	bool open_for_recovery(space_id_t space_id)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** This function should be called after recovery has completed.
+	Check for tablespace files for which we did not see any MLOG_FILE_DELETE
+	or MLOG_FILE_RENAME record. These could not be recovered.
+	@return true if there were some filenames missing for which we had to
+		ignore redo log records during the apply phase */
+	bool check_missing_tablespaces()
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Note that a file has been relocated.
+	@param[in]	object_id	Server DD tablespace ID
+	@param[in]	space_id	InnoDB tablespace ID
+	@param[in]	old_path	Path to the old location
+	@param[in]	new_path	Path scanned from disk */
+	void moved(
+		dd::Object_id		object_id,
+		space_id_t		space_id,
+		const std::string&	old_path,
+		const std::string&	new_path)
+	{
+		auto	tuple = std::make_tuple(
+			object_id, space_id, old_path, new_path);
+
+		m_moved.push_back(tuple);
+	}
+
 	/** Determines if a file belongs to the least-recently-used list.
 	@param[in]	space		Tablespace to check
 	@return true if the file belongs to fil_system->m_LRU mutex. */
 	static bool space_belongs_in_LRU(const fil_space_t* space)
 		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Scan the directories to build the tablespace ID to file name
+	mapping table. */
+	static dberr_t scan(const std::string& directories)
+	{
+		return(s_dirs.scan(directories));
+	}
 
 #ifdef UNIV_DEBUG
 	/** Validate a shard
@@ -1079,6 +1293,13 @@ private:
 	potential space_id reuse */
 	bool			m_space_id_reuse_warned;
 
+	/** List of tablespaces that have been relocated. We need to
+	update the DD when it is safe to do so. */
+	dd_fil::Tablespaces	m_moved;
+
+	/** Tablespace directories scanned at startup */
+	static Tablespace_dirs	s_dirs;
+
 	// Disable copying
 	Fil_system(Fil_system&&) = delete;
 	Fil_system(const Fil_system&) = delete;
@@ -1090,6 +1311,9 @@ private:
 /** The tablespace memory cache. This variable is nullptr before the module is
 initialized. */
 static Fil_system*	fil_system = nullptr;
+
+/** Directories scanned on startup and the Tablespaces contained within. */
+Tablespace_dirs		Fil_system::s_dirs;
 
 /** Total number of open files. */
 std::atomic_size_t	Fil_shard::s_n_open;
@@ -1431,6 +1655,42 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 	}
 
 	return(false);
+}
+
+/** Add a space ID to filename mapping.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		File name.
+@return number of files that map to the space ID */
+size_t
+Tablespace_files::add(space_id_t space_id, const std::string& name)
+{
+	ut_a(space_id != TRX_SYS_SPACE);
+
+	Names*	names;
+
+	if (fil_is_undo_tablespace_name(name.c_str(), name.length())) {
+
+		if (!dict_sys_t::is_reserved(space_id)) {
+
+			ib::warn()
+				<< "Tablespace '" << name << "' naming"
+				<< " format is like an undo tablespace"
+				<< " but its ID " << space_id << " is not"
+				<< " in the undo tablespace range";
+		}
+
+		names = &m_undo_paths[space_id];
+
+	} else {
+
+		ut_ad(fil_has_ibd_suffix(name.c_str()));
+
+		names = &m_ibd_paths[space_id];
+	}
+
+	names->push_back(name);
+
+	return(names->size());
 }
 
 /** Reads data from a space to a buffer. Remember that the possible incomplete
@@ -2881,10 +3141,6 @@ fil_init(ulint max_n_open)
 	ut_a(max_n_open > 0);
 
 	fil_system = UT_NEW_NOKEY(Fil_system(MAX_SHARDS, max_n_open));
-
-	if (Tablespace_files::instance() == nullptr) {
-		Tablespace_files::create();
-	}
 }
 
 /** Open all the system files.
@@ -3473,6 +3729,17 @@ fil_get_real_path(const char* dir, const std::string& filename = "")
 	return(std::string(abspath));
 }
 
+/** Constructor
+@param[in]	dir		Directory that the files are under */
+Tablespace_files::Tablespace_files(const std::string& dir)
+	:
+	m_ibd_paths(),
+	m_undo_paths(),
+	m_real_path(fil_get_real_path(dir.c_str()))
+{
+	/* No op */
+}
+
 /* Convert the paths into absolute paths and compare them.
 @param[in]	lhs		Filename to compare
 @param[in]	rhs		Filename to compare
@@ -3533,16 +3800,9 @@ from the file map.
 std::string
 fil_system_open_fetch(space_id_t space_id)
 {
-	const auto	names = Tablespace_files::find(space_id);
+	ut_a(dict_sys_t::is_reserved(space_id));
 
-	if (names != nullptr) {
-		ut_a(!names->empty());
-
-		return(names->front());
-	}
-
-	/* Must be creating a new database instance. */
-	return("");
+	return(fil_system->find(space_id));
 }
 
 /** Closes a single-table tablespace. The tablespace must be cached in the
@@ -6947,8 +7207,6 @@ fil_close()
 		return;
 	}
 
-	Tablespace_files::destroy();
-
 	UT_DELETE(fil_system);
 
 	fil_system = nullptr;
@@ -8141,89 +8399,22 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 	}
 }
 
-/** Lookup the tablespace ID and return the path to the file. The idea is to
-make the path as close to the original path as possible. If we can't find a
-match then use the real path that was found during scanning.
-
-FIXME: Use a lookup table so that we don't have to keep doing a full match.
-Will be very expensive when dealing with lots of files that share the same
-prefix path.
-
-@param[in]	old_path	Old/Original path name, could be relative
-@param[in]	new_path	Real path found during the scan
-@return path name that is closer to the old_path or new_path as is */
-static
-std::string
-fil_make_relative_path(const char* old_path, const std::string& new_path)
-{
-	std::string	path(old_path);
-
-	for (auto pos = path.rfind(OS_PATH_SEPARATOR);
-	     pos != std::string::npos;
-	     pos = path.rfind(OS_PATH_SEPARATOR)) {
-
-		path = path.substr(0, pos);
-
-		os_file_type_t	type;
-		bool		exists;
-
-		if (!os_file_status(path.c_str(), &exists, &type)
-		    || !exists
-		    || (type != OS_FILE_TYPE_DIR
-			&& type != OS_FILE_TYPE_LINK)) {
-
-			continue;
-		}
-
-		std::string	real_path;
-
-		real_path = fil_get_real_path(path.c_str());
-
-		/* 5 == len("a.ibd") */
-		if (real_path.length() >= new_path.length() - 5) {
-
-			continue;
-		}
-
-		auto	result = std::mismatch(
-			real_path.begin(), real_path.end(), new_path.begin());
-
-		if (result.first == real_path.end()) {
-
-			ut_a(path.back() != OS_PATH_SEPARATOR);
-			ut_a(new_path[real_path.length()] == OS_PATH_SEPARATOR);
-
-			path.append(
-				new_path.substr(
-					real_path.length(), new_path.length()));
-
-			ut_ad(os_file_status(
-				path.c_str(), &exists, &type)
-				&& exists
-				&& (type == OS_FILE_TYPE_FILE
-				    || type == OS_FILE_TYPE_LINK));
-
-			return(path);
-		}
-	}
-
-	return(new_path);
-}
-
 /** Lookup the tablespace ID and return the path to the file.
+@param[in]	object_id	Server DD tablespace ID
 @param[in]	space_id	Tablespace ID to lookup
 @param[in]	path		Path in the data dictionary
 @param[out]	new_path	New path if scanned path not equal to path
 @return status of the match. */
 Fil_path
 fil_tablespace_path_equals(
+	dd::Object_id	object_id,
 	space_id_t	space_id,
 	const char*	path,
 	std::string*	new_path)
 {
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = Tablespace_files::find(space_id);
+	const auto	names = fil_system->get_scanned_files(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (names == nullptr) {
@@ -8231,7 +8422,7 @@ fil_tablespace_path_equals(
 		/* If it wasn't deleted after finding it on disk then
 		we tag it as missing. */
 
-		if (it == end) {
+		if (it == end && recv_recovery_is_on()) {
 
 			recv_sys->missing_ids.insert(space_id);
 		}
@@ -8250,10 +8441,12 @@ fil_tablespace_path_equals(
 
 		if (names->front().compare(real_path) != 0) {
 
+			fil_system->moved(
+				object_id, space_id, path, names->front());
+
 			/* File has been moved. */
 
-			*new_path = fil_make_relative_path(
-				path, names->front());
+			*new_path = names->front();
 
 			return(Fil_path::MOVED);
 		}
@@ -8266,13 +8459,13 @@ fil_tablespace_path_equals(
 @param[in]	space_id		Tablespace ID to lookup
 @return true if the space ID is known. */
 bool
-fil_tablespace_lookup_for_recovery(space_id_t space_id)
+Fil_system::lookup_for_recovery(space_id_t space_id)
 {
 	ut_ad(recv_recovery_is_on());
 
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = Tablespace_files::find(space_id);
+	const auto	names = get_scanned_files(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
 	if (names == nullptr) {
@@ -8293,11 +8486,20 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 	return(it == end);
 }
 
+/** Lookup the tablespace ID.
+@param[in]	space_id		Tablespace ID to lookup
+@return true if the space ID is known. */
+bool
+fil_tablespace_lookup_for_recovery(space_id_t space_id)
+{
+	return(fil_system->lookup_for_recovery(space_id));
+}
+
 /** Open a tablespace that has a redo log record to apply.
-@param[in]	space_id		Space id
+@param[in]	space_id		Tablespace ID
 @return true if the open was successful */
 bool
-fil_tablespace_open_for_recovery(space_id_t space_id)
+Fil_system::open_for_recovery(space_id_t space_id)
 {
 	ut_ad(recv_recovery_is_on());
 
@@ -8305,7 +8507,7 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 		return(false);
 	}
 
-	const auto	names = Tablespace_files::find(space_id);
+	const auto	names = get_scanned_files(space_id);
 
 	/* Duplicates should have been sorted out before start of recovery. */
 	ut_a(names->size() == 1);
@@ -8335,13 +8537,22 @@ fil_tablespace_open_for_recovery(space_id_t space_id)
 	return(false);
 }
 
+/** Open a tablespace that has a redo log record to apply.
+@param[in]	space_id		Tablespace ID
+@return true if the open was successful */
+bool
+fil_tablespace_open_for_recovery(space_id_t space_id)
+{
+	return(fil_system->open_for_recovery(space_id));
+}
+
 /** This function should be called after recovery has completed.
 Check for tablespace files for which we did not see any MLOG_FILE_DELETE
-or MLOG_FILE_RENAME record. These could not be recovered
+or MLOG_FILE_RENAME record. These could not be recovered.
 @return true if there were some filenames missing for which we had to
-ignore redo log records during the apply phase */
+	ignore redo log records during the apply phase */
 bool
-fil_check_missing_tablespaces()
+Fil_system::check_missing_tablespaces()
 {
 	bool		missing = false;
 	auto&		dblwr	= recv_sys->dblwr;
@@ -8394,7 +8605,7 @@ fil_check_missing_tablespaces()
 			continue;
 		}
 
-		const auto	names = Tablespace_files::find(space_id);
+		const auto	names = get_scanned_files(space_id);
 
 		if (names == nullptr) {
 
@@ -8409,6 +8620,17 @@ fil_check_missing_tablespaces()
 	}
 
 	return(missing);
+}
+
+/** This function should be called after recovery has completed.
+Check for tablespace files for which we did not see any MLOG_FILE_DELETE
+or MLOG_FILE_RENAME record. These could not be recovered
+@return true if there were some filenames missing for which we had to
+	ignore redo log records during the apply phase */
+bool
+fil_check_missing_tablespaces()
+{
+	return(fil_system->check_missing_tablespaces());
 }
 
 /** Redo a tablespace create.
@@ -8476,7 +8698,7 @@ fil_tablespace_redo_create(
 		return(nullptr);
 	}
 
-	const auto	names = Tablespace_files::find(page_id.space());
+	const auto	names = fil_system->get_scanned_files(page_id.space());
 
 	if (names == nullptr) {
 
@@ -8637,7 +8859,7 @@ fil_tablespace_redo_rename(
 		return(nullptr);
 	}
 
-	auto	names = Tablespace_files::find(page_id.space());
+	auto	names = fil_system->get_scanned_files(page_id.space());
 
 	if (names == nullptr) {
 
@@ -8813,7 +9035,7 @@ fil_tablespace_redo_delete(
 		return(nullptr);
 	}
 
-	const auto	names = Tablespace_files::find(page_id.space());
+	const auto	names = fil_system->get_scanned_files(page_id.space());
 
 	recv_sys->deleted.insert(page_id.space());
 	recv_sys->missing_ids.erase(page_id.space());
@@ -8827,7 +9049,7 @@ fil_tablespace_redo_delete(
 	}
 
 
-	/* Duplicates should have been sorted out before we get here. */
+	/* Space_id_set should have been sorted out before we get here. */
 
 	ut_a(names->size() == 1);
 
@@ -8841,7 +9063,8 @@ fil_tablespace_redo_delete(
 
 	fil_space_free(page_id.space(), false);
 
-	Tablespace_files::erase(page_id.space());
+	bool	success = fil_system->erase(page_id.space());
+	ut_a(success);
 
 	return(ptr);
 }
@@ -8850,17 +9073,18 @@ fil_tablespace_redo_delete(
 Check if the paths are valid and filter out invalid or unreadable directories.
 Sort and filter out duplicates from dirs.
 @param[in]	str		Path specification to tokenize
-@param[out]	dirs		Parsed directory paths
 @param[in]	delimiters	Delimiters */
-static
 void
-fil_tokenize_paths(
+Tablespace_dirs::tokenize_paths(
 	const std::string&		str,
-	std::vector<std::string>&	dirs,
 	const std::string&		delimiters)
 {
 	std::string::size_type	start = str.find_first_not_of(delimiters);
 	std::string::size_type	end = str.find_first_of(delimiters, start);
+
+	using Paths = std::vector<std::pair<std::string, std::string>>;
+
+	Paths	dirs;
 
 	/* Scan until 'end' and 'start' don't reach the end of string (npos) */
 	while (std::string::npos != start || std::string::npos != end) {
@@ -8893,10 +9117,13 @@ fil_tokenize_paths(
 
 				if (type == OS_FILE_TYPE_DIR) {
 
-					cur_path = fil_get_real_path(
-						cur_path.c_str());
+					std::string	d{cur_path};
 
-					dirs.push_back(cur_path);
+					cur_path = fil_get_real_path(d.c_str());
+
+					using value = Paths::value_type;
+
+					dirs.push_back(value(d, cur_path));
 
 				} else {
 					ib::warn()
@@ -8920,11 +9147,73 @@ fil_tokenize_paths(
 		end = str.find_first_of(delimiters, start);
 	}
 
-	/* Remove duplicate paths. Note, this will change the order of
-	the directory scan because of the sort. */
+	/* Remove duplicate paths by comparing the real paths.  Note, this
+	will change the order of the directory scan because of the sort. */
 
-	std::sort(dirs.begin(), dirs.end());
-	dirs.erase(std::unique(dirs.begin(), dirs.end() ), dirs.end());
+	using type = Paths::value_type;
+
+	std::sort(dirs.begin(), dirs.end(), [](const type& lhs, type& rhs)
+	{
+		return(lhs.second < rhs.second);
+	});
+
+	dirs.erase(
+		std::unique(
+			dirs.begin(), dirs.end(),
+			[](const type& lhs, const type& rhs)
+		{
+			return(lhs.second == rhs.second);
+
+		}),
+		dirs.end());
+
+	/* Eliminate sub-tress */
+
+	Dirs	scan_dirs;
+
+	for (size_t i = 0; i < dirs.size(); ++i) {
+
+		const auto&	path_i = dirs[i].second;
+
+		for (size_t j = i + 1; j < dirs.size(); ++j) {
+
+			auto&	path_j = dirs[j].second;
+
+			if (path_i.front() != path_j.front()
+			    || path_i.length() > path_j.length()) {
+
+				continue;
+			}
+
+			/* Find a matching prefix. */
+			auto	result = std::mismatch(
+				path_i.begin(), path_i.end(), path_j.begin());
+
+			if (result.first == path_i.end()) {
+
+				if (path_j[path_i.length()]
+				    != OS_PATH_SEPARATOR) {
+
+					continue;
+				}
+
+				path_j.resize(0);
+			}
+		}
+	}
+
+	for (auto& dir : dirs) {
+
+		if (dir.second.length() == 0) {
+			continue;
+		}
+
+		using value = Scanned::value_type;
+
+		value	v{dir.first, Tablespace_files(dir.second)};
+
+		m_dirs.push_back(v);
+	}
 }
 
 /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
@@ -9044,15 +9333,18 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 }
 
 /** Check for duplicate tablespace IDs.
-@param[in]	files		Files to check for duplicate tablespace IDs
+@param[in,out]	mutex		Mutex that covers the global state
+@param[in]	start		Slice start
+@param[in]	end		Slice end
+@param[in,out]	unique		To check for duplciates
 @param[in,out]	duplicates	Duplicate space IDs found */
-static
 void
-fil_check_for_duplicate_ids(
-	std::mutex*			mutex,
-	const Dirs::const_iterator&	start,
-	const Dirs::const_iterator&	end,
-	Duplicates*			duplicates)
+Tablespace_dirs::duplicate_check(
+	std::mutex*		mutex,
+	const const_iter&	start,
+	const const_iter&	end,
+	Space_id_set*		unique,
+	Space_id_set*		duplicates)
 {
 	size_t	count = 0;
 	bool	printed_msg = false;
@@ -9060,7 +9352,7 @@ fil_check_for_duplicate_ids(
 
 	for (auto it = start; it != end; ++it) {
 
-		const auto&	filename = *it;
+		const auto&	filename = it->second;
 
 		std::ifstream	ifs(filename, std::ios::binary);
 
@@ -9079,11 +9371,15 @@ fil_check_for_duplicate_ids(
 
 			std::lock_guard<std::mutex> guard(*mutex);
 
+			auto	ret = unique->insert(space_id);
+
+			auto&	files = m_dirs[it->first];
+
 			size_t	n_files;
 
-			n_files = Tablespace_files::add(space_id, filename);
+			n_files = files.second.add(space_id, filename);
 
-			if (n_files > 1) {
+			if (n_files > 1 || !ret.second) {
 
 				duplicates->insert(space_id);
 			}
@@ -9116,29 +9412,42 @@ fil_check_for_duplicate_ids(
 	}
 }
 
-static
+/** Print the duplicate filenames for a tablespce ID to the log
+@param[in]	duplicates	Duplicate tablespace IDs*/
 void
-fil_print_duplicates(const Duplicates&  duplicates)
+Tablespace_dirs::print_duplicates(const Space_id_set&  duplicates)
 {
 	/* Print the duplicate names to the error log. */
 	for (auto space_id : duplicates) {
 
-		const auto	names = Tablespace_files::find(space_id);
+		Dirs	files;
+
+		for (auto& elem : m_dirs) {
+
+			auto&		dir = elem.second;
+			const auto	names = dir.find(space_id);
+
+			if (names == nullptr) {
+				continue;
+			}
+
+			files.insert(files.end(), names->begin(), names->end());
+		}
 
 		/* Fixes the order in the mtr tests. */
-		std::sort(names->begin(), names->end());
+		std::sort(files.begin(), files.end());
 
-		ut_a(names->size() > 1);
+		ut_a(files.size() > 1);
 
 		std::ostringstream	oss;
 
 		oss << "Tablespace ID: " << space_id << " = [";
 
-		for (size_t i = 0; i < names->size(); ++i) {
+		for (size_t i = 0; i < files.size(); ++i) {
 
-			oss << "'" << (*names)[i] << "'";
+			oss << "'" << files[i] << "'";
 
-			if (i < names->size() - 1) {
+			if (i < files.size() - 1) {
 				oss << ", ";
 			}
 		}
@@ -9153,22 +9462,24 @@ fil_print_duplicates(const Duplicates&  duplicates)
 @param[in]	directories	Directories to scan
 @return DB_SUCCESS if all goes well */
 dberr_t
-fil_scan_for_tablespaces(const std::string& directories)
+Tablespace_dirs::scan(const std::string& directories)
 {
 	ib::info() << "Directories to scan '" << directories << "'";
 
-	Dirs	dirs;
-	Dirs	ibd_files;
-	Dirs	undo_files;
+	Scanned_files	ibd_files;
+	Scanned_files	undo_files;
 
-	fil_tokenize_paths(directories, dirs, ";");
+	tokenize_paths(directories, ";");
 
-	auto	start_time = ut_time();
+	uint16_t	count = 0;
+	auto		start_time = ut_time();
 
 	/* Should be trivial to parallelize the scan and ID check. */
-	for (const auto& dir : dirs) {
+	for (const auto& elem : m_dirs) {
 
-		ib::info() << "Scanning '" << dir << "'";
+		const auto&	dir = elem.second.real_path();
+
+		ib::info() << "Scanning '" << elem.first << "'";
 
 		/* Walk the sub-tree of dir. */
 
@@ -9183,14 +9494,16 @@ fil_scan_for_tablespaces(const std::string& directories)
 				return;
 			}
 
+			using value = Scanned_files::value_type;
+
 			if (path.compare(path.length() - 4, 4, ".ibd") == 0) {
 
-				ibd_files.push_back(path);
+				ibd_files.push_back(value{count, path});
 
 			} else if (fil_is_undo_tablespace_name(
 				   path.c_str(), path.length())) {
 
-				undo_files.push_back(path);
+				undo_files.push_back(value{count, path});
 			}
 
 			if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
@@ -9202,6 +9515,8 @@ fil_scan_for_tablespaces(const std::string& directories)
 					<< undo_files.size() << " undo files";
 			}
 		});
+
+		++count;
 	}
 
 	ib::info()
@@ -9209,9 +9524,8 @@ fil_scan_for_tablespaces(const std::string& directories)
 		<< " '.ibd' and "
 		<< undo_files.size() << " undo files";
 
-	Tablespace_files::create();
-
-	Duplicates	duplicates;
+	Space_id_set	unique;
+	Space_id_set	duplicates;
 
 	size_t	n_threads = (ibd_files.size() / 50000);
 
@@ -9221,15 +9535,16 @@ fil_scan_for_tablespaces(const std::string& directories)
 
 	for (size_t i = 0; n_threads > 0 && i < n_threads - 1; ++i) {
 
+		size_t	thread_id = i + 1;
 		size_t	slice = ibd_files.size() / n_threads;
-		auto	start = (i + 1) * slice;
+		auto	start = thread_id * slice;
 
 		if (i == n_threads - 1) {
 			slice = ibd_files.size() - start;
 		}
 
 		ib::info()
-			<< "Thread: " << (i + 1) << ", "
+			<< "Thread: " << thread_id << ", "
 			<< start << ", " << slice;
 
 		ut_a(ibd_files.begin() + start + slice <= ibd_files.end());
@@ -9237,18 +9552,21 @@ fil_scan_for_tablespaces(const std::string& directories)
 		auto	begin = ibd_files.begin() + start;
 		auto	end = begin + slice;
 
-		workers.push_back(std::thread{
-			fil_check_for_duplicate_ids,
-			&m, begin, end, &duplicates});
+		workers.push_back(
+			std::thread{
+				&Tablespace_dirs::duplicate_check,
+				this, &m, begin, end, &unique, &duplicates});
 	}
 
-	fil_check_for_duplicate_ids(
-		&m, ibd_files.begin(),
-		ibd_files.begin() + (ibd_files.size() / n_threads),
-		&duplicates);
+	const const_iter&	ibd_end = (n_threads > 0)
+		? ibd_files.begin() + (ibd_files.size() / n_threads)
+		: ibd_files.end();
 
-	fil_check_for_duplicate_ids(
-		&m, undo_files.begin(), undo_files.end(), &duplicates);
+	duplicate_check( &m, ibd_files.begin(), ibd_end, &unique, &duplicates);
+
+	const const_iter&	undo_end = undo_files.end();
+
+	duplicate_check(&m, undo_files.begin(), undo_end, &unique, &duplicates);
 
 	for (auto& worker : workers) {
 
@@ -9264,9 +9582,7 @@ fil_scan_for_tablespaces(const std::string& directories)
 		ib::error()
 			<< "Multiple files found for the same tablespace ID:";
 
-		_exit(1);
-
-		fil_print_duplicates(duplicates);
+		print_duplicates(duplicates);
 
 		err = DB_FAIL;
 	} else {
@@ -9274,6 +9590,15 @@ fil_scan_for_tablespaces(const std::string& directories)
 	}
 
 	return(err);
+}
+
+/** Discover tablespaces by reading the header from .ibd files.
+@param[in]	directories	Directories to scan
+@return DB_SUCCESS if all goes well */
+dberr_t
+fil_scan_for_tablespaces(const std::string& directories)
+{
+	return(Fil_system::scan(directories));
 }
 
 /** Callback to check tablespace size with space header size and extend.
@@ -9331,9 +9656,81 @@ fil_check_extend_space(fil_node_t* file)
 	return(err);
 }
 
-/** Free the Tablespace_files instance. */
-void
-fil_open_for_business()
+/** Free the Tablespace_files instance.
+@param[in]	read_only_mode	true if InnoDB is started in read only mode.
+@return DB_SUCCESS if all OK */
+dberr_t
+Fil_system::open_for_business(bool read_only_mode)
 {
-	Tablespace_files::destroy();
+	size_t	count = 0;
+	size_t	failed = 0;
+	bool	print_msg = false;
+	auto	start_time = ut_time();
+
+	if (read_only_mode && !m_moved.empty()) {
+
+		ib::error()
+			<< m_moved.size() << " files have been relocated"
+			<< " and the server has been started in read"
+			<<" only mode. Cannot update the data dictionary.";
+
+		return(DB_READ_ONLY);
+	}
+
+	/* If some file paths have changed then update the DD */
+	for (auto& tablespace : m_moved) {
+
+		dberr_t	err;
+
+		auto	old_path = std::get<dd_fil::OLD_PATH>(tablespace);
+		auto	new_path = std::get<dd_fil::NEW_PATH>(tablespace);
+		auto	object_id = std::get<dd_fil::OBJECT_ID>(tablespace);
+
+		err = dd_tablespace_update_filename(
+			object_id, new_path.c_str());
+
+		if (err != DB_SUCCESS) {
+
+			ib::error()
+				<< "Unable to update tablespace ID"
+				<< " " << object_id << " path from"
+				<< " '" << old_path << "' to"
+				<< " '" << new_path << "'";
+
+			++failed;
+		}
+
+		++count;
+
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+
+			ib::info()
+				<< "Updated "
+				<< count << "/"  << m_moved.size()
+				<< " tablespace paths. Failures " << failed;
+
+			start_time = ut_time();
+			print_msg = true;
+		}
+	}
+
+	if (print_msg) {
+
+		ib::info()
+			<< "Updated " << count << " tablespace paths"
+			<< ", failures " << failed;
+	}
+
+	s_dirs.clear();
+
+	return(failed == 0 ? DB_SUCCESS : DB_ERROR);
+}
+
+/** Free the Tablespace_files instance.
+@param[in]	read_only_mode	true if InnoDB is started in read only mode.
+@return DB_SUCCESS if all OK */
+dberr_t
+fil_open_for_business(bool read_only_mode)
+{
+	return(fil_system->open_for_business(read_only_mode));
 }

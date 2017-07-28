@@ -272,10 +272,9 @@ Error	3121	Incorrect File Name 's_dir/s_subdir/.ibd'.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
-ERROR HY000: Incorrect File Name 's_dir/s_bad.ibs'.
+ERROR HY000: An IBD filepath must end with `.ibd`.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 's_dir/s_bad.ibs'.
 Error	3121	An IBD filepath must end with `.ibd`.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option

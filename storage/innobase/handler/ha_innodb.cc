@@ -3396,11 +3396,6 @@ boot_tablespaces(THD* thd)
 	const auto	fpt_str = dict_sys_t::file_per_table_name;
 	const auto	fpt_str_len = strlen(fpt_str);
 
-	using Filenames = std::pair<std::string, std::string>;
-	using Tablespaces = std::vector<std::pair<dd::Object_id, Filenames>>;
-
-	Tablespaces	moved;
-
 	size_t	count = 0;
 	bool	print_msg = false;
 	auto	start_time = ut_time();
@@ -3479,6 +3474,7 @@ boot_tablespaces(THD* thd)
 		if (fsp_is_ibd_tablespace(space_id)) {
 
 			switch(fil_tablespace_path_equals(
+					tablespace->id(),
 					space_id, filename, &new_path)) {
 
 			case Fil_path::MATCHES:
@@ -3513,17 +3509,8 @@ boot_tablespaces(THD* thd)
 					<< " has been moved to"
 					<< " '" << new_path << "'";
 
-				Filenames	filenames;
-
-				filenames.first = std::string(filename);
-				filenames.second = new_path;
-
-				auto	dd_space_id = tablespace->id();
-
-				moved.push_back(
-					std::make_pair(dd_space_id, filenames));
-
 				filename = new_path.c_str();
+
 				break;
 			}
 		}
@@ -3585,87 +3572,7 @@ boot_tablespaces(THD* thd)
 		ib::info() << "Checked " << count << " tablespaces";
 	}
 
-	count = 0;
-	print_msg = false;
-	start_time = ut_time();
-
 	fil_set_max_space_id_if_bigger(max_id);
-
-	size_t	failed = 0;
-
-	/* If some file paths have changed then update the DD */
-	for (auto tablespace : moved) {
-
-		trx_t*	trx = check_trx_exists(thd);
-
-		trx_start_if_not_started_xa(trx, false);
-
-		row_mysql_lock_data_dictionary(trx);
-
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
-		dberr_t	err;
-
-		auto	from_name = fil_path_to_space_name(
-			tablespace.second.first.c_str());
-
-		auto	to_name = fil_path_to_space_name(
-			tablespace.second.second.c_str());
-
-		err = row_rename_table_for_mysql(
-			from_name, to_name, nullptr, trx, true);
-
-		ut_free(to_name);
-		ut_free(from_name);
-
-		row_mysql_unlock_data_dictionary(trx);
-
-		if (err != DB_SUCCESS){
-
-			ib::warn()
-				<< "Failed to rename '"
-				<< tablespace.second.first << "' to '"
-				<< tablespace.second.second << "'"
-				<< " in the InnoDB data dictionary."
-				<< " err: " << ut_strerr(err);
-
-			++failed;
-
-			continue;
-		}
-
-		err = dd_tablespace_update_filename(
-			tablespace.first, tablespace.second.second.c_str());
-
-		if (err != DB_SUCCESS) {
-
-			ib::error()
-				<< "Unable to update tablespace ID"
-				<< " " << tablespace.first << " path from"
-				<< " '" << tablespace.second.first << "' to"
-				<< " '" << tablespace.second.second << "'";
-		}
-
-		++count;
-
-		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-
-			ib::info()
-				<< "Updated "
-				<< count << "/"  << moved.size()
-				<< " tablespace paths. Failures " << failed;
-
-			start_time = ut_time();
-			print_msg = true;
-		}
-	}
-
-	if (print_msg) {
-
-		ib::info()
-			<< "Updated " << count << " tablespace paths"
-			<< ", failures " << failed;
-	}
 
 	mem_heap_free(heap);
 
@@ -3827,7 +3734,11 @@ innobase_dict_recover(
 
 	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 
-	fil_open_for_business();
+	err = fil_open_for_business(srv_read_only_mode);
+
+	if (err != DB_SUCCESS) {
+		return(false);
+	}
 
 	return(false);
 }

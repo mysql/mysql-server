@@ -36,6 +36,8 @@ Created 10/25/1995 Heikki Tuuri
 #include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "dd/object_id.h"
+
 #include <list>
 #include <vector>
 
@@ -1486,11 +1488,14 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Lookup the tablespace ID and return the path to the file.
+@param[in]	object_id	Server DD tablespace ID
 @param[in]	space_id	Tablespace ID to lookup
 @param[in]	path		Path in the data dictionary
-@return path to new filename if it doesn't match else "" */
+@param[out]	new_path	New path if scanned path not equal to path
+@return status of the match. */
 Fil_path
 fil_tablespace_path_equals(
+	dd::Object_id	object_id,
 	space_id_t	space_id,
 	const char*	path,
 	std::string*	new_path)
@@ -1559,9 +1564,12 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	MY_ATTRIBUTE((warn_unused_result));
 
-/** Free the Tablespace_files instance. */
-void
-fil_open_for_business();
+/** Free the Tablespace_files instance.
+@param[in]	read_only_mode	true if InnoDB is started in read only mode.
+@return DB_SUCCESS if all OK */
+dberr_t
+fil_open_for_business(bool read_only_mode)
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if the file has the .ibd suffix
 @param[in]	path		Filename to check

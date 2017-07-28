@@ -1769,14 +1769,20 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
+
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-	if (table2) {
-		ib::error() << "Cannot rename table '" << old_name
+
+	if (table2 != nullptr) {
+
+		ib::error()
+			<< "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '" << new_name << "'.";
+			" dictionary cache already contains '"
+			<< new_name << "'.";
+
 		return(DB_ERROR);
 	}
 
