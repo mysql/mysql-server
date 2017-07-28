@@ -3519,13 +3519,7 @@ boot_tablespaces(THD* thd)
 
 				++moved;
 
-				if (moved >= MOVED_FILES_PRINT_THRESHOLD) {
-
-					ib::warn()
-						<< "Too many files have"
-						<< " have been moved, disabling"
-						<< " logging of messages";
-
+				if (moved > MOVED_FILES_PRINT_THRESHOLD) {
 					break;
 				}
 
@@ -3535,6 +3529,15 @@ boot_tablespaces(THD* thd)
 					<< " file '" << filename << "'"
 					<< " has been moved to"
 					<< " '" << new_path << "'";
+
+				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
+
+					ib::warn()
+						<< "Too many files have"
+						<< " have been moved, disabling"
+						<< " logging of detailed"
+						<< " messages";
+				}
 
 				break;
 			}
