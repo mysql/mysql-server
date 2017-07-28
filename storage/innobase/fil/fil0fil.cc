@@ -8957,6 +8957,15 @@ fil_tablespace_name_recover(
 				page_id, from.c_str(), to.c_str())) {
 
 				recv_sys->found_corrupt_fs = true;
+
+				ib::error() << "Cannot replay the rename '"
+					<< from << "' to '" << to << "' "
+					<< " for tablespace with ID "
+					<< page_id.space() << "."
+					<< " Please try to increase"
+					<< " innodb_buffer_pool_size to"
+					<< " see if it helps the redo "
+					<< " recovery.";
 			} else {
 
 				fil_system->m_open.rename(
