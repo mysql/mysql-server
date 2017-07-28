@@ -20,6 +20,7 @@
 #include "xpl_dispatcher.h"
 
 #include "admin_cmd_handler.h"
+#include "admin_cmd_arguments.h"
 #include "crud_cmd_handler.h"
 #include "expect/expect_stack.h"
 #include "expr_generator.h"
@@ -124,16 +125,16 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
       session.options().set_send_xplugin_deprecation(false);
     }
     xpl::Admin_command_arguments_list args(msg.args());
-    return xpl::Admin_command_handler(session)
-        .execute(msg.namespace_(), msg.stmt(), args);
+    return xpl::Admin_command_handler(&session)
+        .execute(msg.namespace_(), msg.stmt(), &args);
   }
 
-  if (msg.namespace_() == "mysqlx") {
+  if (msg.namespace_() == xpl::Admin_command_handler::MYSQLX_NAMESPACE) {
     session
         .update_status<&xpl::Common_status_variables::m_stmt_execute_mysqlx>();
     xpl::Admin_command_arguments_object args(msg.args());
-    return xpl::Admin_command_handler(session)
-        .execute(msg.namespace_(), msg.stmt(), args);
+    return xpl::Admin_command_handler(&session)
+        .execute(msg.namespace_(), msg.stmt(), &args);
   }
 
   return ngs::Error(ER_X_INVALID_NAMESPACE, "Unknown namespace %s",

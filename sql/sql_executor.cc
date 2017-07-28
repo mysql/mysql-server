@@ -1600,31 +1600,45 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
   join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
-  if (pfs_batch_update)
-    table->file->start_psi_batch_mode();
 
   bool in_first_read= true;
   const bool is_recursive_ref= qep_tab->table_ref->is_recursive_reference();
+  // Init these 3 variables even if used only if is_recursive_ref is true.
   const ha_rows *recursive_row_count= nullptr;
+  ha_rows recursive_row_count_start= 0;
+  bool count_iterations= false;
 
   if (is_recursive_ref)
   {
-    // The with-recursive algorithm requires a table scan.
+    // See also Recursive_executor's documentation
+    if (join->unit->got_all_recursive_rows)
+      DBUG_RETURN(rc);
+    // The recursive CTE algorithm requires a table scan.
     DBUG_ASSERT(qep_tab->type() == JT_ALL);
     in_first_read= !table->file->inited;
-    // Tmp table which we're reading is bound to this result
+    /*
+      Tmp table which we're reading is bound to this result, and we'll be
+      checking its row count frequently:
+    */
     recursive_row_count=
-      join->select_lex->master_unit()->recursive_result(join->select_lex)->row_count();
+      join->unit->recursive_result(join->select_lex)->row_count();
+    // How many rows we have already read; defines start of iteration.
+    recursive_row_count_start= qep_tab->m_fetched_rows;
+    // Execution of fake_select_lex doesn't count for the user:
+    count_iterations= join->select_lex != join->unit->fake_select_lex;
   }
+
+  const bool pfs_batch_update= qep_tab->pfs_batch_update(join);
+  if (pfs_batch_update)
+    table->file->start_psi_batch_mode();
 
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx)
   {
     int error;
 
-    if (is_recursive_ref && // see Recursive_executor's documentation
+    if (is_recursive_ref &&
         qep_tab->m_fetched_rows >= *recursive_row_count)
-    {
+    { // We have read all that's in the tmp table: signal EOF.
       error= -1;
       break;
     }
@@ -1651,6 +1665,25 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
     else
     {
       qep_tab->m_fetched_rows++;
+      if (is_recursive_ref &&
+          qep_tab->m_fetched_rows == recursive_row_count_start + 1)
+      {
+        /*
+          We have just read one row further than the set of rows of the
+          iteration, so we have actually just entered a new iteration.
+        */
+        if (count_iterations &&
+            ++join->recursive_iteration_count >
+            join->thd->variables.cte_max_recursion_depth)
+        {
+          my_error(ER_CTE_MAX_RECURSION_DEPTH, MYF(0),
+                   join->recursive_iteration_count);
+          rc= NESTED_LOOP_ERROR;
+          break;
+        }
+        // This new iteration sees the rows made by the previous one:
+        recursive_row_count_start= *recursive_row_count;
+      }
       if (qep_tab->keep_current_rowid)
         table->file->position(table->record[0]);
       rc= evaluate_join_record(join, qep_tab);

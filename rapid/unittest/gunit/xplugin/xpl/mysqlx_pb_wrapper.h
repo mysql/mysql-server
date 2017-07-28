@@ -36,7 +36,8 @@ class Array;
 
 class Identifier : public Mysqlx::Expr::Identifier {
  public:
-  Identifier(const std::string &name = "", const std::string &schema_name = "");
+  Identifier(const std::string &name = "",
+             const std::string &schema_name = "");  // NOLINT(runtime/explicit)
 };
 
 using Document_path_item = ::Mysqlx::Expr::DocumentPathItem;
@@ -56,7 +57,7 @@ class Document_path
     friend class Document_path;
   };
 
-  Document_path(const Path &path);
+  Document_path(const Path &path);  // NOLINT(runtime/explicit)
 };
 
 class ColumnIdentifier : public Mysqlx::Expr::ColumnIdentifier {
@@ -76,11 +77,12 @@ class Scalar : public Mysqlx::Datatypes::Scalar {
   struct Null {};
 
   struct String : public Mysqlx::Datatypes::Scalar_String {
-    String(const std::string &value);
+    String(const std::string &value);  // NOLINT(runtime/explicit)
   };
 
   struct Octets : public Mysqlx::Datatypes::Scalar_Octets {
-    Octets(const std::string &value, unsigned type = 0);
+    Octets(const std::string &value,
+           unsigned type = 0);  // NOLINT(runtime/explicit)
   };
 
   Scalar() {}
@@ -99,54 +101,37 @@ class Scalar : public Mysqlx::Datatypes::Scalar {
 
 class Any : public Mysqlx::Datatypes::Any {
  public:
-  class Object;
-  class Array : public Mysqlx::Datatypes::Array {
-   public:
-    class Scalar_values : private std::vector<Scalar> {
-     public:
-      Scalar_values() {}
-      Scalar_values &operator()(const Scalar &value);
-      friend class Array;
-    };
-
-    Array(const Scalar_values &values);  // NOLINT(runtime/explicit)
-    Array(const Scalar &value);          // NOLINT(runtime/explicit)
-    Array(const Object &value);          // NOLINT(runtime/explicit)
-    Array &operator()(const Scalar &value);
-    Array &operator()(const Object &value);
-    Array() {}
-  };
+  class Array;
 
   class Object : public Mysqlx::Datatypes::Object {
    public:
-    class Scalar_fields : private std::map<std::string, Scalar> {
-     public:
-      Scalar_fields() {}
-      Scalar_fields(const std::string &key, const Scalar &value);
-      Scalar_fields &operator()(const std::string &key, const Scalar &value);
-      friend class Object;
-    };
-
-    class Fields : private std::map<std::string, Any> {
-     public:
-      Fields() {}
-      Fields(const std::string &key, const Any &value);
-      Fields &operator()(const std::string &key, const Any &value);
-      friend class Object;
-    };
-
-    Object(const Scalar_fields &values);  // NOLINT(runtime/explicit)
-    Object(const Fields &values);         // NOLINT(runtime/explicit)
-    Object(const std::string &key, const Any &value);
-    Object() {}
-    Object &operator()(const std::string &key, const Any &value);
+    struct Fld;
+    Object() = default;
+    Object(std::initializer_list<Fld> list);
   };
 
-  Any() {}
-  Any(Scalar *scalar);        // NOLINT(runtime/explicit)
+  Any() = default;
   Any(const Scalar &scalar);  // NOLINT(runtime/explicit)
   Any(const Object &obj);     // NOLINT(runtime/explicit)
   Any(const Array &array);    // NOLINT(runtime/explicit)
+
+  template <typename T>
+  Any(const T &v)             // NOLINT(runtime/explicit)
+      : Any(Scalar(v)) {}
+};
+
+struct Any::Object::Fld {
+  std::string key;
+  Any value;
+};
+
+
+class Any::Array : public Mysqlx::Datatypes::Array {
+ public:
+  Array() = default;
+  Array(std::initializer_list<Any> list) {
+    for (const Any &e : list) add_value()->CopyFrom(e);
+  }
 };
 
 class Placeholder {
@@ -157,7 +142,8 @@ class Placeholder {
 
 class Variable {
  public:
-  Variable(const std::string &name) : value(name) {}
+  Variable(const std::string &name)  // NOLINT(runtime/explicit)
+      : value(name) {}
   const std::string value;
 };
 
@@ -166,7 +152,7 @@ class Expr : public Mysqlx::Expr::Expr {
   Expr() {}
 
   template <typename T>
-  Expr(T value) {
+  Expr(T value) {    // NOLINT(runtime/explicit)
     Expr::initialize(this, value);
   }
 
@@ -188,7 +174,9 @@ class Expr : public Mysqlx::Expr::Expr {
 
 class Operator : public Mysqlx::Expr::Operator {
  public:
-  Operator(const std::string &name) { set_name(name); }
+  Operator(const std::string &name) {   // NOLINT(runtime/explicit)
+    set_name(name);
+  }
 
   template <typename T1>
   Operator(const std::string &name, T1 param1) {
@@ -228,9 +216,11 @@ class Operator : public Mysqlx::Expr::Operator {
 
 class FunctionCall : public Mysqlx::Expr::FunctionCall {
  public:
-  FunctionCall(Identifier *name) { set_allocated_name(name); }
+  FunctionCall(Identifier *name) {    // NOLINT(runtime/explicit)
+    set_allocated_name(name); }
 
-  FunctionCall(const Identifier &name) { mutable_name()->CopyFrom(name); }
+  FunctionCall(const Identifier &name) {   // NOLINT(runtime/explicit)
+    mutable_name()->CopyFrom(name); }
 
   template <typename T1>
   FunctionCall(Identifier *name, T1 param1) {
@@ -243,7 +233,7 @@ class FunctionCall : public Mysqlx::Expr::FunctionCall {
     add_param(param2);
   }
 
-  FunctionCall(const std::string &name) {
+  FunctionCall(const std::string &name) {  // NOLINT(runtime/explicit)
     set_allocated_name(new Identifier(name));
   }
 
@@ -323,21 +313,24 @@ class Array : public Mysqlx::Expr::Array {
 
 class Column : public ::Mysqlx::Crud::Column {
  public:
-  Column(const std::string &name, const std::string &alias = "");
+  Column(const std::string &name,
+         const std::string &alias = "");  // NOLINT(runtime/explicit)
   Column(const Document_path &path, const std::string &name = "",
-         const std::string &alias = "");
+         const std::string &alias = "");  // NOLINT(runtime/explicit)
 };
 
 class Collection : public ::Mysqlx::Crud::Collection {
  public:
-  Collection(const std::string &name, const std::string &schema = "");
+  Collection(const std::string &name,
+             const std::string &schema = "");  // NOLINT(runtime/explicit)
 };
 
 typedef ::Mysqlx::Crud::DataModel Data_model;
 
 class Projection : public ::Mysqlx::Crud::Projection {
  public:
-  Projection(const Expr &source, const std::string &alias = "");
+  Projection(const Expr &source,
+             const std::string &alias = "");  // NOLINT(runtime/explicit)
 };
 
 class Order : public ::Mysqlx::Crud::Order {
@@ -348,14 +341,17 @@ class Order : public ::Mysqlx::Crud::Order {
 
 class Limit : public ::Mysqlx::Crud::Limit {
  public:
-  Limit(const uint64_t row_count = 0, const uint64_t offset = 0);
+  Limit(const uint64_t row_count = 0,
+        const uint64_t offset = 0);   // NOLINT(runtime/explicit)
 };
 
 template <typename B, typename T>
 class RepeatedPtrField : public ::google::protobuf::RepeatedPtrField<B> {
  public:
   RepeatedPtrField() {}
-  RepeatedPtrField(const T &arg) { *this->Add() = arg; }
+  RepeatedPtrField(const T &arg) {  // NOLINT(runtime/explicit)
+    *this->Add() = arg;
+  }
   RepeatedPtrField(std::initializer_list<T> list) {
     for (const T &e : list) *this->Add() = e;
   }

@@ -17,6 +17,8 @@ activate_all_roles_on_login
 activate_all_roles_on_login
 binlog_expire_logs_seconds
 binlog_expire_logs_seconds
+cte_max_recursion_depth
+cte_max_recursion_depth
 disabled_storage_engines
 disabled_storage_engines
 information_schema_stats

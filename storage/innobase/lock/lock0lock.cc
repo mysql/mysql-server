@@ -6977,8 +6977,13 @@ lock_get_psi_event(
 	ulonglong*	thread_id,
 	ulonglong*	event_id)
 {
+#if defined(HAVE_PSI_THREAD_INTERFACE) && defined(HAVE_PSI_DATA_LOCK_INTERFACE)
 	*thread_id = lock->m_psi_internal_thread_id;
 	*event_id = lock->m_psi_event_id;
+#else
+	*thread_id = 0;
+	*event_id = 0;
+#endif
 }
 
 /** Get the first lock of a trx lock list.

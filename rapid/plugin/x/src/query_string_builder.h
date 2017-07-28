@@ -96,10 +96,7 @@ public:
 
   Query_string_builder &put(const int64_t i) { return put(ngs::to_string(i)); }
   Query_string_builder &put(const uint64_t u) { return put(ngs::to_string(u)); }
-
-//  NOTE: Commented for coverage. Uncomment when needed.
-//  Query_string_builder &put(const int32_t i) { return put(ngs::to_string(i)); }
-
+  Query_string_builder &put(const int32_t i) { return put(ngs::to_string(i)); }
   Query_string_builder &put(const uint32_t u) { return put(ngs::to_string(u)); }
   Query_string_builder &put(const float f) { return put(ngs::to_string(f)); }
   Query_string_builder &put(const double d) { return put(ngs::to_string(d)); }
@@ -118,6 +115,29 @@ public:
   Query_string_builder &put(const ngs::PFS_string &s)
   {
     return put(s.data(), s.length());
+  }
+
+  template <typename I>
+  Query_string_builder &put_list(I begin, I end, const std::string &sep = ",") {
+    if (std::distance(begin, end) == 0) return *this;
+    put(*begin);
+    for (++begin; begin != end; ++begin) {
+      put(sep);
+      put(*begin);
+    }
+    return *this;
+  }
+
+  template <typename I, typename P>
+  Query_string_builder &put_list(I begin, I end, P push,
+                                 const std::string &sep = ",") {
+    if (std::distance(begin, end) == 0) return *this;
+    push(*begin, this);
+    for (++begin; begin != end; ++begin) {
+      put(sep);
+      push(*begin, this);
+    }
+    return *this;
   }
 
   void clear()

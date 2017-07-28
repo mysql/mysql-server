@@ -1,5 +1,9 @@
 # In-memory tmp tables
 set big_tables=0;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
 flush status;
 # Mutual recursion unsupported; cycles must have one node only
 with recursive qn as (select * from qn2),
@@ -1282,6 +1286,10 @@ Variable_name	Value
 Created_tmp_disk_tables	0
 # On-disk tmp tables
 set big_tables=1;
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+@@cte_max_recursion_depth
+50000
 flush status;
 # Mutual recursion unsupported; cycles must have one node only
 with recursive qn as (select * from qn2),
