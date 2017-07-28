@@ -578,11 +578,7 @@ NdbImportImpl::Job::start_resume()
   // copy entire old rowmap
   require(m_rowmap_out.empty());
   m_rowmap_out.add(m_rowmap_in);
-  // save and skip first range
-  require(!m_rowmap_in.empty());
-  RowMap::Ranges& ranges_in = m_rowmap_in.m_ranges;
-  m_range_in = ranges_in.front();
-  ranges_in.erase(ranges_in.begin());
+  // input worker handles seek in do_init()
   log1("range_in: " << m_range_in);
 }
 
@@ -1612,16 +1608,33 @@ NdbImportImpl::CsvInputWorker::do_init()
     {
       CsvInputTeam& team = static_cast<CsvInputTeam&>(m_team);
       WorkerFile& file = team.m_file;
-      RowMap::Range range_in = team.m_job.m_range_in;
-      uint64 seekpos = range_in.m_endpos;
-      if (file.do_seek(seekpos) == -1)
+      RowMap::Ranges& ranges_in = rowmap_in.m_ranges;
+      require(!ranges_in.empty());
+      RowMap::Range range_in = ranges_in.front();
+      /*
+       * First range is likely to be the big one.  If the range
+       * starts with rowid 0 seek to the end and erase it.
+       * In rare cases rowid 0 may not yet have been processed
+       * due to an early error and rejected out of order rows.
+       */
+      if (range_in.m_start == 0)
       {
-        require(has_error());
-        return;
+        uint64 seekpos = range_in.m_endpos;
+        if (file.do_seek(seekpos) == -1)
+        {
+          require(has_error());
+          return;
+        }
+        log1("file " << file.get_path() << ": "
+             "seek to pos " << seekpos << " done");
+        m_csvinput->do_resume(range_in);
+        ranges_in.erase(ranges_in.begin());
       }
-      log1("file " << file.get_path() << ": "
-           "seek to pos " << seekpos << " done");
-      m_csvinput->do_resume(range_in);
+      else
+      {
+        log1("file " << file.get_path() << ": "
+             "cannot seek first rowid=" << range_in.m_start);
+      }
     }
   }
 }
