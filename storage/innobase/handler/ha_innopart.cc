@@ -1327,7 +1327,7 @@ ha_innopart::close()
 	if (m_part_share != NULL) {
 		lock_shared_ha_data();
 		m_part_share->close_table_parts(
-			m_prebuilt == nullptr || m_prebuilt->table == nullptr);
+			m_prebuilt != nullptr && m_prebuilt->table == nullptr);
 		unlock_shared_ha_data();
 		m_part_share = NULL;
 	}
