@@ -199,6 +199,9 @@ enum fil_operation_t {
 /** The null file address */
 fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
+/** Maximum number of threads to use for scanning data files. */
+static const size_t	MAX_SCAN_THREADS = 8;
+
 /** Maximum number of shards supported. */
 static const size_t	MAX_SHARDS = 32;
 
@@ -9529,6 +9532,16 @@ Tablespace_dirs::scan(const std::string& directories)
 
 	size_t	n_threads = (ibd_files.size() / 50000);
 
+	if (n_threads > MAX_SCAN_THREADS) {
+		n_threads = MAX_SCAN_THREADS;
+	}
+
+	if (n_threads > 0) {
+		ib::info()
+			<< "Using " << (n_threads + 1)  << "threads to"
+			<< " scan the tablespace files";
+	}
+
 	std::vector<std::thread>	workers;
 
 	std::mutex	m;
@@ -9542,10 +9555,6 @@ Tablespace_dirs::scan(const std::string& directories)
 		if (i == n_threads - 1) {
 			slice = ibd_files.size() - start;
 		}
-
-		ib::info()
-			<< "Thread: " << thread_id << ", "
-			<< start << ", " << slice;
 
 		ut_a(ibd_files.begin() + start + slice <= ibd_files.end());
 
