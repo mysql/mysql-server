@@ -80,9 +80,6 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_ptn_name)
 {
-	/** partition name separator */
-	extern	const char	part_sep[4];
-
 	std::string	path{filename};
 
 	ut_ad(!fil_has_ibd_suffix(path) != 0);
@@ -104,7 +101,7 @@ dd_parse_tbl_name(
 	path_to_tablename(db_name.c_str(), dd_db_name, MAX_DB_LEN, true);
 
 	/* Check if the name is that of a partition. */
-	pos = table_name.find(part_sep);
+	pos = table_name.find(PARTITION_SEPARATOR);
 
 	std::string	ptn_name;
 
