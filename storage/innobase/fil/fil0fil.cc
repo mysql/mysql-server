@@ -335,7 +335,7 @@ private:
 class Tablespace_dirs {
 public:
 	/** Constructor */
-	Tablespace_dirs() : m_dirs() { }
+	Tablespace_dirs() : m_dirs(), m_checked() { }
 
 	/** Discover tablespaces by reading the header from .ibd files.
 	@param[in]	directories	Directories to scan
@@ -411,12 +411,14 @@ private:
 	using const_iter = Scanned_files::const_iterator;
 
 	/** Check for duplicate tablespace IDs.
+	@param[in]	thread_id	Thread ID
 	@param[in,out]	mutex		Mutex protecting the global state
 	@param[in]	begin		Start of slice
 	@param[in]	end		End of slice
 	@param[in,out]	unique		To check for duplciates
 	@param[in,out]	duplicates	Duplicate space IDs found */
 	void duplicate_check(
+		size_t			thread_id,
 		std::mutex*		mutex,
 		const const_iter&	begin,
 		const const_iter&	end,
@@ -426,6 +428,9 @@ private:
 private:
 	/** Directories scanned and the files discovered under them. */
 	Scanned			m_dirs;
+
+	/** Number of files checked. */
+	std::atomic_size_t	m_checked;
 };
 
 /** Determine if user has explicitly disabled fsync(). */
@@ -9336,6 +9341,7 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 }
 
 /** Check for duplicate tablespace IDs.
+@param[in]	thread_id	Thread ID
 @param[in,out]	mutex		Mutex that covers the global state
 @param[in]	start		Slice start
 @param[in]	end		Slice end
@@ -9343,6 +9349,7 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 @param[in,out]	duplicates	Duplicate space IDs found */
 void
 Tablespace_dirs::duplicate_check(
+	size_t			thread_id,
 	std::mutex*		mutex,
 	const const_iter&	start,
 	const const_iter&	end,
@@ -9353,7 +9360,7 @@ Tablespace_dirs::duplicate_check(
 	bool	printed_msg = false;
 	auto	start_time = ut_time();
 
-	for (auto it = start; it != end; ++it) {
+	for (auto it = start; it != end; ++it, ++m_checked) {
 
 		const auto&	filename = it->second;
 
@@ -9400,7 +9407,8 @@ Tablespace_dirs::duplicate_check(
 		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 			ib::info()
-				<< "Checked "
+				<< "Thread# " << thread_id
+				<< " - Checked "
 				<< count << "/" << (end - start)
 				<< " files";
 
@@ -9530,15 +9538,19 @@ Tablespace_dirs::scan(const std::string& directories)
 	Space_id_set	unique;
 	Space_id_set	duplicates;
 
-	size_t	n_threads = (ibd_files.size() / 50000);
-
-	if (n_threads > MAX_SCAN_THREADS) {
-		n_threads = MAX_SCAN_THREADS;
-	}
+	size_t		slice = 0;
+	size_t		n_threads = (ibd_files.size() / 50000);
 
 	if (n_threads > 0) {
+	       
+		if (n_threads > MAX_SCAN_THREADS) {
+			n_threads = MAX_SCAN_THREADS;
+		}
+
+		slice = ibd_files.size() / n_threads;
+
 		ib::info()
-			<< "Using " << (n_threads + 1)  << "threads to"
+			<< "Using " << (n_threads + 1)  << " threads to"
 			<< " scan the tablespace files";
 	}
 
@@ -9546,15 +9558,9 @@ Tablespace_dirs::scan(const std::string& directories)
 
 	std::mutex	m;
 
-	for (size_t i = 0; n_threads > 0 && i < n_threads - 1; ++i) {
+	for (size_t i = 0; i < n_threads; ++i) {
 
-		size_t	thread_id = i + 1;
-		size_t	slice = ibd_files.size() / n_threads;
-		auto	start = thread_id * slice;
-
-		if (i == n_threads - 1) {
-			slice = ibd_files.size() - start;
-		}
+		auto	start = i * slice;
 
 		ut_a(ibd_files.begin() + start + slice <= ibd_files.end());
 
@@ -9564,25 +9570,26 @@ Tablespace_dirs::scan(const std::string& directories)
 		workers.push_back(
 			std::thread{
 				&Tablespace_dirs::duplicate_check,
-				this, &m, begin, end, &unique, &duplicates});
+				this, i, &m, begin, end, &unique, &duplicates});
 	}
 
-	const const_iter&	ibd_end = (n_threads > 0)
-		? ibd_files.begin() + (ibd_files.size() / n_threads)
-		: ibd_files.end();
+	duplicate_check(
+		n_threads, &m,
+		ibd_files.begin() + (n_threads * slice),
+		ibd_files.end(), &unique, &duplicates);
 
-	duplicate_check( &m, ibd_files.begin(), ibd_end, &unique, &duplicates);
-
-	const const_iter&	undo_end = undo_files.end();
-
-	duplicate_check(&m, undo_files.begin(), undo_end, &unique, &duplicates);
+	duplicate_check(
+		n_threads, &m,
+		undo_files.begin(), undo_files.end(), &unique, &duplicates);
 
 	for (auto& worker : workers) {
 
 		worker.join();
 	}
 
-	ib::info() << "Completed space ID check";
+	ut_a(m_checked == ibd_files.size() + undo_files.size());
+
+	ib::info() << "Completed space ID check of " << m_checked << " files.";
 
 	dberr_t	err;
 
