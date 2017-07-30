@@ -1013,6 +1013,8 @@ DROP TABLESPACE ts1;
 --echo # Start executing CREATE TABLESPACE, but wait after
 --echo # getting the MDL X lock on the tablespace name.
 
+TRUNCATE TABLE performance_schema.events_statements_history_long;
+
 --connection con1
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
   SIGNAL got_lock_con1
@@ -1078,12 +1080,12 @@ LET $wait_condition=
 --source include/wait_condition.inc
 
 LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history
+  SELECT COUNT(*) = 1 FROM performance_schema.events_waits_history_long
     WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 --source include/wait_condition.inc
 
 SELECT event_name, object_name, object_type, operation
-  FROM performance_schema.events_waits_history
+  FROM performance_schema.events_waits_history_long
   WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 
 --echo #
