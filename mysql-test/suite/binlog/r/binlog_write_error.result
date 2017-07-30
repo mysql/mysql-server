@@ -59,15 +59,15 @@ t1	CREATE TABLE `t1` (
 CREATE VIEW v1 AS SELECT a FROM t1;
 CREATE VIEW v1 AS SELECT a FROM t1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP VIEW v1;
-DROP VIEW v1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+# The above CREATE VIEW was rolled back. Check this.
+SHOW CREATE VIEW v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
 CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
 CREATE PROCEDURE p1(OUT `rows` INT) SELECT count(*) INTO `rows` FROM t1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP PROCEDURE p1;
-DROP PROCEDURE p1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+# The above CREATE Procedure was rolled back. Check this.
+SHOW CREATE PROCEDURE p1;
+ERROR 42000: PROCEDURE p1 does not exist
 DROP TABLE t1;
 DROP TABLE t1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
@@ -78,9 +78,9 @@ DROP TABLE t1;
 CREATE FUNCTION f1() RETURNS INT return 1;
 CREATE FUNCTION f1() RETURNS INT return 1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
-DROP FUNCTION f1;
-DROP FUNCTION f1;
-ERROR HY000: Error writing file 'master-bin' ((errno: #)
+# The above CREATE Procedure was rolled back. Check this.
+SHOW CREATE FUNCTION f1;
+ERROR 42000: FUNCTION f1 does not exist
 CREATE USER user1;
 CREATE USER user1;
 ERROR HY000: Error writing file 'master-bin' ((errno: #)
