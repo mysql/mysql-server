@@ -58,6 +58,10 @@ The tablespace memory cache */
 # include "log0log.h"
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "os0thread-create.h"
+
+#include "current_thd.h"
+#include "ha_prototypes.h"
 
 #include <fstream>
 #include <list>
@@ -411,17 +415,17 @@ private:
 	using const_iter = Scanned_files::const_iterator;
 
 	/** Check for duplicate tablespace IDs.
-	@param[in]	thread_id	Thread ID
-	@param[in,out]	mutex		Mutex protecting the global state
 	@param[in]	begin		Start of slice
 	@param[in]	end		End of slice
+	@param[in]	thread_id	Thread ID
+	@param[in,out]	mutex		Mutex protecting the global state
 	@param[in,out]	unique		To check for duplciates
 	@param[in,out]	duplicates	Duplicate space IDs found */
 	void duplicate_check(
-		size_t			thread_id,
-		std::mutex*		mutex,
 		const const_iter&	begin,
 		const const_iter&	end,
+		size_t			thread_id,
+		std::mutex*		mutex,
 		Space_id_set*		unique,
 		Space_id_set*		duplicates);
 
@@ -1610,6 +1614,15 @@ Fil_shard::close_file(space_id_t space_id)
 	}
 
 	for (auto& file : space->files) {
+
+		while (file.in_use > 0) {
+
+		       mutex_release();
+
+		       os_thread_sleep(10000);
+
+		       mutex_acquire();
+		}
 
 		if (file.is_open) {
 			close_file(&file, false);
@@ -4789,11 +4802,12 @@ fil_rename_tablespace(
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
-For general tablespaces, the 'dbname/' part may be missing.
+				For general tablespaces, the 'dbname/' part
+				may be missing.
 @param[in]	path		Path and filename of the datafile to create.
 @param[in]	flags		Tablespace flags
 @param[in]	size		Initial size of the tablespace file in pages,
-must be >= FIL_IBD_FILE_INITIAL_SIZE
+				must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_create(
@@ -5819,7 +5833,7 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 			space->print_xdes_pages("xdes_pages.log"););
 
 	fil_node_t*	file;
-	size_t		slot;
+	bool		slot;
 	size_t		phy_page_size;
 	bool		success = true;
 
@@ -5891,7 +5905,7 @@ Fil_shard::space_extend(fil_space_t* space, page_no_t size)
 		return(false);
 	}
 
-	ut_ad(file->is_open);
+	ut_a(file->is_open);
 
 	if (size <= space->size) {
 
@@ -9341,18 +9355,18 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 }
 
 /** Check for duplicate tablespace IDs.
-@param[in]	thread_id	Thread ID
-@param[in,out]	mutex		Mutex that covers the global state
 @param[in]	start		Slice start
 @param[in]	end		Slice end
+@param[in]	thread_id	Thread ID
+@param[in,out]	mutex		Mutex that covers the global state
 @param[in,out]	unique		To check for duplciates
 @param[in,out]	duplicates	Duplicate space IDs found */
 void
 Tablespace_dirs::duplicate_check(
-	size_t			thread_id,
-	std::mutex*		mutex,
 	const const_iter&	start,
 	const const_iter&	end,
+	size_t			thread_id,
+	std::mutex*		mutex,
 	Space_id_set*		unique,
 	Space_id_set*		duplicates)
 {
@@ -9538,7 +9552,6 @@ Tablespace_dirs::scan(const std::string& directories)
 	Space_id_set	unique;
 	Space_id_set	duplicates;
 
-	size_t		slice = 0;
 	size_t		n_threads = (ibd_files.size() / 50000);
 
 	if (n_threads > 0) {
@@ -9547,45 +9560,33 @@ Tablespace_dirs::scan(const std::string& directories)
 			n_threads = MAX_SCAN_THREADS;
 		}
 
-		slice = ibd_files.size() / n_threads;
-
 		ib::info()
 			<< "Using " << (n_threads + 1)  << " threads to"
 			<< " scan the tablespace files";
 	}
 
-	std::vector<std::thread>	workers;
-
 	std::mutex	m;
 
-	for (size_t i = 0; i < n_threads; ++i) {
+	using std::placeholders::_1;
+	using std::placeholders::_2;
+	using std::placeholders::_3;
+	using std::placeholders::_4;
+	using std::placeholders::_5;
+	using std::placeholders::_6;
 
-		auto	start = i * slice;
+	std::function<void(
+		const const_iter&, const const_iter&, size_t,
+		std::mutex*, Space_id_set*, Space_id_set*)>
+		check = std::bind(
+			&Tablespace_dirs::duplicate_check, this,
+			_1, _2, _3, _4, _5, _6);
 
-		ut_a(ibd_files.begin() + start + slice <= ibd_files.end());
-
-		auto	begin = ibd_files.begin() + start;
-		auto	end = begin + slice;
-
-		workers.push_back(
-			std::thread{
-				&Tablespace_dirs::duplicate_check,
-				this, i, &m, begin, end, &unique, &duplicates});
-	}
-
-	duplicate_check(
-		n_threads, &m,
-		ibd_files.begin() + (n_threads * slice),
-		ibd_files.end(), &unique, &duplicates);
+	par_for(PFS_NOT_INSTRUMENTED,
+		ibd_files, n_threads, check, &m, &unique, &duplicates);
 
 	duplicate_check(
-		n_threads, &m,
-		undo_files.begin(), undo_files.end(), &unique, &duplicates);
-
-	for (auto& worker : workers) {
-
-		worker.join();
-	}
+		undo_files.begin(), undo_files.end(), n_threads,
+		&m, &unique, &duplicates);
 
 	ut_a(m_checked == ibd_files.size() + undo_files.size());
 
@@ -9653,9 +9654,10 @@ fil_check_extend_space(fil_node_t* file)
 
 		if(!shard->space_extend(space, space->size_in_header)) {
 
-			ib::error() << "Failed to extend tablespace."
-				    << " Check for free space in disk"
-				    << " and try again.";
+			ib::error()
+				<< "Failed to extend tablespace."
+				<< " Check for free space in disk"
+				<< " and try again.";
 
 			err = DB_OUT_OF_FILE_SPACE;
 		}
@@ -9693,6 +9695,18 @@ Fil_system::open_for_business(bool read_only_mode)
 		return(DB_READ_ONLY);
 	}
 
+	trx_t*	trx = check_trx_exists(current_thd);
+
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	/* The transaction should not be active yet, start it */
+
+	ut_ad(!trx_is_started(trx));
+
+	trx_start_if_not_started_xa(trx, false);
+
+	size_t	batch_size = 0;
+
 	/* If some file paths have changed then update the DD */
 	for (auto& tablespace : m_moved) {
 
@@ -9728,7 +9742,27 @@ Fil_system::open_for_business(bool read_only_mode)
 			start_time = ut_time();
 			print_msg = true;
 		}
+
+		++batch_size;
+
+		if (batch_size > 10000) {
+
+			innobase_commit_low(trx);
+
+			ib::info() << "Committed : " << batch_size;
+
+			batch_size = 0;
+
+			trx_start_if_not_started_xa(trx, false);
+		}
 	}
+
+	if (batch_size > 0) {
+
+		ib::info() << "Committed : " << batch_size;
+	}
+
+	innobase_commit_low(trx);
 
 	if (print_msg) {
 

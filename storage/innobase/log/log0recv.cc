@@ -1519,7 +1519,8 @@ recv_parse_or_apply_log_rec_body(
 
 		if (ptr != nullptr
 		    && page != nullptr
-		    && page_no == 0 && type == MLOG_4BYTES) {
+		    && page_no == 0
+		    && type == MLOG_4BYTES) {
 
 			ulint	offs = mach_read_from_2(old_ptr);
 
@@ -1546,9 +1547,13 @@ recv_parse_or_apply_log_rec_body(
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_SIZE:
+
 					bool	success;
+
 					space->size_in_header = val;
+
 					success = fil_space_extend(space, val);
+
 					if (!success) {
 						ib::error()
 						<< "Could not extend tablespace"

@@ -117,6 +117,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_data_lock.h"
 #include "os0file.h"
 #include "os0thread.h"
+#include "os0thread-create.h"
 #include "p_s.h"
 #include "page0zip.h"
 #include "pars0pars.h"
@@ -152,6 +153,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0upgrade.h"
 #include "dict0load.h"
 #include "dict0sdi.h"
+
+#include <vector>
+#include <mutex>
 
 /** Stop printing warnings, if the count exceeds this threshold. */
 static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
@@ -3349,84 +3353,128 @@ filename_to_space_name(char* filename)
 	return(space_name);
 }
 
-/** Discover all InnoDB tablespaces.
-@param[in,out]	thd	thread handle
-@retval	true	on error
-@retval	false	on success */
-static MY_ATTRIBUTE((warn_unused_result))
-bool
-boot_tablespaces(THD* thd)
-{
-	auto	dc = dd::get_dd_client(thd);
+/** Validate the DD tablespace data against what's read during the
+directory scan on startup. */
+class Validate_files {
 
-	using DD_tablespaces = std::vector<const dd::Tablespace*>;
-	using Releaser = dd::cache::Dictionary_client::Auto_releaser;
+	using Tablespaces = std::vector<const dd::Tablespace*>;
+	using Const_iter = Tablespaces::const_iterator;
 
-	DD_tablespaces	tablespaces;
-	Releaser	releaser(dc);
+public:
+	/** Constructor */
+	Validate_files()
+		:
+		m_n_errors(),
+		m_mutex(),
+		m_space_max_id(),
+		m_checked(),
+		m_n_threads() {}
 
-	/* Initialize the max space_id from sys header */
-	mutex_enter(&dict_sys->mutex);
+	/** Validate the tablespaces against the DD.
+	@param[in]	tablespaces	Tablespace files read from the DD
+	@return DB_SUCCESS if all OK */
+	dberr_t validate(const Tablespaces& tablespaces);
 
-	mtr_t	mtr;
+private:
+	/** Validate the tablespace filenames.
+	@param[in]	begin		Start of the slice
+	@param[in]	end		End of the slice
+	@param[in]	thread_id	Thread ID */
+	void check(
+		const Const_iter&	begin,
+		const Const_iter&	end,
+		size_t			thread_id);
 
-	mtr_start(&mtr);
-
-	space_id_t	max_id;
-
-	max_id = mtr_read_ulint(
-		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID, MLOG_4BYTES, &mtr);
-
-	mtr_commit(&mtr);
-
-	fil_set_max_space_id_if_bigger(max_id);
-
-	mutex_exit(&dict_sys->mutex);
-
-	if (dc->fetch_global_components(&tablespaces)) {
-		return(true);
+	/** @return true if there were failures. */
+	bool failed() const
+	{
+		return(m_n_errors != 0);
 	}
 
-	bool	fail = false;
-	auto	heap = mem_heap_create(FN_REFLEN * 2 + 1);
+	/** @return the number of tablespaces checked. */
+	size_t checked() const
+	{
+		return(m_checked);
+	}
 
-	const bool	validate = recv_needed_recovery
-		&& srv_force_recovery == 0;
+	/** @return the maximum tablespace ID found. */
+	space_id_t get_space_max_id() const
+	{
+		return(m_space_max_id);
+	}
 
-	max_id = 0;
+private:
+	/** Number of threads that failed. */
+	std::atomic_size_t	m_n_errors;
 
+	/** Mutex protecting the parallel check. */
+	std::mutex		m_mutex;
+
+	/** Maximum tablespace ID found. */
+	space_id_t		m_space_max_id;
+
+	/** Number of tablespaces checked. */
+	std::atomic_size_t	m_checked;
+
+	/** Number of threads used in the parallel for. */
+	size_t			m_n_threads;
+};
+
+/** Validate the tablespace filenames.
+@param[in]	begin		Start of the slice
+@param[in]	end		End of the slice
+@param[in]	thread_id	Thread ID */
+void
+Validate_files::check(
+	const Const_iter&	begin,
+	const Const_iter&	end,
+	size_t			thread_id)
+{
 	const auto	sys_space_name = dict_sys_t::sys_space_name;
 	const auto	fpt_str = dict_sys_t::file_per_table_name;
 	const auto	fpt_str_len = strlen(fpt_str);
 
-	size_t	moved = 0;
-	size_t	count = 0;
-	bool	print_msg = false;
-	auto	start_time = ut_time();
+	size_t		count = 0;
+	size_t		moved = 0;
+	bool		print_msg = false;
+	auto		start_time = ut_time();
+	auto		heap = mem_heap_create(FN_REFLEN * 2 + 1);
 
-	for (const auto tablespace : tablespaces) {
+	const bool	validate = recv_needed_recovery
+		&& srv_force_recovery == 0;
 
-		++count;
+	std::string		prefix;
+
+	if (m_n_threads > 0) {
+		std::ostringstream	msg;
+
+		msg << "Thread# " << thread_id << " - ";
+
+		prefix = msg.str();
+	}
+
+	for (auto it = begin; it != end; ++it, ++m_checked, ++count) {
+
+		const auto&	tablespace = *it;
 
 		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
-			if (moved == 0) {
-				ib::info()
-					<< "Checked " << count
-					<< " tablespaces";
-			} else {
-				ib::warn()
-					<< "Checked " << count
-					<< " tablespaces, moved count "
-					<< moved;
+			std::ostringstream	msg;
+
+			msg	<< prefix
+				<< "Checked " << count << "/" << (end - begin)
+				<< " tablespaces";
+
+			if (moved > 0) {
+				msg << ", moved count " << moved;
 			}
+
+			ib::info() << msg.str();
 
 			start_time = ut_time();
 
 			print_msg = true;
 		}
-
-		ut_ad(!fail);
 
 		if (tablespace->engine() != innobase_hton_name) {
 			continue;
@@ -3445,14 +3493,16 @@ boot_tablespaces(THD* thd)
 
 			/* Failed to fetch the tablespace ID */
 
-			fail = true;
+			++m_n_errors;
+
 			break;
 
 		} else if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
 
 			/* Failed to fetch the tablespace flags. */
 
-			fail = true;
+			++m_n_errors;
+
 			break;
 
 		} else if (tablespace->files().size() != 1
@@ -3461,15 +3511,22 @@ boot_tablespaces(THD* thd)
 			/* Only the InnoDB system tablespace has support for
 			multiple files per tablespace. For historial reasons. */
 
-			fail = true;
+			++m_n_errors;
+
 			break;
 		}
 
-		if (!dict_sys_t::is_reserved(space_id) && space_id > max_id) {
+		{
+			std::lock_guard<std::mutex> guard(m_mutex);
 
-			/* Currently try to find the max one only, it should
-			be able to reuse the deleted smaller ones later */
-			max_id = space_id;
+			if (!dict_sys_t::is_reserved(space_id)
+			    && space_id > m_space_max_id) {
+
+				/* Currently try to find the max one only,
+				it should be able to reuse the deleted smaller
+				ones later */
+				m_space_max_id = space_id;
+			}
 		}
 
 		const auto	file = *tablespace->files().begin();
@@ -3486,6 +3543,8 @@ boot_tablespaces(THD* thd)
 
 		if (fsp_is_ibd_tablespace(space_id)) {
 
+			std::lock_guard<std::mutex> guard(m_mutex);
+
 			switch(fil_tablespace_path_equals(
 					tablespace->id(),
 					space_id, filename, &new_path)) {
@@ -3496,6 +3555,7 @@ boot_tablespaces(THD* thd)
 			case Fil_path::MISSING:
 
 				ib::info()
+					<< prefix
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
@@ -3506,6 +3566,7 @@ boot_tablespaces(THD* thd)
 			case Fil_path::DELETED:
 
 				ib::info()
+					<< prefix
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
@@ -3524,6 +3585,7 @@ boot_tablespaces(THD* thd)
 				}
 
 				ib::warn()
+					<< prefix
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
@@ -3532,7 +3594,8 @@ boot_tablespaces(THD* thd)
 
 				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
 
-					ib::warn()
+					ib::warn() 
+						<< prefix
 						<< "Too many files have"
 						<< " have been moved, disabling"
 						<< " logging of detailed"
@@ -3560,7 +3623,8 @@ boot_tablespaces(THD* thd)
 			space_name = filename_to_space_name(buf);
 
 			if (space_name == nullptr) {
-				fail = true;
+
+				++m_n_errors;
 				break;
 			}
 		}
@@ -3582,6 +3646,7 @@ boot_tablespaces(THD* thd)
 
 		default:
 			ib::error()
+				<< prefix
 				<< "Tablespace " << space_id << ","
 				<< " name '" << space_name << "',"
 				<< " unable to open file"
@@ -3590,21 +3655,95 @@ boot_tablespaces(THD* thd)
 		}
 	}
 
-	if (fail) {
-		mem_heap_free(heap);
+	if (!print_msg) {
+		ib::info()
+			<< prefix
+			<< "Validated "
+			<< count << "/" << (end - begin) << "  tablespaces";
+	}
+
+	mem_heap_free(heap);
+}
+
+/** Validate the tablespaces against the DD.
+@param[in]	tablespaces	Tablespace files read from the DD
+@return DB_SUCCESS if all OK */
+dberr_t
+Validate_files::validate(const Tablespaces& tablespaces)
+{
+	m_n_threads = tablespaces.size() / 50000;
+
+	if (m_n_threads > 8) {
+		m_n_threads = 8;
+	}
+
+	using std::placeholders::_1;
+	using std::placeholders::_2;
+	using std::placeholders::_3;
+
+	std::function<void(
+		const Validate_files::Const_iter&,
+		const Validate_files::Const_iter&,
+		size_t)> check = std::bind(
+			&Validate_files::check, this, _1, _2, _3);
+
+	par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check);
+
+	ib::info() << "Validated " << checked();
+
+	if (failed()) {
+		return(DB_ERROR);
+	}
+
+	fil_set_max_space_id_if_bigger(get_space_max_id());
+
+	return(DB_SUCCESS);
+}
+
+/** Discover all InnoDB tablespaces.
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+static MY_ATTRIBUTE((warn_unused_result))
+bool
+boot_tablespaces(THD* thd)
+{
+	auto	dc = dd::get_dd_client(thd);
+
+	using DD_tablespaces = std::vector<const dd::Tablespace*>;
+	using Releaser = dd::cache::Dictionary_client::Auto_releaser;
+
+	DD_tablespaces	tablespaces;
+	Releaser	releaser(dc);
+
+	/* Initialize the max space_id from sys header */
+	mutex_enter(&dict_sys->mutex);
+
+	mtr_t	mtr;
+
+	mtr_start(&mtr);
+
+	space_id_t	space_max_id = mtr_read_ulint(
+		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID, MLOG_4BYTES, &mtr);
+
+	mtr_commit(&mtr);
+
+	fil_set_max_space_id_if_bigger(space_max_id);
+
+	mutex_exit(&dict_sys->mutex);
+
+	ib::info() << "Reading DD tablespace files";
+
+	if (dc->fetch_global_components(&tablespaces)) {
+
+		/* Failed to fetch the tablespaces from the DD. */
 
 		return(true);
 	}
 
-	if (print_msg) {
-		ib::info() << "Checked " << count << " tablespaces";
-	}
+	Validate_files	validator;
 
-	fil_set_max_space_id_if_bigger(max_id);
-
-	mem_heap_free(heap);
-
-	return(fail);
+	return(validator.validate(tablespaces) != DB_SUCCESS);
 }
 
 /** Create metadata for a predefined tablespace at server initialization.
@@ -3758,15 +3897,15 @@ innobase_dict_recover(
 		}
 
 		srv_dict_recover_on_restart();
+
+		err = fil_open_for_business(srv_read_only_mode);
+
+		if (err != DB_SUCCESS) {
+			return(true);
+		}
 	}
 
 	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
-
-	err = fil_open_for_business(srv_read_only_mode);
-
-	if (err != DB_SUCCESS) {
-		return(false);
-	}
 
 	return(false);
 }
