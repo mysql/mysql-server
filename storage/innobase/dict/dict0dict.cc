@@ -6970,31 +6970,24 @@ DDTableBuffer::open()
 	const char*	table_id_name = "table_id";
 	const char*	version_name = "version";
 	const char*	metadata_name = "metadata";
-	const unsigned	table_id = 32;
-	const unsigned	index_id = 88;
-	unsigned	root;
 	ulint		prtype = 0;
 	mem_heap_t*	heap = mem_heap_create(256);
 
-	switch(univ_page_size.physical()) {
-	case 4096:
-		root = 116;
-		break;
-	case 8192:
-		root = 98;
-		break;
-	case 16384:
-		root = 93;
-		break;
-	case 32768:
-		root = 92;
-		break;
-	case 65536:
-		root = 91;
-		break;
-	default:
-		ut_ad(0);
-		root = 93;
+	/* Get the root page number according to index id, this is
+	same with what we do in ha_innobsae::get_se_private_data() */
+	page_no_t	root = 4;
+	space_index_t	index_id = 0;
+	while (true) {
+		if (fsp_is_inode_page(root)) {
+			++root;
+			ut_ad(!fsp_is_inode_page(root));
+		}
+
+		if (++index_id == dict_sys_t::s_dynamic_meta_index_id) {
+			break;
+		}
+
+		++root;
 	}
 
 	mutex_enter(&dict_sys->mutex);
@@ -7002,7 +6995,7 @@ DDTableBuffer::open()
 	table = dict_mem_table_create(
 		table_name, dict_sys_t::space_id, N_USER_COLS, 0, 0, 0);
 
-	table->id = table_id;
+	table->id = dict_sys_t::s_dynamic_meta_table_id;
 	table->is_dd_table = true;
 	table->dd_space_id = dict_sys_t::dd_space_id;
 	table->flags |= DICT_TF_COMPACT | (1 << DICT_TF_POS_SHARED_SPACE)
@@ -7031,7 +7024,7 @@ DDTableBuffer::open()
 
 	dict_index_add_col(m_index, table, &table->cols[0], 0, true);
 
-	m_index->id = index_id;
+	m_index->id = dict_sys_t::s_dynamic_meta_index_id;
 	m_index->n_uniq = 1;
 
 	dberr_t err = dict_index_add_to_cache(table, m_index, root, false);

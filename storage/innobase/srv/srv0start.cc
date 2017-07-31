@@ -2462,7 +2462,9 @@ files_checked:
 				/* Open this table in case srv_dict_metadata
 				should be applied to this table before
 				checkpoint. And because DD is not fully up yet,
-				the table can be opened by internal APIs. */
+				the table can be opened by internal APIs.
+				FIXME: What if there is no enough room
+				in redo logs? */
 				fil_space_t*	space =
 					fil_space_acquire_silent(
 						dict_sys_t::space_id);

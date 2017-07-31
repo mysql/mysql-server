@@ -1596,6 +1596,12 @@ struct dict_sys_t{
 
 	/** The hard-coded tablespace name innodb_file_per_table. */
 	static const char*		file_per_table_name;
+
+	/** The table ID of mysql.innodb_dynamic_metadata */
+	static constexpr table_id_t	s_dynamic_meta_table_id = 32;
+
+	/** The clustered index ID of mysql.innodb_dynamic_metadata */
+	static constexpr space_index_t	s_dynamic_meta_index_id = 88;
 };
 
 /** Structure for persisting dynamic metadata of data dictionary */
