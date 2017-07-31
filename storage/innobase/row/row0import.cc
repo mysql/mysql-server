@@ -3533,11 +3533,6 @@ row_import_for_mysql(
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
 
-	/* Ensure that the table will be dropped by trx_rollback_active()
-	in case of a crash. */
-
-	trx->table_id = table->id;
-
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
 

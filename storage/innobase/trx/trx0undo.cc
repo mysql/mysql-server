@@ -1268,7 +1268,6 @@ trx_undo_mem_create_at_db_start(
 	undo->dict_operation =	mtr_read_ulint(
 		undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
-	undo->table_id = mach_read_from_8(undo_header + TRX_UNDO_TABLE_ID);
 	undo->state = state;
 	undo->size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST);
 
@@ -1637,8 +1636,6 @@ trx_undo_mark_as_dict_operation(
 	hdr_page = trx_undo_page_get(
 		page_id_t(undo->space, undo->hdr_page_no),
 		undo->page_size, mtr);
-
-	undo->table_id = 0;
 
 	mlog_write_ulint(hdr_page + undo->hdr_offset
 			 + TRX_UNDO_DICT_TRANS,

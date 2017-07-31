@@ -1122,8 +1122,7 @@ struct trx_t {
 	uint64_t	age_updated;
 
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
-	table_id_t	table_id;	/*!< Table to drop iff dict_operation
-					== TRX_DICT_OP_TABLE, or 0. */
+
 	/*------------------------------*/
 	THD*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */

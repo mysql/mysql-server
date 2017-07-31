@@ -297,12 +297,6 @@ dict_build_index_def(
 	trx_t*			trx)	/*!< in/out: InnoDB transaction handle */
 {
 	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
-
-	if (trx->table_id == 0) {
-		/* Record only the first table id. */
-		trx->table_id = table->id;
-	}
-
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || index->is_clustered());
 
@@ -642,8 +636,6 @@ dict_table_assign_new_id(
 	} else {
 		dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
 	}
-
-	trx->table_id = table->id;
 }
 
 /** Create in-memory tablespace dictionary index & table

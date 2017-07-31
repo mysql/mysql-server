@@ -154,8 +154,6 @@ trx_init(
 
 	trx->ddl_operation = false;
 
-	trx->table_id = 0;
-
 	trx->error_state = DB_SUCCESS;
 
 	trx->error_key_num = ULINT_UNDEFINED;
@@ -914,7 +912,6 @@ trx_resurrect_insert(
 
 	if (undo->dict_operation) {
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		trx->table_id = undo->table_id;
 	}
 
 	if (!undo->empty) {

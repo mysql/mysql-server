@@ -4462,7 +4462,6 @@ row_drop_table_for_mysql(
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
-		trx->table_id = table->id;
 	case TRX_DICT_OP_TABLE:
 		break;
 	case TRX_DICT_OP_INDEX:
