@@ -3720,7 +3720,7 @@ Fil_shard::space_check_pending_operations(
 
 #ifndef UNIV_HOTBACKUP
 
-/** Get the real path for a file name, usefule for comparing symlinked files.
+/** Get the real path for a file name, useful for comparing symlinked files.
 @param[in]	dir		Directory
 @param[in]	filename	Filename without directory prefix
 @return the absolute path of dir + filename */
@@ -3728,7 +3728,7 @@ static
 std::string
 fil_get_real_path(const char* dir, const std::string& filename = "")
 {
-	char    abspath[FN_REFLEN + 2];
+	char	abspath[FN_REFLEN + 2];
 
 	memset(abspath, 0x0, sizeof(abspath));
 
