@@ -808,8 +808,8 @@ buf_read_recv_pages(
 	page_no_t	last_page = page_nos[n_stored - 1];
 
 	/* Align size to multiple of extent size */
-	success = fil_space_extend(space, last_page);
-		//ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
+	success = fil_space_extend(
+		space, ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
 
 	if (!success) {
 		ib::error()
