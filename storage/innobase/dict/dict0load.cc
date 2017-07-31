@@ -2009,8 +2009,8 @@ dict_check_sys_tables(
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
 		char*	shared_space_name = dict_space_get_name(space_id, NULL);
-		if (space_id == dict_sys_t::space_id) {
-			space_name = dict_sys_t::dd_space_name;
+		if (space_id == dict_sys_t::s_space_id) {
+			space_name = dict_sys_t::s_dd_space_name;
 		} else if (shared_space_name != NULL) {
 			space_name = shared_space_name;
 		} else {
@@ -2033,8 +2033,8 @@ dict_check_sys_tables(
 		location) or this path is the same file but looks different,
 		fil_ibd_open() will update the dictionary with what is
 		opened. */
-		char*	filepath = space_id == dict_sys_t::space_id
-			? mem_strdup(dict_sys_t::dd_space_file_name)
+		char*	filepath = space_id == dict_sys_t::s_space_id
+			? mem_strdup(dict_sys_t::s_dd_space_file_name)
 			: dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
@@ -2770,9 +2770,9 @@ dict_load_tablespace(
 	char*	shared_space_name = NULL;
 	char*	space_name;
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-		if (table->space == dict_sys_t::space_id) {
+		if (table->space == dict_sys_t::s_space_id) {
 			shared_space_name = mem_strdup(
-				dict_sys_t::dd_space_name);
+				dict_sys_t::s_dd_space_name);
 		} else if (srv_sys_tablespaces_open) {
 			shared_space_name =
 				dict_space_get_name(table->space, NULL);

@@ -2173,7 +2173,7 @@ fil_assign_new_space_id(
 
 	id++;
 
-	space_id_t	reserved_space_id = dict_sys_t::reserved_space_id;
+	space_id_t	reserved_space_id = dict_sys_t::s_reserved_space_id;
 	if (id > (reserved_space_id / 2) && (id % 1000000UL == 0)) {
 		ib::warn() << "You are running out of new single-table"
 			" tablespace id's. Current counter is " << id
@@ -8490,7 +8490,7 @@ Fil_Open::from_file(bool recovery)
 	for (const auto& space : files[i].m_spaces) {
 
 		if (space.first == TRX_SYS_SPACE
-		    || space.first == dict_sys_t::temp_space_id){
+		    || space.first == dict_sys_t::s_temp_space_id){
 
 			continue;
 		}
@@ -8852,7 +8852,7 @@ fil_tablespace_name_recover(
 			corrupt = true;
 		}
 
-	} else if (strcmp(name, dict_sys_t::dd_space_file_name) == 0) {
+	} else if (strcmp(name, dict_sys_t::s_dd_space_file_name) == 0) {
 		/* new dd tablespace (mysql.ibd) */
 		if (page_id.page_no() != 0) {
 			corrupt = true;

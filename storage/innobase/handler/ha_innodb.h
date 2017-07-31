@@ -770,7 +770,7 @@ tablespace_is_file_per_table(
 {
 	return(create_info->tablespace != NULL
 	       && (0 == strcmp(create_info->tablespace,
-			       dict_sys_t::file_per_table_name)));
+			       dict_sys_t::s_file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in an existing shared general
@@ -785,7 +785,7 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-		dict_sys_t::file_per_table_name)));
+		dict_sys_t::s_file_per_table_name)));
 }
 
 /** Check if table will be explicitly put in a general tablespace.
@@ -799,11 +799,11 @@ const HA_CREATE_INFO*	create_info)
 	return(create_info->tablespace != NULL
 		&& create_info->tablespace[0] != '\0'
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::file_per_table_name))
+				dict_sys_t::s_file_per_table_name))
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::temp_space_name))
+				dict_sys_t::s_temp_space_name))
 		&& (0 != strcmp(create_info->tablespace,
-				dict_sys_t::sys_space_name)));
+				dict_sys_t::s_sys_space_name)));
 }
 
 /** Parse hint for table and its indexes, and update the information

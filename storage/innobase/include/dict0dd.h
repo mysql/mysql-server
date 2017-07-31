@@ -101,7 +101,7 @@ enum dd_system_id_t {
 };
 
 /** InnoDB implicit tablespace name or prefix, which should be same to
-dict_sys_t::file_per_table_name */
+dict_sys_t::s_file_per_table_name */
 static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 
 /** InnoDB private key strings for dd::Tablespace.
@@ -166,7 +166,7 @@ struct innodb_dd_table_t {
 };
 
 /** The hard-coded data dictionary tables. The number of tables should be
-consistent with dict_sys_t::NUM_HARD_CODED_TABLES */
+consistent with dict_sys_t::s_num_hard_coded_tables */
 const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("dd_properties", 1),
 	INNODB_DD_TABLE("character_sets", 3),

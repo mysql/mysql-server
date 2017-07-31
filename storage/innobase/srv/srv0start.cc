@@ -401,7 +401,7 @@ create_log_files(
 	/* Disable the doublewrite buffer for log files, not required */
 
 	fil_space_t*	log_space = fil_space_create(
-		"innodb_redo_log", dict_sys_t::log_space_first_id,
+		"innodb_redo_log", dict_sys_t::s_log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
 	ut_a(fil_validate());
@@ -449,7 +449,7 @@ create_log_files(
 
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    dict_sys_t::log_space_first_id)) {
+			    dict_sys_t::s_log_space_first_id)) {
 		return(DB_ERROR);
 	}
 
@@ -488,7 +488,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(dict_sys_t::log_space_first_id);
+	fil_flush(dict_sys_t::s_log_space_first_id);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -1464,7 +1464,7 @@ srv_open_tmp_tablespace(
 
 	bool		create_new_temp_space = true;
 
-	tmp_space->set_space_id(dict_sys_t::temp_space_id);
+	tmp_space->set_space_id(dict_sys_t::s_temp_space_id);
 
 	RECOVERY_CRASH(100);
 
@@ -1738,7 +1738,7 @@ srv_prepare_to_delete_redo_log_files(
 
 		/* If innodb_flush_method=O_DSYNC,
 		we need to explicitly flush the log buffers. */
-		fil_flush(dict_sys_t::log_space_first_id);
+		fil_flush(dict_sys_t::s_log_space_first_id);
 
 		ut_ad(flushed_lsn == log_get_lsn());
 
@@ -2253,7 +2253,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		/* Disable the doublewrite buffer for log files. */
 		fil_space_t*	log_space = fil_space_create(
 			"innodb_redo_log",
-			dict_sys_t::log_space_first_id,
+			dict_sys_t::s_log_space_first_id,
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
@@ -2276,7 +2276,7 @@ srv_start(bool create_new_db, const char* scan_directories)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    dict_sys_t::log_space_first_id)) {
+				    dict_sys_t::s_log_space_first_id)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
@@ -2467,14 +2467,14 @@ files_checked:
 				in redo logs? */
 				fil_space_t*	space =
 					fil_space_acquire_silent(
-						dict_sys_t::space_id);
+						dict_sys_t::s_space_id);
 				if (space == nullptr) {
 					dberr_t error = fil_ibd_open(
 						true, FIL_TYPE_TABLESPACE,
-						dict_sys_t::space_id,
+						dict_sys_t::s_space_id,
 						predefined_flags,
-						dict_sys_t::dd_space_name,
-						dict_sys_t::dd_space_file_name);
+						dict_sys_t::s_dd_space_name,
+						dict_sys_t::s_dd_space_file_name);
 					if (error != DB_SUCCESS) {
 						return(srv_init_abort(
 							DB_ERROR));

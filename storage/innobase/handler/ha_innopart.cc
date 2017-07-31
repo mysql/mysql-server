@@ -2436,8 +2436,8 @@ ha_innopart::update_part_elem(
 		}
 	} else {
 		const char*   tablespace_name = ib_table->space == 0
-			? dict_sys_t::sys_space_name
-			: dict_sys_t::file_per_table_name;
+			? dict_sys_t::s_sys_space_name
+			: dict_sys_t::s_file_per_table_name;
 
 		if (part_elem->tablespace_name != NULL) {
 			if (0 != strcmp(part_elem->tablespace_name,
@@ -2754,7 +2754,7 @@ ha_innopart::create(
 		    && dd_part->tablespace_id() == dd::INVALID_OBJECT_ID
 		    && (tablespace_name == NULL
 			|| strcmp(tablespace_name,
-				  dict_sys_t::file_per_table_name) != 0)) {
+				  dict_sys_t::s_file_per_table_name) != 0)) {
 			create_info->tablespace = NULL;
 		} else {
 			create_info->tablespace = tablespace_name;
@@ -3022,7 +3022,7 @@ ha_innopart::set_dd_discard_attribute(
 		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
 
 		char    name[FN_REFLEN];
-		snprintf(name, sizeof name, "%s.%u", dict_sys_t::file_per_table_name,
+		snprintf(name, sizeof name, "%s.%u", dict_sys_t::s_file_per_table_name,
 			 table->space);
 
 		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {

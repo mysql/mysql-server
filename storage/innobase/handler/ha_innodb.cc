@@ -3391,7 +3391,7 @@ boot_tablespaces(THD* thd)
 					&flags)
 			|| (t->files().size() != 1 &&
 			    strcmp(t->name().c_str(),
-				   dict_sys_t::sys_space_name) != 0);
+				   dict_sys_t::s_sys_space_name) != 0);
 
 		if (fail) {
 			break;
@@ -3420,8 +3420,8 @@ boot_tablespaces(THD* thd)
 
 		/* Currently, innodb_file_per_table space name is not the one
 		including schema/table, so get it from filename instead */
-		if (strncmp(t->name().c_str(), dict_sys_t::file_per_table_name,
-			    strlen(dict_sys_t::file_per_table_name)) == 0) {
+		if (strncmp(t->name().c_str(), dict_sys_t::s_file_per_table_name,
+			    strlen(dict_sys_t::s_file_per_table_name)) == 0) {
 			space_name = filename_to_space_name(buf);
 			if (space_name == nullptr) {
 				fail = true;
@@ -3630,10 +3630,11 @@ innobase_dict_recover(
 		dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 		dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-		if (predefine_tablespace(client, thd, dict_sys_t::temp_space_id,
+		if (predefine_tablespace(client, thd,
+					 dict_sys_t::s_temp_space_id,
 					 srv_tmp_space.flags(),
-					 dict_sys_t::temp_space_name,
-					 dict_sys_t::temp_space_file_name)
+					 dict_sys_t::s_temp_space_name,
+					 dict_sys_t::s_temp_space_file_name)
 		    || predefine_undo_tablespaces(client, thd)) {
 			return(true);
 		}
@@ -4219,7 +4220,7 @@ innodb_init_params()
 		univ_page_size, false, false, true, false);
 	srv_sys_space.set_flags(predefined_flags);
 
-	srv_sys_space.set_name(dict_sys_t::sys_space_name);
+	srv_sys_space.set_name(dict_sys_t::s_sys_space_name);
 	srv_sys_space.set_path(srv_data_home);
 
 	/* Set default InnoDB temp data file size to 12 MB and let it be
@@ -4232,7 +4233,7 @@ innodb_init_params()
 	/* We set the temporary tablspace id later, after recovery.
 	The temp tablespace doesn't support raw devices.
 	Set the name and path. */
-	srv_tmp_space.set_name(dict_sys_t::temp_space_name);
+	srv_tmp_space.set_name(dict_sys_t::s_temp_space_name);
 	srv_tmp_space.set_path(srv_data_home);
 
 	/* Create the filespace flags with the temp flag set. */
@@ -4532,7 +4533,7 @@ dd_create_hardcoded(space_id_t space_id, const char* filename)
 	page_no_t	pages = FIL_IBD_FILE_INITIAL_SIZE;
 
 	dberr_t	err = fil_ibd_create(
-		space_id, dict_sys_t::dd_space_name, filename,
+		space_id, dict_sys_t::s_dd_space_name, filename,
 		predefined_flags, pages);
 
 	if (err == DB_SUCCESS) {
@@ -4580,7 +4581,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
-				mysql_flags, dict_sys_t::dd_space_name,
+				mysql_flags, dict_sys_t::s_dd_space_name,
 				filename)
 		   == DB_SUCCESS) {
 		/* Set fil_space_t::size, which is 0 initially. */
@@ -4680,10 +4681,10 @@ innobase_init_files(
 	// For upgrade from 5.7, create mysql.ibd
 	create |= (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 	ret = create
-		? dd_create_hardcoded(dict_sys_t::space_id,
-				      dict_sys_t::dd_space_file_name)
-		: dd_open_hardcoded(dict_sys_t::space_id,
-				    dict_sys_t::dd_space_file_name);
+		? dd_create_hardcoded(dict_sys_t::s_space_id,
+				      dict_sys_t::s_dd_space_file_name)
+		: dd_open_hardcoded(dict_sys_t::s_space_id,
+				    dict_sys_t::s_dd_space_file_name);
 
 	/* Once hardcoded tablespace mysql is created or opened,
 	prepare it along with innodb system tablespace for server.
@@ -4696,18 +4697,18 @@ innobase_init_files(
 		snprintf(se_private_data_innodb_system, len, fmt,
 			 TRX_SYS_SPACE, predefined_flags);
 		snprintf(se_private_data_dd, len, fmt,
-			 dict_sys_t::space_id, predefined_flags);
+			 dict_sys_t::s_space_id, predefined_flags);
 
 		static Plugin_tablespace dd_space(
-			dict_sys_t::dd_space_name, "",
+			dict_sys_t::s_dd_space_name, "",
 			se_private_data_dd, "", innobase_hton_name);
 		static Plugin_tablespace::Plugin_tablespace_file dd_file(
-			dict_sys_t::dd_space_file_name, "");
+			dict_sys_t::s_dd_space_file_name, "");
 		dd_space.add_file(&dd_file);
 		tablespaces->push_back(&dd_space);
 
 		static Plugin_tablespace innodb(
-			dict_sys_t::sys_space_name, "",
+			dict_sys_t::s_sys_space_name, "",
 			se_private_data_innodb_system,
 			"", innobase_hton_name);
 		Tablespace::files_t::const_iterator	end =
@@ -5602,7 +5603,7 @@ ha_innobase::index_flags(
 	/* TODO: Remove these code once the recursiveely access issue which
 	caused by ICP fixed. */
 	const char* dbname = table_share->db.str;
-	if (dbname && strstr(dbname,dict_sys_t::dd_space_name) != 0
+	if (dbname && strstr(dbname, dict_sys_t::s_dd_space_name) != 0
 	    && strlen(dbname) == 5) {
 		flags = HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 			| HA_READ_RANGE | HA_KEYREAD_ONLY;
@@ -11211,9 +11212,9 @@ validate_tablespace_name(
 			   sizeof(reserved_space_name_prefix) - 1)) {
 
 		/* Use a different message for reserved names */
-		if (0 == strcmp(name, dict_sys_t::file_per_table_name)
-		    || 0 == strcmp(name, dict_sys_t::sys_space_name)
-		    || 0 == strcmp(name, dict_sys_t::temp_space_name)) {
+		if (0 == strcmp(name, dict_sys_t::s_file_per_table_name)
+		    || 0 == strcmp(name, dict_sys_t::s_sys_space_name)
+		    || 0 == strcmp(name, dict_sys_t::s_temp_space_name)) {
 			/* Allow these names if the caller is putting a
 			table into one of these by CREATE/ALTER TABLE */
 			if (!for_table) {
@@ -12904,12 +12905,12 @@ create_table_info_t::create_table_update_global_dd(
 
 	bool		file_per_table = dict_table_is_file_per_table(table);
 	dd::Object_id	dd_space_id = dd::INVALID_OBJECT_ID;
-	bool		is_dd_table = table->space == dict_sys_t::space_id;
+	bool		is_dd_table = table->space == dict_sys_t::s_space_id;
 
 	if (is_dd_table) {
-		dd_space_id = dict_sys_t::dd_space_id;
+		dd_space_id = dict_sys_t::s_dd_space_id;
 	} else if (table->space == TRX_SYS_SPACE) {
-		dd_space_id = dict_sys_t::dd_sys_space_id;
+		dd_space_id = dict_sys_t::s_dd_sys_space_id;
 	} else if (file_per_table) {
 		char* filename = fil_space_get_first_path(table->space);
 
@@ -13702,10 +13703,10 @@ ha_innobase::get_se_private_data(
 	DBUG_ASSERT(dd_table->name() == data.name);
 
 	dd_table->set_se_private_id(++n_tables);
-	dd_table->set_tablespace_id(dict_sys_t::dd_space_id);
+	dd_table->set_tablespace_id(dict_sys_t::s_dd_space_id);
 
 	for (dd::Index* i : *dd_table->indexes()) {
-		i->set_tablespace_id(dict_sys_t::dd_space_id);
+		i->set_tablespace_id(dict_sys_t::s_dd_space_id);
 
 		if (fsp_is_inode_page(n_pages)) {
 			++n_pages;

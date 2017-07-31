@@ -141,7 +141,7 @@ dd_table_match(
 
 	for (const auto dd_index : dd_table->indexes()) {
 
-		if (dd_table->tablespace_id() == dict_sys_t::dd_sys_space_id
+		if (dd_table->tablespace_id() == dict_sys_t::s_dd_sys_space_id
 		    && dd_index->tablespace_id() != dd_table->tablespace_id()) {
 			ib::warn() << "Tablespace id in table is "
 				<< dd_table->tablespace_id()
@@ -762,7 +762,7 @@ dd_table_discard_tablespace(
 
 		char    name[FN_REFLEN];
 		snprintf(name, sizeof name, "%s.%u",
-			 dict_sys_t::file_per_table_name, table->space);
+			 dict_sys_t::s_file_per_table_name, table->space);
 
 		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
 			ut_a(false);
@@ -1489,7 +1489,7 @@ dd_write_table(
 	const dict_table_t*	table)
 {
 	/* Only set the tablespace id for tables in innodb_system tablespace */
-	if (dd_space_id == dict_sys_t::dd_sys_space_id) {
+	if (dd_space_id == dict_sys_t::s_dd_sys_space_id) {
 		dd_table->set_tablespace_id(dd_space_id);
 	}
 
@@ -2321,7 +2321,7 @@ dd_fill_dict_table(
 
 	bool	is_temp = !dd_tab->is_persistent()
 		&& (dd_tab->se_private_id()
-		    >= dict_sys_t::NUM_HARD_CODED_TABLES);
+		    >= dict_sys_t::s_num_hard_coded_tables);
 	if (is_temp) {
 		m_table->flags2 |= DICT_TF2_TEMPORARY;
 	}
@@ -2538,7 +2538,7 @@ dd_create_implicit_tablespace(
 	char	space_name[11 + sizeof reserved_implicit_name];
 
 	snprintf(space_name, sizeof space_name, "%s.%u",
-		 dict_sys_t::file_per_table_name, space);
+		 dict_sys_t::s_file_per_table_name, space);
 
 	ulint flags = fil_space_get_flags(space);
 
@@ -2616,7 +2616,8 @@ dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
 	should be same as table name.
 	Once the tablespace name is same with the table name,
 	this becomes invalid */
-	if (strncmp(name, dict_sys_t::file_per_table_name, suffix - name - 1)) {
+	if (strncmp(name,
+		    dict_sys_t::s_file_per_table_name, suffix - name - 1)) {
 		/* Not starting with innodb_file_per_table. */
 		return(false);
 	}
@@ -3267,9 +3268,9 @@ dd_load_tablespace(
 	char*	shared_space_name = nullptr;
 	char*	space_name;
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-		if (table->space == dict_sys_t::space_id) {
+		if (table->space == dict_sys_t::s_space_id) {
 			shared_space_name = mem_strdup(
-				dict_sys_t::dd_space_name);
+				dict_sys_t::s_dd_space_name);
 		}
 		else if (srv_sys_tablespaces_open) {
 			/* For avoiding deadlock, we need to exit
@@ -3383,7 +3384,7 @@ dd_open_table_one(
 	bool		implicit;
 	dd::Tablespace*	dd_space = nullptr;
 
-	if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
+	if (dd_table->tablespace_id() == dict_sys_t::s_dd_space_id) {
 		/* DD tables are in shared DD tablespace */
 		implicit = false;
 	} else if (dd_tablespace_is_implicit(
@@ -3464,11 +3465,11 @@ dd_open_table_one(
 			dd_index->tablespace_id();
 		dd::Tablespace*	index_space = nullptr;
 
-		if (dd_table->tablespace_id() == dict_sys_t::dd_space_id) {
-			sid = dict_sys_t::space_id;
+		if (dd_table->tablespace_id() == dict_sys_t::s_dd_space_id) {
+			sid = dict_sys_t::s_space_id;
 		} else if (dd_table->tablespace_id()
-			   == dict_sys_t::dd_temp_space_id) {
-			sid = dict_sys_t::temp_space_id;
+			   == dict_sys_t::s_dd_temp_space_id) {
+			sid = dict_sys_t::s_temp_space_id;
 		} else {
 			if (client->acquire_uncached_uncommitted<
 			    dd::Tablespace>(index_space_id, &index_space)) {
@@ -4356,7 +4357,7 @@ dd_process_dd_indexes_rec(
 	}
 
 	/* Skip mysql.* indexes. */
-	if (space_id == dict_sys->space_id) {
+	if (space_id == dict_sys->s_space_id) {
 		delete p;
 		mtr_commit(mtr);
 		return(false);
@@ -4450,7 +4451,7 @@ get_id_by_name(
 
 			/* Skip data dictionary tablespace and temp tablespace. */
 			if (space()->id == 0xFFFFFFFE
-			    || space()->id == dict_sys->temp_space_id) {
+			    || space()->id == dict_sys->s_temp_space_id) {
 				return(false);
 			}
 
@@ -4524,7 +4525,7 @@ dd_process_dd_datafiles_rec(
 	}
 
 	/* Skip temp tablespace. */
-	if (*space_id == dict_sys->temp_space_id) {
+	if (*space_id == dict_sys->s_temp_space_id) {
 		delete p;
 		return(false);
 	}
@@ -4742,7 +4743,7 @@ dd_get_fts_tablespace_id(
 		/* This is a user table that resides in innodb_system
 		tablespace */
 		ut_ad(!dict_table_is_file_per_table(table));
-		dd_space_id = dict_sys_t::dd_sys_space_id;
+		dd_space_id = dict_sys_t::s_dd_sys_space_id;
 	}
 
 	return(true);

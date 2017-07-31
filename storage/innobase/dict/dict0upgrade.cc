@@ -46,7 +46,7 @@ static void dd_upgrade_set_tablespace_name(dd::Tablespace* dd_space,
   ut_ad(space != SPACE_UNKNOWN);
 
   std::ostringstream	tablespace_name;
-  tablespace_name << dict_sys_t::file_per_table_name << "." << space;
+  tablespace_name << dict_sys_t::s_file_per_table_name << "." << space;
 
   dd_space->set_name(tablespace_name.str().c_str());
 }
@@ -172,7 +172,8 @@ static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
 
   if (dict_table_is_file_per_table(ib_table)) {
     std::ostringstream	tablespace_name;
-    tablespace_name << dict_sys_t::file_per_table_name << "." << ib_table->space;
+    tablespace_name << dict_sys_t::s_file_per_table_name
+                    << "." << ib_table->space;
     strncpy(name, tablespace_name.str().c_str(), MAX_FULL_NAME_LEN);
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
@@ -686,7 +687,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
     dd::Object_id dd_space_id;
 
     if (part_table->space == SYSTEM_TABLE_SPACE) {
-      dd_space_id = dict_sys_t::dd_sys_space_id;
+      dd_space_id = dict_sys_t::s_dd_sys_space_id;
       /* Tables in system tablespace cannot be discarded. */
       ut_ad(!dict_table_is_discarded(part_table));
     } else {
@@ -835,7 +836,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
 
   dd::Object_id dd_space_id;
   if (ib_table->space == SYSTEM_TABLE_SPACE) {
-    dd_space_id = dict_sys_t::dd_sys_space_id;
+    dd_space_id = dict_sys_t::s_dd_sys_space_id;
     /* Tables in system tablespace cannot be discarded. */
     ut_ad(!dict_table_is_discarded(ib_table));
   } else {

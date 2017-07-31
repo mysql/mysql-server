@@ -7471,7 +7471,7 @@ i_s_dict_fill_innodb_tablespaces(
 	}
 
 	if (filepath == NULL) {
-		if (strstr(name, dict_sys_t::file_per_table_name) != 0) {
+		if (strstr(name, dict_sys_t::s_file_per_table_name) != 0) {
 			mutex_enter(&dict_sys->mutex);
 			filepath = fil_space_get_first_path(space);
 			mutex_exit(&dict_sys->mutex);

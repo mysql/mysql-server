@@ -1531,71 +1531,72 @@ struct dict_sys_t{
 	@param[in]	space	tablespace id to check
 	@return true if a reserved tablespace id, otherwise false */
 	static bool is_reserved(space_id_t space)
-	{ return(space >= dict_sys_t::reserved_space_id); }
+	{ return(space >= dict_sys_t::s_reserved_space_id); }
 
 	/** Check if a table is hardcoded. it only includes the dd tables
-        @param[in]      id      table ID
-        @retval true    if the table is a persistent hard-coded table
-                        (dict_table_t::is_temporary() will not hold)
-        @retval false   if the table is not hard-coded
-                        (it can be persistent or temporary) */
-        static bool is_hardcoded(table_id_t id)
-        {
-                return(id <= NUM_HARD_CODED_TABLES);
-        }
+	@param[in]	id	table ID
+	@retval true	if the table is a persistent hard-coded table
+			(dict_table_t::is_temporary() will not hold)
+	@retval false	if the table is not hard-coded
+			(it can be persistent or temporary) */
+	static bool is_hardcoded(table_id_t id)
+	{
+		return(id <= s_num_hard_coded_tables);
+	}
 
 	/** Number of hard coded new dd tables */
-	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 32;
+	static constexpr table_id_t	s_num_hard_coded_tables = 32;
 
 	/** The first ID of the redo log pseudo-tablespace */
-	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;
+	static constexpr space_id_t	s_log_space_first_id = 0xFFFFFFF0UL;
 
 	/** Use maximum UINT value to indicate invalid space ID. */
-	static constexpr space_id_t	invalid_space_id = 0xFFFFFFFF;
+	static constexpr space_id_t	s_invalid_space_id = 0xFFFFFFFF;
 
 	/** The data dictionary tablespace ID. */
-	static constexpr space_id_t	space_id = 0xFFFFFFFE;
+	static constexpr space_id_t	s_space_id = 0xFFFFFFFE;
 
 	/** The innodb_temporary tablespace ID. */
-	static constexpr space_id_t	temp_space_id = 0xFFFFFFFD;
+	static constexpr space_id_t	s_temp_space_id = 0xFFFFFFFD;
 
 	/** The lowest undo tablespace ID. */
-	static constexpr space_id_t	min_undo_space_id
-		= log_space_first_id - TRX_SYS_N_RSEGS;
+	static constexpr space_id_t	s_min_undo_space_id
+		= s_log_space_first_id - TRX_SYS_N_RSEGS;
 
 	/** The highest undo  tablespace ID. */
-	static constexpr space_id_t	max_undo_space_id
-		= log_space_first_id - 1;
+	static constexpr space_id_t	s_max_undo_space_id
+		= s_log_space_first_id - 1;
 
 	/** The first reserved tablespace ID */
-	static constexpr space_id_t	reserved_space_id = min_undo_space_id;
+	static constexpr space_id_t	s_reserved_space_id =
+		s_min_undo_space_id;
 
 	/** The dd::Tablespace::id of the dictionary tablespace. */
-	static constexpr dd::Object_id	dd_space_id = 1;
+	static constexpr dd::Object_id	s_dd_space_id = 1;
 
 	/** The dd::Tablespace::id of innodb_system. */
-	static constexpr dd::Object_id	dd_sys_space_id = 2;
+	static constexpr dd::Object_id	s_dd_sys_space_id = 2;
 
 	/** The dd::Tablespace::id of innodb_temporary. */
-	static constexpr dd::Object_id	dd_temp_space_id = 3;
+	static constexpr dd::Object_id	s_dd_temp_space_id = 3;
 
 	/** The name of the data dictionary tablespace. */
-	static const char*		dd_space_name;
+	static const char*		s_dd_space_name;
 
 	/** The file name of the data dictionary tablespace. */
-	static const char*		dd_space_file_name;
+	static const char*		s_dd_space_file_name;
 
 	/** The name of the hard-coded system tablespace. */
-	static const char*		sys_space_name;
+	static const char*		s_sys_space_name;
 
 	/** The name of the predefined temporary tablespace. */
-	static const char*		temp_space_name;
+	static const char*		s_temp_space_name;
 
 	/** The file name of the predefined temporary tablespace. */
-	static const char*		temp_space_file_name;
+	static const char*		s_temp_space_file_name;
 
 	/** The hard-coded tablespace name innodb_file_per_table. */
-	static const char*		file_per_table_name;
+	static const char*		s_file_per_table_name;
 
 	/** The table ID of mysql.innodb_dynamic_metadata */
 	static constexpr table_id_t	s_dynamic_meta_table_id = 32;

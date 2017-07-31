@@ -96,22 +96,22 @@ extern uint	ibuf_debug;
 dict_sys_t*	dict_sys	= NULL;
 
 /** The name of the data dictionary tablespace. */
-const char*	dict_sys_t::dd_space_name = "mysql";
+const char*	dict_sys_t::s_dd_space_name = "mysql";
 
 /** The file name of the data dictionary tablespace */
-const char*	dict_sys_t::dd_space_file_name = "mysql.ibd";
+const char*	dict_sys_t::s_dd_space_file_name = "mysql.ibd";
 
 /** The name of the hard-coded system tablespace. */
-const char*	dict_sys_t::sys_space_name = "innodb_system";
+const char*	dict_sys_t::s_sys_space_name = "innodb_system";
 
 /** The name of the predefined temporary tablespace. */
-const char*	dict_sys_t::temp_space_name = "innodb_temporary";
+const char*	dict_sys_t::s_temp_space_name = "innodb_temporary";
 
 /** The file name of the predefined temporary tablespace */
-const char*	dict_sys_t::temp_space_file_name = "ibtmp1";
+const char*	dict_sys_t::s_temp_space_file_name = "ibtmp1";
 
 /** The hard-coded tablespace name innodb_file_per_table. */
-const char*	dict_sys_t::file_per_table_name = "innodb_file_per_table";
+const char*	dict_sys_t::s_file_per_table_name = "innodb_file_per_table";
 
 /** the dictionary persisting structure */
 dict_persist_t*	dict_persist	= NULL;
@@ -6993,11 +6993,11 @@ DDTableBuffer::open()
 	mutex_enter(&dict_sys->mutex);
 
 	table = dict_mem_table_create(
-		table_name, dict_sys_t::space_id, N_USER_COLS, 0, 0, 0);
+		table_name, dict_sys_t::s_space_id, N_USER_COLS, 0, 0, 0);
 
 	table->id = dict_sys_t::s_dynamic_meta_table_id;
 	table->is_dd_table = true;
-	table->dd_space_id = dict_sys_t::dd_space_id;
+	table->dd_space_id = dict_sys_t::s_dd_space_id;
 	table->flags |= DICT_TF_COMPACT | (1 << DICT_TF_POS_SHARED_SPACE)
 			| (1 << DICT_TF_POS_ATOMIC_BLOBS);
 
@@ -7019,7 +7019,7 @@ DDTableBuffer::open()
 	dict_table_add_system_columns(table, heap);
 
 	m_index = dict_mem_index_create(
-		table_name, "PRIMARY", dict_sys_t::space_id,
+		table_name, "PRIMARY", dict_sys_t::s_space_id,
 		DICT_CLUSTERED | DICT_UNIQUE, 1);
 
 	dict_index_add_col(m_index, table, &table->cols[0], 0, true);
