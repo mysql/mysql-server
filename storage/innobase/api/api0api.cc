@@ -3449,12 +3449,8 @@ ib_sdi_set(
 
 			err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
 
-#ifdef UNIV_DEBUG
-			if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
-				bool	sdi_update_failed = true;
-				ut_ad(!sdi_update_failed);
-			}
-#endif /* UNIV_DEBUG */
+			ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx)
+			      || !"sdi_update_failed");
 		}
 
 		ib_tuple_delete(old_tuple);
@@ -3478,10 +3474,8 @@ ib_sdi_set(
 				<< " by trx->id: " << trx->id;
 		);
 
-#ifdef UNIV_DEBUG
-		bool sdi_insert_failed = true;
-		ut_ad(!sdi_insert_failed || trx_is_interrupted(trx));
-#endif /* UNIV_DEBUG */
+		ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx)
+		      || !"sdi_insert_failed");
 	}
 
 	ib_tuple_delete(new_tuple);
