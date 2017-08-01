@@ -52,9 +52,9 @@ namespace ngs
     // handle a single message, returns true if message was handled false if not
     bool handle_message(ngs::Request &command) override;
 
-    Client_interface &client() { return m_client; }
+    Client_interface &client() override { return m_client; }
 
-    Protocol_encoder_interface &proto() { return *m_encoder; }
+    Protocol_encoder_interface &proto() override { return *m_encoder; }
 
   protected:
     virtual bool handle_auth_message(ngs::Request &command);
@@ -63,8 +63,8 @@ namespace ngs
     void stop_auth();
 
   public:
-    State state() const { return m_state; }
-    State state_before_close() const { return m_state_before_close; }
+    State state() const override { return m_state; }
+    State state_before_close() const override { return m_state_before_close; }
 
   protected:
     Client_interface &m_client;
