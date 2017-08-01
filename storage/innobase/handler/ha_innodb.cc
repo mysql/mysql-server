@@ -3437,7 +3437,8 @@ boot_tablespaces(THD* thd)
 		}
 
 		dberr_t	err = fil_ibd_open(
-			validate, purpose, id, flags, space_name, filename);
+			validate, purpose, id, flags, space_name,
+			filename, false);
 		switch (err) {
 		case DB_SUCCESS:
 		case DB_CANNOT_OPEN_FILE:
@@ -4582,7 +4583,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
 				mysql_flags, dict_sys_t::s_dd_space_name,
-				filename)
+				filename, true)
 		   == DB_SUCCESS) {
 		/* Set fil_space_t::size, which is 0 initially. */
 		fil_space_get_size(space_id);

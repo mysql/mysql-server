@@ -3347,7 +3347,7 @@ dd_load_tablespace(
 
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
-		fsp_flags, space_name, filepath);
+		fsp_flags, space_name, filepath, true);
 
 	if (err != DB_SUCCESS) {
 		/* We failed to find a sensible tablespace file */

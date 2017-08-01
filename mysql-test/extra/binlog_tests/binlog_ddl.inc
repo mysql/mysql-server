@@ -6,11 +6,8 @@
 # CREATE TRIGGER, DROP TRIGGER, CREATE FUNCTION, ALTER FUNCTION,
 # DROP FUNCTION, CREATE PROCEDURE, DROP PROCEDURE, CREATE EVENT,
 # ALTER EVENT, DROP EVENT, CREATE VIEW, ALTER VIEW, DROP VIEW.
-#
-#
-# TODO: (WL7743 etc) add a piece of test of each DDL when it's been
-#       turned into 2pc-capable.
-#
+# CREATE/DROP/ALTER TABLE, CREATE/DROP INDEX, TRUNCATE TABLE,
+# RENAME TABLE
 #
 # ==== Implementation ====
 # See comments in suite/binlog/t/binlog_crash_safe_ddl.test
@@ -204,4 +201,67 @@ DEALLOCATE PREPARE stmt;
 --let $ddl_query= DROP FUNCTION metaphon;
 --let $pre_binlog_crash_check=SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= CREATE TABLE test.t1(a int)
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t1'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t1'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.columns where table_name='t1'
+--let $post_binlog_crash_check=SELECT count(*)=2 FROM information_schema.columns where table_name='t1'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.innodb_indexes where name='new_t1_idx'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.innodb_indexes where name='new_t1_idx'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t1 RENAME TO test.t2
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t2 DROP COLUMN a;
+--let $pre_binlog_crash_check=SELECT count(*)=2 FROM information_schema.columns where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.columns where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t2 CHANGE COLUMN t1_new_col t2_new_col char(10);
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.columns where table_name='t2' and column_name='t2_new_col'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.columns where table_name='t2' and column_name='t2_new_col'
+
+--let $ddl_query= ALTER TABLE test.t2 MODIFY COLUMN t2_new_col varchar(10);
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.columns where table_name='t2' and column_name='t2_new_col'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.columns where table_name='t2' and column_name='t2_new_col'
+
+--let $ddl_query= TRUNCATE TABLE test.t2
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= ALTER TABLE test.t2 DROP index full_t2_idx;
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.innodb_indexes where name='full_t2_idx'
+--let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.innodb_indexes where name='full_t2_idx'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= DROP TABLE test.t2
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.tables where table_name='t2'
+--let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.tables where table_name='t2'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd'
+--let $pre_binlog_crash_check=SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
+--let $post_binlog_crash_check=SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
+  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
+
+--let $ddl_query= DROP TABLESPACE ts
+--let $pre_binlog_crash_check=SELECT count(*)=1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
+--let $post_binlog_crash_check=SELECT count(*)=0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc

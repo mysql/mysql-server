@@ -4470,6 +4470,7 @@ The fil_node_t::handle will not be left open.
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
 @param[in]	path_in		expected filepath, usually read from dictionary
+@param[in	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -4478,7 +4479,8 @@ fil_ibd_open(
 	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
-	const char*	path_in)
+	const char*	path_in,
+	bool		strict)
 {
 	Datafile	df;
 	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
@@ -4498,7 +4500,7 @@ fil_ibd_open(
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
-	if (df.open_read_only(true) == DB_SUCCESS) {
+	if (df.open_read_only(strict) == DB_SUCCESS) {
 		ut_ad(df.is_open());
 	} else {
 		ut_ad(!df.is_open());
