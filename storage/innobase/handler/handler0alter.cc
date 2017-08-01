@@ -7448,17 +7448,6 @@ alter_stats_rebuild(
 	DBUG_VOID_RETURN;
 }
 
-#ifdef UNIV_DEBUG
-# define DBUG_INJECT_CRASH(prefix, count)			\
-do {								\
-	char buf[32];						\
-	snprintf(buf, sizeof buf, prefix "_%u", count);	\
-	DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););			\
-} while (0)
-#else
-# define DBUG_INJECT_CRASH(prefix, count)
-#endif
-
 /** Implementation of commit_inplace_alter_table()
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	altered_table	TABLE object for new version of table.
