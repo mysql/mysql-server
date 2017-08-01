@@ -622,8 +622,6 @@ NdbImportUtil::Table::Table()
   m_rec = 0;
   m_keyrec = 0;
   m_rowsize = 0;
-  m_cs = get_charset_by_name("latin1_bin", MYF(0));
-  require(m_cs != 0);
   m_has_hidden_pk = false;
 }
 
