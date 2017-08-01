@@ -92,6 +92,10 @@ NdbImport::Opt::Opt()
   m_idlespin = 0;
   m_idlesleep = 1;
   m_rejects = 0;
+  // character set
+  m_charset_name = "binary";
+  m_charset = 0;
+  // csv options
   m_csvopt = 0;
   // debug options
   m_verbose = 0;
@@ -101,7 +105,7 @@ NdbImport::Opt::Opt()
 }
 
 int
-NdbImport::set_opt(const Opt& opt)
+NdbImport::set_opt(Opt& opt)
 {
   NdbImportUtil& util = m_impl.m_util;
   NdbImportCsv& csv = m_impl.m_csv;
@@ -179,6 +183,16 @@ NdbImport::set_opt(const Opt& opt)
                          "invalid autoincrement options");
     return -1;
   }
+  // character set
+  require(opt.m_charset_name != 0);
+  opt.m_charset = get_charset_by_name(opt.m_charset_name, MYF(0));
+  if (opt.m_charset == 0)
+  {
+    util.set_error_usage(util.c_error, __LINE__,
+                         "unknown character set: %s", opt.m_charset_name);
+    return -1;
+  }
+  // csv options
   NdbImportCsv::Spec csvspec;
   if (csv.set_spec(csvspec, opt.m_optcsv, OptCsv::ModeInput) == -1)
   {

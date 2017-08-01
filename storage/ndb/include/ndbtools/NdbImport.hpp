@@ -86,6 +86,9 @@ public:
     uint m_idlesleep;
     uint m_idlespin;
     uint m_rejects;
+    // character set of input file (currently fixed as binary)
+    const char* m_charset_name;
+    const struct charset_info_st* m_charset;
     // csv options
     OptCsv m_optcsv;
     const char* m_csvopt;
@@ -95,7 +98,8 @@ public:
     const char* m_errins_type;
     uint m_errins_delay;
   };
-  int set_opt(const Opt& opt);
+  // set options for next job
+  int set_opt(Opt& opt);
 
   // connect
 
