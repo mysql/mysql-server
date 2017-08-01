@@ -84,9 +84,9 @@ dd_parse_tbl_name(
 
 	ut_ad(!fil_has_ibd_suffix(path) != 0);
 
-	auto pos = path.rfind(OS_PATH_SEPARATOR);
+	auto pos = path.rfind('/');
 
-	if (pos == std::string::npos || path.back() == OS_PATH_SEPARATOR) {
+	if (pos == std::string::npos || path.back() == '/') {
 
 		return(false);
 	}
