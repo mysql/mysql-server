@@ -3576,11 +3576,12 @@ Validate_files::check(
 
 			case Fil_path::MOVED:
 
-				filename = new_path.c_str();
-
 				++moved;
 
 				if (moved > MOVED_FILES_PRINT_THRESHOLD) {
+
+					filename = new_path.c_str();
+
 					break;
 				}
 
@@ -3591,6 +3592,8 @@ Validate_files::check(
 					<< " file '" << filename << "'"
 					<< " has been moved to"
 					<< " '" << new_path << "'";
+
+				filename = new_path.c_str();
 
 				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
 
