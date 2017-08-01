@@ -371,6 +371,8 @@ sub load_table {
   my @txt = ();
   push(@txt, "load data infile '$csvfile'\n");
   push(@txt, "into table $tname\n");
+  # we generate 8-bit ascii so use some charset accepting it
+  push(@txt, "character set latin1\n");
   push(@txt, "fields");
   push(@txt, "terminated by '$fter'");
   if (defined($fenc)) {
