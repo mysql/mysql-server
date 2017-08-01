@@ -59,8 +59,6 @@ thread_local bool thread_local_ddl_log_replay = false;
 bool	Log_DDL::s_in_recovery = false;
 
 #ifdef UNIV_DEBUG
-/** Used by SET GLOBAL innodb_ddl_log_crash_counter_reset_debug = 1; */
-bool		innodb_ddl_log_crash_reset_debug;
 
 /** Below counters are only used for four types of DDL log:
 1. FREE TREE
@@ -71,35 +69,16 @@ Other RENAME_TABLE and REMOVE CACHE doesn't touch the data files at all,
 so would be skipped */
 
 /** Crash injection counter used before writing ddl log */
-uint32_t	crash_injection_before_log_counter = 1;
+static uint32_t	crash_injection_before_log_counter = 1;
 
 /** Crash injection counter used after writing ddl log */
-uint32_t	crash_injection_after_log_counter = 1;
+static uint32_t	crash_injection_after_log_counter = 1;
 
 /** Crash injection counter used after deleting ddl log */
-uint32_t	crash_injection_after_delete_counter = 1;
+static uint32_t	crash_injection_after_delete_counter = 1;
 
 /** Crash injection counter used after any replay */
-uint32_t	crash_injection_after_replay_counter = 1;
-
-void
-ddl_log_crash_reset(
-	THD*				thd,
-	struct st_mysql_sys_var*	var,
-	void*				var_ptr,
-	const void*			save)
-{
-	const bool reset = *static_cast<const bool*>(save);
-
-	innodb_ddl_log_crash_reset_debug = reset;
-
-	if (reset) {
-		crash_injection_before_log_counter = 1;
-		crash_injection_after_log_counter = 1;
-		crash_injection_after_delete_counter = 1;
-		crash_injection_after_replay_counter = 1;
-	}
-}
+static uint32_t	crash_injection_after_replay_counter = 1;
 
 #endif /* UNIV_DEBUG */
 
@@ -1705,6 +1684,9 @@ Log_DDL::post_ddl(THD*	thd)
 	    || srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		return(DB_SUCCESS);
 	}
+
+	DBUG_EXECUTE_IF("ddl_log_before_post_ddl",
+			DBUG_SUICIDE(););
 
 	/* If srv_force_recovery > 0, DROP TABLE is allowed, and here only
 	DELETE and DROP log can be replayed. */

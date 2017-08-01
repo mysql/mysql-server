@@ -3919,8 +3919,9 @@ fil_rename_tablespace(
 	fil_node_t*	node;
 	ulint		count		= 0;
 	bool		write_ddl_log	= true;
-	ut_a(id != 0);
+	ut_d(static uint32_t	crash_injection_rename_tablespace_counter = 1;);
 
+	ut_a(id != 0);
 	ut_ad(strchr(new_name, '/') != NULL);
 
 retry:
@@ -4113,8 +4114,8 @@ retry:
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			goto skip_rename; );
 
-	DBUG_EXECUTE_IF("fil_rename_tablespace_crash_before",
-			DBUG_SUICIDE(); );
+	DBUG_INJECT_CRASH("ddl_crash_before_rename_tablespace",
+			  crash_injection_rename_tablespace_counter++);
 
 	success = os_file_rename(
 		innodb_data_file_key, old_file_name, new_file_name);
@@ -4122,8 +4123,8 @@ retry:
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			skip_rename: success = false; );
 
-	DBUG_EXECUTE_IF("fil_rename_tablespace_crash_after",
-			DBUG_SUICIDE(); );
+	DBUG_INJECT_CRASH("ddl_crash_after_rename_tablespace",
+			  crash_injection_rename_tablespace_counter++);
 
 	ut_ad(node->name == old_file_name);
 

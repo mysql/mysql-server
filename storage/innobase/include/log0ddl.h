@@ -704,22 +704,4 @@ inline void ddl_log_close()
 	UT_DELETE(log_ddl);
 }
 
-#ifdef UNIV_DEBUG
-/** Used by SET GLOBAL innodb_ddl_log_crash_counter_reset_debug = 1; */
-extern bool            innodb_ddl_log_crash_reset_debug;
-
-/** Reset all crash injection counters. It's used by:
-	SET GLOBAL innodb_ddl_log_crash_reset_debug = 1 (0).
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[in]	var_ptr	where the formal string goes
-@param[in]	save	immediate result from check function */
-void
-ddl_log_crash_reset(
-	THD*				thd,
-	struct st_mysql_sys_var*	var,
-	void*				var_ptr,
-	const void*			save);
-#endif /* UNIV_DEBUG */
-
 #endif /* log0ddl_h */

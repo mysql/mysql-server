@@ -91,6 +91,7 @@ dict_build_tablespace(
 	dberr_t		err	= DB_SUCCESS;
 	mtr_t		mtr;
 	space_id_t	space = 0;
+	ut_d(static uint32_t	crash_injection_after_create_counter = 1;);
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(tablespace);
@@ -123,6 +124,10 @@ dict_build_tablespace(
 		datafile->filepath(),
 		tablespace->flags(),
 		FIL_IBD_FILE_INITIAL_SIZE);
+
+	DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
+			  crash_injection_after_create_counter++);
+
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -168,6 +173,7 @@ dict_build_tablespace_for_table(
 	space_id_t	space = 0;
 	bool		needs_file_per_table;
 	char*		filepath;
+	ut_d(static uint32_t    crash_injection_after_create_counter = 1;);
 
 	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 
@@ -232,6 +238,9 @@ dict_build_tablespace_for_table(
 			FIL_IBD_FILE_INITIAL_SIZE);
 
 		ut_free(filepath);
+
+		DBUG_INJECT_CRASH("ddl_crash_after_create_tablespace",
+				  crash_injection_after_create_counter++);
 
 		if (err != DB_SUCCESS) {
 
