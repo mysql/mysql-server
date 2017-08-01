@@ -21429,6 +21429,12 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable buffer pool debug",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(ddl_log_crash_reset_debug,
+  innodb_ddl_log_crash_reset_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Reset all crash injection counters to 1",
+  NULL, ddl_log_crash_reset, FALSE);
 #endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
@@ -21602,6 +21608,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
   MYSQL_SYSVAR(buffer_pool_debug),
+  MYSQL_SYSVAR(ddl_log_crash_reset_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };

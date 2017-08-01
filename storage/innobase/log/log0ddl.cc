@@ -60,6 +60,9 @@ bool	Log_DDL::s_in_recovery = false;
 
 #ifdef UNIV_DEBUG
 
+/** Used by SET GLOBAL innodb_ddl_log_crash_counter_reset_debug = 1; */
+bool		innodb_ddl_log_crash_reset_debug;
+
 /** Below counters are only used for four types of DDL log:
 1. FREE TREE
 2. DELETE SPACE
@@ -79,6 +82,25 @@ static uint32_t	crash_injection_after_delete_counter = 1;
 
 /** Crash injection counter used after any replay */
 static uint32_t	crash_injection_after_replay_counter = 1;
+
+void
+ddl_log_crash_reset(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	const bool reset = *static_cast<const bool*>(save);
+
+	innodb_ddl_log_crash_reset_debug = reset;
+
+	if (reset) {
+		crash_injection_before_log_counter = 1;
+		crash_injection_after_log_counter = 1;
+		crash_injection_after_delete_counter = 1;
+		crash_injection_after_replay_counter = 1;
+	}
+}
 
 #endif /* UNIV_DEBUG */
 
