@@ -3085,13 +3085,12 @@ error_handling:
 	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
 
-		ib::warn() << "Cannot create table "
-			<< table->name
+		ib::warn() << "Cannot create table " << table->name
 			<< " because tablespace full";
 
+		/* Still do it here so that the table can always be freed */
 		if (dd_table_open_on_name_in_mem(table->name.m_name, true)) {
 
-			/* Server will rollback persisted metadata */
 			dd_table_close(table, nullptr, nullptr, true);
 
 			dict_table_remove_from_cache(table);
@@ -3103,20 +3102,6 @@ error_handling:
 
 	case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* We already have .ibd file here. it should be deleted. */
-
-		if (dict_table_is_file_per_table(table)
-		    && fil_delete_tablespace(
-			    table->space,
-			    BUF_REMOVE_FLUSH_NO_WRITE)
-		    != DB_SUCCESS) {
-
-			ib::error() << "Not able to delete tablespace "
-				<< table->space << " of table "
-				<< table->name << "!";
-		}
-		/* fall through */
-
 	case DB_DUPLICATE_KEY:
 	case DB_TABLESPACE_EXISTS:
 	default:

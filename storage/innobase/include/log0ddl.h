@@ -697,8 +697,10 @@ private:
 	static bool		s_in_recovery;
 };
 
+/** Object to handle Log_DDL */
 extern Log_DDL*		log_ddl;
 
+/** Close the DDL log system */
 inline void ddl_log_close()
 {
 	UT_DELETE(log_ddl);
