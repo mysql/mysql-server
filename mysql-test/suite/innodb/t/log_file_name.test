@@ -154,4 +154,3 @@ WHERE NAME NOT LIKE 'SYS_%' AND NAME NOT LIKE 'mysql/%';
 call mtr.add_suppression("InnoDB: .*you must create directories");
 #call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
-

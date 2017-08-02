@@ -318,6 +318,12 @@ public:
 		m_ibd_paths.clear();
 	}
 
+	/** @return the directory path specified by the user. */
+	const std::string& path() const
+	{
+		return(m_path);
+	}
+
 	/** @return the real path of the directory searched. */
 	const std::string& real_path() const
 	{
@@ -325,11 +331,17 @@ public:
 	}
 
 private:
+	/*Note:  The file names in m_ibd_paths and m_undo_paths are relative
+	to m_real_path. */
+
 	/** Mapping from tablespace ID to data filenames */
 	Paths				m_ibd_paths;
 
 	/** Mapping from tablespace ID to Undo files */
 	Paths				m_undo_paths;
+
+	/** Directory path specified by the user */
+	const std::string		m_path;
 
 	/** Real path of directory that was scanned. */
 	const std::string		m_real_path;
@@ -338,6 +350,8 @@ private:
 /** Directories scanned during startup and the files discovered. */
 class Tablespace_dirs {
 public:
+	using Result = std::pair<std::string, Tablespace_files::Names*>;
+
 	/** Constructor */
 	Tablespace_dirs() : m_dirs(), m_checked() { }
 
@@ -350,8 +364,8 @@ public:
 	/** Clear all the tablespace data. */
 	void clear()
 	{
-		for (auto& elem : m_dirs) {
-			elem.second.clear();
+		for (auto& dir : m_dirs) {
+			dir.clear();
 		}
 	}
 
@@ -361,9 +375,7 @@ public:
 	bool erase(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		for (auto& elem : m_dirs) {
-
-			auto&	dir = elem.second;
+		for (auto& dir : m_dirs) {
 
 			if (dir.erase(space_id)) {
 
@@ -376,21 +388,21 @@ public:
 
 	/* Find the first matching space ID -> name mapping.
 	@param[in]	space_id	Tablespace ID
-	@return filename that maps to the space ID */
-	Tablespace_files::Names* find(space_id_t space_id)
+	@return directory searched and pointer to names that map to the
+		tablespace ID */
+	Result find(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		for (auto& elem : m_dirs) {
+		for (auto& dir : m_dirs) {
 
-			auto&		dir = elem.second;
 			const auto	names = dir.find(space_id);
 
 			if (names != nullptr) {
-				return(names);
+				return(Result{dir.path(), names});
 			}
 		}
 
-		return(nullptr);
+		return(Result{"", nullptr});
 	}
 
 private:
@@ -399,7 +411,8 @@ private:
 	void print_duplicates(const Space_id_set&  duplicates);
 
 private:
-	using Scanned = std::vector<std::pair<std::string, Tablespace_files>>;
+	/** first=dir path from the user, second=files found under first. */
+	using Scanned = std::vector<Tablespace_files>;
 
 	/** Tokenize a path specification. Convert relative paths to
 	absolute paths. Check if the paths are valid and filter out
@@ -412,7 +425,7 @@ private:
 		const std::string&	str,
 		const std::string&	delimiters);
 
-	using const_iter = Scanned_files::const_iterator;
+	using Const_iter = Scanned_files::const_iterator;
 
 	/** Check for duplicate tablespace IDs.
 	@param[in]	begin		Start of slice
@@ -422,8 +435,8 @@ private:
 	@param[in,out]	unique		To check for duplciates
 	@param[in,out]	duplicates	Duplicate space IDs found */
 	void duplicate_check(
-		const const_iter&	begin,
-		const const_iter&	end,
+		const Const_iter&	begin,
+		const Const_iter&	end,
 		size_t			thread_id,
 		std::mutex*		mutex,
 		Space_id_set*		unique,
@@ -959,25 +972,26 @@ public:
 
 	/** Fetch the file names opened for a space_id during recovery.
 	@param[in]	space_id	Tablespace ID to lookup
-	@return names that map to space_id or nullptr if not found */
-	Tablespace_files::Names* get_scanned_files(space_id_t space_id)
+	@return pair of top level directory scanned and names that map
+		to space_id or nullptr if not found for names */
+	Tablespace_dirs::Result get_scanned_files(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(s_dirs.find(space_id));
 	}
 
 	/** Fetch the file name opened for a space_id during recovery
-	from the file map.
+	from the file map. 
 	@param[in]	space_id	Undo tablespace ID
-	@return file name that was opened, empty string if space ID
-		not found. */
+	@return Full path to the file name that was opened, empty string
+		if space ID not found. */
 	std::string find(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		auto	names = get_scanned_files(space_id);
+		auto	result = get_scanned_files(space_id);
 
-		if (names != nullptr) {
-			return(names->front());
+		if (result.second != nullptr) {
+			return(result.first + result.second->front());
 		}
 
 		return("");
@@ -1665,8 +1679,7 @@ fil_is_undo_tablespace_name(const char* name, size_t len)
 		const char*	end_ptr = name + len;
 		size_t	u = (end_ptr[-4] == '_' ? 1 : 0);
 
-		return(end_ptr[-8-u] == OS_PATH_SEPARATOR
-		       && end_ptr[-7-u] == 'u'
+		return(end_ptr[-7-u] == 'u'
 		       && end_ptr[-6-u] == 'n'
 		       && end_ptr[-5-u] == 'd'
 		       && end_ptr[-4-u] == 'o'
@@ -3756,6 +3769,7 @@ Tablespace_files::Tablespace_files(const std::string& dir)
 	:
 	m_ibd_paths(),
 	m_undo_paths(),
+	m_path(dir),
 	m_real_path(fil_get_real_path(dir.c_str()))
 {
 	/* No op */
@@ -8436,10 +8450,10 @@ fil_tablespace_path_equals(
 {
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = fil_system->get_scanned_files(space_id);
+	const auto	result = fil_system->get_scanned_files(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
-	if (names == nullptr) {
+	if (result.second == nullptr) {
 
 		/* If it wasn't deleted after finding it on disk then
 		we tag it as missing. */
@@ -8459,16 +8473,20 @@ fil_tablespace_path_equals(
 
 	} else {
 
-		std::string	real_path = fil_get_real_path(path);
+		std::string	real_path_orig = fil_get_real_path(path);
 
-		if (names->front().compare(real_path) != 0) {
+		ut_a(result.first.back() == OS_PATH_SEPARATOR);
 
-			fil_system->moved(
-				object_id, space_id, path, names->front());
+		*new_path = result.first + result.second->front();
 
-			/* File has been moved. */
+		std::string	real_path_new = fil_get_real_path(
+			new_path->c_str());
 
-			*new_path = names->front();
+		if (real_path_orig.compare(real_path_new) != 0) {
+
+			ut_a(result.first.back() == OS_PATH_SEPARATOR);
+
+			fil_system->moved(object_id, space_id, path, *new_path);
 
 			return(Fil_path::MOVED);
 		}
@@ -8487,10 +8505,10 @@ Fil_system::lookup_for_recovery(space_id_t space_id)
 
 	/* Single threaded code, no need to acquire mutex. */
 	const auto&	end = recv_sys->deleted.end();
-	const auto	names = get_scanned_files(space_id);
+	const auto	result = get_scanned_files(space_id);
 	const auto&	it = recv_sys->deleted.find(space_id);
 
-	if (names == nullptr) {
+	if (result.second == nullptr) {
 
 		/* If it wasn't deleted after finding it on disk then
 		we tag it as missing. */
@@ -8529,12 +8547,13 @@ Fil_system::open_for_recovery(space_id_t space_id)
 		return(false);
 	}
 
-	const auto	names = get_scanned_files(space_id);
+	const auto	result = get_scanned_files(space_id);
 
 	/* Duplicates should have been sorted out before start of recovery. */
-	ut_a(names->size() == 1);
+	ut_a(result.second->size() == 1);
 
-	const auto&	path = names->front();
+	const auto&		filename = result.second->front();
+	const std::string	path = result.first + filename;
 
 	fil_space_t*	space;
 
@@ -8627,9 +8646,9 @@ Fil_system::check_missing_tablespaces()
 			continue;
 		}
 
-		const auto	names = get_scanned_files(space_id);
+		const auto	result = get_scanned_files(space_id);
 
-		if (names == nullptr) {
+		if (result.second == nullptr) {
 
 			ib::error()
 				<< "Could not find any file associated with"
@@ -8637,7 +8656,7 @@ Fil_system::check_missing_tablespaces()
 
 			missing = true;
 		} else {
-			ut_a(!names->empty());
+			ut_a(!result.second->empty());
 		}
 	}
 
@@ -8720,9 +8739,9 @@ fil_tablespace_redo_create(
 		return(nullptr);
 	}
 
-	const auto	names = fil_system->get_scanned_files(page_id.space());
+	const auto	result = fil_system->get_scanned_files(page_id.space());
 
-	if (names == nullptr) {
+	if (result.second == nullptr) {
 
 		/* No files map to this tablespace ID. It's possible that
 		the files were deleted later or ar misisng. */
@@ -8733,13 +8752,13 @@ fil_tablespace_redo_create(
 	auto	abs_name = fil_get_real_path(name);
 
 	/* Duplicates should have been sorted out before we get here. */
-	ut_a(names->size() == 1);
+	ut_a(result.second->size() == 1);
 
 	/* It's possible that the tablespace file was renamed later. */
 
 	ib::info() << "REDO CREATE: " << page_id.space() << ", " << abs_name;
 
-	if (names->front().compare(abs_name) == 0) {
+	if (result.second->front().compare(abs_name) == 0) {
 		bool	success;
 
 		success = fil_tablespace_open_for_recovery(page_id.space());
@@ -8881,9 +8900,9 @@ fil_tablespace_redo_rename(
 		return(nullptr);
 	}
 
-	auto	names = fil_system->get_scanned_files(page_id.space());
+	const auto	result = fil_system->get_scanned_files(page_id.space());
 
-	if (names == nullptr) {
+	if (result.second == nullptr) {
 
 		/* No file on disk maps to this tablespace ID. It's possible
 		that the files were deleted later or are misisng. */
@@ -8893,9 +8912,9 @@ fil_tablespace_redo_rename(
 
 	/* Duplicates should have been sorted out before start of recovery. */
 
-	ut_a(names->size() == 1);
+	ut_a(result.second->size() == 1);
 
-	auto&	path = names->front();
+	auto&	path = result.second->front();
 
 	if (path.compare(abs_to_name) == 0) {
 
@@ -9057,12 +9076,12 @@ fil_tablespace_redo_delete(
 		return(nullptr);
 	}
 
-	const auto	names = fil_system->get_scanned_files(page_id.space());
+	const auto	result = fil_system->get_scanned_files(page_id.space());
 
 	recv_sys->deleted.insert(page_id.space());
 	recv_sys->missing_ids.erase(page_id.space());
 
-	if (names == nullptr) {
+	if (result.second == nullptr) {
 
 		/* No files map to this tablespace ID. The drop must
 		have succeeded. */
@@ -9073,7 +9092,7 @@ fil_tablespace_redo_delete(
 
 	/* Space_id_set should have been sorted out before we get here. */
 
-	ut_a(names->size() == 1);
+	ut_a(result.second->size() == 1);
 
 	auto	abs_name = fil_get_real_path(name);
 
@@ -9081,7 +9100,7 @@ fil_tablespace_redo_delete(
 
 	/* If the space ID maps to a file on disk then the name must match. */
 
-	ut_a(names->front().compare(abs_name) == 0);
+	ut_a(result.second->front().compare(abs_name) == 0);
 
 	fil_space_free(page_id.space(), false);
 
@@ -9142,6 +9161,16 @@ Tablespace_dirs::tokenize_paths(
 					std::string	d{cur_path};
 
 					cur_path = fil_get_real_path(d.c_str());
+
+					if (d.back() != OS_PATH_SEPARATOR) {
+						d += OS_PATH_SEPARATOR;
+					}
+
+					if (cur_path.back()
+					    != OS_PATH_SEPARATOR) {
+
+						cur_path += OS_PATH_SEPARATOR;
+					}
 
 					using value = Paths::value_type;
 
@@ -9230,11 +9259,7 @@ Tablespace_dirs::tokenize_paths(
 			continue;
 		}
 
-		using value = Scanned::value_type;
-
-		value	v{dir.first, Tablespace_files(dir.second)};
-
-		m_dirs.push_back(v);
+		m_dirs.push_back(Tablespace_files{dir.first});
 	}
 }
 
@@ -9363,8 +9388,8 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 @param[in,out]	duplicates	Duplicate space IDs found */
 void
 Tablespace_dirs::duplicate_check(
-	const const_iter&	start,
-	const const_iter&	end,
+	const Const_iter&	start,
+	const Const_iter&	end,
 	size_t			thread_id,
 	std::mutex*		mutex,
 	Space_id_set*		unique,
@@ -9376,18 +9401,20 @@ Tablespace_dirs::duplicate_check(
 
 	for (auto it = start; it != end; ++it, ++m_checked) {
 
-		const auto&	filename = it->second;
+		const std::string	filename = it->second;
+		auto&			files = m_dirs[it->first];
+		const std::string	phy_filename = files.path() + filename;
 
-		std::ifstream	ifs(filename, std::ios::binary);
+		std::ifstream	ifs(phy_filename, std::ios::binary);
 
 		if (!ifs) {
-			ib::warn() << "Unable to open '" << filename << "'";
+			ib::warn() << "Unable to open '" << phy_filename << "'";
 			continue;
 		}
 
 		space_id_t	space_id;
 
-		space_id = fil_get_tablespace_id(&ifs, filename);
+		space_id = fil_get_tablespace_id(&ifs, phy_filename);
 
 		ut_a(space_id != 0);
 
@@ -9397,11 +9424,9 @@ Tablespace_dirs::duplicate_check(
 
 			auto	ret = unique->insert(space_id);
 
-			auto&	files = m_dirs[it->first];
-
 			size_t	n_files;
 
-			n_files = files.second.add(space_id, filename);
+			n_files = files.add(space_id, filename);
 
 			if (n_files > 1 || !ret.second) {
 
@@ -9410,7 +9435,7 @@ Tablespace_dirs::duplicate_check(
 
 		} else {
 			ib::warn()
-				<< "Ignoring '" << filename << "' invalid"
+				<< "Ignoring '" << phy_filename << "' invalid"
 				<< " tablespace ID in the header";
 		}
 
@@ -9447,9 +9472,8 @@ Tablespace_dirs::print_duplicates(const Space_id_set&  duplicates)
 
 		Dirs	files;
 
-		for (auto& elem : m_dirs) {
+		for (auto& dir : m_dirs) {
 
-			auto&		dir = elem.second;
 			const auto	names = dir.find(space_id);
 
 			if (names == nullptr) {
@@ -9500,35 +9524,50 @@ Tablespace_dirs::scan(const std::string& directories)
 	auto		start_time = ut_time();
 
 	/* Should be trivial to parallelize the scan and ID check. */
-	for (const auto& elem : m_dirs) {
+	for (const auto& dir : m_dirs) {
 
-		const auto&	dir = elem.second.real_path();
+		const auto&	real_path_dir = dir.real_path();
 
-		ib::info() << "Scanning '" << elem.first << "'";
+		ut_a(dir.path().back() == OS_PATH_SEPARATOR);
+
+		ib::info() << "Scanning '" << dir.path() << "'";
 
 		/* Walk the sub-tree of dir. */
 
-		Dir_Walker::walk(dir, [&](const std::string& path)
+		Dir_Walker::walk(real_path_dir, [&](const std::string& path)
 		{
-			/* If it is a file and the suffix
-			matches ".ibd" then store it for reading. */
+			/* If it is a file and the suffix matches ".ibd"
+			or the undo file name format then store it for
+			determining the space ID. */
 
-			if (Dir_Walker::is_directory(path)
-			    || path.size() <= 4) {
+			if (Dir_Walker::is_directory(path)) {
+
+				return;
+			}
+
+			ut_a(path.length() > real_path_dir.length());
+
+			/* Make the filename relative to the directory that
+			was scanned. */
+
+			std::string	file = path.substr(
+				real_path_dir.length() + 1, path.length());
+
+			if (file.size() <= 4) {
 
 				return;
 			}
 
 			using value = Scanned_files::value_type;
 
-			if (path.compare(path.length() - 4, 4, ".ibd") == 0) {
+			if (fil_has_ibd_suffix(file.c_str())) {
 
-				ibd_files.push_back(value{count, path});
+				ibd_files.push_back(value{count, file});
 
 			} else if (fil_is_undo_tablespace_name(
-				   path.c_str(), path.length())) {
+				   file.c_str(), file.length())) {
 
-				undo_files.push_back(value{count, path});
+				undo_files.push_back(value{count, file});
 			}
 
 			if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
@@ -9575,7 +9614,7 @@ Tablespace_dirs::scan(const std::string& directories)
 	using std::placeholders::_6;
 
 	std::function<void(
-		const const_iter&, const const_iter&, size_t,
+		const Const_iter&, const Const_iter&, size_t,
 		std::mutex*, Space_id_set*, Space_id_set*)>
 		check = std::bind(
 			&Tablespace_dirs::duplicate_check, this,
