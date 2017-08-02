@@ -9,4 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog.binlog_half_crash_safe_ddl: WL#9536 2017-04-03 zhlai need WL9536 support
