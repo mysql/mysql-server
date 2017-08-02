@@ -981,7 +981,7 @@ public:
 	}
 
 	/** Fetch the file name opened for a space_id during recovery
-	from the file map. 
+	from the file map.
 	@param[in]	space_id	Undo tablespace ID
 	@return Full path to the file name that was opened, empty string
 		if space ID not found. */
@@ -9594,7 +9594,7 @@ Tablespace_dirs::scan(const std::string& directories)
 	size_t		n_threads = (ibd_files.size() / 50000);
 
 	if (n_threads > 0) {
-	       
+
 		if (n_threads > MAX_SCAN_THREADS) {
 			n_threads = MAX_SCAN_THREADS;
 		}
