@@ -5541,7 +5541,7 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
 
   if (dst != dst_end)
   {
-    scanner.for_each_weight([&dst, d0, dst_end, flags]
+    scanner.for_each_weight([&dst, dst_end]
                             (int s_res,
                               bool is_level_separator
                              MY_ATTRIBUTE((unused))) -> bool {

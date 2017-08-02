@@ -3218,6 +3218,12 @@ row_sel_store_mysql_rec(
 				prebuilt->index); i++) {
 			ulint	sec_field = dict_index_get_nth_field_pos(
 				index, prebuilt->index, i);
+
+			if (sec_field == ULINT_UNDEFINED) {
+				template_col.push_back(nullptr);
+				continue;
+			}
+
 			const dict_field_t*	field =
 					index->get_field(sec_field);
 			const dict_col_t*	col = field->col;
@@ -3303,7 +3309,7 @@ row_sel_store_mysql_rec(
 		if (clust_templ_for_sec) {
 
 			std::vector<const dict_col_t*>::iterator	it;
-			const dict_field_t*	field = index->get_field(i);
+			const dict_field_t*	field = index->get_field(field_no);
 			const dict_col_t*	col = field->col;
 
 			it = std::find(template_col.begin(),
