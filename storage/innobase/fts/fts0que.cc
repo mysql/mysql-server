@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3321,6 +3321,7 @@ func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
+		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }
