@@ -1,0 +1,1803 @@
+CREATE TABLESPACE ts1 ADD DATAFILE 'data1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'data2.ibd';
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_system;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_delete_space_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_delete_space_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_delete_space_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts1;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_5';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_5';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_6';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_6';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_5';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_5';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_6';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_6';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`),
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_5';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 ADD INDEX(b), TABLESPACE=innodb_file_per_table;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_5';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_log_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_log_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_free_tree_delete_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_free_tree_delete_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_2';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_2';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_3';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_3';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_4';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 2013
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` varchar(100) DEFAULT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
+DROP TABLE t1;
+CREATE TABLE t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) TABLESPACE=ts1;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_5';
+SELECT * FROM t1 LIMIT 2;;
+a	b	c
+1	Filler1	1
+2	filler2	2
+ALTER TABLE t1 DROP INDEX c, TABLESPACE=ts2;
+# mysql_errno: 0
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_5';
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;
