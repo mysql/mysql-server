@@ -514,6 +514,8 @@ public:
       cache_state state;
       state.with_rbr= flags.with_rbr;
       state.with_sbr= flags.with_sbr;
+      state.with_start= flags.with_start;
+      state.with_end= flags.with_end;
       state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
@@ -529,6 +531,8 @@ public:
       {
         flags.with_rbr= it->second.with_rbr;
         flags.with_sbr= it->second.with_sbr;
+        flags.with_start= it->second.with_start;
+        flags.with_end= it->second.with_end;
         event_counter= it->second.event_counter;
       }
       else
@@ -539,6 +543,8 @@ public:
     {
       flags.with_rbr= false;
       flags.with_sbr= false;
+      flags.with_start= false;
+      flags.with_end= false;
       event_counter= 0;
     }
   }
@@ -574,6 +580,8 @@ public:
     flags.finalized= false;
     flags.with_sbr= false;
     flags.with_rbr= false;
+    flags.with_start= false;
+    flags.with_end= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -659,17 +667,20 @@ public:
   {
     /*
       The empty transaction has two events in trx/stmt binlog cache
-      and no changes (no SBR changing content and no RBR events).
-      Other transaction should not have two events. So we can identify
-      if this is an empty transaction by the event counter and the
-      cache flags.
+      and no changes: one is a transaction start and other is a transaction
+      end (there should be no SBR changing content and no RBR events).
     */
-    return (event_counter == 2 && // Two binlog events
-            !flags.with_sbr &&    // No statements changing content
-            !flags.with_rbr &&    // No rows changing content
-            !flags.immediate &&   // Not a DDL
-            !flags.with_xid);     // Not a XID transaction and not
-                                  // an atomic DDL Query-log-event
+    if (flags.with_start && // Has transaction start statement
+        flags.with_end &&   // Has transaction end statement
+        !flags.with_sbr &&  // No statements changing content
+        !flags.with_rbr &&  // No rows changing content
+        !flags.immediate && // Not a DDL
+        !flags.with_xid)    // Not a XID transaction and not an atomic DDL Query
+    {
+      DBUG_ASSERT(event_counter == 2);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -693,6 +704,8 @@ protected:
   {
     bool with_sbr;
     bool with_rbr;
+    bool with_start;
+    bool with_end;
     size_t event_counter;
   };
   /*
@@ -786,6 +799,16 @@ protected:
       This indicates that the cache contain RBR event changing content.
     */
     bool with_rbr:1;
+
+    /*
+      This indicates that the cache contain s transaction start statement.
+    */
+    bool with_start:1;
+
+    /*
+      This indicates that the cache contain a transaction end event.
+    */
+    bool with_end:1;
   } flags;
 
 private:
@@ -1440,6 +1463,11 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_sbr= true;
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
+    /* With respect to empty transactions */
+    if (ev->starts_group())
+      flags.with_start= true;
+    if (ev->ends_group())
+      flags.with_end= true;
     event_counter++;
     DBUG_PRINT("debug",("event_counter= %lu",
                         static_cast<ulong>(event_counter)));
