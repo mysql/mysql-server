@@ -1013,8 +1013,6 @@ DROP TABLESPACE ts1;
 --echo # Start executing CREATE TABLESPACE, but wait after
 --echo # getting the MDL X lock on the tablespace name.
 
-TRUNCATE TABLE performance_schema.events_statements_history_long;
-
 --connection con1
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
   SIGNAL got_lock_con1
@@ -1060,6 +1058,10 @@ LET $wait_condition=
 SELECT event_name, object_name, object_type, operation
   FROM performance_schema.events_waits_current
   WHERE object_type LIKE 'TABLESPACE';
+
+# Empty the table so that the table doesn't get full and the event
+# that we need to wait on doesn't get removed from the table.
+TRUNCATE TABLE performance_schema.events_statements_history_long;
 
 SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 

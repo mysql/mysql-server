@@ -853,7 +853,8 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
-SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name) AS
+"TABLE_SCHEMA.TABLE_NAME", COUNT(*) AS NUM
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
