@@ -71,17 +71,41 @@ bool		innodb_ddl_log_crash_reset_debug;
 Other RENAME_TABLE and REMOVE CACHE doesn't touch the data files at all,
 so would be skipped */
 
-/** Crash injection counter used before writing ddl log */
-static uint32_t	crash_injection_before_log_counter = 1;
+/** Crash injection counter used before writing FREE TREE log */
+static uint32_t	crash_before_free_tree_log_counter = 1;
 
-/** Crash injection counter used after writing ddl log */
-static uint32_t	crash_injection_after_log_counter = 1;
+/** Crash injection counter used after writing FREE TREE log */
+static uint32_t	crash_after_free_tree_log_counter = 1;
 
-/** Crash injection counter used after deleting ddl log */
-static uint32_t	crash_injection_after_delete_counter = 1;
+/** Crash injection counter used after deleting FREE TREE log */
+static uint32_t	crash_after_free_tree_delete_counter = 1;
+
+/** Crash injection counter used before writing DELETE SPACE log */
+static uint32_t crash_before_delete_space_log_counter = 1;
+
+/** Crash injection counter used after writing DELETE SPACE log */
+static uint32_t crash_after_delete_space_log_counter = 1;
+
+/** Crash injection counter used after deleting DELETE SPACE log */
+static uint32_t crash_after_delete_space_delete_counter = 1;
+
+/** Crash injection counter used before writing RENAME SPACE log */
+static uint32_t crash_before_rename_space_log_counter = 1;
+
+/** Crash injection counter used after writing RENAME SPACE log */
+static uint32_t crash_after_rename_space_log_counter = 1;
+
+/** Crash injection counter used after deleting RENAME SPACE log */
+static uint32_t crash_after_rename_space_delete_counter = 1;
+
+/** Crash injection counter used before writing DROP log */
+static uint32_t crash_before_drop_log_counter = 1;
+
+/** Crash injection counter used after writing DROP log */
+static uint32_t crash_after_drop_log_counter = 1;
 
 /** Crash injection counter used after any replay */
-static uint32_t	crash_injection_after_replay_counter = 1;
+static uint32_t	crash_after_replay_counter = 1;
 
 void
 ddl_log_crash_reset(
@@ -95,10 +119,18 @@ ddl_log_crash_reset(
 	innodb_ddl_log_crash_reset_debug = reset;
 
 	if (reset) {
-		crash_injection_before_log_counter = 1;
-		crash_injection_after_log_counter = 1;
-		crash_injection_after_delete_counter = 1;
-		crash_injection_after_replay_counter = 1;
+		crash_before_free_tree_log_counter = 1;
+		crash_after_free_tree_log_counter = 1;
+		crash_after_free_tree_delete_counter = 1;
+		crash_before_delete_space_log_counter = 1;
+		crash_after_delete_space_log_counter = 1;
+		crash_after_delete_space_delete_counter = 1;
+		crash_before_rename_space_log_counter = 1;
+		crash_after_rename_space_log_counter = 1;
+		crash_after_rename_space_delete_counter = 1;
+		crash_before_drop_log_counter = 1;
+		crash_after_drop_log_counter = 1;
+		crash_after_replay_counter = 1;
 	}
 }
 
@@ -898,7 +930,7 @@ Log_DDL::write_free_tree_log(
 	trx->ddl_operation = true;
 
 	DBUG_INJECT_CRASH("ddl_log_crash_before_free_tree_log",
-			  crash_injection_before_log_counter++);
+			  crash_before_free_tree_log_counter++);
 
 	if (is_drop_table) {
 		/* Drop index case, if committed, will be redo only */
@@ -906,7 +938,7 @@ Log_DDL::write_free_tree_log(
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_log",
-				  crash_injection_after_log_counter++);
+				  crash_after_free_tree_log_counter++);
 	} else {
 		/* This is the case of building index during create table
 		scenario. The index will be dropped if ddl is rolled back */
@@ -914,14 +946,14 @@ Log_DDL::write_free_tree_log(
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_log",
-				  crash_injection_after_log_counter++);
+				  crash_after_free_tree_log_counter++);
 
 		/* Delete this operation if the create trx is committed */
 		err = delete_by_id(trx, id);
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_free_tree_delete",
-				  crash_injection_after_delete_counter++);
+				  crash_after_free_tree_delete_counter++);
 	}
 
 	return(err);
@@ -1000,7 +1032,7 @@ Log_DDL::write_delete_space_log(
 	trx->ddl_operation = true;
 
 	DBUG_INJECT_CRASH("ddl_log_crash_before_delete_space_log",
-			  crash_injection_before_log_counter++);
+			  crash_before_delete_space_log_counter++);
 
 	if (is_drop) {
 		err = insert_delete_space_log(
@@ -1008,7 +1040,7 @@ Log_DDL::write_delete_space_log(
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
-				  crash_injection_after_log_counter++);
+				  crash_after_delete_space_log_counter++);
 	} else {
 		err = insert_delete_space_log(
 			nullptr, id, thread_id, space_id,
@@ -1016,13 +1048,13 @@ Log_DDL::write_delete_space_log(
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_log",
-				  crash_injection_after_log_counter++);
+				  crash_after_delete_space_log_counter++);
 
 		err = delete_by_id(trx, id);
 		ut_ad(err == DB_SUCCESS);
 
 		DBUG_INJECT_CRASH("ddl_log_crash_after_delete_space_delete",
-				  crash_injection_after_delete_counter++);
+				  crash_after_delete_space_delete_counter++);
 	}
 
 	return(err);
@@ -1109,20 +1141,20 @@ Log_DDL::write_rename_space_log(
 	trx->ddl_operation = true;
 
 	DBUG_INJECT_CRASH("ddl_log_crash_before_rename_space_log",
-			  crash_injection_before_log_counter++);
+			  crash_before_rename_space_log_counter++);
 
 	dberr_t	err = insert_rename_space_log(
 		id, thread_id, space_id, old_file_path, new_file_path);
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_log",
-			  crash_injection_after_log_counter++);
+			  crash_after_rename_space_log_counter++);
 
 	err = delete_by_id(trx, id);
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_rename_space_delete",
-			  crash_injection_after_delete_counter++);
+			  crash_after_rename_space_delete_counter++);
 
 	return(err);
 }
@@ -1182,14 +1214,14 @@ Log_DDL::write_drop_log(
 	ulint		thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_before_drop_log",
-			  crash_injection_before_log_counter++);
+			  crash_before_drop_log_counter++);
 
 	dberr_t	err;
 	err = insert_drop_log(trx, id, thread_id, table_id);
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_drop_log",
-			  crash_injection_after_log_counter++);
+			  crash_after_drop_log_counter++);
 
 	return(err);
 }
@@ -1549,7 +1581,7 @@ Log_DDL::replay_free_tree_log(
 	mutex_exit(&dict_sys->mutex);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_replay",
-			  crash_injection_after_replay_counter++);
+			  crash_after_replay_counter++);
 }
 
 extern ib_mutex_t	master_key_id_mutex;
@@ -1587,7 +1619,7 @@ Log_DDL::replay_delete_space_log(
 	mutex_exit(&master_key_id_mutex);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_replay",
-			  crash_injection_after_replay_counter++);
+			  crash_after_replay_counter++);
 }
 
 void
@@ -1605,7 +1637,7 @@ Log_DDL::replay_rename_space_log(
 	}
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_replay",
-			  crash_injection_after_replay_counter++);
+			  crash_after_replay_counter++);
 }
 
 void
@@ -1619,7 +1651,7 @@ Log_DDL::replay_drop_log(
 	mutex_exit(&dict_persist->mutex);
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_replay",
-			  crash_injection_after_replay_counter++);
+			  crash_after_replay_counter++);
 }
 
 void
