@@ -1063,69 +1063,6 @@ dict_index_get_nth_field_pos(
 	return(ULINT_UNDEFINED);
 }
 
-/**********************************************************************//**
-Returns a table object based on table id.
-@return table, NULL if does not exist */
-dict_table_t*
-dict_table_open_on_id(
-/*==================*/
-	table_id_t	table_id,	/*!< in: table id */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	dict_table_op_t	table_op)	/*!< in: operation to perform */
-{
-	dict_table_t*	table;
-
-	if (!dict_locked) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	table = dict_table_open_on_id_low(
-		table_id,
-		table_op == DICT_TABLE_OP_LOAD_TABLESPACE
-		? DICT_ERR_IGNORE_RECOVER_LOCK
-		: DICT_ERR_IGNORE_NONE);
-
-	if (table != NULL) {
-
-		if (table->can_be_evicted) {
-			dict_move_to_mru(table);
-		}
-
-		table->acquire();
-
-		MONITOR_INC(MONITOR_TABLE_REFERENCE);
-	} else if (dict_table_is_sdi(table_id)) {
-
-		/* The table is SDI table */
-		space_id_t	space_id = dict_sdi_get_space_id(table_id);
-
-		/* Create in-memory table oject for SDI table */
-		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
-			space_id, false, 0, false);
-
-		if (sdi_index == NULL) {
-			if (!dict_locked) {
-				mutex_exit(&dict_sys->mutex);
-			}
-			return(NULL);
-		}
-
-		table = sdi_index->table;
-
-		ut_ad(table != NULL);
-		table->acquire();
-	}
-
-	if (!dict_locked) {
-		dict_table_try_drop_aborted_and_mutex_exit(
-			table, table_op == DICT_TABLE_OP_DROP_ORPHAN);
-	}
-
-	return(table);
-}
-
 /********************************************************************//**
 Looks for non-virtual column n position in the clustered index.
 @return position in internal representation of the clustered index */

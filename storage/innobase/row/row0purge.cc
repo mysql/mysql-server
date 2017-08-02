@@ -899,8 +899,7 @@ try_again:
 	of SDI tables. Concurrent DROP TABLE/TABLESPACE would acquire
 	exclusive MDL on SDI tables */
 
-	if (dict_table_is_system(table_id)
-	    || dict_table_is_sdi(table_id)
+	if (dict_table_is_sdi(table_id)
 	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
 
@@ -922,11 +921,6 @@ try_again:
 				node->mdl = nullptr;
 			}
 
-		} else {
-			/* TODO: WL#9535: Remove this and
-			dict_table_is_system() in if condition*/
-			node->table = dict_table_open_on_id(
-				table_id, FALSE, DICT_TABLE_OP_NORMAL);
 		}
 	} else {
 		for (;;) {

@@ -183,106 +183,7 @@ dict_getnext_system(
 	btr_pcur_t*	pcur,		/*!< in/out: persistent cursor
 					to the record */
 	mtr_t*		mtr);		/*!< in: the mini-transaction */
-/********************************************************************//**
-This function processes one SYS_TABLES record and populate the dict_table_t
-struct for the table. Extracted out of dict_print() to be used by
-both monitor table output and information schema innodb_sys_tables output.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_tables_rec_and_mtr_commit(
-/*=======================================*/
-	mem_heap_t*	heap,		/*!< in: temporary memory heap */
-	const rec_t*	rec,		/*!< in: SYS_TABLES record */
-	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status,	/*!< in: status bit controls
-					options such as whether we shall
-					look for dict_table_t from cache
-					first */
-	mtr_t*		mtr);		/*!< in/out: mini-transaction,
-					will be committed */
-/********************************************************************//**
-This function parses a SYS_INDEXES record and populate a dict_index_t
-structure with the information from the record. For detail information
-about SYS_INDEXES fields, please refer to dict_boot() function.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_indexes_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
-	dict_index_t*	index,		/*!< out: dict_index_t to be
-					filled */
-	table_id_t*	table_id);	/*!< out: table id */
-/********************************************************************//**
-This function parses a SYS_COLUMNS record and populate a dict_column_t
-structure with the information from the record.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_columns_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
-	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name,	/*!< out: column name */
-	ulint*		nth_v_col);	/*!< out: if virtual col, this is
-					records its sequence number */
 
-/** This function parses a SYS_VIRTUAL record and extract virtual column
-information
-@param[in,out]	heap		heap memory
-@param[in]	rec		current SYS_COLUMNS rec
-@param[in,out]	table_id	table id
-@param[in,out]	pos		virtual column position
-@param[in,out]	base_pos	base column position
-@return error message, or NULL on success */
-const char*
-dict_process_sys_virtual_rec(
-	mem_heap_t*	heap,
-	const rec_t*	rec,
-	table_id_t*	table_id,
-	ulint*		pos,
-	ulint*		base_pos);
-/********************************************************************//**
-This function parses a SYS_FIELDS record and populate a dict_field_t
-structure with the information from the record.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_fields_rec(
-/*========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FIELDS rec */
-	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
-					filled */
-	ulint*		pos,		/*!< out: Field position */
-	space_index_t*	index_id,	/*!< out: current index id */
-	space_index_t	last_id);	/*!< in: previous index id */
-/********************************************************************//**
-This function parses a SYS_FOREIGN record and populate a dict_foreign_t
-structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function
-@return error message, or NULL on success */
-const char*
-dict_process_sys_foreign_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FOREIGN rec */
-	dict_foreign_t*	foreign);	/*!< out: dict_foreign_t to be
-					filled */
-/********************************************************************//**
-This function parses a SYS_FOREIGN_COLS record and extract necessary
-information from the record and return to caller.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_foreign_col_rec(
-/*=============================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FOREIGN_COLS rec */
-	const char**	name,		/*!< out: foreign key constraint name */
-	const char**	for_col_name,	/*!< out: referencing column name */
-	const char**	ref_col_name,	/*!< out: referenced column name
-					in referenced table */
-	ulint*		pos);		/*!< out: column position */
 /********************************************************************//**
 This function parses a SYS_TABLESPACES record, extracts necessary
 information from the record and returns to caller.
@@ -295,18 +196,6 @@ dict_process_sys_tablespaces(
 	space_id_t*	space,		/*!< out: space id */
 	const char**	name,		/*!< out: tablespace name */
 	ulint*		flags);		/*!< out: tablespace flags */
-/********************************************************************//**
-This function parses a SYS_DATAFILES record, extracts necessary
-information from the record and returns to caller.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_datafiles(
-/*=======================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_DATAFILES rec */
-	ulint*		space,		/*!< out: pace id */
-	const char**	path);		/*!< out: datafile path */
-
 /** Opens a tablespace for dict_load_table_one()
 @param[in,out]	table		A table that refers to the tablespace to open
 @param[in,out]	heap		A memory heap

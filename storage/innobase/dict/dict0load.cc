@@ -315,68 +315,6 @@ dict_getnext_system(
 	return(rec);
 }
 
-/********************************************************************//**
-This function processes one SYS_TABLES record and populate the dict_table_t
-struct for the table. Extracted out of dict_print() to be used by
-both monitor table output and information schema innodb_sys_tables output.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_tables_rec_and_mtr_commit(
-/*=======================================*/
-	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
-	const rec_t*	rec,		/*!< in: SYS_TABLES record */
-	dict_table_t**	table,		/*!< out: dict_table_t to fill */
-	dict_table_info_t status,	/*!< in: status bit controls
-					options such as whether we shall
-					look for dict_table_t from cache
-					first */
-	mtr_t*		mtr)		/*!< in/out: mini-transaction,
-					will be committed */
-{
-	ulint		len;
-	const char*	field;
-	const char*	err_msg = NULL;
-	table_name_t	table_name;
-
-	field = (const char*) rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_TABLES__NAME, &len);
-
-	ut_a(!rec_get_deleted_flag(rec, 0));
-
-	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
-
-	/* Get the table name */
-	table_name.m_name = mem_heap_strdupl(heap, field, len);
-
-	/* If DICT_TABLE_LOAD_FROM_CACHE is set, first check
-	whether there is cached dict_table_t struct */
-	if (status & DICT_TABLE_LOAD_FROM_CACHE) {
-		/* Commit before load the table again */
-		mtr_commit(mtr);
-		THD*		thd = current_thd;
-		MDL_ticket*	mdl = nullptr;
-
-		*table = dd_table_open_on_name(
-			thd, &mdl, table_name.m_name, true,
-			DICT_ERR_IGNORE_NONE);
-
-		if (!(*table)) {
-			err_msg = "Table not found in cache";
-		} else if (mdl) {
-			dd_table_close(*table, thd, &mdl, true);
-		}
-	} else {
-		err_msg = dict_load_table_low(table_name, rec, table);
-		mtr_commit(mtr);
-	}
-
-	if (err_msg) {
-		return(err_msg);
-	}
-
-	return(NULL);
-}
-
 /** Error message for a delete-marked record in dict_load_index_low() */
 static const char* dict_load_index_del = "delete-marked record in SYS_INDEXES";
 /** Error message for table->id mismatch in dict_load_index_low() */
@@ -564,33 +502,6 @@ err_len:
 	return(NULL);
 }
 
-/********************************************************************//**
-This function parses a SYS_INDEXES record and populate a dict_index_t
-structure with the information from the record. For detail information
-about SYS_INDEXES fields, please refer to dict_boot() function.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_indexes_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
-	dict_index_t*	index,		/*!< out: index to be filled */
-	table_id_t*	table_id)	/*!< out: index table id */
-{
-	const char*	err_msg;
-	byte*		buf;
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-
-	/* Parse the record, and get "dict_index_t" struct filled */
-	err_msg = dict_load_index_low(buf, NULL,
-				      heap, rec, FALSE, &index);
-
-	*table_id = mach_read_from_8(buf);
-
-	return(err_msg);
-}
-
 /** Error message for a delete-marked record in dict_load_column_low() */
 static const char* dict_load_column_del = "delete-marked record in SYS_COLUMN";
 
@@ -761,30 +672,6 @@ err_len:
 	return(NULL);
 }
 
-/********************************************************************//**
-This function parses a SYS_COLUMNS record and populate a dict_column_t
-structure with the information from the record.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_columns_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
-	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name,	/*!< out: column name */
-	ulint*		nth_v_col)	/*!< out: if virtual col, this is
-					record's sequence number */
-{
-	const char*	err_msg;
-
-	/* Parse the record, and get "dict_col_t" struct filled */
-	err_msg = dict_load_column_low(NULL, heap, column,
-				       table_id, col_name, rec, nth_v_col);
-
-	return(err_msg);
-}
-
 /** Error message for a delete-marked record in dict_load_virtual_low() */
 static const char* dict_load_virtual_del = "delete-marked record in SYS_VIRTUAL";
 
@@ -873,31 +760,6 @@ err_len:
 	}
 
 	return(NULL);
-}
-
-/** This function parses a SYS_VIRTUAL record and extracts virtual column
-information
-@param[in,out]	heap		heap memory
-@param[in]	rec		current SYS_COLUMNS rec
-@param[in,out]	table_id	table id
-@param[in,out]	pos		virtual column position
-@param[in,out]	base_pos	base column position
-@return error message, or NULL on success */
-const char*
-dict_process_sys_virtual_rec(
-	mem_heap_t*	heap,
-	const rec_t*	rec,
-	table_id_t*	table_id,
-	ulint*		pos,
-	ulint*		base_pos)
-{
-	const char*	err_msg;
-
-	/* Parse the record, and get "dict_col_t" struct filled */
-	err_msg = dict_load_virtual_low(NULL, heap, NULL, table_id,
-				       pos, base_pos, rec);
-
-	return(err_msg);
 }
 
 /** Loads SYS_VIRTUAL info for one virtual column
@@ -1141,189 +1003,6 @@ err_len:
 }
 
 /********************************************************************//**
-This function parses a SYS_FIELDS record and populates a dict_field_t
-structure with the information from the record.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_fields_rec(
-/*========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FIELDS rec */
-	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
-					filled */
-	ulint*		pos,		/*!< out: Field position */
-	space_index_t*	index_id,	/*!< out: current index id */
-	space_index_t	last_id)	/*!< in: previous index id */
-{
-	byte*		buf;
-	byte*		last_index_id;
-	const char*	err_msg;
-
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-
-	last_index_id = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(last_index_id, last_id);
-
-	err_msg = dict_load_field_low(buf, NULL, sys_field,
-				      pos, last_index_id, heap, rec);
-
-	*index_id = mach_read_from_8(buf);
-
-	return(err_msg);
-
-}
-
-/********************************************************************//**
-This function parses a SYS_FOREIGN record and populate a dict_foreign_t
-structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_foreign_rec(
-/*=========================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FOREIGN rec */
-	dict_foreign_t*	foreign)	/*!< out: dict_foreign_t struct
-					to be filled */
-{
-	ulint		len;
-	const byte*	field;
-	ulint		n_fields_and_type;
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return("delete-marked record in SYS_FOREIGN");
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_FOREIGN) {
-		return("wrong number of columns in SYS_FOREIGN record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN__ID, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-err_len:
-		return("incorrect column length in SYS_FOREIGN");
-	}
-
-	/* This recieves a dict_foreign_t* that points to a stack variable.
-	So mem_heap_free(foreign->heap) is not used as elsewhere.
-	Since the heap used here is freed elsewhere, foreign->heap
-	is not assigned. */
-	foreign->id = mem_heap_strdupl(heap, (const char*) field, len);
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FOREIGN__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FOREIGN__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	/* The _lookup versions of the referenced and foreign table names
-	 are not assigned since they are not used in this dict_foreign_t */
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN__FOR_NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	foreign->foreign_table_name = mem_heap_strdupl(
-		heap, (const char*) field, len);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN__REF_NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	foreign->referenced_table_name = mem_heap_strdupl(
-		heap, (const char*) field, len);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN__N_COLS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	n_fields_and_type = mach_read_from_4(field);
-
-	foreign->type = (unsigned int) (n_fields_and_type >> 24);
-	foreign->n_fields = (unsigned int) (n_fields_and_type & 0x3FFUL);
-
-	return(NULL);
-}
-
-/********************************************************************//**
-This function parses a SYS_FOREIGN_COLS record and extract necessary
-information from the record and return to caller.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_foreign_col_rec(
-/*=============================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_FOREIGN_COLS rec */
-	const char**	name,		/*!< out: foreign key constraint name */
-	const char**	for_col_name,	/*!< out: referencing column name */
-	const char**	ref_col_name,	/*!< out: referenced column name
-					in referenced table */
-	ulint*		pos)		/*!< out: column position */
-{
-	ulint		len;
-	const byte*	field;
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return("delete-marked record in SYS_FOREIGN_COLS");
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_FOREIGN_COLS) {
-		return("wrong number of columns in SYS_FOREIGN_COLS record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__ID, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-err_len:
-		return("incorrect column length in SYS_FOREIGN_COLS");
-	}
-	*name = mem_heap_strdupl(heap, (char*) field, len);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__POS, &len);
-	if (len != 4) {
-		goto err_len;
-	}
-	*pos = mach_read_from_4(field);
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__FOR_COL_NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	*for_col_name = mem_heap_strdupl(heap, (char*) field, len);
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	*ref_col_name = mem_heap_strdupl(heap, (char*) field, len);
-
-	return(NULL);
-}
-
-/********************************************************************//**
 This function parses a SYS_TABLESPACES record, extracts necessary
 information from the record and returns to caller.
 @return error message, or NULL on success */
@@ -1385,59 +1064,6 @@ err_len:
 		goto err_len;
 	}
 	*flags = mach_read_from_4(field);
-
-	return(NULL);
-}
-
-/********************************************************************//**
-This function parses a SYS_DATAFILES record, extracts necessary
-information from the record and returns it to the caller.
-@return error message, or NULL on success */
-const char*
-dict_process_sys_datafiles(
-/*=======================*/
-	mem_heap_t*	heap,		/*!< in/out: heap memory */
-	const rec_t*	rec,		/*!< in: current SYS_DATAFILES rec */
-	ulint*		space,		/*!< out: space id */
-	const char**	path)		/*!< out: datafile paths */
-{
-	ulint		len;
-	const byte*	field;
-
-	if (rec_get_deleted_flag(rec, 0)) {
-		return("delete-marked record in SYS_DATAFILES");
-	}
-
-	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_DATAFILES) {
-		return("wrong number of columns in SYS_DATAFILES record");
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_DATAFILES__SPACE, &len);
-	if (len != DICT_FLD_LEN_SPACE) {
-err_len:
-		return("incorrect column length in SYS_DATAFILES");
-	}
-	*space = mach_read_from_4(field);
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_DATAFILES__DB_TRX_ID, &len);
-	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	rec_get_nth_field_offs_old(
-		rec, DICT_FLD__SYS_DATAFILES__DB_ROLL_PTR, &len);
-	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
-		goto err_len;
-	}
-
-	field = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_DATAFILES__PATH, &len);
-	if (len == 0 || len == UNIV_SQL_NULL) {
-		goto err_len;
-	}
-	*path = mem_heap_strdupl(heap, (char*) field, len);
 
 	return(NULL);
 }
