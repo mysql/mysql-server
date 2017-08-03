@@ -2642,9 +2642,6 @@ err_exit:
 		}
 	}
 
-	/* WL#9535 TODO: To remove this along with this function.
-	Currently, there are still functions calling this,
-	thus this workaround */
 	if (dict_sys->dynamic_metadata != NULL) {
 		dict_table_load_dynamic_metadata(table);
 	}

@@ -4437,8 +4437,6 @@ prepare_inplace_alter_table_dict(
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during an index create operation. */
 
-	/* TODO: NewDD: WL#9535, we will not need ctx->trx once we
-	remove InnoDB System tables */
 	row_mysql_lock_data_dictionary(ctx->prebuilt->trx);
 	ctx->trx->dict_operation_lock_mode = RW_X_LATCH;
 	dict_locked = true;
