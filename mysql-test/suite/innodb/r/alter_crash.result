@@ -106,7 +106,7 @@ DROP TABLE t2;
 # Bug#19330255 CRASH DURING ALTER TABLE LEADS TO
 # DATA DICTIONARY INCONSISTENCY
 #
-CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(150), c int NOT NULL);
 INSERT INTO t1 SET a=1,c=2;
 SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 ALTER TABLE t1 ADD INDEX (b), CHANGE c d int;
@@ -122,7 +122,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` varchar(255) DEFAULT NULL,
+  `b` varchar(150) DEFAULT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

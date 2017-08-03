@@ -132,7 +132,7 @@ DROP TABLE t2;
 --echo # DATA DICTIONARY INCONSISTENCY
 --echo #
 
-CREATE TABLE t1(a int PRIMARY KEY, b varchar(255), c int NOT NULL);
+CREATE TABLE t1(a int PRIMARY KEY, b varchar(150), c int NOT NULL);
 INSERT INTO t1 SET a=1,c=2;
 SET DEBUG='d,innodb_alter_commit_crash_after_commit';
 
