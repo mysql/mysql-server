@@ -9532,6 +9532,7 @@ Tablespace_dirs::scan(const std::string& directories)
 	tokenize_paths(directories, ";");
 
 	uint16_t	count = 0;
+	bool		print_msg = false;
 	auto		start_time = ut_time();
 
 	/* Should be trivial to parallelize the scan and ID check. */
@@ -9584,20 +9585,25 @@ Tablespace_dirs::scan(const std::string& directories)
 			if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 				ib::info()
-					<< "Number of files scanned so far: "
+					<< "Files found so far: "
 					<< ibd_files.size() << " data files"
 					<< " and "
 					<< undo_files.size() << " undo files";
+
+				start_time = ut_time();
+				print_msg = true;
 			}
 		});
 
 		++count;
 	}
 
-	ib::info()
-		<< "Found " << ibd_files.size()
-		<< " '.ibd' and "
-		<< undo_files.size() << " undo files";
+	if (print_msg) {
+		ib::info()
+			<< "Found " << ibd_files.size()
+			<< " '.ibd' and "
+			<< undo_files.size() << " undo files";
+	}
 
 	Space_id_set	unique;
 	Space_id_set	duplicates;
