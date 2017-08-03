@@ -1209,6 +1209,18 @@ public:
 		return(s_dirs.scan(directories));
 	}
 
+	/** Get the tablespace ID from an .ibd and/or an undo tablespace.
+	If the ID is == 0 on the first page then check for at least
+	MAX_PAGES_TO_CHECK  pages with the same tablespace ID. Do a Light
+	weight check before trying with DataFile::find_space_id().
+	@param[in,out]	ifs		Input file stream
+	@param[in]	filename	File name to check
+	@return ULINT32_UNDEFINED if not found, otherwise the space ID */
+	static space_id_t get_tablespace_id(
+		std::ifstream*		ifs,
+		const std::string&	filename)
+		MY_ATTRIBUTE((warn_unused_result));
+
 #ifdef UNIV_DEBUG
 	/** Validate a shard
 	@param[in]	shard	shard to validate */
@@ -9270,9 +9282,8 @@ DataFile::find_space_id().
 @param[in,out]	ifs		Input file stream
 @param[in]	filename	File name to check
 @return ULINT32_UNDEFINED if not found, otherwise the space ID */
-static
 space_id_t
-fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
+Fil_system::get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 {
 	dberr_t		err = DB_CORRUPTION;
 	char		buf[sizeof(space_id_t)];
@@ -9353,7 +9364,7 @@ fil_get_tablespace_id(std::ifstream* ifs, const std::string& filename)
 		err = file.open_read_only(false);
 
 		ut_a(file.is_open());
-		ut_a(err = DB_SUCCESS);
+		ut_a(err == DB_SUCCESS);
 
 		/* Read and validate the first page of the tablespace.
 		Assign a tablespace name based on the tablespace type. */
@@ -9414,7 +9425,7 @@ Tablespace_dirs::duplicate_check(
 
 		space_id_t	space_id;
 
-		space_id = fil_get_tablespace_id(&ifs, phy_filename);
+		space_id = Fil_system::get_tablespace_id(&ifs, phy_filename);
 
 		ut_a(space_id != 0);
 
