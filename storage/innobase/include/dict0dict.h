@@ -127,16 +127,6 @@ enum dict_table_op_t {
 	DICT_TABLE_OP_LOAD_TABLESPACE
 };
 
-/**********************************************************************//**
-Returns a table object based on table id.
-@return table, NULL if does not exist */
-dict_table_t*
-dict_table_open_on_id(
-/*==================*/
-	table_id_t	table_id,	/*!< in: table id */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	dict_table_op_t	table_op)	/*!< in: operation to perform */
-	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Decrements the count of open handles to a table. */
 void

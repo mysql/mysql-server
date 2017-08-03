@@ -7937,15 +7937,6 @@ static int mysql_init_variables()
       dirname_part(cmake_binary_dir, progdir, &dlen);
       strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
     }
-    else if (dlen > 26U &&
-             !strcmp(progdir + (dlen - 26), "/runtime_output_directory/"))
-    {
-      char cmake_binary_dir[FN_REFLEN];
-      progdir[strlen(progdir) - 1]= '\0';       // remove trailing "/"
-      dirname_part(cmake_binary_dir, progdir, &dlen);
-      strcat(cmake_binary_dir, "sql/");
-      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-    }
     else
     {
       strcat(progdir, "/../");

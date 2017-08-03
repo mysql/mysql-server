@@ -538,20 +538,6 @@ dd_process_dd_indexes_rec(
 	dict_table_t*		dd_indexes,
 	MDL_ticket**		mdl,
 	mtr_t*			mtr);
-/** Process one mysql.tablespace_files record and get information from it
-@param[in]	heap		temp memory heap
-@param[in,out]	rec		mysql.indexes record
-@param[in,out]	space_id	space id
-@param[in,out]	path		datafile path
-@param[in]	dd_files	dict_table_t obj of mysql.tablespace_files
-@retval true if index is filled */
-bool
-dd_process_dd_datafiles_rec(
-	mem_heap_t*		heap,
-	const rec_t*		rec,
-	uint32*			space_id,
-	char**			path,
-	dict_table_t*		dd_files);
 /** Process one mysql.indexes record and get brief info to dict_index_t
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record

@@ -84,8 +84,6 @@ sym_tab_free_private(
 				dd_table_close(
 					sym->table, thd, &sym->mdl, false);
 			} else {
-				/* TODO: NewDD: Remove with WL#9535. This is only
-				for the InnoDB SYS TABLES */
 				dd_table_close(
 					sym->table, nullptr, nullptr, false);
 			}
