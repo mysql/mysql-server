@@ -126,10 +126,12 @@ double compute_area(const double* a, int n_dim, std::uint32_t srid);
   @param         size   Size of WKB.
   @param         n_dims Number of dimensions.
   @param[in,out] mbr    MBR, which must be of length n_dims * 2.
+  @param[in,out] srid_ptr   Pointer to spatial reference id to be retrieved
 
   @return 0 if the geometry is valid, otherwise -1.
 */
-int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr);
+int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr,
+  uint32_t* srid_ptr);
 
 /**
   Calculates MBR_AREA(a+b) - MBR_AREA(a)

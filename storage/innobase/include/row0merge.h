@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,6 +112,9 @@ struct index_def_t {
 	st_mysql_ftparser*
 			parser;		/*!< fulltext parser plugin */
 	bool		is_ngram;	/*!< true if it's ngram parser */
+	bool		srid_is_valid;	/*!< true if we want to check SRID
+					while inserting to index */
+	uint32_t	srid;		/*!< SRID obtained from dd column */
 };
 
 /** Structure for reporting duplicate records. */
@@ -246,6 +249,7 @@ row_merge_create_index(
 	dict_table_t*		table,
 	const index_def_t*	index_def,
 	const dict_add_v_col_t*	add_v);
+
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling

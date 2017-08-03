@@ -308,7 +308,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
 					   SPDIMS,
-					   reinterpret_cast<double*>(&tmp_mbr));
+					   reinterpret_cast<double*>(&tmp_mbr),
+					   nullptr);
 			rtr_read_mbr(sec_field, &sec_mbr);
 
 			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {

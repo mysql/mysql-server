@@ -571,6 +571,8 @@ template const Collection<Index*>::abstract_type*
 Collection<Index*>::at(size_t n) const;
 template const Collection<Index_element*>::abstract_type*
 Collection<Index_element*>::at(size_t n) const;
+template const Collection<Partition_index*>::abstract_type*
+Collection<Partition_index*>::at(size_t n) const;
 
 template void Collection<Column*>::
 deep_copy<Abstract_table_impl>(Collection<Column*> const&, Abstract_table_impl*);
