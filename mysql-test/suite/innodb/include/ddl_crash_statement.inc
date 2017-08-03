@@ -1,4 +1,6 @@
 
+let $get_create_template=1;
+
 # Test for FREE TREE
 if ($test_free)
 {
@@ -146,6 +148,22 @@ if ($test_drop)
   }
 }
 
+# Get the table definition
+--disable_query_log
+--disable_result_log
+
+--eval $create_statement
+--eval $insert_statement
+--eval SELECT * FROM $table_name LIMIT 1
+--eval $crash_statement
+let $create_template= query_get_value(SHOW CREATE TABLE $table_name, Create Table, 1);
+--eval DROP TABLE $table_name
+
+--enable_result_log
+--enable_query_log
+
+let $get_create_template=0;
+
 
 # Test for POST DDL
 --eval $create_statement
@@ -154,7 +172,6 @@ eval SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
 --source ../mysql-test/suite/innodb/include/ddl_crash.inc
 eval SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
 --eval DROP TABLE $table_name
-
 
 # Test for REPLAY
 let $crash_count=1;

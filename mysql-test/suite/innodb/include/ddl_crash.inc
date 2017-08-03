@@ -1,10 +1,15 @@
 
 --disable_query_log
 --eval $insert_statement
+--disable_result_log
+--eval SELECT * FROM $table_name LIMIT 1
+--enable_result_log
 --enable_query_log
 
---sorted_result
---eval SELECT * FROM $table_name LIMIT 2;
+if ($get_create_template)
+{
+  let $create_template= query_get_value(SHOW CREATE TABLE $table_name, Create Table, 1);
+}
 
 let $did_crash= 0;
 
@@ -14,7 +19,6 @@ let $did_crash= 0;
 # 2013 - CR_SERVER_LOST
 --error 0,2013,ER_INTERNAL_ERROR
 --eval $crash_statement
---echo # mysql_errno: $mysql_errno
 
 if ($mysql_errno != 2013)
 {
@@ -29,9 +33,20 @@ if ($mysql_errno == 2013)
   --enable_reconnect
   let $WAIT_COUNT=6000;
   --source include/wait_time_until_connected_again.inc
-  --eval CHECK TABLE $table_name
-  --eval SHOW CREATE TABLE $table_name
-  --sorted_result
-  --eval SELECT * FROM $table_name LIMIT 2;
+  let $check= query_get_value(CHECK TABLE $table_name, Msg_text, 1);
+  if ($check != "OK")
+  {
+    --echo "Check table after recovery is not OK!"
+  }
+  let $create = query_get_value(SHOW CREATE TABLE $table_name, Create Table, 1);
+  if ($create != $create_template)
+  {
+    --echo "Table definition is not as expected!"
+  }
+  # A full scan would be nice, no need to check the result
+  --disable_query_log
+  --disable_result_log
+  --eval SELECT * FROM $table_name
+  --enable_result_log
+  --enable_query_log
 }
-
