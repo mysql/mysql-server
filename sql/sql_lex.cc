@@ -2571,12 +2571,31 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
 
   @param last Pointer to last SELECT_LEX struct, before which all
               SELECT_LEX are marked as as dependent.
+  @param aggregate true if the dependency is due to a set function, such as
+                   COUNT(*), which is aggregated within the query block 'last'.
+                   Such functions must have a dependency on all tables of
+                   the aggregating query block.
 
   @note
     last should be reachable from this SELECT_LEX
+
+  @todo Update OUTER_REF_TABLE_BIT for intermediate subquery items, by
+        replacing the below "if (aggregate)" block with:
+        if (last == s->outer_select())
+        {
+          if (aggregate)
+            munit->item->accumulate_used_tables(last->all_tables_map());
+        }
+        else
+        {
+          munit->item->accumulate_used_tables(OUTER_REF_TABLE_BIT);
+        }
+        and remove settings from Item_field::fix_outer_field(),
+        Item_ref::fix_fields() and mark_select_range_as_dependent().
+
 */
 
-void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
+void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate)
 {
   // The top level query block cannot be dependent, so do not go above this:
   DBUG_ASSERT(last != NULL);
@@ -2589,12 +2608,12 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
        s && s != last;
        s= s->outer_select())
   {
+    SELECT_LEX_UNIT *munit= s->master_unit();
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
       s->uncacheable= (s->uncacheable & ~UNCACHEABLE_UNITED) |
                        UNCACHEABLE_DEPENDENT;
-      SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable= (munit->uncacheable & ~UNCACHEABLE_UNITED) |
                        UNCACHEABLE_DEPENDENT;
       for (SELECT_LEX *sl= munit->first_select(); sl ; sl= sl->next_select())
@@ -2603,6 +2622,13 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
             !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
+    }
+    if (aggregate)
+    {
+      munit->item->accumulate_used_tables(
+        last == s->outer_select() ?
+          last->all_tables_map() :
+          OUTER_REF_TABLE_BIT);
     }
   }
 }
@@ -3905,7 +3931,7 @@ bool SELECT_LEX_UNIT::merge_heuristic() const
   List_iterator<Item> it(select->fields_list);
   while ((item= it++))
   {
-    if (item->has_subquery() && item->used_tables())
+    if (item->has_subquery() && !item->const_for_execution())
       return false;
   }
   return true;

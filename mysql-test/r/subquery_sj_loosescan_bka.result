@@ -9882,11 +9882,11 @@ FROM t1 as t1_inner JOIN t2
 ON t2.col_varchar_key = t1_inner.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	t1_inner	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	ref	col_varchar_key	col_varchar_key	7	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1_outer`.`col_int_key`) AS `MIN(col_int_key)` from `test`.`t1` `t1_outer` having <in_optimizer>((1,2),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where (`test`.`t2`.`col_varchar_key` = 'x') having (((<cache>(1) = '8') or isnull('8')) and ((<cache>(2) = max('8')) or isnull(max('8'))) and <is_not_null_test>('8') and <is_not_null_test>(max('8')))))
+Note	1003	/* select#1 */ select min(`test`.`t1_outer`.`col_int_key`) AS `MIN(col_int_key)` from `test`.`t1` `t1_outer` having 0
 SELECT MIN(col_int_key)
 FROM t1 as t1_outer
 HAVING (1, 2) IN (

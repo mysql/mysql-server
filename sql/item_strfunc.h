@@ -605,7 +605,7 @@ public:
   explicit Item_func_sysconst(const POS &pos) : super(pos)
   { collation.set(system_charset_info,DERIVATION_SYSCONST); }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   /*
     Used to create correct Item name in new converted item in
     safe_charset_converter, return string representation of this function
@@ -1106,13 +1106,13 @@ public:
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
   : Item_str_func(pos, a)
   { conv_charset= cs; use_cached_value= 0; safe= 0; }
-  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
+  Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
     DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
 
     conv_charset= cs;
-    if (cache_if_const && args[0]->const_item())
+    if (cache_if_const && args[0]->may_evaluate_const(thd))
     {
       uint errors= 0;
       String tmp, *str= args[0]->val_str(&tmp);

@@ -948,6 +948,10 @@ public:
       tr->set_readonly();
   }
 
+  /// @returns a map of all tables references in the query block
+  table_map all_tables_map() const
+  { return (1ULL << leaf_table_count) - 1; }
+
 private:
   /**
     Intrusive double-linked list of all query blocks within the same
@@ -1274,7 +1278,7 @@ public:
 
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
-  void mark_as_dependent(SELECT_LEX *last);
+  void mark_as_dependent(SELECT_LEX *last, bool aggregate);
 
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
   bool is_explicitly_grouped() const { return group_list.elements > 0; }
@@ -3660,6 +3664,10 @@ public:
   uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  /**
+    @todo ensure that correct CONTEXT_ANALYSIS_ONLY is set for all preparation
+          code, so we can fully rely on this field.
+  */
   uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
@@ -3801,7 +3809,7 @@ public:
     TODO: possibly this it is incorrect to have used tables in LEX because
     with subquery, it is not clear what does the field mean. To fix this
     we should aggregate used tables information for selected expressions
-    into the select_lex.
+    into the select_lex. This map should contain "real" tables only.
   */
   table_map  used_tables;
 

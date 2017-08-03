@@ -140,7 +140,8 @@ bool check_reserved_words(LEX_STRING *name)
 
 bool eval_const_cond(THD *thd, Item *cond, bool *value)
 {
-  DBUG_ASSERT(cond->const_item());
+  // Function may be used both during resolving and during optimization:
+  DBUG_ASSERT(cond->may_evaluate_const(thd));
   *value= cond->val_int();
   return thd->is_error();
 }
@@ -198,7 +199,7 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
 
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   const_item_cache(0),
+   const_item_cache(false),
    allowed_arg_cols(item->allowed_arg_cols),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -287,7 +288,7 @@ Item_func::fix_fields(THD *thd, Item**)
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache=1;
+  const_item_cache= true;
 
   /*
     Use stack limit of STACK_MIN_SIZE * 2 since
@@ -358,7 +359,7 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache=1;
+  const_item_cache= true;
 
   if (arg_count)
   {
@@ -784,7 +785,7 @@ Item_func::contributes_to_filter(table_map read_tables,
 
     if (arg_type == Item::SUBSELECT_ITEM)
     {
-      if (args[i]->const_item())
+      if (args[i]->const_for_execution())
       {
         // Constant subquery, i.e., not a dependent subquery. 
         found_comparable= true;
@@ -3498,7 +3499,7 @@ double Item_func_rand::val_real()
   DBUG_ASSERT(fixed == 1);
   if (arg_count)
   {
-    if (!args[0]->const_item())
+    if (!args[0]->const_for_execution())
       seed_random(args[0]);
     else if (first_eval)
     {
@@ -4296,6 +4297,7 @@ longlong Item_func_ord::val_int()
 bool Item_func_find_in_set::resolve_type(THD *)
 {
   max_length=3;					// 1-999
+
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM)
   {
     Field *field= ((Item_field*) args[1])->field;
@@ -4486,7 +4488,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   /* Fix all arguments */
   func->maybe_null=0;
   used_tables_cache=0;
-  const_item_cache=1;
+  const_item_cache= true;
 
   if ((f_args.arg_count=arg_count))
   {
@@ -4523,8 +4525,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       */
       if (item->collation.collation->state & MY_CS_BINSORT)
 	func->collation.set(&my_charset_bin);
-      if (item->maybe_null)
-	func->maybe_null=1;
+      func->maybe_null|= item->maybe_null;
       func->add_accum_properties(item);
       used_tables_cache|=item->used_tables();
       const_item_cache&=item->const_item();
@@ -4570,7 +4571,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       f_args.attributes[i]= (char*) arguments[i]->item_name.ptr();
       f_args.attribute_lengths[i]= arguments[i]->item_name.length();
 
-      if (arguments[i]->const_item())
+      if (arguments[i]->may_evaluate_const(thd))
       {
         switch (arguments[i]->result_type()) 
         {
@@ -4620,7 +4621,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     /* 
       Keep used_tables_cache in sync with const_item_cache.
       See the comment in Item_udf_func::update_used tables.
-    */  
+    */
     if (!const_item_cache && !used_tables_cache)
       used_tables_cache= RAND_TABLE_BIT;
     func->decimals= min<uint>(initid.decimals, NOT_FIXED_DEC);
@@ -8017,7 +8018,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   */
   thd->mark_used_columns= MARK_COLUMNS_NONE;
   if (Item_func::fix_fields(thd, ref) ||
-      fix_func_arg(thd, &against) || !against->const_during_execution())
+      fix_func_arg(thd, &against) || !against->const_for_execution())
   {
     thd->mark_used_columns= save_mark_used_columns;
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
@@ -8044,9 +8045,9 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   /*
     Check that all columns come from the same table.
     We've already checked that columns in MATCH are fields so
-    PARAM_TABLE_BIT can only appear from AGAINST argument.
+    INNER_TABLE_BIT can only appear from AGAINST argument.
   */
-  if ((used_tables_cache & ~PARAM_TABLE_BIT) != item->used_tables())
+  if ((used_tables_cache & ~INNER_TABLE_BIT) != item->used_tables())
     key=NO_SUCH_KEY;
 
   if (key == NO_SUCH_KEY && !allows_multi_table_search)
@@ -8478,7 +8479,6 @@ Item_func_sp::cleanup()
   if (dummy_table != NULL)
     dummy_table->alias= NULL;
   Item_func::cleanup();
-  tables_locked_cache= false;
   set_stored_program();
 }
 
@@ -8510,7 +8510,13 @@ Item_func_sp::func_name() const
 
 table_map Item_func_sp::get_initial_pseudo_tables() const
 {
-  return m_sp->m_chistics->detistic ? 0 : RAND_TABLE_BIT;
+  /*
+    INNER_TABLE_BIT prevents function from being evaluated in preparation phase.
+    @todo - make this dependent on READS SQL or MODIFIES SQL.
+            Due to bug#26422182, a function cannot be executed before tables
+            are locked, even though it accesses no tables.
+  */
+  return m_sp->m_chistics->detistic ? INNER_TABLE_BIT : RAND_TABLE_BIT;
 }
 
 
@@ -8870,7 +8876,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     DBUG_RETURN(res);
 
   res= Item_func::fix_fields(thd, ref);
-
   if (res)
     DBUG_RETURN(res);
 
@@ -8912,15 +8917,6 @@ void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select)
 {
   Item_func::fix_after_pullout(parent_select, removed_select);
-
-  /*
-    Prevents function from being evaluated before it is locked.
-    @todo - make this dependent on READS SQL or MODIFIES SQL.
-            Due to a limitation in how functions are evaluated, we need to
-            ensure that we are in a prelocked mode even though the function
-            doesn't reference any tables.
-  */
-  used_tables_cache|= PARAM_TABLE_BIT;
 }
 
 

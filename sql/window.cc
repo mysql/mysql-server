@@ -62,6 +62,18 @@ static void append_to_back(ORDER **first_next, ORDER *column)
 }
 
 
+ORDER *Window::first_partition_by() const
+{
+  return m_partition_by != NULL ? m_partition_by->value.first : NULL;
+}
+
+
+ORDER *Window::first_order_by() const
+{
+  return m_order_by != NULL ? m_order_by->value.first : NULL;
+}
+
+
 bool Window::check_window_functions(THD *thd, SELECT_LEX *select)
 {
   List_iterator<Item_sum> li(m_functions);
@@ -744,7 +756,7 @@ bool Window::check_constant_bound(THD *thd, PT_border *border)
         (*border_ptr)->fix_fields(thd, border_ptr))
       return true;
 
-    if (!(*border_ptr)->const_during_execution() || // allow dyn. arg
+    if (!(*border_ptr)->const_for_execution() || // allow dyn. arg
         (*border_ptr)->has_subquery())
     {
       my_error(ER_WINDOW_RANGE_BOUND_NOT_CONSTANT, MYF(0),

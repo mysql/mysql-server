@@ -1791,6 +1791,7 @@ public:
 
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map) 0L; }
+
   /*
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
@@ -1807,7 +1808,7 @@ public:
     Returns true if this is a simple constant item like an integer, not
     a constant expression. Used in the optimizer to propagate basic constants.
   */
-  virtual bool basic_const_item() const { return 0; }
+  virtual bool basic_const_item() const { return false; }
   /**
     @return cloned item if it is constant
       @retval nullptr  if this is not const
@@ -1827,25 +1828,51 @@ public:
     DATETIME precision of the item: 0..6
   */
   virtual uint datetime_precision();
-  /* 
-    Returns true if this is constant (during query execution, i.e. its value
-    will not change until next fix_fields) and its value is known.
-    When the default implementation of used_tables() is effective, this
-    function will always return true (because used_tables() is empty).
+  /**
+    Returns true if item is constant, regardless of query evaluation state.
+    Default is that an expression is constant if it:
+    - refers no tables.
+    - refers no subqueries that refers any tables.
+    - refers no non-deterministic functions.
+    - refers no statement parameters.
   */
   virtual bool const_item() const
   {
-    if (used_tables() == 0)
-      return can_be_evaluated_now();
-    return false;
+    return used_tables() == 0;
+  }
+  /**
+    Returns true if item is constant during one query execution.
+    If const_for_execution() is true but const_item() is false, value is
+    not available before tables have been locked and parameters have been
+    assigned values. This applies to
+    - statement parameters
+    - non-dependent subqueries
+    - deterministic stored functions that contain SQL code.
+    For items where the default implementation of used_tables() and
+    const_item() are effective, const_item() will always return true.
+  */
+  bool const_for_execution() const
+  {
+    return !(used_tables() & ~INNER_TABLE_BIT);
   }
 
-  /* 
-    Returns true if this is constant but its value may be not known yet.
-    (Can be used for parameters of prep. stmts or of stored procedures.)
+  /**
+    Return true if this is a const item that may be evaluated in
+    the current phase of statement processing.
+    - No evaluation is performed when analyzing a view, otherwise:
+    - Items that have the const_item() property can always be evaluated.
+    - Items that have the const_for_execution() property can be evaluated when
+      tables are locked (ie during optimization or execution).
+
+    This function should be used in the following circumstances:
+    - during preparation to check whether an item can be permanently transformed
+    - to check that an item is constant in functions that may be used in both
+      the preparation and optimization phases.
+
+    This function should not be used by code that is called during optimization
+    and/or execution only. Use const_for_execution() in this case.
   */
-  virtual bool const_during_execution() const 
-  { return (used_tables() & ~PARAM_TABLE_BIT) == 0; }
+  bool may_evaluate_const(THD *thd) const;
 
   /**
     This method is used for to:
@@ -1899,7 +1926,7 @@ public:
     and Item_sum_count/Item_sum_count_distinct.
     Any new item which can be NULL must implement this method.
   */
-  virtual bool is_null() { return 0; }
+  virtual bool is_null() { return false; }
 
   /// Make sure the null_value member has a correct value.
   bool update_null_value();
@@ -2342,7 +2369,7 @@ public:
 
   virtual Item *neg_transformer(THD*) { return NULL; }
   virtual Item *update_value_transformer(uchar*) { return this; }
-  virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
+  virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -2423,7 +2450,6 @@ public:
                                NULL);
     return is_expensive_cache;
   }
-  virtual bool can_be_evaluated_now() const;
 
   /**
     @return maximum number of characters that this Item can store
@@ -2661,16 +2687,6 @@ protected:
 
   uint8 m_accum_properties;
 
-  /**
-    This variable is a cache of 'Needed tables are locked'. True if either
-    'No tables locks is needed' or 'Needed tables are locked'.
-    If tables are used, then it will be set to
-    current_thd->lex->is_query_tables_locked().
-
-    It is used when checking const_item()/can_be_evaluated_now().
-  */
-  bool tables_locked_cache;
-
 public:
   /**
     Check if this expression can be used for partial update of a given
@@ -2698,6 +2714,9 @@ class Item_basic_constant :public Item
 public:
   Item_basic_constant(): Item(), used_table_map(0) {};
   explicit Item_basic_constant(const POS &pos): Item(pos), used_table_map(0) {};
+
+  /// @todo add implementation of basic_const_item
+  ///       and remove from subclasses as appropriate.
 
   void set_used_tables(table_map map) { used_table_map= map; }
   table_map used_tables() const override { return used_table_map; }
@@ -3000,7 +3019,7 @@ public:
   { collation.set_numeric(); }
 
   virtual Item_num *neg()= 0;
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -3338,7 +3357,7 @@ public:
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   Item *update_value_transformer(uchar *select_arg) override;
   void print(String *str, enum_query_type query_type) override;
@@ -3439,7 +3458,7 @@ class Item_null : public Item_basic_constant
     null_value= TRUE;
     set_data_type(MYSQL_TYPE_NULL);
     max_length= 0;
-    fixed= 1;
+    fixed= true;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
 protected:
@@ -3491,7 +3510,7 @@ public:
     str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -3635,16 +3654,21 @@ public:
   bool convert_str_value(THD *thd);
 
   /*
-    If value for parameter was not set we treat it as non-const
-    so noone will use parameters value in fix_fields still
-    parameter is constant during execution.
+    Parameter is treated as constant during execution, thus it will not be
+    evaluated during preparation.
   */
   table_map used_tables() const override
-  { return state != NO_VALUE ? (table_map)0 : PARAM_TABLE_BIT; }
+  { return state != NO_VALUE ? 0 : INNER_TABLE_BIT; }
   void print(String *str, enum_query_type query_type) override;
   bool is_null() override
   { DBUG_ASSERT(state != NO_VALUE); return state == NULL_VALUE; }
-  bool basic_const_item() const override;
+  bool basic_const_item() const override
+  {
+    if (state == NO_VALUE || state == TIME_VALUE)
+      return false;
+    return true;
+  }
+
   /*
     This method is used to make a copy of a basic constant item when
     propagating constants in the optimizer. The reason to create a new
@@ -3655,7 +3679,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *clone_item() const override;
   /*
     Implement by-value equality evaluation if parameter value
@@ -4052,7 +4076,7 @@ public:
     str->append(func_name);
   }
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 };
 
 
@@ -4209,7 +4233,7 @@ public:
     return new Item_string(static_cast<Name_string>(item_name), str_value.ptr(),
     			   str_value.length(), collation.collation);
   }
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length)
   {
@@ -4287,7 +4311,7 @@ public:
      func_name(name_par)
   {}
 
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 
   inline void print(String *str, enum_query_type) override
   {
@@ -4400,7 +4424,7 @@ public:
   Item_result cast_to_int_type() const override { return INT_RESULT; }
   void print(String *str, enum_query_type query_type) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  Item *safe_charset_converter(const CHARSET_INFO *tocs) override;
+  Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
@@ -4681,6 +4705,12 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
+
+  /**
+    @todo Consider re-implementing this for Item_direct_view_ref, as it
+          may return NULL even if it wraps a constant value, if one the
+          inner side of an outer join.
+  */
   bool basic_const_item() const override
   { return ref && (*ref)->basic_const_item(); }
   bool is_outer_field() const override
@@ -5125,8 +5155,14 @@ public:
   enum Item_result result_type() const override { return cached_result_type; }
 
   void make_field(Send_field *field) override { item->make_field(field); }
+
+  /*
+    The likely reason for used_tables() to return 1 is that Item_copy
+    represents a field in a temporary table used for group expressions,
+    and such tables are represented with table map = 1.
+  */
   table_map used_tables() const override { return 1; }
-  bool const_item() const override { return false; }
+
   bool is_null() override { return null_value; }
 
   void no_rows_in_result() override

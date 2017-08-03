@@ -2545,7 +2545,7 @@ static bool validate_generated_expr(Field *field)
    */
   if (expr->has_stored_program() ||             // 1)
       (expr->used_tables() &
-       (RAND_TABLE_BIT | PARAM_TABLE_BIT)) ||   // 2)
+       (RAND_TABLE_BIT | INNER_TABLE_BIT)) ||   // 2)
       (expr->cols() != 1))                      // 3)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);

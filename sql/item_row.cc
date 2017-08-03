@@ -29,7 +29,7 @@
 
 Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail):
   super(pos), used_tables_cache(0), not_null_tables_cache(0),
-  const_item_cache(1), with_null(0)
+  const_item_cache(true), with_null(false)
 {
 
   //TODO: think placing 2-3 component items in item (as it done for function)
@@ -104,7 +104,7 @@ bool Item_row::fix_fields(THD *thd, Item**)
 {
   DBUG_ASSERT(fixed == 0);
   null_value= 0;
-  maybe_null= 0;
+  maybe_null= false;
   Item **arg, **arg_end;
   for (arg= items, arg_end= items+arg_count; arg != arg_end ; arg++)
   {
@@ -121,10 +121,7 @@ bool Item_row::fix_fields(THD *thd, Item**)
       if (item->cols() > 1)
 	with_null|= item->null_inside();
       else
-      {
-	if (item->is_null())
-          with_null|= 1;
-      }
+	with_null|= item->is_null();
     }
 
     // item->is_null() may have raised an error.
@@ -134,7 +131,7 @@ bool Item_row::fix_fields(THD *thd, Item**)
     maybe_null|= item->maybe_null;
     add_accum_properties(item);
   }
-  fixed= 1;
+  fixed= true;
   return false;
 }
 
@@ -146,8 +143,8 @@ void Item_row::cleanup()
   Item::cleanup();
   /* Reset to the original values */
   used_tables_cache= 0;
-  const_item_cache= 1;
-  with_null= 0;
+  const_item_cache= true;
+  with_null= false;
 
   DBUG_VOID_RETURN;
 }
