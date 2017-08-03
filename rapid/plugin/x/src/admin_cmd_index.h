@@ -93,7 +93,7 @@ class Admin_command_index {
 
     virtual void add_type(Query_string_builder *qb) const = 0;
     virtual void add_path(Query_string_builder *qb) const = 0;
-    virtual void add_length(Query_string_builder */*qb*/) const {}
+    virtual void add_length(Query_string_builder * /*qb*/) const {}
 
     static Field_type_id get_type_id(const std::string &type_name);
 
