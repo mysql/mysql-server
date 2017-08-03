@@ -425,9 +425,10 @@ bool SELECT_LEX::prepare(THD *thd)
 
   set_sj_candidates(NULL);
 
-  if (outer_select() == NULL ||
-      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
-       outer_select()->outer_select() == NULL))
+  if ((outer_select() == NULL ||
+       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+        outer_select()->outer_select() == NULL)) &&
+      !skip_local_transforms)
   {
     /*
       This code is invoked in the following cases:
@@ -439,6 +440,8 @@ bool SELECT_LEX::prepare(THD *thd)
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
       - If this is a subquery in a SET command
         @todo: Refactor SET so that this is not needed.
+      - INSERT may in some cases alter the sequence of preparation calls, by
+        setting the skip_local_transforms flag before calling prepare().
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms

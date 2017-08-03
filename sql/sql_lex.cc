@@ -614,10 +614,11 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
   if (!select)
     DBUG_RETURN(NULL);       /* purecov: inspected */
 
+  enum_parsing_context parsing_place=
+    curr_select ? curr_select->parsing_place : CTX_NONE;
+
   SELECT_LEX_UNIT *const sel_unit=
-    new (thd->mem_root) SELECT_LEX_UNIT(curr_select ?
-                                        curr_select->parsing_place :
-                                        CTX_NONE);
+    new (thd->mem_root) SELECT_LEX_UNIT(parsing_place);
   if (!sel_unit)
     DBUG_RETURN(NULL);       /* purecov: inspected */
 
@@ -637,10 +638,10 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
     Assume that a subquery has an outer name resolution context.
     If not (ie. if this is a derived table), set it to NULL later
   */
-  if (select_lex == NULL)    // Outer-most query block
+  if (parsing_place == CTX_NONE)    // Outer-most query block
   {
   }
-  else if (select->outer_select()->parsing_place == CTX_ON)
+  else if (parsing_place == CTX_ON)
   {
     /*
       This subquery is part of an ON clause, so we need to link the
@@ -660,9 +661,16 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select)
     */
     select->context.outer_context= outer_context;
   }
-  else if (select->outer_select()->parsing_place == CTX_DERIVED)
+  else if (parsing_place == CTX_DERIVED ||
+           parsing_place == CTX_INSERT_VALUES ||
+           parsing_place == CTX_INSERT_UPDATE)
   {
-    // Currently, outer references are not allowed for a derived table
+    /*
+      Outer references are not allowed for
+      - derived tables
+      - subqueries in INSERT ... VALUES clauses
+      - subqueries in INSERT ON DUPLICATE KEY UPDATE clauses
+    */
     DBUG_ASSERT(select->context.outer_context == NULL);
   }
   else
@@ -2253,7 +2261,9 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context) :
       break;
     case CTX_HAVING:                         // A subquery elsewhere
     case CTX_SELECT_LIST:
-    case CTX_UPDATE_VALUE_LIST:
+    case CTX_UPDATE_VALUE:
+    case CTX_INSERT_VALUES:
+    case CTX_INSERT_UPDATE:
     case CTX_WHERE:
     case CTX_DERIVED:
     case CTX_NONE:                           // A subquery in a non-select
@@ -2283,6 +2293,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_base_options(0),
   m_active_options(0),
   uncacheable(0),
+  skip_local_transforms(false),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
   context(),

@@ -1802,7 +1802,7 @@ EXPLAIN
         ] /* used_columns */
       } /* table */
     } /* insert_from */,
-    "update_value_subqueries": [
+    "insert_update_subqueries": [
       {
         "dependent": false,
         "cacheable": true,
@@ -1829,7 +1829,7 @@ EXPLAIN
           } /* table */
         } /* query_block */
       }
-    ] /* update_value_subqueries */
+    ] /* insert_update_subqueries */
   } /* query_block */
 }
 EXPLAIN INSERT INTO t1 VALUES (1)
@@ -1848,7 +1848,7 @@ EXPLAIN
       "table_name": "t1",
       "access_type": "ALL"
     } /* table */,
-    "update_value_subqueries": [
+    "insert_update_subqueries": [
       {
         "dependent": false,
         "cacheable": true,
@@ -1875,7 +1875,7 @@ EXPLAIN
           } /* table */
         } /* query_block */
       }
-    ] /* update_value_subqueries */
+    ] /* insert_update_subqueries */
   } /* query_block */
 }
 # Subqueries in INSERT VALUES tuples:
@@ -1894,7 +1894,7 @@ EXPLAIN
       "table_name": "t3",
       "access_type": "ALL"
     } /* table */,
-    "optimized_away_subqueries": [
+    "insert_values_subqueries": [
       {
         "dependent": false,
         "cacheable": true,
@@ -1947,7 +1947,7 @@ EXPLAIN
           } /* table */
         } /* query_block */
       }
-    ] /* optimized_away_subqueries */
+    ] /* insert_values_subqueries */
   } /* query_block */
 }
 DROP TABLE t1, t2, t3;

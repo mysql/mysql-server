@@ -989,6 +989,9 @@ public:
   */
   uint8 uncacheable;
 
+  /// True: skip local transformations during prepare() call (used by INSERT)
+  bool skip_local_transforms;
+
   /// Describes context of this query block (e.g if it is a derived table).
   enum sub_select_type linkage;
   bool no_table_names_allowed; ///< used for global order by
