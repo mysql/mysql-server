@@ -1145,7 +1145,7 @@ DROP TABLE t1;
 DROP VIEW v1;
 DROP FUNCTION func1;
 DROP FUNCTION func2;
-SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name), COUNT(*) AS num
+SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
