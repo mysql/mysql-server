@@ -6768,12 +6768,6 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
       if (c_ongoing_take_over_cnt == 0)
       {
         jam();
-        g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
-                            "on last transaction completion.",
-                            instance(),
-                            Uint32(localGcpPtr.p->gcpId >> 32),
-                            Uint32(localGcpPtr.p->gcpId));
-        
         gcpTcfinished(signal, localGcpPtr.p->gcpId);
         unlinkGcp(localGcpPtr);
       }
@@ -9586,17 +9580,33 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
     GcpRecordPtr tmpGcpPointer;
     tmpGcpPointer.i = cfirstgcp;
     ptrCheckGuard(tmpGcpPointer, cgcpFilesize, gcpRecord);
-    if (tmpGcpPointer.p->gcpNomoretransRec &&
-        tmpGcpPointer.p->firstApiConnect == RNIL)
+    if (tmpGcpPointer.p->gcpNomoretransRec)
     {
-      jam();
-      g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
-                          "on node failure takeover completion.",
-                          instance(),
-                          Uint32(tmpGcpPointer.p->gcpId >> 32),
-                          Uint32(tmpGcpPointer.p->gcpId));
-      gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
-      unlinkGcp(tmpGcpPointer);
+      if (tmpGcpPointer.p->firstApiConnect == RNIL)
+      {
+        jam();
+        g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
+                            "on node failure takeover completion.",
+                            instance(),
+                            Uint32(tmpGcpPointer.p->gcpId >> 32),
+                            Uint32(tmpGcpPointer.p->gcpId));
+        gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
+        unlinkGcp(tmpGcpPointer);
+      }
+      else
+      {
+        jam();
+        /**
+         * GCP completion underway, but not all transactions
+         * completed.  Completion will be normal.
+         * Log now for symmetry in NF handling logging
+         */
+        g_eventLogger->info("DBTC %u: GCP completion %u/%u waiting "
+                            "for all included transactions to complete.",
+                            instance(),
+                            Uint32(tmpGcpPointer.p->gcpId >> 32),
+                            Uint32(tmpGcpPointer.p->gcpId));
+      }
     }
   }
 }//Dbtc::execTAKE_OVERTCCONF()
