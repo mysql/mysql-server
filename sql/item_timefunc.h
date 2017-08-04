@@ -1783,13 +1783,12 @@ public:
 class Item_func_str_to_date final : public Item_temporal_hybrid_func
 {
   timestamp_type cached_timestamp_type;
-  bool const_item;
   void fix_from_format(const char *format, size_t length);
 protected:
   bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;
 public:
   Item_func_str_to_date(const POS &pos, Item *a, Item *b)
-    :Item_temporal_hybrid_func(pos, a, b), const_item(false)
+    :Item_temporal_hybrid_func(pos, a, b)
   {}
   const char *func_name() const override { return "str_to_date"; }
   bool resolve_type(THD *) override;

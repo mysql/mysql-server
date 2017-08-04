@@ -204,7 +204,7 @@ extern "C" {
         /**
          * An array containing all of the features the engine supports
          */
-        feature_info features[1];
+        feature_info features[3];
     } engine_info;
 
     /**

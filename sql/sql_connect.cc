@@ -43,7 +43,6 @@
 #include "auth_common.h"                // SUPER_ACL
 #include "derror.h"                     // ER_THD
 #include "handler.h"
-#include "hash.h"                       // HASH
 #include "hostname.h"                   // Host_errors
 #include "item_func.h"                  // mqh_used
 #include "key.h"

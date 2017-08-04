@@ -195,8 +195,9 @@ public:
       grouped(select->is_explicitly_grouped()),
       do_send_rows(true),
       all_table_map(0),
-      const_table_map(0),
-      found_const_table_map(0),
+      // Inner tables may always be considered to be constant:
+      const_table_map(INNER_TABLE_BIT),
+      found_const_table_map(INNER_TABLE_BIT),
       send_records(0),
       found_records(0),
       examined_rows(0),

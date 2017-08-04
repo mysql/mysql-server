@@ -17,7 +17,6 @@
 
 #include "ndb_schema_object.h"
 #include "ha_ndbcluster.h"
-#include "hash.h"
 #include "mysql/service_mysql_alloc.h"
 #include "template_utils.h"
 

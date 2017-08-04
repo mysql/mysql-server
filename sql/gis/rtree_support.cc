@@ -445,13 +445,19 @@ int rtree_get_geometry_mbr(std::uint32_t srid, uchar** wkb, uchar* end,
   @param         size   Size of WKB.
   @param         n_dims Number of dimensions.
   @param[in,out] mbr    MBR, which must be of length n_dims * 2.
+  @param[in,out] srid_ptr   Pointer to spatial reference id to be retrieved
 
   @return 0 if the geometry is valid, otherwise -1.
 */
-int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr)
+int get_mbr_from_store(uchar* store, uint size, uint n_dims, double* mbr,
+  uint32_t* srid_ptr)
 {
-  std::uint32_t srid= uint4korr(store);
+  uint32_t srid = uint4korr(store);
   store+= SRID_SIZE;
+
+  if (srid_ptr != nullptr) {
+    *srid_ptr = srid;
+  }
 
   return rtree_get_geometry_mbr(srid, &store, store + size - SRID_SIZE,
                                 n_dims, mbr, 1);

@@ -1,10 +1,10 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 create user unpriv@localhost;
 set password for unpriv@localhost = password('x');
 Warnings:
 Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
-install plugin mysqlx soname "mysqlx.so";
-call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
-call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"

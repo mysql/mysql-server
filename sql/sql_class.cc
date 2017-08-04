@@ -30,7 +30,6 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Internal_error_handler
-#include "hash.h"
 #include "item_func.h"                       // user_var_entry
 #include "key.h"
 #include "lock.h"                            // mysql_lock_abort_for_thread

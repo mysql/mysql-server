@@ -2,6 +2,7 @@
 ## Ping
 --source include/have_debug_sync.inc
 --source include/xplugin_preamble.inc
+--source ../include/have_performance_schema_events_waits_history.inc
 
 ##
 ## Bug#23057045: CRASH WHEN RUNNING SHOW PROCESSLIST AFTER SYSBENCH RUN

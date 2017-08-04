@@ -18,6 +18,7 @@
 --connection master
 
 --source include/xplugin_preamble.inc
+--source ../include/have_performance_schema_events_waits_history.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 

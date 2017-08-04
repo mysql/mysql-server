@@ -97,6 +97,8 @@ static const char K_FUNCTIONS[]=                    "functions";
 static const char K_GROUPING_OPERATION[]=           "grouping_operation";
 static const char K_GROUP_BY_SUBQUERIES[]=          "group_by_subqueries";
 static const char K_HAVING_SUBQUERIES[]=            "having_subqueries";
+static const char K_INSERT_VALUES_SUBQUERIES[]=     "insert_values_subqueries";
+static const char K_INSERT_UPDATE_SUBQUERIES[]=     "insert_update_subqueries";
 static const char K_KEY[]=                          "key";
 static const char K_KEY_LENGTH[]=                   "key_length";
 static const char K_MATERIALIZED_FROM_SUBQUERY[]=   "materialized_from_subquery";
@@ -166,6 +168,9 @@ enum subquery_list_enum
 {
   SQ_SELECT_LIST,  ///< SELECT list subqueries
   SQ_UPDATE_VALUE, ///< UPDATE ... SET field=(subquery)
+  SQ_INSERT_VALUES, ///< subqueries in VALUES of INSERT ... VALUES
+  SQ_INSERT_UPDATE, ///< subqueries in UPDATE of
+                    ///< INSERT ... ON DUPLICATE KEY UPDATE
   SQ_HAVING,       ///< HAVING clause subqueries
   SQ_OPTIMIZED_AWAY,///< "optimized_away_subqueries"
   //--------------
@@ -184,6 +189,8 @@ static const char *list_names[SQ_total]=
 { 
   K_SELECT_LIST_SUBQUERIES,
   K_UPDATE_VALUE_SUBQUERIES,
+  K_INSERT_VALUES_SUBQUERIES,
+  K_INSERT_UPDATE_SUBQUERIES,
   K_HAVING_SUBQUERIES,
   K_OPTIMIZED_AWAY_SUBQUERIES,
   "",
@@ -1844,7 +1851,9 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
     DBUG_ASSERT(current_context == NULL ||
                 // subqueries:
                 current_context->type == CTX_SELECT_LIST ||
-                current_context->type == CTX_UPDATE_VALUE_LIST ||
+                current_context->type == CTX_UPDATE_VALUE ||
+                current_context->type == CTX_INSERT_VALUES ||
+                current_context->type == CTX_INSERT_UPDATE ||
                 current_context->type == CTX_DERIVED ||
                 current_context->type == CTX_OPTIMIZED_AWAY_SUBQUERY ||
                 current_context->type == CTX_WHERE ||
@@ -2044,12 +2053,32 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
       current_context= ctx;
       break;
     }
-  case CTX_UPDATE_VALUE_LIST:
+  case CTX_UPDATE_VALUE:
     {
-      subquery_ctx *ctx= new (*THR_MALLOC) subquery_ctx(CTX_UPDATE_VALUE_LIST,
+      subquery_ctx *ctx= new (*THR_MALLOC) subquery_ctx(CTX_UPDATE_VALUE,
                                                         NULL, current_context);
       if (ctx == NULL ||
           current_context->add_subquery(SQ_UPDATE_VALUE, ctx))
+        return true;
+      current_context= ctx;
+      break;
+    }
+  case CTX_INSERT_VALUES:
+    {
+      subquery_ctx *ctx= new (*THR_MALLOC) subquery_ctx(CTX_INSERT_VALUES,
+                                                        NULL, current_context);
+      if (ctx == NULL ||
+          current_context->add_subquery(SQ_INSERT_VALUES, ctx))
+        return true;
+      current_context= ctx;
+      break;
+    }
+  case CTX_INSERT_UPDATE:
+    {
+      subquery_ctx *ctx= new (*THR_MALLOC)subquery_ctx(CTX_INSERT_UPDATE,
+                                                        NULL, current_context);
+      if (ctx == NULL ||
+          current_context->add_subquery(SQ_INSERT_UPDATE, ctx))
         return true;
       current_context= ctx;
       break;
@@ -2118,7 +2147,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx,
     DBUG_ASSERT(current_context == NULL ||
                 // subqueries:
                 current_context->type == CTX_SELECT_LIST ||
-                current_context->type == CTX_UPDATE_VALUE_LIST ||
+                current_context->type == CTX_UPDATE_VALUE ||
                 current_context->type == CTX_DERIVED ||
                 current_context->type == CTX_OPTIMIZED_AWAY_SUBQUERY ||
                 current_context->type == CTX_WHERE ||

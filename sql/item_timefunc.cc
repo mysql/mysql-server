@@ -3369,7 +3369,7 @@ bool Item_func_str_to_date::resolve_type(THD *thd)
   sql_mode= thd->variables.sql_mode & (MODE_NO_ZERO_DATE |
                                        MODE_NO_ZERO_IN_DATE |
                                        MODE_INVALID_DATES);
-  if ((const_item= args[1]->const_item()))
+  if (args[1]->const_item())
   {
     char format_buff[64];
     String format_str(format_buff, sizeof(format_buff), &my_charset_bin);

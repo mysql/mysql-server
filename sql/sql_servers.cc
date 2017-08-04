@@ -43,7 +43,6 @@
 #include "auth_common.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "log.h"
 #include "m_string.h"
 #include "my_base.h"

@@ -22,7 +22,6 @@
   the cache.
 */
 
-#include <hash.h>
 #include <keycache.h>
 #include <string.h>
 #include <sys/types.h>

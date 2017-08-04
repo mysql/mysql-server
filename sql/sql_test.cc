@@ -28,7 +28,6 @@
 
 #include "events.h"
 #include "field.h"
-#include "hash.h"
 #include "item.h"
 #include "key.h"
 #include "keycache.h"

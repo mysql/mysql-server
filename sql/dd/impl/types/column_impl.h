@@ -385,6 +385,23 @@ public:
   { return m_column_key; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Spatial reference system ID
+  /////////////////////////////////////////////////////////////////////////
+  virtual void set_srs_id(Mysql::Nullable<gis::srid_t> srs_id)
+  {
+    (void)srs_id;
+    // This value is mocked for now.
+    // TODO in wl#8592 - return actual column values.
+  }
+
+  virtual Mysql::Nullable<gis::srid_t> srs_id() const
+  {
+    // This value is mocked for now.
+    // TODO in wl#8592 - return actual column values.
+    return {};
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // Elements.
   /////////////////////////////////////////////////////////////////////////
 

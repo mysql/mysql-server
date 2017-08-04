@@ -32,7 +32,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <hash.h>
 #include <limits.h>
 #include <m_ctype.h>
 #include <mf_wcomp.h>   // wild_compare

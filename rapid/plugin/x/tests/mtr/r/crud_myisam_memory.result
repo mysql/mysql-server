@@ -1,11 +1,11 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 SET @start_global_value = @@global.default_storage_engine;
 SELECT @start_global_value;
 @start_global_value
 InnoDB
 SET @@global.default_storage_engine = myisam;
-install plugin mysqlx soname "mysqlx.so";
-call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
-call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 RUN DROP DATABASE IF EXISTS xplugintest
 
 0 rows affected

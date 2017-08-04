@@ -31,7 +31,6 @@
 #include "current_thd.h"
 #include "debug_sync.h"
 #include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"

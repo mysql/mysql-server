@@ -2672,7 +2672,7 @@ bool Item_xml_str_func::resolve_type(THD*)
     return true;
   }
 
-  if (!args[1]->const_during_execution())
+  if (!args[1]->const_for_execution())
   {
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Only constant XPATH queries are supported", MYF(0));

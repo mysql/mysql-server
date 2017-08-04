@@ -27,7 +27,6 @@
 #include "current_thd.h"
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "handler.h"
-#include "hash.h"                               // HASH
 #include "item.h"
 #include "item_func.h"                          // user_var_entry
 #include "log.h"                                // log_*()

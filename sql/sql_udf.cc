@@ -35,7 +35,6 @@
 #include "derror.h"             // ER_DEFAULT
 #include "field.h"
 #include "handler.h"
-#include "hash.h"               // HASH
 #include "item_create.h"
 #include "log.h"
 #include "m_ctype.h"

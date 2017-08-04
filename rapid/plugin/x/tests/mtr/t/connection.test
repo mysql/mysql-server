@@ -1,6 +1,12 @@
-## This is test file for connection authentication without ssl.
-##
-#--source include/have_mysql_no_login_plugin.inc
+# This is test file for  connection & authentication handling without ssl.
+#
+# Comment:
+#
+#   Mysqlx_connections_closed status variable is incremented after releasing
+#   client network resources. Because of it, it is a best suitable for synchronization.
+#   Other session/connection release/error status variables must be checked after waiting
+#   for concrete value on this timer.
+#
 
 --source include/xplugin_preamble.inc
 
@@ -16,7 +22,6 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
-
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 
@@ -37,8 +42,7 @@ grant all on *.* to session@localhost;
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 -->endsql
 EOF
@@ -60,8 +64,7 @@ EOF
 -->expecterror %EXPECT_ERROR%
 -->recvresult
 
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->stmtsql show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error'
 -->expecterror %EXPECT_ERROR%
 -->recvresult
@@ -92,8 +95,7 @@ show variables like '%mysqlx_max_connections%';
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 -->endsql
 EOF
@@ -104,184 +106,195 @@ uninstall plugin mysqlx;
 -->endsql
 EOF
 
-##change result file once Bug#21782329 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+--echo #
+--echo # Login with valid account
+--echo #
+exec $MYSQLXTEST -uroot --password=''
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try to login with bogus accounts that could match a valid account by collation
---let $expected_error_msg= Invalid user or password \(code 1045\)
+--echo #
+--echo # Try to login with bogus accounts that could match a valid account by collation
+--echo #
+let $expected_error_msg= Invalid user or password \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uRoot --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -uRoot --password=''
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+
 
 --let $expected_error_msg= Invalid user or password \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u"root  " --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -u"root  " --password=''
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 3;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with user having special characters in password when mysqlxplugin installed
+
+--echo #
+--echo # Try login with user having special characters in password when mysqlxplugin installed
+--echo #
 --exec $MYSQLXTEST -uspecial --password="1aram@&Tpu" -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 4;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-### Not a Bug, anon user doesn't exist in xplugin
-###try login with annonymous user when mysqx plugin is installed
-###Test for Bug#21372364
-###--exec $MYSQLXTEST -ut --password='ramana' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+#### Not a Bug, anon user doesn't exist in xplugin
+####try login with annonymous user when mysqx plugin is installed
+####Test for Bug#21372364
+####--exec $MYSQLXTEST -ut --password='ramana' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
-###try login with invalid host when mysqx plugin is installed
-###this is expected to crash until Bug#21372364 is fixed
+--echo #
+--echo # try login with invalid host when mysqx plugin is installed
+--echo #
 --replace_regex /No such host is known.+$/Host not found/ /Host not found .+$/Host not found/
 --error 1
 --exec $MYSQLXTEST -uroot --password='' -hinvalid -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
 
 # replace_regex did consume last character in line, lets put it back
 --echo
 
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+# Nothing changed in X Plugin, lets do sleep for giving a change on
+# for propagating the signals
+--sleep 1
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 4;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
+--echo #
+--echo # Trying with valid user when mysqlx is not installed
+--echo #
 ## uninstalling mysqlx
 uninstall plugin mysqlx;
 
-##trying with valid user when mysqlx is not installed
+replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/;
+error 1;
+exec $MYSQLXTEST -uroot --password=''
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+source ../include/connection_test_helpers.inc;
 
---replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/
---error 1
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
---replace_regex /\.dll/.so/
-
-##try login using mysqlx protocol when server and mysqlx loaded with super user
+--echo #
+--echo # Try login using mysqlx protocol when server and mysqlx loaded with super user
+--echo #
+replace_regex /\.dll/.so/;
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+exec $MYSQLXTEST -u root --password='' -v%EXPECT_ERROR%=ER_SUCCESS
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with valid user but incorrect password
---let $expected_error_msg= Invalid user or password \(code 1045\)
+--echo #
+--echo # Try login with valid user but incorrect password
+--echo #
+let $expected_error_msg= Invalid user or password \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uroot --password='root' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -uroot --password='root'
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 2;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with user doesn't exists when mysqlx installed
---let $expected_error_msg= Invalid user or password \(code 1045\)
+--echo #
+--echo # Try login with user doesn't exists when mysqlx installed
+--echo #
+let $expected_error_msg= Invalid user or password \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u rt --password='root' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -u rt --password='root'
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 3;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with user whose password expired when mysqlx installed
---let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\)
+--echo #
+--echo # Try login with user whose password expired when mysqlx installed
+--echo #
+let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u xplugin --password='xplugin' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -u xplugin --password='xplugin'
+  -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 3, 4;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with user whose account is locked when mysqlx installed
+--echo #
+--echo # Try login with user whose account is locked when mysqlx installed
+--echo #
 --let $expected_error_msg= Account is locked. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u abc --password='abc' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 4, 5;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with internal user account and expect account is locked error
+--echo #
+--echo # Try login with internal user account and expect account is locked error
+--echo #
 --let $expected_error_msg= Invalid user or password \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u'mysql.session' --password='' --sql "SELECT CURRENT_USER()"
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 5, 6;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
 ##commenting this scenario since multiple plugins can't be loaded in dev environment now
-###try login with mysql_no_login user when mysqlx installed
+#--echo #
+#--echo # Try login with mysql_no_login user when mysqlx installed
+#--echo #
 #--error 1
 #--exec $MYSQLXTEST -u noauth --password='' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
-###login with valid user and valid password when mysqlx installed
+--echo #
+--echo # Login with valid user and valid password when mysqlx installed
+--echo #
 --exec $MYSQLXTEST -u nonblank --password='nonblank' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 7;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###login with valid user and blank password when mysqlx installed
+--echo #
+--echo # Login with valid user and blank password when mysqlx installed
+--echo #
 --exec $MYSQLXTEST -u blank --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 3, 8;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
 
@@ -291,97 +304,112 @@ SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_TYPE_VERSION,
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
 -->endsql
 EOF
 
-##try login with valid user when server started with localhost as bind-address and mysqlx loaded
+--echo #
+--echo # Try login with valid user when server started with localhost as bind-address and mysqlx loaded
+--echo #
 let $restart_parameters = restart: --bind-address=localhost --plugin-load=$MYSQLXPLUGIN;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u nonblank --password='nonblank' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
---exec $MYSQLXTEST -u nonblank --password='nonblank' -hlocalhost -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+exec $MYSQLXTEST -u nonblank --password='nonblank'
+  -v%EXPECT_ERROR%=ER_SUCCESS
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+exec $MYSQLXTEST -u nonblank --password='nonblank' -hlocalhost
+  -v%EXPECT_ERROR%=ER_SUCCESS
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 2;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-##try login with valid user when server started with 127.0.0.1 as bind-address and mysqlx loaded
+--echo #
+--echo # Try login with valid user when server started with 127.0.0.1 as bind-address and mysqlx loaded
+--echo #
 let $restart_parameters = restart: --bind-address=127.0.0.1 --plugin-load=$MYSQLXPLUGIN;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u nonblank --password='nonblank' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
---exec $MYSQLXTEST -u nonblank --password='nonblank' -h127.0.0.1 -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+exec $MYSQLXTEST -u nonblank --password='nonblank'
+  -v%EXPECT_ERROR%=ER_SUCCESS
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-##try login with valid non-super and super user when server is in offline mode and mysqlx loaded
+exec $MYSQLXTEST -u nonblank --password='nonblank' -h127.0.0.1
+  -v%EXPECT_ERROR%=ER_SUCCESS
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 2, 2;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
+
+--echo #
+--echo # Try login with valid non-super and super user when server is in offline mode and mysqlx loaded
+--echo #
 let $restart_parameters = restart: --offline_mode=ON --plugin-load=$MYSQLXPLUGIN;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---let $expected_error_msg= Server works in offline mode. \(code 1045\)
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+let $expected_error_msg= Server works in offline mode. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -u nonblank --password='nonblank'
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_rejected',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
+
 --exec $MYSQLXTEST -u root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 2;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-##start server with session tracking variables and monitor them using xprotocol
+--echo #
+--echo # Start server with session tracking variables and monitor them using xprotocol
+--echo #
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u session --password='session' --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+exec $MYSQLXTEST -u session --password='session'
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
-###try login with user whose password expired when mysqlx installed and when server started with skip-disconnect-on-expired-password option
+--echo #
+--echo # Try login with user whose password expired when mysqlx installed and when server started with skip-disconnect-on-expired-password option
+--echo #
 let $restart_parameters = restart:  --skip-disconnect-on-expired-password --plugin-load=$MYSQLXPLUGIN;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
 
---exec $MYSQLXTEST -u xplugin --password='xplugin' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
-###  Bug #21782329
-show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_name` like  'Mysqlx_sessions_fatal_error';
+exec $MYSQLXTEST -u xplugin --password='xplugin'
+  -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+source ../include/wait_for_status_variables.inc;
+source ../include/connection_test_helpers.inc;
 
 --write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp
 -->sql
@@ -424,20 +452,26 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 EOF
 
-##try to open xprotocol sessions more than mysqlx_max_connections,expect error for last connection
+--echo #
+--echo # Try to open xprotocol sessions more than mysqlx_max_connections,
+--echo # expect error for last connection
+--echo #
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_max_connections=2;
---replace_regex /\.dll/.so/
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+replace_regex /\.dll/.so/;
+source ../include/restart_mysqld_and_wait_for_xplugin.inc;
+exec $MYSQLXTEST -u root --password=''
+  --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_connections_accepted';
+let $wait_for_status_value = 2, 2;
+source ../include/wait_for_status_variables.inc;
+let $skip_show_mysqlx_sessions_variables=1;
+source ../include/connection_test_helpers.inc;
 
 --write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp
 -->sql
@@ -478,23 +512,26 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 EOF
 
-
-## try to open xprotocol sessions as that of mysqlx_max_connections set
+--echo #
+--echo # Try to open xprotocol sessions as that of mysqlx_max_connections set
+--echo #
 drop user con1@localhost;
 drop user con2@localhost;
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_max_connections=3;
 --replace_regex /\.dll/.so/
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_connections_accepted';
+let $wait_for_status_value = 3, 3;
+source ../include/wait_for_status_variables.inc;
+let $skip_show_mysqlx_sessions_variables=1;
+source ../include/connection_test_helpers.inc;
 
 --write_file $MYSQL_TMP_DIR/allconn_root.tmp
 -->sql
@@ -516,7 +553,7 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 -->echo create and activate new session con1
@@ -534,7 +571,7 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
@@ -557,7 +594,7 @@ set @@global.mysqlx_max_connections=3;
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 -->newsession xcon2	xcon2	xcon2
@@ -576,17 +613,21 @@ set @@global.mysqlx_max_connections=100;
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 EOF
 
-##open max allowed connections and expect error for new connections and changes value and connect again,expect success
+--echo #
+--echo # Open max allowed connections and expect error for new connections and changes value and connect again,expect success
+--echo #
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/allconn_root.tmp 2>&1
---sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_connections_accepted';
+let $wait_for_status_value = 6, 6;
+source ../include/wait_for_status_variables.inc;
+let $skip_show_mysqlx_sessions_variables=1;
+source ../include/connection_test_helpers.inc;
 
 --write_file $MYSQL_TMP_DIR/admin_xkill_parallel.tmp
 -->echo kill xprotocol session when some operations are going on there using mysqx protocol
@@ -609,7 +650,7 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 -->echo create and activate new session con1
@@ -619,7 +660,7 @@ show status like 'Mysqlx_connection_accept_errors';
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
@@ -641,7 +682,7 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 ## switch back to default session
@@ -657,7 +698,7 @@ Mysqlx.Sql.StmtExecute {
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
 -->newsession xcon3	xcon2	xcon2
@@ -699,7 +740,7 @@ drop user xcon2@localhost;
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 EOF
 
@@ -749,17 +790,21 @@ show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
 set @@global.max_connections=150;
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 EOF
 
 ##kill xprotocol session when some operations are going on there using mysqx protocol
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_parallel.tmp 2>&1
 --sleep 1
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+
+let $wait_for_status_variable =
+  'Mysqlx_connections_closed',
+  'Mysqlx_connections_accepted';
+let $wait_for_status_value = 10, 10;
+source ../include/wait_for_status_variables.inc;
+let $skip_show_mysqlx_sessions_variables=1;
+source ../include/connection_test_helpers.inc;
 
 ##try open more xconnections than specified max_connections,expect error
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/open_max_mysql_connection.tmp 2>&1
@@ -792,5 +837,5 @@ drop user mysqlcon2@localhost;
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
 show status like 'Mysqlx_connection_accept_errors';
-### show status like 'Mysqlx_connection_errors'; Bug #21782329
+#### show status like 'Mysqlx_connection_errors'; Bug #21782329
 #drop user noauth@localhost;

@@ -16,7 +16,6 @@
 #ifndef KEYS_CONTAINER_INCLUDED
 #define KEYS_CONTAINER_INCLUDED
 
-#include <hash.h>
 #include <sys/types.h>
 #include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 

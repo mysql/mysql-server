@@ -72,7 +72,6 @@
 
 #if !defined(TZINFO2SQL)
 #include "debug_sync.h"        // DEBUG_SYNC
-#include "hash.h"              // HASH
 #include "log.h"
 #include "mysqld.h"            // global_system_variables
 #include "sql_base.h"          // close_trans_system_tables
