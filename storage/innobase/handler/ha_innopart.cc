@@ -4466,6 +4466,45 @@ ha_innopart::reset()
 	DBUG_RETURN(ha_innobase::reset());
 }
 
+/**
+ Read row using position using given record to find.
+
+This works as position()+rnd_pos() functions, but does some
+extra work,calculating m_last_part - the partition to where
+the 'record' should go.	Only useful when position is based
+on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
+
+@param[in]	record	Current record in MySQL Row Format.
+@return	0 for success else error code. */
+int
+ha_innopart::rnd_pos_by_record(uchar*  record)
+{
+	int error;
+	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
+	DBUG_ASSERT(ha_table_flags() &
+		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
+	/* Set m_last_part correctly. */
+	if (unlikely(get_part_for_delete(record,
+					 m_table->record[0],
+					 m_part_info,
+					 &m_last_part))) {
+		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+	}
+
+	/* Init only the partition in which row resides */
+	error = rnd_init_in_part(m_last_part, false);
+	if (error != 0) {
+		goto err;
+	}
+
+	position(record);
+	error = handler::ha_rnd_pos(record, ref);
+err:
+	rnd_end_in_part(m_last_part,FALSE);
+	DBUG_RETURN(error);
+}
+
 /****************************************************************************
  * DS-MRR implementation
  ***************************************************************************/
