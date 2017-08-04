@@ -5749,8 +5749,10 @@ end:
 					" with the new table definition.";
 			}
 
-			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
-				table, old_name, FALSE));
+			dberr_t	error = dict_table_rename_in_cache(
+						table, old_name, FALSE);
+
+			ut_a(error == DB_SUCCESS);
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
@@ -5764,8 +5766,10 @@ end:
 				table->foreign_set, table)) {
 
 			err = DB_NO_FK_ON_S_BASE_COL;
-			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
-				table, old_name, FALSE));
+			dberr_t	error = dict_table_rename_in_cache(
+						table, old_name, FALSE);
+
+			ut_a(error == DB_SUCCESS);
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
