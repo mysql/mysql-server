@@ -301,6 +301,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   List<Item> field_list;
   String sql_text(buff,sizeof(buff),system_charset_info);
   LEX_ALTER alter_info;
+  List_of_auth_id_refs default_roles;
+  List<LEX_USER> *old_default_roles= lex->default_roles;
 
   DBUG_ENTER("mysql_show_create_user");
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
@@ -371,6 +373,44 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
     goto err;
   }
   sql_text.length(0);
+  if (lex->sql_command == SQLCOM_SHOW_CREATE_USER ||
+      lex->sql_command == SQLCOM_CREATE_USER)
+  {
+    /*
+      Recreate LEX for default roles given an ACL_USER. This will later be used
+      by rewrite_default_roles() called from mysql_rewrite_create_alter_user()
+      below.
+    */
+    get_default_roles(create_authid_from(acl_user), &default_roles);
+    if (default_roles.size() > 0)
+    {
+      LEX_STRING *tmp_user;
+      LEX_STRING *tmp_host;
+      /*
+        Make sure we reallocate the default_roles list when using it outside of
+        parser code so it has the same mem root as its items.
+      */
+      lex->default_roles= new (thd->mem_root) List<LEX_USER>;
+      for (auto &&role : default_roles)
+      {
+        if (!(tmp_user= thd->make_lex_string(tmp_user, role.first.str,
+                                  role.first.length, true)) ||
+            !(tmp_host= thd->make_lex_string(tmp_host, role.second.str,
+                                  role.second.length, true)))
+        {
+          error= 1;
+          goto err;
+        }
+        LEX_USER *lex_role= LEX_USER::alloc(thd, tmp_user, tmp_host);
+        if (lex_role == 0)
+        {
+          error= 1;
+          goto err;
+        }
+        lex->default_roles->push_back(lex_role);
+      }
+    }
+  }
   lex->users_list.push_back(user_name);
   mysql_rewrite_create_alter_user(thd, &sql_text);
   /* send the result row to client */
@@ -383,6 +423,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   }
 
 err:
+  lex->default_roles= old_default_roles;
   /* restore user resources, ssl and password expire attributes */
   lex->mqh= tmp_user_resource;
   lex->ssl_type= ssl_type;
@@ -1469,6 +1510,27 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
 
       continue;
     }
+
+    /*
+      Update default roles if any were specified. The roles don't have to
+      exist and won't be granted to the user.
+    */
+    if (thd->lex->default_roles != 0 &&
+        thd->lex->sql_command == SQLCOM_CREATE_USER)
+    {
+      List_of_auth_id_refs default_roles;
+      List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
+      LEX_USER *role;
+      while ((role= role_it++))
+      {
+        default_roles.push_back(create_authid_from(role));
+      }
+      alter_user_set_default_roles(thd,
+                                   tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
+                                   tmp_user_name,
+                                   default_roles);
+    }
+
   } // END while tmp_user_name= user_lists++
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error())

@@ -929,3 +929,30 @@ CONNECTION default;
 DROP USER baseuser, admin1, admin2, r1, r2;
 SET @@global.check_proxy_users = OFF;
 SET @@global.mysql_native_password_proxy_users = OFF;
+
+--echo #
+--echo # SHOW CREATE USER DOESN'T SHOW DEFAULT ROLE
+--echo #
+CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE r1,r2@localhost,`r3`,`r3`@local,`r 4`;
+--replace_regex /AS '(.*)'/AS '<hash>'/
+SHOW CREATE USER u1;
+--error ER_CANNOT_USER
+CREATE USER u1;
+--echo # Same as before and don't crash.
+--replace_regex /AS '(.*)'/AS '<hash>'/
+SHOW CREATE USER u1;
+--echo # check that we can combine different properties with default roles.
+CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
+SHOW CREATE USER u2;
+SELECT user,host FROM mysql.user;
+SELECT * FROM mysql.default_roles;
+DROP USER u1,u2;
+CREATE USER u1;
+--echo # If I alter user this will show up in show create user
+ALTER USER u1 DEFAULT ROLE r1;
+SHOW CREATE USER u1;
+SELECT * FROM mysql.default_roles;
+DROP USER u1;
+SELECT * FROM mysql.default_roles;
+
+

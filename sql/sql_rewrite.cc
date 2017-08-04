@@ -93,6 +93,7 @@
 #include "sql_string.h"     // String
 #include "table.h"
 #include "violite.h"
+#include "auth_internal.h"
 
 #ifndef DBUG_OFF
 #define HASH_STRING_WITH_QUOTE \
@@ -171,6 +172,24 @@ static bool append_str(String *str, bool comma, const char *key,
     return true;
   }
   return comma;
+}
+
+static void rewrite_default_roles(LEX *lex, String *rlb)
+{
+  bool comma= false;
+  if (lex->default_roles && lex->default_roles->elements > 0)
+  {
+    rlb->append(" DEFAULT ROLE ");
+    List_iterator<LEX_USER> role_it((*lex->default_roles));
+    LEX_USER *role;
+    while ((role= role_it++))
+    {
+      if (comma)
+        rlb->append(',');
+      rlb->append(create_authid_str_from(role).c_str());
+      comma= true;
+    }
+  }
 }
 
 static void rewrite_ssl_properties(LEX *lex, String *rlb)
@@ -545,6 +564,8 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     }
   }
 
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rewrite_default_roles(lex, rlb);
   rewrite_ssl_properties(lex, rlb);
   rewrite_user_resources(lex, rlb);
 
