@@ -515,6 +515,7 @@ public:
       state.with_sbr= flags.with_sbr;
       state.with_start= flags.with_start;
       state.with_end= flags.with_end;
+      state.with_content= flags.with_content;
       state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
@@ -532,6 +533,7 @@ public:
         flags.with_sbr= it->second.with_sbr;
         flags.with_start= it->second.with_start;
         flags.with_end= it->second.with_end;
+        flags.with_content= it->second.with_content;
         event_counter= it->second.event_counter;
       }
       else
@@ -544,6 +546,7 @@ public:
       flags.with_sbr= false;
       flags.with_start= false;
       flags.with_end= false;
+      flags.with_content= false;
       event_counter= 0;
     }
   }
@@ -581,6 +584,7 @@ public:
     flags.with_rbr= false;
     flags.with_start= false;
     flags.with_end= false;
+    flags.with_content= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -669,14 +673,15 @@ public:
       and no changes: one is a transaction start and other is a transaction
       end (there should be no SBR changing content and no RBR events).
     */
-    if (flags.with_start && // Has transaction start statement
-        flags.with_end &&   // Has transaction end statement
-        !flags.with_sbr &&  // No statements changing content
-        !flags.with_rbr &&  // No rows changing content
-        !flags.immediate && // Not a DDL
-        !flags.with_xid)    // Not a XID transaction and not an atomic DDL Query
+    if (flags.with_start &&  // Has transaction start statement
+        flags.with_end &&    // Has transaction end statement
+        !flags.with_content) // Has no other content than START/END
     {
-      DBUG_ASSERT(event_counter == 2);
+      DBUG_ASSERT(event_counter == 2); // Two events in the cache only
+      DBUG_ASSERT(!flags.with_sbr); // No statements changing content
+      DBUG_ASSERT(!flags.with_rbr); // No rows changing content
+      DBUG_ASSERT(!flags.immediate);// Not a DDL
+      DBUG_ASSERT(!flags.with_xid); // Not a XID trx and not an atomic DDL Query
       return true;
     }
     return false;
@@ -705,6 +710,7 @@ protected:
     bool with_rbr;
     bool with_start;
     bool with_end;
+    bool with_content;
     size_t event_counter;
   };
   /*
@@ -808,6 +814,11 @@ protected:
       This indicates that the cache contain a transaction end event.
     */
     bool with_end:1;
+
+    /*
+      This indicates that the cache contain content other than START/END.
+    */
+    bool with_content:1;
   } flags;
 
 private:
@@ -1467,6 +1478,8 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_start= true;
     if (ev->ends_group())
       flags.with_end= true;
+    if (!ev->starts_group() && !ev->ends_group())
+      flags.with_content= true;
     event_counter++;
     DBUG_PRINT("debug",("event_counter= %lu",
                         static_cast<ulong>(event_counter)));
