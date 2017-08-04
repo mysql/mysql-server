@@ -1190,10 +1190,6 @@ btr_free_if_exists(
 		return;
 	}
 
-	if (page_id.space() == 0) {
-		ib::info() << "Free btr root: " << page_id;
-	}
-
 	btr_free_but_not_root(root, mtr->get_log_mode());
 	btr_free_root(root, mtr);
 	btr_free_root_invalidate(root, mtr);

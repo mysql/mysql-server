@@ -2174,8 +2174,6 @@ ibuf_remove_free_page(void)
 		bitmap_page, page_id, page_size, IBUF_BITMAP_IBUF, FALSE,
 		&mtr);
 
-	ib::info() << "Ibuf remove: " << page_id;
-
 	ut_d(buf_page_set_file_page_was_freed(page_id));
 
 	ibuf_mtr_commit(&mtr);

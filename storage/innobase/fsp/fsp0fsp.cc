@@ -3749,8 +3749,6 @@ fseg_free_page(
 
 	fseg_free_page_low(seg_inode, page_id, page_size, ahi, mtr);
 
-	ut_d(if (page_id.space() == 0) ib::info() << "Set was freed for " << page_id);
-
 	ut_d(buf_page_set_file_page_was_freed(page_id));
 
 	DBUG_VOID_RETURN;
@@ -3876,15 +3874,8 @@ fseg_free_extent(
 	fsp_free_extent(page_id_t(space, page), page_size, mtr);
 
 #ifdef UNIV_DEBUG
-	bool	logged = false;
 	for (i = state == XDES_FSEG ? 0 : XDES_FRAG_N_USED;
 	     i < FSP_EXTENT_SIZE; i++) {
-
-		if (!logged && space == 0) {
-			ib::info() << "Set was freed for " << space
-				<< " : " << first_page_in_extent + i;
-			logged = true;
-		}
 
 		buf_page_set_file_page_was_freed(
 			page_id_t(space, first_page_in_extent + i));
