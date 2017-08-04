@@ -155,6 +155,7 @@ static inline dec1 div_by_pow10(dec1 x, int p)
   */
   DBUG_ASSERT(x >= 0);
   switch (p) {
+    case 0: return static_cast<uint32_t>(x) / 1;
     case 1: return static_cast<uint32_t>(x) / 10;
     case 2: return static_cast<uint32_t>(x) / 100;
     case 3: return static_cast<uint32_t>(x) / 1000;
