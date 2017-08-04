@@ -73,6 +73,19 @@ enum dd_table_keys {
 	DD_TABLE__LAST
 };
 
+/** InnoDB TABLESPACE VERSION # */
+const uint64	DD_SPACE_CURRENT_MAJOR = 8;
+
+/** InnoDB TABLESPACE VERSION # */
+const uint64	DD_SPACE_CURRENT_MINOR = 0;
+
+/** InnoDB TABLESPACE VERSION # */
+const uint64	DD_SPACE_CURRENT_PATCH = 3;
+
+const uint64	DD_SPACE_CURRENT_VERSION = ((DD_SPACE_CURRENT_MAJOR << 32)
+					    + (DD_SPACE_CURRENT_MINOR << 16)
+					    + DD_SPACE_CURRENT_PATCH);
+
 /** InnoDB private keys for dd::Tablespace */
 enum dd_space_keys {
 	/** Tablespace flags */
@@ -81,6 +94,8 @@ enum dd_space_keys {
 	DD_SPACE_ID,
 	/** Discard attribute */
 	DD_SPACE_DISCARD,
+	/** Tablespace version */
+	DD_SPACE_VERSION,
 	/** Sentinel */
 	DD_SPACE__LAST
 };
@@ -109,7 +124,8 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 const char* const dd_space_key_strings[DD_SPACE__LAST] = {
 	"flags",
 	"id",
-	"discard"
+	"discard",
+	"version"
 };
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
@@ -567,6 +583,7 @@ dd_process_dd_tablespaces_rec(
 	space_id_t*	space_id,
 	char**		name,
 	uint*		flags,
+	uint64*		version,
 	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.

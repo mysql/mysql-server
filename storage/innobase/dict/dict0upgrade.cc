@@ -1020,6 +1020,8 @@ int dd_upgrade_tablespace(THD* thd) {
                    static_cast<uint32>(space));
       p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 		   static_cast<uint32>(flags));
+      p.set_uint64(dd_space_key_strings[DD_SPACE_VERSION],
+		   DD_SPACE_CURRENT_VERSION);
       dd::Tablespace_file* dd_file = dd_space->add_file();
 
       mutex_enter(&dict_sys->mutex);

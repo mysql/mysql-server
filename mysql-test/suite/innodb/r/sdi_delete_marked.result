@@ -415,7 +415,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
         "name": "innodb_file_per_table.X",
         "comment": "",
         "options": "",
-        "se_private_data": "flags=X;id=Y;",
+        "se_private_data": "flags=X;id=Y;version=Z;",
         "engine": "InnoDB",
         "files": [
             {
