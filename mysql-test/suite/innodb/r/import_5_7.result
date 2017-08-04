@@ -332,7 +332,7 @@ a	b	c	d
         "name": "innodb_file_per_table.X",
         "comment": "",
         "options": "",
-        "se_private_data": "discard=0;flags=16417;id=2;version=34359738371;",
+        "se_private_data": "flags=X;id=Y;version=Z;",
         "engine": "InnoDB",
         "files": [
             {
