@@ -2,6 +2,9 @@
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
 
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
 --echo # Test create table crash/recovery rollback.
@@ -22,6 +25,9 @@ let $WAIT_COUNT=6000;
 -- error ER_NO_SUCH_TABLE
 show create table t1;
 
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
 --echo # Test create table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_before_post_ddl';
@@ -38,6 +44,9 @@ let $WAIT_COUNT=6000;
 
 show create table t1;
 
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
 --echo # Test drop table crash/recovery rollback.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_before_drop_log_1';
@@ -52,6 +61,9 @@ let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 
 show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 
 --echo # Test drop table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
@@ -69,6 +81,9 @@ let $WAIT_COUNT=6000;
 
 -- error ER_NO_SUCH_TABLE
 show create table t1;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 
 --echo # Test rename table crash/recovery rollback 1.
 set global innodb_ddl_log_crash_reset_debug = 1;
@@ -90,6 +105,9 @@ show create table t1;
 -- error ER_NO_SUCH_TABLE
 show create table t2;
 
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+
 --echo # Test rename table crash/recovery rollback 2.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
@@ -105,6 +123,9 @@ show create table t1;
 
 -- error ER_NO_SUCH_TABLE
 show create table t2;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 
 --echo # Test rename table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
@@ -124,6 +145,9 @@ let $WAIT_COUNT=6000;
 show create table t1;
 
 show create table t2;
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 
 drop table t2;
 

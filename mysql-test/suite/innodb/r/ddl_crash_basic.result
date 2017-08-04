@@ -1,9 +1,17 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test create table crash/recovery rollback.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_after_free_tree_log_2';
 CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
 show create table t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test create table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_before_post_ddl';
@@ -17,6 +25,10 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test drop table crash/recovery rollback.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_before_drop_log_1';
@@ -30,12 +42,20 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test drop table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_before_post_ddl';
 drop table t1;
 show create table t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test rename table crash/recovery rollback 1.
 set global innodb_ddl_log_crash_reset_debug = 1;
 CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
@@ -52,6 +72,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test rename table crash/recovery rollback 2.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
@@ -67,6 +91,10 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 show create table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 # Test rename table crash/recovery.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_before_post_ddl';
@@ -82,6 +110,10 @@ t2	CREATE TABLE `t2` (
   KEY `a` (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
+Expected as 0
+0
 drop table t2;
 # Test truncate table crash/recovery.
 CREATE TABLE t1
