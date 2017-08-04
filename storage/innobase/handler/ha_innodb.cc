@@ -12940,6 +12940,9 @@ create_table_info_t::create_table_update_global_dd(
 			DBUG_RETURN(HA_ERR_GENERIC);
 		}
 
+		DBUG_EXECUTE_IF("create_table_update_dd_fail",
+				index_space = nullptr;);
+
 		uint32	id;
 		if (index_space == NULL) {
 			dict_table_close(table, FALSE, FALSE);
