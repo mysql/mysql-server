@@ -513,8 +513,20 @@ bool add_sdi_info(THD *thd)
 
   // Add sdi info
   thd->push_internal_handler(&error_handler);
-  for (const dd::Tablespace* ts : tablespaces)
+  for (const dd::Tablespace* tsc : tablespaces)
   {
+    Disable_autocommit_guard autocommit_guard(thd);
+    dd::Tablespace *ts= nullptr;
+
+    if (thd->dd_client()->acquire_for_modification<dd::Tablespace>(
+                              tsc->name(), &ts))
+    {
+      // In case of error, we will continue with upgrade.
+      sql_print_error("Error in acquiring Tablespace for SDI insertion %s.",
+                      ts->name().c_str());
+      continue;
+    }
+
     plugin_ref pr= ha_resolve_by_name_raw(thd,
                                           lex_cstring_handle(ts->engine()));
     handlerton *hton= nullptr;
@@ -529,10 +541,19 @@ bool add_sdi_info(THD *thd)
     if (hton && hton->sdi_create)
     {
       // Error handling not possible at this stage, upgrade should complete.
-      if (hton->sdi_create(*ts))
+      if (hton->sdi_create(ts))
         sql_print_error("Error in creating SDI for %s tablespace",
                         ts->name().c_str());
-      (void)dd::sdi::store(thd, ts);
+
+      // Write changes to dictionary.
+      if (thd->dd_client()->update(ts))
+      {
+        trans_rollback_stmt(thd);
+        sql_print_error("Error in storing SDI for %s tablespace",
+                        ts->name().c_str());
+      }
+      trans_commit_stmt(thd);
+      trans_commit(thd);
     }
   }
   thd->pop_internal_handler();

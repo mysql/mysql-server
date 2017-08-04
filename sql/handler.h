@@ -1416,7 +1416,7 @@ typedef bool (*is_supported_system_table_t)(const char *db,
   @retval     false          success
   @retval     true           failure
 */
-typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_create_t)(dd::Tablespace *tablespace);
 
 /**
   Drop SDI in a tablespace. This API should be used only when
@@ -1425,7 +1425,7 @@ typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
   @retval     false       success
   @retval     true        failure
 */
-typedef bool (*sdi_drop_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_drop_t)(dd::Tablespace *tablespace);
 
 /**
   Get the SDI keys in a tablespace into vector.

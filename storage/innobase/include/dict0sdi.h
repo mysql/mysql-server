@@ -94,21 +94,21 @@ private:
 
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
-@param[in]	tablespace	tablespace object
+@param[in,out]	tablespace	tablespace object
 @retval		false		success
 @retval		true		failure */
 bool
 dict_sdi_create(
-	const dd::Tablespace&	tablespace);
+	dd::Tablespace*	tablespace);
 
 /** Drop SDI in a tablespace. This API should be used only
 when SDI is corrupted.
-@param[in]	tablespace	tablespace object
+@param[in,out]	tablespace	tablespace object
 @retval		false		success
 @retval		true		failure */
 bool
 dict_sdi_drop(
-	const dd::Tablespace&	tablespace);
+	dd::Tablespace*	tablespace);
 
 /** Get the SDI keys in a tablespace into the vector provided.
 @param[in]	tablespace	tablespace object
