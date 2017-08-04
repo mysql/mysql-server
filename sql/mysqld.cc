@@ -1938,6 +1938,7 @@ static void clean_up(bool print_message)
   ha_pre_dd_shutdown();
   dd::shutdown();
 
+  Events::deinit();
   stop_handle_manager();
 
   memcached_shutdown();
