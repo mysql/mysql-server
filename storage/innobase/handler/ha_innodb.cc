@@ -4691,16 +4691,14 @@ innobase_init_files(
 	prepare it along with innodb system tablespace for server.
 	Tell server that these two hardcoded tablespaces exist.  */
 	if (!ret) {
-		const size_t	len = 30 + sizeof "id=;flags=;version=";
-		const char*	fmt = "id=%u;flags=%u;version=%lu";
+		const size_t	len = 20 + sizeof "id=;flags=";
+		const char*	fmt = "id=%u;flags=%u";
 		static char	se_private_data_innodb_system[len];
 		static char	se_private_data_dd[len];
 		snprintf(se_private_data_innodb_system, len, fmt,
-			 TRX_SYS_SPACE, predefined_flags,
-			 DD_SPACE_CURRENT_VERSION);
+			 TRX_SYS_SPACE, predefined_flags);
 		snprintf(se_private_data_dd, len, fmt,
-			 dict_sys_t::s_space_id, predefined_flags,
-			 DD_SPACE_CURRENT_VERSION);
+			 dict_sys_t::s_space_id, predefined_flags);
 
 		static Plugin_tablespace dd_space(
 			dict_sys_t::s_dd_space_name, "",

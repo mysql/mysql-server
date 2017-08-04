@@ -1593,8 +1593,6 @@ dd_write_tablespace(
 	p.set_uint32(dd_space_key_strings[DD_SPACE_ID], tablespace.space_id());
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 		     static_cast<uint32>(tablespace.flags()));
-	p.set_uint64(dd_space_key_strings[DD_SPACE_VERSION],
-		     DD_SPACE_CURRENT_VERSION);
 }
 
 /** Add fts doc id column and index to new table
@@ -2499,9 +2497,6 @@ create_dd_tablespace(
 		     static_cast<uint32>(space_id));
 	p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
 		     static_cast<uint32>(flags));
-	p.set_uint64(dd_space_key_strings[DD_SPACE_VERSION],
-		     DD_SPACE_CURRENT_VERSION);
-
 	if (discarded) {
 		p.set_bool(dd_space_key_strings[DD_SPACE_DISCARD],
 			   discarded);
@@ -4493,7 +4488,6 @@ dd_process_dd_tablespaces_rec(
 	space_id_t*	space_id,
 	char**		name,
 	uint*		flags,
-	uint64*		version,
 	dict_table_t*	dd_spaces)
 {
 	ulint		len;
@@ -4547,12 +4541,6 @@ dd_process_dd_tablespaces_rec(
 
 	/* Get space flag. */
 	if (p->get_uint32(dd_space_key_strings[DD_SPACE_FLAGS], flags)) {
-		delete p;
-		return(false);
-	}
-
-	/* Get space flag. */
-	if (p->get_uint64(dd_space_key_strings[DD_SPACE_VERSION], version)) {
 		delete p;
 		return(false);
 	}
