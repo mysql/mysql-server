@@ -226,12 +226,12 @@ Tablespace::add_datafile(
 	if (filepath == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
-	os_normalize_path(filepath);
+	Fil_path::normalize(filepath);
 
 	/* If the path is an absolute path, separate it onto m_path and a
 	basename. For relative paths, make the whole thing a basename so that
 	it can be appended to the datadir. */
-	bool	is_abs_path = is_absolute_path(filepath);
+	bool	is_abs_path = Fil_path::is_absolute_path(filepath);
 	size_t	dirlen = (is_abs_path ? dirname_length(filepath) : 0);
 	const char* basename = filepath + dirlen;
 

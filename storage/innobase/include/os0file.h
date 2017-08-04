@@ -869,12 +869,26 @@ extern ulint	os_n_fsyncs;
 /* File types for directory entry data type */
 
 enum os_file_type_t {
-	OS_FILE_TYPE_MISSING = 0,
+	/** Get status failed. */
+	OS_FILE_TYPE_FAILED,
+
+	/** File doesn't exist. */
+	OS_FILE_TYPE_MISSING,
+
+	/** File exists but type is unknown. */
 	OS_FILE_TYPE_UNKNOWN,
-	OS_FILE_TYPE_FILE,			/* regular file */
-	OS_FILE_TYPE_DIR,			/* directory */
-	OS_FILE_TYPE_LINK,			/* symbolic link */
-	OS_FILE_TYPE_BLOCK			/* block device */
+
+	/** Ordinary file. */
+	OS_FILE_TYPE_FILE,
+
+	/** Directory. */
+	OS_FILE_TYPE_DIR,
+
+	/** Symbolic link. */
+	OS_FILE_TYPE_LINK,
+
+	/** Block device. */
+	OS_FILE_TYPE_BLOCK
 };
 
 /* Maximum path string length in bytes when referring to tables with in the
@@ -2147,7 +2161,6 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
-
 dberr_t
 os_file_decompress_page(
 	bool		dblwr_recover,
@@ -2155,33 +2168,6 @@ os_file_decompress_page(
 	byte*		dst,
 	ulint		dst_len)
 	MY_ATTRIBUTE((warn_unused_result));
-
-/** Normalizes a directory path for the current OS:
-On Windows, we convert '/' to '\', else we convert '\' to '/'.
-@param[in,out] str A null-terminated directory and file path */
-void os_normalize_path(char*	str);
-
-/* Determine if a path is an absolute path or not.
-@param[in]	OS directory or file path to evaluate
-@retval true if an absolute path
-@retval false if a relative path */
-UNIV_INLINE
-bool
-is_absolute_path(
-	const char*	path)
-{
-	if (path[0] == OS_PATH_SEPARATOR) {
-		return(true);
-	}
-
-#ifdef _WIN32
-	if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
-		return(true);
-	}
-#endif /* _WIN32 */
-
-	return(false);
-}
 
 /** Class to scan the directory heirarch using a depth first scan. */
 class Dir_Walker {

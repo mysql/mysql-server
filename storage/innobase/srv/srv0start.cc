@@ -1937,12 +1937,12 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 
 			srv_monitor_file_name = static_cast<char*>(
 				ut_malloc_nokey(
-					strlen(fil_path_to_mysql_datadir)
+					MySQL_datadir_path.len()
 					+ 20 + sizeof "/innodb_status."));
 
 			sprintf(srv_monitor_file_name,
 				"%s/innodb_status." ULINTPF,
-				fil_path_to_mysql_datadir,
+				static_cast<const char*>(MySQL_datadir_path),
 				os_proc_get_number());
 
 			srv_monitor_file = fopen(srv_monitor_file_name, "w+");

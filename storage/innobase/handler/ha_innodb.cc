@@ -800,7 +800,7 @@ innodb_tmpdir_validate(
 		return(1);
 	}
 
-	os_normalize_path(alter_tmp_dir);
+	Fil_path::normalize(alter_tmp_dir);
 	my_realpath(tmp_abs_path, alter_tmp_dir, 0);
 	size_t  tmp_abs_len = strlen(tmp_abs_path);
 
@@ -3549,10 +3549,10 @@ Validate_files::check(
 					tablespace->id(),
 					space_id, filename, &new_path)) {
 
-			case Fil_path::MATCHES:
+			case Fil_state::MATCHES:
 				break;
 
-			case Fil_path::MISSING:
+			case Fil_state::MISSING:
 
 				ib::info()
 					<< prefix
@@ -3563,7 +3563,7 @@ Validate_files::check(
 
 				continue;
 
-			case Fil_path::DELETED:
+			case Fil_state::DELETED:
 
 				ib::info()
 					<< prefix
@@ -3574,7 +3574,7 @@ Validate_files::check(
 
 				continue;
 
-			case Fil_path::MOVED:
+			case Fil_state::MOVED:
 
 				++moved;
 
@@ -4170,9 +4170,16 @@ innodb_init_params()
 	current_dir[1] = FN_LIBCHAR;
 	current_dir[2] = 0;
 	default_path = current_dir;
-	ut_a(default_path);
-	fil_path_to_mysql_datadir = default_path;
-	folder_mysql_datadir = default_path;
+
+	ut_a(default_path != nullptr);
+
+	std::string	mysqld_datadir{default_path};
+
+	if (mysqld_datadir.back() != OS_PATH_SEPARATOR) {
+		mysqld_datadir.push_back(OS_PATH_SEPARATOR);
+	}
+
+	MySQL_datadir_path = Fil_path{mysqld_datadir};
 
 	/* Validate, normalize and interpret the InnoDB start-up parameters. */
 
@@ -4184,7 +4191,8 @@ innodb_init_params()
 	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
 	}
-	os_normalize_path(srv_undo_dir);
+
+	Fil_path::normalize(srv_undo_dir);
 
 	/* The default dir for log files is the datadir of MySQL */
 
@@ -4872,7 +4880,7 @@ innobase_init_files(
 	}
 
 	/* This is the default directory for .ibd files. */
-	scan_directories.append(";").append(fil_path_to_mysql_datadir);
+	scan_directories.append(";").append(MySQL_datadir_path);
 
 	err = srv_start(create, scan_directories);
 
@@ -14375,7 +14383,8 @@ validate_create_tablespace_info(
 
 	/* Validate the ADD DATAFILE name. */
 	char*	filepath = mem_strdup(alter_info->data_file_name);
-	os_normalize_path(filepath);
+
+	Fil_path::normalize(filepath);
 
 	/* It must end with '.ibd' and contain a basename of at least
 	1 character before the.ibd extension. */
@@ -14437,10 +14446,14 @@ validate_create_tablespace_info(
 	}
 #endif /* _WIN32 */
 
+	std::string	dirname(filepath, dirname_len);
+
 	/* The directory path must be pre-existing. */
-	Folder folder(filepath, dirname_len);
+	Fil_path	path{dirname};
+
 	ut_free(filepath);
-	if (!folder.exists()) {
+
+	if (!path.is_directory_and_exists()) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
 		my_printf_error(ER_WRONG_FILE_NAME,
@@ -14450,7 +14463,8 @@ validate_create_tablespace_info(
 
 	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
 	the datadir.*/
-	if (folder_mysql_datadir > folder) {
+	if (MySQL_datadir_path.is_ancestor(path)) {
+
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
 		my_printf_error(ER_WRONG_FILE_NAME,

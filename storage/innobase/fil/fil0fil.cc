@@ -154,8 +154,7 @@ const char general_space_name[] = "innodb_general";
 /** Reference to the server data directory. Usually it is the
 current working directory ".", but in the MySQL Embedded Server Library
 it is an absolute path. */
-const char*	fil_path_to_mysql_datadir;
-Folder		folder_mysql_datadir;
+Fil_path	MySQL_datadir_path;
 
 /** Common InnoDB file extentions */
 const char* dot_ext[] = { "", ".ibd", ".cfg", ".cfp" };
@@ -331,7 +330,7 @@ public:
 	}
 
 private:
-	/*Note:  The file names in m_ibd_paths and m_undo_paths are relative
+	/* Note:  The file names in m_ibd_paths and m_undo_paths are relative
 	to m_real_path. */
 
 	/** Mapping from tablespace ID to data filenames */
@@ -3749,9 +3748,8 @@ Fil_shard::space_check_pending_operations(
 @param[in]	dir		Directory
 @param[in]	filename	Filename without directory prefix
 @return the absolute path of dir + filename */
-static
 std::string
-fil_get_real_path(const char* dir, const std::string& filename = "")
+Fil_path::get_real_path(const char* dir, const std::string& filename)
 {
 	char	abspath[FN_REFLEN + 2];
 
@@ -3772,7 +3770,18 @@ fil_get_real_path(const char* dir, const std::string& filename = "")
 		strncat(abspath, filename.c_str(), filename.length());
 	}
 
-	return(std::string(abspath));
+	std::string	real_path{abspath};
+
+	/* On Windows, my_realpath() puts a '\' at the end of any directory
+	path, on non-Windows it does not. */
+
+	if (Fil_path::get_file_type(real_path) == OS_FILE_TYPE_DIR
+	    && real_path.back() != OS_PATH_SEPARATOR) {
+
+		real_path.push_back(OS_PATH_SEPARATOR);
+	}
+
+	return(real_path);
 }
 
 /** Constructor
@@ -3782,9 +3791,10 @@ Tablespace_files::Tablespace_files(const std::string& dir)
 	m_ibd_paths(),
 	m_undo_paths(),
 	m_path(dir),
-	m_real_path(fil_get_real_path(dir.c_str()))
+	m_real_path(Fil_path::get_real_path(dir.c_str()))
 {
-	/* No op */
+	ut_ad(m_path.back() == OS_PATH_SEPARATOR);
+	ut_ad(m_real_path.back() == OS_PATH_SEPARATOR);
 }
 
 /* Convert the paths into absolute paths and compare them.
@@ -3804,9 +3814,9 @@ fil_paths_equal(const char* lhs, const char* rhs)
 			++ptr;
 		}
 
-		abs_path1 = fil_get_real_path(".", ptr);
+		abs_path1 = Fil_path::get_real_path(".", ptr);
 	} else{
-		abs_path1 = fil_get_real_path(lhs);
+		abs_path1 = Fil_path::get_real_path(lhs);
 	}
 
 	/* Remove adjacent duplicate characters, comparison should not be
@@ -3825,9 +3835,9 @@ fil_paths_equal(const char* lhs, const char* rhs)
 			++ptr;
 		}
 
-		abs_path2 = fil_get_real_path(".", ptr);
+		abs_path2 = Fil_path::get_real_path(".", ptr);
 	} else {
-		abs_path2 = fil_get_real_path(rhs);
+		abs_path2 = Fil_path::get_real_path(rhs);
 	}
 
 	/* Remove adjacent duplicate characters, comparison should not be
@@ -4389,7 +4399,8 @@ fil_discard_tablespace(space_id_t space_id)
 
 /** Allocate and build a file name from a path, a table or tablespace name
 and a suffix.
-@param[in]	path	nullptr or the direcory path or the full path and filename
+@param[in]	path	nullptr or the direcory path or the full path and
+			filename
 @param[in]	name	nullptr if path is full, or Table/Tablespace name
 @param[in]	ext	the file extension to use
 @param[in]	trim	whether last name on the path should be trimmed
@@ -4411,7 +4422,7 @@ fil_make_filepath(
 	ut_ad(!trim || (path != nullptr && name != nullptr));
 
 	if (path == nullptr) {
-		path = fil_path_to_mysql_datadir;
+		path = MySQL_datadir_path;
 	}
 
 	ulint	len		= 0;	/* current length */
@@ -4438,7 +4449,7 @@ fil_make_filepath(
 		memcpy(full_name, path, path_len);
 		len = path_len;
 		full_name[len] = '\0';
-		os_normalize_path(full_name);
+		Fil_path::normalize(full_name);
 	}
 
 	if (trim) {
@@ -4462,7 +4473,7 @@ fil_make_filepath(
 		memcpy(ptr, name, name_len);
 		len += name_len;
 		full_name[len] = '\0';
-		os_normalize_path(ptr);
+		Fil_path::normalize(ptr);
 	}
 
 	/* Make sure that the specified suffix is at the end of the filepath
@@ -4607,7 +4618,7 @@ Fil_shard::space_rename(
 				<< " (space id " << space_id << "),"
 				<< " retried " << count << " times."
 				<< " There are either pending IOs or"
-				<<"flushes or the file is being extended.";
+				<< " flushes or the file is being extended.";
 		}
 
 		/* The name map and space ID map are in the same shard. */
@@ -4882,7 +4893,8 @@ fil_ibd_create(
 		ib::error() << "Cannot create file '" << path << "'";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib::error() << "The file '" << path << "'"
+			ib::error()
+				<< "The file '" << path << "'"
 				" already exists though the"
 				" corresponding table did not exist"
 				" in the InnoDB data dictionary."
@@ -8165,109 +8177,93 @@ fil_encryption_rotate()
 	return(fil_system->encryption_rotate_all());
 }
 
-/** Build the basic folder name from the path and length provided
-@param[in]	path	pathname (may also include the file basename)
-@param[in]	len	length of the path, in bytes */
+/** Set the real path */
 void
-Folder::make_path(const char* path, size_t len)
+Fil_path::init()
 {
-	if (is_absolute_path(path)) {
-		m_folder = mem_strdupl(path, len);
-		m_folder_len = len;
-	} else {
-		size_t n = 2 + len + strlen(fil_path_to_mysql_datadir);
-		m_folder = static_cast<char*>(ut_malloc_nokey(n));
-		m_folder_len = 0;
+	if (this != &MySQL_datadir_path
+	    && MySQL_datadir_path.len() > 0
+	    && (m_path.empty() || !is_absolute_path())) {
 
-		if (path != fil_path_to_mysql_datadir) {
-			/* Put the mysqld datadir into m_folder first. */
-			ut_ad(fil_path_to_mysql_datadir[0] != '\0');
-			m_folder_len = strlen(fil_path_to_mysql_datadir);
-			memcpy(m_folder, fil_path_to_mysql_datadir,
-			       m_folder_len);
-			if (m_folder[m_folder_len - 1] != OS_PATH_SEPARATOR) {
-				m_folder[m_folder_len++] = OS_PATH_SEPARATOR;
-			}
-		}
+		ut_ad(m_path.empty()
+		      || !MySQL_datadir_path.is_ancestor(m_path));
 
-		/* Append the path. */
-		memcpy(m_folder + m_folder_len, path, len);
-		m_folder_len += len;
-		m_folder[m_folder_len] = '\0';
+		ut_ad(MySQL_datadir_path.m_path.back() == OS_PATH_SEPARATOR);
+
+		m_path = MySQL_datadir_path.m_path + m_path;
 	}
 
-	os_normalize_path(m_folder);
-}
-
-/** Resolve a relative path in m_folder to an absolute path
-in m_abs_path setting m_abs_len. */
-void
-Folder::make_abs_path()
-{
-	my_realpath(m_abs_path, m_folder, MYF(0));
-	m_abs_len = strlen(m_abs_path);
-
-	ut_ad(m_abs_len + 1 < sizeof(m_abs_path));
-
-	/* Folder::related_to() needs a trailing separator. */
-	if (m_abs_path[m_abs_len - 1] != OS_PATH_SEPARATOR) {
-		m_abs_path[m_abs_len] = OS_PATH_SEPARATOR;
-		m_abs_path[++m_abs_len] = '\0';
-	}
+	m_abs_path = get_real_path(m_path.c_str());
 }
 
 /** Constructor
 @param[in]	path	pathname (may also include the file basename)
 @param[in]	len	length of the path, in bytes */
-Folder::Folder(const char* path, size_t len)
+Fil_path::Fil_path(const std::string& path)
+	:
+	m_path(path),
+	m_abs_path()
 {
-	make_path(path, len);
-	make_abs_path();
+	init();
 }
 
-/** Assignment operator
-@param[in]	path	folder string provided */
-class Folder&
-Folder::operator=(const char* path)
+/** Constructor
+@param[in]	path	pathname (may also include the file basename)
+@param[in]	len	length of the path, in bytes */
+Fil_path::Fil_path(const char* path, size_t len)
+	:
+	m_path(path, len),
+	m_abs_path()
 {
-	ut_free(m_folder);
-	make_path(path, strlen(path));
-	make_abs_path();
-
-	return(*this);
+	init();
 }
 
-/** Determine if the directory referenced by m_folder exists.
-@return whether the directory exists */
-bool
-Folder::exists()
+/** @return true if the path exists and is a file . */
+os_file_type_t
+Fil_path::get_file_type(const std::string& path)
 {
-	bool		exists;
-	os_file_type_t	type;
+	const std::string*	ptr;
+	os_file_type_t		type;
+	bool			exists;
 
 #ifdef _WIN32
 	/* Temporarily strip the trailing_separator since it will cause
 	stat64() to fail on Windows unless the path is the root of some
-	drive; like "c:\".  _stat64() will fail if it is "c:". */
-	size_t  len = strlen(m_abs_path);
+	drive; like "C:\".  _stat64() will fail if it is "C:". */
 
-	if (m_abs_path[m_abs_len - 1] == OS_PATH_SEPARATOR
-	    && m_abs_path[m_abs_len - 2] != ':') {
+	std::string	p;
 
-		m_abs_path[m_abs_len - 1] = '\0';
+	if (path.length() > 3
+	    && path.back() == OS_PATH_SEPARATOR
+	    && path.at(p.length() - 2] != ':') {
+
+		p.pop_back();
+
+		ptr = &p;
+	} else {
+		ptr = &path;
 	}
+#else
+	ptr = &path;
 #endif /* WIN32 */
 
-	bool ret = os_file_status(m_abs_path, &exists, &type);
+	bool	ret = os_file_status(ptr->c_str(), &exists, &type);
 
-#ifdef _WIN32
-	/* Put the separator back on. */
-	if (m_abs_path[m_abs_len - 1] == '\0') {
-		m_abs_path[m_abs_len - 1] = OS_PATH_SEPARATOR;
-	}
-#endif /* WIN32 */
+	return(exists && ret ? type : OS_FILE_TYPE_UNKNOWN);
+}
 
-	return(ret && exists && type == OS_FILE_TYPE_DIR);
+/** @return true if the path exists and is a file . */
+bool
+Fil_path::is_file_and_exists() const
+{
+	return(get_file_type(m_abs_path) == OS_FILE_TYPE_FILE);
+}
+
+/** @return true if the path exists and is a directory. */
+bool
+Fil_path::is_directory_and_exists() const
+{
+	return(get_file_type(m_abs_path) == OS_FILE_TYPE_DIR);
 }
 
 /** Sets the flags of the tablespace. The tablespace must be locked
@@ -8453,7 +8449,7 @@ fil_tablespace_encryption_init(const fil_space_t* space)
 @param[in]	path		Path in the data dictionary
 @param[out]	new_path	New path if scanned path not equal to path
 @return status of the match. */
-Fil_path
+Fil_state
 fil_tablespace_path_equals(
 	dd::Object_id	object_id,
 	space_id_t	space_id,
@@ -8475,23 +8471,25 @@ fil_tablespace_path_equals(
 			recv_sys->missing_ids.insert(space_id);
 		}
 
-		return(Fil_path::MISSING);
+		return(Fil_state::MISSING);
 	}
 
 	/* Check that it wasn't deleted. */
 	if (it != end) {
 
-		return(Fil_path::DELETED);
+		return(Fil_state::DELETED);
 
 	} else {
 
-		std::string	real_path_orig = fil_get_real_path(path);
+		std::string	real_path_orig = Fil_path::get_real_path(path);
 
-		ut_a(result.first.back() == OS_PATH_SEPARATOR);
+		ut_ad(result.first.back() == OS_PATH_SEPARATOR);
+		ut_ad(real_path_orig.back() != OS_PATH_SEPARATOR);
+		ut_ad(result.second->front().at(0) != OS_PATH_SEPARATOR);
 
 		*new_path = result.first + result.second->front();
 
-		std::string	real_path_new = fil_get_real_path(
+		std::string	real_path_new = Fil_path::get_real_path(
 			new_path->c_str());
 
 		if (real_path_orig.compare(real_path_new) != 0) {
@@ -8500,11 +8498,11 @@ fil_tablespace_path_equals(
 
 			fil_system->moved(object_id, space_id, path, *new_path);
 
-			return(Fil_path::MOVED);
+			return(Fil_state::MOVED);
 		}
 	}
 
-	return(Fil_path::MATCHES);
+	return(Fil_state::MATCHES);
 }
 
 /** Lookup the tablespace ID.
@@ -8740,7 +8738,7 @@ fil_tablespace_redo_create(
 
 	char*	name	= reinterpret_cast<char*>(ptr);
 
-	os_normalize_path(name);
+	Fil_path::normalize(name);
 
 	ptr += len;
 
@@ -8761,7 +8759,7 @@ fil_tablespace_redo_create(
 		return(ptr);
 	}
 
-	auto	abs_name = fil_get_real_path(name);
+	auto	abs_name = Fil_path::get_real_path(name);
 
 	/* Duplicates should have been sorted out before we get here. */
 	ut_a(result.second->size() == 1);
@@ -8836,9 +8834,9 @@ fil_tablespace_redo_rename(
 
 	char*	from_name = reinterpret_cast<char*>(ptr);
 
-	os_normalize_path(from_name);
+	Fil_path::normalize(from_name);
 
-	auto	abs_from_name = fil_get_real_path(from_name);
+	auto	abs_from_name = Fil_path::get_real_path(from_name);
 
 	ptr += from_len;
 
@@ -8883,9 +8881,9 @@ fil_tablespace_redo_rename(
 
 	char*	to_name = reinterpret_cast<char*>(ptr);
 
-	os_normalize_path(to_name);
+	Fil_path::normalize(to_name);
 
-	auto	abs_to_name = fil_get_real_path(to_name);
+	auto	abs_to_name = Fil_path::get_real_path(to_name);
 
 	if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
 
@@ -9077,7 +9075,7 @@ fil_tablespace_redo_delete(
 
 	char*	name	= reinterpret_cast<char*>(ptr);
 
-	os_normalize_path(name);
+	Fil_path::normalize(name);
 
 	ptr += len;
 
@@ -9106,7 +9104,9 @@ fil_tablespace_redo_delete(
 
 	ut_a(result.second->size() == 1);
 
-	auto	abs_name = fil_get_real_path(name);
+	auto	abs_name = Fil_path::get_real_path(name);
+
+	ut_ad(abs_name.back() != OS_PATH_SEPARATOR);
 
 	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
 
@@ -9158,46 +9158,28 @@ Tablespace_dirs::tokenize_paths(
 		/* Filter out invalid path components. */
 		if (pos == std::string::npos) {
 
-			os_normalize_path(dir.data());
+			Fil_path::normalize(dir.data());
 
-			std::string	cur_path(dir.data());
+			if (Fil_path::get_file_type(dir.data())
+			    == OS_FILE_TYPE_DIR) {
 
-			os_file_type_t	type;
-			bool		exists;
+				std::string	cur_path;
+				std::string	d{dir.data()};
 
-			if (os_file_status(
-				cur_path.c_str(), &exists, &type) && exists) {
+				cur_path = Fil_path::get_real_path(d.c_str());
 
-				if (type == OS_FILE_TYPE_DIR) {
-
-					std::string	d{cur_path};
-
-					cur_path = fil_get_real_path(d.c_str());
-
-					if (d.back() != OS_PATH_SEPARATOR) {
-						d += OS_PATH_SEPARATOR;
-					}
-
-					if (cur_path.back()
-					    != OS_PATH_SEPARATOR) {
-
-						cur_path += OS_PATH_SEPARATOR;
-					}
-
-					using value = Paths::value_type;
-
-					dirs.push_back(value(d, cur_path));
-
-				} else {
-					ib::warn()
-						<< "'" << path << "' ignored, "
-						<< " not a directory";
+				if (d.back() != OS_PATH_SEPARATOR) {
+					d.push_back(OS_PATH_SEPARATOR);
 				}
+
+				using	value = Paths::value_type;
+
+				dirs.push_back(value(d, cur_path));
 
 			} else {
 				ib::warn()
 					<< "'" << path << "' ignored"
-					<< " os_file_status() failed.";
+					<< ", not a directory.";
 			}
 		} else {
 			ib::warn()
@@ -9552,18 +9534,14 @@ Tablespace_dirs::scan(const std::string& directories)
 			or the undo file name format then store it for
 			determining the space ID. */
 
-			if (Dir_Walker::is_directory(path)) {
-
-				return;
-			}
-
 			ut_a(path.length() > real_path_dir.length());
+			ut_a(Fil_path::get_file_type(path) != OS_FILE_TYPE_DIR);
 
 			/* Make the filename relative to the directory that
 			was scanned. */
 
 			std::string	file = path.substr(
-				real_path_dir.length() + 1, path.length());
+				real_path_dir.length(), path.length());
 
 			if (file.size() <= 4) {
 

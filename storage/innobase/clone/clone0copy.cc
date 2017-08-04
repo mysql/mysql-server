@@ -759,13 +759,15 @@ Clone_Handle::send_file_metadata(
 		ut_ad(file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY);
 		ut_ad(file_meta->m_file_index == 0);
 
-		file_desc.m_file_meta.m_file_name = SRV_BUF_DUMP_FILENAME_DEFAULT;
+		file_desc.m_file_meta.m_file_name =
+			SRV_BUF_DUMP_FILENAME_DEFAULT;
+
 		file_desc.m_file_meta.m_file_name_len
 			= strlen(SRV_BUF_DUMP_FILENAME_DEFAULT) + 1;
 
 	} else if (!fsp_is_ibd_tablespace(
 			static_cast<space_id_t>(file_meta->m_space_id))
-		   && is_absolute_path(file_meta->m_file_name)) {
+		   && Fil_path::is_absolute_path(file_meta->m_file_name)) {
 
 		/* For system tablespace, remove absolute path. */
 		ut_ad(file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY);

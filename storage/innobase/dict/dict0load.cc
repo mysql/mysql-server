@@ -1520,7 +1520,7 @@ dict_get_first_path(
 
 				/* The dictionary may have been written on
 				another OS. */
-				os_normalize_path(filepath);
+				Fil_path::normalize(filepath);
 			}
 		}
 	}

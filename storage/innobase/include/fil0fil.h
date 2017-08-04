@@ -66,7 +66,7 @@ enum fil_type_t : uint8_t {
 };
 
 /** Result of comparing a path. */
-enum class Fil_path {
+enum class Fil_state  {
 	/** The path matches what was found during the scan. */
 	MATCHES,
 
@@ -318,105 +318,190 @@ See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
 #endif /* _WIN32 */
 
 /** Wrapper for a path to a directory that may or may not exist. */
-class Folder {
+class Fil_path {
 public:
-	/** Default constructor */
-	Folder() : m_folder(), m_folder_len(), m_abs_path(), m_abs_len()
-	{}
+	/** Default constructor. Defaults to MySQL_datadir_path.  */
+	Fil_path() : m_path(), m_abs_path() { init(); }
 
 	/** Constructor
-	@param[in]	path	pathname (not necessarily NUL-terminated)
-	@param[in]	len	length of the path, in bytes */
-	Folder(const char* path, size_t len);
+	@param[in]	path		Path, not necessarily NUL terminated
+	@param[in]	len		Length of path */
+	Fil_path(const char* path, size_t len);
 
-	/** Assignment operator
-	@param[in]	path	folder string provided */
-	Folder& operator=(const char* path);
-
-	/** Destructor */
-	~Folder()
-	{
-		ut_free(m_folder);
-	}
+	/** Constructor
+	@param[in]	path	pathname */
+	explicit Fil_path(const std::string& path);
 
 	/** Implicit type conversion
-	@return the wrapped object */
+	@return pointer to m_path.c_str() */
 	operator const char*() const
 	{
-		return(m_folder);
+		return(m_path.c_str());
 	}
 
 	/** Explicit type conversion
-	@return the wrapped object */
+	@return pointer to m_path.c_str() */
 	const char* operator()() const
 	{
-		return(m_folder);
+		return(m_path.c_str());
 	}
 
-	/** return the length of m_folder
-	@return the length of m_folder */
+	/** @return the length of m_path */
 	size_t len() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(m_folder_len);
+		return(m_path.length());
 	}
 
-	/** Determine if this folder is equal to the other folder.
-	@param[in]	other	folder to compare to
-	@return whether the folders are equal */
-	bool operator==(const Folder& other) const
+	/** Determine if this path is equal to the other path.
+	@param[in]	lhs		Path to compare to
+	@return true if the paths are the same */
+	bool operator==(const Fil_path& lhs) const
 	{
-		return(m_abs_len == other.m_abs_len
-		       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
+		return(m_path.compare(lhs.m_path));
 	}
 
-	/** Determine if this folder is an ancestor of (contains)
-	the other folder.
-	@param[in]	other	folder to compare to
-	@return whether this is an ancestor of the other folder */
-	bool operator>(const Folder& other) const
+	/** Check if m_path is the parent of name.
+	@param[in]	name		Path to compare to
+	@return true if m_path is an ancestor of name */
+	bool is_ancestor(const std::string& name) const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(m_abs_len < other.m_abs_len
-		       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
+		return(is_ancestor(m_abs_path, name));
 	}
 
-	/** Determine if the directory referenced by m_folder exists.
-	@return whether the directory exists */
-	bool exists();
+	/** Check if m_path is the parent of other.m_path.
+	@param[in]	other		Path to compare to
+	@return true if m_path is an ancestor of name */
+	bool is_ancestor(const Fil_path& other) const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(is_ancestor(m_abs_path, other.m_abs_path));
+	}
+
+	/** @return true if m_path exists and is a file. */
+	bool is_file_and_exists() const
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** @return true if m_path exists and is a directory. */
+	bool is_directory_and_exists() const
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Return the absolute path */
-	std::string abs_path() const
+	const std::string& abs_path() const
+		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(std::string(m_abs_path, m_abs_len));
+		return(m_abs_path);
+	}
+
+	/** @return true if the path is an absolute path. */
+	bool is_absolute_path() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+
+#ifdef _WIN32
+		/* Windows minimum absolute path length is 'A:\' */
+		if (m_path.length() < 2) {
+			return(false);
+		}
+#endif /* _WIN32 */
+
+		ut_a(m_path.length() >= 1);
+
+		return(is_absolute_path(m_path.c_str()));
+	}
+
+	/** Determine if a path is an absolute path or not.
+	@param[in]	path		OS directory or file path to evaluate
+	@retval true if an absolute path
+	@retval false if a relative path */
+	static bool is_absolute_path(const char* path)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		if (path[0] == OS_PATH_SEPARATOR) {
+			return(true);
+		}
+
+#ifdef _WIN32
+		// FIXME: This doesn't look right. path can be "."
+		if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+			return(true);
+		}
+#endif /* _WIN32 */
+
+		return(false);
+	}
+
+	/** Normalizes a directory path for the current OS:
+	On Windows, we convert '/' to '\', else we convert '\' to '/'.
+	@param[in,out]	path	Directory and file path */
+	static void normalize(std::string& path)
+	{
+		for (auto& c : path) {
+			if (c == OS_PATH_SEPARATOR_ALT) {
+				c = OS_PATH_SEPARATOR;
+			}
+		}
+	}
+
+	/** Normalizes a directory path for the current OS:
+	On Windows, we convert '/' to '\', else we convert '\' to '/'.
+	@param[in,out] str A null-terminated directory and file path */
+	static void normalize(char* path)
+	{
+		for (auto ptr = path; *ptr; ++ptr) {
+
+			if (*ptr == OS_PATH_SEPARATOR_ALT) {
+				*ptr = OS_PATH_SEPARATOR;
+			}
+		}
+	}
+
+	/** @return true if the path exists and is a file . */
+	static os_file_type_t get_file_type(const std::string& path)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Get the real path for a file name, useful for comparing
+	symlinked files.
+	@param[in]	dir		Directory
+	@param[in]	filename	Filename without directory prefix
+	@return the absolute path of dir + filename */
+	static std::string get_real_path(
+		const char*		dir,
+		const std::string&	filename = "")
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if lhs is the ancestor of rhs. If the two paths are the
+	same it will return false.
+	@param[in]	lhs		Parent path to check
+	@param[in]	rhs		Descendent path to check
+	@return true if lhs is an ancestor of rhs */
+	static bool is_ancestor(const std::string& lhs, const std::string& rhs)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		if (rhs.length() <= lhs.length()) {
+			return(false);
+		}
+
+		return(std::equal(lhs.begin(), lhs.end(), rhs.begin()));
 	}
 
 private:
-	/** Build the basic folder name from the path and length provided
-	@param[in]	path	pathname (not necessarily NUL-terminated)
-	@param[in]	len	length of the path, in bytes */
-	inline void make_path(const char* path, size_t len);
+	/** Set the real path */
+	void init();
 
-	/** Resolve a relative path in m_folder to an absolute path
-	in m_abs_path setting m_abs_len. */
-	void make_abs_path();
-
-	/** The wrapped folder string */
-	char*	m_folder;
-
-	/** Length of m_folder */
-	size_t	m_folder_len;
+private:
+	/** Path to a file or directory. */
+	std::string		m_path;
 
 	/** A full absolute path to the same file. */
-	char	m_abs_path[FN_REFLEN + 2];
-
-	/** Length of m_abs_path to the deepest folder */
-	size_t	m_abs_len;
+	std::string		m_abs_path;
 };
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
-extern const char*	fil_path_to_mysql_datadir;
-extern Folder		folder_mysql_datadir;
+extern Fil_path		MySQL_datadir_path;
 
 /** Initial size of a single-table tablespace in pages */
 constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE = 6;
@@ -1493,7 +1578,7 @@ fil_tablespace_lookup_for_recovery(space_id_t space_id)
 @param[in]	path		Path in the data dictionary
 @param[out]	new_path	New path if scanned path not equal to path
 @return status of the match. */
-Fil_path
+Fil_state
 fil_tablespace_path_equals(
 	dd::Object_id	object_id,
 	space_id_t	space_id,

@@ -1979,8 +1979,8 @@ test_os_file_get_parent_dir(
 
 	/* os_file_get_parent_dir() assumes that separators are
 	converted to OS_PATH_SEPARATOR. */
-	os_normalize_path(child);
-	os_normalize_path(expected);
+	Fil_path::normalize(child);
+	Fil_path::normalize(expected);
 
 	char* parent = os_file_get_parent_dir(child);
 
@@ -2935,7 +2935,7 @@ AIO::is_linux_native_aio_supported()
 		}
 	} else {
 
-		os_normalize_path(srv_log_group_home_dir);
+		Fil_path::normalize(srv_log_group_home_dir);
 
 		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 
@@ -3214,6 +3214,9 @@ os_file_status_posix(
 		return(true);
 
 	} else {
+
+		*type = OS_FILE_TYPE_FAILED;
+
 		/* file exists, but stat call failed */
 		os_file_handle_error_no_exit(path, "stat", false);
 		return(false);
@@ -4044,7 +4047,9 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 			continue;
 		}
 
-		f(current.m_path, current.m_depth);
+		if (!is_directory(current.m_path)) {
+			f(current.m_path, current.m_depth);
+		}
 
 		struct dirent*	dirent = nullptr;
 
@@ -4068,7 +4073,7 @@ Dir_Walker::walk_posix(const Path& basedir, Function&& f)
 				path += OS_PATH_SEPARATOR;
 			}
 
-			os_normalize_path(dirent->d_name);
+			Fil_path::normalize(dirent->d_name);
 
 			path.append(dirent->d_name);
 
@@ -10047,23 +10052,6 @@ bool Encryption::check_keyring()
 
 	return(ret);
 }
-
-/** Normalizes a directory path for the current OS:
-On Windows, we convert '/' to '\', else we convert '\' to '/'.
-@param[in,out] str A null-terminated directory and file path */
-void
-os_normalize_path(
-	char*	str)
-{
-	if (str != NULL) {
-		for (; *str; str++) {
-			if (*str == OS_PATH_SEPARATOR_ALT) {
-				*str = OS_PATH_SEPARATOR;
-			}
-		}
-	}
-}
-
 
 /** Check if the path is a directory. The file/directory must exist.
 @param[in]	path		The path to check
