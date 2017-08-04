@@ -4916,13 +4916,10 @@ int ha_partition::rnd_pos(uchar * buf, uchar *pos)
 int ha_partition::rnd_pos_by_record(uchar *record)
 {
   DBUG_ENTER("ha_partition::rnd_pos_by_record");
-
   if (unlikely(get_part_for_delete(record, m_rec0, m_part_info, &m_last_part)))
     DBUG_RETURN(1);
-
-  DBUG_RETURN(handler::rnd_pos_by_record(record));
+  DBUG_RETURN(m_file[m_last_part]->rnd_pos_by_record(record));
 }
-
 
 /****************************************************************************
                 MODULE index scan
