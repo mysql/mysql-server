@@ -28,7 +28,6 @@
 #include "derror.h"                           // ER_THD
 #include "error_handler.h"
 #include "field.h"
-#include "hash.h"
 #include "item.h"
 #include "lex_string.h"
 #include "m_ctype.h"

@@ -350,7 +350,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
          sl= sl->outer_select())
       sl->master_unit()->item->set_aggregation();
 
-    base_select->mark_as_dependent(aggr_select);
+    base_select->mark_as_dependent(aggr_select, true);
   }
 
   if (in_sum_func)
@@ -412,7 +412,7 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
 : super(pos), m_window(w), m_window_resolved(false), next(NULL),
   arg_count(opt_list == NULL ? 0 : opt_list->elements()),
   args(nullptr),
-  forced_const(FALSE)
+  used_tables_cache(0), forced_const(false)
 {
   if (arg_count > 0)
   {
@@ -713,7 +713,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table)
 }
 
 
-void Item_sum::update_used_tables ()
+void Item_sum::update_used_tables()
 {
   if (!forced_const)
   {
@@ -729,18 +729,18 @@ void Item_sum::update_used_tables ()
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
-
     /*
-     if the function is aggregated into its local context, it can
-     be calculated only after evaluating the full join, thus it
-     depends on all tables of this join. Otherwise, it depends on
-     outer tables, even if its arguments args[] do not explicitly
-     reference an outer table, like COUNT (*) or COUNT(123).
+      If the function is aggregated into its local context, it can
+      be calculated only after evaluating the full join, thus it
+      depends on all tables of this join. Otherwise, it depends on
+      outer tables, even if its arguments args[] do not explicitly
+      reference an outer table, like COUNT (*) or COUNT(123).
     */
     if (!m_is_window_function)
-      used_tables_cache|= aggr_select == base_select ?
-      ((table_map)1 << aggr_select->leaf_table_count) - 1 :
-      OUTER_REF_TABLE_BIT;
+      used_tables_cache|=
+        aggr_select == base_select ?
+            base_select->all_tables_map() :
+          OUTER_REF_TABLE_BIT;
   }
 }
 
@@ -6755,6 +6755,9 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref)
 
   if (Item_func::fix_fields(thd, ref))
     return true;
+
+  // Make GROUPING function dependent upon all tables (prevents const-ness)
+  used_tables_cache|= thd->lex->current_select()->all_tables_map();
 
   /*
     More than 64 args cannot be supported as the bitmask which is

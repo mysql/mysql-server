@@ -117,8 +117,7 @@ Item::Item():
   unsigned_flag(false),
   m_is_window_function(false),
   derived_used(false),
-  m_accum_properties(0),
-  tables_locked_cache(false)
+  m_accum_properties(0)
 {
 #ifndef DBUG_OFF
   contextualized= true;
@@ -151,8 +150,7 @@ Item::Item(THD *thd, Item *item):
   unsigned_flag(item->unsigned_flag),
   m_is_window_function(item->m_is_window_function),
   derived_used(item->derived_used),
-  m_accum_properties(item->m_accum_properties),
-  tables_locked_cache(item->tables_locked_cache)
+  m_accum_properties(item->m_accum_properties)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(item->contextualized);
@@ -183,8 +181,7 @@ Item::Item(const POS &):
   unsigned_flag(false),
   m_is_window_function(false),
   derived_used(false),
-  m_accum_properties(0),
-  tables_locked_cache(false)
+  m_accum_properties(0)
 {
 }
 
@@ -793,7 +790,6 @@ void Item::cleanup()
   DBUG_ENTER("Item::cleanup");
   fixed=0;
   marker= 0;
-  tables_locked_cache= false;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;
@@ -1022,6 +1018,14 @@ bool Item_direct_view_ref::check_column_privileges(uchar *arg)
   return false;
 }
 
+
+bool Item::may_evaluate_const(THD *thd) const
+{
+  return !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+         (const_item() ||
+          (const_for_execution() && thd->lex->is_query_tables_locked()));
+}
+
 bool Item::check_cols(uint c)
 {
   if (c != 1)
@@ -1114,9 +1118,9 @@ bool Item::eq(const Item *item, bool) const
 }
 
 
-Item *Item::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs)
 {
-  Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
+  Item_func_conv_charset *conv= new Item_func_conv_charset(thd, this, tocs, 1);
   return conv && conv->safe ? conv : NULL;
 }
 
@@ -1132,7 +1136,7 @@ Item *Item::safe_charset_converter(const CHARSET_INFO *tocs)
   the latter returns a non-fixed Item, so val_str() crashes afterwards.
   Override Item_num method, to return a fixed item.
 */
-Item *Item_num::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_num::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs)
 {
   /*
     Item_num returns pure ASCII result,
@@ -1162,7 +1166,7 @@ Item *Item_num::safe_charset_converter(const CHARSET_INFO *tocs)
     */
     return NULL;
   }
-  if (!(ptr= current_thd->strmake(cstr.ptr(), cstr.length())))
+  if (!(ptr= thd->strmake(cstr.ptr(), cstr.length())))
     return NULL;
   conv->str_value.set(ptr, cstr.length(), cstr.charset());
   /* Ensure that no one is going to change the result string */
@@ -1172,7 +1176,7 @@ Item *Item_num::safe_charset_converter(const CHARSET_INFO *tocs)
 }
 
 
-Item *Item_func_pi::safe_charset_converter(const CHARSET_INFO*)
+Item *Item_func_pi::safe_charset_converter(THD *, const CHARSET_INFO *)
 {
   Item_string *conv;
   char buf[64];
@@ -1188,7 +1192,7 @@ Item *Item_func_pi::safe_charset_converter(const CHARSET_INFO*)
 }
 
 
-Item *Item_string::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs)
 {
   return charset_converter(tocs, true);
 }
@@ -1231,9 +1235,9 @@ Item *Item_string::charset_converter(const CHARSET_INFO *tocs, bool lossless)
 }
 
 
-Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_param::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs)
 {
-  if (const_item())
+  if (may_evaluate_const(thd))
   {
     Item *cnvitem;
     String tmp, cstr, *ostr= val_str(&tmp);
@@ -1262,12 +1266,12 @@ Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
     }
     return cnvitem;
   }
-  return Item::safe_charset_converter(tocs);
+  return Item::safe_charset_converter(thd, tocs);
 }
 
 
 Item *Item_static_string_func::
-safe_charset_converter(const CHARSET_INFO *tocs)
+safe_charset_converter(THD *, const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -2177,7 +2181,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     /* Will split complicated items and ignore simple ones */
     split_sum_func(thd, ref_item_array, fields);
   }
-  else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
+  else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&
            (type() != SUBSELECT_ITEM ||
             (down_cast<Item_subselect*>(this))->substype() ==
               Item_subselect::SINGLEROW_SUBS) &&
@@ -2189,7 +2193,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       it (in case of sum functions) or copy it (in case of fields)
 
       The test above is to ensure we don't do a reference for things
-      that are constants (PARAM_TABLE_BIT is in effect a constant)
+      that are constants (INNER_TABLE_BIT is in effect a constant)
       or already referenced (for example an item in HAVING)
       Exception is Item_direct_view_ref which we need to wrap in
       Item_ref to allow fields from view being stored in tmp table.
@@ -2540,13 +2544,13 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
         !(coll.collation->state & MY_CS_NONASCII))
       continue;
 
-    Item *conv= (*arg)->safe_charset_converter(coll.collation);
+    Item *conv= (*arg)->safe_charset_converter(thd, coll.collation);
     // @todo - check why the constructors may return error
     if (thd->is_error())
       return true;
     if (conv == NULL &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+      conv= new Item_func_conv_charset(thd, *arg, coll.collation, 1);
 
     if (conv == NULL)
     {
@@ -3738,7 +3742,7 @@ bool Item_null::val_json(Json_wrapper*)
 }
 
 
-Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_null::safe_charset_converter(THD *, const CHARSET_INFO *tocs)
 {
   collation.set(tocs);
   return this;
@@ -4442,14 +4446,6 @@ bool Item_param::convert_str_value(THD *thd)
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
   }
   return rc;
-}
-
-
-bool Item_param::basic_const_item() const
-{
-  if (state == NO_VALUE || state == TIME_VALUE)
-    return FALSE;
-  return TRUE;
 }
 
 
@@ -5235,7 +5231,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   resolved_item->depended_from= last;
   DBUG_ASSERT(resolved_item->context->select_lex == current);
 
-  current->mark_as_dependent(last);
+  current->mark_as_dependent(last, false);
   if (thd->lex->describe)
   {
     /*
@@ -5295,7 +5291,7 @@ void mark_select_range_as_dependent(THD *thd,
     Item_subselect *prev_subselect_item=
       previous_select->master_unit()->item;
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= 0;
+    prev_subselect_item->const_item_cache= false;
   }
   {
     Item_subselect *prev_subselect_item=
@@ -5316,7 +5312,7 @@ void mark_select_range_as_dependent(THD *thd,
     else
       prev_subselect_item->used_tables_cache|=
         found_field->table->pos_in_table_list->map();
-    prev_subselect_item->const_item_cache= 0;
+    prev_subselect_item->const_item_cache= false;
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
   }
@@ -5676,7 +5672,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         {
           prev_subselect_item->used_tables_cache|=
             (*from_field)->table->pos_in_table_list->map();
-          prev_subselect_item->const_item_cache= 0;
+          prev_subselect_item->const_item_cache= false;
           set_field(*from_field);
 
           if (!last_checked_context->select_lex->having_fix_field &&
@@ -5801,7 +5797,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
       case it does not matter which used tables bits we set)
     */
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= 0;
+    prev_subselect_item->const_item_cache= false;
   }
 
   DBUG_ASSERT(ref != 0);
@@ -6157,10 +6153,10 @@ error:
   return true;
 }
 
-Item *Item_field::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs)
 {
   no_const_subst= 1;
-  return Item::safe_charset_converter(tocs);
+  return Item::safe_charset_converter(thd, tocs);
 }
 
 
@@ -6537,34 +6533,6 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
     item->collation.collation= save_item_cs;
   return res;
 }  
-
-
-/**
-  Check if it is OK to evaluate the item now.
-
-  @return true if the item can be evaluated in the current statement state.
-    @retval true  The item can be evaluated now.
-    @retval false The item can not be evaluated now,
-                  (i.e. depend on non locked table).
-
-  @note Help function to avoid optimize or exec call during prepare phase.
-*/
-
-bool Item::can_be_evaluated_now() const
-{
-  DBUG_ENTER("Item::can_be_evaluated_now");
-
-  if (tables_locked_cache)
-    DBUG_RETURN(true);
-
-  if (has_subquery() || has_stored_program())
-    const_cast<Item*>(this)->tables_locked_cache=
-                               current_thd->lex->is_query_tables_locked();
-  else
-    const_cast<Item*>(this)->tables_locked_cache= true;
-
-  DBUG_RETURN(tables_locked_cache);
-}
 
 
 /**
@@ -7044,7 +7012,7 @@ Item_decimal::save_in_field_inner(Field *field, bool)
 
 bool Item_int::eq(const Item *arg, bool) const
 {
-  /* No need to check for null value as basic constant can't be NULL */
+  // No need to check for null value as integer constant can't be NULL
   if (arg->basic_const_item() && arg->type() == type())
   {
     /*
@@ -7419,7 +7387,7 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_hex_string::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_hex_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   String tmp, *str= val_str(&tmp);
@@ -7795,7 +7763,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
       Cache constant items unless it's a basic constant, constant field or
       a subquery (they use their own cache), or it is already cached.
     */
-    if (const_item() &&
+    if (const_for_execution() &&
         !(basic_const_item() || item->basic_const_item() ||
           item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
@@ -7804,9 +7772,12 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
              Do not cache GET_USER_VAR() function as its const_item() may
              return TRUE for the current thread but it still may change
              during the execution.
+             Do not cache TRIG_COND_FUNC as it must be evaluated in join
+             processing.
            */
           (item->type() == Item::FUNC_ITEM &&
-           ((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC)))
+           (((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC ||
+            ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC))))
       /*
         Note that we use cache_item as a flag (NULL vs non-NULL), but we
         are storing the pointer so that we can assert that we cache the
@@ -8388,7 +8359,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             }
             prev_subselect_item->used_tables_cache|=
               from_field->table->pos_in_table_list->map();
-            prev_subselect_item->const_item_cache= 0;
+            prev_subselect_item->const_item_cache= false;
             break;
           }
         }
@@ -8396,7 +8367,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         /* Reference is not found => depend on outer (or just error). */
         prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-        prev_subselect_item->const_item_cache= 0;
+        prev_subselect_item->const_item_cache= false;
 
         outer_context= outer_context->outer_context;
       } while (outer_context);
@@ -9647,7 +9618,6 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     break;
   }
   case ROW_RESULT:
-  if (item->type() == Item::ROW_ITEM && comp_item->type() == Item::ROW_ITEM)
   {
     /*
       Substitute constants only in Item_rows. Don't affect other Items
@@ -9657,6 +9627,9 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
       it with Item_row. This would optimize queries like this:
       SELECT * FROM t1 WHERE (a,b) = (SELECT a,b FROM t2 LIMIT 1);
     */
+    if (!(item->type() == Item::ROW_ITEM &&
+          comp_item->type() == Item::ROW_ITEM))
+      return false;
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
     /*
@@ -9674,7 +9647,6 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
         return true;
     break;
   }
-  /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();

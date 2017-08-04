@@ -1923,7 +1923,8 @@ char *Item_func_password::
   return buff;
 }
 
-Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(THD *,
+                                                 const CHARSET_INFO *tocs)
 {
   uint conv_errors;
   String tmp, cstr, *ostr= val_str(&tmp);

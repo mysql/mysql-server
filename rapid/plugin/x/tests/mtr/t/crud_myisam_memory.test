@@ -9,14 +9,12 @@
 ##  - delete message                                                 #
 #######################################################################
 
-
+--source include/xplugin_preamble.inc
 --source include/have_myisam.inc
 
 SET @start_global_value = @@global.default_storage_engine;
 SELECT @start_global_value;
 SET @@global.default_storage_engine = myisam;
-
---source include/xplugin_preamble.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp

@@ -43,7 +43,6 @@
 #include "error_handler.h"                  // Internal_error_handler
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
-#include "hash.h"
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "item_create.h"

@@ -20,14 +20,15 @@
 #ifndef _NGS_PROTOCOL_ENCODER_H_
 #define _NGS_PROTOCOL_ENCODER_H_
 
+#include <vector>
+#include <map>
+
 #include "ngs/protocol/message.h"
 #include "ngs/protocol/page_pool.h"
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/interface/protocol_encoder_interface.h"
 #include "ngs/error_code.h"
 #include "ngs/memory.h"
-#include <vector>
-#include <map>
 
 #include "ngs/protocol_fwd.h"
 #include "ngs_common/smart_ptr.h"

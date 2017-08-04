@@ -6995,6 +6995,27 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
     Slave_worker *w= *it;
+    mysql_mutex_lock(&w->jobs_lock);
+    while (w->running_status != Slave_worker::NOT_RUNNING)
+    {
+      PSI_stage_info old_stage;
+      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
+                  w->running_status == Slave_worker::STOP ||
+                  w->running_status == Slave_worker::STOP_ACCEPTED);
+
+      thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
+                      &stage_slave_waiting_workers_to_exit, &old_stage);
+      mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
+      mysql_mutex_unlock(&w->jobs_lock);
+      thd->EXIT_COND(&old_stage);
+      mysql_mutex_lock(&w->jobs_lock);
+    }
+    mysql_mutex_unlock(&w->jobs_lock);
+  }
+
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
+  {
+    Slave_worker *w= *it;
 
     /*
       Make copies for reporting through the performance schema tables.
@@ -7018,26 +7039,6 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
-  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
-  {
-    Slave_worker *w= *it;
-    mysql_mutex_lock(&w->jobs_lock);
-    while (w->running_status != Slave_worker::NOT_RUNNING)
-    {
-      PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
-                  w->running_status == Slave_worker::STOP ||
-                  w->running_status == Slave_worker::STOP_ACCEPTED);
-
-      thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
-                      &stage_slave_waiting_workers_to_exit, &old_stage);
-      mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
-      mysql_mutex_unlock(&w->jobs_lock);
-      thd->EXIT_COND(&old_stage);
-      mysql_mutex_lock(&w->jobs_lock);
-    }
-    mysql_mutex_unlock(&w->jobs_lock);
-  }
 
   if (thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function

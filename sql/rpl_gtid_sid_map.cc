@@ -18,7 +18,6 @@
 #include <string.h>
 
 #include "control_events.h"
-#include "hash.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

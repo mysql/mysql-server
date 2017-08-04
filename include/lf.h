@@ -27,7 +27,6 @@
 
 #include <atomic>
 
-#include "hash.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/psi/mysql_statement.h"
@@ -165,6 +164,18 @@ typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;
+
+/**
+  Callback for extracting key and key length from user data in a LF_HASH.
+  @param      arg    Pointer to user data.
+  @param[out] length Store key length here.
+  @return            Pointer to key to be hashed.
+
+  @note Was my_hash_get_key, with lots of C-style casting when calling
+        my_hash_init. Renamed to force build error (since signature changed)
+        in case someone keeps following that coding style.
+ */
+typedef const uchar *(*hash_get_key_function)(const uchar *arg, size_t *length);
 
 typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */

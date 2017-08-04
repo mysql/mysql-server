@@ -21,7 +21,6 @@
 
 #include "current_thd.h"
 #include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"

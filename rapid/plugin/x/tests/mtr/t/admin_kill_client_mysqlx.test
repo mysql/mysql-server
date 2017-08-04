@@ -1,10 +1,9 @@
-
 ## Kill client
+
+--source include/xplugin_preamble.inc
 
 create user unpriv@localhost;
 set password for unpriv@localhost = password('x');
-
---source include/xplugin_preamble.inc
 
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.tmp

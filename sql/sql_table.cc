@@ -3955,7 +3955,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
       pointer in the parsed tree of a prepared statement or a
       stored procedure statement.
     */
-    sql_field->def= sql_field->def->safe_charset_converter(save_cs);
+    sql_field->def= sql_field->def->safe_charset_converter(thd, save_cs);
 
     if (sql_field->def == NULL)
     {

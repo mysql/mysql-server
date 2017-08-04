@@ -3340,6 +3340,7 @@ func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
+		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }

@@ -24,7 +24,6 @@
 #include <unordered_map>
 
 #include "handler.h"
-#include "hash.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"

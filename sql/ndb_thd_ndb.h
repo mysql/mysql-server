@@ -18,7 +18,6 @@
 #ifndef NDB_THD_NDB_H
 #define NDB_THD_NDB_H
 
-#include "hash.h"             // HASH
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
 #include "map_helpers.h"
 #include "my_base.h"          // ha_rows

@@ -23,9 +23,9 @@
 #include <assert.h>
 
 #include "interface/authentication_interface.h"
-#include "my_inttypes.h"
 #include "interface/session_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
+#include "interface/protocol_encoder_interface.h"
+#include "my_inttypes.h"
 #include "ngs/thread.h"
 
 namespace ngs
@@ -38,23 +38,23 @@ namespace ngs
     typedef int32_t Session_id;
 
     Session(Client_interface &client, Protocol_encoder_interface *proto, const Session_id session_id);
-    virtual ~Session();
+    ~Session() override;
 
-    virtual Session_id session_id() const { return m_id; }
+    Session_id session_id() const override { return m_id; }
     virtual bool is_ready() const;
 
   public:
-    virtual void on_close(const bool update_old_state = false);
-    virtual void on_kill();
-    virtual void on_auth_success(const Authentication_interface::Response &response);
-    virtual void on_auth_failure(const Authentication_interface::Response &response);
+    void on_close(const bool update_old_state = false) override;
+    void on_kill() override;
+    void on_auth_success(const Authentication_interface::Response &response) override;
+    void on_auth_failure(const Authentication_interface::Response &response) override;
 
     // handle a single message, returns true if message was handled false if not
-    virtual bool handle_message(ngs::Request &command);
+    bool handle_message(ngs::Request &command) override;
 
-    Client_interface &client() { return m_client; }
+    Client_interface &client() override { return m_client; }
 
-    Protocol_encoder_interface &proto() { return *m_encoder; }
+    Protocol_encoder_interface &proto() override { return *m_encoder; }
 
   protected:
     virtual bool handle_auth_message(ngs::Request &command);
@@ -63,8 +63,8 @@ namespace ngs
     void stop_auth();
 
   public:
-    State state() const { return m_state; }
-    State state_before_close() const { return m_state_before_close; }
+    State state() const override { return m_state; }
+    State state_before_close() const override { return m_state_before_close; }
 
   protected:
     Client_interface &m_client;

@@ -763,7 +763,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
 
   if (contextualize_array(&pc, &join_table_list))
     return NULL;
-  select->parsing_place= CTX_UPDATE_VALUE_LIST;
+  select->parsing_place= CTX_UPDATE_VALUE;
 
   if (column_list->contextualize(&pc) ||
       value_list->contextualize(&pc))
@@ -773,7 +773,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
   select->item_list= column_list->value;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE_LIST);
+  DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
   select->parsing_place= CTX_NONE;
   const bool is_multitable= select->table_list.elements > 1;
   lex->sql_command= is_multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
@@ -901,8 +901,13 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   }
   else
   {
+    pc.select->parsing_place= CTX_INSERT_VALUES;
     if (row_value_list->contextualize(&pc))
       return NULL;
+    // Ensure we're resetting parsing context of the right select
+    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_VALUES);
+    pc.select->parsing_place= CTX_NONE;
+
     lex->bulk_insert_row_cnt= row_value_list->get_many_values().elements;
   }
 
@@ -919,14 +924,14 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
     if (first_table->lock_descriptor().type == TL_WRITE_CONCURRENT_DEFAULT)
       first_table->set_lock({TL_WRITE_DEFAULT, THR_DEFAULT});
 
-    pc.select->parsing_place= CTX_UPDATE_VALUE_LIST;
+    pc.select->parsing_place= CTX_INSERT_UPDATE;
 
     if (opt_on_duplicate_column_list->contextualize(&pc) ||
         opt_on_duplicate_value_list->contextualize(&pc))
       return NULL;
 
     // Ensure we're resetting parsing context of the right select
-    DBUG_ASSERT(pc.select->parsing_place == CTX_UPDATE_VALUE_LIST);
+    DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_UPDATE);
     pc.select->parsing_place= CTX_NONE;
   }
 

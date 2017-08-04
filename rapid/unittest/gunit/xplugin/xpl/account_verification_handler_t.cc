@@ -23,6 +23,7 @@
 #include "mock/session.h"
 #include "sql_user_require.h"
 #include "xpl_resultset.h"
+#include "one_row_resultset.h"
 
 namespace xpl {
 
@@ -51,7 +52,7 @@ const char *const WRONG_AUTH_PLUGIN_NAME = "wrong_password";
 class User_verification_test : public Test {
  public:
   StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<xpl::test::Mock_session> mock_session{&mock_client};
+  StrictMock<ngs::test::Mock_session> mock_session;
   StrictMock<ngs::test::Mock_connection> mock_connection;
   ngs::IOptions_session_ptr mock_options{
       new StrictMock<ngs::test::Mock_options_session>()};
@@ -62,35 +63,15 @@ class User_verification_test : public Test {
       &mock_session, ngs::Account_verification_interface::Account_native,
       mock_account_verification};
 
-  class One_row_resultset : public xpl::Collect_resultset {
-   public:
-    struct Init {
-      Init(const bool v) : field(v, true), type(MYSQL_TYPE_LONGLONG) {}
-      Init(const char *v) : field(v, strlen(v)), type(MYSQL_TYPE_STRING) {}
-      const xpl::Collect_resultset::Field field;
-      const enum_field_types type;
-    };
-    One_row_resultset(std::initializer_list<Init> values) {
-      xpl::Collect_resultset::Field_types types;
-      xpl::Collect_resultset::Row_list rows(1);
-      for (const Init &v : values) {
-        types.push_back({v.type, 0});
-        rows.begin()->fields.push_back(ngs::allocate_object<Field_value>(v.field));
-      }
-      set_field_types(types);
-      set_row_list(rows);
-    }
-  };
+  void SetUp() {
+    EXPECT_CALL(mock_session, data_context())
+        .WillRepeatedly(ReturnRef(mock_sql_data_context));
+    EXPECT_CALL(mock_session, client())
+        .WillRepeatedly(ReturnRef(mock_client));
+  }
 };
 
-ACTION_P(SetUpResultset, init_data) {
-  static_cast<xpl::Collect_resultset&>(*arg2) = init_data;
-}
-
 TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
-  EXPECT_CALL(mock_session, data_context())
-      .WillOnce(ReturnRef(mock_sql_data_context));
-
   One_row_resultset data{
       NOT REQUIRE_SECURE_TRANSPORT, EXPECTED_HASH,
       AUTH_PLUGIN_NAME,             NOT ACCOUNT_LOCKED,
@@ -116,9 +97,6 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
 TEST_F(User_verification_test, forwards_error_from_query_execution) {
   const ngs::Error_code expected_error(ER_DATA_OUT_OF_RANGE, "");
 
-  EXPECT_CALL(mock_session, data_context())
-      .WillOnce(ReturnRef(mock_sql_data_context));
-
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(Return(expected_error));
 
@@ -127,9 +105,6 @@ TEST_F(User_verification_test, forwards_error_from_query_execution) {
 }
 
 TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
-  EXPECT_CALL(mock_session, data_context())
-      .WillOnce(ReturnRef(mock_sql_data_context));
-
   One_row_resultset data{
       NOT REQUIRE_SECURE_TRANSPORT, NOT_EXPECTED_HASH,
       AUTH_PLUGIN_NAME,             NOT ACCOUNT_LOCKED,
@@ -161,9 +136,6 @@ class User_verification_param_test : public User_verification_test,
 
 TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
   const Test_param &param = GetParam();
-
-  EXPECT_CALL(mock_session, data_context())
-      .WillOnce(ReturnRef(mock_sql_data_context));
 
   One_row_resultset data{
       NOT REQUIRE_SECURE_TRANSPORT, EXPECTED_HASH,
@@ -223,9 +195,6 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
 
   EXPECT_CALL(*mock_account_verification,
               verify_authentication_string(_, _)).WillOnce(Return(true));
-
-  EXPECT_CALL(mock_session, data_context())
-      .WillOnce(ReturnRef(mock_sql_data_context));
 
   One_row_resultset data{param.requires_secure, EXPECTED_HASH,
                  AUTH_PLUGIN_NAME,      NOT ACCOUNT_LOCKED,

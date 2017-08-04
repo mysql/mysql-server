@@ -33,7 +33,6 @@
 #include "binlog.h"                     /* mysql_bin_log.is_open() */
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item_func.h"                  /* mqh_used */
 #include "key.h"                        /* key_copy, key_cmp_if_same */
 #include "lex_string.h"

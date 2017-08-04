@@ -2698,11 +2698,13 @@ lock_grant_vats(
 	ut_ad(in_lock->is_record_lock());
 
 	/* Preallocate for 4 lists with 32 locks. */
-	auto	heap = mem_heap_create(sizeof(Locks::value_type) * 32 * 4);
+	std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)>
+		heap(mem_heap_create(sizeof(Locks::value_type) * 32 * 4),
+		     mem_heap_free);
 
 	RecID	rec_id{in_lock, heap_no};
-	Locks	waiting{Locks::allocator_type{heap}};
-	Locks	granted{Locks::allocator_type{heap}};
+	Locks	waiting{Locks::allocator_type{heap.get()}};
+	Locks	granted{Locks::allocator_type{heap.get()}};
 
 	ulint		seq = 0;
 	const auto	in_trx = in_lock->trx;
@@ -2729,7 +2731,6 @@ lock_grant_vats(
 
 	if (waiting.empty() && granted.empty()) {
 		/* Nothing to grant. */
-		mem_heap_free(heap);
 		return;
 	}
 
@@ -2739,8 +2740,8 @@ lock_grant_vats(
 	int32_t	sub_age = 0;
 	int32_t	add_age = 0;
 
-	Locks	new_granted{Locks::allocator_type{heap}};
-	Locks	granted_all{granted, Locks::allocator_type{heap}};
+	Locks	new_granted{Locks::allocator_type{heap.get()}};
+	Locks	granted_all{granted, Locks::allocator_type{heap.get()}};
 
 	/* New granted locks will be added from this index. */
 	auto	new_granted_index = granted.size();
@@ -2843,8 +2844,6 @@ lock_grant_vats(
 			lock_update_trx_age(trx, add_age + age_compensate);
 		}
 	}
-
-	mem_heap_free(heap);
 }
 
 /** Removes a record lock request, waiting or granted, from the queue and
@@ -6933,8 +6932,13 @@ lock_get_psi_event(
 	ulonglong*	thread_id,
 	ulonglong*	event_id)
 {
+#if defined(HAVE_PSI_THREAD_INTERFACE) && defined(HAVE_PSI_DATA_LOCK_INTERFACE)
 	*thread_id = lock->m_psi_internal_thread_id;
 	*event_id = lock->m_psi_event_id;
+#else
+	*thread_id = 0;
+	*event_id = 0;
+#endif
 }
 
 /** Get the first lock of a trx lock list.

@@ -23,7 +23,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "hash.h"                   // my_hash_value_type
 #include "lex_string.h"
 #include "m_string.h"
 #include "malloc_allocator.h"

@@ -1034,26 +1034,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   // This flag is used only for INSERT, make sure it is clear
   lex->in_update_value_clause= false;
 
-  /*
-    For subqueries in VALUES() we should not see the table in which we are
-    inserting (for INSERT ... SELECT this is done by changing table_list,
-    because INSERT ... SELECT share SELECT_LEX it with SELECT.
-  */
-  if (!select_insert)
-  {
-    for (SELECT_LEX_UNIT *un= select->first_inner_unit();
-         un;
-         un= un->next_unit())
-    {
-      for (SELECT_LEX *sl= un->first_select();
-           sl;
-           sl= sl->next_select())
-      {
-        sl->context.outer_context= NULL;
-      }
-    }
-  }
-
   // first_select_table is the first table after the table inserted into
   TABLE_LIST *const first_select_table= table_list->next_local;
 
@@ -1239,18 +1219,58 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
       DBUG_RETURN(true);         /* purecov: inspected */
   }
 
+  /*
+    In ON DUPLICATE KEY clause, it is possible to refer to fields from
+    the selected tables also, if the query expression is not a VALUES clause,
+    not a UNION and the query block is not explicitly grouped.
+
+    This has implications if ON DUPLICATE KEY values contain subqueries,
+    due to the way SELECT_LEX::apply_local_transforms() is called: it is
+    usually triggered only on the outer-most query block. Such subqueries
+    are attached to the last query block of the INSERT statement (relevant if
+    this is an INSERT statement with a query expression containing UNION).
+
+    If the query is INSERT VALUES, processing is quite simple:
+    - resolve VALUES expressions (above)
+    - resolve ON DUPLICATE KEY values with same name resolution context.
+    - call apply_local_transforms() on outer query block.
+
+    If the query is INSERT SELECT and the query expression contains UNION,
+    processing is performed as follows:
+    - resolve ON DUPLICATE KEY expressions with same name resolution context.
+      In this case, it is OK to resolve any subqueries before the outer
+      query block, because references from the expressions into the
+      tables of the query expression are not allowed.
+    - resolve the query expression with insert table excluded from name
+      resolution context. This will implicitly call apply_local_transforms()
+      on the outer query blocks and all subqueries in ON DUPLICATE KEY
+      expressions, which are attached to the last query block of the UNION.
+
+    If the query is INSERT SELECT and the query expression does not have
+    a UNION, processing is performed as follows:
+    - set skip_local_transforms for the outer query block to prevent
+      apply_local_transforms() from being called.
+    - resolve the query expression with insert table excluded from name
+      resolution context.
+    - if query block is not grouped, combine the name resolution context
+      for the insert table and the query expression, so that ON DUPLICATE KEY
+      expressions may refer to all those tables (otherwise restore
+      name resolution context as insert table only).
+    - resolve ON DUPLICATE KEY expressions.
+    - call apply_local_transforms() on outer query block, which also
+      contains references to any subqueries from ON DUPLICATE KEY expressions.
+  */
+
   if (!select_insert)
   {
+    // Duplicate tables in subqueries in VALUES clause are not allowed.
     TABLE_LIST *const duplicate=
       unique_table(lex->insert_table_leaf, table_list->next_global, true);
-    if (duplicate)
+    if (duplicate != NULL)
     {
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(true);
     }
-
-    if (select->apply_local_transforms(thd, false))
-      DBUG_RETURN(true);         /* purecov: inspected */
   }
   else
   {
@@ -1290,6 +1310,24 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (result == NULL)
       DBUG_RETURN(true);         /* purecov: inspected */
 
+    if (unit->is_union())
+    {
+      /*
+        Update values may not have references to SELECT tables, so it is
+        safe to resolve them before the query expression.
+      */
+      if (duplicates == DUP_UPDATE && resolve_update_expressions(thd))
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      /*
+        Delay apply_local_transforms() call until query block and any
+        attached subqueries have been resolved.
+      */
+      select->skip_local_transforms= true;
+    }
+
     // Remove the insert table from the first query block
     select->table_list.first=
       context->table_list=
@@ -1301,7 +1339,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     if (unit->prepare(thd, result, added_options, 0))
       DBUG_RETURN(true);
 
-    // Restore the insert table, but not the name resolution context
+    // Restore the insert table but not the name resolution context
     select->table_list.first=
       context->table_list= table_list;
     table_list->next_local= first_select_table;
@@ -1325,12 +1363,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   {
     if (select_insert)
     {
-      /*
-        In ON DUPLICATE KEY clause, it is possible to refer to fields from
-        the selected table also, if the query expression is not a UNION and
-        the query block is not explicitly grouped.
-      */
-      if (!select->is_grouped() && !unit->is_union())
+      if (!unit->is_union() && !select->is_grouped())
       {
         /*
           Make one context out of the two separate name resolution contexts:
@@ -1347,39 +1380,21 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
         ctx_state.restore_state(context, table_list);
       }
     }
-    lex->in_update_value_clause= true;
 
-    if (setup_fields(thd, Ref_item_array(),
-                     update_value_list, SELECT_ACL, NULL, false, false))
+    if (!unit->is_union() && resolve_update_expressions(thd))
       DBUG_RETURN(true);
+  }
 
-    if (check_valid_table_refs(table_list, update_value_list, map))
-      DBUG_RETURN(true);
+  if (!unit->is_union() && select->apply_local_transforms(thd, false))
+    DBUG_RETURN(true);         /* purecov: inspected */
 
-    if (insert_table->has_gcol() &&
-        validate_gc_assignment(&update_field_list, &update_value_list,
-                               insert_table))
-      DBUG_RETURN(true);
-
-    lex->in_update_value_clause= false;
-
-    if (select_insert)
-    {
-      /*
-        Traverse the update values list and substitute fields from the
-        select for references (Item_ref objects) to them. This is done in
-        order to get correct values from those fields when the select
-        employs a temporary table.
-      */
-      List_iterator<Item> li(update_value_list);
-      Item *item;
-
-      while ((item= li++))
-      {
-        item->transform(&Item::update_value_transformer,
-                        pointer_cast<uchar *>(select));
-      }
-    }
+  if (select_insert)
+  {
+    // Restore the insert table and the name resolution context
+    select->table_list.first=
+      context->table_list= table_list;
+    table_list->next_local= first_select_table;
+    ctx_state.restore_state(context, table_list);
   }
 
   if (!select_insert && insert_table->part_info)
@@ -1506,15 +1521,69 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
   }
   }
 
-  if (select_insert)
-  {
-    // Restore the current name resolution context and local table chain
-    ctx_state.restore_state(context, table_list);
-    table_list->next_local= first_select_table;
-  }
   DBUG_RETURN(false);
 }
 
+
+/**
+  Resolve ON DUPLICATE KEY UPDATE expressions.
+
+  Caller is responsible for setting up the columns to be updated before
+  calling this function.
+
+  @param thd     Thread handler
+
+  @returns false if success, true if error
+*/
+
+bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_insert_base::resolve_update_expressions");
+
+  TABLE_LIST *const insert_table_ref= lex->query_tables;
+  TABLE_LIST *const insert_table_leaf= lex->insert_table_leaf;
+
+  const bool select_insert= insert_many_values.elements == 0;
+
+  table_map map= lex->insert_table_leaf->map();
+
+  lex->in_update_value_clause= true;
+
+  if (setup_fields(thd, Ref_item_array(),
+                   update_value_list, SELECT_ACL, NULL, false, false))
+    DBUG_RETURN(true);
+
+  if (check_valid_table_refs(insert_table_ref, update_value_list, map))
+    DBUG_RETURN(true);
+
+  if (insert_table_leaf->table->has_gcol() &&
+      validate_gc_assignment(&update_field_list, &update_value_list,
+                             insert_table_leaf->table))
+    DBUG_RETURN(true);
+
+  lex->in_update_value_clause= false;
+
+  if (select_insert)
+  {
+    /*
+      Traverse the update values list and substitute fields from the
+      select for references (Item_ref objects) to them. This is done in
+      order to get correct values from those fields when the select
+      employs a temporary table.
+    */
+    SELECT_LEX *const select= lex->select_lex;
+    List_iterator<Item> li(update_value_list);
+    Item *item;
+
+    while ((item= li++))
+    {
+      item->transform(&Item::update_value_transformer,
+                      pointer_cast<uchar *>(select));
+    }
+  }
+
+  DBUG_RETURN(false);
+}
 
 /**
   Check if there are more unique keys after the current one

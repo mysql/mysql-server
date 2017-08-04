@@ -1,3 +1,6 @@
+set cte_max_recursion_depth=50000;
+select @@cte_max_recursion_depth;
+
 flush status;
 
 --echo # Mutual recursion unsupported; cycles must have one node only

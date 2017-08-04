@@ -5,11 +5,11 @@ CRUD UPDATE ITEM_MERGE SCENARIOS
 ================================================================================
 PREAMBLE
 ================================================================================
-create user updateitemmerge@localhost identified by 'updateitemmerge';
-grant all on *.* to updateitemmerge@localhost;
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+create user updateitemmerge@localhost identified by 'updateitemmerge';
+grant all on *.* to updateitemmerge@localhost;
 ================================================================================
 TEST START
 ================================================================================

@@ -474,8 +474,9 @@ public:
 
   Item_sum(const POS &pos, PT_window *w)
     :super(pos), m_window(w), m_window_resolved(false),
-     next(NULL), quick_group(true), arg_count(0),
-     args(nullptr), forced_const(false)
+     next(NULL), quick_group(true),
+     arg_count(0), args(nullptr),
+     used_tables_cache(0), forced_const(false)
   {
     init_aggregator();
   }
@@ -483,8 +484,9 @@ public:
 
   Item_sum(Item *a)
     :m_window(NULL), m_window_resolved(false),
-     next(NULL), quick_group(true), arg_count(1),
-     args(tmp_args), forced_const(false)
+     next(NULL), quick_group(true),
+     arg_count(1), args(tmp_args),
+     used_tables_cache(0), forced_const(false)
   {
     args[0]=a;
     mark_as_sum_func();
@@ -494,7 +496,8 @@ public:
   Item_sum(const POS &pos, Item *a, PT_window *w)
     : super(pos), m_window(w), m_window_resolved(false),
       next(NULL), quick_group(true),
-      arg_count(1), args(tmp_args), forced_const(false)
+      arg_count(1), args(tmp_args),
+      used_tables_cache(0), forced_const(false)
   {
     args[0]=a;
     init_aggregator();
@@ -504,7 +507,8 @@ public:
   Item_sum(const POS &pos, Item *a, Item *b, PT_window *w)
     :super(pos), m_window(w), m_window_resolved(false),
      next(nullptr), quick_group(true),
-     arg_count(2), args(tmp_args), forced_const(false)
+     arg_count(2), args(tmp_args),
+     used_tables_cache(0), forced_const(false)
   {
     args[0]= a;
     args[1]= b;
@@ -566,7 +570,6 @@ public:
     forced_const= true;
   }
   bool const_item() const override { return forced_const; }
-  bool const_during_execution() const override { return false; }
   void print(String *str, enum_query_type query_type) override;
   void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;

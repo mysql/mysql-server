@@ -1884,10 +1884,12 @@ void memcached_shutdown(void)
       {
 	plugin_deinitialize(plugin, true);
 
+        mysql_mutex_lock(&LOCK_plugin_delete);
         mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
         mysql_mutex_unlock(&LOCK_plugin);
+        mysql_mutex_unlock(&LOCK_plugin_delete);
       }
     }
 

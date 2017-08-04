@@ -1429,7 +1429,8 @@ void JOIN::reset()
 
   first_record= false;
   group_sent= false;
-  reset_executed();
+  recursive_iteration_count= 0;
+  executed= false;
 
   List_iterator<Window> li(select_lex->m_windows);
   Window *w;

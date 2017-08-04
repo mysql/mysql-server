@@ -63,7 +63,6 @@
 #include "error_handler.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "key.h"                                // key_copy
 #include "lex_string.h"

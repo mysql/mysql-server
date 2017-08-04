@@ -2253,8 +2253,21 @@ innobase_create_index_field_def(
 	DBUG_VOID_RETURN;
 }
 
+template<typename Index> const dd::Index* get_dd_index(const Index* index);
+
+template<> const dd::Index* get_dd_index<dd::Index>(const dd::Index* dd_index) {
+	return dd_index;
+}
+
+template<>
+const dd::Index* get_dd_index<dd::Partition_index>(
+	const dd::Partition_index* dd_index) {
+	return (dd_index != nullptr) ? &dd_index->index() : nullptr;
+}
+
 /** Create index definition for key
 @param[in]	altered_table		MySQL table that is being altered
+@param[in]	new_dd_tab		new dd table
 @param[in]	keys			key definitions
 @param[in]	key_number		MySQL key number
 @param[in]	new_clustered		true if generating a new clustered
@@ -2262,10 +2275,12 @@ index on the table
 @param[in]	key_clustered		true if this is the new clustered index
 @param[out]	index			index definition
 @param[in]	heap			heap where memory is allocated */
+template<typename Table>
 static
 void
 innobase_create_index_def(
 	const TABLE*		altered_table,
+	const Table*		new_dd_tab,
 	const KEY*		keys,
 	ulint			key_number,
 	bool			new_clustered,
@@ -2289,6 +2304,22 @@ innobase_create_index_def(
 	index->n_fields = n_fields;
 	index->name = mem_heap_strdup(heap, key->name);
 	index->rebuild = new_clustered;
+
+
+	const auto* dd_index_auto =
+		(index->key_number != ULINT_UNDEFINED)
+		? const_cast<const Table*>(new_dd_tab)->indexes()
+		[index->key_number]
+	: nullptr;
+
+	const dd::Index* dd_index = get_dd_index(dd_index_auto);
+
+	if (dd_index != nullptr) {
+		const dd::Column& col = dd_index->elements()[0]->column();
+		bool has_value = col.srs_id().has_value();
+		index->srid_is_valid = has_value;
+		index->srid = has_value ? col.srs_id().value() : 0;
+	}
 
 	if (key_clustered) {
 		DBUG_ASSERT(!(key->flags & (HA_FULLTEXT | HA_SPATIAL)));
@@ -2618,6 +2649,7 @@ ELSE
 ENDIF
 
 @return key definitions */
+template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result, malloc))
 index_def_t*
 innobase_create_key_defs(
@@ -2629,6 +2661,8 @@ innobase_create_key_defs(
 			/*!< in: alter operation */
 	const TABLE*			altered_table,
 			/*!< in: MySQL table that is being altered */
+	const Table*			new_dd_table,
+			/*!< in: new dd table */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
 	ulint&				n_fts_add,
@@ -2719,8 +2753,8 @@ innobase_create_key_defs(
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(
-			altered_table, key_info, primary_key_number,
-			true, true, indexdef++, heap);
+			altered_table, new_dd_table, key_info,
+			primary_key_number, true, true, indexdef++, heap);
 
 created_clustered:
 		n_add = 1;
@@ -2731,7 +2765,7 @@ created_clustered:
 			}
 			/* Copy the index definitions. */
 			innobase_create_index_def(
-				altered_table, key_info, i, true,
+				altered_table, new_dd_table, key_info, i, true,
 				false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -2777,7 +2811,7 @@ created_clustered:
 
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
-				altered_table, key_info, add[i],
+				altered_table, new_dd_table, key_info, add[i],
 				false, false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -4225,6 +4259,7 @@ innobase_check_index_len(
 	return(true);
 }
 
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -4356,8 +4391,8 @@ prepare_inplace_alter_table_dict(
 		ctx->prebuilt->trx->mysql_thd);
 
 	index_defs = innobase_create_key_defs(
-		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
-		num_fts_index,
+		ctx->heap, ha_alter_info, altered_table, new_dd_tab,
+		ctx->num_to_add_index, num_fts_index,
 		row_table_got_default_clust_index(ctx->new_table),
 		fts_doc_id_col, add_fts_doc_id, add_fts_doc_id_idx);
 

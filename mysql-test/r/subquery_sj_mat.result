@@ -10129,11 +10129,11 @@ FROM t1 as t1_inner JOIN t2
 ON t2.col_varchar_key = t1_inner.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	t1_inner	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	ref	col_varchar_key	col_varchar_key	7	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1_outer`.`col_int_key`) AS `MIN(col_int_key)` from `test`.`t1` `t1_outer` having <in_optimizer>((1,2),(1,2) in ( <materialize> (/* select#2 */ select '8',max('8') from `test`.`t2` where (`test`.`t2`.`col_varchar_key` = 'x') having 1 ), <primary_index_lookup>(1 in <temporary table> on <auto_key> where ((1 = `materialized-subquery`.`col_int_key`) and (2 = `materialized-subquery`.`MAX(t1_inner.col_int_key)`)))))
+Note	1003	/* select#1 */ select min(`test`.`t1_outer`.`col_int_key`) AS `MIN(col_int_key)` from `test`.`t1` `t1_outer` having 0
 SELECT MIN(col_int_key)
 FROM t1 as t1_outer
 HAVING (1, 2) IN (
@@ -11956,7 +11956,7 @@ test.t	analyze	status	OK
 EXPLAIN SELECT 1 FROM t WHERE (1 IN (SELECT 1 FROM t)) IN (SELECT 1 FROM t);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	<subquery3>	NULL	const	<auto_key>	<auto_key>	4	const	1	100.00	NULL
+1	PRIMARY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	const	1	100.00	NULL
 3	MATERIALIZED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:

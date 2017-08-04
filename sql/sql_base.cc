@@ -9179,7 +9179,7 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
     }
 
     select->select_list_tables|= item->used_tables();
-    thd->lex->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables() & ~PSEUDO_TABLE_BITS;
   }
   select->is_item_list_lookup= save_is_item_list_lookup;
   thd->lex->allow_sum_func= save_allow_sum_func;

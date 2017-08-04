@@ -358,6 +358,7 @@ private:
   std::atomic<int64> m_transactions_local_rollback;
 
   bool send_transaction_identifiers;
+  mysql_mutex_t m_transactions_waiting_apply_lock;
 };
 
 
