@@ -866,7 +866,7 @@ protected int
 terminal_set(EditLine *el, const char *term)
 {
 	int i;
-	char buf[TC_BUFSIZE];
+	char *buf;
 	char *area;
 	const struct termcapstr *t;
 	sigset_t oset, nset;
@@ -875,6 +875,9 @@ terminal_set(EditLine *el, const char *term)
 	(void) sigemptyset(&nset);
 	(void) sigaddset(&nset, SIGWINCH);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
+
+	buf = (char*)malloc(TC_BUFSIZE);
+	memset(buf, 0, TC_BUFSIZE);
 
 	area = buf;
 
@@ -939,10 +942,15 @@ terminal_set(EditLine *el, const char *term)
 				/* get the correct window size */
 	(void) terminal_get_size(el, &lins, &cols);
 	if (terminal_change_size(el, lins, cols) == -1)
+	{	// add to fix
+		free(buf);
 		return -1;
+	}
 	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
 	terminal_bind_arrow(el);
 	el->el_terminal.t_name = term;
+	// add to fix
+	free(buf);
 	return i <= 0 ? -1 : 0;
 }
 
