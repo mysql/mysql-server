@@ -1446,6 +1446,23 @@ static bool component_infrastructure_init()
   }
   return false;
 }
+
+/**
+  This function is used to initialize the mysql_server component services.
+  Most of the init functions are dummy functions, to solve the linker issues.
+*/
+static void server_component_init()
+{
+  /*
+    Below are dummy initialization functions. Else linker, is cutting out (as
+    library optimization) the string services and component system variables
+    code. This is because of libsql code is not calling any functions of them.
+  */
+  mysql_string_services_init();
+  mysql_comp_status_var_services_init();
+  mysql_comp_sys_var_services_init();
+}
+
 /**
   Initializes MySQL Server component infrastructure part by initialize of
   dynamic loader persistence.
@@ -1469,13 +1486,7 @@ static bool mysql_component_infrastructure_init()
     trans_rollback(thd.thd);
     return true;
   }
-  /*
-   * Below are dummy initialization functions. Else linker, is cutting out (as
-   * library optimization) the string services and component system variables
-   * code. This is because of libsql code is not calling any functions of them.
-   */
-  mysql_string_services_init();
-  mysql_comp_sys_var_services_init();
+  server_component_init();
   return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
@@ -1968,7 +1979,6 @@ static void clean_up(bool print_message)
   mdl_destroy();
   key_caches.delete_elements();
   multi_keycache_free();
-  free_status_vars();
   query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
@@ -2030,6 +2040,7 @@ static void clean_up(bool print_message)
     to call the sys_var_end() after component_infrastructure_deinit()
   */
   sys_var_end();
+  free_status_vars();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();

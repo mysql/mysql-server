@@ -226,6 +226,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
   server_component/component_sys_var_service.cc
+  server_component/component_status_var_service.cc
   )
 
 SET(SQL_SHARED_SOURCES
