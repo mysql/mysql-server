@@ -200,7 +200,7 @@ int
 JOIN::optimize()
 {
   uint no_jbuf_after= UINT_MAX;
-  const bool no_w= m_windows.elements == 0;
+  const bool has_windows= m_windows.elements != 0;
 
   DBUG_ENTER("JOIN::optimize");
   DBUG_ASSERT(select_lex->leaf_table_count == 0 ||
@@ -707,35 +707,67 @@ JOIN::optimize()
 
   /*
     Check if we need to create a temporary table prior to any windowing.
-    This has to be done if all tables are not already read (const tables)
-    and one of the following conditions holds:
-    - We are using DISTINCT (simple distinct's have already been optimized away)
-      and we have no windows
-    - We are using an ORDER BY and no windows, or GROUP BY on fields not in the 
-      first table
-    - We are using different ORDER BY and GROUP BY orders and we have no windows
-    - The user wants us to buffer the result and we have no windowing
-      (if we do, we make a final windowing step temporary table,
-       cf computation of Temp_table_param::m_window_short_circuit)
-    - We have windowing and the first window requires sorting
-    When the WITH ROLLUP modifier is present, we cannot skip temporary table
-    creation for the DISTINCT clause just because there are only const tables.
+
+    (1) If there is ROLLUP, which happens before DISTINCT, windowing and ORDER BY,
+    any of those clauses needs the result of ROLLUP in a tmp table.
+    We needn't test ORDER BY in the condition as it's forbidden with ROLLUP.
+
+    Rows which ROLLUP adds to the result are visible only to DISTINCT,
+    windowing and ORDER BY which we handled above. So for the rest of
+    conditions ((2), etc), we can do as if there were no ROLLUP.
+
+    (2) If all tables are constant, the query's result is guaranteed to have 0
+    or 1 row only, so all SQL clauses discussed below (DISTINCT, ORDER BY,
+    GROUP BY, windowing, SQL_BUFFER_RESULT) are useless and need no tmp
+    table.
+
+    (3) If there is GROUP BY which isn't resolved by using an index or sorting
+    the first table, we need a tmp table to compute the grouped rows.
+    GROUP BY happens before windowing; so it is a pre-windowing tmp
+    table.
+
+    (4) (5) If there is DISTINCT, or ORDER BY which isn't resolved by using an
+    index or sorting the first table, those clauses need an input tmp table.
+    If we have windowing, as those clauses are used after windowing, they can
+    use the last window's tmp table.
+
+    (6) If there are different ORDER BY and GROUP BY orders, ORDER BY needs an
+    input tmp table, so it's like (5).
+
+    (7) If the user wants us to buffer the result, we need a tmp table. But
+    windowing creates one anyway, and so does the materialization of a derived
+    table.
+
+    See also the computation of Temp_table_param::m_window_short_circuit,
+    where we make sure to create a tmp table if the clauses above want one.
+
+    (8) If the first windowing step needs sorting, filesort() will be used; it
+    can sort one table but not a join of tables, so we need a tmp table
+    then. If GROUP BY was optimized away, the pre-windowing result is 0 or 1
+    row so doesn't need sorting.
   */
-  need_tmp_before_win=
-           ((!plan_is_const() &&
-             (((select_distinct && no_w) ||
-               (order && !simple_order && no_w) ||
-               (group_list && !simple_group)) ||
-              (group_list && order && no_w) ||
-              (select_lex->active_options() & OPTION_BUFFER_RESULT && no_w))) ||
-            /*
-              If the first window step needs sorting, we need a tmp file,
-              but only if there's more than one non-const table in join.
-            */
-            (!no_w && (primary_tables - const_tables) > 1 &&
-             m_windows[0]->needs_sorting() &&
-             !group_optimized_away) ||
-            (rollup.state != ROLLUP::STATE_NONE && select_distinct));
+
+  if (rollup.state != ROLLUP::STATE_NONE &&     // (1)
+      (select_distinct
+      /* the fix for bug#26497353 will enable this: || has_windows*/))
+    need_tmp_before_win= true;
+
+  if (!plan_is_const())                         // (2)
+  {
+    if ((group_list && !simple_group) ||        // (3)
+        (!has_windows &&
+         (select_distinct ||                    // (4)
+          (order && !simple_order) ||           // (5)
+          (group_list && order))) ||            // (6)
+        ((select_lex->active_options() & OPTION_BUFFER_RESULT) &&
+         !has_windows &&
+         !(unit->derived_table &&
+           unit->derived_table->uses_materialization())) ||    // (7)
+        (has_windows && (primary_tables - const_tables) > 1 && // (8)
+         m_windows[0]->needs_sorting() &&
+         !group_optimized_away))
+      need_tmp_before_win= true;
+  }
 
   DBUG_EXECUTE("info", TEST_join(this););
 
