@@ -7896,15 +7896,15 @@ static int mysql_init_variables()
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(APPLE_XCODE)
   /* Allow Win32 users to move MySQL anywhere */
   char prg_dev[LIBLEN];
   my_path(prg_dev, my_progname, nullptr);
 
-  // On windows the basedir will always be one level up from where
+  // On windows or Xcode the basedir will always be one level up from where
   // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe for a
-  // sandbox build.
+  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
+  // for a sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
 
