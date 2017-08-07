@@ -747,6 +747,7 @@ DROP TABLESPACE ts1;
 #
 # Start executing CREATE TABLESPACE, but wait after
 # getting the MDL X lock on the tablespace name.
+TRUNCATE TABLE performance_schema.events_waits_history;
 connection con1;
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name
   SIGNAL got_lock_con1
@@ -776,17 +777,15 @@ FROM performance_schema.events_waits_current
 WHERE object_type LIKE 'TABLESPACE';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
-TRUNCATE TABLE performance_schema.events_statements_history_long;
 SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 #
 # Now, the tablespace MDL information will eventually be
 # gone from both I_S and P_S, except it will remain in the
 # P_S event wait history.
 SELECT event_name, object_name, object_type, operation
-FROM performance_schema.events_waits_history_long
+FROM performance_schema.events_waits_history
 WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
 event_name	object_name	object_type	operation
-wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
 #
 # Reap the connections, reset DEBUG_SYNC and drop objects.
 connection con1;
