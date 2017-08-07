@@ -30,7 +30,6 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Internal_error_handler
-#include "hash.h"
 #include "item_func.h"                       // user_var_entry
 #include "key.h"
 #include "lock.h"                            // mysql_lock_abort_for_thread
@@ -53,7 +52,6 @@
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
-#include "sql_cache.h"                       // query_cache
 #include "sql_callback.h"                    // MYSQL_CALLBACK
 #include "sql_handler.h"                     // mysql_ha_cleanup
 #include "sql_parse.h"                       // is_update_query
@@ -348,7 +346,6 @@ THD::THD(bool enable_plugins)
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),
-   first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
    m_current_query_cost(0),
@@ -754,8 +751,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
 
-  query_cache.abort(this);
-
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
   {
@@ -827,8 +822,8 @@ void THD::init(void)
   insert_lock_default= (variables.low_priority_updates ?
                         TL_WRITE_LOW_PRIORITY :
                         TL_WRITE_CONCURRENT_INSERT);
-  tx_isolation= (enum_tx_isolation) variables.tx_isolation;
-  tx_read_only= variables.tx_read_only;
+  tx_isolation= (enum_tx_isolation) variables.transaction_isolation;
+  tx_read_only= variables.transaction_read_only;
   tx_priority= 0;
   thd_tx_priority= 0;
   update_charset();
@@ -919,7 +914,7 @@ void THD::cleanup_connection(void)
     if(check_cleanup)
     {
       /* isolation level should be default */
-      DBUG_ASSERT(variables.tx_isolation == ISO_REPEATABLE_READ);
+      DBUG_ASSERT(variables.transaction_isolation == ISO_REPEATABLE_READ);
       /* check autocommit is ON by default */
       DBUG_ASSERT(server_status == SERVER_STATUS_AUTOCOMMIT);
       /* check prepared stmts are cleaned up */

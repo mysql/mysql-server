@@ -21,6 +21,7 @@ perl;
   # their paths may vary:
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
+               language lc-messages-dir
                datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
                tls-version secure-file-priv/;
                

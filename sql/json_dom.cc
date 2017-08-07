@@ -1006,8 +1006,9 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
   value->set_parent(this);
 
   /*
-    We have already an element with this key.  Note we compare utf-8 bytes
-    directly here. It's complicated when when you take into account composed
+    Insert the key and the value into the map. If we have already an element
+    with this key, the old value is replaced. Note we compare utf-8 bytes
+    directly here. It's complicated when you take into account composed
     and decomposed forms of accented characters and ligatures: different
     sequences might encode the same glyphs but we ignore that for now.  For
     example, the code point U+006E (the Latin lowercase "n") followed by
@@ -1026,7 +1027,7 @@ bool Json_object::add_alias(const std::string &key, Json_dom_ptr value)
 
     See WL-2048 Add function for Unicode normalization
   */
-  m_map.emplace(key, std::move(value));
+  m_map.emplace(key, nullptr).first->second= std::move(value);
   return false;
 }
 
@@ -1117,6 +1118,51 @@ Json_dom_ptr Json_object::clone() const
   }
 
   return std::move(o);
+}
+
+
+bool Json_object::merge_patch(Json_object_ptr patch)
+{
+  for (auto &member : patch->m_map)
+  {
+    // Remove the member if the value in the patch is the null literal.
+    if (member.second->json_type() == enum_json_type::J_NULL)
+    {
+      remove(member.first);
+      continue;
+    }
+
+    // See if the target has this member, add it if not.
+    Json_dom_ptr &target= m_map.emplace(member.first, nullptr).first->second;
+
+    /*
+      If the value in the patch is not an object and not the null
+      literal, the new value is the patch.
+    */
+    if (member.second->json_type() != enum_json_type::J_OBJECT)
+    {
+      target= std::move(member.second);
+      target->set_parent(this);
+      continue;
+    }
+
+    /*
+      If there is no target value, or if the target value is not an
+      object, use an empty object as the target value.
+    */
+    if (target == nullptr || target->json_type() != enum_json_type::J_OBJECT)
+      target= create_dom_ptr<Json_object>();
+
+    // Recursively merge the target value with the patch.
+    Json_object *target_obj= down_cast<Json_object*>(target.get());
+    Json_object_ptr patch_obj(down_cast<Json_object*>(member.second.release()));
+    if (target_obj == nullptr || target_obj->merge_patch(std::move(patch_obj)))
+      return true;                            /* purecov: inspected */
+
+    target->set_parent(this);
+  }
+
+  return false;
 }
 
 

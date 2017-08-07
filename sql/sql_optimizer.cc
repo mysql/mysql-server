@@ -66,7 +66,6 @@
 #include "query_result.h"
 #include "sql_base.h"            // init_ftfuncs
 #include "sql_bitmap.h"
-#include "sql_cache.h"           // query_cache
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
@@ -599,7 +598,7 @@ JOIN::optimize()
   /*
     It's necessary to check const part of HAVING cond as
     there is a chance that some cond parts may become
-    const items after make_join_statisctics(for example
+    const items after make_join_plan() (for example
     when Item is a reference to const table field from
     outer join).
     This check is performed only for those conditions
@@ -608,7 +607,7 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having_cond && const_table_map && !having_cond->has_aggregation())
+  if (having_cond && !having_cond->has_aggregation() && (const_tables > 0))
   {
     having_cond->update_used_tables();
     if (remove_eq_conds(thd, having_cond, &having_cond,
@@ -3712,14 +3711,14 @@ static bool check_simple_equality(THD *thd,
     if (left_item->type() == Item::FIELD_ITEM &&
         (field_item= down_cast<Item_field *>(left_item)) &&
         field_item->depended_from == NULL &&
-        right_item->const_item())
+        right_item->const_for_execution())
     {
       const_item= right_item;
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
              (field_item= down_cast<Item_field *>(right_item)) &&
              field_item->depended_from == NULL &&
-             left_item->const_item())
+             left_item->const_for_execution())
     {
       const_item= left_item;
     }
@@ -4929,7 +4928,8 @@ void JOIN::update_depend_map(ORDER *order)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
-    order->depend_map=depend_map=order->item[0]->used_tables();
+    order->depend_map= depend_map=
+      order->item[0]->used_tables() & ~INNER_TABLE_BIT;
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
@@ -6370,6 +6370,7 @@ static void add_not_null_conds(JOIN *join)
      DML statements) from within the storage engine. This does not work against
      all SEs.
   c) Subqueries might contain nested subqueries and involve more tables.
+     TODO: ROY: CHECK THIS
 
   @param  item           Expression to check
   @param  tbl            The table having the index
@@ -6386,6 +6387,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item->has_stored_program() || item->has_subquery())
     return false;
 
+  // No table fields in const items
   if (item->const_item())
     return true;
 
@@ -7158,7 +7160,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
       bool is_const= true;
       for (uint i=0; i<num_values; i++)
       {
-        if (!(is_const&= value[i]->const_item()))
+        if (!(is_const&= value[i]->const_for_execution()))
           break;
       }
       if (is_const)
@@ -8894,7 +8896,7 @@ static bool test_if_ref(const Item *root_cond,
       /* remove equalities injected by IN->EXISTS transformation */
       else if (right_item->type() == Item::CACHE_ITEM)
         return ((Item_cache *)right_item)->eq_def (field);
-      if (right_item->const_item() && !(right_item->is_null()))
+      if (right_item->const_for_execution() && !(right_item->is_null()))
       {
         /*
           We can remove all fields except:
@@ -9885,8 +9887,7 @@ static bool make_join_select(JOIN *join, Item *cond)
       Opt_trace_object trace_one_table(trace);
       trace_one_table.add_utf8_table(tab->table_ref).
         add("attached", cond);
-      if (cond &&
-          cond->has_subquery() /* traverse only if needed */ )
+      if (cond && cond->has_subquery())  // traverse only if needed
       {
         /*
           Why we pass walk_subquery=false: imagine
@@ -10493,7 +10494,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond,
           return true;
       }
     }
-    if (cond->const_item())
+    if (cond->const_for_execution())
     {
       bool value;
       if (eval_const_cond(thd, cond, &value))
@@ -10503,7 +10504,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond,
       return false;
     }
   }
-  else if (cond->const_item() && !cond->is_expensive())
+  else if (cond->const_for_execution() && !cond->is_expensive())
   {
     bool value;
     if (eval_const_cond(thd, cond, &value))
@@ -10581,8 +10582,6 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(thd);
-
         cond= new Item_func_eq(
                 args[0],
                 new Item_int(NAME_STRING("last_insert_id()"),
@@ -10860,6 +10859,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
+  map&= ~INNER_TABLE_BIT;
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
@@ -10966,7 +10966,8 @@ void JOIN::optimize_keyuse()
     */
     keyuse->ref_table_rows= ~(ha_rows) 0;	// If no ref
     if (keyuse->used_tables &
-	(map= (keyuse->used_tables & ~const_table_map & ~OUTER_REF_TABLE_BIT)))
+	(map= (keyuse->used_tables &
+               ~(const_table_map | OUTER_REF_TABLE_BIT))))
     {
       uint tableno;
       for (tableno= 0; ! (map & 1) ; map>>=1, tableno++)

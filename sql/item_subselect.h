@@ -128,6 +128,23 @@ public:
   Item_subselect();
   explicit Item_subselect(const POS &pos);
 
+private:
+  /// Accumulate properties from underlying query expression
+  void accumulate_properties();
+  /// Accumulate properties from underlying query block
+  void accumulate_properties(SELECT_LEX *select);
+  /// Accumulate properties from a selected expression within a query block.
+  void accumulate_expression(Item *item);
+  /// Accumulate properties from a condition or GROUP/ORDER within a query block.
+  void accumulate_condition(Item *item);
+  /// Accumulate properties from a join condition within a query block.
+  void accumulate_join_condition(List<TABLE_LIST> *tables);
+
+public:
+  /// Accumulate used tables
+  void accumulate_used_tables(table_map add_tables)
+  { used_tables_cache|= add_tables; }
+
   virtual subs_type substype() { return UNKNOWN_SUBS; }
 
   /*
@@ -161,11 +178,9 @@ public:
                          SELECT_LEX *removed_select) override;
   virtual bool exec();
   bool resolve_type(THD *) override;
-  table_map used_tables() const override;
+  table_map used_tables() const override { return used_tables_cache; }
   table_map not_null_tables() const override { return 0; }
-  bool const_item() const override;
-  inline table_map get_used_tables_cache() { return used_tables_cache; }
-  inline bool get_const_item_cache() { return const_item_cache; }
+  bool const_item() const override { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
   void print(String *str, enum_query_type query_type) override;

@@ -120,7 +120,7 @@ drop table t2;
 SET NAMES koi8r;
 SET character_set_connection=ucs2;
 --source include/ctype_like.inc
---character_set kio8r
+--character_set koi8r
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
@@ -341,6 +341,7 @@ execute stmt1 using @ivar;
 # Check that ucs2 works with ENUM and SET type
 #
 set names latin1;
+--character_set latin1
 create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
 insert into t1 values ('x');
@@ -366,6 +367,7 @@ insert into t1 values ('x,y');
 insert into t1 values ('x,y,z,д,ж,э');
 select a, hex(a) from t1 order by a;
 drop table t1;
+--character_set utf8mb4
 
 #
 # Bug#7302 UCS2 data in ENUM fields get truncated when new column is added
@@ -541,17 +543,6 @@ DROP TABLE t1,t2;
 #   anyway it is removed.
 # select password(name) from bug20536;
 # select old_password(name) from bug20536;
-
-# Disable test case as encrypt relies on 'crypt' function.
-# "decrypt" is noramlly tested in func_crypt.test which have a
-# "have_crypt.inc" test
---disable_parsing
-# ENCRYPT relies on OS function crypt() which takes a NUL-terminated string; it
-# doesn't return good results for strings with embedded 0 bytes.  It won't be
-# fixed unless we choose to re-implement the crypt() function ourselves to take
-# an extra size_t string_length argument.
-select encrypt(name, 'SALT') from bug20536;
---enable_parsing
 
 # QUOTE doesn't work with UCS2 data.  It would require a total rewrite
 # of Item_func_quote::val_str(), which isn't worthwhile until UCS2 is

@@ -109,10 +109,6 @@ public:
   */
   enum enum_protocol_type
   {
-    /*
-      Before adding a new type, please make sure
-      there is enough storage for it in Query_cache_query_flags.
-    */
     PROTOCOL_TEXT= 0,            // text Protocol type used mostly
                                  // for the old (MySQL 4.0 protocol)
     PROTOCOL_BINARY= 1,          // binary protocol type

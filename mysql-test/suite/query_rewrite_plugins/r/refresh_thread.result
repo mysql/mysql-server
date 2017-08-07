@@ -20,6 +20,7 @@ VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 SET GLOBAL debug= '+d,dbug.block_do_refresh';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 # We have to do this in order to avoid deadlock on the memory table's
@@ -31,6 +32,7 @@ CALL query_rewrite.flush_rewrite_rules();
 SET debug_sync = 'now WAIT_FOR parked';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 #
@@ -43,6 +45,7 @@ Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:

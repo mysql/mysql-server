@@ -883,7 +883,8 @@ trx_undo_get_mbr_from_ext(
 			mbr[i * 2 + 1] = -DBL_MAX;
 		}
 	} else {
-		get_mbr_from_store(dptr, static_cast<uint>(dlen), SPDIMS, mbr);
+		get_mbr_from_store(
+			dptr, static_cast<uint>(dlen), SPDIMS, mbr, nullptr);
 	}
 
 	mem_heap_free(heap);

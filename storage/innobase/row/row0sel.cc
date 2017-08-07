@@ -308,7 +308,8 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			get_mbr_from_store(dptr, static_cast<uint>(clust_len),
 					   SPDIMS,
-					   reinterpret_cast<double*>(&tmp_mbr));
+					   reinterpret_cast<double*>(&tmp_mbr),
+					   nullptr);
 			rtr_read_mbr(sec_field, &sec_mbr);
 
 			if (!mbr_equal_cmp(&sec_mbr, &tmp_mbr, 0)) {
@@ -3199,8 +3200,8 @@ row_sel_store_mysql_rec(
 	const ulint*	offsets,
 	bool		clust_templ_for_sec)
 {
-	ulint			i;
-	std::vector<ulint>	template_col;
+	ulint				i;
+	std::vector<const dict_col_t*>	template_col;
 
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
@@ -3212,13 +3213,22 @@ row_sel_store_mysql_rec(
 	}
 
 	if (clust_templ_for_sec) {
-		/* Store all clustered index field of
+		/* Store all clustered index column of
 		secondary index record. */
 		for (i = 0; i < dict_index_get_n_fields(
 				prebuilt->index); i++) {
 			ulint	sec_field = dict_index_get_nth_field_pos(
 				index, prebuilt->index, i);
-			template_col.push_back(sec_field);
+
+			if (sec_field == ULINT_UNDEFINED) {
+				template_col.push_back(nullptr);
+				continue;
+			}
+
+			const dict_field_t*	field =
+					index->get_field(sec_field);
+			const dict_col_t*	col = field->col;
+			template_col.push_back(col);
 		}
 	}
 
@@ -3299,10 +3309,12 @@ row_sel_store_mysql_rec(
 
 		if (clust_templ_for_sec) {
 
-			std::vector<ulint>::iterator	it;
+			std::vector<const dict_col_t*>::iterator	it;
+			const dict_field_t*	field = index->get_field(field_no);
+			const dict_col_t*	col = field->col;
 
 			it = std::find(template_col.begin(),
-				       template_col.end(), field_no);
+				       template_col.end(), col);
 
 			if (it == template_col.end()) {
 				continue;
@@ -5154,6 +5166,11 @@ rec_loop:
 
 	if (page_rec_is_supremum(rec)) {
 
+		DBUG_EXECUTE_IF("compare_end_range",
+				if (end_loop < 100) {
+					end_loop = 100;
+				});
+
 		/** Compare the last record of the page with end range
 		passed to InnoDB when there is no ICP and number of
 		loops in row_search_mvcc for rows found but not
@@ -6379,66 +6396,6 @@ func_exit:
 		buf, PAGE_CUR_WITHIN, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
-}
-
-/** Checks if MySQL at the moment is allowed for this table to retrieve a
-consistent read result, or store it to the query cache.
-@param[in]	thd	thread that is trying to access the query cache
-@param[in]	trx	transaction object
-@param[in]	norm_name concatenation of database name, '/' char, table name
-@return TRUE if storing or retrieving from the query cache is permitted */
-ibool
-row_search_check_if_query_cache_permitted(
-	THD*		thd,
-	trx_t*		trx,
-	const char*	norm_name)
-{
-	dict_table_t*	table;
-	ibool		ret	= FALSE;
-	MDL_ticket*	mdl	= nullptr;
-
-	table = dd_table_open_on_name(thd, &mdl, norm_name,
-				      false, DICT_ERR_IGNORE_NONE);
-
-	if (table == NULL) {
-		return(FALSE);
-	}
-
-	/* Start the transaction if it is not started yet */
-
-	trx_start_if_not_started(trx, false);
-
-	/* If there are locks on the table or some trx has invalidated the
-	cache before this transaction started then this transaction cannot
-	read/write from/to the cache.
-
-	If a read view has not been created for the transaction then it doesn't
-	really matter what this transactin sees. If a read view was created
-	then the view low_limit_id is the max trx id that this transaction
-	saw at the time of the read view creation.  */
-
-	if (lock_table_get_n_locks(table) == 0
-	    && ((trx->id != 0 && trx->id >= table->query_cache_inv_id)
-		|| !MVCC::is_view_active(trx->read_view)
-		|| trx->read_view->low_limit_id()
-		>= table->query_cache_inv_id)) {
-
-		ret = TRUE;
-
-		/* If the isolation level is high, assign a read view for the
-		transaction if it does not yet have one */
-
-		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !srv_read_only_mode
-		    && !MVCC::is_view_active(trx->read_view)) {
-
-			trx_sys->mvcc->view_open(trx->read_view, trx);
-		}
-	}
-
-	dd_table_close(table, thd, &mdl, false);
-
-	return(ret);
 }
 
 /*******************************************************************//**

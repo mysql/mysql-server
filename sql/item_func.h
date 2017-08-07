@@ -88,7 +88,6 @@ protected:
   table_map not_null_tables_cache;
 public:
   uint arg_count;
-  //bool const_item_cache;
   // When updating Functype with new spatial functions,
   // is_spatial_operator() should also be updated.
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
@@ -1797,6 +1796,9 @@ public:
     :Item_int_func(pos, count_expr, expr)
   {}
 
+  /// Ensure that "benchmark()" is never optimized away
+  table_map get_initial_pseudo_tables() const override {return RAND_TABLE_BIT;}
+
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "benchmark"; }
@@ -1821,7 +1823,7 @@ public:
   Item_func_sleep(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
-  bool const_item() const override { return 0; }
+  bool const_item() const override { return false; }
   const char *func_name() const override { return "sleep"; }
   /**
     This function is non-deterministic and hence depends on the
@@ -1855,7 +1857,7 @@ public:
     bool res= udf.fix_fields(thd, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
     const_item_cache= udf.const_item_cache;
-    fixed= 1;
+    fixed= true;
     return res;
   }
   void update_used_tables() override
@@ -3440,6 +3442,8 @@ public:
     i.e. @c init_result_field().
   */
   table_map get_initial_pseudo_tables() const override;
+  bool const_item() const override
+  { return used_tables() == 0; }
   void update_used_tables() override;
   void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
   override;
@@ -3527,22 +3531,6 @@ public:
   inline Field *get_sp_result_field()
   {
     return sp_result_field;
-  }
-
-  /**
-    Ensure that deterministic functions are not evaluated in preparation phase
-    by returning false before tables are locked and true after they are locked.
-    (can_be_evaluated_now() handles this because a function has the
-    has_subquery() property).
-
-     @retval true if tables are locked for deterministic functions
-     @retval false Otherwise
-  */
-  bool const_item() const override
-  {
-    if (used_tables() == 0)
-      return can_be_evaluated_now();
-    return false;
   }
 };
 

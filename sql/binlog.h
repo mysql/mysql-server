@@ -89,11 +89,7 @@ public:
     {
     }
 
-    void init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-              PSI_mutex_key key_LOCK_queue
-#endif
-              ) {
+    void init(PSI_mutex_key key_LOCK_queue) {
       mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
     }
 
@@ -175,15 +171,11 @@ public:
     STAGE_COUNTER
   };
 
-  void init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-            PSI_mutex_key key_LOCK_flush_queue,
+  void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue,
             PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done
-#endif
-            )
+            PSI_cond_key key_COND_done)
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
@@ -191,21 +183,9 @@ public:
     /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
-    m_queue[FLUSH_STAGE].init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                              key_LOCK_flush_queue
-#endif
-                              );
-    m_queue[SYNC_STAGE].init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                             key_LOCK_sync_queue
-#endif
-                             );
-    m_queue[COMMIT_STAGE].init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                               key_LOCK_commit_queue
-#endif
-                               );
+    m_queue[FLUSH_STAGE].init(key_LOCK_flush_queue);
+    m_queue[SYNC_STAGE].init(key_LOCK_sync_queue);
+    m_queue[COMMIT_STAGE].init(key_LOCK_commit_queue);
   }
 
   void deinit()
@@ -483,10 +463,7 @@ private:
   /** Manage the stages in ordered_commit. */
   Stage_manager stage_manager;
 
-  bool open(
-#ifdef HAVE_PSI_INTERFACE
-            PSI_file_key log_file_key,
-#endif
+  bool open(PSI_file_key log_file_key,
             const char *log_name,
             const char *new_name,
             uint32 new_index_number);
@@ -547,7 +524,6 @@ public:
     on exit() - but only during the correct shutdown process
   */
 
-#ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
                     PSI_mutex_key key_LOCK_commit,
                     PSI_mutex_key key_LOCK_commit_queue,
@@ -586,7 +562,6 @@ public:
     m_key_file_log_cache= key_file_log_cache;
     m_key_file_log_index_cache= key_file_log_index_cache;
   }
-#endif
 
 public:
   /** Manage the MTS dependency tracking */
@@ -963,6 +938,19 @@ typedef struct st_load_file_info
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
+/**
+  Check if at least one of transacaction and statement binlog caches contains
+  an empty transaction, other one is empty or contains an empty transaction,
+  which has two binlog events "BEGIN" and "COMMIT".
+
+  @param thd The client thread that executed the current statement.
+
+  @retval true  At least one of transacaction and statement binlog caches
+                contains an empty transaction, other one is empty or
+                contains an empty transaction.
+  @retval false Otherwise.
+*/
+bool is_empty_transaction_in_binlog_cache(const THD* thd);
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
 bool ending_trans(THD* thd, const bool all);

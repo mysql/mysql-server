@@ -31,9 +31,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
-set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -161,7 +158,6 @@ show global variables like 'default_storage_engine';
 --disable_warnings
 select * from performance_schema.global_variables where variable_name like 'default_storage_engine';
 --enable_warnings
-set GLOBAL query_cache_size=102400;
 
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -307,8 +303,6 @@ set default_storage_engine=UNKNOWN_TABLE_TYPE;
 --error ER_WRONG_VALUE_FOR_VAR
 set default_storage_engine=MERGE, big_tables=2;
 show local variables like 'default_storage_engine';
---error ER_GLOBAL_VARIABLE
-set SESSION query_cache_size=10000;
 --error ER_UNKNOWN_CHARACTER_SET
 set character_set_client=UNKNOWN_CHARACTER_SET;
 --error ER_UNKNOWN_COLLATION
@@ -378,9 +372,6 @@ set myisam_sort_buffer_size=100;
 set global net_buffer_length=100;
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-set global query_cache_type=demand;
 set read_buffer_size=100;
 set read_rnd_buffer_size=100;
 set global server_id=100;
@@ -408,7 +399,7 @@ set global table_open_cache=100;
 set default_storage_engine=myisam;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
-set tx_isolation="READ-COMMITTED";
+set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
 set sort_buffer_size=default;
@@ -911,9 +902,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
-set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;

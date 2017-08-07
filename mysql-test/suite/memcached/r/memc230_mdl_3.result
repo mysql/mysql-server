@@ -1,4 +1,4 @@
-SET @tx_isolation= @@global.tx_isolation;
+SET @transaction_isolation= @@global.transaction_isolation;
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 "innodb_only", "innodb_only", "innodb_only");
@@ -71,4 +71,4 @@ UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
 DROP USER mysqltest2@localhost;
-SET @@global.tx_isolation= @tx_isolation;
+SET @@global.transaction_isolation= @transaction_isolation;

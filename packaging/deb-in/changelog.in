@@ -1,6 +1,23 @@
 mysql-@DEB_PRODUCTNAME@ (@DEB_SERVERVERSION@@DEB_PLATFORMRELEASE@) @DEB_CODENAME@; urgency=low
 
   [ Horst Hunger ]
+  * Added new test_status_var components/plugin to source/include-binaries, mysql-*-test.install
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    component_test_status_var_service_int
+    component_test_status_var_service_reg_only
+    component_test_status_var_service
+    component_test_status_var_service_str
+    component_test_status_var_service_unreg_only
+
+  [ Horst Hunger ]
+  * Added new test_sys_var components/plugin to source/include-binaries, mysql-*-test.install
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    component_test_sys_var_service_int
+    component_test_sys_var_service_same
+    component_test_sys_var_service
+    component_test_sys_var_service_str
+
+  [ Horst Hunger ]
   * Added new test_string components/plugin to source/include-binaries, mysql-*-test.install
   * added new plugin to source/include-binaries, mysql-*-test.install
     component_test_string_service

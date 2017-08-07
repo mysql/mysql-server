@@ -1116,12 +1116,6 @@ bool Handler::get_error_message(int, String*) {
   DBUG_RETURN(false);
 }
 
-uint8 Handler::table_cache_type() {
-  DBUG_ENTER("temptable::Handler::table_cache_type");
-  DBUG_ABORT();
-  DBUG_RETURN(0);
-}
-
 bool Handler::primary_key_is_clustered() const {
   DBUG_ENTER("temptable::Handler::primary_key_is_clustered");
   DBUG_ABORT();

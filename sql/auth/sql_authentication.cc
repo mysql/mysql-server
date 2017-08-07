@@ -30,7 +30,6 @@
 #include "crypt_genhash_impl.h"         // generate_user_salt
 #include "current_thd.h"                // current_thd
 #include "derror.h"                     // ER_THD
-#include "hash.h"
 #include "hostname.h"                   // Host_errors, inc_host_errors
 #include "key.h"
 #include "log.h"                        // query_logger

@@ -1984,8 +1984,8 @@ select insert('txs',null,null,'hi'),insert(null,null,null,null);
 --echo #
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='';
-SELECT REPEAT(0x1111, 2100000) >> 1;
-SELECT (~(REPEAT(0xb822, 0x6fc221)));
+SELECT REPEAT(0x1111, 40000000) >> 1;
+SELECT (~(REPEAT(0xb822, 0x5C9C380)));
 SET SQL_MODE=@orig_sql_mode;
 
 --echo #

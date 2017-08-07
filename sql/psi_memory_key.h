@@ -84,7 +84,6 @@ extern PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_PROFILE;
 extern PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
-extern PSI_memory_key key_memory_Query_cache;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_READ_INFO;
 extern PSI_memory_key key_memory_READ_RECORD_cache;

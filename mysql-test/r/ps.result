@@ -714,21 +714,21 @@ set @@time_zone:='Japan';
 execute stmt;
 @@time_zone
 Japan
-prepare stmt from "select @@tx_isolation";
+prepare stmt from "select @@transaction_isolation";
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 set transaction isolation level read committed;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 set transaction isolation level serializable;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
-set @@tx_isolation=default;
+set @@transaction_isolation=default;
 execute stmt;
-@@tx_isolation
+@@transaction_isolation
 REPEATABLE-READ
 deallocate prepare stmt;
 prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
@@ -1971,22 +1971,6 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.0 tests.
-create procedure proc_1() reset query cache;
-call proc_1();
-call proc_1();
-call proc_1();
-create function func_1() returns int deterministic begin reset query cache; return 1; end|
-ERROR 0A000: RESET is not allowed in stored function or trigger
-create function func_1() returns int deterministic begin call proc_1(); return 1; end|
-select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: RESET is not allowed in stored function or trigger
-drop function func_1;
-drop procedure proc_1;
-prepare abc from "reset query cache";
-execute abc;
-execute abc;
-execute abc;
-deallocate prepare abc;
 create procedure proc_1() reset master;
 create function func_1() returns int begin reset master; return 1; end|
 ERROR 0A000: RESET is not allowed in stored function or trigger

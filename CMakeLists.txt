@@ -150,17 +150,17 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         IF (MY_GCC_COMPILER)
           MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
           MESSAGE(STATUS
-            "We probably need /opt/rh/devtoolset-3/root/usr/bin/gcc")
+            "We probably need /opt/rh/devtoolset-6/root/usr/bin/gcc")
           EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
             OUTPUT_VARIABLE MY_GCC_VERSION)
-          IF(MY_GCC_VERSION VERSION_LESS 4.8)
+          IF(MY_GCC_VERSION VERSION_LESS 5.0)
             MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
             FIND_PROGRAM(ALTERNATIVE_GCC gcc
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
             FIND_PROGRAM(ALTERNATIVE_GPP g++
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
             IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
               SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
               SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
@@ -567,12 +567,10 @@ IF(NOT CMAKE_BUILD_TYPE
 ENDIF()
 
 # Add safemutex for debug configurations
-IF(NOT WITH_INNODB_MEMCACHED)
-  FOREACH(LANG C CXX)
-      SET(CMAKE_${LANG}_FLAGS_DEBUG
-          "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
-  ENDFOREACH()
-ENDIF()
+FOREACH(LANG C CXX)
+  SET(CMAKE_${LANG}_FLAGS_DEBUG
+    "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+ENDFOREACH()
 
 
 # Set commonly used variables
@@ -744,7 +742,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(utilities)
-ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(share)
 ADD_SUBDIRECTORY(libservices)
 
 IF(UNIX)

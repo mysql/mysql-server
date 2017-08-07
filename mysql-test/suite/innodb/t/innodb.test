@@ -729,7 +729,7 @@ create table t1 (id int unsigned not null auto_increment, code tinyint unsigned 
 
 BEGIN;
 SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-SELECT @@tx_isolation,@@global.tx_isolation;
+SELECT @@transaction_isolation,@@global.transaction_isolation;
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David');
 select id, code, name from t1 order by id;
 COMMIT;
@@ -2450,53 +2450,6 @@ INSERT INTO t1 VALUES(NULL);
 # The next value should be 1 and not -9 or a -ve number
 SELECT * FROM t1;
 DROP TABLE t1;
-
-#
-# Bug #21409 Incorrect result returned when in READ-COMMITTED with
-# query_cache ON
-#
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
-CREATE TABLE t2 LIKE t1;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (1);
-COMMIT;
-CONNECTION c1;
-SELECT * FROM t1 WHERE a=1;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECT (c1,localhost,root,,);
-CONNECT (c2,localhost,root,,);
-CONNECTION c1;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-SELECT * FROM t2;
-CONNECTION c2;
-SET binlog_format='MIXED';
-SET TX_ISOLATION='read-committed';
-SET AUTOCOMMIT=0;
-INSERT INTO t1 VALUES (2);
-COMMIT;
-CONNECTION c1;
-# The result set below should be the same for both selects
-SELECT * FROM t1 WHERE a=2;
-SELECT * FROM t1 WHERE a=2;
-DROP TABLE t1;
-DROP TABLE t2;
-DISCONNECT c1;
-DISCONNECT c2;
-CONNECTION default;
 
 #
 # Bug #29157 UPDATE, changed rows incorrect

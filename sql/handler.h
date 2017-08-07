@@ -34,7 +34,6 @@
 #include "dd/properties.h"     // dd::Properties
 #include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
-#include "hash.h"
 #include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
@@ -556,12 +555,6 @@ enum enum_alter_inplace_result {
 #define HA_LEX_CREATE_TABLE_LIKE 4
 #define HA_LEX_CREATE_INTERNAL_TMP_TABLE 8
 #define HA_MAX_REC_LENGTH	65535U
-
-/* Table caching type */
-#define HA_CACHE_TBL_NONTRANSACT 0
-#define HA_CACHE_TBL_NOCACHE     1
-#define HA_CACHE_TBL_ASKTRANSACT 2
-#define HA_CACHE_TBL_TRANSACT    4
 
 /**
   Options for the START TRANSACTION statement.
@@ -1423,7 +1416,7 @@ typedef bool (*is_supported_system_table_t)(const char *db,
   @retval     false          success
   @retval     true           failure
 */
-typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_create_t)(dd::Tablespace *tablespace);
 
 /**
   Drop SDI in a tablespace. This API should be used only when
@@ -1432,7 +1425,7 @@ typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
   @retval     false       success
   @retval     true        failure
 */
-typedef bool (*sdi_drop_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_drop_t)(dd::Tablespace *tablespace);
 
 /**
   Get the SDI keys in a tablespace into vector.
@@ -3243,7 +3236,6 @@ public:
     read_time()
     records_in_range()
     estimate_rows_upper_bound()
-    table_cache_type()
     records()
 
   -------------------------------------------------------------------------
@@ -4275,9 +4267,18 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
   {
+    int error;
     DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+    error = ha_rnd_init(FALSE);
+    if (error != 0)
+            return error;
+
     position(record);
-    return ha_rnd_pos(record, ref);
+    error = ha_rnd_pos(record, ref);
+
+    ha_rnd_end();
+    return error;
   }
 
 
@@ -4645,52 +4646,6 @@ public:
   virtual THR_LOCK_DATA **store_lock(THD *thd,
 				     THR_LOCK_DATA **to,
 				     enum thr_lock_type lock_type)=0;
-
-  /** Type of table for caching query */
-  virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
-
-
-  /**
-    @brief Register a named table with a call back function to the query cache.
-
-    @param thd The thread handle
-    @param table_key A pointer to the table name in the table cache
-    @param key_length The length of the table name
-    @param[out] engine_callback The pointer to the storage engine call back
-      function
-    @param[out] engine_data Storage engine specific data which could be
-      anything
-
-    This method offers the storage engine, the possibility to store a reference
-    to a table name which is going to be used with query cache. 
-    The method is called each time a statement is written to the cache and can
-    be used to verify if a specific statement is cachable. It also offers
-    the possibility to register a generic (but static) call back function which
-    is called each time a statement is matched against the query cache.
-
-    @note If engine_data supplied with this function is different from
-      engine_data supplied with the callback function, and the callback returns
-      FALSE, a table invalidation on the current table will occur.
-
-    @return Upon success the engine_callback will point to the storage engine
-      call back function, if any, and engine_data will point to any storage
-      engine data used in the specific implementation.
-      @retval TRUE Success
-      @retval FALSE The specified table or current statement should not be
-        cached
-  */
-
-  virtual bool
-  register_query_cache_table(THD *thd MY_ATTRIBUTE((unused)),
-                             char *table_key MY_ATTRIBUTE((unused)),
-                             size_t key_length MY_ATTRIBUTE((unused)),
-                             qc_engine_callback *engine_callback,
-                             ulonglong *engine_data MY_ATTRIBUTE((unused)))
-  {
-    *engine_callback= 0;
-    return TRUE;
-  }
-
 
  /**
    Check if the primary key is clustered or not.

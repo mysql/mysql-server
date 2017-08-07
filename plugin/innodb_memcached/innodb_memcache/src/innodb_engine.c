@@ -311,7 +311,7 @@ create_instance(
 	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_CAS;
 	innodb_eng->info.info.features[1].feature =
 		ENGINE_FEATURE_PERSISTENT_STORAGE;
-	innodb_eng->info.info.features[0].feature = ENGINE_FEATURE_LRU;
+	innodb_eng->info.info.features[2].feature = ENGINE_FEATURE_LRU;
 
 	/* Now call create_instace() for the default engine */
 	err_ret = create_my_default_instance(interface, get_server_api,
@@ -2338,7 +2338,8 @@ search_done:
 			conn_data->mul_col_buf_len = int_len;
 		}
 
-		memcpy(conn_data->mul_col_buf, int_buf, int_len);
+		if (int_len > 0)
+			memcpy(conn_data->mul_col_buf, int_buf, int_len);
 		result->col_value[MCI_COL_VALUE].value_str =
 			 conn_data->mul_col_buf;
 

@@ -53,7 +53,7 @@ ENDIF ()
 IF(NOT SASL_LIBRARY_PATH)
   SET(SASL_LIBRARY_PATH /usr/lib64/libsasl2.so)
 ENDIF ()
-MESSAGE(${SASL_LIBRARY_PATH})
+MESSAGE(STATUS "SASL_LIBRARY_PATH = ${SASL_LIBRARY_PATH}")
 
 # LDAP authentication SASL client will not build on windows, as windows don't have cyrus sasl.
 # IF someone like can build the cyrus sasl library on windows and build LDAP authentication sasl client as well.

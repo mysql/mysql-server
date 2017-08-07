@@ -44,7 +44,6 @@ Created 3/14/2011 Jimmy Yang
 #include "mysqld_thd_manager.h"
 #include "current_thd.h"
 #include "mysqld.h"
-#include "sql_cache.h"
 
 #include "log_event.h"
 #include "innodb_config.h"
@@ -81,7 +80,7 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	thd = new THD;
+	thd = new (std::nothrow) THD;
 
 	if (!thd) {
 		return(NULL);
@@ -402,7 +401,6 @@ handler_unlock_table(
 	lock_mode = (mode & HDL_READ) ? TL_READ : TL_WRITE;
 
 	if (lock_mode == TL_WRITE) {
-		query_cache.invalidate(thd, table, TRUE);
 		table->file->ha_release_auto_increment();
 	}
 

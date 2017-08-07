@@ -27,10 +27,10 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+wait/synch/mutex/pfs_example/T
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
-wait/synch/mutex/pfs_example/T
 UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 component_urn
@@ -60,10 +60,10 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+wait/synch/mutex/pfs_example/T
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
-wait/synch/mutex/pfs_example/T
 # restart
 select component_urn from mysql.component;
 component_urn
@@ -79,10 +79,10 @@ select NAME
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";
 NAME
+wait/synch/mutex/pfs_example/T
 wait/synch/mutex/pfs_example/X
 wait/synch/mutex/pfs_example/Y
 wait/synch/mutex/pfs_example/Z
-wait/synch/mutex/pfs_example/T
 UNINSTALL COMPONENT "file://component_pfs_example";
 select component_urn from mysql.component;
 component_urn

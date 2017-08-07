@@ -205,7 +205,6 @@ static void mock_dd_obj(dd::Partition_value *pv)
 
 static void mock_dd_obj(dd::Partition *p, dd::Index *ix= NULL)
 {
-  p->set_level(0);
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");
@@ -515,7 +514,7 @@ TEST(SdiTest, Serialization_perf)
 
 TEST(SdiTest, CharPromotion)
 {
-  char x= 127;
+  signed char x= 127;
   unsigned char ux= x;
   EXPECT_EQ(127u, ux);
 
@@ -526,7 +525,7 @@ TEST(SdiTest, CharPromotion)
   EXPECT_EQ(127u, usx);
 
   unsigned char tmp= 0xe0;
-  x= static_cast<char>(tmp);
+  x= static_cast<signed char>(tmp);
   EXPECT_EQ(-32,x);
 
   ux= x;

@@ -20,7 +20,7 @@
 
 #include <set>
 
-#include "console.h"
+#include "formatters/console.h"
 #include "mysqlxclient/xerror.h"
 #include "processor/script_stack.h"
 

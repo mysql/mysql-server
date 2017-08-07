@@ -154,9 +154,10 @@ Page_Arch_Client_Ctx::get_from_file(
 	offset += read_pos->m_offset;
 
 	/* Open file in read only mode. */
-	file = os_file_create_simple(innodb_arch_file_key, file_name,
-				     OS_FILE_OPEN, OS_FILE_READ_ALLOW_DELETE,
-				     true, &success);
+	file = os_file_create(innodb_arch_file_key, file_name,
+			      OS_FILE_OPEN, OS_FILE_NORMAL,
+			      OS_CLONE_LOG_FILE,
+			      true, &success);
 
 	if (!success) {
 
@@ -379,10 +380,10 @@ Arch_Block::end_write()
 bool
 Arch_Block::add_page(
 	buf_page_t*	page,
-	Arch_Page_Pos*    pos)
+	Arch_Page_Pos*	pos)
 {
-	ib_uint32_t	space_id;
-	ib_uint32_t	page_num;
+	space_id_t	space_id;
+	page_no_t	page_num;
 	byte*		data_ptr;
 
 	ut_ad(pos->m_offset <= ARCH_PAGE_BLK_SIZE);

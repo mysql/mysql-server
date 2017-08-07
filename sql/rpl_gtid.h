@@ -1266,9 +1266,7 @@ public:
 class Gtid_set
 {
 public:
-#ifdef HAVE_PSI_INTERFACE
   static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
-#endif
   /**
     Constructs a new, empty Gtid_set.
 

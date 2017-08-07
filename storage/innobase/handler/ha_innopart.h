@@ -325,30 +325,6 @@ public:
 		const char*	name,
 		MEM_ROOT*	mem_root);
 
-	/** Check and register a table in the query cache.
-	Ask InnoDB if a query to a table can be cached.
-	@param[in]	thd		User thread handle.
-	@param[in]	table_key	Normalized path to the table.
-	@param[in]	key_length	Lenght of table_key.
-	@param[out]	call_back	Function pointer for checking if data
-	has changed.
-	@param[in,out]	engine_data	Data for call_back (not used).
-	@return TRUE if query caching of the table is permitted. */
-	bool
-	register_query_cache_table(
-		THD*			thd,
-		char*			table_key,
-		size_t			key_length,
-		qc_engine_callback*	call_back,
-		ulonglong*		engine_data)
-	{
-		/* Currently this would need to go through every
-		[sub] partition in the table to see if any of them has changed.
-		See row_search_check_if_query_cache_permitted().
-		So disabled until we can avoid check all partitions. */
-		return(FALSE);
-	}
-
 	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
 
 	/** Check if InnoDB supports a particular alter table in-place.
@@ -666,13 +642,6 @@ public:
 		const uchar*	record)
 	{
 		Partition_helper::ph_position(record);
-	}
-
-	int
-	rnd_pos_by_record(
-		uchar*	record)
-	{
-		return(Partition_helper::ph_rnd_pos_by_record(record));
 	}
 
 	/* TODO: Implement these! */
@@ -1231,18 +1200,13 @@ private:
 		uchar*		ref_arg,
 		const uchar*	record);
 
-	/** Read record by given record (by its PK) from the last used partition.
-	see handler::rnd_pos_by_record().
-	@param[in,out]	record	Record to position.
-	@return	0 or error number. */
+	/** Read row using position using given record to find.
+	Only useful when position is based on primary key
+	@param[in]	record  Current record in MySQL Row Format.
+	@return error number or 0. */
 	int
-	rnd_pos_by_record_in_last_part(
-		uchar*	record)
-	{
-		/* Not much overhead to use default function.
-		This avoids out-of-sync code. */
-		return(handler::rnd_pos_by_record(record));
-	}
+	rnd_pos_by_record(
+		uchar*  record);
 
 	/** Copy a cached MySQL record.
 	@param[out]	buf		Where to copy the MySQL record.

@@ -450,7 +450,6 @@ void TestThread::doSQLTest(){
   }else{
     mySQLExec(m_mysql, "set ndb_join_pushdown = off;");
   }
-  mySQLExec(m_mysql, "SET SESSION query_cache_type = OFF");
 
   class TextBuf{
   public:

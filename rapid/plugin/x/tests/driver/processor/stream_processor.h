@@ -21,7 +21,7 @@
 #include <istream>
 #include <vector>
 
-#include "console.h"
+#include "formatters/console.h"
 #include "processor/block_processor.h"
 #include "processor/execution_context.h"
 #include "processor/script_stack.h"

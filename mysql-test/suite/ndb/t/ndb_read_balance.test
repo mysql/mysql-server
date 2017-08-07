@@ -1,7 +1,4 @@
 -- source include/have_ndb.inc
-# Query cache affects SQL -> physical read mappings (extra scans)
-# So we skip this test in that case
---source include/have_query_cache_disabled.inc
 
 # For locked reads primary will be used, for unlocked reads primary or
 # backup may be used.

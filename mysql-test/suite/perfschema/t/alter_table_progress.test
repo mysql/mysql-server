@@ -3,10 +3,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
---source include/have_query_cache_disabled.inc
-
 # Setup
 
 connect (con1, localhost, root, , );

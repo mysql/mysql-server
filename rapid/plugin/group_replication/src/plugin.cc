@@ -1088,6 +1088,25 @@ int plugin_group_replication_deinit(void *p)
   return observer_unregister_error;
 }
 
+static int plugin_group_replication_check_uninstall(void *)
+{
+  DBUG_ENTER("plugin_group_replication_check_uninstall");
+
+  int result= 0;
+
+  if (plugin_is_group_replication_running() &&
+      group_member_mgr->is_majority_unreachable())
+  {
+    result= 1;
+    my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0),
+                "group_replication", "Plugin is busy, it cannot be uninstalled. To"
+                " force a stop run STOP GROUP_REPLICATION and then UNINSTALL"
+                " PLUGIN group_replication.");
+  }
+
+  DBUG_RETURN(result);
+}
+
 static bool init_group_sidno()
 {
   DBUG_ENTER("init_group_sidno");
@@ -1406,12 +1425,9 @@ bool check_async_channel_running_on_secondary()
 
 void initialize_asynchronous_channels_observer()
 {
-  if (single_primary_mode_var)
-  {
-    asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
-    channel_observation_manager
-        ->register_channel_observer(asynchronous_channels_state_observer);
-  }
+  asynchronous_channels_state_observer= new Asynchronous_channels_state_observer();
+  channel_observation_manager
+      ->register_channel_observer(asynchronous_channels_state_observer);
 }
 
 void terminate_asynchronous_channels_observer()
@@ -2123,6 +2139,19 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR*,
   // If option value is empty string, just update its value.
   if (length == 0)
     goto update_value;
+
+  // if group replication isn't running and majority is reachable you can't
+  // update force_members
+  if (!plugin_is_group_replication_running() ||
+      !group_member_mgr->is_majority_unreachable())
+  {
+    log_message(MY_ERROR_LEVEL,
+                "group_replication_force_members can only be updated"
+                " when Group Replication is running and a majority of the"
+                " members are unreachable");
+    error= 1;
+    goto end;
+  }
 
   if ((error= gcs_module->force_members(str)))
     goto end;
@@ -2958,15 +2987,15 @@ mysql_declare_plugin(group_replication_plugin)
   &group_replication_descriptor,
   group_replication_plugin_name,
   "ORACLE",
-  "Group Replication (1.0.0)",      /* Plugin name with full version*/
+  "Group Replication (1.1.0)",               /* Plugin name with full version*/
   PLUGIN_LICENSE_GPL,
-  plugin_group_replication_init,    /* Plugin Init */
-  NULL,                             /* Plugin Check uninstall */
-  plugin_group_replication_deinit,  /* Plugin Deinit */
-  0x0100,                           /* Plugin Version: major.minor */
-  group_replication_status_vars,    /* status variables */
-  group_replication_system_vars,    /* system variables */
-  NULL,                             /* config options */
-  0,                                /* flags */
+  plugin_group_replication_init,             /* Plugin Init */
+  plugin_group_replication_check_uninstall,  /* Plugin Check uninstall */
+  plugin_group_replication_deinit,           /* Plugin Deinit */
+  0x0101,                                    /* Plugin Version: major.minor */
+  group_replication_status_vars,             /* status variables */
+  group_replication_system_vars,             /* system variables */
+  NULL,                                      /* config options */
+  0,                                         /* flags */
 }
 mysql_declare_plugin_end;

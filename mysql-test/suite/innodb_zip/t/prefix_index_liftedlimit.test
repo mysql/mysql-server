@@ -739,11 +739,11 @@ worklog5743;
 
 --echo "In connection 1"
 --connection con1
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
@@ -813,7 +813,7 @@ WHERE info='COMMIT';
 --echo "In connection 1"
 --connection con1
 SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
-select @@session.tx_isolation;
+select @@session.transaction_isolation;
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;

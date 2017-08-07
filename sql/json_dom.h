@@ -378,8 +378,9 @@ public:
   enum_json_type json_type() const { return enum_json_type::J_OBJECT; }
 
   /**
-    Add a clone of the value to the object iff the key isn't already set.  If
-    it is set, the value is not modified by this call ("first value wins").
+    Insert a clone of the value into the object. If the key already
+    exists in the object, the existing value is replaced ("last value
+    wins").
 
     @param[in]  key    the JSON element key of to be added
     @param[in]  value  a JSON value: the element key's value
@@ -392,7 +393,8 @@ public:
   }
 
   /**
-    Add the value to the object iff they key isn't already set.
+    Insert the value into the object. If the key already exists in the
+    object, the existing value is replaced ("last value wins").
 
     Ownership of the value is effectively transferred to the
     object and the value will be deallocated by the object so only add
@@ -413,8 +415,10 @@ public:
   }
 
   /**
-    Add the value to the object if the key isn't already set. The
-    ownership of the value is transferred to the object.
+    Insert the value into the object. If the key already exists in the
+    object, the existing value is replaced ("last value wins").
+
+    The ownership of the value is transferred to the object.
 
     @param[in] key    the key of the value to be added
     @param[in] value  the value to add
@@ -484,6 +488,29 @@ public:
 
   /// Returns a const_iterator that refers past the last element.
   const_iterator end() const { return m_map.end(); }
+
+  /**
+    Implementation of the MergePatch function specified in RFC 7396:
+
+        define MergePatch(Target, Patch):
+          if Patch is an Object:
+            if Target is not an Object:
+              Target = {} # Ignore the contents and set it to an empty Object
+            for each Key/Value pair in Patch:
+              if Value is null:
+                if Key exists in Target:
+                  remove the Key/Value pair from Target
+              else:
+                Target[Key] = MergePatch(Target[Key], Value)
+            return Target
+          else:
+            return Patch
+
+    @param patch  the object that describes the patch
+    @retval false on success
+    @retval true on memory allocation error
+  */
+  bool merge_patch(Json_object_ptr patch);
 };
 
 

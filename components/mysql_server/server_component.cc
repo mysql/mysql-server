@@ -14,6 +14,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <my_sys.h>                         // my_error
+#include "component_status_var_service.h"
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
@@ -267,6 +268,11 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
   mysql_component_sys_variable_imp::unregister_variable,
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, status_variable_registration)
+  mysql_status_variable_registration_imp::register_variable,
+  mysql_status_variable_registration_imp::unregister_variable
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -301,6 +307,7 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_cond_v1)
   PROVIDES_SERVICE(mysql_server, mysql_mutex_v1)
   PROVIDES_SERVICE(mysql_server, mysql_rwlock_v1)
+  PROVIDES_SERVICE(mysql_server, status_variable_registration)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

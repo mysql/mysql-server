@@ -228,12 +228,26 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
 }
 
 
-void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
+bool Gtid_table_access_context::deinit(THD *thd, TABLE *table,
                                        bool error, bool need_commit)
 {
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
-  this->close_table(thd, table, &m_backup, 0 != error, need_commit);
+  bool err;
+  err= this->close_table(thd, table, &m_backup, 0 != error, need_commit);
+
+  /*
+    If err is true this means that there was some problem during
+    FLUSH LOGS commit phase.
+  */
+  if (err)
+  {
+    my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
+                    ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS),
+                    MYF(ME_FATALERROR), err);
+    sql_print_error(ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), err);
+    DBUG_RETURN(err);
+  }
 
   /*
     If Gtid is inserted through Attachable_trx_rw its has been done
@@ -252,7 +266,7 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
   if (m_drop_thd_object)
     this->drop_thd(m_drop_thd_object);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(err);
 }
 
 
@@ -479,7 +493,10 @@ int Gtid_table_persistor::save(const Gtid_set *gtid_set)
   ret= error= save(table, gtid_set);
 
 end:
-  table_access_ctx.deinit(thd, table, 0 != error, true);
+  const int deinit_ret= table_access_ctx.deinit(thd, table, 0 != error, true);
+
+  if (!ret && deinit_ret)
+    ret= -1;
 
   /* Notify compression thread to compress gtid_executed table. */
   if (error == 0 && DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1))

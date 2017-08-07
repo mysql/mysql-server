@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -226,6 +226,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
   server_component/component_sys_var_service.cc
+  server_component/component_status_var_service.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -357,7 +358,6 @@ SET(SQL_SHARED_SOURCES
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
-  sql_cache.cc
   sql_call.cc
   sql_class.cc
   sql_component.cc

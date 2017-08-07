@@ -2223,8 +2223,21 @@ innobase_create_index_field_def(
 	DBUG_VOID_RETURN;
 }
 
+template<typename Index> const dd::Index* get_dd_index(const Index* index);
+
+template<> const dd::Index* get_dd_index<dd::Index>(const dd::Index* dd_index) {
+	return dd_index;
+}
+
+template<>
+const dd::Index* get_dd_index<dd::Partition_index>(
+	const dd::Partition_index* dd_index) {
+	return (dd_index != nullptr) ? &dd_index->index() : nullptr;
+}
+
 /** Create index definition for key
 @param[in]	altered_table		MySQL table that is being altered
+@param[in]	new_dd_tab		new dd table
 @param[in]	keys			key definitions
 @param[in]	key_number		MySQL key number
 @param[in]	new_clustered		true if generating a new clustered
@@ -2232,10 +2245,12 @@ index on the table
 @param[in]	key_clustered		true if this is the new clustered index
 @param[out]	index			index definition
 @param[in]	heap			heap where memory is allocated */
+template<typename Table>
 static
 void
 innobase_create_index_def(
 	const TABLE*		altered_table,
+	const Table*		new_dd_tab,
 	const KEY*		keys,
 	ulint			key_number,
 	bool			new_clustered,
@@ -2259,6 +2274,22 @@ innobase_create_index_def(
 	index->n_fields = n_fields;
 	index->name = mem_heap_strdup(heap, key->name);
 	index->rebuild = new_clustered;
+
+
+	const auto* dd_index_auto =
+		(index->key_number != ULINT_UNDEFINED)
+		? const_cast<const Table*>(new_dd_tab)->indexes()
+		[index->key_number]
+	: nullptr;
+
+	const dd::Index* dd_index = get_dd_index(dd_index_auto);
+
+	if (dd_index != nullptr) {
+		const dd::Column& col = dd_index->elements()[0]->column();
+		bool has_value = col.srs_id().has_value();
+		index->srid_is_valid = has_value;
+		index->srid = has_value ? col.srs_id().value() : 0;
+	}
 
 	if (key_clustered) {
 		DBUG_ASSERT(!(key->flags & (HA_FULLTEXT | HA_SPATIAL)));
@@ -2588,6 +2619,7 @@ ELSE
 ENDIF
 
 @return key definitions */
+template<typename Table>
 static MY_ATTRIBUTE((warn_unused_result, malloc))
 index_def_t*
 innobase_create_key_defs(
@@ -2599,6 +2631,8 @@ innobase_create_key_defs(
 			/*!< in: alter operation */
 	const TABLE*			altered_table,
 			/*!< in: MySQL table that is being altered */
+	const Table*			new_dd_table,
+			/*!< in: new dd table */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
 	ulint&				n_fts_add,
@@ -2689,8 +2723,8 @@ innobase_create_key_defs(
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(
-			altered_table, key_info, primary_key_number,
-			true, true, indexdef++, heap);
+			altered_table, new_dd_table, key_info,
+			primary_key_number, true, true, indexdef++, heap);
 
 created_clustered:
 		n_add = 1;
@@ -2701,7 +2735,7 @@ created_clustered:
 			}
 			/* Copy the index definitions. */
 			innobase_create_index_def(
-				altered_table, key_info, i, true,
+				altered_table, new_dd_table, key_info, i, true,
 				false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -2747,7 +2781,7 @@ created_clustered:
 
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
-				altered_table, key_info, add[i],
+				altered_table, new_dd_table, key_info, add[i],
 				false, false, indexdef, heap);
 
 			if (indexdef->ind_type & DICT_FTS) {
@@ -4660,6 +4694,7 @@ innobase_check_index_len(
 	return(true);
 }
 
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -4791,8 +4826,8 @@ prepare_inplace_alter_table_dict(
 		ctx->prebuilt->trx->mysql_thd);
 
 	index_defs = innobase_create_key_defs(
-		ctx->heap, ha_alter_info, altered_table, ctx->num_to_add_index,
-		num_fts_index,
+		ctx->heap, ha_alter_info, altered_table, new_dd_tab,
+		ctx->num_to_add_index, num_fts_index,
 		row_table_got_default_clust_index(ctx->new_table),
 		fts_doc_id_col, add_fts_doc_id, add_fts_doc_id_idx);
 
@@ -10613,7 +10648,6 @@ public:
 		const dd::Partition*	old_part,
 		dd::Partition*		new_part)
 	{
-		ut_ad(old_part->level() == new_part->level());
 		ut_ad(old_part->name() == new_part->name());
 
 		dd_copy_private<dd::Partition>(*new_part, *old_part);
@@ -11010,7 +11044,6 @@ alter_part_change::try_commit(
 {
 	ut_ad(old_part != nullptr);
 	ut_ad(new_part != nullptr);
-	ut_ad(old_part->level() == new_part->level());
 	ut_ad(old_part->name() == new_part->name());
 
 	dd_table_close(m_old, nullptr, nullptr, false);
@@ -11638,18 +11671,14 @@ alter_parts::prepare_or_commit_for_new(
 	TABLE*			altered_table,
 	bool			prepare)
 {
-	auto			oldp = old_dd_tab.partitions().begin();
+	auto			oldp = old_dd_tab.leaf_partitions().begin();
 	uint			new_part_id = 0;
 	uint			old_part_id = 0;
 	uint			drop_seq = 0;
 	const dd::Partition*	old_part = nullptr;
 	int			error = 0;
 
-	for (auto new_part : *new_dd_tab.partitions()) {
-
-		if (!dd_part_is_stored(new_part)) {
-			continue;
-		}
+	for (auto new_part : *new_dd_tab.leaf_partitions()) {
 
 		ut_ad(new_part_id < m_news.size());
 
@@ -11658,13 +11687,10 @@ alter_parts::prepare_or_commit_for_new(
 		partition_state s = m_news[new_part_id]->state();
 		if (is_common_state(s)) {
 			bool	found = false;
-			for (; oldp != old_dd_tab.partitions().end() && !found;
+			for (; oldp != old_dd_tab.leaf_partitions().end() && !found;
 			     ++oldp) {
 				old_part = *oldp;
 
-				if (!dd_part_is_stored(old_part)) {
-					continue;
-				}
 
 				++old_part_id;
 				if (drop_seq < m_to_drop.size()
@@ -11690,7 +11716,7 @@ alter_parts::prepare_or_commit_for_new(
 		} else {
 			ut_ad(s == PART_TO_BE_ADDED);
 			/* Let's still set one to get the old table name */
-			old_part = *(old_dd_tab.partitions().begin());
+			old_part = *(old_dd_tab.leaf_partitions().begin());
 		}
 
 		alter_part*	alter_part = m_news[new_part_id];
@@ -11742,15 +11768,14 @@ alter_parts::prepare_or_commit_for_old(
 	bool			prepare)
 {
 	uint		old_part_id = 0;
-	auto		dd_part = old_dd_tab.partitions().begin();
+	auto		dd_part = old_dd_tab.leaf_partitions().begin();
 	int		error = 0;
 
 	for (alter_part* alter_part : m_to_drop) {
 		const dd::Partition*	old_part = nullptr;
 
-		for (; dd_part != old_dd_tab.partitions().end(); ++dd_part) {
-			if (!dd_part_is_stored(*dd_part)
-			    || old_part_id++ < alter_part->part_id()) {
+		for (; dd_part != old_dd_tab.leaf_partitions().end(); ++dd_part) {
+			if (old_part_id++ < alter_part->part_id()) {
 				continue;
 			}
 
@@ -11986,14 +12011,10 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*	save_data_file_name =
 		ha_alter_info->create_info->data_file_name;
 
-	auto	oldp = old_table_def->partitions().begin();
-	auto	newp = new_table_def->partitions()->begin();
+	auto	oldp = old_table_def->leaf_partitions().begin();
+	auto	newp = new_table_def->leaf_partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
-		if (!dd_part_is_stored(*newp)) {
-			continue;
-		}
 
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		set_partition(i);
@@ -12002,7 +12023,6 @@ ha_innopart::prepare_inplace_alter_table(
 		dd::Partition*		new_part = *newp;
 		ut_ad(old_part != nullptr);
 		ut_ad(new_part != nullptr);
-		ut_ad(old_part->level() == new_part->level());
 		ut_ad(m_prebuilt->table->id == old_part->se_private_id());
 
 		ha_alter_info->handler_ctx = nullptr;
@@ -12090,14 +12110,10 @@ ha_innopart::inplace_alter_table(
 		return(false);
 	}
 
-	auto	oldp = old_table_def->partitions().begin();
-	auto	newp = new_table_def->partitions()->begin();
+	auto	oldp = old_table_def->leaf_partitions().begin();
+	auto	newp = new_table_def->leaf_partitions()->begin();
 
 	for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-		ut_ad(dd_part_is_stored(*oldp) == dd_part_is_stored(*newp));
-		if (!dd_part_is_stored(*newp)) {
-			continue;
-		}
 
 		const dd::Partition*	old_part = *oldp;
 		dd::Partition*		new_part = *newp;
@@ -12202,22 +12218,14 @@ ha_innopart::commit_inplace_alter_table(
 end:
 	/* All are done successfully, now write back metadata to DD */
 	if (commit && !res) {
-		auto	oldp = old_table_def->partitions().begin();
-		auto	newp = new_table_def->partitions()->begin();
+		auto	oldp = old_table_def->leaf_partitions().begin();
+		auto	newp = new_table_def->leaf_partitions()->begin();
 
 		for (uint i = 0; i < m_tot_parts; ++oldp, ++newp) {
-			ut_ad(dd_part_is_stored(*oldp)
-			      == dd_part_is_stored(*newp));
-
-			if (!dd_part_is_stored(*newp)) {
-				continue;
-			}
-
 			const dd::Partition*	old_part = *oldp;
 			dd::Partition*		new_part = *newp;
 			ut_ad(old_part != nullptr);
 			ut_ad(new_part != nullptr);
-			ut_ad(old_part->level() == new_part->level());
 
 			ha_innobase_inplace_ctx*	ctx =
 				static_cast<ha_innobase_inplace_ctx*>(
@@ -12239,10 +12247,7 @@ end:
 #ifdef UNIV_DEBUG
 		if (!res) {
 			uint i = 0;
-			for (auto part : *new_table_def->partitions()) {
-				if (!dd_part_is_stored(part)) {
-					continue;
-				}
+			for (auto part : *new_table_def->leaf_partitions()) {
 				ha_innobase_inplace_ctx*	ctx =
 					static_cast<ha_innobase_inplace_ctx*>(
 						ctx_parts->ctx_array[i++]);
@@ -12612,10 +12617,7 @@ ha_innopart::exchange_partition_low(
 	/* Find the specified dd::Partition object */
 	uint		id = 0;
 	dd::Partition*	dd_part = nullptr;
-	for (auto part : *part_table->partitions()) {
-		if (!dd_part_is_stored(part)) {
-			continue;
-		}
+	for (auto part : *part_table->leaf_partitions()) {
 
 		ut_d(dict_table_t* table = m_part_share->get_table_part(id));
 		ut_ad(table->n_ref_count == 1);

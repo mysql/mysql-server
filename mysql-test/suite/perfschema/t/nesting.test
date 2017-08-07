@@ -1,9 +1,5 @@
 # Test to check the proper nesting of events
 
-#With QC enabled additional code paths are activated which will change
-#performance schema output.
--- source include/have_QC_Disabled.inc
-
 # On windows, the socket instrumentation collects an extra "opt"
 # event, which changes the test output.
 --source include/not_windows.inc

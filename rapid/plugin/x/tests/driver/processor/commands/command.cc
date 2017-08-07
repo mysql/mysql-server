@@ -20,10 +20,11 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include "ngs_common/to_string.h"
 
 #include "connector/mysqlx_all_msgs.h"
+#include "formatters/message_formatter.h"
 #include "json_to_any_handler.h"
-#include "ngs_common/to_string.h"
 #include "processor/commands/mysqlxtest_error_names.h"
 #include "processor/macro_block_processor.h"
 #include "processor/stream_processor.h"
@@ -86,20 +87,16 @@ class Backup_and_restore {
   T  m_value;
 };
 
-std::string message_to_text(const xcl::XProtocol::Message &message) {
-  std::stringstream s;
-  s << message;
-  return s.str();
-}
-
 }  // namespace
+
 
 ngs::chrono::time_point Command::m_start_measure;
 
 Command::Command() {
   m_commands["title "] = &Command::cmd_title;
   m_commands["echo "] = &Command::cmd_echo;
-  m_commands["recvtype "] = &Command::cmd_recvtype;
+  m_commands["recvtype "]  = &Command::cmd_recvtype;
+  m_commands["recvok"]     = &Command::cmd_recvok;
   m_commands["recverror "] = &Command::cmd_recverror;
   m_commands["recvresult"] = &Command::cmd_recvresult;
   m_commands["recvtovar "] = &Command::cmd_recvtovar;
@@ -255,7 +252,7 @@ Command::Result Command::cmd_recvtype(std::istream &input,
 
   try {
     const std::string message_in_text =
-        context->m_variables->unreplace(message_to_text(*msg), true);
+        context->m_variables->unreplace(formatter::message_to_text(*msg), true);
 
     if (msg->GetDescriptor()->full_name() != vargs[0]) {
       context->print("Received unexpected message. Was expecting:\n    ",
@@ -273,6 +270,55 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   catch (std::exception &e) {
     context->print_error_red(context->m_script_stack, e, '\n');
     if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
+  }
+
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_recvok(std::istream &input,
+                                    Execution_context *context,
+                                    const std::string &args) {
+  xcl::XError error;
+  xcl::XProtocol::Server_message_type_id out_msgid;
+
+  Message_ptr msg{
+    context->session()->get_protocol().recv_single_message(
+        &out_msgid, &error)
+  };
+
+  context->print("RUN recvok\n");
+
+  if (error) {
+    context->m_console.print_error(error);
+
+    return context->m_options.m_fatal_errors ?
+        Result::Stop_with_failure :
+        Result::Continue;
+  }
+
+  if (nullptr == msg.get()) {
+    context->print("Command recvok didn't receive any data.\n");
+    return Result::Stop_with_failure;
+  }
+
+  if (Mysqlx::ServerMessages::OK != out_msgid) {
+    if (Mysqlx::ServerMessages::ERROR != out_msgid) {
+      context->print("Got unexpected message:\n");
+      context->print(formatter::message_to_text(*msg), "\n");
+
+      return context->m_options.m_fatal_errors ?
+          Result::Stop_with_failure :
+          Result::Continue;
+    }
+
+    auto msg_error = static_cast<Mysqlx::Error*>(msg.get());
+
+    if (!context->m_expected_error.check_error(
+          xcl::XError(msg_error->code(), msg_error->msg())))
+      return Result::Stop_with_failure;
+  } else {
+    if (!context->m_expected_error.check_ok())
+      return Result::Stop_with_failure;
   }
 
   return Result::Continue;
@@ -859,11 +905,10 @@ Command::Result Command::cmd_recv(std::istream &input,
   std::string args_copy(args);
 
   aux::trim(args_copy);
+
   if (args_copy == "quiet") {
     quiet = true;
-  } else if (!args_copy.empty()) {
-    context->print_error("ERROR: Unknown command argument: ", args_copy, '\n');
-    return Result::Stop_with_failure;
+    args_copy = "";
   }
 
   try {
@@ -883,7 +928,8 @@ Command::Result Command::cmd_recv(std::istream &input,
 
     if (msg.get() && (context->m_options.m_show_query_result && !quiet))
       context->print(
-          context->m_variables->unreplace(message_to_text(*msg), true), "\n");
+          context->m_variables->unreplace(formatter::message_to_text(
+              *msg, args_copy), true), "\n");
 
     if (!context->m_expected_error.check_ok())
       return Result::Stop_with_failure;
@@ -1632,8 +1678,14 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
-  std::cout << "-->recv [quiet]\n";
-  std::cout << "  Read and print (if not quiet) one message from the server\n";
+  std::cout << "-->recv [quiet|<FIELD PATH>]\n";
+  std::cout << "  quiet        - received message isn't printed\n";
+  std::cout << "  <FIELD PATH> - print only selected part of the message using"
+               "                 \"field-path\" filter:\n";
+  std::cout << "                 * field_name1\n";
+  std::cout << "                 * field_name1.field_name2\n";
+  std::cout << "                 * repeated_field_name1[1].field_name1\n";
+
   std::cout << "-->recvresult [print-columnsinfo] [" << CMD_ARG_BE_QUIET
             << "]\n";
   std::cout << "  Read and print one resultset from the server; if "
@@ -1649,6 +1701,9 @@ void print_help_commands() {
   std::cout << "-->recvtype <msgtype> [" << CMD_ARG_BE_QUIET << "]\n";
   std::cout << "  Read one message and print it, checking that its type is "
                "the specified one\n";
+  std::cout << "-->recvok\n";
+  std::cout << "  Expect to receive 'Mysqlx.Ok' message. Works with "
+               "'expecterror' command.\n";
   std::cout << "-->recvuntil <msgtype> [do_not_show_intermediate]\n";
   std::cout << "  Read messages and print them, until a msg of the specified "
                "type (or Error) is received\n";
@@ -1691,7 +1746,7 @@ void print_help_commands() {
   std::cout << "-->expecterror <errno>\n";
   std::cout << "  Expect a specific error for the next command and fail if "
                "something else occurs\n";
-  std::cout << "  Works for: newsession, closesession, recvresult\n";
+  std::cout << "  Works for: newsession, closesession, recvresult, recvok\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Create a new connection with given name and account (use - "
                "as user for no-auth)\n";

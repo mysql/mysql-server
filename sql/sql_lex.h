@@ -32,7 +32,6 @@
 #include "enum_query_type.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
 #include "key_spec.h"                 // KEY_CREATE_INFO
@@ -948,6 +947,10 @@ public:
       tr->set_readonly();
   }
 
+  /// @returns a map of all tables references in the query block
+  table_map all_tables_map() const
+  { return (1ULL << leaf_table_count) - 1; }
+
 private:
   /**
     Intrusive double-linked list of all query blocks within the same
@@ -982,19 +985,15 @@ private:
 
 public:
   /**
-    In sql_cache we store SQL_CACHE flag as specified by user to be
-    able to restore SELECT statement from internal structures.
-  */
-  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
-  /// Query cache hint (should rather belong in LEX object?)
-  e_sql_cache sql_cache;
-  /**
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
       UNCACHEABLE_RAND
       UNCACHEABLE_SIDEEFFECT
   */
   uint8 uncacheable;
+
+  /// True: skip local transformations during prepare() call (used by INSERT)
+  bool skip_local_transforms;
 
   /// Describes context of this query block (e.g if it is a derived table).
   enum sub_select_type linkage;
@@ -1278,7 +1277,7 @@ public:
 
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
-  void mark_as_dependent(SELECT_LEX *last);
+  void mark_as_dependent(SELECT_LEX *last, bool aggregate);
 
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
   bool is_explicitly_grouped() const { return group_list.elements > 0; }
@@ -1692,7 +1691,6 @@ struct Limit_options
 
 struct Query_options {
   ulonglong query_spec_options;
-  enum SELECT_LEX::e_sql_cache sql_cache;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -3665,6 +3663,10 @@ public:
   uint8 describe;
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  /**
+    @todo ensure that correct CONTEXT_ANALYSIS_ONLY is set for all preparation
+          code, so we can fully rely on this field.
+  */
   uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file;
   bool autocommit;
@@ -3673,6 +3675,12 @@ public:
   bool m_extended_show;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
+
+  /**
+    Whether this query will return the same answer every time, given unchanged data.
+    Used to be for the query cache, but is now used to find out if an expression
+    is usable for partitioning.
+  */
   bool safe_to_cache_query;
   bool subqueries;
 private:
@@ -3800,7 +3808,7 @@ public:
     TODO: possibly this it is incorrect to have used tables in LEX because
     with subquery, it is not clear what does the field mean. To fix this
     we should aggregate used tables information for selected expressions
-    into the select_lex.
+    into the select_lex. This map should contain "real" tables only.
   */
   table_map  used_tables;
 

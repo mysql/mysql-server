@@ -104,7 +104,6 @@
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
 #include "sql_binlog.h"       // mysql_client_binlog_statement
-#include "sql_cache.h"        // query_cache
 #include "sql_class.h"
 #include "sql_cmd.h"
 #include "sql_connect.h"      // decrease_user_connections
@@ -1508,8 +1507,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
     else
     {
+#ifdef HAVE_PSI_THREAD_INTERFACE
       /* we've authenticated new user */
       PSI_THREAD_CALL(notify_session_change_user)(thd->get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
       if (save_user_connect)
         decrease_user_connections(save_user_connect);
@@ -1634,7 +1635,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       /* Finalize server status flags after executing a statement. */
       thd->update_slow_query_status();
       thd->send_statement_status();
-      query_cache.end_of_result(thd);
 
       mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
                          thd->get_stmt_da()->is_error() ?
@@ -1992,7 +1992,6 @@ done:
     thd->send_kill_message();
   thd->send_statement_status();
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
-  query_cache.end_of_result(thd);
 
   if (!thd->is_error() && !thd->killed)
     mysql_audit_notify(thd,
@@ -2016,6 +2015,7 @@ done:
   thd->reset_query();
   thd->set_command(COM_SLEEP);
   thd->proc_info= 0;
+  thd->lex->sql_command= SQLCOM_END;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -2468,8 +2468,6 @@ static inline void binlog_gtid_end_transaction(THD *thd)
   @param first_level
 
   @todo
-    - Invalidate the table in the query cache if something changed
-    after unlocking when changes become visible.
     @todo: this is workaround. right way will be move invalidating in
     the unlock procedure.
     - TODO: use check_change_password()
@@ -3485,8 +3483,6 @@ mysql_execute_command(THD *thd, bool first_level)
     }
     else
     {
-      if (thd->variables.query_cache_wlock_invalidate)
-        query_cache.invalidate_locked_for_write(thd, first_table);
       my_ok(thd);
     }
     break;
@@ -5130,22 +5126,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
   DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
 
-  /*
-    Warning.
-    The purpose of query_cache_send_result_to_client() is to lookup the
-    query in the query cache first, to avoid parsing and executing it.
-    So, the natural implementation would be to:
-    - first, call query_cache_send_result_to_client,
-    - second, if caching failed, initialise the lexical and syntactic parser.
-    The problem is that the query cache depends on a clean initialization
-    of (among others) lex->safe_to_cache_query and thd->server_status,
-    which are reset respectively in
-    - lex_start()
-    - mysql_reset_thd_for_next_command()
-    So, initializing the lexical analyser *before* using the query cache
-    is required for the cache to work properly.
-    FIXME: cleanup the dependencies in the code to simplify this.
-  */
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
@@ -5155,156 +5135,130 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
   enable_digest_if_any_plugin_needs_it(thd, parser_state);
 
-  if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+  LEX *lex= thd->lex;
+  const char *found_semicolon= nullptr;
+
+  bool err= thd->get_stmt_da()->is_error();
+
+  if (!err)
   {
-    LEX *lex= thd->lex;
-    const char *found_semicolon= nullptr;
-
-    bool err= thd->get_stmt_da()->is_error();
-
+    err= parse_sql(thd, parser_state, NULL);
     if (!err)
-    {
-      err= parse_sql(thd, parser_state, NULL);
-      if (!err)
-        err= invoke_post_parse_rewrite_plugins(thd, false);
+      err= invoke_post_parse_rewrite_plugins(thd, false);
 
-      found_semicolon= parser_state->m_lip.found_semicolon;
+    found_semicolon= parser_state->m_lip.found_semicolon;
+  }
+
+  if (!err)
+  {
+    /*
+      See whether we can do any query rewriting. opt_general_log_raw only controls
+      writing to the general log, so rewriting still needs to happen because
+      the other logs (binlog, slow query log, ...) can not be set to raw mode
+      for security reasons.
+      We're not general-logging if we're the slave, or if we've already
+      done raw-logging earlier.
+      Sub-routines of mysql_rewrite_query() should try to only rewrite when
+      necessary (e.g. not do password obfuscation when query contains no
+      password), but we can optimize out even those necessary rewrites when
+      no logging happens at all. If rewriting does not happen here,
+      thd->rewritten_query is still empty from being reset in alloc_query().
+    */
+    bool general= !(opt_general_log_raw || thd->slave_thread);
+
+    if (general || opt_slow_log || opt_bin_log)
+    {
+      mysql_rewrite_query(thd);
+
+      if (thd->rewritten_query.length())
+        lex->safe_to_cache_query= false; // see comments below
     }
 
-    if (!err)
+    if (general)
     {
-      /*
-        See whether we can do any query rewriting. opt_general_log_raw only controls
-        writing to the general log, so rewriting still needs to happen because
-        the other logs (binlog, slow query log, ...) can not be set to raw mode
-        for security reasons.
-        Query-cache only handles SELECT, which we don't rewrite, so it's no
-        concern of ours.
-        We're not general-logging if we're the slave, or if we've already
-        done raw-logging earlier.
-        Sub-routines of mysql_rewrite_query() should try to only rewrite when
-        necessary (e.g. not do password obfuscation when query contains no
-        password), but we can optimize out even those necessary rewrites when
-        no logging happens at all. If rewriting does not happen here,
-        thd->rewritten_query is still empty from being reset in alloc_query().
-      */
-      bool general= !(opt_general_log_raw || thd->slave_thread);
-
-      if (general || opt_slow_log || opt_bin_log)
-      {
-        mysql_rewrite_query(thd);
-
-        if (thd->rewritten_query.length())
-          lex->safe_to_cache_query= false; // see comments below
-      }
-
-      if (general)
-      {
-        if (thd->rewritten_query.length())
-          query_logger.general_log_write(thd, COM_QUERY,
-                                         thd->rewritten_query.c_ptr_safe(),
-                                         thd->rewritten_query.length());
-        else
-        {
-          size_t qlen= found_semicolon
-            ? (found_semicolon - thd->query().str)
-            : thd->query().length;
-          
-          query_logger.general_log_write(thd, COM_QUERY,
-                                         thd->query().str, qlen);
-        }
-      }
-    }
-
-    if (!err)
-    {
-      thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
-                                                   sql_statement_info[thd->lex->sql_command].m_key);
-
-      if (mqh_used && thd->get_user_connect() &&
-          check_mqh(thd, lex->sql_command))
-      {
-        if (thd->is_classic_protocol())
-          thd->get_protocol_classic()->get_net()->error = 0;
-      }
+      if (thd->rewritten_query.length())
+        query_logger.general_log_write(thd, COM_QUERY,
+                                       thd->rewritten_query.c_ptr_safe(),
+                                       thd->rewritten_query.length());
       else
       {
-	if (! thd->is_error())
-	{
-          /*
-            Binlog logs a string starting from thd->query and having length
-            thd->query_length; so we set thd->query_length correctly (to not
-            log several statements in one event, when we executed only first).
-            We set it to not see the ';' (otherwise it would get into binlog
-            and Query_log_event::print() would give ';;' output).
-            This also helps display only the current query in SHOW
-            PROCESSLIST.
-          */
-          if (found_semicolon && (ulong) (found_semicolon - thd->query().str))
-            thd->set_query(thd->query().str,
-                           static_cast<size_t>(found_semicolon -
-                                               thd->query().str - 1));
-          /* Actually execute the query */
-          if (found_semicolon)
-          {
-            lex->safe_to_cache_query= 0;
-            thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
-          }
-          lex->set_trg_event_type_for_tables();
-
-          int error MY_ATTRIBUTE((unused));
-          if (unlikely(thd->security_context()->password_expired() &&
-                       lex->sql_command != SQLCOM_SET_PASSWORD &&
-                       lex->sql_command != SQLCOM_SET_OPTION &&
-                       lex->sql_command != SQLCOM_ALTER_USER))
-          {
-            my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-            error= 1;
-          }
-          else
-            error= mysql_execute_command(thd, true);
-	}
+        size_t qlen= found_semicolon
+          ? (found_semicolon - thd->query().str)
+          : thd->query().length;
+        
+        query_logger.general_log_write(thd, COM_QUERY,
+                                       thd->query().str, qlen);
       }
+    }
+  }
+
+  if (!err)
+  {
+    thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
+                                                 sql_statement_info[thd->lex->sql_command].m_key);
+
+    if (mqh_used && thd->get_user_connect() &&
+        check_mqh(thd, lex->sql_command))
+    {
+      if (thd->is_classic_protocol())
+        thd->get_protocol_classic()->get_net()->error = 0;
     }
     else
     {
-      /* Instrument this broken statement as "statement/sql/error" */
-      thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
-                                                   sql_statement_info[SQLCOM_END].m_key);
+      if (! thd->is_error())
+      {
+        /*
+          Binlog logs a string starting from thd->query and having length
+          thd->query_length; so we set thd->query_length correctly (to not
+          log several statements in one event, when we executed only first).
+          We set it to not see the ';' (otherwise it would get into binlog
+          and Query_log_event::print() would give ';;' output).
+          This also helps display only the current query in SHOW
+          PROCESSLIST.
+        */
+        if (found_semicolon && (ulong) (found_semicolon - thd->query().str))
+          thd->set_query(thd->query().str,
+                         static_cast<size_t>(found_semicolon -
+                                             thd->query().str - 1));
+        /* Actually execute the query */
+        if (found_semicolon)
+        {
+          lex->safe_to_cache_query= 0;
+          thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
+        }
+        lex->set_trg_event_type_for_tables();
 
-      DBUG_ASSERT(thd->is_error());
-      DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
-			 thd->is_fatal_error));
-
-      query_cache.abort(thd);
+        int error MY_ATTRIBUTE((unused));
+        if (unlikely(thd->security_context()->password_expired() &&
+                     lex->sql_command != SQLCOM_SET_PASSWORD &&
+                     lex->sql_command != SQLCOM_SET_OPTION &&
+                     lex->sql_command != SQLCOM_ALTER_USER))
+        {
+          my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+          error= 1;
+        }
+        else
+          error= mysql_execute_command(thd, true);
+      }
     }
-
-    THD_STAGE_INFO(thd, stage_freeing_items);
-    sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
-    sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
-    thd->end_statement();
-    thd->cleanup_after_query();
-    DBUG_ASSERT(thd->change_list.is_empty());
   }
   else
   {
-    /*
-      Query cache hit. We need to write the general log here if
-      we haven't already logged the statement earlier due to --log-raw.
-      Right now, we only cache SELECT results; if the cache ever
-      becomes more generic, we should also cache the rewritten
-      query-string together with the original query-string (which
-      we'd still use for the matching) when we first execute the
-      query, and then use the obfuscated query-string for logging
-      here when the query is given again.
-    */
+    /* Instrument this broken statement as "statement/sql/error" */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
-                                                 sql_statement_info[SQLCOM_SELECT].m_key);
-    if (!opt_general_log_raw)
-      query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
-                                     thd->query().length);
-    parser_state->m_lip.found_semicolon= NULL;
+                                                 sql_statement_info[SQLCOM_END].m_key);
+
+    DBUG_ASSERT(thd->is_error());
+    DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
+      		 thd->is_fatal_error));
   }
+
+  THD_STAGE_INFO(thd, stage_freeing_items);
+  sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+  sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
+  thd->end_statement();
+  thd->cleanup_after_query();
+  DBUG_ASSERT(thd->change_list.is_empty());
 
   DBUG_VOID_RETURN;
 }
@@ -5536,7 +5490,7 @@ static bool reparse_common_table_expr(THD *thd, const LEX_STRING &text,
   /*
     Re-parsing a CTE creates Item_param-s and Item_sp_local-s which are
     special, as they do not exist in the original query: thus they should not
-    exist from the points of view of logging, and of query cache matching.
+    exist from the points of view of logging.
     This is achieved like this:
     - for SP local vars: their pos_in_query is set to 0
     - for PS parameters: they are not added to LEX::param_list and thus not to

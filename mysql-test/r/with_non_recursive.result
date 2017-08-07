@@ -526,7 +526,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1 from t1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -536,7 +536,7 @@ create view v1 as
 select * from (select 1,1 from t1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -1523,7 +1523,7 @@ create view v1 as
 with qn (foo, bar) as (select 1,1 from t1) select * from qn;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `test`.`t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS with `qn` (`foo`,`bar`) as (select 1 AS `1`,1 AS `1` from `t1`) select `qn`.`foo` AS `foo`,`qn`.`bar` AS `bar` from `qn`	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1
@@ -1533,7 +1533,7 @@ create view v1 as
 select * from (select 1,1 from t1) dt(foo,bar);
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `test`.`t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `dt`.`foo` AS `foo`,`dt`.`bar` AS `bar` from (select 1 AS `1`,1 AS `1` from `t1`) `dt` (`foo`,`bar`)	utf8mb4	utf8mb4_0900_ai_ci
 select * from v1;
 foo	bar
 1	1

@@ -30,9 +30,9 @@ drop table t1;
 #
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (NULL);
-SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
-SELECT sql_no_cache a, last_insert_id() FROM t1 WHERE a IS NULL;
-SELECT sql_no_cache a, last_insert_id() FROM t1;
+SELECT a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT a, last_insert_id() FROM t1 WHERE a IS NULL;
+SELECT a, last_insert_id() FROM t1;
 DROP TABLE t1;
 
 # End of 4.1 tests

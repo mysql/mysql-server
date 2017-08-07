@@ -77,14 +77,14 @@ typedef struct hash_row_preamble_st
   /*
     The actual key.
    */
-  my_hash_value_type hash_value;
+  uint hash_value;
 
   /**  
     The search state used to iterate over multiple entries for a
     given key.
    */
   malloc_unordered_multimap
-    <my_hash_value_type,
+    <uint,
      std::unique_ptr<HASH_ROW_ENTRY,
                      hash_slave_rows_free_entry>>::const_iterator
        search_state;
@@ -218,7 +218,7 @@ private:
      The hashtable itself.
    */
   malloc_unordered_multimap
-    <my_hash_value_type,
+    <uint,
      std::unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>> m_hash
        {key_memory_HASH_ROW_ENTRY};
 
@@ -231,7 +231,7 @@ private:
 
      @returns the hash key created.
    */
-  my_hash_value_type make_hash_key(TABLE *table, MY_BITMAP* cols);
+  uint make_hash_key(TABLE *table, MY_BITMAP* cols);
 };
 
 #endif

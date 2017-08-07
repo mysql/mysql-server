@@ -78,9 +78,6 @@ select count(name) from mutex_instances
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
 
-select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
-
 # The event scheduler may be disabled
 # select count(name) from mutex_instances
 #  where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
@@ -133,9 +130,6 @@ select count(name) from cond_instances
 
 select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
-
-select count(name) from cond_instances
- where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
 
 # The event scheduler may be disabled
 # select count(name) from cond_instances

@@ -66,7 +66,6 @@
 #include "rpl_slave.h"
 #include "session_tracker.h"
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
-#include "sql_cache.h"                          // query_cache_*
 #include "sql_class.h"
 #include "sql_error.h"
 #include "sql_insert.h" // check_that_all_fields_are_given_values,
@@ -610,11 +609,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed.load();
 
-  /*
-    We must invalidate the table in query cache before binlog writing and
-    ha_autocommit_...
-  */
-  query_cache.invalidate_single(thd, insert_table_ref, false);
   if (error)
   {
     if (read_file_from_client)

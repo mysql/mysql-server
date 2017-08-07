@@ -1737,7 +1737,6 @@ static bool fill_dd_partition_from_create_info(THD *thd,
 
         dd::Partition *part_obj= tab_obj->add_partition();
 
-        part_obj->set_level(0);
         part_obj->set_name(part_elem->partition_name);
         part_obj->set_engine(tab_obj->engine());
         if (part_elem->part_comment)
@@ -1855,35 +1854,15 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           for (dd::Index *idx : *tab_obj->indexes())
             part_obj->add_index(idx);
         }
-
-        part_num++;
-      }
-
-      /*
-        Set up all subpartitions. Partitions collection in dd::Table
-        must contain all objects for partitions first and only then
-        objects for subpartitions.
-      */
-      if (part_info->is_sub_partitioned())
-      {
-        part_it.rewind();
-        uint sub_part_num= 0;
-
-        while ((part_elem= part_it++))
+        else
         {
-          if (part_elem->part_state == PART_TO_BE_DROPPED ||
-              part_elem->part_state == PART_REORGED_DROPPED)
-          {
-            /* These should not be included in the new table definition. */
-            continue;
-          }
-
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
           partition_element *sub_elem;
+          uint sub_part_num= 0;
           while ((sub_elem= sub_it++))
           {
-            dd::Partition *sub_obj= tab_obj->add_partition();
-            sub_obj->set_level(1);
+            dd::Partition *sub_obj= part_obj->add_sub_partition();
+
             sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)
               sub_obj->set_comment(sub_elem->part_comment);
@@ -1911,8 +1890,8 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             sub_part_num++;
           }
         }
-        // Properly set-up links to parent partitions for subpartitions.
-        tab_obj->fix_partitions();
+
+        part_num++;
       }
     }
   }

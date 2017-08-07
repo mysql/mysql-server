@@ -379,24 +379,37 @@ Pipeline_stats_member_collector::Pipeline_stats_member_collector()
   : m_transactions_waiting_apply(0), m_transactions_certified(0),
     m_transactions_applied(0), m_transactions_local(0),
     m_transactions_local_rollback(0), send_transaction_identifiers(false)
-{}
+{
+  mysql_mutex_init(key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
+                   &m_transactions_waiting_apply_lock,
+                   MY_MUTEX_INIT_FAST);
+}
 
 
 Pipeline_stats_member_collector::~Pipeline_stats_member_collector()
-{}
+{
+  mysql_mutex_destroy(&m_transactions_waiting_apply_lock);
+}
 
 
 void
 Pipeline_stats_member_collector::increment_transactions_waiting_apply()
 {
+  mysql_mutex_lock(&m_transactions_waiting_apply_lock);
+  DBUG_ASSERT(m_transactions_waiting_apply.load() >= 0);
   ++m_transactions_waiting_apply;
+  mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
 
 void
 Pipeline_stats_member_collector::decrement_transactions_waiting_apply()
 {
-  --m_transactions_waiting_apply;
+  mysql_mutex_lock(&m_transactions_waiting_apply_lock);
+  if (m_transactions_waiting_apply.load() > 0)
+    --m_transactions_waiting_apply;
+  DBUG_ASSERT(m_transactions_waiting_apply.load() >= 0);
+  mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
 

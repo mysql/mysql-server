@@ -519,72 +519,6 @@ SHOW TABLES FROM non_existing_database;
 --echo End of 4.1 tests
 
 #
-# Bug#17203 "sql_no_cache sql_cache" in views created from prepared
-# statement
-#
-# The problem was that initial user setting was forgotten, and current
-# runtime-determined values of the flags were shown instead.
-#
---disable_warnings
-DROP VIEW IF EXISTS v1;
-DROP PROCEDURE IF EXISTS p1;
---enable_warnings
-
-# Check that SHOW CREATE VIEW shows SQL_CACHE flag exaclty as
-# specified by the user.
-CREATE VIEW v1 AS SELECT 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_CACHE 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-# Usage of NOW() disables caching, but we still have show what the
-# user have specified.
-CREATE VIEW v1 AS SELECT NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-
---error ER_WRONG_USAGE
-CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-
-# Check CREATE VIEW in a prepared statement in a procedure.
-delimiter |;
-CREATE PROCEDURE p1()
-BEGIN
-  SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
-  PREPARE stmt FROM @s;
-  EXECUTE stmt;
-  DROP PREPARE stmt;
-END |
-delimiter ;|
-CALL p1();
-SHOW CREATE VIEW v1;
-
-DROP PROCEDURE p1;
-DROP VIEW v1;
-
-
-#
 # Check that SHOW TABLES and SHOW COLUMNS give a error if there is no
 # referenced database and table respectively.
 #
@@ -597,6 +531,8 @@ SHOW COLUMNS FROM no_such_table;
 #
 # Bug#19764 SHOW commands end up in the slow log as table scans
 #
+SET GLOBAL EVENT_SCHEDULER = OFF;
+--source include/no_running_event_scheduler.inc
 CREATE TABLE t1 (f1 INT, f2 INT);
 INSERT INTO t1 VALUES(10, 20);
 flush status;
@@ -667,6 +603,8 @@ drop table t1;
 drop procedure p1;
 drop function f1;
 drop event e1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+--source include/running_event_scheduler.inc
 
 #
 # Bug#10491 Server returns data as charset binary SHOW CREATE TABLE or SELECT

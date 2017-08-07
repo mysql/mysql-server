@@ -1423,7 +1423,10 @@ user3148	test
 drop user user3148@localhost;
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
-SET GLOBAL event_scheduler=1;
+SELECT COUNT(*) = 1 FROM information_schema.processlist
+WHERE user = 'event_scheduler' AND command = 'Daemon';
+COUNT(*) = 1
+1
 CREATE EVENT event_status
 ON SCHEDULE AT NOW()
 ON COMPLETION NOT PRESERVE
@@ -1440,7 +1443,6 @@ variable_name
 Aborted_connects
 Binlog_cache_disk_use
 DROP TABLE server_status;
-SET GLOBAL event_scheduler=0;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH

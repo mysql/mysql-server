@@ -24,7 +24,7 @@
 #     Set value to group_replication_single_primary_mode system variable
 #
 #   $test_parameter_tx_isolation
-#     Set value to tx_isolation session system variable
+#     Set value to transaction_isolation session system variable
 #
 #   $test_parameter_sql_execution_error
 #     Should the test expect an error while executing INSERT statement. If not
@@ -45,7 +45,7 @@
 --source include/rpl_connection.inc
 --eval SET GLOBAL group_replication_enforce_update_everywhere_checks= $test_parameter_enforce_checks
 --eval SET GLOBAL group_replication_single_primary_mode= $test_parameter_single_primary_mode
---eval SET SESSION tx_isolation=$test_parameter_tx_isolation
+--eval SET SESSION transaction_isolation=$test_parameter_tx_isolation
 
 --source ../inc/start_and_bootstrap_group_replication.inc
 
@@ -57,7 +57,7 @@
 --source include/rpl_connection.inc
 --eval SET GLOBAL group_replication_enforce_update_everywhere_checks= $test_parameter_enforce_checks
 --eval SET GLOBAL group_replication_single_primary_mode= $test_parameter_single_primary_mode
---eval SET SESSION tx_isolation=$test_parameter_tx_isolation
+--eval SET SESSION transaction_isolation=$test_parameter_tx_isolation
 --source include/start_group_replication.inc
 
 --let $group_replication_expected_uuid= $test_parameter_primary_uuid

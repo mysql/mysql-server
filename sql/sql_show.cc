@@ -43,7 +43,6 @@
 #include "error_handler.h"                  // Internal_error_handler
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
-#include "hash.h"
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "item_create.h"
@@ -1945,8 +1944,6 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
-  bool compact_view_name= TRUE;
-  bool compact_view_format= TRUE;
   bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                     MODE_ORACLE |
                                                     MODE_MSSQL |
@@ -1954,30 +1951,9 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
                                                     MODE_MAXDB |
                                                     MODE_ANSI)) != 0;
 
-  if (!thd->db().str || strcmp(thd->db().str, table->view_db.str))
-    /*
-      print compact view name if the view belongs to the current database
-    */
-    compact_view_format= compact_view_name= FALSE;
-  else
-  {
-    /*
-      Compact output format for view body can be used
-      if this view only references table inside it's own db
-    */
-    TABLE_LIST *tbl;
-    for (tbl= thd->lex->query_tables;
-         tbl;
-         tbl= tbl->next_global)
-    {
-      if (strcmp(table->view_db.str,
-                 tbl->is_view() ? tbl->view_db.str : tbl->db) != 0)
-      {
-        compact_view_format= FALSE;
-        break;
-      }
-    }
-  }
+  // Print compact view name if the view belongs to the current database
+  bool compact_view_name= thd->db().str != NULL &&
+                          (!strcmp(thd->db().str, table->view_db.str));
 
   buff->append(STRING_WITH_LEN("CREATE "));
   if (!foreign_db_mode)
@@ -1998,11 +1974,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   /*
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
+
+    Append the db name only if it is not the same as connection's
+    database.
   */
   table->view_query()->unit->print(buff, 
                            enum_query_type(QT_TO_ARGUMENT_CHARSET | 
-                                           (compact_view_format ?
-                                            QT_NO_DB : 0)));
+                                           QT_NO_DEFAULT_DB));
 
   if (table->with_check != VIEW_CHECK_NONE)
   {

@@ -44,16 +44,16 @@ SET @@session.sql_quote_show_create = "T";
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'T'
 SET @@session.sql_quote_show_create = "Y";
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'Y'
-SET @@session.sql_quote_show_create = TRÜE;
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÜE'
-SET @@session.sql_quote_show_create = ÕN;
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'ÕN'
+SET @@session.sql_quote_show_create = TRÃœE;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'TRÃœE'
+SET @@session.sql_quote_show_create = Ã•N;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'Ã•N'
 SET @@session.sql_quote_show_create = OF;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'OF' at line 1
-SET @@session.sql_quote_show_create = ÓFF;
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'ÓFF'
-SET @@session.sql_quote_show_create = '¹';
-ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of '¹'
+SET @@session.sql_quote_show_create = Ã“FF;
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'Ã“FF'
+SET @@session.sql_quote_show_create = 'Â¹';
+ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'Â¹'
 SET @@session.sql_quote_show_create = NO;
 ERROR 42000: Variable 'sql_quote_show_create' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_162_05----------------------------#'

@@ -47,7 +47,6 @@
 #include "dur_prop.h"
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item_func.h"                      // user_var_entry
 #include "key.h"
 #include "log.h"
@@ -514,6 +513,9 @@ public:
       cache_state state;
       state.with_rbr= flags.with_rbr;
       state.with_sbr= flags.with_sbr;
+      state.with_start= flags.with_start;
+      state.with_end= flags.with_end;
+      state.with_content= flags.with_content;
       state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
@@ -529,6 +531,9 @@ public:
       {
         flags.with_rbr= it->second.with_rbr;
         flags.with_sbr= it->second.with_sbr;
+        flags.with_start= it->second.with_start;
+        flags.with_end= it->second.with_end;
+        flags.with_content= it->second.with_content;
         event_counter= it->second.event_counter;
       }
       else
@@ -539,6 +544,9 @@ public:
     {
       flags.with_rbr= false;
       flags.with_sbr= false;
+      flags.with_start= false;
+      flags.with_end= false;
+      flags.with_content= false;
       event_counter= 0;
     }
   }
@@ -574,6 +582,9 @@ public:
     flags.finalized= false;
     flags.with_sbr= false;
     flags.with_rbr= false;
+    flags.with_start= false;
+    flags.with_end= false;
+    flags.with_content= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -648,6 +659,46 @@ public:
     return flags.with_sbr || !flags.with_rbr;
   }
 
+  /**
+    Check if the binlog cache contains an empty transaction, which has
+    two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    /*
+      The empty transaction has two events in trx/stmt binlog cache
+      and no changes: one is a transaction start and other is a transaction
+      end (there should be no SBR changing content and no RBR events).
+    */
+    if (flags.with_start &&  // Has transaction start statement
+        flags.with_end &&    // Has transaction end statement
+        !flags.with_content) // Has no other content than START/END
+    {
+      DBUG_ASSERT(event_counter == 2); // Two events in the cache only
+      DBUG_ASSERT(!flags.with_sbr); // No statements changing content
+      DBUG_ASSERT(!flags.with_rbr); // No rows changing content
+      DBUG_ASSERT(!flags.immediate);// Not a DDL
+      DBUG_ASSERT(!flags.with_xid); // Not a XID trx and not an atomic DDL Query
+      return true;
+    }
+    return false;
+  }
+
+  /**
+    Check if the binlog cache is empty or contains an empty transaction,
+    which has two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache is empty or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool is_empty_or_has_empty_transaction()
+  {
+    return is_binlog_empty() || has_empty_transaction();
+  }
+
 protected:
   /*
     This structure should have all cache variables/flags that should be restored
@@ -657,6 +708,9 @@ protected:
   {
     bool with_sbr;
     bool with_rbr;
+    bool with_start;
+    bool with_end;
+    bool with_content;
     size_t event_counter;
   };
   /*
@@ -750,6 +804,21 @@ protected:
       This indicates that the cache contain RBR event changing content.
     */
     bool with_rbr:1;
+
+    /*
+      This indicates that the cache contain s transaction start statement.
+    */
+    bool with_start:1;
+
+    /*
+      This indicates that the cache contain a transaction end event.
+    */
+    bool with_end:1;
+
+    /*
+      This indicates that the cache contain content other than START/END.
+    */
+    bool with_content:1;
   } flags;
 
 private:
@@ -1014,6 +1083,23 @@ public:
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
     return 0;
+  }
+
+  /**
+    Check if at least one of transacaction and statement binlog caches
+    contains an empty transaction, other one is empty or contains an
+    empty transaction.
+
+    @return true  At least one of transacaction and statement binlog
+                  caches an empty transaction, other one is emptry
+                  or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    return (trx_cache.is_empty_or_has_empty_transaction() &&
+            stmt_cache.is_empty_or_has_empty_transaction() &&
+            !is_binlog_empty());
   }
 
   binlog_stmt_cache_data stmt_cache;
@@ -1387,6 +1473,13 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_sbr= true;
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
+    /* With respect to empty transactions */
+    if (ev->starts_group())
+      flags.with_start= true;
+    if (ev->ends_group())
+      flags.with_end= true;
+    if (!ev->starts_group() && !ev->ends_group())
+      flags.with_content= true;
     event_counter++;
     DBUG_PRINT("debug",("event_counter= %lu",
                         static_cast<ulong>(event_counter)));
@@ -2999,6 +3092,21 @@ err:
   DBUG_RETURN(-1);
 }
 
+
+bool is_empty_transaction_in_binlog_cache(const THD* thd)
+{
+  DBUG_ENTER("is_empty_transaction_in_binlog_cache");
+
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr != NULL && cache_mngr->has_empty_transaction())
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+
 /** 
   This function checks if a transactional table was updated by the
   current transaction.
@@ -3478,9 +3586,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
                              enum cache_type io_cache_type_arg)
   :name(NULL), write_error(false), inited(false),
    io_cache_type(io_cache_type_arg),
-#ifdef HAVE_PSI_INTERFACE
    m_key_LOCK_log(key_LOG_LOCK_log),
-#endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
@@ -3540,14 +3646,11 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
-  stage_manager.init(
-#ifdef HAVE_PSI_MUTEX_INTERFACE
-                   m_key_LOCK_flush_queue,
-                   m_key_LOCK_sync_queue,
-                   m_key_LOCK_commit_queue,
-                   m_key_LOCK_done, m_key_COND_done
-#endif
-                   );
+  stage_manager.init(m_key_LOCK_flush_queue,
+                     m_key_LOCK_sync_queue,
+                     m_key_LOCK_commit_queue,
+                     m_key_LOCK_done,
+                     m_key_COND_done);
 }
 
 
@@ -3781,9 +3884,7 @@ bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
 */
 
 bool MYSQL_BIN_LOG::open(
-#ifdef HAVE_PSI_INTERFACE
                      PSI_file_key log_file_key,
-#endif
                      const char *log_name,
                      const char *new_name,
                      uint32 new_index_number)
@@ -3811,10 +3912,8 @@ bool MYSQL_BIN_LOG::open(
 
   db[0]= 0;
 
-#ifdef HAVE_PSI_INTERFACE
   /* Keep the key for reopen */
   m_log_file_key= log_file_key;
-#endif
 
   if ((file= mysql_file_open(log_file_key,
                              log_file_name, O_CREAT | O_WRONLY,
@@ -5064,11 +5163,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (open(
-#ifdef HAVE_PSI_INTERFACE
-                      m_key_file_log,
-#endif
-                      log_name, new_name, new_index_number))
+  if (open(m_key_file_log,
+           log_name, new_name, new_index_number))
   {
     close_purge_index_file();
     DBUG_RETURN(1);                            /* all warnings issued */

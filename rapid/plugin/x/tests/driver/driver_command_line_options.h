@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "common/command_line_options.h"
-#include "console.h"
+#include "formatters/console.h"
 #include "mysqlx_version.h"
 #include "print_version.h"
 #include "processor/execution_context.h"

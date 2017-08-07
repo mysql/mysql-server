@@ -29,9 +29,6 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
-set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -215,7 +212,6 @@ default_storage_engine	MRG_MYISAM
 select * from performance_schema.global_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
 default_storage_engine	MRG_MYISAM
-set GLOBAL query_cache_size=102400;
 set GLOBAL myisam_max_sort_file_size=2000000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
@@ -434,8 +430,6 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MEMORY
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -545,11 +539,6 @@ Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-Warnings:
-Warning	1292	Truncated incorrect query_cache_size value: '100'
-set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -590,7 +579,7 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '100'
-set tx_isolation="READ-COMMITTED";
+set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
 Warnings:
@@ -1089,9 +1078,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
-set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1438,14 +1424,21 @@ ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SELECT @@global.expire_logs_days INTO @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = -1;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 needs to've been adjusted (0)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
 SET GLOBAL expire_logs_days = 100;
@@ -1454,21 +1447,34 @@ needs to be unchanged (11)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 11
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET SESSION sql_mode = @old_mode;
 SET GLOBAL expire_logs_days = 100;
 Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 needs to've been adjusted (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 11;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = 99;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 needs to pass with no warnings (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL expire_logs_days = @old_eld;
+Warnings:
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'

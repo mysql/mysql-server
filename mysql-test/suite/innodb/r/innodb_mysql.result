@@ -70,13 +70,13 @@ DELETE FROM t2 WHERE a = 1 AND b < 2;
 INSERT INTO t3 VALUES (1,1,1),(2,1,2);
 INSERT INTO t3 SELECT a + 2, a + 2, 3 FROM t3;
 INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
 t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 2;
 b	a
 1	1
 2	2
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+SELECT STRAIGHT_JOIN t1.b, t1.a FROM t1, t3, t2 WHERE
 t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 5;
 b	a
@@ -414,97 +414,6 @@ Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 name	dept
 DROP TABLE t1;
-drop table if exists t1;
-show variables like 'innodb_rollback_on_timeout';
-Variable_name	Value
-innodb_rollback_on_timeout	OFF
-create table t1 (a int unsigned not null primary key) engine = innodb;
-insert into t1 values (1);
-commit;
-begin work;
-insert into t1 values (2);
-select * from t1;
-a
-1
-2
-begin work;
-insert into t1 values (5);
-select * from t1;
-a
-1
-5
-insert into t1 values (2);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-select * from t1;
-a
-1
-5
-commit;
-select * from t1;
-a
-1
-2
-commit;
-select * from t1;
-a
-1
-2
-5
-drop table t1;
-End of 5.0 tests
-#
-# Bug#23753319: !M_THD->TRANSACTION_ROLLBACK_REQUEST' AT
-# THD::ATTACHABLE_TRX::INIT IN SQL/SQL_C
-#
-create table t1 (i int);
-insert into t1 values (42);
-# Grab locks which will block another con from doing select in RR
-BEGIN;
-select * from t1 for update;
-i
-42
-# Create competing connection using RR
-BEGIN;
-set session transaction isolation level repeatable read;
-# Will fail and request rollback due to blocking for update
-# (prior to fix this would trigger the assert).
-create table t2 as select * from t1;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-# Additional coverage for WL#7743 "New data dictionary: changes
-# to DDL-related parts of SE API". Check how rollback is handled
-# by similar CTS for non-transactional table.
-BEGIN;
-create table t2 engine=myisam as select * from t1;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-# Cleanup
-COMMIT;
-drop table t1;
-set @save_qcache_size=@@global.query_cache_size;
-set @save_qcache_type=@@global.query_cache_type;
-set global query_cache_size=10*1024*1024;
-set global query_cache_type=1;
-drop table if exists `test`;
-Warnings:
-Note	1051	Unknown table 'test.test'
-CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
-`test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
-ENGINE=InnoDB DEFAULT CHARSET=latin1;
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '5678');
-select * from test;
-test1	test2
-tes	5678
-INSERT INTO `test` (`test1`, `test2`) VALUES ('tes', '1234')
-ON DUPLICATE KEY UPDATE `test2` = '1234';
-select * from test;
-test1	test2
-tes	1234
-flush tables;
-select * from test;
-test1	test2
-tes	1234
-drop table test;
-set global query_cache_type=@save_qcache_type;
-set global query_cache_size=@save_qcache_size;
 drop table if exists t1;
 show variables like 'innodb_rollback_on_timeout';
 Variable_name	Value
@@ -2086,10 +1995,10 @@ SET @save_binlog_format=@@binlog_format;
 SET @@sql_log_bin = 0;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
-select @@session.sql_log_bin, @@session.binlog_format, @@session.tx_isolation;
+select @@session.sql_log_bin, @@session.binlog_format, @@session.transaction_isolation;
 @@session.sql_log_bin	0
 @@session.binlog_format	STATEMENT
-@@session.tx_isolation	READ-COMMITTED
+@@session.transaction_isolation	READ-COMMITTED
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;

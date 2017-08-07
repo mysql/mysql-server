@@ -13,4 +13,3 @@
 gr_read_committed_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
 gr_read_uncommitted_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
 gr_repeatable_read_isolation : BUG#25392468 2017-01-16 Jaideep TESTS WAITING ON ROLLBACK FAILING WITH WAIT_CONDITION
-group_replication.gr_force_peer_addresses_3_to_2: BUG#26093967 2017-05-17 Deepa Disabled consistently failing test

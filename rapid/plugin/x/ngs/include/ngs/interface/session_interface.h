@@ -21,6 +21,7 @@
 #define _NGS_SESSION_INTERFACE_H_
 
 #include "authentication_interface.h"
+#include "protocol_encoder_interface.h"
 #include "sql_session_interface.h"
 
 namespace ngs
@@ -59,6 +60,7 @@ public:
   // handle a single message, returns true if message was handled false if not
   virtual bool handle_message(Request &command) = 0;
 
+
 public:
   virtual State state() const = 0;
   virtual State state_before_close() const = 0;
@@ -68,6 +70,7 @@ public:
   virtual void mark_as_tls_session() = 0;
   virtual bool is_handled_by(const void *handler) const = 0;
   virtual Sql_session_interface &data_context() = 0;
+  virtual Protocol_encoder_interface &proto() = 0;
 
 };
 

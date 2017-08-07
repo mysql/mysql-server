@@ -6995,6 +6995,27 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
     Slave_worker *w= *it;
+    mysql_mutex_lock(&w->jobs_lock);
+    while (w->running_status != Slave_worker::NOT_RUNNING)
+    {
+      PSI_stage_info old_stage;
+      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
+                  w->running_status == Slave_worker::STOP ||
+                  w->running_status == Slave_worker::STOP_ACCEPTED);
+
+      thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
+                      &stage_slave_waiting_workers_to_exit, &old_stage);
+      mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
+      mysql_mutex_unlock(&w->jobs_lock);
+      thd->EXIT_COND(&old_stage);
+      mysql_mutex_lock(&w->jobs_lock);
+    }
+    mysql_mutex_unlock(&w->jobs_lock);
+  }
+
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
+  {
+    Slave_worker *w= *it;
 
     /*
       Make copies for reporting through the performance schema tables.
@@ -7018,26 +7039,6 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
-  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
-  {
-    Slave_worker *w= *it;
-    mysql_mutex_lock(&w->jobs_lock);
-    while (w->running_status != Slave_worker::NOT_RUNNING)
-    {
-      PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
-                  w->running_status == Slave_worker::STOP ||
-                  w->running_status == Slave_worker::STOP_ACCEPTED);
-
-      thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
-                      &stage_slave_waiting_workers_to_exit, &old_stage);
-      mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
-      mysql_mutex_unlock(&w->jobs_lock);
-      thd->EXIT_COND(&old_stage);
-      mysql_mutex_lock(&w->jobs_lock);
-    }
-    mysql_mutex_unlock(&w->jobs_lock);
-  }
 
   if (thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
@@ -8826,8 +8827,6 @@ static Log_event* next_event(Relay_log_info* rli)
       DBUG_RETURN(ev);
     }
     DBUG_ASSERT(thd==rli->info_thd);
-    if (opt_reckless_slave)                     // For mysql-test
-      cur_log->error = 0;
     if (cur_log->error < 0)
     {
       errmsg = "slave SQL thread aborted because of I/O error";
@@ -10256,6 +10255,35 @@ static void change_execute_options(LEX_MASTER_INFO* lex_mi, Master_info* mi)
 }
 
 /**
+  This function shall issue a deprecation warning if
+  there are server ids tokenized from the CHANGE MASTER
+  TO command while @@global.gtid_mode=ON.
+ */
+static void
+issue_deprecation_warnings_for_channel(THD *thd)
+{
+  LEX_MASTER_INFO *lex_mi= &thd->lex->mi;
+
+  /*
+    Deprecation of GTID_MODE + IGNORE_SERVER_IDS
+
+    Generate deprecation warning when user executes CHANGE
+    MASTER TO IGNORE_SERVER_IDS if GTID_MODE=ON.
+  */
+  enum_gtid_mode gtid_mode=
+    get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP);
+  if (lex_mi->repl_ignore_server_ids.size() > 0 &&
+      gtid_mode == GTID_MODE_ON)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
+                        "(when @@GLOBAL.GTID_MODE = ON)", "");
+  }
+}
+
+/**
   Execute a CHANGE MASTER statement.
 
   Apart from changing the receive/execute configurations/positions,
@@ -10952,6 +10980,12 @@ bool change_master_cmd(THD *thd)
                     mi->rli, lex->mi.channel)))
           goto err;
       }
+
+      /*
+        Issuing deprecation warnings after the change (we make
+        sure that we don't issue warning if there is an error).
+      */
+      issue_deprecation_warnings_for_channel(thd);
 
       my_ok(thd);
     }

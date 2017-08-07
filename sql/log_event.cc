@@ -44,6 +44,7 @@
 #include "my_macros.h"
 #include "my_table_map.h"
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
+#include "rpl_handler.h"       // RUN_HOOK
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql_time.h"
@@ -103,7 +104,6 @@
 #include "sp_head.h"           // sp_name
 #include "sql_base.h"          // close_thread_tables
 #include "sql_bitmap.h"
-#include "sql_cache.h"         // query_cache
 #include "sql_class.h"
 #include "sql_cmd.h"
 #include "sql_data_change.h"
@@ -4972,7 +4972,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           about the non-standard situation we have found.
         */
         if (is_sbr_logging_format() &&
-            thd->variables.tx_isolation > ISO_READ_COMMITTED &&
+            thd->variables.transaction_isolation > ISO_READ_COMMITTED &&
             thd->tx_isolation == ISO_READ_COMMITTED)
         {
           String message;
@@ -9150,12 +9150,8 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     if (m_table->file->inited && (error= m_table->file->ha_index_end()))
       goto end;
 
-    if ((error= m_table->file->ha_rnd_init(FALSE)))
-      goto end;
-
     error= m_table->file->rnd_pos_by_record(m_table->record[0]);
 
-    m_table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -9826,16 +9822,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /*
       ... and then we add all the tables to the table map and but keep
       them in the tables to lock list.
-
-      We also invalidate the query cache for all the tables, since
-      they will now be changed.
-
-      TODO [/Matz]: Maybe the query cache should not be invalidated
-      here? It might be that a table is not changed, even though it
-      was locked for the statement.  We do know that each
-      Rows_log_event contain at least one row, so after processing one
-      Rows_log_event, we can invalidate the query cache for the
-      associated table.
      */
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
@@ -9849,7 +9835,51 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
 
-    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
+    /*
+      Validate applied binlog events with plugin requirements.
+    */
+    int out_value= 0;
+    int hook_error= RUN_HOOK(binlog_relay_io, applier_log_event, (thd, out_value));
+    if (hook_error || out_value)
+    {
+      char buf[256];
+      uint error= ER_APPLIER_LOG_EVENT_VALIDATION_ERROR;
+
+      if (hook_error)
+      {
+        error= ER_RUN_HOOK_ERROR;
+        strcpy(buf, "applier_log_event");
+      }
+      else
+      {
+        if (!thd->owned_gtid.is_empty() && thd->owned_gtid.sidno > 0)
+        {
+          thd->owned_gtid.to_string(thd->owned_sid, buf);
+        }
+        else
+        {
+          strcpy(buf, "ANONYMOUS");
+        }
+      }
+
+      if (thd->slave_thread)
+      {
+        rli->report(ERROR_LEVEL, error,
+                    ER_THD(thd, error), buf);
+        thd->is_slave_error= 1;
+        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
+      }
+      else
+      {
+        /*
+          For the cases in which a 'BINLOG' statement is set to
+          execute in a user session
+        */
+        my_printf_error(error, ER_THD(thd, error),
+                        MYF(0), buf);
+      }
+      DBUG_RETURN(error);
+    }
   }
 
   table=

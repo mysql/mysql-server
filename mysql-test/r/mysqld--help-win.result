@@ -196,6 +196,9 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --cte-max-recursion-depth=# 
+ Abort a recursive common table expression if it does more
+ than this number of iterations.
  -h, --datadir=name  Path to the database root directory
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
@@ -890,18 +893,6 @@ The following options may be given as the first argument:
  Limit of query profiling memory
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
- --query-cache-limit=# 
- Don't cache results that are bigger than this
- --query-cache-min-res-unit=# 
- The minimum size for blocks allocated by the query cache
- --query-cache-size=# 
- The memory allocated to store results from old queries
- --query-cache-type=name 
- OFF = Don't cache or retrieve results. ON = Cache all
- results except SELECT SQL_NO_CACHE ... queries. DEMAND =
- Cache only SELECT SQL_CACHE ... queries
- --query-cache-wlock-invalidate 
- Invalidate queries in query cache on LOCK for write
  --query-prealloc-size=# 
  Persistent buffer for query parsing and execution
  --range-alloc-block-size=# 
@@ -1325,6 +1316,7 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+cte-max-recursion-depth 1000
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
@@ -1344,7 +1336,7 @@ div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
-event-scheduler OFF
+event-scheduler ON
 expire-logs-days 30
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
@@ -1378,9 +1370,7 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
-language MYSQL_SHAREDIR/
 lc-messages en_US
-lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile FALSE
 lock-wait-timeout 31536000
@@ -1417,7 +1407,7 @@ master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 4194304
+max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
@@ -1528,7 +1518,7 @@ performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-table-lock-stat -1
-performance-schema-max-thread-classes 50
+performance-schema-max-thread-classes 100
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
@@ -1540,11 +1530,6 @@ port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
 query-alloc-block-size 8192
-query-cache-limit 1048576
-query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type OFF
-query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
 range-optimizer-max-mem-size 8388608

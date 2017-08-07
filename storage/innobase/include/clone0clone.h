@@ -367,9 +367,13 @@ private:
 	dberr_t file_callback(
 		Ha_clone_cbk*	cbk,
 		Clone_Task*	task,
-		uint		len,
+		uint		len
+#ifdef UNIV_PFS_IO
+		,
 		const char*	name,
-		uint		line);
+		uint		line
+#endif  /* UNIV_PFS_IO */
+		);
 
 	/** Move to next state
 	@param[in]	task		clone task

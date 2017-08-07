@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,8 @@ those functions in lock/ */
 #include "dict0types.h"
 #include "hash0hash.h"
 #include "trx0types.h"
+
+#include <utility>
 
 /** A table lock */
 struct lock_table_t {
@@ -77,7 +79,7 @@ operator<<(std::ostream& out, const lock_table_t& lock)
 struct lock_rec_t {
 	space_id_t	space;		/*!< space id */
 	page_no_t	page_no;	/*!< page number */
-	ib_uint32_t	n_bits;		/*!< number of bits in the lock
+	uint32_t	n_bits;		/*!< number of bits in the lock
 					bitmap; NOTE: the lock bitmap is
 					placed immediately after the
 					lock struct */
@@ -108,32 +110,45 @@ operator<<(std::ostream& out, const lock_rec_t& lock)
 
 /** Lock struct; protected by lock_sys->mutex */
 struct lock_t {
-	trx_t*		trx;		/*!< transaction owning the
-					lock */
-	UT_LIST_NODE_T(lock_t)
-			trx_locks;	/*!< list of the locks of the
-					transaction */
+	/** transaction owning the lock */
+	trx_t*			trx;
 
-	dict_index_t*	index;		/*!< index for a record lock */
+	/** list of the locks of the transaction */
+	UT_LIST_NODE_T(lock_t)	trx_locks;
 
-	lock_t*		hash;		/*!< hash chain node for a record
-					lock. The link node in a singly linked
-					list, used during hashing. */
+	/** Index for a record lock */
+	dict_index_t*		index;
+
+	/** Hash chain node for a record lock. The link node in a singly
+	linked list, used by the hash table. */
+	lock_t*			hash;
 
 	union {
-		lock_table_t	tab_lock;/*!< table lock */
-		lock_rec_t	rec_lock;/*!< record lock */
-	} un_member;			/*!< lock details */
+		/** Table lock */
+		lock_table_t	tab_lock;
 
-	ib_uint32_t	type_mode;	/*!< lock type, mode, LOCK_GAP or
-					LOCK_REC_NOT_GAP,
-					LOCK_INSERT_INTENTION,
-					wait flag, ORed */
+		/** Record lock */
+		lock_rec_t	rec_lock;
+	};
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+#ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 	/** Performance schema thread that created the lock. */
-	ulonglong m_psi_internal_thread_id;
+	ulonglong		m_psi_internal_thread_id;
+
 	/** Performance schema event that created the lock. */
-	ulonglong m_psi_event_id;
+	ulonglong		m_psi_event_id;
+#endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+	/** The lock type and mode bit flags.
+	LOCK_GAP or LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION, wait flag, ORed */
+	uint32_t		type_mode;
+
+#if	defined(UNIV_DEBUG)
+	/** Timestamp when it was created. */
+	uint64_t		m_seq;
+#endif /* UNIV_DEBUG */
 
 	/** Determine if the lock object is a record lock.
 	@return true if record lock, false otherwise. */
@@ -142,33 +157,62 @@ struct lock_t {
 		return(type() == LOCK_REC);
 	}
 
+	/** @return true if the lock wait flag is set */
 	bool is_waiting() const
 	{
 		return(type_mode & LOCK_WAIT);
 	}
 
+	/** @return true if the gap lock bit is set */
 	bool is_gap() const
 	{
 		return(type_mode & LOCK_GAP);
 	}
 
+	/** @return true if the not gap lock bit is set */
 	bool is_record_not_gap() const
 	{
 		return(type_mode & LOCK_REC_NOT_GAP);
 	}
 
+	/** @return true if the insert intention bit is set */
 	bool is_insert_intention() const
 	{
 		return(type_mode & LOCK_INSERT_INTENTION);
 	}
 
-	ulint type() const {
+	/** @return the lock mode */
+	ulint type() const
+	{
 		return(type_mode & LOCK_TYPE_MASK);
 	}
 
-	enum lock_mode mode() const
+	/** @return the precise lock mode */
+	lock_mode mode() const
 	{
-		return(static_cast<enum lock_mode>(type_mode & LOCK_MODE_MASK));
+		return(static_cast<lock_mode>(type_mode & LOCK_MODE_MASK));
+	}
+
+	/** @return the record lock tablespace ID */
+	space_id_t space_id() const
+	{
+		ut_ad(is_record_lock());
+
+		return(rec_lock.space);
+	}
+
+	/** @return the record lock page number */
+	page_no_t page_no() const
+	{
+		ut_ad(is_record_lock());
+
+		return(rec_lock.page_no);
+	}
+
+	/** @return the transaction's query thread state. */
+	trx_que_t trx_que_state() const
+	{
+		return(trx->lock.que_state);
 	}
 
 	/** Print the lock object into the given output stream.
@@ -180,6 +224,7 @@ struct lock_t {
 	@return human readable string */
 	std::string type_mode_string() const;
 
+	/* @return the string/text representation of the record type. */
 	const char* type_string() const
 	{
 		switch (type_mode & LOCK_TYPE_MASK) {
@@ -229,9 +274,9 @@ lock_t::print(std::ostream& out) const
 		<< type_mode_string() << ")";
 
 	if (is_record_lock()) {
-		out << un_member.rec_lock;
+		out << rec_lock;
 	} else {
-		out << un_member.tab_lock;
+		out << tab_lock;
 	}
 
 	out << "]";
@@ -561,6 +606,25 @@ enum lock_rec_req_status {
 Record lock ID */
 struct RecID {
 
+	/** Constructor
+	@param[in]	lock		Record lock
+	@param[in]	heap_no		Heap number in the page */
+	RecID(const lock_t* lock, ulint heap_no)
+		:
+		m_space_id(lock->rec_lock.space),
+		m_page_no(lock->rec_lock.page_no),
+		m_heap_no(static_cast<uint32_t>(heap_no)),
+		m_fold(lock_rec_fold(m_space_id, m_page_no))
+	{
+		ut_ad(m_space_id < UINT32_MAX);
+		ut_ad(m_page_no < UINT32_MAX);
+		ut_ad(m_heap_no < UINT32_MAX);
+	}
+
+	/** Constructor
+	@param[in]	space_id	Tablespace ID
+	@param[in]	page_no		Page number in space_id
+	@param[in]	heap_no		Heap number in <space_id, page_no> */
 	RecID(space_id_t space_id, page_no_t page_no, ulint heap_no)
 		:
 		m_space_id(space_id),
@@ -568,11 +632,14 @@ struct RecID {
 		m_heap_no(static_cast<uint32_t>(heap_no)),
 		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
-		ut_ad(space_id < UINT32_MAX);
-		ut_ad(page_no < UINT32_MAX);
-		ut_ad(heap_no < UINT32_MAX);
+		ut_ad(m_space_id < UINT32_MAX);
+		ut_ad(m_page_no < UINT32_MAX);
+		ut_ad(m_heap_no < UINT32_MAX);
 	}
 
+	/** Constructor
+	@param[in]	block		Block in a tablespace
+	@param[in]	heap_no		Heap number in the block */
 	RecID(const buf_block_t* block, ulint heap_no)
 		:
 		m_space_id(block->page.id.space()),
@@ -590,13 +657,24 @@ struct RecID {
 		return(m_fold);
 	}
 
+	/** @return true if it's the supremum record */
+	bool is_supremum() const
+	{
+		return(m_heap_no == PAGE_HEAP_NO_SUPREMUM);
+	}
+
+	/* Check if the rec id matches the lock instance.
+	@param[i]	lock		Lock to compare with
+	@return true if <space, page_no, heap_no> matches the lock. */
+	inline bool matches(const lock_t* lock) const;
+
 	/**
 	Tablespace ID */
-	uint32_t		m_space_id;
+	space_id_t		m_space_id;
 
 	/**
 	Page number within the space ID */
-	uint32_t		m_page_no;
+	page_no_t		m_page_no;
 
 	/**
 	Heap number within the page */
@@ -723,16 +801,14 @@ public:
 	/**
 	Create a lock for a transaction and initialise it.
 	@param[in, out] trx		Transaction requesting the new lock
-	@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
 	@param[in] add_to_hash		add the lock to hash table
 	@param[in] prdt			Predicate lock (optional)
 	@return new lock instance */
 	lock_t* create(
 		trx_t*		trx,
-		bool		owns_trx_mutex,
 		bool		add_to_hash,
 		const lock_prdt_t*
-				prdt = NULL);
+				prdt = nullptr);
 
 	/**
 	Check of the lock is on m_rec_id.
@@ -805,9 +881,13 @@ private:
 		const lock_t*	conflict_lock,
 		bool*		high_priority);
 
-	/** Iterate over the granted locks and prepare the hit list for ASYNC Rollback.
-	If the transaction is waiting for some other lock then wake up with deadlock error.
-	Currently we don't mark following transactions for ASYNC Rollback.
+	/** Iterate over the granted locks and prepare the hit list for
+	ASYNC Rollback.
+
+	If the transaction is waiting for some other lock then wake up
+	with deadlock error.  Currently we don't mark following transactions
+	for ASYNC Rollback.
+
 	1. Read only transactions
 	2. Background transactions
 	3. Other High priority transactions
@@ -973,13 +1053,13 @@ lock_rec_get_prev(
 	const lock_t*	in_lock,/*!< in: record lock */
 	ulint		heap_no);/*!< in: heap number of the record */
 
-/*********************************************************************//**
-Cancels a waiting lock request and releases possible other transactions
-waiting behind it. */
+
+/** Cancels a waiting lock request and releases possible other transactions
+waiting behind it.
+@param[in,out]	lock		Waiting lock request
+@param[in]	use_fcfs	true -> use first come first served strategy */
 void
-lock_cancel_waiting_and_release(
-/*============================*/
-	lock_t*	lock);	/*!< in/out: waiting lock request */
+lock_cancel_waiting_and_release(lock_t* lock, bool use_fcfs);
 
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a clustered
@@ -1006,9 +1086,9 @@ lock_rec_get_next_on_page_const(
 /** Gets the nth bit of a record lock.
 @param[in]	lock	record lock
 @param[in]	i	index of the bit
-@return TRUE if bit set also if i == ULINT_UNDEFINED return FALSE*/
+@return true if bit set also if i == ULINT_UNDEFINED return false */
 UNIV_INLINE
-ibool
+bool
 lock_rec_get_nth_bit(
 	const lock_t*	lock,
 	ulint		i);
@@ -1083,6 +1163,16 @@ const lock_t*
 lock_rec_get_next_const(
 	ulint		heap_no,
 	const lock_t*	lock);
+
+/** Gets the first explicit lock request on a record.
+@param[in]	hash		Record hash
+@param[in]	rec_id		Record ID
+@return	first lock, nullptr if none exists */
+UNIV_INLINE
+lock_t*
+lock_rec_get_first(
+	hash_table_t*	hash,
+	const RecID&	rec_id);
 
 /** Gets the first explicit lock request on a record.
 @param[in]	hash	hash chain the lock on
@@ -1164,5 +1254,120 @@ lock_table_has(
 	enum lock_mode		mode);
 
 #include "lock0priv.ic"
+
+/** Iterate over record locks matching <space, page_no, heap_no> */
+struct Lock_iter {
+
+	/* First is the previous lock, and second is the current lock. */
+	/** Gets the next record lock on a page.
+	@param[in]	rec_id		The record ID
+	@param[in]	lock		The current lock
+	@return matching lock or nullptr if end of list */
+	static lock_t* advance(
+		const RecID&	rec_id,
+		lock_t*		lock)
+	{
+		ut_ad(lock_mutex_own());
+		ut_ad(lock->is_record_lock());
+
+		while ((lock = static_cast<lock_t*>(lock->hash)) != nullptr) {
+
+			ut_ad(lock->is_record_lock());
+
+			if (rec_id.matches(lock)) {
+
+				return(lock);
+			}
+		}
+
+		ut_ad(lock == nullptr);
+		return(nullptr);
+	}
+
+	/** Gets the first explicit lock request on a record.
+	@param[in]	list		Record hash
+	@param[in]	rec_id		Record ID
+	@return	first lock, nullptr if none exists */
+	static lock_t* first(
+		hash_cell_t*	list,
+		const RecID&	rec_id)
+	{
+		ut_ad(lock_mutex_own());
+
+		auto	lock = static_cast<lock_t*>(list->node);
+
+		ut_ad(lock == nullptr || lock->is_record_lock());
+
+		if (lock != nullptr && !rec_id.matches(lock)) {
+
+			lock = advance(rec_id, lock);
+		}
+
+		return(lock);
+	}
+
+	/** Iterate over all the locks on a specific row
+	@param[in]	rec_id		Iterate over locks on this row
+	@param[in]	f		Function to call for each entry
+	@return lock where the callback returned false */
+	template<typename F>
+	static const lock_t* for_each(const RecID& rec_id, F&& f)
+	{
+		ut_ad(lock_mutex_own());
+
+		auto	hash_table = lock_sys->rec_hash;
+
+		auto	list = hash_get_nth_cell(
+			hash_table, hash_calc_hash(rec_id.m_fold, hash_table));
+
+		for (auto lock = first(list, rec_id);
+		     lock != nullptr;
+		     lock = advance(rec_id, lock)) {
+
+			ut_ad(lock->is_record_lock());
+
+			if (!f(lock)) {
+				return(lock);
+			}
+		}
+
+		return(nullptr);
+	}
+
+	/** Iterate over locks starting from begin and up to end
+	@param[in]	begin		Starting point
+	@param[in]	end		Up to but not including
+	@param[in]	heap_no		Heap number in the block
+	@param[in]	f		Function to call for each entry
+	@return lock where where the iteration ended */
+	template<typename F>
+	static const lock_t* for_each(
+		const lock_t*	begin,
+		const lock_t*	end,
+		uint32_t	heap_no,
+		F&&		f)
+	{
+		ut_ad(lock_mutex_own());
+		ut_ad(end->is_record_lock());
+		ut_ad(begin->is_record_lock());
+
+		ut_ad(begin->rec_lock.space == end->rec_lock.space);
+
+		ut_ad(begin->rec_lock.page_no == end->rec_lock.page_no);
+
+		for (auto lock = begin;
+		     lock != nullptr && lock != end;
+		     lock = lock_rec_get_next_const(heap_no, lock)) {
+
+			ut_ad(lock->is_record_lock());
+
+			if (!f(lock)) {
+				return(lock);
+			}
+		}
+
+		return(nullptr);
+	}
+};
 
 #endif /* lock0priv_h */

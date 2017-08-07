@@ -383,11 +383,7 @@ Ha_innopart_share::open_table_parts(
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 	uint		i = 0;
 
-	for (const auto dd_part : dd_table->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
-
+	for (const auto dd_part : dd_table->leaf_partitions()) {
 		size_t	len = create_partition_postfix(
 			partition_name + table_name_len,
 			FN_REFLEN - table_name_len, dd_part);
@@ -2723,10 +2719,7 @@ ha_innopart::create(
 #ifdef UNIV_DEBUG
 	ulint	i = 0;
 #endif /* UNIV_DEBUG */
-	for (const auto dd_part : *table_def->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
+	for (const auto dd_part : *table_def->leaf_partitions()) {
 
 		size_t	len = Ha_innopart_share::create_partition_postfix(
 			partition_name_start, FN_REFLEN - table_name_len,
@@ -2801,10 +2794,7 @@ ha_innopart::create(
 	create_info->data_file_name = NULL;
 	create_info->index_file_name = NULL;
 
-	for (const auto dd_part : *table_def->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
+	for (const auto dd_part : *table_def->leaf_partitions()) {
 
 		Ha_innopart_share::create_partition_postfix(
 			table_name_end, FN_REFLEN - table_name_len,
@@ -2823,10 +2813,7 @@ ha_innopart::create(
 
 end:
 	if (prevent_eviction) {
-		for (const auto dd_part : *table_def->partitions()) {
-			if (!dd_part_is_stored(dd_part)) {
-				continue;
-			}
+		for (const auto dd_part : *table_def->leaf_partitions()) {
 			Ha_innopart_share::create_partition_postfix(
 				table_name_end, FN_REFLEN - table_name_len,
 				dd_part);
@@ -2848,10 +2835,7 @@ end:
 cleanup:
 	if (prevent_eviction) {
 		uint	i = 0;
-		for (const auto dd_part : *table_def->partitions()) {
-			if (!dd_part_is_stored(dd_part)) {
-				continue;
-			}
+		for (const auto dd_part : *table_def->leaf_partitions()) {
 			/** Just handle the created tables */
 			if (i++ >= created) {
 				break;
@@ -2904,10 +2888,7 @@ ha_innopart::delete_table(
 	partition_name_start = partition_name + strlen(name);
 	table_name_len = strlen(name);
 
-	for (const dd::Partition* dd_part : dd_table->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
+	for (const dd::Partition* dd_part : dd_table->leaf_partitions()) {
 
 		size_t len = Ha_innopart_share::create_partition_postfix(
 			partition_name_start, FN_REFLEN - table_name_len,
@@ -2976,16 +2957,10 @@ ha_innopart::rename_table(
 	from_table_name_len = strlen(from_name);
 	to_table_name_len = strlen(to_name);
 
-	auto	to_part = to_table->partitions()->begin();
+	auto	to_part = to_table->leaf_partitions()->begin();
 
-	for (const auto from_part : from_table->partitions()) {
+	for (const auto from_part : from_table->leaf_partitions()) {
 		ut_ad((*to_part) != NULL);
-		ut_ad(dd_part_is_stored(*to_part)
-		      == dd_part_is_stored(from_part));
-		if (!dd_part_is_stored(from_part)) {
-			++to_part;
-			continue;
-		}
 
 		size_t	from_len = Ha_innopart_share::create_partition_postfix(
 			from_name + from_table_name_len,
@@ -3059,10 +3034,7 @@ ha_innopart::set_dd_discard_attribute(
 
 	DBUG_ENTER("ha_innopart::update_dd_for_discard");
 
-	for (dd::Partition* dd_part : *table_def->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
+	for (dd::Partition* dd_part : *table_def->leaf_partitions()) {
 
 		if (!m_part_info->is_partition_used(i++)) {
 			continue;
@@ -3380,10 +3352,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	/* From now on m_prebuilt is reset and m_part_info is still usable! */
 	processed = 0;
 	i = 0;
-	for (dd::Partition* dd_part : *dd_table->partitions()) {
-		if (!dd_part_is_stored(dd_part)) {
-			continue;
-		}
+	for (dd::Partition* dd_part : *dd_table->leaf_partitions()) {
 
 		if (!m_part_info->is_partition_used(i++)) {
 			continue;
@@ -4618,6 +4587,45 @@ ha_innopart::reset()
 	clear_blob_heaps();
 
 	DBUG_RETURN(ha_innobase::reset());
+}
+
+/**
+ Read row using position using given record to find.
+
+This works as position()+rnd_pos() functions, but does some
+extra work,calculating m_last_part - the partition to where
+the 'record' should go.	Only useful when position is based
+on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
+
+@param[in]	record	Current record in MySQL Row Format.
+@return	0 for success else error code. */
+int
+ha_innopart::rnd_pos_by_record(uchar*  record)
+{
+	int error;
+	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
+	DBUG_ASSERT(ha_table_flags() &
+		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
+	/* Set m_last_part correctly. */
+	if (unlikely(get_part_for_delete(record,
+					 m_table->record[0],
+					 m_part_info,
+					 &m_last_part))) {
+		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+	}
+
+	/* Init only the partition in which row resides */
+	error = rnd_init_in_part(m_last_part, false);
+	if (error != 0) {
+		goto err;
+	}
+
+	position(record);
+	error = handler::ha_rnd_pos(record, ref);
+err:
+	rnd_end_in_part(m_last_part,FALSE);
+	DBUG_RETURN(error);
 }
 
 /****************************************************************************

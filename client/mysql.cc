@@ -796,7 +796,6 @@ static COMMANDS commands[] = {
   { "SQLWARNING", 0, 0, 0, ""},
   { "SQL_BIG_RESULT", 0, 0, 0, ""},
   { "SQL_BUFFER_RESULT", 0, 0, 0, ""},
-  { "SQL_CACHE", 0, 0, 0, ""},
   { "SQL_CALC_FOUND_ROWS", 0, 0, 0, ""},
   { "SQL_NO_CACHE", 0, 0, 0, ""},
   { "SQL_SMALL_RESULT", 0, 0, 0, ""},

@@ -819,7 +819,10 @@ namespace keyring__keys_container_unittest
   class Mock_serializer : public ISerializer
   {
   public:
-    MOCK_METHOD3(serialize, ISerialized_object*(HASH*, IKey*, Key_operation));
+    MOCK_METHOD3(serialize, ISerialized_object*
+                   (const collation_unordered_map
+                      <std::string, std::unique_ptr<IKey>>&,
+                    IKey*, Key_operation));
   };
 
   class Keys_container_with_mocked_io_test : public ::testing::Test
@@ -903,7 +906,7 @@ namespace keyring__keys_container_unittest
    }
 
     EXPECT_EQ(keys_container->init(keyring_io, file_name), 1);
-    ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+    ASSERT_EQ(0u, keys_container->get_number_of_keys());
     delete logger;
   }
 

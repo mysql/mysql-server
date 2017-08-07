@@ -439,14 +439,11 @@ lock_prdt_add_to_queue(
 					the record */
 	dict_index_t*		index,	/*!< in: index of record */
 	trx_t*			trx,	/*!< in/out: transaction */
-	lock_prdt_t*		prdt,	/*!< in: Minimum Bounding Rectangle
+	lock_prdt_t*		prdt)	/*!< in: Minimum Bounding Rectangle
 					the new lock will be on */
-	bool			caller_owns_trx_mutex)
-					/*!< in: TRUE if caller owns the
-					transaction mutex */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
+	ut_ad(trx->owns_mutex == trx_mutex_own(trx));
 	ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
 	ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 
@@ -498,7 +495,7 @@ lock_prdt_add_to_queue(
 
 	RecLock	rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-	return(rec_lock.create(trx, caller_owns_trx_mutex, true, prdt));
+	return(rec_lock.create(trx, true, prdt));
 }
 
 /*********************************************************************//**
@@ -580,9 +577,13 @@ lock_prdt_insert_check_and_lock(
 		/* Note that we may get DB_SUCCESS also here! */
 
 		trx_mutex_enter(trx);
+		
+		trx->owns_mutex = true;
 
 		err = rec_lock.add_to_waitq(wait_for, prdt);
 
+		trx->owns_mutex = false;
+	
 		trx_mutex_exit(trx);
 
 	} else {
@@ -648,18 +649,19 @@ lock_prdt_update_parent(
 		if (!lock_prdt_consistent(lock_prdt, left_prdt, op)
 		    && !lock_prdt_find_on_page(lock->type_mode, left_block,
 					       lock_prdt, lock->trx)) {
-			lock_prdt_add_to_queue(lock->type_mode,
-					       left_block, lock->index,
-					       lock->trx, lock_prdt,
-					       FALSE);
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, left_block, lock->index,
+				lock->trx, lock_prdt);
 		}
 
 		if (!lock_prdt_consistent(lock_prdt, right_prdt, op)
 		    && !lock_prdt_find_on_page(lock->type_mode, right_block,
 					       lock_prdt, lock->trx)) {
-			lock_prdt_add_to_queue(lock->type_mode, right_block,
-					       lock->index, lock->trx,
-					       lock_prdt, FALSE);
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, right_block,
+				lock->index, lock->trx, lock_prdt);
 		}
 	}
 
@@ -693,14 +695,20 @@ lock_prdt_update_split_low(
 
 		/* First dealing with Page Lock */
 		if (lock->type_mode & LOCK_PRDT_PAGE) {
+
 			/* Duplicate the lock to new page */
 			trx_mutex_enter(lock->trx);
-			lock_prdt_add_to_queue(lock->type_mode,
-					       new_block,
-					       lock->index,
-					       lock->trx, NULL, TRUE);
+
+			lock->trx->owns_mutex = true;
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, new_block, lock->index,
+				lock->trx, NULL);
+
+			lock->trx->owns_mutex = false;
 
 			trx_mutex_exit(lock->trx);
+
 			continue;
 		}
 
@@ -720,22 +728,32 @@ lock_prdt_update_split_low(
 		if (lock_prdt_consistent(lock_prdt, prdt, op)) {
 
 			if (!lock_prdt_consistent(lock_prdt, new_prdt, op)) {
+
 				/* Move the lock to new page */
 				trx_mutex_enter(lock->trx);
-				lock_prdt_add_to_queue(lock->type_mode,
-						       new_block,
-						       lock->index,
-						       lock->trx, lock_prdt,
-						       TRUE);
+
+				lock->trx->owns_mutex = true;
+
+				lock_prdt_add_to_queue(
+					lock->type_mode, new_block,
+					lock->index, lock->trx, lock_prdt);
+
+				lock->trx->owns_mutex = false;
+
 				trx_mutex_exit(lock->trx);
 			}
 		} else if (!lock_prdt_consistent(lock_prdt, new_prdt, op)) {
+
 			/* Duplicate the lock to new page */
 			trx_mutex_enter(lock->trx);
-			lock_prdt_add_to_queue(lock->type_mode,
-					       new_block,
-					       lock->index,
-					       lock->trx, lock_prdt, TRUE);
+
+			lock->trx->owns_mutex = true;
+
+			lock_prdt_add_to_queue(
+				lock->type_mode, new_block, lock->index,
+				lock->trx, lock_prdt);
+
+			lock->trx->owns_mutex = false;
 
 			trx_mutex_exit(lock->trx);
 		}
@@ -835,12 +853,14 @@ lock_prdt_lock(
 
 		RecLock	rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
-		lock = rec_lock.create(trx, false, true);
+		lock = rec_lock.create(trx, true);
 
 		status = LOCK_REC_SUCCESS_CREATED;
 
 	} else {
 		trx_mutex_enter(trx);
+
+		trx->owns_mutex = true;
 
 		if (lock_rec_get_next_on_page(lock)
 		    || lock->trx != trx
@@ -872,15 +892,20 @@ lock_prdt_lock(
 
 					lock_prdt_add_to_queue(
 						prdt_mode, block, index, trx,
-						prdt, true);
+						prdt);
 
 					status = LOCK_REC_SUCCESS;
 				}
 			}
 
+			trx->owns_mutex = false;
+
 			trx_mutex_exit(trx);
 
 		} else {
+
+			trx->owns_mutex = false;
+
 			trx_mutex_exit(trx);
 
 			if (!lock_rec_get_nth_bit(lock, PRDT_HEAPNO)) {
@@ -951,7 +976,7 @@ lock_place_prdt_page_lock(
 		RecID	rec_id(space, page_no, PRDT_HEAPNO);
 		RecLock	rec_lock(index, rec_id, mode);
 
-		rec_lock.create(trx, false, true);
+		rec_lock.create(trx, true);
 
 #ifdef PRDT_DIAG
 		printf("GIS_DIAGNOSTIC: page lock %d\n", (int) page_no);
@@ -1018,7 +1043,7 @@ lock_prdt_rec_move(
 
 		lock_prdt_add_to_queue(
 			type_mode, receiver, lock->index, lock->trx,
-			lock_prdt, FALSE);
+			lock_prdt);
 	}
 
 	lock_mutex_exit();

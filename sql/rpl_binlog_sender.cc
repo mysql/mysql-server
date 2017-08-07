@@ -21,7 +21,6 @@
 
 #include "debug_sync.h"              // debug_sync_set_action
 #include "derror.h"                  // ER_THD
-#include "hash.h"
 #include "item_func.h"               // user_var_entry
 #include "lex_string.h"
 #include "log.h"

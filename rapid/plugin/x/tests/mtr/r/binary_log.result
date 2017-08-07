@@ -36,6 +36,7 @@ Mysqlx.Ok {
 ok
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
+<ID>	event_scheduler	<HOST_NAME>	NULL	Daemon	<TIME>	Waiting on empty queue	NULL
 <ID>	root	<HOST_NAME>	test	Query	<TIME>	STATE	SHOW PROCESSLIST
 DROP TABLE x;
 UNINSTALL PLUGIN mysqlx;

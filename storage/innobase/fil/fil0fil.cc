@@ -3700,13 +3700,6 @@ fil_discard_tablespace(
 		ut_error;
 	}
 
-	/* Set SDI tables that ibd is missing */
-	dict_table_t*	sdi_table = dict_sdi_get_table(id, true, false);
-	if (sdi_table) {
-		sdi_table->ibd_file_missing = true;
-		dict_sdi_close_table(sdi_table);
-	}
-
 	/* Remove all insert buffer entries for the tablespace */
 
 	ibuf_delete_for_discarded_space(id);
@@ -7773,6 +7766,7 @@ Fil_Open::write(
 
 	os_offset_t	offset = 0;
 	ulint		len = 0;
+	dberr_t		err;
 
 	/* Simulate a crash before having written anything
 	to disk at all. */
@@ -7786,12 +7780,12 @@ Fil_Open::write(
 		"ib_tablespace_open_write_corrupt_0",
 		char buf[]="0123456789AB";
 		len = strlen(buf);
-		os_file_write(request, path, file, buf, offset, len);
+		err = os_file_write(request, path, file, buf, offset, len);
 		offset += len;
 
 		char buf1[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 		len = strlen(buf1);
-		os_file_write(request, path, file, buf1, offset, len);
+		err = os_file_write(request, path, file, buf1, offset, len);
 		offset += len;
 
 		os_file_flush(file);
@@ -7803,14 +7797,14 @@ Fil_Open::write(
 	DBUG_EXECUTE_IF(
 		"ib_tablespace_open_write_corrupt_1",
 		len = sizeof(header) - 1;
-		os_file_write(request, path, file, header, offset, len);
+		err = os_file_write(request, path, file, header, offset, len);
 		offset += len;
 
 		os_file_flush(file);
 		DBUG_SUICIDE(););
 
 	len = sizeof(header);
-	dberr_t	err = os_file_write(request, path, file, header, offset, len);
+	err = os_file_write(request, path, file, header, offset, len);
 	if (err != DB_SUCCESS) {
 		/* print msg to stderr */
 		os_file_get_last_error(true);
@@ -7825,7 +7819,7 @@ Fil_Open::write(
 	DBUG_EXECUTE_IF(
 		"ib_tablespace_open_write_corrupt_2",
 		len = compressed_len - 1;
-		os_file_write(request, path, file, data, offset , len);
+		err = os_file_write(request, path, file, data, offset , len);
 		os_file_flush(file);
 		DBUG_SUICIDE(););
 
@@ -8445,7 +8439,7 @@ Fil_Open::from_file(bool recovery)
 	{
 		auto	it = std::find( PATHS.begin(), PATHS.end(), opened[i]);
 
-		/* Must fine the filename. */
+		/* Must find the filename. */
 		ut_a(it != PATHS.end());
 
 		/* Ensure that we don't write to the file we just read in

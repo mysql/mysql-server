@@ -17,8 +17,8 @@
  * 02110-1301  USA
  */
 
-#ifndef _NGS_PROTOCOL_MONITOR_H_
-#define _NGS_PROTOCOL_MONITOR_H_
+#ifndef _NGS_PROTOCOL_MONITOR_INTERFACE_H_
+#define _NGS_PROTOCOL_MONITOR_INTERFACE_H_
 
 
 namespace ngs
@@ -46,4 +46,4 @@ public:
 } // namespace ngs
 
 
-#endif // _NGS_PROTOCOL_MONITOR_H_
+#endif // _NGS_PROTOCOL_MONITOR_INTERFACE_H_

@@ -191,7 +191,8 @@ DROP TABLE t1, t2;
 # Bug#59149 valgrind warnings with "like .. escape .." function
 #
 SELECT '' LIKE '1' ESCAPE COUNT(1);
-ERROR HY000: Incorrect arguments to ESCAPE
+'' LIKE '1' ESCAPE COUNT(1)
+0
 End of 5.1 tests
 #
 # Bug #18114294	 CRASH IN ITEM_FUNC_LIKE::BM_MATCHES

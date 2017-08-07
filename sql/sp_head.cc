@@ -32,7 +32,6 @@
 #include "dd/dictionary.h"     // is_dd_table_access_allowed
 #include "derror.h"            // ER_THD
 #include "discrete_interval.h"
-#include "hash.h"
 #include "item.h"
 #include "log_event.h"         // append_query_string, Query_log_event
 #include "m_ctype.h"

@@ -68,6 +68,8 @@ SHOW CREATE TABLE t1;
 --echo '---check if updating collation_server effects new table/column---'
 #==============================================================================
 SET @@session.collation_server = latin1_swedish_ci;
+--character_set latin1
+set names latin1;
 CREATE TABLE t2(a CHAR(10));
 SHOW CREATE TABLE t2;
 

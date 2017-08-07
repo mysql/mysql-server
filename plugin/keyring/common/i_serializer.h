@@ -16,8 +16,11 @@
 #ifndef MYSQL_I_SERIALIZER_H
 #define MYSQL_I_SERIALIZER_H
 
-#include <hash.h>
 #include "i_serialized_object.h"
+#include "map_helpers.h"
+
+#include <memory>
+#include <string>
 
 namespace keyring
 {
@@ -28,7 +31,7 @@ namespace keyring
     /**
      * Purpose of this function is to serialize keys_hash or key (or both)
      * into an object implementing ISeriazlized_object interface.
-     * @param keys_hash - HASH container of all the keys stored in keyring.
+     * @param keys_hash - hash container of all the keys stored in keyring.
      *                    This parameter is usually used when all the keys
      *                    need to be serialized.
      * @param key - key to be added or removed.
@@ -39,8 +42,10 @@ namespace keyring
      *                            which implements ISeriazlied_object interface
      *                            on failure returns NULL.
     */
-    virtual ISerialized_object* serialize(HASH *keys_hash, IKey *key,
-                                          Key_operation operation)= 0;
+    virtual ISerialized_object* serialize
+      (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+         &keys_hash,
+       IKey *key, Key_operation operation)= 0;
     virtual ~ISerializer()
     {}
   };

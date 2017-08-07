@@ -37,7 +37,6 @@
 #include "sp_cache.h"         // sp_cache_invalidate
 #include "sql_base.h"         // tdc_remove_table,
                               // lock_table_names,
-#include "sql_cache.h"        // query_cache
 #include "sql_class.h"        // THD
 #include "sql_handler.h"      // mysql_ha_rm_tables
 #include "sql_plugin.h"
@@ -218,9 +217,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list)
 
     error= true;
   }
-
-  if (!error)
-    query_cache.invalidate(thd, table_list, FALSE);
 
   if (!error)
   {

@@ -30,7 +30,6 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "key.h"
 #include "keycache.h"
@@ -60,7 +59,6 @@
 #include "sql_alter.h"
 #include "sql_alter_instance.h"              // Alter_instance
 #include "sql_base.h"                        // Open_table_context
-#include "sql_cache.h"                       // query_cache
 #include "sql_class.h"                       // THD
 #include "sql_error.h"
 #include "sql_lex.h"
@@ -238,12 +236,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed generating table from .frm file");
     goto end;
   }
-  /*
-    'FALSE' for 'using_transactions' means don't postpone
-    invalidation till the end of a transaction, but do it
-    immediately.
-  */
-  query_cache.invalidate(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -779,7 +771,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         safe for re-execution.
       */
       lex->sql_command= save_sql_command;
-      table->table=0;				// For query cache
       if (protocol->end_row())
 	goto err;
       thd->get_stmt_da()->reset_diagnostics_area();
@@ -806,8 +797,6 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                                    HA_EXTRA_PREPARE_FOR_RENAME))
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
-      /* Flush entries in the query cache involving this table. */
-      query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
         flush that is made later in the execution flow.
@@ -1206,12 +1195,6 @@ send_result_message:
       {
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                          table->db, table->table_name, FALSE);
-        /*
-          May be something modified. Consequently, we have to
-          invalidate the query cache.
-        */
-        table->table= 0;                        // For query cache
-        query_cache.invalidate(thd, table, FALSE);
       }
       else
       {

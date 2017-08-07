@@ -29,6 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #include "univ.i"
 #include "dd/object_id.h"
+#include "dd/types/column.h"
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -991,6 +992,10 @@ struct dict_index_t{
 				/*!< a flag that is set for secondary indexes
 				that have not been committed to the
 				data dictionary yet */
+	uint32_t	srid;	/* spatial reference id */
+	bool		srid_is_valid;
+				/* says whether SRID is valid - it cane be
+				undefined */
 
 #ifdef UNIV_DEBUG
 	uint32_t	magic_n;/*!< magic number */
@@ -1208,6 +1213,15 @@ struct dict_index_t{
 	ULINT_UNDEFINED if not contained */
 	ulint get_col_pos(
 		ulint n, bool inc_prefix=false, bool is_virtual=false) const;
+
+	/** Sets srid and srid_is_valid values
+	@param[in]	srid_value		value of SRID, may be garbage
+						if srid_is_valid_value = false
+	@param[in]	srid_is_valid_value	value of srid_is_valid */
+	void fill_srid_value(uint32_t srid_value, bool srid_is_valid_value) {
+		srid_is_valid = srid_is_valid_value;
+		srid = srid_value;
+	}
 };
 
 /** The status of online index creation */
@@ -1711,12 +1725,6 @@ struct dict_table_t {
 	performed on the table. We cannot drop the table while there are
 	foreign key checks running on it. */
 	ulint					n_foreign_key_checks_running;
-
-	/** Transactions whose view low limit is greater than this number are
-	not allowed to store to the MySQL query cache or retrieve from it.
-	When a trx with undo logs commits, it sets this to the value of the
-	current time. */
-	trx_id_t				query_cache_inv_id;
 
 	/** Transaction id that last touched the table definition. Either when
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,

@@ -1633,8 +1633,10 @@ row_upd_changes_ord_field_binary_func(
 				dlen = dfield->len;
 			}
 
-			get_mbr_from_store(
-				dptr, static_cast<uint>(dlen), SPDIMS, mbr1);
+			uint32_t srid;
+
+			get_mbr_from_store(dptr, static_cast<uint>(dlen),
+				SPDIMS, mbr1, &srid);
 			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
 
 			/* Get the new mbr. */
@@ -1672,10 +1674,16 @@ row_upd_changes_ord_field_binary_func(
 				dptr = static_cast<uchar*>(upd_field->new_val.data);
 				dlen = upd_field->new_val.len;
 			}
-			get_mbr_from_store(
-				dptr, static_cast<uint>(dlen), SPDIMS, mbr2);
+
+			uint32_t new_srid;
+			get_mbr_from_store(dptr, static_cast<uint>(dlen),
+				SPDIMS, mbr2, &new_srid);
 
 			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
+
+			if (new_srid != srid) {
+				return true;
+			}
 
 			if (temp_heap) {
 				mem_heap_free(temp_heap);
@@ -2142,6 +2150,19 @@ row_upd_sec_index_entry(
 	referenced = row_upd_index_is_referenced(index, trx);
 
 	heap = mem_heap_create(1024);
+
+	if (!node->is_delete && dict_index_is_spatial(index)
+		&& index->srid_is_valid) {
+		const dict_col_t* col = index->get_field(0)->col;
+		ulint col_no = dict_col_get_no(col);
+		const dfield_t* dfield = dtuple_get_nth_field(
+			node->upd_row, col_no);
+		uchar* dptr = static_cast<uchar*>(dfield_get_data(dfield));
+		uint32_t srid = uint4korr(dptr);
+		if (index->srid != srid) {
+			return DB_CANT_CREATE_GEOMETRY_OBJECT;
+		}
+	}
 
 	/* Build old index entry */
 	entry = row_build_index_entry(node->row, node->ext, index, heap);

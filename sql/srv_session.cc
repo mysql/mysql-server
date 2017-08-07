@@ -917,13 +917,6 @@ bool Srv_session::open()
 
   DBUG_PRINT("info", ("thread_id=%d", thd.thread_id()));
 
-  /*
-    Disable QC - plugins will most probably install their own protocol
-    and it won't be compatible with the QC. In addition, Protocol_error
-    is not compatible with the QC.
-  */
-  thd.variables.query_cache_type = 0;
-
   thd.set_command(COM_SLEEP);
   thd.init_query_mem_roots();
 
@@ -1039,7 +1032,9 @@ bool Srv_session::attach()
     if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
       DBUG_RETURN(true);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
     query_logger.general_log_print(&thd, COM_CONNECT, NullS);
   }
@@ -1136,7 +1131,9 @@ bool Srv_session::close()
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
   mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   thd.security_context()->logout();
   thd.m_view_ctx_list.empty();

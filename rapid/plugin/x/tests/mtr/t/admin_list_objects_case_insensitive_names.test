@@ -3,38 +3,16 @@
 --source include/have_case_insensitive_file_system.inc
 --source include/xplugin_preamble.inc
 
-## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.tmp
---write_file $xtest_file
--->quiet
-## Test data
+--let $expect_case_sensitive_variant= 1
+if (`SELECT CONVERT(@@version_compile_os USING LATIN1) RLIKE '^(osx|macos)'`)
+{
+--let $expect_case_sensitive_variant= 2
+}
 
--->title -Creating collections with similar names
--->stmtadmin create_collection	{"schema":"xtest", "name":"fruit"}
--->recvresult
--->stmtadmin create_collection	{"schema":"xtest", "name":"Fruit"}
--->expecterror ER_TABLE_EXISTS_ERROR
--->recvresult
--->stmtadmin list_objects	{"schema":"xtest", "pattern":"_rui_"}
--->recvresult
-
--->title -Creating collection in another schema with similar name
--->stmtsql CREATE SCHEMA Xtest DEFAULT CHARSET 'utf8mb4';
--->expecterror ER_DB_CREATE_EXISTS
--->recvresult
--->stmtadmin create_collection	{"schema":"Xtest", "name":"fruiT"}
--->expecterror ER_TABLE_EXISTS_ERROR
--->recvresult
--->stmtadmin list_objects	{"schema":"xtest", "pattern":"_rui_"}
--->recvresult
-EOF
-
-CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
-
---replace_regex /Xtest/xtest/
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--let $expect_table_error= ER_TABLE_EXISTS_ERROR
+--let $expect_db_error= ER_DB_CREATE_EXISTS
+--replace_regex /XTEST/xtest/ /xTeSt/xtest/ /FRUIT/fruit/ /FrUiT/fruit/
+--source ../include/admin_list_objects_table_names.inc
 
 ## Postamble
---remove_file $xtest_file
-DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

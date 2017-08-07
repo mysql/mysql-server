@@ -39,13 +39,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
@@ -55,13 +55,13 @@ INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;8 9]
+include/include/assert_logical_timestamps.inc [1 8;8 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;10 11]
+include/include/assert_logical_timestamps.inc [1 10;10 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -87,13 +87,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
@@ -103,13 +103,13 @@ INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;8 9]
+include/include/assert_logical_timestamps.inc [1 8;8 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;10 11]
+include/include/assert_logical_timestamps.inc [1 10;10 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -135,13 +135,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
@@ -151,13 +151,13 @@ INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;8 9]
+include/include/assert_logical_timestamps.inc [1 8;8 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;10 11]
+include/include/assert_logical_timestamps.inc [1 10;10 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -183,13 +183,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
@@ -199,13 +199,13 @@ INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;8 9]
+include/include/assert_logical_timestamps.inc [1 8;8 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;10 11]
+include/include/assert_logical_timestamps.inc [1 10;10 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -231,13 +231,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
@@ -247,13 +247,13 @@ INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;8 9]
+include/include/assert_logical_timestamps.inc [1 8;8 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;10 11]
+include/include/assert_logical_timestamps.inc [1 10;10 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -279,13 +279,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -311,13 +311,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -343,13 +343,13 @@ INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;3 4]
+include/include/assert_logical_timestamps.inc [1 3;3 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;5 6]
+include/include/assert_logical_timestamps.inc [1 5;5 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -369,19 +369,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -401,19 +401,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -433,35 +433,35 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 7]
+include/include/assert_logical_timestamps.inc [1 7]
 # TRX8: independent
 INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;0 9]
+include/include/assert_logical_timestamps.inc [1 8;1 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;7 11]
+include/include/assert_logical_timestamps.inc [1 10;7 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -481,35 +481,35 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 7]
+include/include/assert_logical_timestamps.inc [1 7]
 # TRX8: independent
 INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;0 9]
+include/include/assert_logical_timestamps.inc [1 8;1 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;7 11]
+include/include/assert_logical_timestamps.inc [1 10;7 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -529,35 +529,35 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 7]
+include/include/assert_logical_timestamps.inc [1 7]
 # TRX8: independent
 INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;0 9]
+include/include/assert_logical_timestamps.inc [1 8;1 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;7 11]
+include/include/assert_logical_timestamps.inc [1 10;7 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -577,35 +577,35 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 7]
+include/include/assert_logical_timestamps.inc [1 7]
 # TRX8: independent
 INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;0 9]
+include/include/assert_logical_timestamps.inc [1 8;1 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;7 11]
+include/include/assert_logical_timestamps.inc [1 10;7 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -625,35 +625,35 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 # TRX7: independent
 INSERT INTO t1 VALUES (3, NULL, 2);
 # now t1 contains two rows: (1, 2, 2), (3, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 7]
+include/include/assert_logical_timestamps.inc [1 7]
 # TRX8: independent
 INSERT INTO t2 VALUES (8);
 # TRX9: independent (no conflict with TRX7 since multiple NULLs are allowed)
 INSERT INTO t1 VALUES (4, NULL, 2);
 # now t1 contains three rows: (1, 2, 2), (3, NULL, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 8;0 9]
+include/include/assert_logical_timestamps.inc [1 8;1 9]
 # TRX10: independent
 INSERT INTO t2 VALUES (10);
 # TRX11: conflict with TRX7 (not with TRX9 since multiple NULLs are allowed)
 DELETE FROM t1 WHERE a = 3;
 # now t1 contains two rows: (1, 2, 2), (4, NULL, 2)
-include/include/assert_logical_timestamps.inc [0 10;7 11]
+include/include/assert_logical_timestamps.inc [1 10;7 11]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -673,19 +673,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -705,19 +705,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -737,19 +737,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;1 6]
+include/include/assert_logical_timestamps.inc [1 5;1 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -769,19 +769,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 DROP TABLE t1;
 DROP TABLE t2;
 
@@ -801,19 +801,19 @@ INSERT INTO t1 VALUES (2, 2, 2);
 INSERT INTO t2 VALUES (1);
 COMMIT;
 # now t1 contains two rows: (1, 1, 1), (2, 2, 2)
-include/include/assert_logical_timestamps.inc [0 2]
+include/include/assert_logical_timestamps.inc [1 2]
 # TRX3: independent
 INSERT INTO t2 VALUES (3);
 # TRX4: depends on TRX2
 DELETE FROM t1 WHERE a = 2;
 # now t1 contains one row: (1, 1, 1)
-include/include/assert_logical_timestamps.inc [0 3;2 4]
+include/include/assert_logical_timestamps.inc [1 3;2 4]
 # TRX5: independent
 INSERT INTO t2 VALUES (5);
 # TRX6: conflict with TRX4 if unique, else with TRX1
 UPDATE t1 SET b = 2, c = 2 WHERE a = 1;
 # now t1 contains one row: (1, 2, 2)
-include/include/assert_logical_timestamps.inc [0 5;4 6]
+include/include/assert_logical_timestamps.inc [1 5;4 6]
 DROP TABLE t1;
 DROP TABLE t2;
 #### CLEAN UP ####

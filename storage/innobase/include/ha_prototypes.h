@@ -60,21 +60,6 @@ innobase_raw_format(
 	ulint		buf_size);	/*!< in: output buffer size
 					in bytes */
 
-/*****************************************************************//**
-Invalidates the MySQL query cache for the table. */
-void
-innobase_invalidate_query_cache(
-/*============================*/
-	trx_t*		trx,		/*!< in: transaction which
-					modifies the table */
-	const char*	full_name,	/*!< in: concatenation of
-					database name, path separator,
-					table name, null char NUL;
-					NOTE that in Windows this is
-					always in LOWER CASE! */
-	ulint		full_name_len);	/*!< in: full name length where
-					also the null chars count */
-
 /** Quote a standard SQL identifier like tablespace, index or column name.
 @param[in]	file	output stream
 @param[in]	trx	InnoDB transaction, or NULL

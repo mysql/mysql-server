@@ -294,7 +294,6 @@ void NDB_SHARE::print(const char* where, FILE* file) const
           where, db, table_name, use_count);
   fprintf(file, "  - key: '%s', key_length: %lu\n",
           key_string(), (unsigned long)key_length());
-  fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
   if (op)

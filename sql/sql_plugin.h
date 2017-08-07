@@ -29,7 +29,6 @@
 #include "sql_cmd.h"                // Sql_cmd
 #include "sql_plugin_ref.h"         // plugin_ref
 #include "thr_malloc.h"
-#include "hash.h"                   // HASH
 #include "map_helpers.h"
 
 class THD;

@@ -2111,13 +2111,13 @@ explain extended select * from t1 where s1 > any (select s2 from t1)	{
                     {
                       "rows_to_scan": 2,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 0.705,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 50,
                 "rows_for_plan": 1,
                 "cost_for_plan": 0.705,
                 "chosen": true
@@ -2354,13 +2354,13 @@ explain extended select * from t1 where s1 > any (select max(s2) from t1)	{
                     {
                       "rows_to_scan": 2,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 0.705,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 50,
                 "rows_for_plan": 1,
                 "cost_for_plan": 0.705,
                 "chosen": true

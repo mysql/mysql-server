@@ -65,12 +65,12 @@ SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)));
 HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)))
 NULL
 Warnings:
-Warning	1301	Result of weight_string() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of weight_string() was larger than max_allowed_packet (67108864) - truncated
 SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)));
 HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
 #
 # BUG#21974321: WEIGHT_STRING RESULT IS WRONG IF USED IN A
 #               VIEW (AS CHAR CLAUSE IS LOST)

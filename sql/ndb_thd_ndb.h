@@ -18,12 +18,10 @@
 #ifndef NDB_THD_NDB_H
 #define NDB_THD_NDB_H
 
-#include "hash.h"             // HASH
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
 #include "map_helpers.h"
 #include "my_base.h"          // ha_rows
 #include "ndb_share.h"
-#include "sql_list.h"         // List<>
 
 /*
   Place holder for ha_ndbcluster thread specific data
@@ -138,8 +136,6 @@ public:
   // Start of transaction check, to automatically detect which
   // trans options shoudl be enabled
   void transaction_checks(void);
-
-  List<NDB_SHARE> changed_tables;
   malloc_unordered_map<const void *, THD_NDB_SHARE *>
     open_tables{PSI_INSTRUMENT_ME};
   /*

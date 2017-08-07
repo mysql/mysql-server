@@ -41,7 +41,6 @@
 #include "error_handler.h"                    // Internal_error_handler
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "key.h"
 #include "lex_string.h"
 #include "log.h"
@@ -2111,72 +2110,72 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   // Iterate through all the partitions
   //
 
-  partition_element *curr_part= NULL, *curr_part_elem;
-  uint num_subparts= 0, part_id= 0, level= 0;
-  bool is_subpart;
+  partition_element *curr_part_elem;
   List_iterator<partition_element> part_elem_it;
 
   /* Partitions are sorted first on level and then on number. */
 
+#ifndef DBUG_OFF
+  uint number= 0;
+#endif
   for (const dd::Partition *part_obj : tab_obj->partitions())
   {
+#ifndef DBUG_OFF
     /* Must be in sorted order (sorted by level first and then on number). */
-    DBUG_ASSERT(part_obj->level() >= level);
-    DBUG_ASSERT(part_obj->number() >= part_id ||
-                part_obj->level() > level);
-    part_id= part_obj->number();
-    level= part_obj->level();
-    DBUG_ASSERT(level <= 1);
-    is_subpart= (level != 0);
-    curr_part_elem= new(&share->mem_root) partition_element;
+    DBUG_ASSERT(part_obj->number() >= number);
+    number= part_obj->number();
+#endif
+
+    DBUG_ASSERT(part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID);
+
+    curr_part_elem= new (&share->mem_root) partition_element;
     if (!curr_part_elem)
     {
       return true;
     }
+
     if (setup_partition_from_dd(thd,
                                 &share->mem_root,
                                 part_info,
                                 curr_part_elem,
                                 part_obj,
-                                is_subpart))
+                                false))
     {
       return true;
     }
 
-    if (!is_subpart)
+    if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
+      return true;
+
+    for (const dd::Partition *sub_part_obj : part_obj->sub_partitions())
     {
-      DBUG_ASSERT(!curr_part);
-      if (part_info->partitions.push_back(curr_part_elem, &share->mem_root))
-        return true;
-    }
-    else
-    {
-      if (!curr_part)
+      DBUG_ASSERT(sub_part_obj->parent_partition_id() != dd::INVALID_OBJECT_ID);
+
+      partition_element *curr_sub_part_elem= new (&share->mem_root) partition_element;
+      if (!curr_sub_part_elem)
       {
-        /*
-          First subpartition. Initialize partition iterator and calculate
-          number of subpartitions per partition.
-        */
-        part_elem_it.init(part_info->partitions);
-	num_subparts= (tab_obj->partitions().size() -
-                       part_info->partitions.elements) /
-                      part_info->partitions.elements;
+        return true;
       }
-      /* Increment partition iterator for first subpartition in the partition. */
-      if ((part_id % num_subparts) == 0)
-        curr_part= part_elem_it++;
-      if (curr_part->subpartitions.push_back(curr_part_elem, &share->mem_root))
+
+      if (setup_partition_from_dd(thd,
+                                  &share->mem_root,
+                                  part_info,
+                                  curr_sub_part_elem,
+                                  sub_part_obj,
+                                  true))
+      {
+        return true;
+      }
+
+      if (curr_part_elem->subpartitions.push_back(curr_sub_part_elem,
+                                                  &share->mem_root))
         return true;
     }
   }
+
+  // Get partition and sub_partition count.
   part_info->num_parts= part_info->partitions.elements;
-  if (curr_part)
-  {
-    part_info->num_subparts= curr_part->subpartitions.elements;
-    DBUG_ASSERT(part_info->num_subparts == num_subparts);
-  }
-  else
-    part_info->num_subparts= 0;
+  part_info->num_subparts= part_info->partitions[0]->subpartitions.elements;
 
   switch(tab_obj->default_partitioning())
   {

@@ -20,6 +20,8 @@
 // tell protobuf 3.0 to use protobuf 2.x rules
 syntax = "proto2";
 
+import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
+
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
 // Notices
@@ -60,6 +62,8 @@ message Frame {
   required uint32 type = 1;
   optional Scope  scope = 2 [ default = GLOBAL ];
   optional bytes payload = 3;
+
+  option (server_message_id) = NOTICE; // comment_out_if PROTOBUF_LITE
 }
 
 // Server-side warnings and notes
@@ -101,7 +105,7 @@ message Warning {
 
 // Notify clients about changes to the current session variables
 //
-// Every change to a variable that is accessable through:
+// Every change to a variable that is accessible through:
 //
 // .. code-block:: sql
 //

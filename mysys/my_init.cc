@@ -502,7 +502,6 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 PSI_stage_info stage_waiting_for_disk_space=
 {0, "Waiting for disk space", 0};
 
-#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
   key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -510,6 +509,8 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
@@ -540,10 +541,11 @@ static PSI_rwlock_info all_mysys_rwlocks[]=
 };
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-#ifdef HAVE_PSI_COND_INTERFACE
 PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
+
+#ifdef HAVE_PSI_COND_INTERFACE
 
 static PSI_cond_info all_mysys_conds[]=
 {

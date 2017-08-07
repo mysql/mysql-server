@@ -169,6 +169,7 @@ struct System_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   uint  eq_range_index_dive_limit;
+  uint  cte_max_recursion_depth;
   ulonglong histogram_generation_max_mem_size;
   ulong join_buff_size;
   ulong lock_wait_timeout;
@@ -215,8 +216,7 @@ struct System_variables
   // see enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
   ulong completion_type;
-  ulong query_cache_type;
-  ulong tx_isolation;
+  ulong transaction_isolation;
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
@@ -229,10 +229,9 @@ struct System_variables
   /**
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
-  bool tx_read_only;
+  bool transaction_read_only;
   bool low_priority_updates;
   bool new_mode;
-  bool query_cache_wlock_invalidate;
   bool keep_files_on_create;
 
   bool old_alter_table;

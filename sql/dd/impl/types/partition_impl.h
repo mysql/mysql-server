@@ -58,7 +58,11 @@ public:
 
   Partition_impl(Table_impl *table);
 
+  Partition_impl(Table_impl *parent, Partition_impl *partition);
+
   Partition_impl(const Partition_impl &src, Table_impl *parent);
+
+  Partition_impl(const Partition_impl &src, Partition_impl *partition);
 
   virtual ~Partition_impl();
 
@@ -106,14 +110,24 @@ public:
   { return *m_table; }
 
   /////////////////////////////////////////////////////////////////////////
-  // level
+  // Parent partition.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint level() const
-  { return m_level; }
+  virtual const Partition *parent_partition() const
+  { return m_parent; }
 
-  virtual void set_level(uint level)
-  { m_level= level; }
+  virtual Partition *parent_partition()
+  { return const_cast<dd::Partition*>(m_parent); }
+
+  /////////////////////////////////////////////////////////////////////////
+  // parent_partition_id
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Object_id parent_partition_id() const
+  { return m_parent_partition_id; }
+
+  virtual void set_parent_partition_id(Object_id parent_partition_id)
+  { m_parent_partition_id= parent_partition_id; }
 
   /////////////////////////////////////////////////////////////////////////
   // number.
@@ -214,6 +228,18 @@ public:
   { return &m_indexes; }
   /* purecov: end */
 
+  /////////////////////////////////////////////////////////////////////////
+  // Sub Partition collection.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual Partition *add_sub_partition();
+
+  virtual const Table::Partition_collection &sub_partitions() const
+  { return m_sub_partitions; }
+
+  virtual Table::Partition_collection *sub_partitions()
+  { return &m_sub_partitions; }
+
   virtual const Partition *parent() const
   { return m_parent; }
   virtual void set_parent(const Partition *parent)
@@ -239,16 +265,31 @@ public:
     return new (std::nothrow) Partition_impl(table);
   }
 
+  static Partition_impl *restore_item(Partition_impl *part)
+  {
+    Partition_impl *p= new (std::nothrow) Partition_impl(&part->table_impl(),
+                                                         part);
+    p->set_parent(part);
+
+    return p;
+  }
+
   static Partition_impl *clone(const Partition_impl &other,
                                Table_impl *table)
   {
     return new (std::nothrow) Partition_impl(other, table);
   }
 
+  static Partition_impl *clone(const Partition_impl &other,
+                               Partition_impl *part)
+  {
+    return new (std::nothrow) Partition_impl(other, part);
+  }
+
 private:
   // Fields.
 
-  uint m_level;
+  Object_id m_parent_partition_id;
   uint m_number;
   Object_id m_se_private_id;
 
@@ -265,6 +306,7 @@ private:
 
   Partition_values m_values;
   Partition_indexes m_indexes;
+  Table::Partition_collection m_sub_partitions;
 
   // References to loosely-coupled objects.
 
@@ -288,11 +330,12 @@ public:
 /** Used to compare two partition elements. */
 struct Partition_order_comparator
 {
+  // TODO : do we really need this ordering now ?
   bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
   {
-    if (p1->level() == p2->level())
+    if (p1->parent_partition_id() == p2->parent_partition_id())
       return p1->number() < p2->number();
-    return p1->level() < p2->level();
+    return p1->parent_partition_id() < p2->parent_partition_id();
   }
 };
 

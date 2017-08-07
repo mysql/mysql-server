@@ -63,8 +63,6 @@ DROP TABLE t1;
 
 --echo **** On Slave **** 
 connection slave;
-SET @save_query_cache_size=@@query_cache_size;
-SET GLOBAL QUERY_CACHE_SIZE=0;
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 
 --echo **** On Master **** 
@@ -74,7 +72,6 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo **** On Slave **** 
 --source include/sync_slave_sql_with_master.inc
-SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
 
 --echo **** On Master **** 
 connection master;
@@ -92,7 +89,6 @@ INSERT INTO t1 VALUES (7),(8),(9);
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
-SET GLOBAL QUERY_CACHE_SIZE=@save_query_cache_size;
 --connection master
 DROP TABLE t1;
 
