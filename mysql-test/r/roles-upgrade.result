@@ -41,8 +41,7 @@ sys.sys_config                                     OK
 CALL mtr.add_suppression("Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.");
 DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;
-#Restart the server
-# restart
+# restart:--log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
 # let's check for the presense of the warning
 # ACL DDLs should not work
 CREATE USER u1;
