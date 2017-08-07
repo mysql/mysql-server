@@ -3361,8 +3361,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     /* set up parameter that is passed to all functions */
     param.thd= thd;
     param.baseflag= head->file->ha_table_flags();
-    param.prev_tables=prev_tables | const_tables;
-    param.read_tables=read_tables;
+    param.prev_tables= prev_tables | const_tables | INNER_TABLE_BIT;
+    param.read_tables= read_tables | INNER_TABLE_BIT;
     param.current_table= head->pos_in_table_list->map();
     param.table=head;
     param.keys=0;
@@ -3950,7 +3950,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->thd= thd;
   range_par->table= table;
   /* range_par->cond doesn't need initialization */
-  range_par->prev_tables= range_par->read_tables= 0;
+  range_par->prev_tables= range_par->read_tables= INNER_TABLE_BIT;
   range_par->current_table= table->pos_in_table_list->map();
 
   range_par->keys= 1; // one index
@@ -4029,14 +4029,21 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
   
   /*
-    If the condition can be evaluated now, we are done with pruning.
+    Decide if the current pruning attempt is the final one.
 
     During the prepare phase, before locking, subqueries and stored programs
     are not evaluated. So we need to run prune_partitions() a second time in
     the optimize phase to prune partitions for reading, when subqueries and
     stored programs may be evaluated.
+
+    The upcoming pruning attempt will be the final one when:
+    - condition is constant, or
+    - condition may vary for every row (so there is nothing to prune) or
+    - evaluation is in execution phase.
   */
-  if (pprune_cond->can_be_evaluated_now())
+  if (pprune_cond->const_item() ||
+      !pprune_cond->const_for_execution() ||
+      thd->lex->is_query_tables_locked())
     part_info->is_pruning_completed= true;
   goto end;
 
@@ -7266,13 +7273,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
-  /* 
-    Here when simple cond 
-    There are limits on what kinds of const items we can evaluate.
-    At this stage a subquery in 'cond' might not be fully transformed yet
-    (example: semijoin) thus cannot be evaluated.
-  */
-  if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
+  if (cond->const_item() && !cond->is_expensive())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
@@ -7698,7 +7699,9 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
   // A SEL_ARG should not have been created for this predicate yet.
   DBUG_ASSERT(*tree == NULL);
 
-  if (!value->can_be_evaluated_now())
+  THD *const thd= field->table->in_use;
+
+  if (!(value->const_item() || thd->lex->is_query_tables_locked()))
   {
     /*
       We cannot evaluate the value yet (i.e. required tables are not yet
@@ -7710,8 +7713,8 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
   }
 
   // For comparison purposes allow invalid dates like 2000-01-32
-  const sql_mode_t orig_sql_mode= field->table->in_use->variables.sql_mode;
-  field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+  const sql_mode_t orig_sql_mode= thd->variables.sql_mode;
+  thd->variables.sql_mode|= MODE_INVALID_DATES;
 
   /*
     We want to change "field > value" to "field OP V"
@@ -7729,7 +7732,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree,
 
   // Note that value may be a stored function call, executed here.
   const type_conversion_status err= value->save_in_field_no_warnings(field, true);
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
+  thd->variables.sql_mode= orig_sql_mode;
 
   switch (err) {
   case TYPE_OK:

@@ -41,7 +41,6 @@
 #include "error_handler.h"                    // Internal_error_handler
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "key.h"
 #include "lex_string.h"
 #include "log.h"

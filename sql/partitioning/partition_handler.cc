@@ -26,7 +26,6 @@
 #include "derror.h"
 #include "discrete_interval.h"
 #include "field.h"
-#include "hash.h"
 #include "key.h"                             // key_rec_cmp
 #include "lex_string.h"
 #include "log.h"

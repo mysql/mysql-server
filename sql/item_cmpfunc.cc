@@ -485,7 +485,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
 
   *converted= false;
 
-  if ((*item)->const_item() &&
+  if ((*item)->may_evaluate_const(thd) &&
       /*
         In case of GC it's possible that this func will be called on an
         already converted constant. Don't convert it again.
@@ -929,7 +929,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg,
     aren't locked.
   */
   if (!thd->lex->is_ps_or_view_context_analysis() &&
-      str_arg->const_item() &&
+      str_arg->may_evaluate_const(thd) &&
       (str_arg->type() != Item::FUNC_ITEM ||
       ((Item_func*) str_arg)->functype() != Item_func::GUSERVAR_FUNC))
   {
@@ -1046,7 +1046,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 */
 
 static longlong
-get_time_value(THD*, Item ***item_arg, Item **cache_arg,
+get_time_value(THD *, Item ***item_arg, Item **cache_arg,
                Item*, bool *is_null)
 {
   longlong value;
@@ -1275,7 +1275,7 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
 /**
   Convert and cache a constant.
 
-  @param thd_arg The current session.
+  @param thd   The current session.
   @param value       An item to cache
   @param [out] cache_item Placeholder for the cache item
   @param type        Comparison type
@@ -1290,13 +1290,14 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
   @return cache item or original value.
 */
 
-Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
+Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
                                                 Item **cache_item,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd_arg->lex->is_ps_or_view_context_analysis() &&
-      (*value)->const_item() && type != (*value)->result_type())
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
+      (*value)->const_for_execution() &&
+      type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
     cache->setup(*value);
@@ -2199,7 +2200,7 @@ void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= 1;
+  const_item_cache= true;
 
   /*
     No need to call fix_after_pullout() on args[0] (ie left expression),
@@ -5220,7 +5221,7 @@ static int srtcmp_in(const void *cmp_arg, const void *a, const void *b)
 bool Item_func_in::resolve_type(THD *thd)
 {
   Item **arg, **arg_end;
-  bool const_itm= 1;
+  bool const_itm= true;
   bool datetime_found= false;
   /* TRUE <=> arguments values will be compared as DATETIMEs. */
   bool compare_as_datetime= false;
@@ -5236,7 +5237,7 @@ bool Item_func_in::resolve_type(THD *thd)
   {
     if (!arg[0]->const_item())
     {
-      const_itm= 0;
+      const_itm= false;
       if (arg[0]->real_item()->type() == Item::SUBSELECT_ITEM)
         dep_subq_in_list= true;
       break;
@@ -5931,7 +5932,7 @@ void Item_cond::update_used_tables()
   List_iterator_fast<Item> li(list);
   Item *item;
 
-  used_tables_cache=0;
+  used_tables_cache= 0;
   const_item_cache= true;
   m_accum_properties= 0;
 
@@ -6093,6 +6094,31 @@ longlong Item_cond_or::val_int()
   return 0;
 }
 
+
+void Item_func_isnull::update_used_tables()
+{
+  if (!args[0]->maybe_null)
+  {
+    used_tables_cache= 0;
+    const_item_cache= true;
+    cached_value= (longlong) 0;
+  }
+  else
+  {
+    args[0]->update_used_tables();
+    set_accum_properties(args[0]);
+
+    used_tables_cache= args[0]->used_tables();
+
+    const_item_cache= used_tables_cache == 0;
+
+    // If const, remember if value is always NULL or never NULL
+    if (const_item_cache)
+      cached_value= (longlong) args[0]->is_null();
+  }
+}
+
+
 float Item_func_isnull::get_filtering_effect(table_map filter_for_table,
                                              table_map read_tables,
                                              const MY_BITMAP *fields_to_ignore,
@@ -6132,13 +6158,14 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !has_subquery() && !has_stored_program())
+  if (!used_tables_cache)
   {
     /*
      TODO: Currently this branch never executes, since used_tables_cache
      is never equal to 0 --  it always contains RAND_TABLE_BIT,
      see get_initial_pseudo_tables().
     */
+    DBUG_ASSERT(false);
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
@@ -6168,9 +6195,8 @@ void Item_is_not_null_test::update_used_tables()
   args[0]->update_used_tables();
   set_accum_properties(args[0]);
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables &&
-      !has_subquery() &&
-      !has_stored_program())
+
+  if (used_tables_cache == initial_pseudo_tables)
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }
@@ -6288,7 +6314,7 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (!args[1]->const_item())
+  if (!args[1]->may_evaluate_const(current_thd))
     return OPTIMIZE_NONE;
 
   String* res2= args[1]->val_str((String *)&cmp.value2);
@@ -6319,7 +6345,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return true;
   }
 
-  if (!escape_item->const_during_execution())
+  // ESCAPE clauses that vary per row are not valid:
+  if (!escape_item->const_for_execution())
   {
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
     return true;
@@ -6332,7 +6359,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     TODO: If we move this into escape_is_evaluated(), which is called later,
     it could be that we could optimize more cases.
   */
-  if (escape_item->const_item())
+  if (escape_item->may_evaluate_const(thd))
   {
     if (eval_escape_clause(thd))
       return true;
@@ -6506,7 +6533,7 @@ Item_func_regex::fix_fields(THD *thd, Item**)
   not_null_tables_cache= (args[0]->not_null_tables() |
 			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
-  if (!regex_compiled && args[1]->const_item())
+  if (!regex_compiled && args[1]->may_evaluate_const(thd))
   {
     int comp_res= regcomp(TRUE);
     if (comp_res == -1)
@@ -6800,7 +6827,7 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
   : Item_bool_func(), const_item(0), eval_item(0), cond_false(0),
     compare_as_dates(FALSE)
 {
-  const_item_cache= 0;
+  const_item_cache= false;
   fields.push_back(f1);
   fields.push_back(f2);
 }
@@ -6808,7 +6835,7 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
 Item_equal::Item_equal(Item *c, Item_field *f)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
-  const_item_cache= 0;
+  const_item_cache= false;
   fields.push_back(f);
   const_item= c;
   compare_as_dates= f->is_temporal_with_date();
@@ -6818,7 +6845,7 @@ Item_equal::Item_equal(Item *c, Item_field *f)
 Item_equal::Item_equal(Item_equal *item_equal)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
-  const_item_cache= 0;
+  const_item_cache= false;
   List_iterator_fast<Item_field> li(item_equal->fields);
   Item_field *item;
   while ((item= li++))
@@ -6851,7 +6878,7 @@ bool Item_equal::compare_const(THD *thd, Item *c)
   if (thd->is_error())
     return true;
   if (cond_false)
-    const_item_cache= 1;
+    const_item_cache= true;
   return false;
 }
 

@@ -425,9 +425,10 @@ bool SELECT_LEX::prepare(THD *thd)
 
   set_sj_candidates(NULL);
 
-  if (outer_select() == NULL ||
-      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
-       outer_select()->outer_select() == NULL))
+  if ((outer_select() == NULL ||
+       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+        outer_select()->outer_select() == NULL)) &&
+      !skip_local_transforms)
   {
     /*
       This code is invoked in the following cases:
@@ -439,6 +440,8 @@ bool SELECT_LEX::prepare(THD *thd)
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
       - If this is a subquery in a SET command
         @todo: Refactor SET so that this is not needed.
+      - INSERT may in some cases alter the sequence of preparation calls, by
+        setting the skip_local_transforms flag before calling prepare().
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -2170,15 +2173,16 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
       @todo: Add analysis step that assigns only the set of non-trivially
       correlated tables to sj_corr_tables.
     */
-    nested_join->sj_corr_tables= subq_pred->used_tables();
+    nested_join->sj_corr_tables= subq_pred->used_tables() & ~INNER_TABLE_BIT;
 
     /*
       sj_depends_on contains the set of outer tables referred in the
       subquery's WHERE clause as well as tables referred in the IN predicate's
       left-hand side.
     */
-    nested_join->sj_depends_on=  subq_pred->used_tables() |
-                                 in_subq_pred->left_expr->used_tables();
+    nested_join->sj_depends_on= (subq_pred->used_tables() |
+                                 in_subq_pred->left_expr->used_tables()) &
+                                 ~INNER_TABLE_BIT;
 
     // Put the subquery's WHERE into semi-join's condition.
     Item *sj_cond= subq_select->where_cond();
@@ -3049,7 +3053,7 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
 
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return true;         /* purecov: inspected */
-    thd->lex->used_tables|= item->used_tables();
+    thd->lex->used_tables|= item->used_tables() & ~PSEUDO_TABLE_BITS;
     select_list_tables|= item->used_tables();
   }
   return false;

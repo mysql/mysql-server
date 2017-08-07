@@ -30,7 +30,6 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "key.h"
 #include "keycache.h"

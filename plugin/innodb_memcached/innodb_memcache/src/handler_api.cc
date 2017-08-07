@@ -80,7 +80,7 @@ handler_create_thd(
 		return(NULL);
 	}
 
-	thd = new THD;
+	thd = new (std::nothrow) THD;
 
 	if (!thd) {
 		return(NULL);

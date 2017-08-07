@@ -40,7 +40,6 @@
 #include "error_handler.h"              /* error_handler */
 #include "field.h"
 #include "handler.h"
-#include "hash.h"
 #include "item.h"
 #include "key.h"
 #include "key_spec.h"                   /* Key_spec */

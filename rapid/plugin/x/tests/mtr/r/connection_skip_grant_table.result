@@ -5,7 +5,7 @@ call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 call mtr.add_suppression("Unsuccessful login attempt: Invalid user or password");
 call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed because server is running without user privileges ..skip-grant-tables. switch");
 CREATE USER nonblank@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'nonblank';
+IDENTIFIED WITH 'mysql_native_password' BY 'valid_password';
 Test starts here
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
@@ -15,9 +15,24 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-try login with valid user when server started with skip-grant-tables and mysqlx loaded
+
+#
+# Try to install X Plugin (already installed) when
+# skip-grant-tables is set
+#
+# restart: --skip-grant-tables
+# Expecting error: ER_GET_ERRNO at X Plugin install.
+install plugin mysqlx soname "mysqlx.so";
+Got one of the listed errors
+
+#
+# Try login with valid user when server started with
+# skip-grant-tables and mysqlx loaded
+#
 # restart: --skip-grant-tables --plugin-load=mysqlx.so
-Connection should success with valid password
+
+#
+# Connection should success with valid password
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@	skip-grants user@skip-grants host	*
@@ -26,7 +41,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Connection should success with invalid password
+
+#
+# Connection should success with invalid password
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
 nonblank@	skip-grants user@skip-grants host	*
@@ -35,9 +52,10 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-FLUSH PRIVILEGES;
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+
+#
+# Uninstall mysqlx plugin when the server is started with
+# skip-grant-tables option
 RUN uninstall plugin mysqlx
 While executing uninstall plugin mysqlx:
 Got expected error: Command not supported by pluggable protocols (code 3130)
@@ -45,5 +63,12 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+#
+# Enable back the "grant-tables", mysqlx client
+# that uses invalid passord must be disconnected
+FLUSH PRIVILEGES;
+Application terminated with expected error: Invalid user or password (code 1045)
+not ok
 DROP USER nonblank@localhost;
 UNINSTALL PLUGIN mysqlx;

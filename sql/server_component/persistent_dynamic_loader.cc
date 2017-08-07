@@ -359,7 +359,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
     TABLE* component_table;
     auto guard_close_tables= create_scope_guard(
-      [&thd, &component_table]
+      [&thd]
     {
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);
@@ -377,7 +377,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
     }
 
     /* Unload components if anything goes wrong with handling changes. */
-    auto guard= create_scope_guard([&thd, &urns, &component_count]()
+    auto guard= create_scope_guard([&urns, &component_count]()
     {
       mysql_dynamic_loader_imp::unload(urns, component_count);
     });
@@ -481,7 +481,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     Disable_binlog_guard binlog_guard(thd);
 
     auto guard_close_tables= create_scope_guard(
-    [&thd, &component_table]()
+    [&thd]()
     {
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);

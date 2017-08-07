@@ -63,6 +63,13 @@ class Temp_table_param;
   The latter is marked as such for ease of separation later.
 */
 class Window {
+public:
+  /// @returns the first PARTITION BY expression for this window
+  ORDER *first_partition_by() const;
+
+  /// @returns the first ORDER BY expression for this window
+  ORDER *first_order_by() const;
+
   /*------------------------------------------------------------------------
    *
    * Variables stable during execution

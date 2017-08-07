@@ -15,6 +15,7 @@
 ## Usage
 #
 # --let $dont_load_plugin = 1|0
+# --let $error_load_plugin = error_code
 # --let $wait_for_tcpsocket_status = valid_value|undefined_value|no_wait
 # --let $wait_for_unixsocket_status = valid_value|undefined_value|no_wait
 # --source include/xplugin_install_and_wait.inc
@@ -23,9 +24,15 @@
 if ( $dont_load_plugin != 1)
 {
     --replace_regex /\.dll/.so/
+    if ($error_load_plugin != "")
+    {
+        --echo # Expecting error: $error_load_plugin at X Plugin install.
+        --error $error_load_plugin,0
+    }
     --eval install plugin mysqlx soname "$MYSQLXPLUGIN"
 }
 
 --source xplugin_wait_for_interfaces.inc
 
 --let $dont_load_plugin=0
+--let $error_load_plugin=

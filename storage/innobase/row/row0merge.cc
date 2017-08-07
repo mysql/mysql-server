@@ -1656,6 +1656,13 @@ row_geo_field_is_valid(
 		return(false);
 	}
 
+	uchar* dptr = static_cast<uchar*>(dfield_get_data(dfield));
+	uint32_t srid = uint4korr(dptr);
+
+	if (index->srid_is_valid && index->srid != srid) {
+		return false;
+	}
+
 	return(true);
 }
 
@@ -2210,7 +2217,8 @@ write_buffers:
 
 				/* If the geometry field is invalid, report
 				error. */
-				if (!row_geo_field_is_valid(row, buf->index)) {
+				if (!row_geo_field_is_valid(
+					row, buf->index)) {
 					err = DB_CANT_CREATE_GEOMETRY_OBJECT;
 					break;
 				}

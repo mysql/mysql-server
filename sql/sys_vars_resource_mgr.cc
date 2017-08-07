@@ -15,7 +15,6 @@
 
 #include "sys_vars_resource_mgr.h"
 
-#include "hash.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"

@@ -17,7 +17,6 @@
 #include "sql_plugin_var.h"
 
 #include "current_thd.h"
-#include "hash.h"
 #include "mysqld.h"
 #include "psi_memory_key.h"
 #include "set_var.h"

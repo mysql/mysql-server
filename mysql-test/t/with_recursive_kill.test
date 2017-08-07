@@ -15,6 +15,12 @@ let $ignore= `SELECT @id := $ID`;
 
 connection con1;
 
+# Need to allow many iterations, so that:
+# we have time to switch to other connection and kill (test 1)
+# and one second can pass (test 2).
+
+SET @@SESSION.cte_max_recursion_depth = 1000000000;
+
 SET DEBUG_SYNC='in_WITH_RECURSIVE SIGNAL with_recursive_has_started';
 
 send

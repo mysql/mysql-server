@@ -8105,6 +8105,9 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
     push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
     break;
+  case OPT_EXPIRE_LOGS_DAYS:
+    push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
+    break;
 #if defined(HAVE_OPENSSL)
   case OPT_SSL_KEY:
   case OPT_SSL_CERT:
@@ -8683,9 +8686,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   */
   if (!opt_help && !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
-
-  if (!opt_help && expire_logs_days)
-    push_deprecated_warn(NULL, "expire-logs-days","binlog_expire_logs_seconds");
 
   if (!opt_help && opt_mi_repository_id == INFO_REPOSITORY_FILE)
     push_deprecated_warn(NULL, "--master-info-repository=FILE",

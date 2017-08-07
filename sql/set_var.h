@@ -41,7 +41,6 @@
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
 #include "my_systime.h"
-#include "hash.h"             // HASH
 
 class Item;
 class Item_func_set_user_var;

@@ -1807,27 +1807,7 @@ public:
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "isnull"; }
   /* Optimize case of not_null_column IS NULL */
-  void update_used_tables() override
-  {
-    if (!args[0]->maybe_null)
-    {
-      used_tables_cache= 0;			/* is always false */
-      const_item_cache= 1;
-      cached_value= (longlong) 0;
-    }
-    else
-    {
-      args[0]->update_used_tables();
-      set_accum_properties(args[0]);
-
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-           !has_subquery() && !has_stored_program()))
-      {
-	/* Remember if the value is always NULL or never NULL */
-	cached_value= (longlong) args[0]->is_null();
-      }
-    }
-  }
+  void update_used_tables() override;
 
   float get_filtering_effect(table_map filter_for_table,
                              table_map read_tables,
@@ -1996,7 +1976,7 @@ protected:
 public:
   /* Item_cond() is only used to create top level items */
   Item_cond(): Item_bool_func(), abort_on_null(1)
-  { const_item_cache=0; }
+  { const_item_cache= false; }
 
   Item_cond(Item *i1,Item *i2)
     :Item_bool_func(), abort_on_null(0)
@@ -2142,7 +2122,7 @@ class Item_equal final : public Item_bool_func
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
-  { const_item_cache=0 ;}
+  { const_item_cache= false;}
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);

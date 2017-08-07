@@ -1160,7 +1160,7 @@ HASH_ROW_ENTRY*
 Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::get");
-  my_hash_value_type key;
+  uint key;
   HASH_ROW_ENTRY *entry= NULL;
 
   key= make_hash_key(table, cols);
@@ -1197,7 +1197,7 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
   if (!preamble->is_search_state_inited)
     DBUG_RETURN(true);
 
-  my_hash_value_type key= preamble->hash_value;
+  uint key= preamble->hash_value;
   const auto it= std::next(preamble->search_state);
 
   /*
@@ -1240,7 +1240,7 @@ Hash_slave_rows::del(HASH_ROW_ENTRY *entry)
   DBUG_RETURN(false);
 }
 
-my_hash_value_type
+uint
 Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::make_hash_key");

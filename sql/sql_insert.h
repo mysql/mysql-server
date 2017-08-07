@@ -212,6 +212,9 @@ protected:
 
   virtual bool prepare_inner(THD *thd);
 
+private:
+  bool resolve_update_expressions(THD *thd);
+
 public:
   /*
     field_list was created for view and should be removed before PS/SP

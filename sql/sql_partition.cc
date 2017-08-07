@@ -240,7 +240,7 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
   TABLE_LIST *save_list= context->table_list;
   const char *save_where= thd->where;
 
-  item= item->safe_charset_converter(cs);
+  item= item->safe_charset_converter(thd, cs);
   context->table_list= NULL;
   thd->where= "convert character set partition constant";
   if (!item || item->fix_fields(thd, (Item**)NULL))

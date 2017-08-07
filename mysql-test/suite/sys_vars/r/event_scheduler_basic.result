@@ -97,3 +97,4 @@ SET @@global.event_scheduler = @start_value;
 SELECT @@global.event_scheduler;
 @@global.event_scheduler
 ON
+# restart

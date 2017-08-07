@@ -31,18 +31,29 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
 --source include/start_slave.inc
 
 ##########################################################################################
-# Consecutive lock mode : Default locking mode                                           #
+# Consecutive lock mode                                                                  #
 ##########################################################################################
+--echo # Restart master with innodb_autoinc_lock_mode = 1
+--connection master
 
---echo # Consecutive lock mode : innodb_autoinc_lock_mode = 1
+--let $rpl_server_number=1
+--let $rpl_server_parameters= --innodb_autoinc_lock_mode=1
+--source include/rpl_restart_server.inc
+
+--echo # Restart slave with innodb_autoinc_lock_mode = 1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--let $rpl_server_number=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
 --source suite/rpl/include/rpl_auto_increment.inc
-
 
 ##########################################################################################
 # Traditional lock mode                                                                  #
 ##########################################################################################
 --echo # Restart master with innodb_autoinc_lock_mode = 0
-
 --connection master
 
 
@@ -100,10 +111,10 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
 # Master : Interleaved lock mode; Slave : Consecutive lock mode                          #
 ##########################################################################################
 
---echo # Restart slave with default lock mode :  innodb_autoinc_lock_mode = 1
+--echo # Restart slave with innodb_autoinc_lock_mode = 1
 --connection slave
 --let $rpl_server_number=2
---let $rpl_server_parameters=
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
 --source include/rpl_restart_server.inc
 
 --source include/start_slave.inc
@@ -140,10 +151,10 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
 # Master : Consecutive lock mode; Slave : Interleaved lock mode                          #
 ##########################################################################################
 
---echo # Restart master with default lock mode : innodb_autoinc_lock_mode = 1
+--echo # Restart master with innodb_autoinc_lock_mode = 1
 --connection master
 --let $rpl_server_number=1
---let $rpl_server_parameters=
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
 --source include/rpl_restart_server.inc
 
 --source suite/rpl/include/rpl_auto_increment.inc
@@ -167,15 +178,15 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
 # Set locking mode back to the default mode                                              #
 ##########################################################################################
 
---echo # Restart master with innodb_autoinc_lock_mode = 1
+--echo # Restart master with innodb_autoinc_lock_mode = 2
 --connection master
 --let $rpl_server_number=1
---let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc
 
---echo # Restarts slave with innodb_autoinc_lock_mode = 1
+--echo # Restart slave with innodb_autoinc_lock_mode = 2
 --let $rpl_server_number=2
---let $rpl_server_parameters=--innodb_autoinc_lock_mode=1
+--let $rpl_server_parameters=--innodb_autoinc_lock_mode=2
 --source include/rpl_restart_server.inc
 
 --connection slave

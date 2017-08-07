@@ -1679,6 +1679,7 @@ template const dict_index_t* dd_find_index<dd::Partition_index>(
 	const dict_table_t*, dd::Partition_index*);
 
 /** Create an index.
+@param[in]	dd_index	DD Index
 @param[in,out]	table		InnoDB table
 @param[in]	strict		whether to be strict about the max record size
 @param[in]	form		MySQL table structure
@@ -1690,6 +1691,7 @@ template const dict_index_t* dd_find_index<dd::Partition_index>(
 static MY_ATTRIBUTE((warn_unused_result))
 int
 dd_fill_one_dict_index(
+	const dd::Index*	dd_index,
 	dict_table_t*		table,
 	bool			strict,
 	const TABLE_SHARE*	form,
@@ -1839,6 +1841,14 @@ dd_fill_one_dict_index(
 	if (strcmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0) {
 		ut_ad(table->fts_doc_id_index == nullptr);
 		table->fts_doc_id_index = index;
+	}
+
+	if (dict_index_is_spatial(index)) {
+		const dd::Column& col = dd_index->elements()[0]->column();
+		bool srid_has_value = col.srs_id().has_value();
+		index->fill_srid_value(
+			srid_has_value ? col.srs_id().value() : 0,
+			srid_has_value);
 	}
 
 	return(0);
@@ -1999,7 +2009,8 @@ dd_fill_dict_index(
 		/* In InnoDB, the clustered index must always be
 		created first. */
 		error = dd_fill_one_dict_index(
-			m_table, strict, m_form->s, m_form->s->primary_key);
+			dd_table.indexes()[m_form->s->primary_key], m_table,
+			strict, m_form->s, m_form->s->primary_key);
 		if (error != 0) {
 			goto dd_error;
 		}
@@ -2007,7 +2018,7 @@ dd_fill_dict_index(
 
 	for (uint i = !m_form->s->primary_key; i < m_form->s->keys; i++) {
 		error = dd_fill_one_dict_index(
-			m_table, strict, m_form->s, i);
+			dd_table.indexes()[i], m_table, strict, m_form->s, i);
 		if (error != 0) {
 			goto dd_error;
 		}

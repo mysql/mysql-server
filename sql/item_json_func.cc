@@ -436,7 +436,7 @@ static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
                                                 enum_one_or_all_type *cached_ooa,
                                                 const char *func_name)
 {
-  bool is_constant= arg->const_during_execution();
+  bool is_constant= arg->const_for_execution();
 
   if (is_constant)
   {
@@ -478,7 +478,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
 {
   Item *arg= args[arg_idx];
 
-  const bool is_constant= arg->const_during_execution();
+  const bool is_constant= arg->const_for_execution();
   Path_cell &cell= m_arg_idx_to_vector_idx[arg_idx];
 
   if (is_constant && cell.m_status != enum_path_status::UNINITIALIZED)

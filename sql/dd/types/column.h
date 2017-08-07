@@ -20,6 +20,8 @@
 #include "dd/sdi_fwd.h"              // RJ_Document
 #include "dd/types/entity_object.h"  // dd::Entity_object
 #include "my_inttypes.h"
+#include "nullable.h"
+#include "sql/gis/srid.h"
 
 namespace dd {
 
@@ -295,6 +297,13 @@ public:
   virtual const String_type &column_type_utf8() const = 0;
 
   virtual void set_column_type_utf8(const String_type &column_type_utf8) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Spatial reference system ID
+  /////////////////////////////////////////////////////////////////////////
+  virtual void set_srs_id(Mysql::Nullable<gis::srid_t> srs_id) = 0;
+
+  virtual Mysql::Nullable<gis::srid_t> srs_id() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Elements.

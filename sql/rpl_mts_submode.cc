@@ -22,7 +22,6 @@
 
 #include "debug_sync.h"
 #include "handler.h"
-#include "hash.h"                           // HASH
 #include "lex_string.h"
 #include "log.h"
 #include "log_event.h"                      // Query_log_event
