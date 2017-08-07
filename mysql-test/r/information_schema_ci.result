@@ -1151,7 +1151,7 @@ table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
  OR column_type = 'varchar(30)')
 GROUP BY column_type ORDER BY num;
-COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name)	num
+COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
 varchar(7)	information_schema.INNODB_TABLESPACE_BRIEF,information_schema.VIEWS	2
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
