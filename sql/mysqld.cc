@@ -134,7 +134,7 @@
 
   @subsection infra_basic_container Container
 
-  See #DYNAMIC_ARRAY, #List, #I_P_List, HASH (#st_hash), #LF_HASH.
+  See #DYNAMIC_ARRAY, #List, #I_P_List, #LF_HASH.
 
   @subsection infra_basic_syncho Synchronization
 
