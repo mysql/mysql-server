@@ -112,6 +112,7 @@ template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED> 
 #define READ_ONLY sys_var::READONLY+
 #define NOT_VISIBLE sys_var::INVISIBLE+
 #define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
+#define HINT_UPDATEABLE sys_var::HINT_UPDATEABLE+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 #define NON_PERSIST sys_var::NOTPERSIST+

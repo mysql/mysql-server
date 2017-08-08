@@ -49,3 +49,17 @@ b7c3e3f868b665ce17ca877f6f667f81	SELECT /*+ `bad_hint_also_goes_to_digest` */ ?
 a532c6f3e890282b7eee77f35ee85ae9	SELECT ? 
 DROP TABLE t1, t2;
 #
+# WL#681: Hint to temporarily set session variable for current statement
+#
+SELECT 1;
+SELECT /*+ SET_VAR(foo = 1K) */ 1;
+SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
+digest	digest_text
+6e8c0d72ec7436ecefae76c55fe2a8e2	SELECT /*+ SET_VAR ( `foo` = ? ) */ ? 
+a532c6f3e890282b7eee77f35ee85ae9	SELECT ? 
+SELECT 1;
+SELECT /*+ SET_VAR(bar = 'baz') */ 1;
+SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
+digest	digest_text
+c81a997c1d34f6912b9772403e2c31f4	SELECT /*+ SET_VAR ( `bar` = ? ) */ ? 
+a532c6f3e890282b7eee77f35ee85ae9	SELECT ? 

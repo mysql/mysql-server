@@ -10817,6 +10817,9 @@ ER_APPLIER_LOG_EVENT_VALIDATION_ERROR
 ER_CTE_MAX_RECURSION_DEPTH
   eng "Recursive query aborted after %u iterations. Try increasing @@cte_max_recursion_depth to a larger value."
 
+ER_NOT_HINT_UPDATABLE_VARIABLE
+  eng "Variable %s can not be set using SET_VAR hint."
+
 #
 #  End of 8.0 error messages.
 #

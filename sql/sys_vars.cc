@@ -717,7 +717,7 @@ static Sys_var_long Sys_pfs_error_size(
 static Sys_var_ulong Sys_auto_increment_increment(
        "auto_increment_increment",
        "Auto-increment columns are incremented by this",
-       SESSION_VAR(auto_increment_increment),
+       HINT_UPDATEABLE SESSION_VAR(auto_increment_increment),
        CMD_LINE(OPT_ARG),
        VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG);
@@ -726,7 +726,7 @@ static Sys_var_ulong Sys_auto_increment_offset(
        "auto_increment_offset",
        "Offset added to Auto-increment columns. Used when "
        "auto-increment-increment != 1",
-       SESSION_VAR(auto_increment_offset),
+       HINT_UPDATEABLE SESSION_VAR(auto_increment_offset),
        CMD_LINE(OPT_ARG),
        VALID_RANGE(1, 65535), DEFAULT(1), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG);
@@ -735,7 +735,7 @@ static Sys_var_bool Sys_windowing_use_high_precision(
        "windowing_use_high_precision",
        "For SQL window functions, determines whether to enable inversion "
        "optimization for moving window frames also for floating values.",
-       SESSION_VAR(windowing_use_high_precision),
+       HINT_UPDATEABLE SESSION_VAR(windowing_use_high_precision),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_uint Sys_cte_max_recursion_depth(
@@ -1336,7 +1336,7 @@ static Sys_var_bool Sys_binlog_order_commits(
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
        "insert optimisation. Note that this is a limit per thread!",
-       SESSION_VAR(bulk_insert_buff_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(bulk_insert_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(8192*1024), BLOCK_SIZE(1));
 
 static Sys_var_charptr Sys_character_sets_dir(
@@ -1880,7 +1880,7 @@ static Sys_var_ulong Sys_interactive_timeout(
 static Sys_var_ulong Sys_join_buffer_size(
        "join_buffer_size",
        "The size of the buffer that is used for full joins",
-       SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(128, ULONG_MAX), DEFAULT(256 * 1024), BLOCK_SIZE(128));
 
 static Sys_var_keycache Sys_key_buffer_size(
@@ -1953,7 +1953,7 @@ static Sys_var_bool Sys_local_infile(
 static Sys_var_ulong Sys_lock_wait_timeout(
        "lock_wait_timeout",
        "Timeout in seconds to wait for a lock before returning an error.",
-       SESSION_VAR(lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(lock_wait_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
 
 #ifdef HAVE_MLOCKALL
@@ -2607,13 +2607,13 @@ static Sys_var_ulong Sys_max_delayed_threads(
 static Sys_var_ulong Sys_max_error_count(
        "max_error_count",
        "Max number of errors/warnings to store for a statement",
-       SESSION_VAR(max_error_count), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_error_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 65535), DEFAULT(DEFAULT_ERROR_COUNT), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_max_heap_table_size(
        "max_heap_table_size",
        "Don't allow creation of heap tables bigger than this",
-       SESSION_VAR(max_heap_table_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_heap_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(16384, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1024));
 
@@ -2656,7 +2656,7 @@ static Sys_var_harows Sys_max_join_size(
        "max_join_size",
        "Joins that are probably going to read more than max_join_size "
        "records return an error",
-       SESSION_VAR(max_join_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_join_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_join_size));
@@ -2664,19 +2664,19 @@ static Sys_var_harows Sys_max_join_size(
 static Sys_var_ulong Sys_max_seeks_for_key(
        "max_seeks_for_key",
        "Limit assumed max number of seeks when looking up rows based on a key",
-       SESSION_VAR(max_seeks_for_key), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_seeks_for_key), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(ULONG_MAX), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_length_for_sort_data(
        "max_length_for_sort_data",
        "Max number of bytes in sorted records",
-       SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(4096), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_points_in_geometry(
        "max_points_in_geometry",
        "Maximum number of points in a geometry",
-       SESSION_VAR(max_points_in_geometry), CMD_LINE(OPT_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_points_in_geometry), CMD_LINE(OPT_ARG),
        VALID_RANGE(3, 1024*1024L), DEFAULT(64*1024), BLOCK_SIZE(1));
 
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
@@ -2722,7 +2722,7 @@ static Sys_var_ulong Sys_max_sort_length(
        "The number of bytes to use when sorting BLOB or TEXT values (only "
        "the first max_sort_length bytes of each value are used; the rest "
        "are ignored)",
-       SESSION_VAR(max_sort_length), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_sort_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(1024), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_sp_recursion_depth(
@@ -2913,7 +2913,7 @@ static Sys_var_ulong Sys_optimizer_prune_level(
        "less-promising partial plans from the optimizer search space. "
        "Meaning: 0 - do not apply any heuristic, thus perform exhaustive "
        "search; 1 - prune plans based on number of retrieved rows",
-       SESSION_VAR(optimizer_prune_level), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(optimizer_prune_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1), DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_optimizer_search_depth(
@@ -2924,7 +2924,7 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        "than the number of tables in a relation result in faster "
        "optimization, but may produce very bad query plans. If set to 0, "
        "the system will automatically pick a reasonable value",
-       SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, MAX_TABLES+1), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_range_optimizer_max_mem_size(
@@ -2936,7 +2936,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
       "optimization of a query, index range scan will not be "
       "considered for this query. A value of 0 means range optimizer "
       "does not have any cap on memory. ",
-      SESSION_VAR(range_optimizer_max_mem_size),
+      HINT_UPDATEABLE SESSION_VAR(range_optimizer_max_mem_size),
       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX),
       DEFAULT(8388608),
       BLOCK_SIZE(1));
@@ -3038,16 +3038,17 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", block_nested_loop, batched_key_access, use_index_extensions,"
        " condition_fanout_filter, derived_merge} and val is one of "
        "{on, off, default}",
-       SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(NULL), ON_UPDATE(NULL));
 
 static Sys_var_bool Sys_var_end_markers_in_json(
        "end_markers_in_json",
        "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
        "if variable is set to 1, repeats the structure's key (if it has one) "
        "near the closing bracket",
-       SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
+       HINT_UPDATEABLE SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
 
 #ifdef OPTIMIZER_TRACE
@@ -3157,7 +3158,7 @@ static Sys_var_ulong Sys_read_buff_size(
        "Each thread that does a sequential scan allocates a buffer of "
        "this size for each table it scans. If you do many sequential scans, "
        "you may want to increase this value",
-       SESSION_VAR(read_buff_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(read_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
@@ -3379,13 +3380,13 @@ static Sys_var_ulong Sys_read_rnd_buff_size(
        "read_rnd_buffer_size",
        "When reading rows in sorted order after a sort, the rows are read "
        "through this buffer to avoid a disk seeks",
-       SESSION_VAR(read_rnd_buff_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(read_rnd_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, INT_MAX32), DEFAULT(256*1024), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_div_precincrement(
        "div_precision_increment", "Precision of the result of '/' "
        "operator will be increased on that value",
-       SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(div_precincrement), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, DECIMAL_MAX_SCALE), DEFAULT(4), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_eq_range_index_dive_limit(
@@ -3394,13 +3395,13 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "doing index dives for equality ranges if the number of equality "
        "ranges for the index is larger than or equal to this number. "
        "If set to 0, index dives are always used.",
-       SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(200), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
-       SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, UINT32_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
@@ -4257,7 +4258,7 @@ static Sys_var_ulong Sys_slow_launch_time(
 static Sys_var_ulong Sys_sort_buffer(
        "sort_buffer_size",
        "Each thread that needs to do a sort allocates a buffer of this size",
-       SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(sortbuff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
@@ -4409,7 +4410,7 @@ static Sys_var_set Sys_sql_mode(
        "sql_mode",
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
-       SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
        sql_mode_names,
        DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
                MODE_ONLY_FULL_GROUP_BY |
@@ -4424,7 +4425,7 @@ static Sys_var_set Sys_sql_mode(
 static Sys_var_ulong Sys_max_execution_time(
        "max_execution_time",
        "Kill SELECT statement that takes over the specified number of milliseconds",
-       SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL)
@@ -4511,7 +4512,7 @@ static Sys_var_enum Sys_updatable_views_with_limit(
        "LIMIT clause for updating. NO = Prohibit update of a VIEW, which "
        "does not contain a key of the underlying table and the query uses "
        "a LIMIT clause (usually get from GUI tools)",
-       SESSION_VAR(updatable_views_with_limit), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(updatable_views_with_limit), CMD_LINE(REQUIRED_ARG),
        updatable_views_with_limit_names, DEFAULT(TRUE));
 
 static char *system_time_zone_ptr;
@@ -4756,7 +4757,7 @@ static Sys_var_ulonglong Sys_tmp_table_size(
        "If an internal in-memory temporary table in the MEMORY storage engine "
        "exceeds this size, MySQL will automatically convert it to an on-disk "
        "table",
-       SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(tmp_table_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
 
@@ -4810,7 +4811,8 @@ const char *internal_tmp_mem_storage_engine_names[] = { "MEMORY", "TempTable", 0
 static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
        "internal_tmp_mem_storage_engine",
        "The default storage engine for in-memory internal temporary tables.",
-       SESSION_VAR(internal_tmp_mem_storage_engine), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(internal_tmp_mem_storage_engine),
+       CMD_LINE(REQUIRED_ARG),
        internal_tmp_mem_storage_engine_names, DEFAULT(TMP_TABLE_TEMPTABLE));
 
 static Sys_var_ulonglong Sys_temptable_max_ram(
@@ -4826,7 +4828,7 @@ static Sys_var_ulonglong Sys_temptable_max_ram(
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explicit temporary tables",
-       SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
+       HINT_UPDATEABLE SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
 
@@ -4942,11 +4944,11 @@ export sys_var *Sys_autocommit_ptr= &Sys_autocommit; // for sql_yacc.yy
 static Sys_var_bool Sys_big_tables(
        "big_tables", "Allow big result sets by saving all "
        "temporary sets on file (Solves most 'table full' errors)",
-       SESSION_VAR(big_tables), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       HINT_UPDATEABLE SESSION_VAR(big_tables), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_bit Sys_big_selects(
        "sql_big_selects", "sql_big_selects",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIG_SELECTS,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BIG_SELECTS,
        DEFAULT(FALSE));
 
 static Sys_var_bit Sys_log_off(
@@ -5037,17 +5039,17 @@ static Sys_var_bit Sys_sql_notes(
 
 static Sys_var_bit Sys_auto_is_null(
        "sql_auto_is_null", "sql_auto_is_null",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_AUTO_IS_NULL,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_AUTO_IS_NULL,
        DEFAULT(FALSE), NO_MUTEX_GUARD, IN_BINLOG);
 
 static Sys_var_bit Sys_safe_updates(
        "sql_safe_updates", "sql_safe_updates",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_SAFE_UPDATES,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_SAFE_UPDATES,
        DEFAULT(FALSE));
 
 static Sys_var_bit Sys_buffer_results(
        "sql_buffer_result", "sql_buffer_result",
-       SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BUFFER_RESULT,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_BUFFER_RESULT,
        DEFAULT(FALSE));
 
 static Sys_var_bit Sys_quote_show_create(
@@ -5057,13 +5059,13 @@ static Sys_var_bit Sys_quote_show_create(
 
 static Sys_var_bit Sys_foreign_key_checks(
        "foreign_key_checks", "foreign_key_checks",
-       SESSION_VAR(option_bits), NO_CMD_LINE,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE,
        REVERSE(OPTION_NO_FOREIGN_KEY_CHECKS),
        DEFAULT(TRUE), NO_MUTEX_GUARD, IN_BINLOG);
 
 static Sys_var_bit Sys_unique_checks(
        "unique_checks", "unique_checks",
-       SESSION_VAR(option_bits), NO_CMD_LINE,
+       HINT_UPDATEABLE SESSION_VAR(option_bits), NO_CMD_LINE,
        REVERSE(OPTION_RELAXED_UNIQUE_CHECKS),
        DEFAULT(TRUE), NO_MUTEX_GUARD, IN_BINLOG);
 
@@ -5084,7 +5086,7 @@ static Sys_var_ulong Sys_profiling_history_size(
 static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",
-       SESSION_VAR(select_limit), NO_CMD_LINE,
+       HINT_UPDATEABLE SESSION_VAR(select_limit), NO_CMD_LINE,
        VALID_RANGE(0, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1));
 
 static bool update_timestamp(THD *thd, set_var *var)
@@ -5134,7 +5136,7 @@ static bool check_timestamp(sys_var*, THD*, set_var *var)
 
 static Sys_var_session_special_double Sys_timestamp(
        "timestamp", "Set the time for this client",
-       sys_var::ONLY_SESSION, NO_CMD_LINE,
+       HINT_UPDATEABLE sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, 0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_timestamp), 
        ON_UPDATE(update_timestamp), ON_READ(read_timestamp));
@@ -5207,7 +5209,7 @@ static ulonglong read_insert_id(THD *thd)
 static Sys_var_session_special Sys_insert_id(
        "insert_id", "The value to be used by the following INSERT "
        "or ALTER TABLE statement when inserting an AUTO_INCREMENT value",
-       sys_var::ONLY_SESSION, NO_CMD_LINE,
+       HINT_UPDATEABLE sys_var::ONLY_SESSION, NO_CMD_LINE,
        VALID_RANGE(0, ULLONG_MAX), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_insert_id), ON_READ(read_insert_id));
@@ -5285,7 +5287,7 @@ static Sys_var_ulong Sys_default_week_format(
 static Sys_var_ulong Sys_group_concat_max_len(
        "group_concat_max_len",
        "The maximum length of the result of function  GROUP_CONCAT()",
-       SESSION_VAR(group_concat_max_len), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(group_concat_max_len), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, ULONG_MAX), DEFAULT(1024), BLOCK_SIZE(1));
 
 static char *glob_hostname_ptr;
