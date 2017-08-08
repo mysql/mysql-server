@@ -131,8 +131,12 @@ int xcom_statistics(task_arg arg MY_ATTRIBUTE((unused))) {
             "receive b");
     for (i = 0; i < LAST_OP; i++) {
       if (send_count[i] || receive_count[i]) {
-        G_DEBUG("%27s%12lu%12lu%12lu%12lu", pax_op_to_str(i), send_count[i],
-                receive_count[i], send_bytes[i], receive_bytes[i]);
+        G_DEBUG("%27s%12lu%12lu%12lu%12lu",
+                pax_op_to_str(i),
+                (unsigned long) send_count[i],
+                (unsigned long) receive_count[i],
+                (unsigned long)send_bytes[i],
+                (unsigned long) receive_bytes[i]);
       }
     }
     for (i = 0; i < LAST_OP; i++) {

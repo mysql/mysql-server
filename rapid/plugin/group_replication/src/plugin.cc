@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <assert.h>
+#include <cassert>
 #include <sstream>
 
 #include "my_dbug.h"
@@ -220,6 +220,9 @@ bool allow_local_lower_version_join_var= 0;
 /* Allow errand transactions */
 bool allow_local_disjoint_gtids_join_var= 0;
 
+/* Define what debug options will be activated */
+char * communication_debug_options_var= NULL;
+
 /* Certification latch */
 Wait_ticket<my_thread_id> *certification_latch;
 
@@ -419,6 +422,18 @@ int plugin_group_replication_start()
   {
     register_listener_service_gr_example();
   });
+
+  /*
+    The debug options is also set/verified here because if it was set during
+    the server start, it was not set/verified due to the plugin life-cycle.
+    For that reason, we have to call set_debug_options here as well to set/
+    validate the information in the communication_debug_options_var. Note,
+    however, that the option variable is not automatically set to a valid
+    value if the validation fails.
+  */
+  std::string debug_options(communication_debug_options_var);
+  if (gcs_module->set_debug_options(debug_options))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
   /*
     Instantiate certification latch.
@@ -1378,6 +1393,19 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
     }
   }
 
+  /*
+    Define the file where GCS debug messages will be sent to.
+  */
+  gcs_module_parameters.add_parameter("communication_debug_file",
+                                      GCS_DEBUG_TRACE_FILE);
+
+  /*
+    By default debug files will be created in a path relative to
+    the data directory.
+  */
+  gcs_module_parameters.add_parameter("communication_debug_path",
+                                      mysql_real_data_home);
+
   // Configure GCS.
   if (gcs_module->configure(gcs_module_parameters))
   {
@@ -1393,11 +1421,14 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables)
               "group_replication_bootstrap_group: %s; "
               "group_replication_poll_spin_loops: %lu; "
               "group_replication_compression_threshold: %lu; "
-              "group_replication_ip_whitelist: \"%s\"",
+              "group_replication_ip_whitelist: \"%s\" "
+              "group_replication_communication_debug_file: \"%s\" "
+              "group_replication_communication_debug_path: \"%s\"",
               group_name_var, local_address_var, group_seeds_var,
               bootstrap_group_var ? "true" : "false",
               poll_spin_loops_var, compression_threshold_var,
-              ip_whitelist_var);
+              ip_whitelist_var, GCS_DEBUG_TRACE_FILE,
+              mysql_real_data_home);
 
   DBUG_RETURN(0);
 }
@@ -2377,6 +2408,28 @@ check_enforce_update_everywhere_checks(MYSQL_THD, SYS_VAR*,
   DBUG_RETURN(0);
 }
 
+static int check_communication_debug_options(
+  MYSQL_THD thd, SYS_VAR*, void* save, struct st_mysql_value *value)
+{
+  DBUG_ENTER("check_communication_debug_options");
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str= NULL;
+  int length= sizeof(buff);
+
+  (*(const char **) save)= NULL;
+  if ((str= value->val_str(value, buff, &length)) == NULL)
+    DBUG_RETURN(1); /* purecov: inspected */
+
+  std::string debug_options(str);
+  if (gcs_module->set_debug_options(debug_options))
+    DBUG_RETURN(1);
+  (*(const char**) save)=
+    thd->strmake(debug_options.c_str(), debug_options.length());
+
+  DBUG_RETURN(0);
+}
+
 static void update_unreachable_timeout(MYSQL_THD, SYS_VAR*,
                                        void *var_ptr, const void *save)
 {
@@ -2848,6 +2901,16 @@ static MYSQL_SYSVAR_ULONG(
   0                                    /* block */
 );
 
+static MYSQL_SYSVAR_STR(
+  communication_debug_options,                /* name */
+  communication_debug_options_var,            /* var */
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,  /* optional var | malloc string */
+  "The set of debug options, comma separated. E.g., DEBUG_BASIC, DEBUG_ALL.",
+  check_communication_debug_options,          /* check func */
+  NULL,                                       /* update func */
+  "GCS_DEBUG_NONE"                            /* default */
+);
+
 static MYSQL_SYSVAR_ULONG(
   unreachable_majority_timeout,                    /* name */
   timeout_on_unreachable_var,                      /* var */
@@ -3008,6 +3071,7 @@ static SYS_VAR* group_replication_system_vars[]= {
   MYSQL_SYSVAR(flow_control_certifier_threshold),
   MYSQL_SYSVAR(flow_control_applier_threshold),
   MYSQL_SYSVAR(transaction_size_limit),
+  MYSQL_SYSVAR(communication_debug_options),
   MYSQL_SYSVAR(unreachable_majority_timeout),
   MYSQL_SYSVAR(member_weight),
   MYSQL_SYSVAR(flow_control_min_quota),

@@ -13,368 +13,266 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <errno.h>
-#include <time.h>
-#include <vector>
+#include <cassert>
+#include <string>
+#include <algorithm>
+#include <sstream>
 
-#include "mysql/gcs/gcs_log_system.h"
+#include "mysql/gcs/gcs_logging.h"
 
-Ext_logger_interface *Gcs_logger::log= NULL;
+#define SIZE_DEBUG_OPTIONS sizeof(gcs_xcom_debug_strings) / sizeof(*gcs_xcom_debug_strings)
 
+Logger_interface *Gcs_log_manager::m_logger= NULL;
 
 // Logging infrastructure interface
-Ext_logger_interface *Gcs_logger::get_logger()
+Logger_interface *Gcs_log_manager::get_logger()
 {
-  return log;
+  return m_logger;
 }
 
-enum_gcs_error Gcs_logger::initialize(Ext_logger_interface* logger)
+
+enum_gcs_error Gcs_log_manager::initialize(Logger_interface* logger)
+{
+  m_logger= logger;
+  return m_logger->initialize();
+}
+
+
+enum_gcs_error Gcs_log_manager::finalize()
 {
   enum_gcs_error ret= GCS_NOK;
 
-  log= logger;
-  ret= log->initialize();
+  if(m_logger != NULL)
+  {
+    ret= m_logger->finalize();
+    m_logger= NULL;
+  }
 
   return ret;
 }
 
 
-enum_gcs_error Gcs_logger::finalize()
+std::atomic<std::int64_t> Gcs_debug_options::m_debug_options {GCS_DEBUG_NONE};
+
+const std::string Gcs_debug_options::m_debug_none(gcs_xcom_debug_strings[SIZE_DEBUG_OPTIONS - 1]);
+
+const std::string Gcs_debug_options::m_debug_all(gcs_xcom_debug_strings[SIZE_DEBUG_OPTIONS - 2]);
+
+
+int64_t Gcs_debug_options::get_valid_debug_options()
 {
-  enum_gcs_error ret= GCS_NOK;
-  if(log != NULL)
+  int64_t ret = 0;
+  unsigned int num_options = get_number_debug_options();
+
+  unsigned int i= 0;
+  for (i= 0; i < num_options; i++)
   {
-    ret= log->finalize();
-    log= NULL;
+    ret = ret | (1 << i);
   }
 
   return ret;
 }
 
-/* purecov: begin deadcode */
-// GCS Logging systems implementation
 
-Gcs_log_events_recipient_interface *Gcs_log_events_default_recipient::m_default_recipient= NULL;
-
-Gcs_log_events_recipient_interface* Gcs_log_events_default_recipient::get_default_recipient()
+bool Gcs_debug_options::is_valid_debug_options(const int64_t debug_options)
 {
-  if(m_default_recipient == NULL)
-    m_default_recipient= new Gcs_log_events_default_recipient();
+  if (debug_options == GCS_DEBUG_NONE || debug_options == GCS_DEBUG_ALL)
+    return true;
 
-  return m_default_recipient;
+  return !((debug_options & (~get_valid_debug_options())));
 }
 
 
-bool Gcs_log_events_default_recipient::process(gcs_log_level_t level, std::string msg)
+bool Gcs_debug_options::is_valid_debug_options(const std::string &debug_options)
 {
-  // Print message adding timestamp and level before message
-  if(level < GCS_INFO)
-    std::cerr << My_xp_util::getsystime() << " "
-      << gcs_log_levels[level] << msg << std::endl;
-  else
-    std::cout << My_xp_util::getsystime() << " "
-      << gcs_log_levels[level] << msg << std::endl;
-
-  return true;
+  int64_t res_debug_options;
+  return !get_debug_options(debug_options, res_debug_options);
 }
 
 
-// Gcs Logging Event
-Gcs_log_event::Gcs_log_event()
-: m_level(GCS_TRACE), m_msg(""), m_logged(true),
-  m_recipient(Gcs_log_events_default_recipient::get_default_recipient()),
-  m_mutex(new My_xp_mutex_impl())
+int64_t Gcs_debug_options::get_current_debug_options()
 {
-  m_mutex->init(NULL);
-}
-
-Gcs_log_event::Gcs_log_event(Gcs_log_events_recipient_interface *r)
-: m_level(GCS_TRACE), m_msg(""), m_logged(true), m_recipient(r),
-  m_mutex(new My_xp_mutex_impl())
-{
-  m_mutex->init(NULL);
+  return load_debug_options();
 }
 
 
-Gcs_log_event::~Gcs_log_event()
+int64_t Gcs_debug_options::get_current_debug_options(std::string &res_debug_options)
 {
-  m_mutex->destroy();
-  delete m_mutex;
+  int64_t debug_options= load_debug_options();
+  get_debug_options(debug_options, res_debug_options);
+  return debug_options;
 }
 
 
-Gcs_log_event::Gcs_log_event(const Gcs_log_event &other)
-  : m_level(other.m_level), m_msg(other.m_msg.c_str()),
-  m_logged(other.m_logged), m_recipient(other.m_recipient),
-  m_mutex(new My_xp_mutex_impl())
+bool Gcs_debug_options::get_debug_options(const int64_t debug_options,
+                                          std::string &res_debug_options)
 {
-  m_mutex->init(NULL);
-}
+  unsigned int i= 0;
+  unsigned int num_options = get_number_debug_options();
 
+  /*
+    There are options that are not valid here so an error is returned.
+  */
+  if (!is_valid_debug_options(debug_options))
+    return true; /* purecov: inspected */
 
-bool Gcs_log_event::get_logged()
-{
-  bool current;
-  m_mutex->lock();
-  current= m_logged;
-  m_mutex->unlock();
+  res_debug_options.clear();
 
-  return current;
-}
-
-void Gcs_log_event::set_values(gcs_log_level_t l, std::string m, bool d)
-{
-  m_mutex->lock();
-  m_level= l;
-  m_msg= m;
-  m_logged= d;
-  m_mutex->unlock();
-}
-
-bool Gcs_log_event::process()
-{
-  m_mutex->lock();
-  if(!m_logged)
+  if (debug_options == GCS_DEBUG_NONE)
   {
-    // Mark event as logged if everything went fine
-    m_logged= m_recipient->process(m_level, m_msg);
-  }
-  m_mutex->unlock();
-
-  return m_logged;
-}
-
-
-// Gcs Logging system implementation
-Gcs_ext_logger_impl::Gcs_ext_logger_impl()
-  :m_buffer(std::vector<Gcs_log_event>(BUF_SIZE, Gcs_log_event())),
-  m_write_index(0), m_max_read_index(0), m_read_index(0), m_initialized(false),
-  m_terminated(false), m_consumer(new My_xp_thread_impl()),
-  m_wait_for_events(new My_xp_cond_impl()),
-  m_wait_for_events_mutex(new My_xp_mutex_impl()),
-  m_write_index_mutex(new My_xp_mutex_impl()),
-  m_max_read_index_mutex(new My_xp_mutex_impl())
-{}
-
-Gcs_ext_logger_impl::Gcs_ext_logger_impl(Gcs_log_events_recipient_interface *e)
-  :m_buffer(std::vector<Gcs_log_event>(BUF_SIZE, Gcs_log_event(e))),
-  m_write_index(0), m_max_read_index(0), m_read_index(0),
-  m_initialized(false), m_terminated(false),
-  m_consumer(new My_xp_thread_impl()),
-  m_wait_for_events(new My_xp_cond_impl()),
-  m_wait_for_events_mutex(new My_xp_mutex_impl()),
-  m_write_index_mutex(new My_xp_mutex_impl()),
-  m_max_read_index_mutex(new My_xp_mutex_impl())
-{}
-
-
-bool Gcs_ext_logger_impl::is_terminated()
-{
-  return m_terminated;
-}
-
-/**
-  Logger initialization method.
-*/
-
-enum_gcs_error Gcs_ext_logger_impl::initialize()
-{
-  m_wait_for_events->init();
-  m_wait_for_events_mutex->init(NULL);
-  m_write_index_mutex->init(NULL);
-  m_max_read_index_mutex->init(NULL);
-
-  int res= m_consumer->create(NULL, consumer_function, (void *) this);
-  if(res)
-  {
-    std::cerr << "Unable to create Gcs_ext_logger_impl consumer thread, " << res << std::endl;
-    return GCS_NOK;
+     res_debug_options += m_debug_none;
+     return debug_options;
   }
 
-  m_initialized= true;
-
-  return GCS_OK;
-}
-
-
-/**
-  Logger finalization method.
-*/
-
-enum_gcs_error Gcs_ext_logger_impl::finalize()
-{
-  if(!m_initialized)
-    return GCS_NOK;
-
-  if(m_terminated)
-    return GCS_NOK;
-
-  // Stop logging task and wake it up
-  m_terminated= true;
-
-  // Wake up consumer before leaving
-  m_wait_for_events_mutex->lock();
-  m_wait_for_events->signal();
-  m_wait_for_events_mutex->unlock();
-
-  // Wait for consumer to finish processing events
-  m_consumer->join(NULL);
-
-  m_wait_for_events->destroy();
-  m_wait_for_events_mutex->destroy();
-  m_write_index_mutex->destroy();
-  m_max_read_index_mutex->destroy();
-
-  delete Gcs_log_events_default_recipient::get_default_recipient();
-  delete m_consumer;
-  delete m_wait_for_events;
-  delete m_wait_for_events_mutex;
-  delete m_write_index_mutex;
-  delete m_max_read_index_mutex;
-
-  return GCS_OK;
-}
-
-
-void Gcs_ext_logger_impl::log_event(gcs_log_level_t level, const char *message)
-{
-  // Get and increment write index
-  m_write_index_mutex->lock();
-  int current_write_index= m_write_index++;
-  unsigned int index= current_write_index & BUF_MASK;
-  m_write_index_mutex->unlock();
-
-  while(!m_buffer[index].get_logged())
+  if (debug_options == GCS_DEBUG_ALL)
   {
-    m_wait_for_events_mutex->lock();
-    m_wait_for_events->signal();
-    m_wait_for_events_mutex->unlock();
+     res_debug_options += m_debug_all;
+     return debug_options;
   }
 
-  m_buffer[index].set_values(level, message, false);
+  for (i= 0; i < num_options; i++)
+  {
+     if ((debug_options &  (1 << i)))
+     {
+       res_debug_options += gcs_xcom_debug_strings[i];
+       res_debug_options += ",";
+     }
+  }
 
-  // Increment max_read_index
-  while(!my_read_cas(current_write_index, (current_write_index+1)))
-    ;
+  res_debug_options.erase(res_debug_options.length() - 1);
 
-  // Wakeup consumer
-  m_wait_for_events_mutex->lock();
-  m_wait_for_events->signal();
-  m_wait_for_events_mutex->unlock();
+  return false;
 }
 
 
-void Gcs_ext_logger_impl::consume_events()
+bool Gcs_debug_options::get_debug_options(const std::string &debug_options,
+                                          int64_t &res_debug_options)
 {
-  int cycles= 0;
-  unsigned int index= 0;
-  int current_max_read_index;
-  struct timespec ts;
-  unsigned long wait_ms= 500;
+  bool found;
+  unsigned int i;
+  unsigned int num_options= get_number_debug_options();
 
-  m_max_read_index_mutex->lock();
-  current_max_read_index= m_max_read_index;
-  m_max_read_index_mutex->unlock();
-  do
+  res_debug_options= GCS_DEBUG_NONE;
+
+  std::stringstream it(debug_options);
+  std::string option;
+
+  while(std::getline(it, option, ','))
   {
-    // Wait for new events to be pushed
-    if(current_max_read_index == m_read_index)
+    /*
+       Remove blank spaces and convert the string to upper case.
+    */
+    option.erase(std::remove(option.begin(), option.end(), ' '), option.end());
+    std::transform(option.begin(), option.end(), option.begin(), ::toupper);
+
+    if (!option.compare(m_debug_all))
     {
-      m_wait_for_events_mutex->lock();
-      My_xp_util::set_timespec_nsec(&ts, wait_ms*1000000);
-      m_wait_for_events->timed_wait(m_wait_for_events_mutex->get_native_mutex(), &ts);
-      m_wait_for_events_mutex->unlock();
+      res_debug_options = GCS_DEBUG_ALL;
+      continue;
     }
-    else
+
+    /*
+      Check if the parameter option matches a valid option but if it does
+      not match an error is returned.
+    */
+    found= false;
+    for (i = 0; i < num_options; i++)
     {
-      while(m_read_index < current_max_read_index)
+      if (!option.compare(gcs_xcom_debug_strings[i]))
       {
-        index= m_read_index & BUF_MASK;
-        if(m_buffer[index].process())
-        {
-          m_read_index++;
-        }
+        res_debug_options = res_debug_options | (1 << i);
+        found= true;
+        break;
       }
     }
 
-    cycles++;
-    m_max_read_index_mutex->lock();
-    current_max_read_index= m_max_read_index;
-    m_max_read_index_mutex->unlock();
+    if (!found && option.compare("") && option.compare(m_debug_none))
+      return true;
   }
-  while(!is_terminated() || current_max_read_index > m_read_index);
+  return false;
 }
 
 
-bool Gcs_ext_logger_impl::my_cas(int *ptr, int expected_value, int new_value)
+unsigned int Gcs_debug_options::get_number_debug_options()
 {
-    if(*ptr != expected_value)
-    {
-        return false;
-    }
-    else
-    {
-        *ptr= new_value;
-        return true;
-    }
+  return (SIZE_DEBUG_OPTIONS - 2);
 }
 
 
-bool Gcs_ext_logger_impl::my_read_cas(int old_value, int new_value)
+bool Gcs_debug_options::set_debug_options(const int64_t debug_options)
 {
-  bool ret= false;
-  m_max_read_index_mutex->lock();
-  ret= my_cas(&m_max_read_index, old_value, new_value);
-  m_max_read_index_mutex->unlock();
+  /*
+    There are options that are not valid here so an error is returned.
+  */
+  if (!is_valid_debug_options(debug_options))
+    return true;
 
-  return ret;
+  /*
+    Note that we execute this change in two steps. This is not a problem
+    since we only want to guarantee that there will be no corrupted
+    values when there is concurrency.
+  */
+  store_debug_options(load_debug_options() | debug_options);
+
+  return false;
 }
 
 
-void *consumer_function(void *ptr)
+bool Gcs_debug_options::force_debug_options(const int64_t debug_options)
 {
-  Gcs_ext_logger_impl *l= (Gcs_ext_logger_impl *)ptr;
-  l->consume_events();
+  if (!is_valid_debug_options(debug_options))
+    return true;
 
-  return NULL;
+  store_debug_options(debug_options);
+
+  return false;
 }
 
 
-// GCS Simple Logger
-enum_gcs_error Gcs_simple_ext_logger_impl::initialize()
+bool Gcs_debug_options::set_debug_options(const std::string &debug_options)
 {
-  int ret_out= setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
-  int ret_err= setvbuf(stderr, NULL, _IOLBF, BUFSIZ);
+  bool ret;
+  int64_t res_debug_options;
 
-  if((ret_out == 0) && (ret_err == 0))
-    return GCS_OK;
-  else
-  {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno= WSAGetLastError();
-#endif
-    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno)
-      << std::endl;
-
-    return GCS_NOK;
-  }
+  ret = get_debug_options(debug_options, res_debug_options);
+  return ret ? ret : set_debug_options(res_debug_options);
 }
 
 
-enum_gcs_error Gcs_simple_ext_logger_impl::finalize()
+bool Gcs_debug_options::force_debug_options(const std::string &debug_options)
 {
-  return GCS_OK;
+  bool ret;
+  int64_t res_debug_options;
+
+  ret = get_debug_options(debug_options, res_debug_options);
+  return ret ? ret : force_debug_options(res_debug_options);
 }
 
 
-void Gcs_simple_ext_logger_impl::log_event(gcs_log_level_t level, const char *msg)
+bool Gcs_debug_options::unset_debug_options(const int64_t debug_options)
 {
-  // Print message adding timestamp and level before message
-  if(level < GCS_INFO)
-    std::cerr << My_xp_util::getsystime() << " "
-      << gcs_log_levels[level] << msg << std::endl;
-  else
-    std::cout << My_xp_util::getsystime() << " "
-      << gcs_log_levels[level] << msg << std::endl;
+  /*
+    There are options that are not valid here so an error is returned.
+  */
+  if (!is_valid_debug_options(debug_options))
+    return true;
+
+  /*
+    Note that we execute this change in two steps. This is not a problem
+    since we only want to guarantee that there will be no corrupted
+    values when there is concurrency.
+  */
+  store_debug_options(load_debug_options() & (~debug_options));
+
+  return false;
 }
-/* purecov: end */
+
+
+bool Gcs_debug_options::unset_debug_options(const std::string &debug_options)
+{
+  bool ret;
+  int64_t res_debug_options;
+
+  ret = get_debug_options(debug_options, res_debug_options);
+  return ret ? ret : unset_debug_options(res_debug_options);
+}

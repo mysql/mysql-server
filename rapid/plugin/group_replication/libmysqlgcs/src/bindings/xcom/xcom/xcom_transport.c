@@ -316,6 +316,8 @@ int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
 static void dump_header(char *buf) {
   char *end = buf + MSG_HDR_SIZE;
   GET_GOUT;
+  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+    return;
   STRLIT("message header ");
   PTREXP(buf);
   while (buf < end) {

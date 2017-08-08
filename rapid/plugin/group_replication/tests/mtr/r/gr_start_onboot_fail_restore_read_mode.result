@@ -1,5 +1,5 @@
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Plugin group_replication reported: 'read failed'");
+call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] read failed'");
 call mtr.add_suppression("Plugin group_replication reported: 'Timeout on wait for view after joining group'");
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
 call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");

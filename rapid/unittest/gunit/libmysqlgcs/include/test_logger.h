@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 #ifndef TEST_LOGGER_INCLUDED
 #define TEST_LOGGER_INCLUDED
-#include "mysql/gcs/gcs_log_system.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_interface.h"
 
 /*
@@ -29,7 +29,7 @@
   ...
   test_logger.assert_error("Expected error message");
 */
-class Test_logger : public Ext_logger_interface
+class Test_logger : public Logger_interface
 {
 private:
   std::stringstream m_log_stream;
@@ -42,15 +42,16 @@ private:
   void assert_event(gcs_log_level_t level, const std::string &expected)
   {
     std::string complete_log(gcs_log_levels[level]);
-    complete_log+= GCS_LOG_PREFIX + expected;
-    
+    complete_log += GCS_PREFIX;
+    complete_log += expected;
+
     ASSERT_EQ(complete_log, get_event());
   }
 
 public:
   Test_logger()
   {
-    Gcs_logger::initialize(this);
+    Gcs_log_manager::initialize(this);
   }
 
   ~Test_logger() {}
@@ -65,7 +66,7 @@ public:
     return GCS_OK;
   }
 
-  void log_event(gcs_log_level_t level, const char* message)
+  void log_event(const gcs_log_level_t level, const std::string &message)
   {
     m_log_stream << gcs_log_levels[level] << message;
   }
