@@ -85,11 +85,16 @@ static const uchar *CZ_SORT_TABLE[] = {
 	'ch', 'Ch' and 'CH'.
 */
 
+namespace {
+
 struct wordvalue
 	{
 	  const char * word;
 	  uchar *outvalue;
 	};
+
+}  // namespace
+
 static struct wordvalue doubles[] = {
 	{ "ch", (uchar*) "\014\031\057\057" },
 	{ "Ch", (uchar*) "\014\031\060\060" },

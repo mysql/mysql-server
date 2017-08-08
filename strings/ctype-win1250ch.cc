@@ -391,11 +391,16 @@ static const uchar _sort_order_win1250ch2[] = {
 0x02, 0x06, 0x04, 0x0a, 0x08, 0x04, 0x06, 0x01
 };
 
+namespace {
+
 struct wordvalue {
 	const uchar *word;
 	uchar pass1;
 	uchar pass2;
 };
+
+}  // namespace
+
 static struct wordvalue doubles[] = {
 	{ (uchar*) "ch", 0xad, 0x03 },
 	{ (uchar*) "c",  0xa6, 0x02 },

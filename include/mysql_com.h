@@ -768,12 +768,10 @@ enum SERVER_STATUS_flags_enum
 */
 #define ONLY_KILL_QUERY         1
 
-#ifdef __cplusplus
+#ifndef MYSQL_VIO
 struct st_vio;
 typedef struct st_vio Vio;
 #define MYSQL_VIO Vio*
-#else
-#define MYSQL_VIO void*
 #endif
 
 #define MAX_TINYINT_WIDTH       3       /**< Max width for a TINY w.o. sign */
