@@ -3585,8 +3585,10 @@ Validate_files::check(
 					break;
 				}
 
-				ib::warn()
+				ib::info()
 					<< prefix
+					<< "DD ID: " << tablespace->id()
+					<< " - "
 					<< "Tablespace " << space_id << ","
 					<< " name '" << space_name << "',"
 					<< " file '" << filename << "'"
@@ -3597,7 +3599,7 @@ Validate_files::check(
 
 				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
 
-					ib::warn() 
+					ib::info()
 						<< prefix
 						<< "Too many files have"
 						<< " have been moved, disabling"
@@ -4863,18 +4865,18 @@ innobase_init_files(
 
 	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
-	auto	directories = innobase_scan_directories;
+	/* InnoDB files should be found in the following locations only. */
+	std::string	scan_directories;
 
-	if (directories == nullptr || strlen(directories) == 0) {
+	if (innobase_scan_directories != nullptr
+	    && *innobase_scan_directories != 0) {
 
-		directories = srv_data_home;
+		scan_directories.append(";").append(innobase_scan_directories);
 	}
 
-	std::string	scan_directories(directories);
+	scan_directories.append(";").append(srv_data_home);
 
-	if (srv_undo_dir != nullptr
-	    && strlen(srv_undo_dir) != 0
-	    && scan_directories.compare(srv_undo_dir) != 0) {
+	if (srv_undo_dir != nullptr && *srv_undo_dir != 0) {
 
 		scan_directories.append(";").append(srv_undo_dir);
 	}
@@ -14453,11 +14455,12 @@ validate_create_tablespace_info(
 
 	ut_free(filepath);
 
-	if (!path.is_directory_and_exists()) {
+	if (path.len() > 0 && !path.is_directory_and_exists()) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
 		my_printf_error(ER_WRONG_FILE_NAME,
 				"The directory does not exist.", MYF(0));
+
 		return(HA_WRONG_CREATE_OPTION);
 	}
 

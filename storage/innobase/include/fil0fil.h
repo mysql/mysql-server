@@ -35,6 +35,7 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "ut0new.h"
 
 #include "dd/object_id.h"
 
@@ -297,7 +298,7 @@ constexpr size_t FIL_SPACE_MAGIC_N = 89472;
 constexpr size_t FIL_NODE_MAGIC_N = 89389;
 
 /** Common InnoDB file extentions */
-enum ib_extention {
+enum ib_file_suffix {
 	NO_EXT = 0,
 	IBD = 1,
 	CFG = 2,
@@ -321,7 +322,7 @@ See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
 class Fil_path {
 public:
 	/** Default constructor. Defaults to MySQL_datadir_path.  */
-	Fil_path() : m_path(), m_abs_path() { init(); }
+	Fil_path();
 
 	/** Constructor
 	@param[in]	path		Path, not necessarily NUL terminated
@@ -331,6 +332,9 @@ public:
 	/** Constructor
 	@param[in]	path	pathname */
 	explicit Fil_path(const std::string& path);
+
+	/** Destructor */
+	~Fil_path();
 
 	/** Implicit type conversion
 	@return pointer to m_path.c_str() */
@@ -347,10 +351,24 @@ public:
 	}
 
 	/** @return the length of m_path */
+	const std::string& path() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(m_path);
+	}
+
+	/** @return the length of m_path */
 	size_t len() const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_path.length());
+	}
+
+	/** @return the length of m_abs_path */
+	size_t abs_len() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(m_abs_path.length());
 	}
 
 	/** Determine if this path is equal to the other path.
@@ -367,6 +385,10 @@ public:
 	bool is_ancestor(const std::string& name) const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
+		if (m_path.empty() || name.empty()) {
+			return(false);
+		}
+
 		return(is_ancestor(m_abs_path, name));
 	}
 
@@ -376,6 +398,10 @@ public:
 	bool is_ancestor(const Fil_path& other) const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
+		if (m_path.empty() || other.m_path.empty()) {
+			return(false);
+		}
+
 		return(is_ancestor(m_abs_path, other.m_abs_path));
 	}
 
@@ -398,7 +424,9 @@ public:
 	bool is_absolute_path() const
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-
+		if (m_path.empty()) {
+			return(false);
+		}
 #ifdef _WIN32
 		/* Windows minimum absolute path length is 'A:\' */
 		if (m_path.length() < 2) {
@@ -418,7 +446,12 @@ public:
 	static bool is_absolute_path(const char* path)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		if (path[0] == OS_PATH_SEPARATOR) {
+		if (path[0] == 0) {
+
+			return(false);
+
+		} else if (path[0] == OS_PATH_SEPARATOR) {
+
 			return(true);
 		}
 
@@ -479,29 +512,36 @@ public:
 	static bool is_ancestor(const std::string& lhs, const std::string& rhs)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		if (rhs.length() <= lhs.length()) {
+		if (lhs.empty()
+		    || rhs.empty()
+		    || rhs.length() <= lhs.length()) {
+
 			return(false);
 		}
 
 		return(std::equal(lhs.begin(), lhs.end(), rhs.begin()));
 	}
 
-private:
-	/** Set the real path */
-	void init();
+	/** @return the null path */
+	static const Fil_path& null()
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return(s_null_path);
+	}
 
-private:
+protected:
 	/** Path to a file or directory. */
 	std::string		m_path;
 
 	/** A full absolute path to the same file. */
 	std::string		m_abs_path;
+
+	/** Empty (null) path. */
+	static Fil_path	s_null_path;
 };
 
-/** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and mysqlbackup it is not the default
-directory, and we must set the base file path explicitly */
-extern Fil_path		MySQL_datadir_path;
+/** The MySQL server --datadir value */
+extern Fil_path	MySQL_datadir_path;
 
 /** Initial size of a single-table tablespace in pages */
 constexpr size_t	FIL_IBD_FILE_INITIAL_SIZE = 6;
@@ -1009,7 +1049,7 @@ char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
-	ib_extention	ext,
+	ib_file_suffix	ext,
 	bool		trim)
 	MY_ATTRIBUTE((warn_unused_result));
 

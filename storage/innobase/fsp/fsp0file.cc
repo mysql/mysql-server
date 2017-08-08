@@ -207,7 +207,7 @@ void
 Datafile::make_filepath(
 	const char*	dirpath,
 	const char*	filename,
-	ib_extention	ext)
+	ib_file_suffix	ext)
 {
 	ut_ad(dirpath != NULL || filename != NULL);
 

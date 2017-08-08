@@ -226,7 +226,7 @@ public:
 	void make_filepath(
 		const char*	dirpath,
 		const char*	filename,
-		ib_extention	ext);
+		ib_file_suffix	ext);
 
 	/** Set the filepath by duplicating the filepath sent in */
 	void set_filepath(const char* filepath);

@@ -151,10 +151,11 @@ members as noted in the fil_space_t and fil_node_t definition. */
 general tablespace before the data dictionary are recovered and available. */
 const char general_space_name[] = "innodb_general";
 
-/** Reference to the server data directory. Usually it is the
-current working directory ".", but in the MySQL Embedded Server Library
-it is an absolute path. */
+/** Reference to the server data directory. */
 Fil_path	MySQL_datadir_path;
+
+/** Sentinel value to check for "NULL" Fil_path. */
+Fil_path	Fil_path::s_null_path;
 
 /** Common InnoDB file extentions */
 const char* dot_ext[] = { "", ".ibd", ".cfg", ".cfp" };
@@ -317,16 +318,22 @@ public:
 		m_ibd_paths.clear();
 	}
 
+	/** @return m_dir */
+	const Fil_path& root() const
+	{
+		return(m_dir);
+	}
+
 	/** @return the directory path specified by the user. */
 	const std::string& path() const
 	{
-		return(m_path);
+		return(m_dir.path());
 	}
 
 	/** @return the real path of the directory searched. */
 	const std::string& real_path() const
 	{
-		return(m_real_path);
+		return(m_dir.abs_path());
 	}
 
 private:
@@ -334,16 +341,13 @@ private:
 	to m_real_path. */
 
 	/** Mapping from tablespace ID to data filenames */
-	Paths				m_ibd_paths;
+	Paths			m_ibd_paths;
 
 	/** Mapping from tablespace ID to Undo files */
-	Paths				m_undo_paths;
+	Paths			m_undo_paths;
 
-	/** Directory path specified by the user */
-	const std::string		m_path;
-
-	/** Real path of directory that was scanned. */
-	const std::string		m_real_path;
+	/** Top level directory where the above files were found. */
+	const Fil_path	m_dir;
 };
 
 /** Directories scanned during startup and the files discovered. */
@@ -402,6 +406,27 @@ public:
 		}
 
 		return(Result{"", nullptr});
+	}
+
+	/** @return the directory that contains path */
+	const Fil_path& contains(const std::string& path) const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		Fil_path	file{path};
+
+		for (const auto& dir : m_dirs) {
+
+			const auto&	root = dir.root();
+
+			if (root.is_ancestor(file)) {
+
+				return(root);
+			}
+		}
+
+		ut_error;
+
+		return(Fil_path::null());
 	}
 
 private:
@@ -1004,6 +1029,12 @@ public:
 	{
 		return(s_dirs.erase(space_id));
 	}
+
+	/** Get the top level directory where this filename was found.
+	@param[in]	path		Path to look for.
+	@return the top level directory under which this file was found. */
+	const std::string& get_root(const std::string& path) const
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Free the Tablespace_files instance.
 	@param[in]	read_only_mode	true if InnoDB is started in
@@ -2106,6 +2137,10 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 	read_only_mode = !fsp_is_system_temporary(space->id)
 		&& srv_read_only_mode;
 
+	std::string	file_path;
+
+	file_path = Fil_path::get_real_path(file->name);
+
 	if (file->size == 0
 	    || (space->size_in_header == 0
 		&& space->purpose == FIL_TYPE_TABLESPACE
@@ -2199,7 +2234,8 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 
 		if (size_bytes < min_size) {
 
-			ib::error() << "The size of tablespace file "
+			ib::error()
+				<< "The size of tablespace file "
 				<< file->name << " is only " << size_bytes
 				<< ", should be at least " << min_size << "!";
 
@@ -2207,7 +2243,9 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 		}
 
 		if (space_id != space->id) {
-			ib::fatal() << "Tablespace id is " << space->id
+
+			ib::fatal()
+				<< "Tablespace id is " << space->id
 				<< " in the data dictionary but in file "
 				<< file->name << " it is " << space_id << "!";
 		}
@@ -2215,7 +2253,9 @@ Fil_shard::open_file(fil_node_t* file, bool extend)
 		const page_size_t	space_page_size(space->flags);
 
 		if (!page_size.equals_to(space_page_size)) {
-			ib::fatal() << "Tablespace file " << file->name
+
+			ib::fatal()
+				<< "Tablespace file " << file->name
 				<< " has page size " << page_size
 				<< " (flags=" << ib::hex(flags) << ") but the"
 				" data dictionary expects page size "
@@ -3790,11 +3830,9 @@ Tablespace_files::Tablespace_files(const std::string& dir)
 	:
 	m_ibd_paths(),
 	m_undo_paths(),
-	m_path(dir),
-	m_real_path(Fil_path::get_real_path(dir.c_str()))
+	m_dir(dir)
 {
-	ut_ad(m_path.back() == OS_PATH_SEPARATOR);
-	ut_ad(m_real_path.back() == OS_PATH_SEPARATOR);
+	ut_ad(dir.back() == OS_PATH_SEPARATOR);
 }
 
 /* Convert the paths into absolute paths and compare them.
@@ -4409,7 +4447,7 @@ char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
-	ib_extention	ext,
+	ib_file_suffix	ext,
 	bool		trim)
 {
 	/* The path may contain the basename of the file, if so we do not
@@ -5133,7 +5171,8 @@ The fil_node_t::handle will not be left open.
 @param[in]	space_id	Tablespace ID
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
-If file-per-table, it is the table name in the databasename/tablename format
+				If file-per-table, it is the table name in
+				the databasename/tablename format
 @param[in]	path_in		expected filepath, usually read from dictionary
 @return DB_SUCCESS or error code */
 dberr_t
@@ -5302,8 +5341,7 @@ char*
 fil_path_to_space_name(const char* filename)
 {
 	std::string	path{filename};
-
-	auto pos = path.rfind(OS_PATH_SEPARATOR);
+	auto	 	pos = path.rfind(OS_PATH_SEPARATOR);
 
 	ut_a(pos != std::string::npos && path.back() != OS_PATH_SEPARATOR);
 
@@ -5323,7 +5361,8 @@ fil_path_to_space_name(const char* filename)
 
 		/* fil_space_t::name uses '/', not OS_PATH_SEPARATOR. */
 
-		path = db_name.append("/");
+		path = db_name;
+		path.push_back('/');
 
 		/* Strip the ".ibd" suffix. */
 		path.append(space_name.substr(0, space_name.length() - 4));
@@ -8160,34 +8199,14 @@ fil_encryption_rotate()
 	return(fil_system->encryption_rotate_all());
 }
 
-/** Set the real path */
-void
-Fil_path::init()
-{
-	if (this != &MySQL_datadir_path
-	    && MySQL_datadir_path.len() > 0
-	    && (m_path.empty() || !is_absolute_path())) {
-
-		ut_ad(m_path.empty()
-		      || !MySQL_datadir_path.is_ancestor(m_path));
-
-		ut_ad(MySQL_datadir_path.m_path.back() == OS_PATH_SEPARATOR);
-
-		m_path = MySQL_datadir_path.m_path + m_path;
-	}
-
-	m_abs_path = get_real_path(m_path.c_str());
-}
-
 /** Constructor
 @param[in]	path	pathname (may also include the file basename)
 @param[in]	len	length of the path, in bytes */
 Fil_path::Fil_path(const std::string& path)
 	:
-	m_path(path),
-	m_abs_path()
+	m_path(path)
 {
-	init();
+	m_abs_path = get_real_path(m_path.c_str());
 }
 
 /** Constructor
@@ -8195,10 +8214,23 @@ Fil_path::Fil_path(const std::string& path)
 @param[in]	len	length of the path, in bytes */
 Fil_path::Fil_path(const char* path, size_t len)
 	:
-	m_path(path, len),
+	m_path(path, len)
+{
+	m_abs_path = get_real_path(m_path.c_str());
+}
+
+/** Default constructor. */
+Fil_path::Fil_path()
+	:
+	m_path(),
 	m_abs_path()
 {
-	init();
+	/* No op */
+}
+
+/** Destructor */
+Fil_path::~Fil_path()
+{
 }
 
 /** @return true if the path exists and is a file . */
@@ -8464,7 +8496,9 @@ fil_tablespace_path_equals(
 
 	} else {
 
-		std::string	real_path_orig = Fil_path::get_real_path(path);
+		std::string	real_path_orig;
+
+		real_path_orig = Fil_path::get_real_path(path);
 
 		ut_ad(result.first.back() == OS_PATH_SEPARATOR);
 		ut_ad(real_path_orig.back() != OS_PATH_SEPARATOR);
@@ -8472,8 +8506,10 @@ fil_tablespace_path_equals(
 
 		*new_path = result.first + result.second->front();
 
-		std::string	real_path_new = Fil_path::get_real_path(
-			new_path->c_str());
+		std::string	real_path_new;
+		const auto	ptr = new_path->c_str();
+
+		real_path_new = Fil_path::get_real_path(ptr);
 
 		if (real_path_orig.compare(real_path_new) != 0) {
 
@@ -8810,8 +8846,6 @@ fil_tablespace_redo_rename(
 				<< " redo log is '" << name << "'";
 		}
 
-		recv_sys->found_corrupt_log = true;
-
 		return(nullptr);
 	}
 
@@ -8856,8 +8890,6 @@ fil_tablespace_redo_rename(
 				<< " and end in '.ibd'. File name in the"
 				<< " redo log is '" << name << "'";
 		}
-
-		recv_sys->found_corrupt_log = true;
 
 		return(nullptr);
 	}
@@ -9093,10 +9125,6 @@ fil_tablespace_redo_delete(
 
 	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
 
-	/* If the space ID maps to a file on disk then the name must match. */
-
-	ut_a(result.second->front().compare(abs_name) == 0);
-
 	fil_space_free(page_id.space(), false);
 
 	bool	success = fil_system->erase(page_id.space());
@@ -9149,7 +9177,8 @@ Tablespace_dirs::tokenize_paths(
 				std::string	cur_path;
 				std::string	d{dir.data()};
 
-				cur_path = Fil_path::get_real_path(d.c_str());
+				cur_path = Fil_path::get_real_path(
+					d.c_str());
 
 				if (d.back() != OS_PATH_SEPARATOR) {
 					d.push_back(OS_PATH_SEPARATOR);
@@ -9207,23 +9236,7 @@ Tablespace_dirs::tokenize_paths(
 
 			auto&	path_j = dirs[j].second;
 
-			if (path_i.front() != path_j.front()
-			    || path_i.length() > path_j.length()) {
-
-				continue;
-			}
-
-			/* Find a matching prefix. */
-			auto	result = std::mismatch(
-				path_i.begin(), path_i.end(), path_j.begin());
-
-			if (result.first == path_i.end()) {
-
-				if (path_j[path_i.length()]
-				    != OS_PATH_SEPARATOR) {
-
-					continue;
-				}
+			if (Fil_path::is_ancestor(path_i,path_j)) {
 
 				path_j.resize(0);
 			}
