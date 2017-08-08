@@ -8250,7 +8250,7 @@ Fil_path::get_file_type(const std::string& path)
 
 	if (path.length() > 3
 	    && path.back() == OS_PATH_SEPARATOR
-	    && path.at(p.length() - 2] != ':') {
+	    && path.at(p.length() - 2) != ':') {
 
 		p.pop_back();
 
