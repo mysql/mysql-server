@@ -499,8 +499,20 @@ Plugin_gcs_events_handler::sort_and_get_lowest_version_member_position(
     first_member->get_member_version().get_major_version();
 
   /* to avoid read compatibility issue leader should be picked only from lowest
-     version members so save position where member version differs
-   */
+     version members so save position where member version differs.
+
+     set lowest_version_end when major version changes
+
+     eg: for a list: 5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21, 8.0.2
+         the members to be considered for election will be:
+            5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21
+         and server_uuid based algorithm will be used to elect primary
+
+     eg: for a list: 5.7.20, 5.7.21, 8.0.2, 8.0.2
+         the members to be considered for election will be:
+            5.7.20, 5.7.21
+         and member weight based algorithm will be used to elect primary
+  */
   for(it= all_members_info->begin() + 1; it != all_members_info->end(); it++)
   {
     if (lowest_major_version != (*it)->get_member_version().get_major_version())
@@ -517,10 +529,16 @@ void Plugin_gcs_events_handler::sort_members_for_election(
        std::vector<Group_member_info*>* all_members_info,
        std::vector<Group_member_info*>::iterator lowest_version_end) const
 {
-  // sort only lower version members as they only will be needed to pick leader
-  std::sort(all_members_info->begin(), lowest_version_end,
-            Group_member_info::comparator_group_member_uuid);
+  Group_member_info* first_member= *(all_members_info->begin());
+  Member_version lowest_version= first_member->get_member_version();
 
+  // sort only lower version members as they only will be needed to pick leader
+  if (lowest_version >= PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION)
+    std::sort(all_members_info->begin(), lowest_version_end,
+              Group_member_info::comparator_group_member_weight);
+  else
+    std::sort(all_members_info->begin(), lowest_version_end,
+              Group_member_info::comparator_group_member_uuid);
 }
 
 void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
@@ -546,7 +564,9 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   lowest_version_end=
     sort_and_get_lowest_version_member_position(all_members_info);
 
-  // sort lower version members based on uuid
+  /*  Sort lower version members based on member weight if member version
+      is greater than equal to PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION or uuid.
+   */
   sort_members_for_election(all_members_info, lowest_version_end);
 
   /*
@@ -601,12 +621,9 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
 
     /*
      There is no primary in the member list. Pick one from
-     the list of ONLINE members. The one we are picking is
-     the one with the lowest index in the list of servers
-     ordered lexicographycally.
-
-     We have ordered all_members_info at the beginning of
-     this function.
+     the list of ONLINE members. The picked one is the first
+     viable on in the list that was sorted at the beginning
+     of this function.
 
      The assumption is that std::sort(...) is deterministic
      on all members.

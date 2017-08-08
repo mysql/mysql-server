@@ -10,6 +10,7 @@ call mtr.add_suppression("For details please check performance_schema.replicatio
 set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
+SET GLOBAL group_replication_member_weight= 70;
 include/start_group_replication.inc
 
 ############################################################
@@ -42,6 +43,8 @@ INSERT INTO t1 VALUES(1,1);
 # the primary to test continue.
 include/stop_group_replication.inc
 [connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
 
 ###########################################################
 # 4. Configure server 1 with recovery credentials from server
@@ -72,4 +75,5 @@ DROP USER recovery_user;
 SET SESSION sql_log_bin= 1;
 [connection server2]
 DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
 include/group_replication_end.inc
