@@ -6714,11 +6714,14 @@ i_s_innodb_indexes_fill_table(
 	while (rec) {
 		const dict_index_t*	index_rec;
 		MDL_ticket*		mdl_on_tab = nullptr;
+		dict_table_t*		parent = nullptr;
+		MDL_ticket*		mdl_on_parent = nullptr;
 
 		/* Populate a dict_index_t structure with information from
 		a INNODB_INDEXES row */
-		ret = dd_process_dd_indexes_rec(heap, rec, &index_rec,
-						dd_indexes, &mdl_on_tab, &mtr);
+		ret = dd_process_dd_indexes_rec(heap, rec, &index_rec, &mdl_on_tab,
+						&parent, &mdl_on_parent,
+						dd_indexes, &mtr);
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -6733,6 +6736,11 @@ i_s_innodb_indexes_fill_table(
 
 		if (index_rec != NULL) {
 			dd_table_close(index_rec->table, thd, &mdl_on_tab, true);
+
+			/* Close parent table if it's a fts aux table. */
+			if (index_rec->table->is_fts_aux() && parent) {
+				dd_table_close(parent, thd, &mdl_on_parent, true);
+			}
 		}
 
 		mtr_start(&mtr);

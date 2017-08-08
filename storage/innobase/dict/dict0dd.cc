@@ -4298,8 +4298,10 @@ dd_process_dd_virtual_columns_rec(
 @param[in]	heap		temp memory heap
 @param[in,out]	rec		mysql.indexes record
 @param[in,out]	index		dict_index_t to fill
-@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
 @param[in]	mdl		mdl on index->table
+@param[in,out]	parent		parent table if it's fts aux table.
+@param[in,out]	parent_mdl	mdl on parent if it's fts aux table.
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
 @param[in]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
@@ -4307,8 +4309,10 @@ dd_process_dd_indexes_rec(
 	mem_heap_t*		heap,
 	const rec_t*		rec,
 	const dict_index_t**	index,
-	dict_table_t*		dd_indexes,
 	MDL_ticket**		mdl,
+	dict_table_t**		parent,
+	MDL_ticket**		parent_mdl,
+	dict_table_t*		dd_indexes,
 	mtr_t*			mtr)
 {
 	ulint		len;
@@ -4394,6 +4398,34 @@ dd_process_dd_indexes_rec(
 			return(false);
 		}
 
+		/* For fts aux table, we need to acuqire mdl lock on parent. */
+		if (table->is_fts_aux()) {
+			fts_aux_table_t	fts_table;
+			fts_is_aux_table_name(&fts_table, table->name.m_name,
+					      strlen(table->name.m_name));
+			table_id_t	parent_id = fts_table.parent_id;
+
+			dd_table_close(table, thd, mdl, true);
+
+			*parent = dd_table_open_on_id(
+				parent_id, thd, parent_mdl, true, true);
+
+			if (*parent == nullptr) {
+				delete p;
+				return(false);
+			}
+
+			table = dd_table_open_on_id(table_id, thd, mdl,
+						    true, true);
+
+			if (!table) {
+				dd_table_close(*parent, thd,
+					       parent_mdl, true);
+				delete p;
+				return(false);
+			}
+		}
+
 		for (const dict_index_t* t_index = table->first_index();
 		     t_index != NULL;
 		     t_index = t_index->next()) {
@@ -4405,6 +4437,10 @@ dd_process_dd_indexes_rec(
 
 		if (*index == nullptr) {
 			dd_table_close(table, thd, mdl, true);
+			if (table->is_fts_aux() && *parent) {
+				dd_table_close(*parent, thd,
+					       parent_mdl, true);
+			}
 			delete p;
 			return(false);
 		}
