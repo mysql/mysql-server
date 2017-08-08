@@ -6621,26 +6621,7 @@ Fil_shard::do_io(
 			}
 		}
 
-	} else if (space->files.empty()) {
-
-		if (req_type.ignore_missing()) {
-
-			if (slot) {
-				release_open_slot(m_id);
-			}
-
-			mutex_release();
-
-			return(DB_ERROR);
-		}
-
-		/* This is a hard error. */
-		fil_report_invalid_page_access(
-			page_id.page_no(), page_id.space(),
-			space->name, byte_offset, len,
-			req_type.is_read());
-
-	} else {
+	} else if (!space->files.empty()) {
 
 		fil_node_t&	f = space->files.front();
 
@@ -6666,8 +6647,12 @@ Fil_shard::do_io(
 			mutex_release();
 
 			return(DB_TABLESPACE_DELETED);
+		}
+	}
 
-		} else  if (req_type.ignore_missing()) {
+	if (file == nullptr) {
+
+		if (req_type.ignore_missing()) {
 
 			if (slot) {
 				release_open_slot(m_id);
@@ -6676,15 +6661,13 @@ Fil_shard::do_io(
 			mutex_release();
 
 			return(DB_ERROR);
-
-		} else {
-
-			/* This is a hard error. */
-			fil_report_invalid_page_access(
-				page_id.page_no(), page_id.space(),
-				space->name, byte_offset, len,
-				req_type.is_read());
 		}
+
+		/* This is a hard error. */
+		fil_report_invalid_page_access(
+			page_id.page_no(), page_id.space(),
+			space->name, byte_offset, len,
+			req_type.is_read());
 	}
 
 	/* Open file if closed */
