@@ -4311,7 +4311,21 @@ public:
   }
 
   bool fix_fields(THD *, Item **);
-  bool eq(const Item *item, bool binary_cmp) const;
+
+  /*
+    Takes into account whether an Item in a derived table / view is part of an
+    inner table of an outer join.
+  */
+  table_map used_tables() const
+  {
+    return depended_from ?
+      OUTER_REF_TABLE_BIT :
+      (*ref)->const_item() && first_inner_table != NULL ?
+        first_inner_table->map() :
+        (*ref)->used_tables();
+  }
+
+ bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {
     Item *item= Item_ref::get_tmp_table_item(thd);
