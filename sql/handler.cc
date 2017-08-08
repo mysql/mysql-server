@@ -9081,7 +9081,7 @@ std::string table_definition(const char *table_name, const TABLE *mysql_table) {
     def += i == 0 ? "`" : ", `";
     def += field->field_name;
     def += "` ";
-    def += type.c_ptr();
+    def.append(type.ptr(), type.length());
 
     if (!field->real_maybe_null()) {
       def += " not null";
@@ -9200,6 +9200,8 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
     repoint_field_to_record(mysql_table, fields_orig_buf, buf_used_by_mysql);
   }
 
+  bool skip_raw_and_hex= false;
+
 #ifdef HAVE_VALGRIND
   /* It is expected that here not all bits in (mysql_row, mysql_row_length) are
    * initialized. For example in the first byte (the null-byte) we only set
@@ -9217,16 +9219,30 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   MEM_DEFINED_IF_ADDRESSABLE(mysql_row_copy, mysql_row_length);
 #else
   const uchar* mysql_row_copy = mysql_row;
+  const char* running_valgrind= getenv("VALGRIND_SERVER_TEST");
+  int error= 0;
+  /* If testing with Valgrind, and MySQL isn't compiled for it, printing
+     would produce misleading errors, see comments for HAVE_VALGRIND above.
+  */
+  skip_raw_and_hex= (nullptr != running_valgrind &&
+                     0 != my_strtoll10(running_valgrind, nullptr, &error) &&
+                     0 == error);
 #endif /* HAVE_VALGRIND */
 
   std::string r;
 
   r += "len=" + std::to_string(mysql_row_length);
 
-  r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
-
-  r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
-
+  if (skip_raw_and_hex)
+  {
+    r += ", raw=<skipped because of valgrind>";
+    r += ", hex=<skipped because of valgrind>";
+  }
+  else
+  {
+    r += ", raw=" + buf_to_raw(mysql_row_copy, mysql_row_length);
+    r += ", hex=" + buf_to_hex(mysql_row_copy, mysql_row_length);
+  }
 #ifdef HAVE_VALGRIND
   free(mysql_row_copy);
 #endif /* HAVE_VALGRIND */

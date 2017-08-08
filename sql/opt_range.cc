@@ -15691,6 +15691,7 @@ static inline void print_tree(String *out,
       append_range_all_keyparts()
     */
     char buff1[512];
+    buff1[0]= '\0';
     String range_result(buff1, sizeof(buff1), system_charset_info);
     range_result.length(0);
 
@@ -15720,7 +15721,8 @@ static inline void print_tree(String *out,
       DBUG_PRINT("info",
                  ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
                   tree->keys[i], static_cast<int>(tree->keys[i]->type),
-                  tree_name, i, real_key_nr, range_result.ptr()));
+                  tree_name, i, real_key_nr,
+                  range_result.ptr()));
   }
 }
 

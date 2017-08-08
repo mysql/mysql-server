@@ -89,7 +89,9 @@ protected:
                                uint param_count, ulong cond_count);
 public:
   bool bad_packet;
-  Protocol_classic(): send_metadata(false), bad_packet(true) {}
+  Protocol_classic():
+    send_metadata(false), input_packet_length(0), bad_packet(true)
+  {}
   Protocol_classic(THD *thd):
         send_metadata(false),
         input_packet_length(0),

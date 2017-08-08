@@ -2726,8 +2726,14 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
 {
 
   DBUG_ENTER("eval_expr");
-  DBUG_PRINT("enter", ("p: '%s'", p));
-
+  if (p_end)
+  {
+    DBUG_PRINT("enter", ("p: '%.*s'", (int)(*p_end - p), p));
+  }
+  else
+  {
+    DBUG_PRINT("enter", ("p: '%s'", p));
+  }
   /* Skip to treat as pure string if no evaluation */
   if (! do_eval)
     goto NO_EVAL;
