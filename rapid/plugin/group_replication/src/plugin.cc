@@ -242,6 +242,15 @@ static bool initialize_registry_module();
 
 static bool finalize_registry_module();
 
+static int check_flow_control_min_quota_long(longlong value,
+                                   bool is_var_update= false);
+
+static int check_flow_control_min_recovery_quota_long(longlong value,
+                                   bool is_var_update= false);
+
+static int check_flow_control_max_quota_long(longlong value,
+                                   bool is_var_update= false);
+
 /*
   Auxiliary public functions.
 */
@@ -396,6 +405,13 @@ int plugin_group_replication_start()
                 force_members_var);
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
   }
+  if (check_flow_control_min_quota_long(flow_control_min_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (check_flow_control_min_recovery_quota_long(flow_control_min_recovery_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (check_flow_control_max_quota_long(flow_control_max_quota_var))
+    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+
   if (init_group_sidno())
     DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
 
@@ -1697,6 +1713,80 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR*, void* save,
   DBUG_RETURN(0);
 }
 
+/*
+ Flow control variable update/validate methods
+*/
+
+static int check_flow_control_min_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_min_quota_long");
+
+  if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_min_quota cannot be larger than "
+                  "group_replication_flow_control_max_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_min_quota cannot be larger than "
+                 "group_replication_flow_control_max_quota",
+                 MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_min_recovery_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_min_recovery_quota_long");
+
+  if (value > flow_control_max_quota_var && flow_control_max_quota_var > 0)
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_min_recovery_quota cannot be "
+                  "larger than group_replication_flow_control_max_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_min_recovery_quota cannot be "
+                 "larger than group_replication_flow_control_max_quota",
+                 MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
+static int check_flow_control_max_quota_long(longlong value, bool is_var_update)
+{
+  DBUG_ENTER("check_flow_control_max_quota_long");
+
+  if (value > 0
+      && ((value < flow_control_min_quota_var
+           && flow_control_min_quota_var != 0)
+         || (value < flow_control_min_recovery_quota_var
+           && flow_control_min_recovery_quota_var != 0)))
+  {
+    if (!is_var_update)
+      log_message(MY_ERROR_LEVEL,
+                  "group_replication_flow_control_max_quota cannot be smaller "
+                  "than group_replication_flow_control_min_quota or "
+                  "group_replication_flow_control_min_recovery_quota");
+    else
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "group_replication_flow_control_max_quota cannot be smaller "
+                 "than group_replication_flow_control_min_quota or "
+                 "group_replication_flow_control_min_recovery_quota",
+                 MYF(0));
+
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
+
 static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR*, void* save,
                                         struct st_mysql_value *value)
 {
@@ -1705,13 +1795,8 @@ static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR*, void* save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_min_quota cannot be larger than "
-                "group_replication_flow_control_max_quota");
+  if (check_flow_control_min_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
@@ -1728,18 +1813,12 @@ static int check_flow_control_min_recovery_quota(MYSQL_THD, SYS_VAR*, void* save
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > flow_control_max_quota_var && flow_control_max_quota_var > 0)
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_min_recovery_quota cannot be "
-                "larger than group_replication_flow_control_max_quota");
+  if (check_flow_control_min_recovery_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
                     MAX_FLOW_CONTROL_THRESHOLD;
-
   DBUG_RETURN(0);
 }
 
@@ -1751,18 +1830,8 @@ static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR*, void* save,
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (in_val > 0
-      && ((in_val < flow_control_min_quota_var
-           && flow_control_min_quota_var != 0)
-         || (in_val < flow_control_min_recovery_quota_var
-           && flow_control_min_recovery_quota_var != 0)))
-  {
-    log_message(MY_ERROR_LEVEL,
-                "group_replication_flow_control_max_quota cannot be smaller "
-                "than group_replication_flow_control_min_quota or "
-                "group_replication_flow_control_min_recovery_quota");
+  if (check_flow_control_max_quota_long(in_val, true))
     DBUG_RETURN(1);
-  }
 
   *(longlong*)save= (in_val < 0) ? 0 :
                     (in_val < MAX_FLOW_CONTROL_THRESHOLD) ? in_val :
