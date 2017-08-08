@@ -26,8 +26,8 @@
 #include "mgmapi/ndbd_exit_codes.h"
 #include "mgmapi/mgmapi_error.h"
 
-static my_bool opt_verbose;
-static my_bool opt_silent; // Overrides verbose and sets it to 0
+static bool opt_verbose;
+static bool opt_silent; // Overrides verbose and sets it to 0
 
 static struct my_option my_long_options[] =
 {
