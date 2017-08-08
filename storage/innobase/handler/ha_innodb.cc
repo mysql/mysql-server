@@ -21378,6 +21378,11 @@ static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
   "Enable or disable Encryption of REDO tablespace.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(print_ddl_logs, srv_print_ddl_logs,
+  PLUGIN_VAR_OPCMDARG,
+  "Print all DDl logs to MySQL error log (off by default)",
+  NULL, NULL, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -21600,6 +21605,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compression_pad_pct_max),
   MYSQL_SYSVAR(default_row_format),
   MYSQL_SYSVAR(redo_log_encrypt),
+  MYSQL_SYSVAR(print_ddl_logs),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),

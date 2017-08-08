@@ -1004,7 +1004,9 @@ Log_DDL::insert_free_tree_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1108,7 +1110,9 @@ Log_DDL::insert_delete_space_log(
 		trx_free_for_background(trx);
 	}
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1194,7 +1198,9 @@ Log_DDL::insert_rename_space_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1255,7 +1261,9 @@ Log_DDL::insert_drop_log(
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1322,7 +1330,9 @@ Log_DDL::insert_rename_table_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1387,7 +1397,9 @@ Log_DDL::insert_remove_cache_log(
 	trx_commit_for_mysql(trx);
 	trx_free_for_background(trx);
 
-	ib::info() << "DDL log insert : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log insert : " << record;
+	}
 
 	return(error);
 }
@@ -1414,7 +1426,9 @@ Log_DDL::delete_by_id(
 
 	mutex_enter(&dict_sys->mutex);
 
-	ib::info() << "DDL log delete : " << "by id " << id;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log delete : " << "by id " << id;
+	}
 
 	return(error);
 }
@@ -1499,7 +1513,9 @@ Log_DDL::replay(
 {
 	dberr_t		err = DB_SUCCESS;
 
-	ib::info() << "DDL log replay : " << record;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log replay : " << record;
+	}
 
 	switch(record.get_type()) {
 	case Log_Type::FREE_TREE_LOG:
@@ -1559,7 +1575,7 @@ Log_DDL::replay_free_tree_log(
 	const page_size_t	page_size(fil_space_get_page_size(space_id,
 								  &found));
 
-	if (!found) {
+	if (!found && srv_print_ddl_logs) {
 		/* Skip if it is a single table tablespace and the
 		.ibd file is missing*/
 		ib::info() << "DDL log replay : FREE tablespace " << space_id
@@ -1631,9 +1647,12 @@ Log_DDL::replay_rename_space_log(
 	bool		ret;
 	page_id_t	page_id(space_id, 0);
 
-	ret = fil_op_replay_rename_for_ddl(page_id, old_file_path, new_file_path);
-	if (!ret) {
-		ib::info() << "DDL log replay : RENAME failed";
+	ret = fil_op_replay_rename_for_ddl(
+		page_id, old_file_path, new_file_path);
+
+	if (!ret && srv_print_ddl_logs) {
+		ib::info() << "DDL log replay : RENAME from " << old_file_path
+			<< " to " << new_file_path << " failed";
 	}
 
 	DBUG_INJECT_CRASH("ddl_log_crash_after_replay",
@@ -1661,7 +1680,11 @@ Log_DDL::replay_rename_table_log(
 	const char*	new_name)
 {
 	if (is_in_recovery()) {
-		ib::info() << "DDL log replay : in recovery, skip RENAME TABLE";
+		if (srv_print_ddl_logs) {
+			ib::info() << "DDL log replay : in recovery,"
+				<< " skip RENAME TABLE";
+		}
+
 		return;
 	}
 
@@ -1689,8 +1712,11 @@ Log_DDL::replay_rename_table_log(
 	trx_free_for_background(trx);
 
 	if (err != DB_SUCCESS) {
-		ib::info() << "DDL log replay : rename table in cache from "
-			<< old_name << " to " << new_name;
+		if (srv_print_ddl_logs) {
+			ib::info() << "DDL log replay : rename table"
+				<< " in cache from " << old_name
+				<< " to " << new_name;
+		}
 	} else {
 		/* TODO: Once we get rid of dict_operation_lock,
 		we may consider to do this in row_rename_table_for_mysql,
@@ -1708,7 +1734,11 @@ Log_DDL::replay_remove_cache_log(
 	const char*	table_name)
 {
 	if (is_in_recovery()) {
-		ib::info() << "DDL log replay : in recovery, skip REMOVE CACHE";
+		if (srv_print_ddl_logs) {
+			ib::info() << "DDL log replay : in recovery,"
+				<< " skip REMOVE CACHE";
+		}
+
 		return;
 	}
 
@@ -1747,7 +1777,10 @@ Log_DDL::post_ddl(THD*	thd)
 
 	ulint	thread_id = thd_get_thread_id(thd);
 
-	ib::info() << "DDL log post ddl : begin for thread id : " << thread_id;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log post ddl : begin for thread id : "
+			<< thread_id;
+	}
 
 	thread_local_ddl_log_replay = true;
 
@@ -1755,7 +1788,10 @@ Log_DDL::post_ddl(THD*	thd)
 
 	thread_local_ddl_log_replay = false;
 
-	ib::info() << "DDL log post ddl : end for thread id : " << thread_id;
+	if (srv_print_ddl_logs) {
+		ib::info() << "DDL log post ddl : end for thread id : "
+			<< thread_id;
+	}
 
 	return(DB_SUCCESS);
 }
