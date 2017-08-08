@@ -32,6 +32,11 @@
 #include "read_mode_handler.h"
 
 
+/*
+ The server version in which member weight was introduced.
+ */
+#define PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION 0x050720
+
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness
  */
@@ -132,7 +137,8 @@ private:
   void handle_leader_election_if_needed() const;
 
   /**
-    Sort lower version members based on uuid
+    Sort lower version members based on member weight if member version
+    is greater than equal to PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION or uuid.
 
     @param all_members_info    the vector with members info
     @param lowest_version_end  first iterator position where members version
