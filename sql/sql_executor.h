@@ -29,7 +29,9 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "records.h"               // READ_RECORD
+#include "sql/opt_trace.h"
 #include "sql_alloc.h"
 #include "sql_class.h"             // THD
 #include "sql_lex.h"
@@ -43,6 +45,8 @@ class Field_longlong;
 class Filesort;
 class Item_sum;
 class JOIN;
+class Opt_trace_context;
+class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct st_cache_field;

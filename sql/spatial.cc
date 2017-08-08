@@ -23,7 +23,7 @@
 #include <utility>
 
 #include "gis/srid.h"
-#include "gis_bg_traits.h"
+#include "gis_bg_traits.h"                      // IWYU pragma: keep
 #include "gstream.h"                            // Gis_read_stream
 #include "m_ctype.h"
 #include "m_string.h"

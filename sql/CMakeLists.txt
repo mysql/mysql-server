@@ -231,6 +231,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
   server_component/component_sys_var_service.cc
+  server_component/component_status_var_service.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -739,6 +740,9 @@ IF(APPLE)
   IF(CORESERVICES) 
     TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES}) 
   ENDIF() 
+  IF(NOT BUILD_IS_SINGLE_CONFIG)
+    ADD_COMPILE_FLAGS(mysqld.cc COMPILE_FLAGS -DAPPLE_XCODE)
+  ENDIF()
 ENDIF() 
 
 IF(NOT DISABLE_SHARED)

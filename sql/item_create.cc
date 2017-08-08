@@ -28,11 +28,12 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cctype>
-#include <functional>
 #include <iterator>
+#include <limits>
 #include <new>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "item.h"
 #include "item_cmpfunc.h"        // Item_func_any_value
@@ -44,18 +45,18 @@
 #include "item_sum.h"            // Item_sum_udf_str
 #include "item_timefunc.h"       // Item_func_add_time
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "parse_location.h"
 #include "parse_tree_helpers.h"  // PT_item_list
-#include "psi_memory_key.h"
 #include "sql_class.h"           // THD
 #include "sql_const.h"
 #include "sql_error.h"
@@ -65,6 +66,8 @@
 #include "sql_string.h"
 #include "sql_time.h"            // str_to_datetime
 #include "sql_udf.h"
+#include "system_variables.h"
+#include "value_map.h"
 
 
 /**

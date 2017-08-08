@@ -28,9 +28,11 @@
   updated.
 */
 
+#include <algorithm>
 #include <memory>                               // std::unique_ptr
 #include <vector>
 
+#include "json_dom.h"
 #include "json_path.h"
 #include "memroot_allocator.h"
 

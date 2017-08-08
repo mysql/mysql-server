@@ -21,17 +21,19 @@
 #include "sql/sql_rename.h"
 
 #include <string.h>
+#include <set>
 
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"      // dd::table_storage_engine
 #include "dd/types/abstract_table.h" // dd::Abstract_table
 #include "dd/types/table.h"   // dd::Table
 #include "dd_sql_view.h"      // View_metadata_updater
-#include "lex_string.h"
+#include "handler.h"
 #include "log.h"              // query_logger
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysqld.h"           // lower_case_table_names
 #include "mysqld_error.h"
 #include "sp_cache.h"         // sp_cache_invalidate
@@ -39,14 +41,16 @@
                               // lock_table_names,
 #include "sql_class.h"        // THD
 #include "sql_handler.h"      // mysql_ha_rm_tables
-#include "sql_plugin.h"
 #include "sql_table.h"        // write_bin_log,
                               // build_table_filename
 #include "sql_trigger.h"      // change_trigger_table_name
-#include "sql_view.h"         // mysql_rename_view
 #include "system_variables.h"
 #include "table.h"
 #include "transaction.h"      // trans_commit_stmt
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 
 typedef std::set<handlerton*> post_ddl_htons_t;

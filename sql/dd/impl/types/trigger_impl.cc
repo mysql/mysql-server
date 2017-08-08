@@ -16,8 +16,8 @@
 #include "dd/impl/types/trigger_impl.h"
 
 #include <sstream>
+#include <string>
 
-#include "dd/impl/properties_impl.h"             // Properties_impl
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/triggers.h"             // Triggers
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
@@ -29,7 +29,6 @@
 #include "my_user.h"                             // parse_user
 #include "mysql_com.h"
 #include "mysqld_error.h"                        // ER_*
-#include "sql_class.h"
 
 using dd::tables::Triggers;
 

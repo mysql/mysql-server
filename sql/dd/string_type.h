@@ -17,8 +17,10 @@
 #define DD__STRING_TYPE
 
 
+#include <stddef.h>
 #include <sstream>
 #include <string>
+#include <system_error>
 
 #include "stateless_allocator.h"        // Stateless_allocator
 

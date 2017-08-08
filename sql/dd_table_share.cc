@@ -15,21 +15,20 @@
 
 #include "dd_table_share.h"
 
+#include "my_config.h"
+
 #include <string.h>
 #include <algorithm>
 #include <string>
-#include <vector>
+#include <type_traits>
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/collection.h"
-#include "dd/dd_schema.h"                     // dd::schema_exists
 #include "dd/dd_table.h"                      // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::eat_str
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
 #include "dd/types/column.h"                  // dd::enum_column_types
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/index.h"                   // dd::Index
@@ -44,20 +43,24 @@
 #include "key.h"
 #include "lex_string.h"
 #include "log.h"
+#include "m_string.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "partition_element.h"                // partition_element
 #include "partition_info.h"                   // partition_info
-#include "session_tracker.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                        // THD
 #include "sql_const.h"
@@ -66,15 +69,14 @@
 #include "sql_partition.h"                    // generate_partition_syntax
 #include "sql_plugin.h"                       // plugin_unlock
 #include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 #include "sql_table.h"                        // primary_key_name
 #include "strfunc.h"                          // lex_cstring_handle
 #include "system_variables.h"
 #include "table.h"
 #include "typelib.h"
-
-namespace dd {
-class View;
-}  // namespace dd
 
 
 enum_field_types dd_get_old_field_type(dd::enum_column_types type)

@@ -20,12 +20,13 @@
 #include <sys/types.h>
 #include <memory>
 #include <new>
-#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"     // dd::Weak_object_impl
 #include "dd/object_id.h"
 #include "dd/properties.h"
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
+#include "dd/types/index.h"
 #include "dd/types/object_type.h"               // dd::Object_type
 #include "dd/types/partition_index.h"           // dd::Partition_index
 
@@ -33,13 +34,13 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
-class Partition_impl;
-class Raw_record;
 class Index;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
 class Partition;
+class Partition_impl;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;

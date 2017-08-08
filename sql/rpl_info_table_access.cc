@@ -15,18 +15,23 @@
 
 #include "sql/rpl_info_table_access.h"
 
+#include <assert.h>
 #include <stddef.h>
 
+#include "binlog_event.h"
 #include "current_thd.h"
 #include "field.h"
 #include "handler.h"
 #include "key.h"
+#include "log_event.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "rpl_info_values.h" // Rpl_info_values
 #include "rpl_rli.h"

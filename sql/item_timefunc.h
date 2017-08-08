@@ -24,7 +24,7 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "current_thd.h"
+#include "derror.h"
 #include "enum_query_type.h"
 #include "field.h"
 #include "item.h"
@@ -37,6 +37,7 @@
 #include "my_macros.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "parse_tree_node_base.h"
@@ -46,6 +47,7 @@
 #include "system_variables.h"
 
 class MY_LOCALE;
+class PT_item_list;
 class THD;
 class Time_zone;
 struct Date_time_format;
@@ -1427,12 +1429,6 @@ class Item_func_from_unixtime final : public Item_datetime_func
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
 };
 
-
-/* 
-  We need Time_zone class declaration for storing pointers in
-  Item_func_convert_tz.
-*/
-class Time_zone;
 
 /*
   This class represents CONVERT_TZ() function.

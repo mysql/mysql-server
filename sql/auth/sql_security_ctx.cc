@@ -16,6 +16,8 @@
 
 #include <map>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -23,6 +25,8 @@
 #include "auth_acls.h"
 #include "auth_common.h"
 #include "auth_internal.h"
+#include "current_thd.h"
+#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -35,7 +39,6 @@
 #include "sql_auth_cache.h"
 #include "sql_authorization.h"
 #include "sql_class.h"
-#include "current_thd.h"
 
 void Security_context::init()
 {

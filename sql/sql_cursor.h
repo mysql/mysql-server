@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <new>
 
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"
 #include "sql_class.h"                          /* Query_arena */
 #include "sql_servers.h"

@@ -28,6 +28,7 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "item.h"           // Item_result_field
+#include "item_create.h"
 #include "item_func.h"      // Item_int_func
 #include "json_dom.h"       // Json_wrapper
 #include "m_ctype.h"
@@ -38,19 +39,29 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "my_tree.h"        // TREE
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "mysqld_error.h"
 #include "parse_tree_node_base.h"
 #include "parse_tree_nodes.h" // PT_window
+#include "session_tracker.h"
 #include "sql_alloc.h"      // Sql_alloc
-#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"
 #include "sql_string.h"
 #include "sql_udf.h"        // udf_handler
 #include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"
+#include "value_map.h"
+#include "window.h"
+#include "window_lex.h"
 
 class Field;
 class Item_sum;
@@ -58,6 +69,7 @@ class PT_item_list;
 class PT_order_list;
 class THD;
 class Temp_table_param;
+struct TABLE;
 
 /**
   The abstract base class for the Aggregator_* classes.

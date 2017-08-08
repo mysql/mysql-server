@@ -38,6 +38,7 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -48,7 +49,9 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
+#include "mysql/components/services/psi_table_bits.h"
 #include "mysql/psi/psi_table.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"
 #include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
@@ -56,6 +59,7 @@
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
 #include "thr_lock.h"          // thr_lock_type
+#include "thr_malloc.h"
 #include "typelib.h"
 
 class Alter_info;
@@ -69,6 +73,10 @@ class String;
 class THD;
 class handler;
 class partition_info;
+
+namespace dd {
+class Properties;
+}  // namespace dd
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
@@ -1416,7 +1424,7 @@ typedef bool (*is_supported_system_table_t)(const char *db,
   @retval     false          success
   @retval     true           failure
 */
-typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_create_t)(dd::Tablespace *tablespace);
 
 /**
   Drop SDI in a tablespace. This API should be used only when
@@ -1425,7 +1433,7 @@ typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace);
   @retval     false       success
   @retval     true        failure
 */
-typedef bool (*sdi_drop_t)(const dd::Tablespace &tablespace);
+typedef bool (*sdi_drop_t)(dd::Tablespace *tablespace);
 
 /**
   Get the SDI keys in a tablespace into vector.
@@ -4291,9 +4299,18 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
   {
+    int error;
     DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+    error = ha_rnd_init(FALSE);
+    if (error != 0)
+            return error;
+
     position(record);
-    return ha_rnd_pos(record, ref);
+    error = ha_rnd_pos(record, ref);
+
+    ha_rnd_end();
+    return error;
   }
 
 

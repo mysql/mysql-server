@@ -21,11 +21,14 @@
 #endif
 
 #include <sys/types.h>
+#include <unordered_map>
 
 #include "binary_log_types.h"   // enum_field_types
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "mysql/udf_registration_types.h"
+#include "psi_memory_key.h"
 
 #ifdef MYSQL_SERVER
 #include <memory>
@@ -35,9 +38,9 @@
 #include "prealloced_array.h"   // Prealloced_array
 #include "table.h"              // TABLE_LIST
 
-class THD;
 class Log_event;
 class Relay_log_info;
+class THD;
 
 /**
    Hash table used when applying row events on the slave and there is

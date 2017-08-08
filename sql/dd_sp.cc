@@ -30,17 +30,18 @@
 #include "dd/types/view.h"
 #include "dd_table_share.h"                    // dd_get_mysql_charset
 #include "field.h"
-#include "lex_string.h"
+#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sp.h"                                // SP_DEFAULT_ACCESS_MAPPING
 #include "sql_class.h"                         // THD
 #include "sql_lex.h"
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
 #include "sql_show.h"
 #include "sql_string.h"

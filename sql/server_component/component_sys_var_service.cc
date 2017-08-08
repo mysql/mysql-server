@@ -13,21 +13,44 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "item.h"
-#include "item_func.h"
+#include <string.h>
+#include <sys/types.h>
+#include <string>
+#include <utility>
+
 #include "../../components/mysql_server/component_sys_var_service.h"
 #include "../components/mysql_server/server_component.h"
-#include "sys_vars_shared.h"
-#include "mysqld.h"
-#include "sql_plugin_var.h"
-#include <mysql/plugin.h>
-#include "mutex_lock.h"
-#include "sql_string.h"
+#include "lex_string.h"
 #include "log.h"
-#include "persisted_variable.h"// Persisted_variables_cache
-#include "sql_show.h"
-#include <string>
+#include "m_ctype.h"
+#include "m_string.h"
+#include "map_helpers.h"
+#include "my_compiler.h"
+#include "my_getopt.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/components/service.h"
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/component_sys_var_service.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld.h"
+#include "persisted_variable.h"// Persisted_variables_cache
+#include "set_var.h"
+#include "sql_plugin_var.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "sql_table.h"
+#include "sys_vars_shared.h"
+#include "thr_malloc.h"
 
 #define FREE_RECORD(sysvar)                                                 \
   my_free((void *)                                                             \

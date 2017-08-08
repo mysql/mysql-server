@@ -35,11 +35,13 @@
 #include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include "sql_const.h"
+#include "sql_security_ctx.h"
 #include "system_variables.h"
-#include "table.h"
 #include "tztime.h"                             // struct Time_zone
+#include "value_map.h"
 
 
 	/* Some functions to calculate dates */

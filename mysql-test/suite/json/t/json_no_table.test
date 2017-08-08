@@ -2548,3 +2548,10 @@ DROP VIEW v;
 --echo # Bug#26238736: ASSERTION `__NULL != DYNAMIC_CAST<TARGET>(ARG)' FAILURE
 --echo #
 SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
+
+--echo #
+--echo # Bug#26022576: JSON_INSERT DOES NOT HANDLE AUTO-WRAPPING
+--echo #
+SELECT JSON_INSERT('{"a":1}', '$.a[1]', 123) AS c1,
+       JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
+       JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;

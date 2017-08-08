@@ -16,6 +16,7 @@
 #ifndef SQL_UNION_INCLUDED
 #define SQL_UNION_INCLUDED
 
+#include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "query_result.h"       // Query_result_interceptor

@@ -23,15 +23,17 @@
 #include "item.h"
 #include "item_func.h"      // Item etc.
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "parse_tree_node_base.h"
 #include "set_var.h"        // enum_var_type
 #include "sql_list.h"
-#include "sql_udf.h"
-#include "typelib.h"
+#include "table.h"
+#include "thr_malloc.h"
 
 class String;
 class THD;

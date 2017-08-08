@@ -14,12 +14,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_plugin.h"
-#include "sql_plugin_var.h"
 
 #include "my_config.h"
 
 #include <assert.h>
-#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,34 +26,37 @@
 #include "auth_common.h"       // check_table_access
 #include "auto_thd.h"                   // Auto_THD
 #include "current_thd.h"
-#include "dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "dd/info_schema/metadata.h"     // dd::info_schema::store_dynamic_p...
 #include "dd/string_type.h"    // dd::String_type
 #include "debug_sync.h"        // DEBUG_SYNC
 #include "derror.h"            // ER_THD
-#include "error_handler.h"     // No_such_table_error_handler
 #include "field.h"
 #include "handler.h"           // ha_initalize_handlerton
-#include "item.h"              // Item
 #include "key.h"               // key_copy
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "mdl.h"
 #include "mutex_lock.h"        // MUTEX_LOCK
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"        // free_defaults
 #include "my_getopt.h"
+#include "my_inttypes.h"
 #include "my_list.h"
 #include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "mysql/plugin.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/plugin_clone.h"
@@ -63,12 +64,12 @@
 #include "mysql/plugin_keyring.h"
 #include "mysql/plugin_validate_password.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_version.h"
 #include "mysqld.h"            // files_charset_info
@@ -78,7 +79,6 @@
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
 #include "records.h"           // READ_RECORD
-#include "session_tracker.h"
 #include "set_var.h"
 #include "sql_audit.h"         // mysql_audit_acquire_plugins
 #include "sql_base.h"          // close_mysql_tables
@@ -88,9 +88,11 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"         // check_string_char_length
+#include "sql_plugin_var.h"
 #include "sql_servers.h"
 #include "sql_show.h"          // add_status_vars
 #include "sql_string.h"
+#include "sql_table.h"
 #include "strfunc.h"           // find_type
 #include "sys_vars_resource_mgr.h"
 #include "sys_vars_shared.h"   // intern_find_sys_var
@@ -100,7 +102,6 @@
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "transaction.h"       // trans_rollback_stmt
-#include "typelib.h"
 
 
 /**
@@ -279,6 +280,8 @@
 
 #include <algorithm>
 #include <new>
+#include <unordered_map>
+#include <utility>
 
 #include "srv_session.h"       // Srv_session::check_for_stale_threads()
 
@@ -427,11 +430,6 @@ static int plugin_array_version=0;
 
 static bool initialized= false;
 
-/*
-  write-lock on LOCK_system_variables_hash is required before modifying
-  the following variables/structures
-*/
-struct st_bookmark;
 static MEM_ROOT plugin_mem_root;
 static uint global_variables_dynamic_size= 0;
 static malloc_unordered_map<std::string, st_bookmark *> *bookmark_hash;

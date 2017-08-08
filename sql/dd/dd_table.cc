@@ -21,12 +21,11 @@
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dd_schema.h"                     // dd::Schema_MDL_locker
 #include "dd/dictionary.h"                    // dd::Dictionary
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
-#include "dd/impl/utils.h"                    // dd::escape
 #include "dd/impl/system_registry.h"          // dd::System_tables
+#include "dd/impl/utils.h"                    // dd::escape
 #include "dd/performance_schema/init.h"       // performance_schema::
                                               //   set_PS_version_for_table
 #include "dd/properties.h"                    // dd::Properties
@@ -46,6 +45,7 @@
 #include "dd_table_share.h"                   // is_suitable_for_primary_key
 #include "debug_sync.h"                       // DEBUG_SYNC
 #include "default_values.h"                   // max_pack_length
+#include "enum_query_type.h"
 #include "field.h"
 #include "item.h"
 #include "key.h"
@@ -55,29 +55,27 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
+#include "my_alloc.h"
 #include "my_base.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                           // lower_case_table_names
 #include "mysqld_error.h"
 #include "partition_element.h"
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_frm
-#include "query_options.h"
-#include "session_tracker.h"
 #include "sql_class.h"                        // THD
 #include "sql_const.h"
-#include "sql_error.h"
 #include "sql_list.h"
 #include "sql_parse.h"
 #include "sql_partition.h"                    // expr_to_string
 #include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                        // primary_key_name
 #include "strfunc.h"                          // lex_cstring_handle

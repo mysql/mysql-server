@@ -17,35 +17,45 @@
 #include "table_trigger_dispatcher.h"
 
 #include <sys/types.h>
+#include <string>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"            // check_global_access
 #include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"
 #include "dd/dd_trigger.h"          // dd::create_trigger
+#include "dd/string_type.h"
 #include "derror.h"                 // ER_THD
 #include "field.h"
 #include "handler.h"
 #include "key.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                 // table_alias_charset
 #include "psi_memory_key.h"
 #include "sp_head.h"                // sp_head
-#include "sql_admin.h"
 #include "sql_class.h"
+#include "sql_connect.h"
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"              // create_default_definer
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "stateless_allocator.h"
+#include "table.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "trigger.h"
 #include "trigger_chain.h"
+
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////

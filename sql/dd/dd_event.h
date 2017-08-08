@@ -22,8 +22,8 @@
 #include "my_time.h"             // interval_type
 
 class Event_parse_data;
-class sp_head;
 class THD;
+
 typedef struct st_lex_user LEX_USER;
 
 using sql_mode_t= ulonglong;
@@ -31,10 +31,6 @@ using sql_mode_t= ulonglong;
 namespace dd
 {
   class Schema;
-namespace cache
-{
-  class Dictionary_client;
-}
 
 /**
    Convert new DD Event::enum_event_status to status type used in

@@ -26,6 +26,7 @@
 #include "dd/string_type.h"                    // dd::String_type
 #include "dd/types/object_table.h"
 #include "dd/types/system_view.h"
+#include "handler.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"                      // ER_NO_SYSTEM_TABLE_...
 

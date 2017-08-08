@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,21 +15,21 @@
 
 #include "dd/cache/local_multi_map.h"
 
-#include <stddef.h>
-
+#include "cache_element.h"                    // Cache_element
 #include "dd/cache/multi_map_base.h"
 #include "my_dbug.h"
 
-#include "cache_element.h"                    // Cache_element
-#include "dd/types/abstract_table.h"          // Abstract_table
-#include "dd/types/charset.h"                 // Charset
-#include "dd/types/collation.h"               // Collation
-#include "dd/types/column_statistics.h"       // Column_statistics
-#include "dd/types/event.h"                   // Event
-#include "dd/types/routine.h"                 // Routine
-#include "dd/types/schema.h"                  // Schema
-#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
-#include "dd/types/tablespace.h"              // Tablespace
+namespace dd {
+class Abstract_table;
+class Charset;
+class Collation;
+class Column_statistics;
+class Event;
+class Routine;
+class Schema;
+class Spatial_reference_system;
+class Tablespace;
+}  // namespace dd
 
 namespace dd {
 namespace cache {

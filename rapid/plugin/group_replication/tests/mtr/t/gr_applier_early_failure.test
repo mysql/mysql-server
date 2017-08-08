@@ -99,6 +99,11 @@ START GROUP_REPLICATION;
 --echo # 6. Clean up
 --echo #
 
+# if START GROUP_REPLICATION succeeds the super read only will be enabled and
+# we skip the disable on STOP. To prevent errors dropping table lets disable
+# read_only (that will disable super read only)
+SET GLOBAL read_only= 0;
+
 DROP TABLE t1;
 
 SET SESSION sql_log_bin= 0;

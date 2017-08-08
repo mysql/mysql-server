@@ -23,14 +23,16 @@
 
 #include <sys/types.h>
 
+#include "dd/properties.h"
+#include "key.h"
 #include "mem_root_array.h"
 #include "my_compiler.h"
+#include "mysql/udf_registration_types.h"
 #include "opt_hints.h"
 #include "parse_tree_node_base.h"
-#include "sql_plugin.h"
 #include "sql_show.h"
 #include "sql_string.h"
-#include "typelib.h"
+#include "thr_malloc.h"
 
 class THD;
 

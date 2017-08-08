@@ -18,24 +18,33 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 
 #include "binary_log_types.h"
+#include "handler.h"
 #include "item.h"            // Item::Type
+#include "item_create.h"
+#include "key.h"
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "mdl.h"             // MDL_request
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "session_tracker.h"
 #include "sp_head.h"         // Stored_program_creation_ctx
 #include "sql_admin.h"
 #include "sql_alloc.h"
-#include "sql_class.h"
+#include "sql_connect.h"
 #include "sql_lex.h"
-#include "sql_plugin.h"
 #include "sql_servers.h"
+#include "thr_malloc.h"
 
 class Object_creation_ctx;
+class Query_arena;
+class THD;
 
 namespace dd {
   class Routine;

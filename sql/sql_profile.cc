@@ -28,18 +28,16 @@
   - "profiling_history_size", integer, session + global, "Num queries stored?"
 */
 
-#include <string.h>
-
 #include "my_config.h"
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
+
+#include <string.h>
 #include <algorithm>
 
 #include "binary_log_types.h"
 #include "decimal.h"
 #include "field.h"
 #include "item.h"
+#include "m_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"

@@ -19,11 +19,11 @@
 #include <stddef.h>
 
 #include "item_cmpfunc.h"              // Item_func_like
+#include "key.h"
 #include "lex_string.h"
 #include "m_string.h"                  // C_STRING_WITH_LEN
 #include "mem_root_array.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"
 #include "parse_tree_items.h"          // PTI_simple_ident_ident
 #include "parse_tree_nodes.h"          // PT_select_item_list
 #include "sql_class.h"                 // THD

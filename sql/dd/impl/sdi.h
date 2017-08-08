@@ -17,6 +17,7 @@
 #define DD__SDI_INCLUDED
 
 #include "dd/string_type.h"                    // dd::String_type
+#include "my_compiler.h"
 
 class THD;
 struct handlerton;
@@ -34,6 +35,7 @@ class Schema;
 class Table;
 class Tablespace;
 class View;
+
 typedef String_type Sdi_type;
 
 /**

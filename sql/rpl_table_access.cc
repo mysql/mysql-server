@@ -25,11 +25,11 @@
 #include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql_base.h"    // close_thread_tables
 #include "sql_class.h"   // THD
-#include "sql_error.h"
 #include "sql_lex.h"     // Query_tables_list
 #include "sql_security_ctx.h"
 #include "table.h"       // TABLE_LIST

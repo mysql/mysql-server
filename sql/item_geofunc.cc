@@ -26,8 +26,8 @@
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_simple.hpp>
-#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/is_simple.hpp>  // IWYU pragma: keep
+#include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/strategies/spherical/distance_haversine.hpp>
@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <cmath>          // std::isfinite, std::isnan
 #include <map>
+#include <memory>
 #include <new>
 #include <stack>
 #include <string>
@@ -48,11 +49,11 @@
 #include "dd/cache/dictionary_client.h"
 #include "dd/types/spatial_reference_system.h"
 #include "derror.h"       // ER_THD
-#include "gis_bg_traits.h"
 #include "gis/distance.h"
 #include "gis/geometries.h"
 #include "gis/srid.h"
 #include "gis/wkb_parser.h"
+#include "gis_bg_traits.h"
 #include "gstream.h"      // Gis_read_stream
 #include "item_geofunc_internal.h"
 #include "json_dom.h"     // Json_wrapper
@@ -65,10 +66,12 @@
 #include "psi_memory_key.h"
 #include "sql_class.h"    // THD
 #include "sql_error.h"
+#include "sql_exception_handler.h"
 #include "sql_lex.h"
-#include "sql_udf.h"
+#include "srs_fetcher.h"
 #include "system_variables.h"
 #include "template_utils.h"
+#include "thr_malloc.h"
 
 class PT_item_list;
 struct TABLE;

@@ -22,10 +22,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "auth_common.h"        // check_routine_access, check_table_access
 #include "item.h"               // class Item
+#include "key.h"
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -42,7 +44,6 @@
 #include "sql_class.h"          // class THD
 #include "sql_lex.h"
 #include "sql_list.h"
-#include "sql_plugin.h"
 #include "system_variables.h"
 #include "template_utils.h"
 

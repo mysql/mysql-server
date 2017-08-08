@@ -28,6 +28,7 @@
   Other compilers, like gcc, optimize these dependencies by default.
 */
 
+#include "my_inttypes.h"
 #include "my_macros.h"
 
 C_MODE_START

@@ -22,11 +22,15 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <algorithm>
+#include <utility>
 
 #include "binary_log_types.h"
 #include "binlog.h"
+#include "check_stack.h"
 #include "connection_handler_manager.h"      // Connection_handler_manager
 #include "current_thd.h"
+#include "dd/cache/dictionary_client.h"      // Dictionary_client
+#include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "error_handler.h"                   // Internal_error_handler
@@ -34,21 +38,27 @@
 #include "key.h"
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "locking_service.h"                 // release_all_locking_service_locks
-#include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysql/components/services/psi_error_bits.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_error.h"
+#include "mysql/psi/mysql_ps.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "mysys_err.h"                       // EE_OUTOFMEMORY
+#include "pfs_statement_provider.h"
 #include "psi_memory_key.h"
 #include "query_result.h"
 #include "rpl_rli.h"                         // Relay_log_info
+#include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
+#include "rpl_transaction_write_set_ctx.h"
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sql_audit.h"                       // mysql_audit_free_thd
 #include "sql_base.h"                        // close_temporary_tables
@@ -61,16 +71,10 @@
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "tc_log.h"
-#include "template_utils.h"
 #include "thr_malloc.h"
 #include "thr_mutex.h"
 #include "transaction.h"                     // trans_rollback
 #include "xa.h"
-#include "rpl_slave.h"                       // rpl_master_erroneous_autoinc
-#include "dd/cache/dictionary_client.h"      // Dictionary_client
-#include "dd/dd_kill_immunizer.h"            // dd:DD_kill_immunizer
-#include "mysql/psi/mysql_error.h"
-#include "mysql/psi/mysql_ps.h"
 
 using std::min;
 using std::max;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,16 +15,27 @@
 
 #include "dd/impl/tables/dd_properties.h"
 
-#include <ostream>
+#include <string>
 
 #include "dd/impl/raw/raw_table.h"
 #include "dd/impl/transaction_impl.h"
 #include "dd/impl/types/object_table_definition_impl.h"
+#include "dd/properties.h"
 #include "dd/string_type.h"           // dd::String_type, dd::Stringstream_type
 #include "field.h"
 #include "handler.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "sql_const.h"
+#include "sql_security_ctx.h"
+#include "sql_string.h"
+#include "stateless_allocator.h"
 #include "table.h"
 
 namespace dd {

@@ -22,9 +22,11 @@
 #include "sql/sql_update.h"
 
 #include <string.h>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_grant, check_access
+#include "binary_log_types.h"
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -34,6 +36,7 @@
 #include "item.h"                     // Item
 #include "item_json_func.h"           // Item_json_func
 #include "key.h"                      // is_key_used
+#include "key_spec.h"
 #include "m_ctype.h"
 #include "mem_root_array.h"
 #include "my_bit.h"                   // my_count_bits
@@ -43,8 +46,10 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                   // stage_... mysql_tmpdir
 #include "mysqld_error.h"
@@ -52,13 +57,13 @@
 #include "opt_explain_format.h"
 #include "opt_range.h"                // QUICK_SELECT_I
 #include "opt_trace.h"                // Opt_trace_object
+#include "opt_trace_context.h"
 #include "parse_tree_node_base.h"
 #include "prealloced_array.h"         // Prealloced_array
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "records.h"                  // READ_RECORD
-#include "session_tracker.h"
 #include "sql_array.h"
 #include "sql_base.h"                 // check_record, fill_record
 #include "sql_bitmap.h"
@@ -81,12 +86,12 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "temp_table_param.h"
 #include "template_utils.h"
+#include "thr_lock.h"
 #include "transaction_info.h"
 #include "trigger_def.h"
 
 class COND_EQUAL;
 class Item_exists_subselect;
-class Opt_trace_context;
 
 bool Sql_cmd_update::precheck(THD *thd)
 {
@@ -1661,7 +1666,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   DBUG_ASSERT(select->having_cond() == NULL &&
               select->group_list.elements == 0);
 
-  if (select->has_ft_funcs() && setup_ftfuncs(select))
+  if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   if (select->inner_refs_list.elements && select->fix_inner_refs(thd))

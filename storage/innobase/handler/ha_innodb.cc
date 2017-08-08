@@ -62,17 +62,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <strfunc.h>
 #include <time.h>
 
-#include "dd/dd.h"
-#include "dd/dictionary.h"
-#include "dd/properties.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/index.h"
-#include "dd/types/partition.h"
-#include "dd/types/table.h"
-
-/* Include necessary InnoDB headers */
 #include "api0api.h"
 #include "api0misc.h"
+/* Include necessary InnoDB headers */
+#include "auth_acls.h"
 #include "btr0btr.h"
 #include "btr0bulk.h"
 #include "btr0cur.h"
@@ -83,6 +76,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0lru.h"
 #include "buf0stats.h"
 #include "clone0api.h"
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/properties.h"
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+#include "dd/types/table.h"
+#include "dd/types/tablespace.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -136,6 +136,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
+#include "dict0priv.h"
+#include "dict0sdi.h"
+#include "dict0upgrade.h"
+#include "sql_base.h" // OPEN_FRM_FILE_ONLY
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
@@ -143,15 +147,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "univ.i"
 #include "ut0mem.h"
-#include "row0ext.h"
-#include "lob0lob.h"
-#include "dict0priv.h"
-#include "i_s.h"
-#include "sync0sync.h"
-#include "sql_base.h" // OPEN_FRM_FILE_ONLY
-#include "dict0upgrade.h"
-#include "dict0load.h"
-#include "dict0sdi.h"
 
 /** fil_space_t::flags for hard-coded tablespaces */
 ulint			predefined_flags;

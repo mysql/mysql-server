@@ -31,19 +31,21 @@
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "records.h"
 #include "sql_auth_cache.h"
 #include "sql_base.h"
 #include "sql_const.h"
-#include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
 #include "sql_servers.h"
 #include "sql_user_table.h"
 #include "table.h"
 #include "thr_lock.h"
-#include "mysqld.h"
 
 class THD;
+
 bool trans_commit_stmt(THD *thd);
 extern Granted_roles_graph *g_granted_roles;
 extern Default_roles *g_default_roles;

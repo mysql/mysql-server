@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,10 @@
 
 #include <new>
 
-#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "dd/impl/types/object_table_definition_impl.h"
+#include "my_dbug.h"
+#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 namespace tables {

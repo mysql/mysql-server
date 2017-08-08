@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "dd/impl/raw/raw_table.h"           // dd::Raw_table
+#include "my_base.h"
 #include "my_dbug.h"
 #include "query_options.h"
 #include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT

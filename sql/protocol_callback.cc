@@ -17,12 +17,19 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <algorithm>
 
 #include "current_thd.h"
 #include "field.h"
-#include "mysql/psi/mysql_statement.h"
+#include "item.h"
+#include "m_ctype.h"
+#include "my_decimal.h"
+#include "mysql_com.h"
+#include "session_tracker.h"
 #include "sql_class.h"
 #include "sql_error.h"
+#include "sql_list.h"
+#include "value_map.h"
 
 class String;
 union COM_DATA;

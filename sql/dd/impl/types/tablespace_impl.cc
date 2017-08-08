@@ -15,12 +15,13 @@
 
 #include "dd/impl/types/tablespace_impl.h"
 
+#include <atomic>
 #include <memory>
-#include <string.h>
 #include <sstream>
+#include <string>
 
+#include "dd/impl/object_key.h"
 #include "dd/impl/properties_impl.h"             // Properties_impl
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/raw/raw_record_set.h"          // Raw_record_set
 #include "dd/impl/raw/raw_table.h"               // Raw_table
@@ -32,14 +33,18 @@
 #include "dd/impl/types/tablespace_file_impl.h"  // Tablespace_file_impl
 #include "dd/properties.h"
 #include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/abstract_table.h"
 #include "dd/types/tablespace_file.h"
 #include "dd/types/weak_object.h"
+#include "handler.h"
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                        // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
+#include "sql_class.h"
 
 using dd::tables::Tablespaces;
 using dd::tables::Tablespace_files;

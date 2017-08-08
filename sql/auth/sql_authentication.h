@@ -16,8 +16,6 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
-#include "my_config.h"
-
 #include <sys/types.h>
 
 #include "lex_string.h"
@@ -26,8 +24,8 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
 #include "mysql/plugin_auth_common.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_plugin.h"
 #include "sql_plugin_ref.h"             // plugin_ref
 #include "thr_malloc.h"
 
@@ -37,7 +35,6 @@ typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
-class String;
 
 typedef struct st_net NET;
 
@@ -96,6 +93,8 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+class String;
+
 bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);

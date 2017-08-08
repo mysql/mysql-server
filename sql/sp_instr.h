@@ -28,6 +28,7 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_statement.h"
 #include "sql_alloc.h"
 #include "sql_class.h"   // Query_arena

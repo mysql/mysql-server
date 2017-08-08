@@ -18,34 +18,33 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <atomic>
 
-#include "binlog_event.h"
-#include "channel_info.h"
 #include "connection_handler_manager.h"
 #include "current_thd.h"                // current_thd
 #include "handler.h"
 #include "key.h"
-#include "lex_string.h"
 #include "m_ctype.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                     // key_thread_one_connection
 #include "protocol_classic.h"
 #include "query_options.h"
 #include "rpl_rli.h"                    // is_mts_worker
 #include "rpl_slave_commit_order_manager.h"
-#include "session_tracker.h"
 #include "sql_alter.h"
                                         // commit_order_manager_check_deadlock
 #include "sql_callback.h"               // MYSQL_CALLBACK
@@ -56,7 +55,6 @@
 #include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "sql_table.h"                  // filename_to_tablename
 #include "sql_thd_internal_api.h"
 #include "system_variables.h"
 #include "transaction_info.h"

@@ -29,18 +29,18 @@
 #include "derror.h"            // ER_THD
 #include "item.h"
 #include "item_func.h"
-#include "lex_string.h"
+#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysqld.h"            // key_select_to_file
 #include "parse_tree_nodes.h"  // PT_select_var
 #include "protocol.h"
-#include "session_tracker.h"
 #include "sp_rcontext.h"       // sp_rcontext
 #include "sql_class.h"         // THD
 #include "sql_const.h"

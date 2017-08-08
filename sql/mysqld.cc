@@ -134,7 +134,7 @@
 
   @subsection infra_basic_container Container
 
-  See #DYNAMIC_ARRAY, #List, #I_P_List, HASH (#st_hash), #LF_HASH.
+  See #DYNAMIC_ARRAY, #List, #I_P_List, #LF_HASH.
 
   @subsection infra_basic_syncho Synchronization
 
@@ -369,6 +369,7 @@
 #include "my_config.h"
 
 #include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
+#include "../storage/perfschema/pfs_services.h"
 #include "auth_common.h"                // grant_init
 #include "auto_thd.h"                   // Auto_THD
 #include "binlog.h"                     // mysql_bin_log
@@ -380,6 +381,7 @@
 #include "connection_handler_manager.h" // Connection_handler_manager
 #include "control_events.h"
 #include "current_thd.h"                // current_thd
+#include "dd/cache/dictionary_client.h"
 #include "debug_sync.h"                 // debug_sync_end
 #include "derror.h"
 #include "errmsg.h"                     // init_client_errs
@@ -410,19 +412,25 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_regex.h"
-#include "my_shm_defaults.h"
+#include "my_shm_defaults.h"            // IWYU pragma: keep
 #include "my_stacktrace.h"              // my_set_exception_pointers
+#include "my_thread_local.h"
 #include "my_time.h"
 #include "my_timer.h"                   // my_timer_initialize
 #include "myisam.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_idle.h"
@@ -431,10 +439,11 @@
 #include "mysql/psi/psi_mutex.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/psi/psi_socket.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_statement.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_time.h"
@@ -448,22 +457,25 @@
 #include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "persisted_variable.h"         // Persisted_variables_cache
+#include "pfs_thread_provider.h"
 #include "print_version.h"
 #include "protocol.h"
 #include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
-#include "pfs_priv_util.h"
 #include "query_options.h"
 #include "replication.h"                // thd_enter_cond
+#include "rpl_filter.h"
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"           // Gtid_table_persistor
 #include "rpl_handler.h"                // RUN_HOOK
+#include "rpl_info_factory.h"
+#include "rpl_info_handler.h"
 #include "rpl_injector.h"               // injector
 #include "rpl_master.h"                 // max_binlog_dump_events
 #include "rpl_mi.h"
 #include "rpl_msr.h"                    // Multisource_info
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // slave_load_tmpdir
-#include "rpl_info_factory.h"
+#include "rpl_trx_tracking.h"
 #include "session_tracker.h"
 #include "set_var.h"
 #include "socket_connection.h"          // stmt_info_new_packet
@@ -476,7 +488,6 @@
 #include "sql_class.h"                  // THD
 #include "sql_common.h"                 // mysql_client_plugin_init
 #include "sql_connect.h"
-#include "sql_db.h"                     // my_dboptions_cache_init
 #include "sql_error.h"
 #include "sql_initialize.h"             // opt_initialize_insecure
 #include "sql_lex.h"
@@ -484,7 +495,6 @@
 #include "sql_locale.h"                 // MY_LOCALE
 #include "sql_manager.h"                // start_handle_manager
 #include "sql_parse.h"                  // check_stack_overrun
-#include "sql_partition.h"
 #include "sql_plugin.h"                 // opt_plugin_dir
 #include "sql_plugin_ref.h"
 #include "sql_reload.h"                 // reload_acl_and_cache
@@ -496,18 +506,18 @@
 #include "sql_test.h"                   // mysql_print_status
 #include "sql_time.h"                   // Date_time_format
 #include "sql_udf.h"
+#include "strfunc.h"
 #include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
 #include "sys_vars_shared.h"            // intern_find_sys_var
 #include "table_cache.h"                // table_cache_manager
-#include "transaction.h"
-#include "dd/cache/dictionary_client.h"
 #include "tc_log.h"                     // tc_log
 #include "thr_lock.h"
 #include "thr_mutex.h"
+#include "transaction.h"
 #include "tztime.h"                     // Time_zone
+#include "value_map.h"
 #include "violite.h"
 #include "xa.h"
-#include "../storage/perfschema/pfs_services.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -564,22 +574,19 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
-#include <list>
 #include <new>
-#include <set>
 #include <string>
 #include <vector>
 
-#include "../components/mysql_server/server_component.h"
 #include "../components/mysql_server/log_builtins_filter_imp.h"
-#include <mysql/components/my_service.h>
+#include "../components/mysql_server/server_component.h"
 #include "dd/dd.h"                      // dd::shutdown
 #include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
 #include "dd/dictionary.h"              // dd::get_dictionary
 #include "dd/performance_schema/init.h" // performance_schema::init
 #include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
-#include "srv_session.h"
 #include "dynamic_privileges_impl.h" 
+#include "srv_session.h"
 
 using std::min;
 using std::max;
@@ -1446,6 +1453,23 @@ static bool component_infrastructure_init()
   }
   return false;
 }
+
+/**
+  This function is used to initialize the mysql_server component services.
+  Most of the init functions are dummy functions, to solve the linker issues.
+*/
+static void server_component_init()
+{
+  /*
+    Below are dummy initialization functions. Else linker, is cutting out (as
+    library optimization) the string services and component system variables
+    code. This is because of libsql code is not calling any functions of them.
+  */
+  mysql_string_services_init();
+  mysql_comp_status_var_services_init();
+  mysql_comp_sys_var_services_init();
+}
+
 /**
   Initializes MySQL Server component infrastructure part by initialize of
   dynamic loader persistence.
@@ -1469,13 +1493,7 @@ static bool mysql_component_infrastructure_init()
     trans_rollback(thd.thd);
     return true;
   }
-  /*
-   * Below are dummy initialization functions. Else linker, is cutting out (as
-   * library optimization) the string services and component system variables
-   * code. This is because of libsql code is not calling any functions of them.
-   */
-  mysql_string_services_init();
-  mysql_comp_sys_var_services_init();
+  server_component_init();
   return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
@@ -1920,6 +1938,7 @@ static void clean_up(bool print_message)
   ha_pre_dd_shutdown();
   dd::shutdown();
 
+  Events::deinit();
   stop_handle_manager();
 
   memcached_shutdown();
@@ -1968,7 +1987,6 @@ static void clean_up(bool print_message)
   mdl_destroy();
   key_caches.delete_elements();
   multi_keycache_free();
-  free_status_vars();
   query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
@@ -2030,6 +2048,7 @@ static void clean_up(bool print_message)
     to call the sys_var_end() after component_infrastructure_deinit()
   */
   sys_var_end();
+  free_status_vars();
 
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
@@ -7891,15 +7910,15 @@ static int mysql_init_variables()
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(APPLE_XCODE)
   /* Allow Win32 users to move MySQL anywhere */
   char prg_dev[LIBLEN];
   my_path(prg_dev, my_progname, nullptr);
 
-  // On windows the basedir will always be one level up from where
+  // On windows or Xcode the basedir will always be one level up from where
   // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe for a
-  // sandbox build.
+  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
+  // for a sandbox build.
   strcat(prg_dev,"/../");     // Remove containing directory to get base dir
   cleanup_dirname(mysql_home, prg_dev);
 

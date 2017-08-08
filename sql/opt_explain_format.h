@@ -33,10 +33,11 @@
 #include "sql_alloc.h"
 #include "sql_list.h"
 #include "sql_string.h"
+#include "thr_malloc.h"
 
+class Opt_trace_object;
 class Query_result;
 class SELECT_LEX_UNIT;
-class Opt_trace_object;
 class Window;
 
 enum class enum_explain_type;

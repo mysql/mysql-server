@@ -15,8 +15,6 @@
 
 #include "sql/auth/sql_authentication.h"
 
-#include "my_config.h"
-
 #include <string.h>
 #include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
@@ -31,9 +29,9 @@
 #include "current_thd.h"                // current_thd
 #include "derror.h"                     // ER_THD
 #include "hostname.h"                   // Host_errors, inc_host_errors
-#include "key.h"
 #include "log.h"                        // query_logger
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mutex_lock.h"                 // Mutex_lock
 #include "my_byteorder.h"
 #include "my_command.h"
@@ -41,10 +39,11 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_plugin_log.h"
@@ -56,6 +55,7 @@
 #include "mysqld.h"                     // global_system_variables
 #include "mysqld_error.h"
 #include "password.h"                   // my_make_scrambled_password
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
@@ -75,6 +75,8 @@
 #include "sql_time.h"                   // Interval
 #include "system_variables.h"
 #include "tztime.h"                     // Time_zone
+#include "value_map.h"
+#include "violite.h"
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 #include <openssl/err.h>

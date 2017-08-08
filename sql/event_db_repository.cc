@@ -20,10 +20,8 @@
 #include "auth_acls.h"
 #include "dd/cache/dictionary_client.h" // fetch_schema_components
 #include "dd/dd_event.h"
-#include "dd/dd_schema.h"
 #include "dd/string_type.h"
 #include "dd/types/event.h"
-#include "dd/types/schema.h"
 #include "derror.h"
 #include "event_data_objects.h"
 #include "event_parse_data.h"
@@ -36,9 +34,6 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_security_ctx.h"
-#include "sql_show.h"
-#include "table.h"
-#include "template_utils.h"
 #include "transaction.h"
 #include "tztime.h"                     // struct Time_zone
 

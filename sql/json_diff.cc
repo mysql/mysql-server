@@ -19,8 +19,13 @@
 #include "json_dom.h"                           // Json_dom, Json_wrapper
 #include "json_path.h"                          // Json_path
 #include "my_dbug.h"                            // DBUG_ASSERT
-#include "sql_class.h"                          // THD
+#include "psi_memory_key.h"
+#include "sql_const.h"
 #include "sql_string.h"                         // StringBuffer
+#include "table.h"
+#include "template_utils.h"
+
+class THD;
 
 
 Json_wrapper Json_diff::value() const

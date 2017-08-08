@@ -33,14 +33,18 @@
 #include "mdl.h"
 #include "my_command.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                  // my_localhost slave_net_timeout
 #include "mysqld_error.h"
@@ -550,7 +554,7 @@ Event_scheduler::start(int *err_no)
     scheduler_thd= NULL;
     delete new_thd;
 
-    delete scheduler_param_value;
+    my_free(scheduler_param_value);
     ret= true;
   }
 

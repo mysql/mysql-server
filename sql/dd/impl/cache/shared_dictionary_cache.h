@@ -26,10 +26,9 @@
 #include "dd/types/routine.h"               // Routine
 #include "dd/types/schema.h"                // Schema
 #include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/table.h"                 // Table
+#include "dd/types/table.h"                 // IWYU pragma: keep
 #include "dd/types/tablespace.h"            // Tablespace
 #include "handler.h"                        // enum_tx_isolation
-#include "my_dbug.h"
 #include "shared_multi_map.h"               // Shared_multi_map
 
 class THD;

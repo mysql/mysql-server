@@ -73,3 +73,24 @@ MYSQL_ADD_COMPONENT(test_sys_var_service_int
 MYSQL_ADD_COMPONENT(test_sys_var_service_str
   test_sys_var_service_str.cc
   TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_status_var_service
+  test_status_var_service.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_status_var_service_int
+  test_status_var_service_int.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_status_var_service_str
+  test_status_var_service_str.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_status_var_service_reg_only
+  test_status_var_service_reg_only.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_status_var_service_unreg_only
+  test_status_var_service_unreg_only.cc
+  TEST MODULE)
+

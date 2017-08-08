@@ -23,24 +23,26 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "item_create.h"
+#include "key.h"
 #include "lex_string.h"
 #include "lex_symbol.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
+#include "session_tracker.h"
 #include "sql_alloc.h"
 #include "sql_chars.h"
 #include "sql_class.h"
+#include "sql_digest_stream.h"
 #include "sql_hints.yy.h"
 #include "sql_lex.h"
 #include "sql_lex_hash.h"
-#include "sql_plugin.h"
-#include "sql_udf.h"
 #include "table.h"
 
 class PT_hint_list;
-struct sql_digest_state;
 
 void hint_lex_init_maps(charset_info_st *cs, hint_lex_char_classes *hint_map);
 

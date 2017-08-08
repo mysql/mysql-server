@@ -16,6 +16,7 @@
 #include "sql/sql_reload.h"
 
 #include <stddef.h>
+#include <atomic>
 
 #include "auth_common.h" // acl_reload, grant_reload
 #include "binlog.h"
@@ -26,6 +27,7 @@
 #include "hostname.h"    // hostname_cache_refresh
 #include "lex_string.h"
 #include "log.h"         // query_logger
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -38,12 +40,10 @@
 #include "query_options.h"
 #include "rpl_master.h"  // reset_master
 #include "rpl_slave.h"   // reset_slave
-#include "sql_admin.h"
 #include "sql_base.h"    // close_cached_tables
 #include "sql_class.h"   // THD
 #include "sql_connect.h" // reset_mqh
 #include "sql_const.h"
-#include "sql_plugin_ref.h"
 #include "sql_servers.h" // servers_reload
 #include "system_variables.h"
 #include "table.h"

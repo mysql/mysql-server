@@ -42,7 +42,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <atomic>
 #include <limits>
+
+#include "item_create.h"
+#include "my_loglevel.h"
+#include "mysql_com.h"
+#include "rpl_trx_tracking.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -53,10 +59,10 @@
 #include <map>
 #include <utility>
 
+#include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
 #include "auth_acls.h"
 #include "auth_common.h"                 // validate_user_plugins
 #include "binlog.h"                      // mysql_bin_log
-#include "binlog_config.h"
 #include "binlog_event.h"
 #include "connection_handler_impl.h"     // Per_thread_connection_handler
 #include "connection_handler_manager.h"  // Connection_handler_manager
@@ -68,7 +74,6 @@
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
 #include "log.h"
-#include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
 #include "mdl.h"
@@ -82,6 +87,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
+#include "my_table_map.h"
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "my_time.h"
@@ -102,6 +108,7 @@
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
+#include "session_tracker.h"
 #include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
 #include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql_lex.h"
@@ -109,6 +116,7 @@
 #include "sql_parse.h"                   // killall_non_super_threads
 #include "sql_time.h"                    // global_date_format
 #include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
+#include "system_variables.h"
 #include "table_cache.h"                 // Table_cache_manager
 #include "template_utils.h"              // pointer_cast
 #include "thr_lock.h"
@@ -3003,6 +3011,10 @@ export void update_parser_max_mem_size()
   global_system_variables.parser_max_mem_size= new_val;
 }
 
+/**
+  @note
+  @b BEWARE! These must have the same order as the #defines in sql_const.h!
+*/
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
@@ -3012,6 +3024,7 @@ static const char *optimizer_switch_names[]=
   "materialization", "semijoin", "loosescan", "firstmatch", "duplicateweedout",
   "subquery_materialization_cost_based",
   "use_index_extensions", "condition_fanout_filter", "derived_merge",
+  "use_invisible_indexes",
   "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(

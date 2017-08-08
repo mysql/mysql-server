@@ -626,6 +626,9 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+#
+# Bug#26431355 : ALTER TABLE COMMENT FAILS WITH FAILED TO DROP TABLE SDI AFTER UPGRADE
+#
 # Check for table with blackhole engine
 SHOW CREATE TABLE test.t_blackhole;
 Table	Create Table

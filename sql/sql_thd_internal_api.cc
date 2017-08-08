@@ -19,13 +19,18 @@
 
 #include <fcntl.h>
 #include <string.h>
+
+#include "m_string.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "pfs_thread_provider.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
 #include "binlog.h"               // mysql_bin_log
 #include "current_thd.h"          // current_thd
-#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -33,12 +38,8 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/psi/psi_thread.h"
 #include "mysql/thread_type.h"
 #include "mysqld.h"
 #include "mysqld_thd_manager.h"   // Global_THD_manager
@@ -48,12 +49,9 @@
 #include "sql_class.h"            // THD
 #include "sql_lex.h"
 #include "sql_parse.h"            // sqlcom_can_generate_row_events
-#include "sql_plugin.h"
 #include "system_variables.h"
 #include "transaction_info.h"
 #include "violite.h"
-
-struct PSI_thread;
 
 int thd_init(THD *thd, char *stack_start,
              bool bound MY_ATTRIBUTE((unused)),

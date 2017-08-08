@@ -21,7 +21,6 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h" // LEX_STRING
 #include "sql_alloc.h"              // Sql_alloc
 #include "sql_cmd.h"                // Sql_cmd
 

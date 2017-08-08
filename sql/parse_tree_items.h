@@ -30,6 +30,7 @@
 #include "item_timefunc.h"      // Item_func_now_local
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -41,6 +42,7 @@
 #include "parse_tree_helpers.h" // Parse_tree_item
 #include "parse_tree_node_base.h"
 #include "protocol.h"
+#include "session_tracker.h"
 #include "set_var.h"
 #include "sp_head.h"            // sp_head
 #include "sql_class.h"
@@ -54,6 +56,7 @@
 #include "system_variables.h"
 
 class PT_subquery;
+class PT_window;
 
 class PTI_table_wild : public Parse_tree_item
 {

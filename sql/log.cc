@@ -34,22 +34,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
+
+#include "my_decimal.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/psi/mysql_rwlock.h"
+#include "session_tracker.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <time.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <algorithm>
+#include <atomic>
 #include <new>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "auth_acls.h"
 #include "binary_log_types.h"
-#include "current_thd.h"    // current_thd
 #include "derror.h"         // ER_DEFAULT
 #include "discrete_interval.h"
 #include "error_handler.h"  // Internal_error_handler
@@ -61,13 +67,11 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
 #include "my_time.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_plugin_log.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
@@ -76,7 +80,6 @@
 #include "mysqld_error.h"
 #include "psi_memory_key.h" // key_memory_File_query_log_name
 #include "query_options.h"
-#include "session_tracker.h"
 #include "sql_audit.h"      // mysql_audit_general_log
 #include "sql_base.h"       // close_log_table
 #include "sql_class.h"      // THD
@@ -93,10 +96,8 @@
 #ifdef _WIN32
 #include <message.h>
 #else
-#include <syslog.h>
 #endif
 
-#include "../components/mysql_server/registry.h"
 #include "../components/mysql_server/log_builtins_imp.h"
 
 using std::min;

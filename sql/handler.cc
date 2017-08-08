@@ -24,15 +24,14 @@
 #include <assert.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/mpl/bool.hpp>
-#include <boost/mpl/bool_fwd.hpp>
 #include <boost/token_functions.hpp>
 #include <boost/tokenizer.hpp>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
+#include <atomic>
 #include <cmath>
-#include <cstring>
 #include <list>
 #include <random>                     // std::uniform_real_distribution
 #include <string>
@@ -58,22 +57,27 @@
 #include "log.h"
 #include "log_event.h"                // Write_rows_log_event
 #include "m_ctype.h"
+#include "m_string.h"
 #include "mdl.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"                   // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -95,8 +99,8 @@
 #include "rpl_write_set_handler.h"    // add_pke
 #include "sdi_utils.h"                // import_serialized_meta_data
 #include "session_tracker.h"
-#include "sql_admin.h"
 #include "sql_base.h"                 // free_io_cache
+#include "sql_bitmap.h"
 #include "sql_class.h"
 #include "sql_error.h"
 #include "sql_lex.h"

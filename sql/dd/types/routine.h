@@ -19,13 +19,13 @@
 #include "dd/types/entity_object.h"       // dd::Entity_object
 #include "dd/types/view.h"                // dd::Column::enum_security_type
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Object_type;
-class Primary_id_key;
 class Void_key;
 class Parameter;
 class Properties;

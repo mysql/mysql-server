@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
+#include <atomic>
 #include <map>
 #include <utility>
 
@@ -41,14 +42,15 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                   // stage_update
 #include "mysqld_error.h"
@@ -60,7 +62,6 @@
 #include "query_options.h"
 #include "rpl_rli.h"                  // Relay_log_info
 #include "rpl_slave.h"                // rpl_master_has_bug
-#include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_array.h"
 #include "sql_base.h"                 // setup_fields
@@ -69,9 +70,7 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_optimizer.h"            // Prepare_error_tracker
-#include "sql_plugin_ref.h"
 #include "sql_resolver.h"             // validate_gc_assignment
-#include "sql_security_ctx.h"
 #include "sql_servers.h"
 #include "sql_show.h"                 // store_create_info
 #include "sql_string.h"

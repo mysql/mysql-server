@@ -18,6 +18,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <algorithm>
+#include <atomic>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
 #include "debug_sync.h"              // debug_sync_set_action
 #include "derror.h"                  // ER_THD
@@ -26,19 +30,22 @@
 #include "log.h"
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysqld.h"                  // global_system_variables ...
+#include "protocol.h"
 #include "protocol_classic.h"
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
 #include "rpl_gtid.h"

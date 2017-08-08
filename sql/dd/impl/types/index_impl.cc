@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"            // Properties_impl
 #include "dd/impl/raw/raw_record.h"             // Raw_record
@@ -28,9 +29,11 @@
 #include "dd/impl/types/table_impl.h"           // Table_impl
 #include "dd/properties.h"
 #include "dd/string_type.h"                     // dd::String_type
+#include "dd/types/column.h"
 #include "dd/types/index_element.h"
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
+#include "field.h"
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -44,7 +47,6 @@ using dd::tables::Index_column_usage;
 
 namespace dd {
 
-class Column;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Table;

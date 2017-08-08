@@ -24,6 +24,7 @@
 
 #include "control_events.h"
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
+#include "derror.h"
 #include "enum_query_type.h"
 #include "field.h"
 #include "item.h"
@@ -36,12 +37,11 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
 #include "sql_const.h"
 #include "sql_string.h"
-#include "sql_udf.h"
-#include "system_variables.h"
 #include "table.h"
 
 class MY_LOCALE;

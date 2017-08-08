@@ -18,6 +18,11 @@
 
 #include "my_config.h"
 
+#include "my_macros.h"
+#include "sql_parse.h"
+#include "system_variables.h"
+#include "value_map.h"
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -57,8 +62,8 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_show.h"        // append_identifier
 #include "sql_time.h"        // Date_time_format
 #include "sql_view.h"        // VIEW_ANY_ACL

@@ -14,13 +14,31 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "dd/upgrade/schema.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #include "dd/dd_schema.h"                     // Schema_MDL_locker
+#include "lex_string.h"
 #include "log.h"                              // LogErr()
-#include "mysqld.h"                           // key_file_dbopt
+#include "m_ctype.h"
+#include "my_dir.h"
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysql_com.h"
+#include "mysqld.h"                           // key_file_dbopt
+#include "mysqld_error.h"
 #include "sql_class.h"                        // THD
+#include "sql_string.h"
 #include "sql_table.h"                        // build_tablename
+#include "system_variables.h"
 #include "transaction.h"                      // trans_commit
 
 namespace dd {

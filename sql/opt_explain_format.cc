@@ -15,8 +15,6 @@
 
 #include "opt_explain_format.h"
 
-#include <stddef.h>
-
 #include "current_thd.h"
 #include "my_dbug.h"
 #include "sql_class.h"

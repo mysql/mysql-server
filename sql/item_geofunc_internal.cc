@@ -15,18 +15,18 @@
 
 #include "item_geofunc_internal.h"
 
-#include <string.h>
-#include <algorithm>
-#include <exception>
-#include <iterator>
-#include <memory>
-
+#include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
 #include <boost/geometry/algorithms/overlaps.hpp>
 #include <boost/geometry/core/exception.hpp>
+#include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <string.h>
+#include <algorithm>
+#include <iterator>
+#include <memory>
 
 #include "dd/cache/dictionary_client.h"
 #include "item_func.h"
@@ -35,10 +35,11 @@
 #include "mdl.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "my_sys.h"
-#include "mysqld_error.h"
+#include "my_inttypes.h"
 #include "parse_tree_node_base.h"
 #include "sql_class.h"             // THD
+#include "sql_string.h"
+#include "srs_fetcher.h"
 #include "system_variables.h"
 #include "template_utils.h"
 

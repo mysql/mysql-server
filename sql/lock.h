@@ -18,12 +18,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <string>
 
 #include "map_helpers.h"
 #include "mdl.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 
 class THD;
 // Forward declarations

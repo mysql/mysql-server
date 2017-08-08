@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/impl/dictionary_impl.h"          // default_catalog_name
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/string_type.h"
 #include "dd/types/abstract_table.h"          // dd::enum_table_type
 #include "dd/types/schema.h"                  // dd::Schema
 #include "dd/types/view.h"                    // dd::View
@@ -37,32 +38,36 @@
 #include "field.h"
 #include "handler.h"
 #include "item.h"
+#include "item_create.h"
 #include "item_func.h"                        // Item_func
 #include "key.h"
 #include "lex_string.h"
 #include "log.h"
-#include "mdl.h"
+#include "mem_root_array.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
+#include "my_time.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysql_time.h"                       // MYSQL_TIME
 #include "mysqld_error.h"
 #include "parse_file.h"                       // PARSE_FILE_TIMESTAMPLENGTH
-#include "session_tracker.h"
 #include "sp.h"                               // Sroutine_hash_entry
-#include "sp_head.h"                          // sp_name
 #include "sql_class.h"                        // THD
 #include "sql_lex.h"
 #include "sql_list.h"
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_tmp_table.h"                    // create_tmp_field
 #include "system_variables.h"
 #include "table.h"
 #include "transaction.h"                      // trans_commit
 #include "tztime.h"                           // Time_zone
+#include "value_map.h"
 
 namespace dd {
 

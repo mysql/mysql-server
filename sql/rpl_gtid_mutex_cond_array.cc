@@ -16,14 +16,15 @@
    02110-1301 USA */
 
 #include <stddef.h>
+#include <atomic>
 
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"           // key_gtid_ensure_index_mutex
 #include "mysqld_error.h"     // ER_*

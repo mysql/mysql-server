@@ -18,11 +18,12 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <string>
 
 #include "field.h"
 #include "handler.h"
+#include "item_create.h"
+#include "key.h"
 #include "lex_string.h"
 #include "map_helpers.h"
 #include "mem_root_array.h"    // Mem_root_array
@@ -32,8 +33,11 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "session_tracker.h"
 #include "set_var.h"
 #include "sql_alloc.h"
 #include "sql_class.h"         // Query_arena
@@ -47,8 +51,8 @@
 
 class Item;
 class Item_trigger_field;
-class Table_trigger_field_support;
 class Sroutine_hash_entry;
+class Table_trigger_field_support;
 class sp_head;
 struct PSI_sp_share;
 

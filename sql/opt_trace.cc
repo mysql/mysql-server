@@ -38,7 +38,6 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql_string.h" // String
-#include "system_variables.h"
 #include "table.h"
 
 #ifdef OPTIMIZER_TRACE

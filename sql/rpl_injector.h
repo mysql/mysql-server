@@ -23,7 +23,7 @@
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_plugin_ref.h"
+#include "mysql/udf_registration_types.h"
 #include "table.h"          // TABLE
 
 class MYSQL_BIN_LOG;

@@ -15,7 +15,10 @@
 
 #include "sp_instr.h"
 
+#include "my_config.h"
+
 #include <algorithm>
+#include <atomic>
 #include <functional>
 
 #include "auth_acls.h"
@@ -26,14 +29,15 @@
 #include "field.h"
 #include "item.h"                     // Item_splocal
 #include "item_cmpfunc.h"             // Item_func_eq
+#include "key.h"
 #include "log.h"                      // Query_logger
 #include "m_ctype.h"
 #include "mdl.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
@@ -50,8 +54,8 @@
 #include "sp_rcontext.h"              // sp_rcontext
 #include "sql_base.h"                 // open_temporary_tables
 #include "sql_const.h"
+#include "sql_digest_stream.h"
 #include "sql_parse.h"                // parse_sql
-#include "sql_plugin.h"
 #include "sql_prepare.h"              // reinit_stmt_before_use
 #include "sql_profile.h"
 #include "system_variables.h"
@@ -61,9 +65,6 @@
 #include "transaction_info.h"
 #include "trigger.h"                  // Trigger
 #include "trigger_def.h"
-
-struct PSI_statement_locker;
-struct sql_digest_state;
 
 
 class Cmp_splocal_locations :

@@ -17,9 +17,6 @@
 #define DD_SCHEMA_INCLUDED
 
 #include <stddef.h>
-#include <string>
-
-#include "dd/object_id.h"     // Object_id
 
 class MDL_ticket;
 class THD;

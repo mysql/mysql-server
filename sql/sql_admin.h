@@ -16,16 +16,15 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
-#include <set>
 #include <stddef.h>
+#include <set>
 
 #include "lex_string.h"
 #include "memroot_allocator.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h"
-#include "sql_cmd.h"       // Sql_cmd
 #include "sql/histograms/histogram.h"
+#include "sql_cmd.h"       // Sql_cmd
 #include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
 
 class String;

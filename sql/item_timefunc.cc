@@ -33,11 +33,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "mysql_com.h"
+#include "value_map.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include <time.h>
-
 #include "current_thd.h"
 #include "dd/info_schema/stats.h"
 #include "dd/object_id.h"    // dd::Object_id
@@ -56,6 +57,7 @@
 #include "sql_security_ctx.h"
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
+#include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"
 #include "tztime.h"          // Time_zone

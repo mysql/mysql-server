@@ -19,6 +19,7 @@
 
 #include <stddef.h>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "rpl_gtid.h"         // Gtid_set

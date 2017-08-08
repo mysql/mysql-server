@@ -15,24 +15,31 @@
 
 #include "xa.h"
 
+#include <memory>
 #include <new>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "debug_sync.h"         // DEBUG_SYNC
-#include "derror.h"             // ER_DEFAULT
 #include "handler.h"            // handlerton
 #include "item.h"
 #include "log.h"
 #include "m_ctype.h"
+#include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"       // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld.h"             // server_id
@@ -47,9 +54,11 @@
 #include "sql_error.h"
 #include "sql_list.h"
 #include "sql_plugin.h"         // plugin_foreach
+#include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "tc_log.h"             // tc_log
+#include "template_utils.h"
 #include "thr_mutex.h"
 #include "transaction.h"        // trans_begin, trans_rollback
 #include "transaction_info.h"

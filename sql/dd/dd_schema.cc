@@ -15,23 +15,19 @@
 
 #include "sql/dd/dd_schema.h"
 
+#include <atomic>
 #include <memory>                             // unique_ptr
 
-#include "auth_common.h"
-#include "binlog_event.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/types/schema.h"                  // dd::Schema
-#include "debug_sync.h"                       // DEBUG_SYNC
+#include "item_create.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"                           // lower_case_table_names
-#include "mysqld_error.h"
 #include "sql_class.h"                        // THD
 #include "system_variables.h"
 

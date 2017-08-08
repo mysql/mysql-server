@@ -16,6 +16,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "auto_thd.h"
 
 #include "log.h"
+#include "my_loglevel.h"
+#include "mysql/components/services/log_shared.h"
 #include "sql_class.h"                // THD
 #include "sql_thd_internal_api.h"     // create_thd / destroy_thd
 

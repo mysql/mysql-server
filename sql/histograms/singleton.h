@@ -62,18 +62,23 @@
   }
 */
 
-#include "histogram.h"        // Histogram, Histogram_comparator,
-#include "my_decimal.h"
-#include "sql_string.h"
-#include "thr_malloc.h"
-#include "sql/histograms/value_map.h"        // Value_map
-
 #include <stddef.h>
 #include <map>                // std::map
+#include <new>
 #include <string>             // std::string
 #include <utility>            // std::pair
 
+#include "histogram.h"        // Histogram, Histogram_comparator,
+#include "memroot_allocator.h"
 #include "my_base.h"          // ha_rows
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
+#include "sql/histograms/value_map.h"        // Value_map
+#include "sql_string.h"
+#include "template_utils.h"
+#include "thr_malloc.h"
 
 class Json_array;
 class Json_object;
@@ -84,6 +89,9 @@ namespace histograms {
 /**
   Singleton histogram.
 */
+struct Histogram_comparator;
+template <class T> class Value_map;
+
 template <class T>
 class Singleton : public Histogram
 {

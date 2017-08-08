@@ -27,8 +27,25 @@
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "dd/cache/dictionary_client.h"
+#include "item_create.h"
+#include "key.h"
+#include "m_ctype.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_idle_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
+#include "mysql/components/services/psi_transaction_bits.h"
+#include "mysql/udf_registration_types.h"
+#include "pfs_thread_provider.h"
+#include "psi_memory_key.h"
+#include "xa.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -111,6 +128,7 @@ class Relay_log_info;
 class THD;
 class partition_info;
 class sp_rcontext;
+class user_var_entry;
 struct PSI_idle_locker;
 struct PSI_statement_locker;
 struct PSI_transaction_locker;

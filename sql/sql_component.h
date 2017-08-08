@@ -19,7 +19,6 @@
 #include "lex_string.h"
 #include "mem_root_array.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h"         // LEX_STRING
 #include "sql_cmd.h"
 
 class THD;

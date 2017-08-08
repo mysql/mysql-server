@@ -21,6 +21,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "rpl_rli_pdb.h"    // get_thd_worker

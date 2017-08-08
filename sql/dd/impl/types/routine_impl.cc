@@ -17,8 +17,8 @@
 
 #include <new>
 #include <sstream>
+#include <string>
 
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/parameters.h"           // Parameters
 #include "dd/impl/tables/routines.h"             // Routines
@@ -31,7 +31,6 @@
 #include "my_sys.h"
 #include "my_user.h"                             // parse_user
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
 
 using dd::tables::Routines;

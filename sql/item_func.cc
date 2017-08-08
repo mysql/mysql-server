@@ -25,14 +25,15 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <atomic>
 #include <cfloat>                // DBL_DIG
 #include <cmath>                 // std::log2
-#include <exception>             // std::exception subclasses
 #include <iosfwd>
 #include <memory>
 #include <new>
-#include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"         // check_password_strength
@@ -42,8 +43,8 @@
 #include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
 #include "dd/object_id.h"
 #include "dd/properties.h"       // dd::Properties
+#include "dd/types/abstract_table.h"
 #include "dd/types/index.h"      // Index::enum_index_type
-#include "dd/types/table.h"      // dd::Abstract_table::enum_hidden_type
 #include "dd_sql_view.h"         // push_view_warning_or_error
 #include "dd_table_share.h"      // dd_get_old_field_type
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -56,6 +57,7 @@
 #include "key.h"
 #include "log_event.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
@@ -67,12 +69,14 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"             // parse_user
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld.h"              // log_10 stage_user_sleep
@@ -84,7 +88,6 @@
 #include "rpl_mi.h"              // Master_info
 #include "rpl_msr.h"             // channel_map
 #include "rpl_rli.h"             // Relay_log_info
-#include "session_tracker.h"
 #include "sp.h"                  // sp_setup_routine
 #include "sp_head.h"             // sp_name
 #include "sql_audit.h"           // audit_global_variable
@@ -93,18 +96,17 @@
 #include "sql_class.h"           // THD
 #include "sql_error.h"
 #include "sql_lex.h"
-#include "window.h"              // Window
 #include "sql_list.h"
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
+#include "system_variables.h"
 #include "thr_mutex.h"
 #include "val_int_compare.h"     // Integer_value
+#include "value_map.h"
 
 class Protocol;
 class sp_rcontext;
@@ -8125,7 +8127,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
                                             args, arg_count, 0);
 }
 
-bool Item_func_match::fix_index()
+bool Item_func_match::fix_index(const THD *thd)
 {
   Item_field *item;
   TABLE *table;
@@ -8154,7 +8156,7 @@ bool Item_func_match::fix_index()
   {
     if ((table->key_info[keynr].flags & HA_FULLTEXT) &&
         (flags & FT_BOOL ? table->keys_in_use_for_query.is_set(keynr) :
-         table->s->usable_indexes().is_set(keynr)))
+         table->s->usable_indexes(thd).is_set(keynr)))
 
     {
       ft_to_key[fts]=keynr;

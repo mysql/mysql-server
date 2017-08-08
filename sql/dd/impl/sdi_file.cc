@@ -20,32 +20,38 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <ostream>
+#include <string>
+
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/udf_registration_types.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#include "dd/impl/sdi_utils.h"      // dd::sdi_util::checked_return
 #include "dd/impl/sdi.h"            // dd::Sdi_type
+#include "dd/impl/sdi_utils.h"      // dd::sdi_util::checked_return
 #include "dd/types/schema.h"        // dd::Schema
 #include "dd/types/table.h"         // dd::Table
-#include "handler.h"
+#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create
-#include "mysql/psi/psi_base.h"
 #include "mysqld.h"               // is_secure_file_path
 #include "mysqld_error.h"
-#include "psi_memory_key.h"       // key_memory_DD_import
+#include "sql_class.h"
 #include "sql_const.h"            // CREATE_MODE
 #include "sql_table.h"            // build_table_filename
-#include "table.h"
 
 
 /**
