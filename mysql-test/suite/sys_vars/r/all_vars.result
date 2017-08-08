@@ -23,8 +23,6 @@ disabled_storage_engines
 disabled_storage_engines
 information_schema_stats
 information_schema_stats
-innodb_print_ddl_logs
-innodb_print_ddl_logs
 mandatory_roles
 mandatory_roles
 tls_version

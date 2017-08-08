@@ -1575,11 +1575,14 @@ Log_DDL::replay_free_tree_log(
 	const page_size_t	page_size(fil_space_get_page_size(space_id,
 								  &found));
 
-	if (!found && srv_print_ddl_logs) {
-		/* Skip if it is a single table tablespace and the
-		.ibd file is missing*/
-		ib::info() << "DDL log replay : FREE tablespace " << space_id
-			<< " is missing.";
+	/* Skip if it is a single table tablespace and the .ibd
+	file is missing */
+	if (!found) {
+		if (srv_print_ddl_logs) {
+			ib::info() << "DDL log replay : FREE tablespace "
+				<< space_id << " is missing.";
+		}
+
 		return;
 	}
 
