@@ -16,11 +16,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef UDF_REGISTRATION_TYPES_H
 #define UDF_REGISTRATION_TYPES_H
 
-typedef char my_bool;
-typedef unsigned char uchar;
-typedef long long int longlong;
-typedef unsigned long ulong;
-
+#ifndef MYSQL_ABI_CHECK
+#include <stdbool.h>
+#endif
 
 /**
 Type of the user defined function return slot and arguments
@@ -30,7 +28,7 @@ enum Item_result
   INVALID_RESULT= -1, /** not valid for UDFs */
   STRING_RESULT= 0,   /** char * */
   REAL_RESULT,        /** double */
-  INT_RESULT,         /** longlong */
+  INT_RESULT,         /** long long */
   ROW_RESULT,         /** not valid for UDFs */
   DECIMAL_RESULT      /** char *, to be converted to/from a decimal */
 };
@@ -56,11 +54,11 @@ Information about the result of a user defined function
 */
 typedef struct st_udf_init
 {
-  my_bool maybe_null;          /** 1 if function can return NULL */
+  bool maybe_null;             /** 1 if function can return NULL */
   unsigned int decimals;       /** for real functions */
   unsigned long max_length;    /** For string functions */
   char *ptr;                   /** free pointer for function data */
-  my_bool const_item;          /** 1 if function always returns the same value */
+  bool const_item;             /** 1 if function always returns the same value */
   void *extension;
 } UDF_INIT;
 
@@ -73,16 +71,19 @@ enum Item_udftype
 };
 
 
-typedef void(*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
-typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
+typedef void(*Udf_func_clear)(UDF_INIT *, unsigned char *, unsigned char *);
+typedef void(*Udf_func_add)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                            unsigned char *);
 typedef void(*Udf_func_deinit)(UDF_INIT *);
-typedef my_bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
+typedef bool(*Udf_func_init)(UDF_INIT *, UDF_ARGS *, char *);
 typedef void(*Udf_func_any)();
-typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
-typedef longlong(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
-                                     uchar *);
+typedef double(*Udf_func_double)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                                 unsigned char *);
+typedef long long(*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, unsigned char *,
+                                      unsigned char *);
 typedef char * (*Udf_func_string)(UDF_INIT *, UDF_ARGS *, char *,
-                                  ulong *, uchar *, uchar *);
+                                  unsigned long *, unsigned char *,
+                                  unsigned char *);
 
 #endif /* UDF_REGISTRATION_TYPES_H */
 

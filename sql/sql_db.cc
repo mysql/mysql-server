@@ -22,6 +22,9 @@
 #include "my_config.h"
 
 #include <errno.h>
+
+#include "my_loglevel.h"
+#include "mysql/udf_registration_types.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -30,6 +33,8 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <atomic>
+#include <set>
 #include <vector>
 
 #include "auth_acls.h"
@@ -48,6 +53,7 @@
 #include "error_handler.h"   // Drop_table_error_handler
 #include "events.h"          // Events
 #include "handler.h"
+#include "key.h"
 #include "lex_string.h"
 #include "lock.h"            // lock_schema_name
 #include "log.h"             // log_*()
@@ -60,15 +66,18 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld.h"          // key_file_misc
 #include "mysqld_error.h"
 #include "mysys_err.h"       // EE_*
+#include "prealloced_array.h"
 #include "psi_memory_key.h"  // key_memory_THD_db
 #include "rpl_gtid.h"
 #include "session_tracker.h"
@@ -78,14 +87,11 @@
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_handler.h"     // mysql_ha_rm_tables
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"       // build_table_filename
 #include "system_variables.h"
 #include "table.h"           // TABLE_LIST
-#include "template_utils.h"
 #include "transaction.h"     // trans_rollback_stmt
 #include "typelib.h"
 

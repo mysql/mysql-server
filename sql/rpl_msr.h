@@ -23,14 +23,15 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysqld.h"                        // key_rwlock_channel_map_lock
 #include "rpl_channel_service_interface.h" // enum_channel_type
+#include "rpl_filter.h"
 #include "rpl_gtid.h"
 #include "rpl_mi.h"
-#include "rpl_filter.h"
 
 class Master_info;
 

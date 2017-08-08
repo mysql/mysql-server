@@ -26,6 +26,9 @@
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/core/tags.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/geometries/segment.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <stddef.h>
 #include <cmath>
@@ -42,6 +45,7 @@
 
 class String;
 class THD;
+
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd

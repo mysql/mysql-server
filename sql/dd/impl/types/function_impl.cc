@@ -16,12 +16,13 @@
 #include "dd/impl/types/function_impl.h"
 
 #include <sstream>
+#include <string>
 
-#include "dd/string_type.h"                      // dd::String_type
-#include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/routines.h"             // Routines
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "dd/string_type.h"                      // dd::String_type
+#include "dd/types/entity_object_table.h"
 #include "dd/types/parameter.h"                  // Parameter
 #include "dd/types/weak_object.h"
 #include "my_sys.h"

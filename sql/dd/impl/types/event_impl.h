@@ -24,6 +24,7 @@
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/event.h"                    // dd::Event
 #include "dd/types/object_type.h"              // dd::Object_type
@@ -35,6 +36,7 @@ namespace dd {
 
 class Open_dictionary_tables_ctx;
 class Weak_object;
+class Object_table;
 
 class Event_impl : public Entity_object_impl,
                    public Event

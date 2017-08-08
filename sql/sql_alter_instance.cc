@@ -15,9 +15,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_alter_instance.h"         /* Alter_instance class */
 
+#include <utility>
+
 #include "auth_acls.h"
 #include "derror.h"                     /* ER_THD */
 #include "handler.h"                    /* ha_resolve_by_legacy_type */
+#include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_dbug.h"
@@ -27,11 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql_class.h"                  /* THD */
 #include "sql_error.h"
 #include "sql_lex.h"
-#include "sql_plugin.h"
 #include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_table.h"                  /* write_to_binlog */
-#include "mysql/components/services/dynamic_privilege.h"
 
 /*
   @brief

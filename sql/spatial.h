@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cstddef>
-#include <cstdlib>
 #include <iterator>
 
 #include "gis/srid.h"
@@ -33,6 +32,7 @@
 #include "my_inttypes.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_string.h"                 // String
 
 class Gis_read_stream;

@@ -26,14 +26,19 @@
 #include <sys/types.h>
 
 #include "auth_acls.h"
+#include "debug_sync.h"                       // DEBUG_SYNC
 #include "handler.h"
 #include "item.h"
+#include "mem_root_array.h"
 #include "my_base.h"
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sqlcommand.h"
+#include "my_sys.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                        // internal_tmp_disk_storage_engine
+#include "mysqld_error.h"
 #include "opt_trace.h"                        // opt_trace_disable_etc
 #include "query_options.h"
 #include "sql_base.h"                         // EXTRA_RECORD
@@ -50,7 +55,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "temp_table_param.h"
-#include "debug_sync.h"                       // DEBUG_SYNC
+#include "thr_lock.h"
 
 class Opt_trace_context;
 

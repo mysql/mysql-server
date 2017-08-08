@@ -88,6 +88,7 @@
 #include "m_string.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
@@ -99,7 +100,6 @@
 #include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
 #include "sql_class.h"
 #include "sql_const.h"
-#include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_parse.h"                     // is_log_table_write_query
 #include "system_variables.h"

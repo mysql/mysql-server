@@ -15,25 +15,28 @@
 
 #include "sql/binlog.h"
 
-#include "my_config.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
+#include "check_stack.h"
+#include "config.h"
 #include "lex_string.h"
+#include "map_helpers.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_systime.h"
+#include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <algorithm>
 #include <list>
+#include <map>
 #include <new>
 #include <string>
 
@@ -52,7 +55,6 @@
 #include "log.h"
 #include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
-#include "mdl.h"
 #include "mf_wcomp.h"                       // wild_one, wild_many
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -65,7 +67,6 @@
 #include "my_thread_local.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysqld.h"                         // sync_binlog_period ...
@@ -87,7 +88,6 @@
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "rpl_transaction_ctx.h"
 #include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
-#include "rpl_context.h"
 #include "rpl_utility.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"                      // THD
@@ -97,11 +97,8 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"                      // sqlcom_can_generate_row_events
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_servers.h"
 #include "sql_show.h"                       // append_identifier
-#include "sql_udf.h"
 #include "statement_events.h"
 #include "system_variables.h"
 #include "table.h"
@@ -111,7 +108,6 @@
 #include "xa.h"
 
 class Item;
-class Gtid_event;
 
 using std::max;
 using std::min;
@@ -515,6 +511,7 @@ public:
       state.with_sbr= flags.with_sbr;
       state.with_start= flags.with_start;
       state.with_end= flags.with_end;
+      state.with_content= flags.with_content;
       state.event_counter= event_counter;
       cache_state_map[pos_to_checkpoint]= state;
     }
@@ -532,6 +529,7 @@ public:
         flags.with_sbr= it->second.with_sbr;
         flags.with_start= it->second.with_start;
         flags.with_end= it->second.with_end;
+        flags.with_content= it->second.with_content;
         event_counter= it->second.event_counter;
       }
       else
@@ -544,6 +542,7 @@ public:
       flags.with_sbr= false;
       flags.with_start= false;
       flags.with_end= false;
+      flags.with_content= false;
       event_counter= 0;
     }
   }
@@ -581,6 +580,7 @@ public:
     flags.with_rbr= false;
     flags.with_start= false;
     flags.with_end= false;
+    flags.with_content= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -669,14 +669,15 @@ public:
       and no changes: one is a transaction start and other is a transaction
       end (there should be no SBR changing content and no RBR events).
     */
-    if (flags.with_start && // Has transaction start statement
-        flags.with_end &&   // Has transaction end statement
-        !flags.with_sbr &&  // No statements changing content
-        !flags.with_rbr &&  // No rows changing content
-        !flags.immediate && // Not a DDL
-        !flags.with_xid)    // Not a XID transaction and not an atomic DDL Query
+    if (flags.with_start &&  // Has transaction start statement
+        flags.with_end &&    // Has transaction end statement
+        !flags.with_content) // Has no other content than START/END
     {
-      DBUG_ASSERT(event_counter == 2);
+      DBUG_ASSERT(event_counter == 2); // Two events in the cache only
+      DBUG_ASSERT(!flags.with_sbr); // No statements changing content
+      DBUG_ASSERT(!flags.with_rbr); // No rows changing content
+      DBUG_ASSERT(!flags.immediate);// Not a DDL
+      DBUG_ASSERT(!flags.with_xid); // Not a XID trx and not an atomic DDL Query
       return true;
     }
     return false;
@@ -705,6 +706,7 @@ protected:
     bool with_rbr;
     bool with_start;
     bool with_end;
+    bool with_content;
     size_t event_counter;
   };
   /*
@@ -808,6 +810,11 @@ protected:
       This indicates that the cache contain a transaction end event.
     */
     bool with_end:1;
+
+    /*
+      This indicates that the cache contain content other than START/END.
+    */
+    bool with_content:1;
   } flags;
 
 private:
@@ -1467,6 +1474,8 @@ int binlog_cache_data::write_event(THD*, Log_event *ev)
       flags.with_start= true;
     if (ev->ends_group())
       flags.with_end= true;
+    if (!ev->starts_group() && !ev->ends_group())
+      flags.with_content= true;
     event_counter++;
     DBUG_PRINT("debug",("event_counter= %lu",
                         static_cast<ulong>(event_counter)));

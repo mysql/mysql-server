@@ -17,18 +17,18 @@
 #define DD__FOREIGN_KEY_IMPL_INCLUDED
 
 #include <sys/types.h>
-#include <memory>     // std::unique_ptr
 #include <new>
-#include <string>
 
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
+#include "dd/types/foreign_key_element.h"     // IWYU pragma: keep
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "m_ctype.h"                          // my_strcasecmp
+#include "my_sharedlib.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -36,15 +36,14 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
-class Raw_record;
-class Table;
-class Table_impl;
-class Foreign_key_element;
 class Index;
 class Object_table;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Table;
+class Table_impl;
 class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////

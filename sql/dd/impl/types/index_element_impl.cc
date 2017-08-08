@@ -17,16 +17,17 @@
 
 #include <ostream>
 
+#include "binary_log_types.h"
 #include "dd/impl/raw/raw_record.h"             // Raw_record
 #include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
 #include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
-#include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/table_impl.h"           // Table_impl
 #include "dd/types/column.h"                    // Column
 #include "dd/types/object_table.h"
 #include "dd/types/weak_object.h"
 #include "dd_table_share.h"                     // dd_get_old_field_type()
+#include "field.h"
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -38,6 +39,7 @@ namespace dd {
 class Object_key;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Entity_object_impl;
 }  // namespace dd
 
 using dd::tables::Index_column_usage;

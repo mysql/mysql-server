@@ -134,7 +134,6 @@
 */
 
 #include <stddef.h>
-#include <new>
 #include <string>
 
 #include "binary_log_types.h"                   // enum_field_types
@@ -317,17 +316,6 @@ public:
   /** Empty constructor. Produces a value that represents an error condition. */
   Value() : Value(ERROR) {}
 
-  /** Assignment operator. */
-  Value &operator=(const Value &from)
-  {
-    if (this != &from)
-    {
-      // Copy the entire from value into this.
-      new (this) Value(from);
-    }
-    return *this;
-  }
-
   /** Is this value an array? */
   bool is_array() const { return m_type == ARRAY; }
 
@@ -351,36 +339,36 @@ private:
     */
     const char *m_data;
     /** The value if the type is INT or UINT. */
-    const int64 m_int_value;
+    int64 m_int_value;
     /** The value if the type is DOUBLE. */
-    const double m_double_value;
+    double m_double_value;
   };
 
   /**
     Element count for arrays and objects. Unused for other types.
   */
-  const uint32 m_element_count{};
+  uint32 m_element_count;
 
   /**
     The full length (in bytes) of the binary representation of an array or
     object, or the length of a string or opaque value. Unused for other types.
   */
-  const uint32 m_length{};
+  uint32 m_length;
 
   /**
     The MySQL field type of the value, in case the type of the value is
     OPAQUE. Otherwise, it is unused.
   */
-  const enum_field_types m_field_type{};
+  enum_field_types m_field_type;
 
   /** The JSON type of the value. */
-  const enum_type m_type;
+  enum_type m_type;
 
   /**
     True if an array or an object uses the large storage format with 4
     byte offsets instead of 2 byte offsets.
   */
-  const bool m_large{};
+  bool m_large;
 
   size_t key_entry_offset(size_t pos) const;
   size_t value_entry_offset(size_t pos) const;
@@ -412,6 +400,35 @@ Value parse_binary(const char *data, size_t len);
 */
 bool space_needed(const THD *thd, const Json_wrapper *value,
                   bool large, size_t *needed);
+
+/**
+  Apply a function to every value in a JSON document. That is, apply
+  the function to the root node of the JSON document, to all its
+  children, grandchildren and so on.
+
+  @param  value the root of the JSON document
+  @param  func  the function to apply
+  @retval true  if the processing was stopped
+  @retval false if the processing was completed
+
+  @tparam Func a functor type that takes a #json_binary::Value
+  parameter and returns a `bool` which is `true` if the processing
+  should stop or `false` if the processing should continue with the
+  next node
+*/
+template <typename Func>
+bool for_each_node(const Value &value, const Func &func)
+{
+  if (func(value))
+    return true;
+
+  if (value.is_array() || value.is_object())
+    for (size_t i= 0, size= value.element_count(); i < size; ++i)
+      if (for_each_node(value.element(i), func))
+        return true;
+
+  return false;
+}
 
 }
 

@@ -24,7 +24,6 @@
 #include <utility>          // std::make_pair
 
 #include "binary_log_types.h"
-#include "float_compare.h"
 #include "json_dom.h"       // Json_*
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"

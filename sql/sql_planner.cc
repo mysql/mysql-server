@@ -26,10 +26,13 @@
 
 #include "sql_planner.h"
 
+#include "my_config.h"
+
 #include <float.h>
 #include <limits.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 
 #include "enum_query_type.h"
 #include "field.h"
@@ -42,9 +45,9 @@
 #include "my_bit.h"             // my_count_bits
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_macros.h"
+#include "mysql/udf_registration_types.h"
 #include "opt_costmodel.h"
 #include "opt_hints.h"          // hint_table_state
 #include "opt_range.h"          // QUICK_SELECT_I

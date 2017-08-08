@@ -19,12 +19,16 @@
 
 #include <stddef.h>
 #include <string.h>
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
 #include <sys/types.h>
+#include <memory>
 #include <set>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"
@@ -40,30 +44,31 @@
 #include "log.h"                        /* log_*() */
 #include "m_ctype.h"
 #include "m_string.h"                   /* C_STRING_WITH_LEN */
+#include "map_helpers.h"
 #include "mdl.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
+#include "mysqld.h"
 #include "mysqld_error.h"
 #include "rpl_filter.h"                 /* rpl_filter */
-#include "session_tracker.h"
-#include "sql_admin.h"
+#include "rpl_rli.h"                    /* class Relay_log_info */
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_base.h"                   /* close_thread_tables */
 #include "sql_class.h"
+#include "sql_connect.h"
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
                                         /* trans_commit_implicit */
 #include "sql_parse.h"                  /* stmt_causes_implicit_commit */
-#include "sql_plugin.h"                 // plugin_is_ready
-#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                  /* write_bin_log */
@@ -74,8 +79,8 @@
 #include "transaction.h"                /* trans_commit_stmt */
 #include "typelib.h"
 #include "tztime.h"
+#include "value_map.h"
 #include "violite.h"
-#include "rpl_rli.h"                    /* class Relay_log_info */
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {

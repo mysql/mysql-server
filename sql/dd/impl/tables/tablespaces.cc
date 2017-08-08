@@ -18,6 +18,7 @@
 #include <new>
 
 #include "dd/impl/raw/object_keys.h"       // dd::Global_name_key
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
 

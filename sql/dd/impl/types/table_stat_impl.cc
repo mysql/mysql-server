@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <ostream>
+#include <string>
 
 #include "dd/impl/raw/object_keys.h"
 #include "dd/impl/raw/raw_record.h"        // Raw_record

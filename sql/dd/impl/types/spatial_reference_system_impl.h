@@ -25,12 +25,14 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/spatial_reference_system.h"// dd:Spatial_reference_system
 #include "dd/types/weak_object.h"
 #include "gis/srid.h"
 #include "gis/srs/srs.h"                      // gis::srs::Spatial_reference_...
+#include "my_dbug.h"
 #include "my_inttypes.h"
 
 class THD;
@@ -39,10 +41,11 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 

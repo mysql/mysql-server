@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #include "item_inetfunc.h"
 
+#include "my_config.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -24,9 +26,8 @@
 #include "enum_query_type.h"
 #include "item.h"
 #include "my_byteorder.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "mysql_com.h"
+#include "my_inttypes.h"
 #include "mysqld_error.h"
 #include "sql_error.h"
 #include "sql_string.h"

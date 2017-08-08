@@ -19,13 +19,13 @@
 #include <string>
 
 #include "dd/impl/raw/object_keys.h"    // Parent_id_range_key
-#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/impl/types/schema_impl.h"                  // dd::Schema_impl
-#include "dd/impl/types/schema_impl.h"  // dd::Schema_impl
 #include "dd/string_type.h"             // dd::String_type
 #include "mysql_com.h"
-#include "system_variables.h"
+#include "mysqld.h"
+#include "stateless_allocator.h"
 
 namespace dd {
 namespace tables {

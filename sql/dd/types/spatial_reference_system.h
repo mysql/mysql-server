@@ -20,6 +20,7 @@
 #include "gis/srid.h"
 #include "gis/srs/srs.h"                  // srid_t
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 
 class THD;
 
@@ -30,7 +31,6 @@ namespace dd {
 class Entity_object_table;
 class Item_name_key;
 class Object_type;
-class Primary_id_key;
 class Void_key;
 
 namespace tables {

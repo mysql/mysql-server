@@ -18,6 +18,7 @@
 
 #include "dd/impl/system_views/system_view_definition_impl.h"
 #include "dd/impl/system_views/system_view_impl.h"
+#include "dd/string_type.h"
 
 namespace dd {
 namespace system_views {

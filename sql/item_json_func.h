@@ -32,6 +32,7 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
 #include "prealloced_array.h"   // Prealloced_array

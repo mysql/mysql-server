@@ -20,6 +20,7 @@
 #include "dd/collection.h"             // dd::Collection
 #include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"    // dd::Entity_object
+#include "dd/types/object_table.h"
 
 namespace dd {
 

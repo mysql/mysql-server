@@ -56,27 +56,22 @@
 #include "current_thd.h"
 #include "debug_sync.h"                 // DEBUG_SYNC
 #include "derror.h"                     // ER_THD
+#include "enum_query_type.h"
 #include "field.h"
 #include "item.h"                       // enum_monotoncity_info
 #include "item_func.h"                  // Item_func
 #include "key.h"
-#include "lock.h"                       // mysql_lock_remove
-#include "log.h"
 #include "m_string.h"
 #include "mdl.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_io.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "my_table_map.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld.h"                     // mysql_tmpdir
@@ -87,10 +82,8 @@
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "psi_memory_key.h"
 #include "query_options.h"
-#include "session_tracker.h"
 #include "sql_alter.h"
 #include "sql_base.h"                   // wait_while_table_is_used
-#include "sql_bitmap.h"
 #include "sql_class.h"                  // THD
 #include "sql_const.h"
 #include "sql_digest_stream.h"
@@ -98,15 +91,15 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"                  // parse_sql
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_show.h"
 #include "sql_string.h"
 #include "sql_table.h"                  // build_table_filename
-#include "sql_tablespace.h"             // validate_tablespace_name
 #include "system_variables.h"
 #include "table.h"
 #include "thr_malloc.h"
-
-struct PSI_statement_locker;
+#include "value_map.h"
 
 using std::max;
 using std::min;

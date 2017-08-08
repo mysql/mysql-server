@@ -59,15 +59,15 @@
 
 *****************************************************************************/
 
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "crypt_genhash_impl.h"
 #include "m_string.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "password.h"
 #include "sha1.h"
 
 void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)

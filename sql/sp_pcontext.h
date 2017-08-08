@@ -29,7 +29,6 @@
 #include "sql_alloc.h"
 #include "sql_error.h"
 #include "sql_list.h"
-#include "sql_plugin_ref.h"
 
 class Item;
 class String;

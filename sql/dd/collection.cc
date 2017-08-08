@@ -15,6 +15,7 @@
 
 #include "dd/collection.h"
 
+#include <algorithm>
 #include <memory>     // std::unique_ptr
 
 #include "dd/impl/object_key.h"         // Needed for destructor
@@ -42,6 +43,7 @@
 #include "dd/impl/types/view_routine_impl.h"  // IWYU pragma: keep
 #include "dd/impl/types/view_table_impl.h"  // IWYU pragma: keep
 #include "my_dbug.h"
+#include "template_utils.h"
 
 namespace dd {
 

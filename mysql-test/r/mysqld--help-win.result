@@ -1518,7 +1518,7 @@ performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-table-lock-stat -1
-performance-schema-max-thread-classes 50
+performance-schema-max-thread-classes 100
 performance-schema-max-thread-instances -1
 performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1

@@ -31,10 +31,20 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "rpl_channel_service_interface.h"
+#include "thr_malloc.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -43,13 +53,13 @@
 #include <unistd.h>
 #endif
 #include <algorithm>
+#include <atomic>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "auth_acls.h"
-#include "auth_common.h"                       // any_db
 #include "binary_log_types.h"
 #include "binlog.h"
 #include "binlog_event.h"
@@ -85,9 +95,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_stage.h"
-#include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -95,12 +102,12 @@
 #include "mysqld.h"                            // ER
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h"                // Global_THD_manager
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
-#include "rpl_constants.h"                     // BINLOG_FLAGS_INFO_SIZE
 #include "rpl_filter.h"
 #include "rpl_group_replication.h"
 #include "rpl_gtid.h"
@@ -133,7 +140,6 @@
 #include "transaction.h"                       // trans_begin
 #include "transaction_info.h"
 #include "typelib.h"
-#include "tztime.h"                            // Time_zone
 
 using std::min;
 using std::max;

@@ -30,18 +30,24 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                 // Item_result
 #include "rpl_gtid.h"                  // Gtid_set, Sid_map
+#include "rpl_trx_tracking.h"
 #include "sql_string.h"
 #include "tc_log.h"                    // TC_LOG
 #include "thr_mutex.h"
-#include "rpl_gtid.h"                  // Gtid_set, Sid_map
-#include "rpl_trx_tracking.h"
 
 class Format_description_log_event;
+class Gtid_monitoring_info;
 class Gtid_set;
 class Ha_trx_info;
 class Incident_log_event;
@@ -54,7 +60,6 @@ class THD;
 class Transaction_boundary_parser;
 class binlog_cache_data;
 class user_var_entry;
-class Gtid_monitoring_info;
 struct Gtid;
 
 typedef int64 query_id_t;

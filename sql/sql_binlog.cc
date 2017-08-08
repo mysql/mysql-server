@@ -17,20 +17,21 @@
 #include "sql/sql_binlog.h"
 
 #include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
+#include <utility>
 
 #include "auth_acls.h"
-#include "auth_common.h"                        // check_global_access
 #include "base64.h"                             // base64_needed_decoded_length
 #include "binlog_event.h"
 #include "lex_string.h"
 #include "log_event.h"                          // Format_description_log_event
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "psi_memory_key.h"
 #include "rpl_info_factory.h"                   // Rpl_info_factory
@@ -38,7 +39,7 @@
 #include "rpl_rli.h"                            // Relay_log_info
 #include "sql_class.h"
 #include "sql_lex.h"
-#include "sql_udf.h"
+#include "sql_security_ctx.h"
 #include "system_variables.h"
 
 

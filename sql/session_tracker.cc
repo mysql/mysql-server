@@ -17,20 +17,28 @@
 #include "sql/session_tracker.h"
 
 #include <string.h>
+#include <algorithm>
+#include <memory>
 #include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "current_thd.h"
-#include "handler.h"
+#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "psi_memory_key.h"
@@ -41,10 +49,10 @@
 #include "sql_class.h"
 #include "sql_error.h"
 #include "sql_lex.h"
-#include "sql_plugin.h"
 #include "sql_show.h"
 #include "sql_string.h"
 #include "system_variables.h"
+#include "template_utils.h"
 #include "transaction_info.h"
 #include "xa.h"
 

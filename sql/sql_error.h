@@ -25,13 +25,14 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql_alloc.h"
 #include "sql_list.h"
 #include "sql_plist.h" /* I_P_List */
 #include "sql_string.h"                        /* String */
+#include "thr_malloc.h"
 
 class THD;
 class my_decimal;

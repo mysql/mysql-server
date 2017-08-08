@@ -28,15 +28,16 @@
 #ifndef _log_event_h
 #define _log_event_h
 
-#include <errno.h>
 #include <atomic>
 #include <list>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "binlog_event.h"
 #include "control_events.h"
+#include "item_create.h"
 #include "lex_string.h"
 #include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
@@ -48,12 +49,18 @@
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/psi_stage.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
+#include "psi_memory_key.h"
 #include "query_options.h"           // OPTION_AUTO_IS_NULL
 #include "rows_event.h"
 #include "rpl_gtid.h"                // enum_group_type
 #include "rpl_utility.h"             // Hash_slave_rows
+#include "session_tracker.h"
 #include "sql_const.h"
 #include "sql_string.h"
 #include "statement_events.h"

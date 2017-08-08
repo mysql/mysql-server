@@ -16,11 +16,15 @@
 #include <string.h>
 
 #include "current_thd.h"
+#include "log.h"         // sql_print_error
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "rpl_mi.h"
 #include "rpl_msr.h"
 #include "rpl_rli.h"     // Relay_log_info
-#include "log.h"         // sql_print_error
 
 const char* Multisource_info::default_channel= "";
 const char* Multisource_info::group_replication_channel_names[] = {

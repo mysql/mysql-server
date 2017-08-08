@@ -101,8 +101,8 @@ Source7:        %{compatsrc}
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-%{?el6:BuildRequires:  devtoolset-3-gcc}
-%{?el6:BuildRequires:  devtoolset-3-gcc-c++}
+BuildRequires:  devtoolset-6-gcc
+BuildRequires:  devtoolset-6-gcc-c++
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -591,9 +591,6 @@ fi
 )
 %endif # 0%{?rhel} < 7
 %endif # 0%{?compatlib}
-
-%{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
-%{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 
 # Build debug versions of mysqld
 mkdir debug
@@ -1157,6 +1154,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_reg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1216,6 +1218,11 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_same.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sys_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_int.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_reg_only.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
@@ -1316,6 +1323,12 @@ fi
 %endif # cluster
 
 %changelog
+* Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
+* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
 * Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
 

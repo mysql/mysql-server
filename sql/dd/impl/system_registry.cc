@@ -15,23 +15,21 @@
 
 #include "dd/impl/system_registry.h"
 
-#include <stddef.h>
-
 #include "dd/impl/system_views/character_sets.h"     // Character_sets
-#include "dd/impl/system_views/collations.h"         // Collations
-#include "dd/impl/system_views/columns.h"            // Columns
-#include "dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "dd/impl/system_views/collation_charset_applicability.h" // Collati...
+#include "dd/impl/system_views/collations.h"         // Collations
+#include "dd/impl/system_views/column_statistics.h"  // Column_statistics
+#include "dd/impl/system_views/columns.h"            // Columns
 #include "dd/impl/system_views/events.h"             // Events
 #include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
 #include "dd/impl/system_views/parameters.h"         // Parameters
 #include "dd/impl/system_views/routines.h"           // Routines
 #include "dd/impl/system_views/schemata.h"           // Schemata
-#include "dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
 #include "dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
+#include "dd/impl/system_views/st_spatial_reference_systems.h" // St_spatial...
 #include "dd/impl/system_views/statistics.h"         // Statistics
-#include "dd/impl/system_views/tables.h"             // Tables
 #include "dd/impl/system_views/table_constraints.h"  // Table_constraints
+#include "dd/impl/system_views/tables.h"             // Tables
 #include "dd/impl/system_views/triggers.h"           // Triggers
 #include "dd/impl/system_views/views.h"              // Views
 #include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
@@ -43,8 +41,8 @@
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
 #include "dd/impl/tables/collations.h"               // Collations
-#include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
 #include "dd/impl/tables/column_statistics.h"        // Column_statistics
+#include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
 #include "dd/impl/tables/columns.h"                  // Columns
 #include "dd/impl/tables/dd_properties.h"            // DD_properties
 #include "dd/impl/tables/events.h"                   // Events
@@ -69,7 +67,6 @@
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 #include "lex_string.h"
-#include "m_string.h"
 #include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
 
 using namespace dd::tables;

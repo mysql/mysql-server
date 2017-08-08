@@ -18,20 +18,18 @@
 
 #include <sys/types.h>
 #include <map>
-#include <string>
 
 #include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
 #include "dd/string_type.h"           // dd::String_type
-#include "dd/types/object_type.h"     // dd::Object_type
 #include "discrete_interval.h"
 #include "field.h"
 #include "handler.h"
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "set_var.h"
 #include "sql_class.h"                // THD::killed_state
 #include "thr_lock.h"
 
-class THD;
 struct LEX;
 
 namespace dd {

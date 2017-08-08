@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
 
 #include <string.h>
 #include <sstream>
+#include <string>
 
 #include "current_thd.h"                             // current_thd
-#include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
@@ -42,8 +42,8 @@
 #include "dd/types/weak_object.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "mysqld_error.h"                            // ER_*
 #include "my_sys.h"
+#include "mysqld_error.h"                            // ER_*
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
 #include "sql_class.h"

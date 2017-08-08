@@ -17,6 +17,17 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
+#include "enum_query_type.h"
+#include "handler.h"
+#include "item.h"
+#include "mem_root_array.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
+#include "sql_lex.h"
+#include "sql_parse.h"
+#include "sql_string.h"
+#include "table.h"
 /*
   Some Window-related symbols must be known to sql_lex.h which is a frequently
   included header.
@@ -29,17 +40,20 @@
 #include <unordered_map>
 #endif
 
+#include <sys/types.h>
+#include <cstring>                              // std::memcpy
+
 #include "sql_error.h"
 #include "sql_list.h"
 
-#include <cstring>                              // std::memcpy
-
-class PT_border;
-class PT_order_list;
-class PT_frame;
-class PT_window;
-class Item_string;
 class Item_func;
+class Item_string;
+class Item_sum;
+class PT_border;
+class PT_frame;
+class PT_order_list;
+class PT_window;
+class THD;
 class Temp_table_param;
 
 /**

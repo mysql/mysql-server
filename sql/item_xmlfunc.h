@@ -18,6 +18,7 @@
 
 #include "item_strfunc.h"     // Item_str_func
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "parse_tree_node_base.h"
 #include "sql_string.h"
 

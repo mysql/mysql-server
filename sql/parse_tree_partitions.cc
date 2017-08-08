@@ -21,7 +21,6 @@
 #include "mysqld_error.h"
 #include "parse_location.h"
 #include "parse_tree_partitions.h"
-#include "sql_alter.h"
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_lex.h"

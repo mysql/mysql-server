@@ -16,29 +16,31 @@
    02110-1301 USA */
 
 #include <time.h>
+#include <atomic>
 
+#include "binlog.h"
 #include "control_events.h"
 #include "current_thd.h"
 #include "debug_sync.h"            // DEBUG_SYNC
-#include "lex_string.h"
+#include "key.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_stage.h"
 #include "mysqld.h"                // opt_bin_log
 #include "mysqld_error.h"
+#include "prealloced_array.h"
 #include "rpl_context.h"
 #include "rpl_gtid.h"
 #include "rpl_gtid_persist.h"      // gtid_table_persistor
 #include "sql_class.h"             // THD
 #include "sql_error.h"
-#include "sql_plugin.h"
 #include "system_variables.h"
-#include "binlog.h"
+#include "thr_malloc.h"
 
 struct TABLE_LIST;
 

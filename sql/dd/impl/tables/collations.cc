@@ -24,16 +24,16 @@
 #include "dd/dd.h"                                // dd::create_object
 #include "dd/impl/cache/storage_adapter.h"        // Storage_adapter
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
+#include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/collation_impl.h"         // dd::Collation_impl
 #include "dd/impl/types/object_table_definition_impl.h"
 #include "dd/object_id.h"
 #include "dd/types/collation.h"
+#include "item_create.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
 #include "sql_class.h"                            // THD
-#include "template_utils.h"
 
 namespace dd {
 namespace tables {

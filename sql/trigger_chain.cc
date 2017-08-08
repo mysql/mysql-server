@@ -18,6 +18,7 @@
 #include "sql/trigger_chain.h"
 
 #include "handler.h"
+#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

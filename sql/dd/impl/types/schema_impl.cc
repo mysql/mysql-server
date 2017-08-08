@@ -19,7 +19,6 @@
 
 #include "dd/dd.h"                         // create_object
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
-#include "dd/impl/raw/object_keys.h"       // Primary_id_key
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/tables/schemata.h"       // Schemata
@@ -34,7 +33,6 @@
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql_com.h"
@@ -44,10 +42,12 @@
 #include "sql_class.h"                     // THD
 #include "system_variables.h"
 #include "tztime.h"                        // Time_zone
+#include "value_map.h"
 
 namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
+
 namespace tables {
 class Tables;
 }  // namespace tables

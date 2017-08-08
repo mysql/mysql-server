@@ -22,6 +22,9 @@
 
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "dd/object_id.h"
+#include "dd/string_type.h"
+#include "dd/types/entity_object_table.h"
 #include "dd/types/index_stat.h"              // dd::Index_stats
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "my_inttypes.h"
@@ -31,11 +34,12 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Charset;
-class Raw_table;
-class Transaction;
 class Object_key;
 class Open_dictionary_tables_ctx;
+class Raw_table;
+class Transaction;
 class Weak_object;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 

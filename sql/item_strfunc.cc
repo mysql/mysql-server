@@ -27,9 +27,6 @@
     (This shouldn't be needed)
 */
 
-/* May include caustic 3rd-party defs. Use early, so it can override nothing. */
-#include "sha2.h"
-
 #include <algorithm>
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -37,7 +34,6 @@
 #include <ostream>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "auth_acls.h"
 #include "auth_common.h"             // check_password_policy
@@ -47,19 +43,16 @@
 #include "dd/info_schema/stats.h"
 #include "dd/properties.h"           // dd::Properties
 #include "dd/string_type.h"
-#include "dd/types/column.h"         // dd::Column
 #include "dd_sql_view.h"             // push_view_warning_or_error
-#include "dd_table_share.h"          // dd_get_old_field_type
 #include "decimal.h"
 #include "derror.h"                  // ER_THD
 #include "handler.h"
 #include "item_strfunc.h"
+#include "key.h"
 #include "m_string.h"
 #include "my_aes.h"                  // MY_AES_IV_SIZE
-#include "my_base.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_dir.h"                  // For my_stat
 #include "my_io.h"
@@ -71,7 +64,6 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
@@ -80,8 +72,8 @@
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
 #include "rpl_gtid.h"
-#include "session_tracker.h"
 #include "sha1.h"                    // SHA1_HASH_SIZE
+#include "sha2.h"
 #include "sql_class.h"               // THD
 #include "sql_error.h"
 #include "sql_lex.h"
@@ -89,6 +81,7 @@
 #include "sql_security_ctx.h"
 #include "sql_show.h"  // grant_types
 #include "strfunc.h"                 // hexchar_to_int
+#include "system_variables.h"
 #include "template_utils.h"
 #include "typelib.h"
 #include "val_int_compare.h"         // Integer_value
@@ -3897,10 +3890,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 String *Item_load_file::val_str(String *str)
 {
@@ -4280,8 +4269,6 @@ longlong Item_func_crc32::val_int()
 }
 
 #include "zlib.h"
-
-template <class T> class List;
 
 String *Item_func_compress::val_str(String *str)
 {

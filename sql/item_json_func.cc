@@ -20,10 +20,12 @@
 
 #include <algorithm>               // std::fill
 #include <cstring>
+#include <memory>
 #include <new>
 #include <string>
 #include <utility>
 
+#include "binary_log_types.h"
 #include "current_thd.h"           // current_thd
 #include "item_cmpfunc.h"          // Item_func_like
 #include "item_subselect.h"
@@ -32,17 +34,21 @@
 #include "json_path.h"
 #include "m_string.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"      // Prealloced_array
-#include "psi_memory_key.h"        // key_memory_JSON
-#include "sql_class.h"             // THD
+#include "prealloced_array.h"   // Prealloced_array
+#include "psi_memory_key.h"     // key_memory_JSON
+#include "session_tracker.h"
+#include "sql_class.h"          // THD
 #include "sql_const.h"
+#include "sql_error.h"
 #include "sql_exception_handler.h" // handle_std_exception
 #include "sql_time.h"              // field_type_to_timestamp_type
+#include "table.h"
 #include "template_utils.h"        // down_cast
+#include "value_map.h"
 
 class PT_item_list;
 
@@ -1062,7 +1068,7 @@ enum class enum_json_opaque_type
   For example:
   json_type_string_map[J_OBJECT] == "OBJECT"
 */
-static const char *json_type_string_map[]=
+static constexpr const char *json_type_string_map[]=
 {
   "NULL",
   "DECIMAL",
@@ -1086,25 +1092,34 @@ static const char *json_type_string_map[]=
   "GEOMETRY",
 };
 
-/**
-  Compute the maximum length of the string representation of the Json type
-  literals which we use as output from JSON_TYPE.
-
-  @return the length of the longest literal + 1 (for terminating NUL).
-*/
-static uint32 compute_max_typelit()
+/// A constexpr version of std::strlen.
+static constexpr uint32 strlen_const(const char *str)
 {
-  size_t maxl= 0;
-  for (auto s : json_type_string_map)
-    maxl= std::max(maxl, std::strlen(s));
-  return static_cast<uint32>(maxl + 1);
+  return *str == '\0' ? 0 : 1 + strlen_const(str + 1);
+}
+
+/// std::max isn't constexpr until C++14, so we roll our own for now.
+static constexpr uint32 max_const(uint32 a, uint32 b)
+{
+  return a > b ? a : b;
+}
+
+/// Find the length of the longest string in a range.
+static constexpr uint32 longest_string(const char *const *begin,
+                                       const char *const *end)
+{
+  return begin == end ? 0 : max_const(strlen_const(*begin),
+                                      longest_string(begin + 1, end));
 }
 
 /**
    The maximum length of a string in json_type_string_map including
    a final zero char.
 */
-static const uint32 typelit_max_length= compute_max_typelit();
+static constexpr uint32 typelit_max_length=
+  longest_string(json_type_string_map,
+                 json_type_string_map + array_elements(json_type_string_map))
+  + 1;
 
 bool Item_func_json_type::resolve_type(THD *)
 {
@@ -2111,62 +2126,50 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
       if (doc->seek(*path, &hits, true, true))
         return error_json();                  /* purecov: inspected */
 
-      if (hits.size() < 1)
-      {
+      if (hits.empty())
         continue;
-      }
 
-      /*
-        Iterate backwards lest we get into trouble with replacing outer
-        parts of the doc before we get to paths to inner parts when we have
-        ellipses in the path. Make sure we do the most nested replacements
-        first. Json_dom::seek returns outermost hits first.
+      // Paths with wildcards and ranges are rejected, so expect one hit.
+      DBUG_ASSERT(hits.size() == 1);
+      Json_dom *hit= hits[0];
 
-        Note that, later on, we decide to forbid ellipses in the path
-        arguments to json_array_append().
-      */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
+      Json_wrapper valuew;
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer, &valuew))
+        return error_json();
+
+      Json_dom_ptr val_dom(valuew.to_dom(thd));
+      valuew.set_alias(); // we have taken over the DOM
+
+      if (hit->json_type() == enum_json_type::J_ARRAY)
       {
-        --it;
-        Json_wrapper valuew;
-        if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
-                                  &m_conversion_buffer,
-                                  &valuew))
-          return error_json();
-
-        Json_dom_ptr val_dom(valuew.to_dom(thd));
-        valuew.set_alias(); // we have taken over the DOM
-
-        if ((*it)->json_type() == enum_json_type::J_ARRAY)
+        Json_array *arr= down_cast<Json_array *>(hit);
+        if (arr->append_alias(std::move(val_dom)))
+          return error_json();                /* purecov: inspected */
+      }
+      else
+      {
+        Json_array_ptr arr(new (std::nothrow) Json_array());
+        if (arr == nullptr ||
+            arr->append_clone(hit) ||
+            arr->append_alias(std::move(val_dom)))
         {
-          Json_array *arr= down_cast<Json_array *>(*it);
-          if (arr->append_alias(std::move(val_dom)))
-            return error_json();   /* purecov: inspected */
+          return error_json();                /* purecov: inspected */
+        }
+        /*
+          This value will replace the old document we found using path, since
+          we did an auto-wrap. If this is root, this is trivial, but if it's
+          inside an array or object, we need to find the parent DOM to be
+          able to replace it in situ.
+        */
+        if (wrapped_top_level_item(path, hit))
+        {
+          docw= Json_wrapper(std::move(arr));
         }
         else
         {
-          Json_array_ptr arr(new (std::nothrow) Json_array());
-          if (arr == nullptr ||
-              arr->append_clone(*it) ||
-              arr->append_alias(std::move(val_dom)))
-          {
-            return error_json();          /* purecov: inspected */
-          }
-          /*
-            This value will replace the old document we found using path, since
-            we did an auto-wrap. If this is root, this is trivial, but if it's
-            inside an array or object, we need to find the parent DOM to be
-            able to replace it in situ.
-          */
-          if (wrapped_top_level_item(path, (*it)))
-          {
-            docw= Json_wrapper(std::move(arr));
-          }
-          else
-          {
-            Json_dom *parent= (*it)->parent();
-            parent->replace_dom_in_container(*it, std::move(arr));
-          }
+          Json_dom *parent= hit->parent();
+          parent->replace_dom_in_container(hit, std::move(arr));
         }
       }
     }
@@ -2229,7 +2232,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
 
       {
         Json_dom_vector hits(key_memory_JSON);
-        if (doc->seek(m_path, &hits, false, true))
+        if (doc->seek(m_path, &hits, true, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() != 0 || // already exists
@@ -2248,7 +2251,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       */
       Json_dom_vector hits(key_memory_JSON);
       const Json_path_leg *leg= m_path.pop();
-      if (doc->seek(m_path, &hits, false, true))
+      if (doc->seek(m_path, &hits, true, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.size() < 1)
@@ -2257,84 +2260,72 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         continue;
       }
 
+      // We found *something* at that parent path
+
       Json_wrapper valuew;
       if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
-                                &m_conversion_buffer,
-                                &valuew))
+                                &m_conversion_buffer, &valuew))
       {
         return error_json();
       }
 
-      /*
-        Iterate backwards lest we get into trouble with replacing outer
-        parts of the doc before we get to paths to inner parts when we have
-        ellipses in the path. Make sure we do the most nested replacements
-        first. Json_dom::seek returns outermost hits first.
+      // Paths with wildcards and ranges are rejected, so expect one hit.
+      DBUG_ASSERT(hits.size() == 1);
+      Json_dom *hit= hits[0];
 
-        Note that, later on, we decided to forbid ellipses in the path
-        arguments to json_insert().
-      */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
+      // What did we specify in the path, object or array?
+      if (leg->get_type() == jpl_array_cell)
       {
-        --it;
-        // We found *something* at that parent path
-
-        // What did we specify in the path, object or array?
-        if (leg->get_type() == jpl_array_cell)
+        // We specified an array, what did we find at that position?
+        if (hit->json_type() == enum_json_type::J_ARRAY)
         {
-          // We specified an array, what did we find at that position?
-          if ((*it)->json_type() == enum_json_type::J_ARRAY)
-          {
-            // We found an array, so either prepend or append.
-            Json_array *arr= down_cast<Json_array *>(*it);
-            size_t pos= leg->first_array_index(arr->size()).position();
-            if (arr->insert_alias(pos, valuew.clone_dom(thd)))
-              return error_json();        /* purecov: inspected */
-          }
-          else if (!leg->is_autowrap())
-          {
-            /*
-              Found a scalar or object and we didn't specify position 0 or last:
-              auto-wrap it and either prepend or append.
-            */
-            size_t pos= leg->first_array_index(1).position();
-            Json_dom *a= *it;
-            Json_array_ptr newarr(new (std::nothrow) Json_array());
-            if (newarr == nullptr ||
-                newarr->append_clone(a) /* auto-wrap this */ ||
-                newarr->insert_alias(pos, valuew.clone_dom(thd)))
-            {
-              return error_json();        /* purecov: inspected */
-            }
-
-            /*
-              Now we need this value to replace the old document we found using
-              path. If this is root, this is trivial, but if it's inside an
-              array or object, we need to find the parent DOM to be able to
-              replace it in situ.
-            */
-            if (m_path.leg_count() == 0) // root
-            {
-              docw= Json_wrapper(std::move(newarr));
-            }
-            else
-            {
-              Json_dom *parent= a->parent();
-              DBUG_ASSERT(parent);
-
-              parent->replace_dom_in_container(a, std::move(newarr));
-            }
-          }
+          // We found an array, so either prepend or append.
+          Json_array *arr= down_cast<Json_array *>(hit);
+          size_t pos= leg->first_array_index(arr->size()).position();
+          if (arr->insert_alias(pos, valuew.clone_dom(thd)))
+            return error_json();              /* purecov: inspected */
         }
-        else if (leg->get_type() == jpl_member &&
-                 (*it)->json_type() == enum_json_type::J_OBJECT)
+        else if (!leg->is_autowrap())
         {
-          Json_object *o= down_cast<Json_object *>(*it);
-          if (o->add_clone(leg->get_member_name(), valuew.to_dom(thd)))
-            return error_json();          /* purecov: inspected */
+          /*
+            Found a scalar or object and we didn't specify position 0 or last:
+            auto-wrap it and either prepend or append.
+          */
+          size_t pos= leg->first_array_index(1).position();
+          Json_array_ptr newarr(new (std::nothrow) Json_array());
+          if (newarr == nullptr ||
+              newarr->append_clone(hit) /* auto-wrap this */ ||
+              newarr->insert_alias(pos, valuew.clone_dom(thd)))
+          {
+            return error_json();              /* purecov: inspected */
+          }
+
+          /*
+            Now we need this value to replace the old document we found using
+            path. If this is root, this is trivial, but if it's inside an
+            array or object, we need to find the parent DOM to be able to
+            replace it in situ.
+          */
+          if (m_path.leg_count() == 0) // root
+          {
+            docw= Json_wrapper(std::move(newarr));
+          }
+          else
+          {
+            Json_dom *parent= hit->parent();
+            DBUG_ASSERT(parent);
+
+            parent->replace_dom_in_container(hit, std::move(newarr));
+          }
         }
       }
-
+      else if (leg->get_type() == jpl_member &&
+               hit->json_type() == enum_json_type::J_OBJECT)
+      {
+        Json_object *o= down_cast<Json_object *>(hit);
+        if (o->add_clone(leg->get_member_name(), valuew.to_dom(thd)))
+          return error_json();                /* purecov: inspected */
+      }
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
     *wr= std::move(docw);
@@ -2416,40 +2407,29 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         continue;
       }
 
+      // We found *something* at that parent path
+
+      // Paths with wildcards and ranges are rejected, so expect one hit.
+      DBUG_ASSERT(hits.size() == 1);
+      Json_dom *hit= hits[0];
+
+      // NOP if parent is not an array
+      if (hit->json_type() != enum_json_type::J_ARRAY)
+        continue;
+
       Json_wrapper valuew;
-      if (get_atom_null_as_null(args, i + 1, func_name(),
-                                &m_value, &m_conversion_buffer,
-                                &valuew))
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer, &valuew))
       {
         return error_json();
       }
 
-      /*
-        Iterate backwards lest we get into trouble with replacing outer
-        parts of the doc before we get to paths to inner parts when we have
-        ellipses in the path. Make sure we do the most nested replacements
-        first. Json_dom::seek returns outermost hits first.
-
-        Note that, later on, we decided to forbid ellipses in the path
-        arguments to json_insert().
-      */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
-      {
-        --it;
-        // We found *something* at that parent path
-
-        // NOP if parent is not an array
-
-        if ((*it)->json_type() == enum_json_type::J_ARRAY)
-        {
-          // Excellent. Insert the value at that location.
-          Json_array *arr= down_cast<Json_array *>(*it);
-          DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-          size_t pos= leg->first_array_index(arr->size()).position();
-          if (arr->insert_alias(pos, valuew.clone_dom(thd)))
-            return error_json();        /* purecov: inspected */
-        }
-      }
+      // Insert the value at that location.
+      Json_array *arr= down_cast<Json_array *>(hit);
+      DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+      size_t pos= leg->first_array_index(arr->size()).position();
+      if (arr->insert_alias(pos, valuew.clone_dom(thd)))
+        return error_json();        /* purecov: inspected */
 
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
@@ -2637,8 +2617,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
       Json_wrapper valuew;
       if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
-                                &m_conversion_buffer,
-                                &valuew))
+                                &m_conversion_buffer, &valuew))
         return error_json();
 
       if (binary_diffs)
@@ -2872,8 +2851,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     {
       Json_wrapper valuew;
       if (get_atom_null_as_null(args, i, func_name(), &m_value,
-                                &m_conversion_buffer,
-                                &valuew))
+                                &m_conversion_buffer, &valuew))
       {
         return error_json();
       }

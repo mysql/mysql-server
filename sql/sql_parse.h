@@ -22,9 +22,9 @@
 #include "handler.h"                 // enum_schema_tables
 #include "key.h"
 #include "lex_string.h"
-#include "m_string.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
 #include "system_variables.h"

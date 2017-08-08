@@ -17,29 +17,29 @@
 #define DD__VIEW_IMPL_INCLUDED
 
 #include <sys/types.h>
+#include <memory>
 #include <new>
-#include <string>
 
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
 #include "dd/impl/types/entity_object_impl.h"
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
+#include "dd/properties.h"
+#include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
 #include "dd/types/entity_object_table.h"      // dd::Entity_object_table
 #include "dd/types/object_type.h"
 #include "dd/types/view.h"                     // dd::View
-#include "dd/types/view_routine.h"             // dd::View_routine
-#include "dd/types/view_table.h"               // dd::View_table
+#include "dd/types/view_routine.h"             // IWYU pragma: keep
+#include "dd/types/view_table.h"               // IWYU pragma: keep
 #include "my_inttypes.h"
 
 namespace dd {
 class Column;
 class Open_dictionary_tables_ctx;
-class Properties;
-class View_routine;
-class View_table;
 class Weak_object;
+class Object_table;
 }  // namespace dd
 
 typedef struct charset_info_st CHARSET_INFO;

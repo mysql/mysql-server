@@ -21,6 +21,7 @@
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/routine.h"                           // dd::Routine
 
 namespace dd {

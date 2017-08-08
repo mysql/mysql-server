@@ -15,6 +15,7 @@
 
 #include "sql_auth_cache.h"
 
+#include <boost/graph/properties.hpp>
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -23,8 +24,10 @@
 #include "auth_internal.h"      // auth_plugin_is_built_in
 #include "current_thd.h"        // current_thd
 #include "debug_sync.h"
+#include "dynamic_privilege_table.h"
 #include "error_handler.h"      // Internal_error_handler
 #include "field.h"              // Field
+#include "handler.h"
 #include "item_func.h"          // mqh_used
 #include "log.h"
 #include "m_ctype.h"
@@ -32,20 +35,22 @@
 #include "mdl.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"  // st_mysql_auth
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"             // my_localhost
 #include "mysqld_error.h"
+#include "prealloced_array.h"
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "records.h"            // READ_RECORD
-#include "session_tracker.h"
+#include "role_tables.h"
 #include "set_var.h"
 #include "sql_authentication.h" // sha256_password_plugin_name
 #include "sql_base.h"           // open_and_lock_tables
@@ -54,6 +59,7 @@
 #include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_plugin.h"         // my_plugin_lock_by_name
+#include "sql_plugin_ref.h"
 #include "sql_security_ctx.h"
 #include "sql_servers.h"
 #include "sql_string.h"
@@ -62,15 +68,11 @@
 #include "sql_user_table.h"
 #include "system_variables.h"
 #include "table.h"              // TABLE
-#include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "thr_mutex.h"
+#include "value_map.h"
 #include "xa.h"
-#include "mysqld_error.h"
-#include "dynamic_privilege_table.h"
-#include "role_tables.h"
-#include "sql_authorization.h"        // close_all_role_tables
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 

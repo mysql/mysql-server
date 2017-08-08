@@ -1,12 +1,5 @@
 #include "plugin.h"
-typedef void * MYSQL_PLUGIN;
-struct st_mysql_xid {
-  long formatID;
-  long gtrid_length;
-  long bqual_length;
-  char data[128];
-};
-typedef struct st_mysql_xid MYSQL_XID;
+#include "status_var.h"
 enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL,
@@ -29,6 +22,14 @@ struct st_mysql_show_var
   enum enum_mysql_show_scope scope;
 };
 typedef int (*mysql_show_var_func)(void*, struct st_mysql_show_var*, char *);
+typedef void * MYSQL_PLUGIN;
+struct st_mysql_xid {
+  long formatID;
+  long gtrid_length;
+  long bqual_length;
+  char data[128];
+};
+typedef struct st_mysql_xid MYSQL_XID;
 struct st_mysql_sys_var;
 struct st_mysql_value;
 typedef int (*mysql_var_check_func)(void* thd,

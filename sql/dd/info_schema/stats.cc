@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 #include "dd/info_schema/stats.h"             // dd::info_schema::*
 
+#include <assert.h>
 #include <string.h>
 #include <cmath>
 #include <memory>                             // unique_ptr
@@ -22,8 +23,8 @@
 #include "auth_common.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::create_object
+#include "dd/properties.h"
 #include "dd/types/abstract_table.h"
-#include "dd/types/event.h"
 #include "dd/types/index_stat.h"              // dd::Index_stat
 #include "dd/types/table_stat.h"              // dd::Table_stat
 #include "debug_sync.h"                       // DEBUG_SYNC
@@ -34,12 +35,11 @@
 #include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_time.h"                          // TIME_to_ulonglong_datetime
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
 #include "sql_base.h"                         // open_tables_for_query
 #include "sql_class.h"                        // THD
 #include "sql_const.h"
@@ -51,6 +51,7 @@
 #include "system_variables.h"
 #include "table.h"                            // TABLE_LIST
 #include "tztime.h"                           // Time_zone
+#include "value_map.h"
 
 namespace dd {
   namespace info_schema {

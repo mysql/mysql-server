@@ -76,6 +76,20 @@ with recursive qn as
 select max(a) from qn)
 select * from qn;
 ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
 # No subquery referencing a QN
 with recursive qn as (
 select 1 from dual union all
@@ -107,6 +121,15 @@ select 1 as a from dual union all
 (select 1 from qn order by a))
 select * from qn;
 ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
 # no LIMIT as it's not pushed down to UNION members
 with recursive qn as (
 select 1 as a from dual union all
@@ -1362,6 +1385,20 @@ with recursive qn as
 select max(a) from qn)
 select * from qn;
 ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
+# No GROUP BY
+with recursive qn as
+(select 1 as a from dual group by a union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
+with recursive qn as
+(select 1 as a from dual union all
+select a from qn group by a)
+select * from qn;
+ERROR HY000: Recursive Common Table Expression 'qn' can contain neither aggregation nor window functions in recursive query block
 # No subquery referencing a QN
 with recursive qn as (
 select 1 from dual union all
@@ -1393,6 +1430,15 @@ select 1 as a from dual union all
 (select 1 from qn order by a))
 select * from qn;
 ERROR 42000: This version of MySQL doesn't yet support 'ORDER BY / LIMIT / SELECT DISTINCT in recursive query block of Common Table Expression'
+# Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
+select * from qn;
+a
+1
+2
+3
 # no LIMIT as it's not pushed down to UNION members
 with recursive qn as (
 select 1 as a from dual union all

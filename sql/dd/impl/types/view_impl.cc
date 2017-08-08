@@ -16,6 +16,7 @@
 #include "dd/impl/types/view_impl.h"
 
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/raw/raw_record.h"            // Raw_record
@@ -35,7 +36,6 @@
 #include "my_sys.h"
 #include "my_user.h"                          // parse_user
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"                     // ER_*
 
 using dd::tables::Tables;

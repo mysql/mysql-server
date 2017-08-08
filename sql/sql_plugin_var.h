@@ -16,7 +16,28 @@
 #ifndef _sql_comp_common_h
 #define _sql_comp_common_h
 
+#include <string.h>
+#include <sys/types.h>
+#include <new>
+
+#include "lex_string.h"
+#include "my_compiler.h"
+#include "my_getopt.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "set_var.h"
+#include "sql_servers.h"
+#include "thr_malloc.h"
+#include "typelib.h"
+
+class Item;
+class THD;
+struct st_mysql_sys_var;
+struct st_plugin_int;
 
 /*
   Below define's are used for internal purpose(i.e used by plugin and

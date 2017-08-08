@@ -16,10 +16,9 @@
 #ifndef DD_TABLES__COLUMNS_INCLUDED
 #define DD_TABLES__COLUMNS_INCLUDED
 
-#include <string>
-
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
 #include "dd/object_id.h"                    // dd::Object_id
+#include "dd/string_type.h"
 
 namespace dd {
   class Object_key;

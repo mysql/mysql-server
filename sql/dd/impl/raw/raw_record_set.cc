@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "table.h"                          // TABLE
 
 namespace dd {

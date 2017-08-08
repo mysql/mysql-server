@@ -1478,7 +1478,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
       const Item* const item= join_items[i];
       op_key[map[i]]= NULL;
 
-      DBUG_ASSERT(item->const_item() == item->const_during_execution());
+      DBUG_ASSERT(item->const_item() == item->const_for_execution());
       if (item->const_item())
       {
         /** 

@@ -16,14 +16,15 @@
 #include "dd/impl/tables/column_statistics.h"
 
 #include <new>
+#include <string>
 
 #include "dd/impl/raw/object_keys.h"                    // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_defi ...
 #include "dd/impl/types/column_statistics_impl.h"       // Column_statistic_impl
+#include "dd/impl/types/object_table_definition_impl.h" // Object_table_defi ...
+#include "mysqld.h"
+#include "stateless_allocator.h"
 
 namespace dd {
-class Dictionary_object;
-class Object_key;
 class Raw_record;
 }  // namespace dd
 

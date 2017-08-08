@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"                 // Properties_impl
 #include "dd/impl/raw/raw_record.h"                  // Raw_record

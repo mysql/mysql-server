@@ -22,7 +22,6 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"             // MYSQL_LEX_CSTRING
 

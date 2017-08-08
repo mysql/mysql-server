@@ -15,12 +15,12 @@
 
 #include "rpl_reporting.h"
 
-#include <stddef.h>
-
 #include "current_thd.h"
 #include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysqld.h"            // slave_trans_retries
 #include "mysqld_error.h"

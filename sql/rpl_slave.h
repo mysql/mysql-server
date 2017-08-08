@@ -20,14 +20,21 @@
 #include <sys/types.h>
 #include <atomic>
 
+#include "m_string.h"
 #include "my_bitmap.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_thread.h"                     // my_start_routine
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/mysql_cond.h"          // mysql_cond_t
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "rpl_channel_service_interface.h" // enum_channel_type
 
 class Master_info;

@@ -19,10 +19,11 @@
 #include "my_config.h"
 
 #include <sys/types.h>
-#include <memory>
 #include <list>
+#include <memory>
 
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 
 #ifdef HAVE_NETINET_IN_H

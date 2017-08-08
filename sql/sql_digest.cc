@@ -24,13 +24,14 @@
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_macros.h"
 #include "my_md5.h"                 // compute_md5_hash
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql_digest_stream.h"      // sql_digest_state
 #include "sql_lex.h"                // LEX_YYSTYPE
 #include "sql_string.h"             // String
-#include "sql_udf.h"
 /* Generated code */
 #include "sql_yacc.h"
 

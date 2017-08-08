@@ -1,0 +1,26 @@
+# Test for registration of status variables by one component, unregister by another component.
+
+--source ../include/have_component_test_status_var_service.inc
+
+INSTALL COMPONENT "file://component_test_status_var_service_reg_only";
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'int_var%';
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_int_component.int_variable';
+SHOW STATUS WHERE VARIABLE_NAME LIKE 'test_str_component.str_variable';
+
+INSTALL COMPONENT "file://component_test_status_var_service_unreg_only";
+
+SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE '%component%';
+
+UNINSTALL COMPONENT "file://component_test_status_var_service_reg_only";
+UNINSTALL COMPONENT "file://component_test_status_var_service_unreg_only";
+
+# Write the test results in "test_component_status_var_service.log" into the
+# result file of this test
+--echo ########## test_component_status_var_service_reg_only.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service_reg_only.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service_reg_only.log;
+--echo ########## test_component_status_var_service_unreg_only.log:
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_component_status_var_service_unreg_only.log;
+remove_file $MYSQLD_DATADIR/test_component_status_var_service_unreg_only.log;

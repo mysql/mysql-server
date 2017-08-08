@@ -22,6 +22,7 @@
 #include "log.h"
 #include "log_event.h"
 #include "m_string.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"

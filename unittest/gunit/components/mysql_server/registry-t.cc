@@ -29,6 +29,7 @@ typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
 #include <udf_registration_imp.h>
 #include <persistent_dynamic_loader.h>
 #include <component_sys_var_service.h>
+#include <component_status_var_service.h>
 #include <scope_guard.h>
 #include <server_component.h>
 
@@ -146,6 +147,18 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
   (const char *,
    const char *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
+  (STATUS_VAR *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
+  (STATUS_VAR *))
 {
   return true;
 }

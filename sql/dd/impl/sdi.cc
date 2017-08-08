@@ -16,52 +16,46 @@
 #include "dd/impl/sdi.h"
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
-
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
-#include <rapidjson/error/error.h>  // rapidjson::ParseErrorCode
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/dd.h"                      // dd::create_object
 #include "dd/impl/dictionary_impl.h"    // dd::Dictionary_impl::get_target_dd_version
 #include "dd/impl/sdi_impl.h"           // sdi read/write functions
+#include "dd/impl/sdi_tablespace.h"     // dd::sdi_tablespace::store
 #include "dd/impl/sdi_utils.h"          // dd::checked_return
 #include "dd/object_id.h"               // dd::Object_id
-#include "dd/properties.h"              // dd::Properties
 #include "dd/sdi_file.h"                // dd::sdi_file::store
 #include "dd/sdi_fwd.h"
-#include "dd/impl/sdi_tablespace.h"     // dd::sdi_tablespace::store
 #include "dd/types/abstract_table.h"
 #include "dd/types/column.h"            // dd::Column
 #include "dd/types/index.h"             // dd::Index
 #include "dd/types/schema.h"            // dd::Schema
 #include "dd/types/table.h"             // dd::Table
 #include "dd/types/tablespace.h"        // dd::Tablespace
-#include "dd_sql_view.h"                // update_referencing_views_metadata()
 #include "handler.h"              // ha_resolve_by_name_raw
+#include "m_ctype.h"
 #include "m_string.h"             // STRING_WITH_LEN
 #include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "rapidjson/stringbuffer.h"
 #include "sql_class.h"            // THD
 #include "sql_plugin_ref.h"
+#include "sql_security_ctx.h"
 #include "strfunc.h"              // lex_cstring_handle
-#include "table.h"                // TABLE_LIST
-#include "template_utils.h"
-
-namespace dd {
-class Weak_object;
-}  // namespace dd
 
 /**
   @defgroup sdi Serialized Dictionary Information
@@ -808,11 +802,6 @@ bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp)
 
   @{
 */
-
-
-namespace dd {
-class Weak_object;
-}  // namespace dd
 
 /**
   @namespace sdi_unittest

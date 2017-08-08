@@ -14,20 +14,62 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "persisted_variable.h"
+
+#include "my_config.h"
+
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <memory>
+#include <new>
+#include <utility>
+
 #include "current_thd.h"
 #include "derror.h"           // ER_THD
+#include "item.h"
 #include "json_dom.h"
 #include "lex_string.h"
 #include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
 #include "my_default.h"                 // check_file_permissions
-#include "mysqld.h"
-#include "mysql/psi/mysql_mutex.h"
+#include "my_getopt.h"
+#include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sys.h"
+#include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_file_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_version.h"
+#include "mysqld.h"
+#include "mysqld_error.h"
+#include "pfs_mutex_provider.h"
+#include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "set_var.h"
 #include "sql_class.h"
+#include "sql_error.h"
 #include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"
+#include "sql_string.h"
+#include "sql_table.h"
 #include "sys_vars_shared.h"
+#include "thr_mutex.h"
+#include "typelib.h"
 
 PSI_file_key key_persist_file_cnf;
 

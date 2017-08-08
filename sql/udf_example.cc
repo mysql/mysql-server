@@ -116,15 +116,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <algorithm>
 #include <mutex>
 #include <new>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
-#include "mysql.h"
+#include "mysql.h"  // IWYU pragma: keep
 
 #ifdef _WIN32
 /* inet_aton needs winsock library */
@@ -679,8 +679,8 @@ long long sequence(UDF_INIT *initid, UDF_ARGS *args, char *, char *)
 ****************************************************************************/
 
 #ifndef _WIN32
-#include <netdb.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif
