@@ -13,34 +13,34 @@ INSERT INTO t2 VALUES(11);
 
 set session debug = "+d,ib_truncate_crash_after_rename";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 TRUNCATE TABLE t2;
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
 set session debug = "+d,ib_truncate_crash_after_drop_old_table";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 truncate table t2;
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
 set session debug = "+d,ib_truncate_crash_after_create_new_table";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 truncate table t2;
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
 set session debug = "+d,ib_truncate_crash_after_innodb_complete";
 --source include/expect_crash.inc
---error 2013
+--error CR_SERVER_LOST
 truncate table t2;
 --source include/start_mysqld.inc
 SELECT * FROM t2;
 
 set session debug = "+d,ib_truncate_rollback_test";
---error 1030
+--error ER_GET_ERRNO
 truncate table t2;
 SELECT * FROM t2;
 

@@ -243,7 +243,7 @@ SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
 --echo # Write file to make mysql-test-run.pl expect crash
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 AUTO_INCREMENT = 21;
 
 --echo # Restart mysqld after the crash and reconnect.
@@ -308,7 +308,7 @@ SET SESSION debug="+d, ib_ddl_crash_before_update_stats";
 --echo # Write file to make mysql-test-run.pl expect crash
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 AUTO_INCREMENT = 21;
 
 --echo # Restart mysqld after the crash and reconnect.

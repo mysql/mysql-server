@@ -16,16 +16,17 @@ let $did_crash= 0;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --disable_reconnect
 
-# 2013 - CR_SERVER_LOST
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval $crash_statement
 
+# 2013 - CR_SERVER_LOST
 if ($mysql_errno != 2013)
 {
   --echo # No such crash injection, statement did not crash, cleaning up
   --remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 }
 
+# 2013 - CR_SERVER_LOST
 if ($mysql_errno == 2013)
 {
   let $did_crash= 1;

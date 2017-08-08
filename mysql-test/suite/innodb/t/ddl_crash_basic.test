@@ -14,7 +14,7 @@ eval set session debug = '+d, ddl_log_crash_after_free_tree_log_2';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -34,7 +34,7 @@ set session debug = '+d, ddl_log_before_post_ddl';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b))
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -52,7 +52,7 @@ set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_before_drop_log_1';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval drop table t1
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -71,7 +71,7 @@ set session debug = '+d, ddl_log_before_post_ddl';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval drop table t1
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -92,7 +92,7 @@ CREATE TABLE t1 (a INT, b INT, c INT, key(a), key(b));
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 set session debug = '+d, ddl_log_crash_before_rename_space_log_1';
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -111,7 +111,7 @@ SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 --echo # Test rename table crash/recovery rollback 2.
 set global innodb_ddl_log_crash_reset_debug = 1;
 set session debug = '+d, ddl_log_crash_after_rename_space_log_1';
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -133,7 +133,7 @@ set session debug = '+d, ddl_log_before_post_ddl';
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---error 0,2013,ER_INTERNAL_ERROR
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
 --eval rename table t1 to t2
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
