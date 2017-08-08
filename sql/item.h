@@ -4803,6 +4803,20 @@ public:
   }
 
   bool fix_fields(THD *, Item **) override;
+
+  /*
+    Takes into account whether an Item in a derived table / view is part of an
+    inner table of an outer join.
+  */
+  table_map used_tables() const override
+  {
+    return depended_from ?
+      OUTER_REF_TABLE_BIT :
+      (*ref)->const_for_execution() && first_inner_table != NULL ?
+        first_inner_table->map() :
+        (*ref)->used_tables();
+  }
+
   bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override
   {
