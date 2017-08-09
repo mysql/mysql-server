@@ -14324,8 +14324,6 @@ validate_create_tablespace_info(
 	THD*			thd,
 	st_alter_tablespace*	alter_info)
 {
-	space_id_t	space_id;
-
 	/* The parser ensures that these fields are provided. */
 	ut_a(alter_info->tablespace_name);
 	ut_a(alter_info->data_file_name);
@@ -14343,7 +14341,11 @@ validate_create_tablespace_info(
 	int	error = 0;
 
 	/* Make sure the tablespace is not already open. */
+
+	space_id_t	space_id;
+
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
+
 	if (space_id != SPACE_UNKNOWN) {
 		my_printf_error(ER_TABLESPACE_EXISTS,
 				"InnoDB: A tablespace named `%s`"
@@ -14385,9 +14387,7 @@ validate_create_tablespace_info(
 	}
 
 	/* Validate the ADD DATAFILE name. */
-	char*	filepath = mem_strdup(alter_info->data_file_name);
-
-	Fil_path::normalize(filepath);
+	Fil_path	filepath{alter_info->data_file_name};
 
 	/* It must end with '.ibd' and contain a basename of at least
 	1 character before the.ibd extension. */
@@ -14399,9 +14399,9 @@ validate_create_tablespace_info(
 	if (basename_len <= 4 || !fil_has_ibd_suffix(basename)) {
 
 		if (basename_len <= 4) {
-			my_error(
-				ER_WRONG_FILE_NAME, MYF(0),
-				alter_info->data_file_name);
+
+			my_error(ER_WRONG_FILE_NAME,
+				 MYF(0), filepath.path().c_str());
 		} else {
 
 			my_printf_error(
@@ -14409,8 +14409,6 @@ validate_create_tablespace_info(
 				"An IBD filepath must end with `.ibd`.",
 				MYF(0));
 		}
-
-		ut_free(filepath);
 
 		return(HA_WRONG_CREATE_OPTION);
 	}
@@ -14424,15 +14422,16 @@ validate_create_tablespace_info(
 		specifies the "C:" drive but allows a relative location.
 		It should be like "c:\". If a single colon is used it must
 		be the second byte the the third byte must be a separator. */
-		if (colon != &filepath[1]
+		if (colon != filepath.path().at(1)
 		    || (colon[1] != OS_PATH_SEPARATOR)
 		    || NULL != strchr(&colon[1], ':')) {
 #endif /* _WIN32 */
-			my_error(ER_WRONG_FILE_NAME, MYF(0),
-				 alter_info->data_file_name);
+			my_error(ER_WRONG_FILE_NAME,
+				 MYF(0), filepath.path().c_str());
+
 			my_printf_error(ER_WRONG_FILE_NAME,
 					"Invalid use of ':'.", MYF(0));
-			ut_free(filepath);
+
 			return(HA_WRONG_CREATE_OPTION);
 #ifdef _WIN32
 		}
@@ -14443,23 +14442,19 @@ validate_create_tablespace_info(
 	/* On Non-Windows platforms, '\\' is a valid file name character.
 	But for InnoDB datafiles, we always assume it is a directory
 	separator and convert these to '/' */
-	if (strchr(alter_info->data_file_name, '\\') != NULL) {
-		ib::warn() << "Converting backslash to forward slash in"
-			" ADD DATAFILE " << alter_info->data_file_name;
+	if (strchr(filepath, '\\') != NULL) {
+
+		ib::warn()
+			<< "Converting backslash to forward slash in"
+			" ADD DATAFILE " << filepath.path();
 	}
 #endif /* _WIN32 */
 
-	std::string	dirname(filepath, dirname_len);
+	Fil_path	dirpath{alter_info->data_file_name, dirname_len};
 
-	/* The directory path must be pre-existing. */
-	Fil_path	dir{dirname};
+	if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
 
-	ut_free(filepath);
-
-	if (dir.len() > 0 && !dir.is_directory_and_exists()) {
-		const auto	name = alter_info->data_file_name;
-
-		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
 		my_printf_error(
 			ER_WRONG_FILE_NAME,
@@ -14470,12 +14465,11 @@ validate_create_tablespace_info(
 
 	/* CREATE TABLESPACE...ADD DATAFILE must be under a path that InnoDB
 	knows about. */
-	if (dir.len() > 0 && !fil_check_path(dir.path())) {
+	if (dirpath.len() > 0 && !fil_check_path(dirpath.path())) {
 
 		std::string	paths = fil_get_dirs();
-		const auto	name = alter_info->data_file_name;
 
-		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
 		my_printf_error(
 			ER_WRONG_FILE_NAME,
@@ -14487,10 +14481,9 @@ validate_create_tablespace_info(
 
 	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
 	the datadir.*/
-	if (MySQL_datadir_path.is_ancestor(dir)) {
-		const auto	name = alter_info->data_file_name;
+	if (MySQL_datadir_path.is_ancestor(dirpath)) {
 
-		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
 		my_printf_error(
 			ER_WRONG_FILE_NAME,
