@@ -13,7 +13,9 @@ LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 --enable_query_log
 
@@ -1012,6 +1014,7 @@ call mtr.add_suppression("Skip updating information_schema metadata in InnoDB re
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 --error ER_OPEN_AS_READONLY
@@ -1022,6 +1025,7 @@ DROP TABLESPACE s1;
 SHOW WARNINGS;
 
 --echo # Restart in normal mode for cleanup.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 let $restart_parameters = restart --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 DROP TABLESPACE s1;

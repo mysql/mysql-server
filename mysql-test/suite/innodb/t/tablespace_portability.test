@@ -16,7 +16,9 @@
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
 --disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 --enable_query_log
 

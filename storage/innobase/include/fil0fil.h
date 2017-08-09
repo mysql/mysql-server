@@ -439,6 +439,21 @@ public:
 		return(is_absolute_path(m_path.c_str()));
 	}
 
+	/** Convert the paths into absolute paths and compare them. The
+	paths to compare must be valid paths, otherwise the result is
+	undefined.
+	@param[in]	lhs		Filename to compare
+	@param[in]	rhs		Filename to compare
+	@return true if they are the same */
+	static bool equal(const std::string& lhs, const std::string& rhs)
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		Fil_path	path1(lhs);
+		Fil_path	path2(rhs);
+
+		return(path1.abs_path().compare(path2.abs_path()) == 0);
+	}
+
 	/** Determine if a path is an absolute path or not.
 	@param[in]	path		OS directory or file path to evaluate
 	@retval true if an absolute path
@@ -950,14 +965,6 @@ fil_delete_tablespace(
 	MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_HOTBACKUP
-/* Convert the paths into absolute paths and compare them.
-@param[in]	lhs		Filename to compare
-@param[in]	rhs		Filename to compare
-@return true if they are the same */
-bool
-fil_paths_equal(const char* lhs, const char* rhs)
-	MY_ATTRIBUTE((warn_unused_result));
-
 /** Fetch the file name opened for a space_id during recovery
 from the file map.
 @param[in]	space_id	Undo tablespace ID

@@ -804,7 +804,7 @@ srv_undo_tablespace_open(space_id_t space_id)
 		scanned_name = fil_system_open_fetch(space_id);
 
 		if (scanned_name.length() != 0
-		    && !fil_paths_equal(file_name, scanned_name.c_str())) {
+		    && !Fil_path::equal(file_name, scanned_name)) {
 
 			/* Make sure that this space_id is used by the
 			correctly named undo tablespace. */
@@ -831,7 +831,7 @@ srv_undo_tablespace_open(space_id_t space_id)
 
 #ifdef UNIV_DEBUG
 		const auto&     file = space->files.front();
-		ut_ad(fil_paths_equal(scanned_name.c_str(), file.name));
+		ut_ad(Fil_path::equal(scanned_name, file.name));
 #endif /* UNIV_DEBUG */
 
 		fil_flush(space_id);

@@ -3868,59 +3868,6 @@ Tablespace_files::Tablespace_files(const std::string& dir)
 	ut_ad(dir.back() == OS_PATH_SEPARATOR);
 }
 
-/* Convert the paths into absolute paths and compare them.
-@param[in]	lhs		Filename to compare
-@param[in]	rhs		Filename to compare
-@return true if they are the same */
-bool
-fil_paths_equal(const char* lhs, const char* rhs)
-{
-	std::string	abs_path1(lhs);
-
-	/* Convert to an absolute path */
-	if (*lhs == '.') {
-		const char*	ptr = lhs;
-
-		while (*ptr == '.' || *ptr == OS_PATH_SEPARATOR) {
-			++ptr;
-		}
-
-		abs_path1 = Fil_path::get_real_path(".", ptr);
-	} else{
-		abs_path1 = Fil_path::get_real_path(lhs);
-	}
-
-	/* Remove adjacent duplicate characters, comparison should not be
-	affected if the strings are identical. */
-
-	abs_path1.erase(
-		std::unique(
-			abs_path1.begin(), abs_path1.end()), abs_path1.end());
-
-	std::string	abs_path2(rhs);
-
-	if (*rhs == '.') {
-		const char*	ptr = rhs;
-
-		while (*ptr == '.' || *ptr == OS_PATH_SEPARATOR) {
-			++ptr;
-		}
-
-		abs_path2 = Fil_path::get_real_path(".", ptr);
-	} else {
-		abs_path2 = Fil_path::get_real_path(rhs);
-	}
-
-	/* Remove adjacent duplicate characters, comparison should not be
-	affected if the strings are identical. It will remove '//' */
-
-	abs_path2.erase(
-		std::unique(
-			abs_path2.begin(), abs_path2.end()), abs_path2.end());
-
-	return(abs_path1.compare(abs_path2) == 0);
-}
-
 /** Fetch the file name opened for a space_id during recovery
 from the file map.
 @param[in]	space_id	Undo tablespace ID
@@ -5451,7 +5398,7 @@ fil_ibd_open_for_recovery(
 		const auto&	file = space->files.front();
 
 		/* Compare the real paths. */
-		if (fil_paths_equal(filename, file.name)) {
+		if (Fil_path::equal(filename, file.name)) {
 			return(FIL_LOAD_OK);
 		}
 
