@@ -19,14 +19,11 @@
 #include <string.h>
 
 #include "derror.h"             // ER_THD
-#include "my_dbug.h"
-#include "my_pointer_arithmetic.h"
 #include "mysqld.h"             // global_system_variables
 #include "mysqld_error.h"       // ER_*
 #include "psi_memory_key.h"     // key_memory_thd_transactions
 #include "sql_class.h"          // THD_STAGE_INFO
 #include "sql_error.h"          // Sql_condition
-#include "sql_servers.h"
 #include "system_variables.h"   // System_variables
 
 

@@ -15,7 +15,7 @@
 
 #include "shared_dictionary_cache.h"
 
-#include <stddef.h>
+#include <atomic>
 
 #include "dd/impl/cache/shared_multi_map.h"
 #include "my_dbug.h"

@@ -16,6 +16,9 @@
 #include "rpl_utility.h"
 
 #include <string.h>
+#include <iterator>
+#include <new>
+#include <utility>
 
 #include "binary_log_funcs.h"
 #include "lex_string.h"
@@ -24,6 +27,7 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "thr_malloc.h"
 
 #ifdef MYSQL_SERVER

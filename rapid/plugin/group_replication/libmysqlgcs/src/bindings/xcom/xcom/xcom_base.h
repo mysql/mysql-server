@@ -168,7 +168,9 @@ typedef void (*xcom_global_view_receiver)(synode_no config_id,
                                           synode_no message_id, node_set nodes);
 void set_xcom_global_view_receiver(xcom_global_view_receiver x);
 
-void set_xcom_logger(xcom_logger l);
+void set_xcom_logger(xcom_logger x);
+void set_xcom_debugger(xcom_debugger x);
+void set_xcom_debugger_check(xcom_debugger_check x);
 
 typedef void (*app_snap_handler)(blob *gcs_snap);
 void set_app_snap_handler(app_snap_handler x);

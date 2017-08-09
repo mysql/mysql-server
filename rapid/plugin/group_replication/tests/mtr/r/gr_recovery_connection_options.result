@@ -31,6 +31,7 @@ include/assert.inc [On the recovered member, the table should contain 1 elements
 SET @debug_save= @@GLOBAL.DEBUG;
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
 call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("The member is leaving a group without being on one");

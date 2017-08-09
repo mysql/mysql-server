@@ -21,9 +21,11 @@
 #include <limits.h>
 #include <string.h>
 #include <time.h>
-#include <algorithm>
+#include <atomic>
+#include <functional>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"              // check_table_access
@@ -35,6 +37,7 @@
 #include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
 #include "dd/types/abstract_table.h"
 #include "dd/types/table.h"           // dd::Table
+#include "dd/types/view.h"
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
@@ -50,15 +53,18 @@
 #include "log.h"
 #include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
+#include "m_string.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"                 // wild_one, wild_many
 #include "mutex_lock.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
@@ -66,13 +72,16 @@
 #include "my_systime.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -92,22 +101,21 @@
 #include "sql_audit.h"                // mysql_audit_table_access_notify
 #include "sql_class.h"                // THD
 #include "sql_const.h"
+#include "sql_data_change.h"
 #include "sql_error.h"                // Sql_condition
 #include "sql_handler.h"              // mysql_ha_flush_tables
 #include "sql_lex.h"
-#include "window.h"                   // Window
 #include "sql_list.h"
 #include "sql_parse.h"                // is_update_query
-#include "sql_plugin_ref.h"
 #include "sql_prepare.h"              // Reprepare_observer
 #include "sql_security_ctx.h"
 #include "sql_select.h"               // reset_statement_timer
+#include "sql_servers.h"
 #include "sql_show.h"                 // append_identifier
 #include "sql_sort.h"
 #include "sql_string.h"
 #include "sql_table.h"                // build_table_filename
 #include "sql_update.h"               // records_are_comparable
-#include "sql_tmp_table.h"            // free_tmp_table
 #include "sql_view.h"                 // mysql_make_view
 #include "system_variables.h"
 #include "table.h"                    // TABLE_LIST
@@ -120,6 +128,10 @@
 #include "transaction.h"              // trans_rollback_stmt
 #include "transaction_info.h"
 #include "xa.h"
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 using std::equal_to;
 using std::hash;
@@ -10101,7 +10113,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 }
 
 
-int setup_ftfuncs(SELECT_LEX *select_lex)
+int setup_ftfuncs(const THD *thd, SELECT_LEX *select_lex)
 {
   DBUG_ASSERT(select_lex->has_ft_funcs());
 
@@ -10111,7 +10123,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 
   while ((ftf= li++))
   {
-    if (ftf->table_ref && ftf->fix_index())
+    if (ftf->table_ref && ftf->fix_index(thd))
       return 1;
     lj.rewind();
 

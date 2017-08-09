@@ -16,8 +16,8 @@
 #include "dd/impl/types/event_impl.h"
 
 #include <sstream>
+#include <string>
 
-#include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
 #include "dd/impl/tables/events.h"               // Events
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
@@ -27,7 +27,6 @@
 #include "my_sys.h"
 #include "my_user.h"                             // parse_user
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"                        // ER_*
 
 using dd::tables::Events;

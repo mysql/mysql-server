@@ -581,8 +581,20 @@ Plugin_gcs_events_handler::sort_and_get_lowest_version_member_position(
     first_member->get_member_version().get_major_version();
 
   /* to avoid read compatibility issue leader should be picked only from lowest
-     version members so save position where member version differs
-   */
+     version members so save position where member version differs.
+
+     set lowest_version_end when major version changes
+
+     eg: for a list: 5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21, 8.0.2
+         the members to be considered for election will be:
+            5.7.18, 5.7.18, 5.7.19, 5.7.20, 5.7.21
+         and server_uuid based algorithm will be used to elect primary
+
+     eg: for a list: 5.7.20, 5.7.21, 8.0.2, 8.0.2
+         the members to be considered for election will be:
+            5.7.20, 5.7.21
+         and member weight based algorithm will be used to elect primary
+  */
   for(it= all_members_info->begin() + 1; it != all_members_info->end(); it++)
   {
     if (lowest_major_version != (*it)->get_member_version().get_major_version())
@@ -600,11 +612,10 @@ void Plugin_gcs_events_handler::sort_members_for_election(
        std::vector<Group_member_info*>::iterator lowest_version_end) const
 {
   Group_member_info* first_member= *(all_members_info->begin());
-  uint32 lowest_major_version=
-    first_member->get_member_version().get_major_version();
+  Member_version lowest_version= first_member->get_member_version();
 
   // sort only lower version members as they only will be needed to pick leader
-  if (lowest_major_version >= PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION)
+  if (lowest_version >= PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION)
     std::sort(all_members_info->begin(), lowest_version_end,
               Group_member_info::comparator_group_member_weight);
   else

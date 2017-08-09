@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include "auth/auth_common.h"   // create_table_precheck()
+#include "auth_acls.h"
 #include "binlog.h"             // mysql_bin_log
 #include "dd/cache/dictionary_client.h"
 #include "derror.h"             // ER_THD

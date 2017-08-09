@@ -1,3 +1,5 @@
+Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
 
               Implementation specification for Stored Procedures
               ==================================================
@@ -603,7 +605,7 @@
         enum enum_field_types type;
         sp_param_mode_t mode;
         uint offset;                    // Offset in current frame
-        my_bool isset;
+        bool isset;
       } sp_pvar_t;
 
       typedef struct sp_cond_type
@@ -634,7 +636,7 @@
 
         // Mark the i:th variable to "set" (i.e. having a value) with
         // 'val' true.
-        void set_isset(uint i, my_bool val);
+        void set_isset(uint i, bool val);
 
         // Push the variable 'name' to the frame.
         void push_var(LEX_STRING *name,
@@ -680,7 +682,7 @@
         void push_cursor(LEX_STRING *name);
 
 	// Find a cursor
-	my_bool find_cursor(LEX_STRING *name, uint *poff);
+	bool find_cursor(LEX_STRING *name, uint *poff);
 
 	// Pop 'num' cursors
 	void pop_cursor(uint num);

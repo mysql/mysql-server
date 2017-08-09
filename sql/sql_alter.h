@@ -27,7 +27,6 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
-#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/psi_base.h"
 #include "sql_alloc.h"
 #include "sql_cmd.h"  // Sql_cmd

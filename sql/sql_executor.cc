@@ -26,12 +26,20 @@
 
 #include "sql_executor.h"
 
+#include "my_config.h"
+
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstring>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
 
 #include "binary_log_types.h"
 #include "debug_sync.h"       // DEBUG_SYNC
+#include "derror.h"
 #include "enum_query_type.h"
 #include "field.h"
 #include "filesort.h"         // Filesort
@@ -41,13 +49,16 @@
 #include "item_sum.h"         // Item_sum
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
+#include "key_spec.h"
 #include "lex_string.h"
 #include "log.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
+#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
@@ -56,10 +67,12 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld.h"           // stage_executing
+#include "mysqld_error.h"
 #include "opt_explain_format.h"
 #include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
 #include "opt_trace_context.h"
+#include "parse_tree_nodes.h" // PT_frame
 #include "protocol.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
@@ -71,16 +84,17 @@
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_list.h"
 #include "sql_optimizer.h"    // JOIN
-#include "sql_plugin_ref.h"
+#include "sql_servers.h"
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_sort.h"
 #include "sql_string.h"
 #include "sql_tmp_table.h"    // create_tmp_table
-#include "parse_tree_nodes.h" // PT_frame
 #include "system_variables.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
+#include "window.h"
+#include "window_lex.h"
 
 using std::max;
 using std::min;

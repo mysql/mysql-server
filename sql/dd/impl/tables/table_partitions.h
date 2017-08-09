@@ -16,10 +16,9 @@
 #ifndef DD_TABLES__TABLE_PARTITIONS_INCLUDED
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
-#include <string>
-
 #include "dd/impl/types/object_table_impl.h" // dd::Object_table_impl
 #include "dd/object_id.h"                    // dd::Object_id
+#include "dd/string_type.h"
 #include "my_inttypes.h"
 
 class THD;

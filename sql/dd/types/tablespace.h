@@ -22,6 +22,7 @@
 #include "dd/sdi_fwd.h"                   // RJ_Document
 #include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 
 class THD;
 
@@ -32,7 +33,6 @@ namespace dd {
 class Entity_object_table;
 class Global_name_key;
 class Object_type;
-class Primary_id_key;
 class Properties;
 class Tablespace_impl;
 class Tablespace_file;

@@ -3803,3 +3803,11 @@ DROP VIEW v;
 SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
 CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON)
 {"a": [4, 5, 6]}
+#
+# Bug#26022576: JSON_INSERT DOES NOT HANDLE AUTO-WRAPPING
+#
+SELECT JSON_INSERT('{"a":1}', '$.a[1]', 123) AS c1,
+JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
+JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
+c1	c2	c3
+{"a": [1, 123]}	{"a": [1, 123]}	{"a": [1, 123]}

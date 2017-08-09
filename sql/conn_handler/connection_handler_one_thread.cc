@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +20,9 @@
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_impl.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "my_thread.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql_com.h"
 #include "mysqld.h"                      // connection_errors_internal
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
@@ -31,7 +31,6 @@
 #include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
-#include "violite.h"
 
 
 bool One_thread_connection_handler::add_connection(Channel_info* channel_info)

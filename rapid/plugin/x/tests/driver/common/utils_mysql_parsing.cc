@@ -107,9 +107,8 @@ size_t determineStatementRanges(const char *sql, size_t length,
 
           if (!is_hidden_command && !have_content)
             head = tail;  // Skip over the comment.
-
-          break;
         }
+        break;
 
       case '-':  // Possible single line comment.
       {

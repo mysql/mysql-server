@@ -15,10 +15,7 @@
 
 #include "sql/rpl_rli_pdb.h"
 
-#include "my_config.h"
-
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -26,15 +23,19 @@
 
 #include <algorithm>
 #include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 #include "binlog.h"
+#include "config.h"
 #include "current_thd.h"
 #include "debug_sync.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "log.h"
-#include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -42,8 +43,11 @@
 #include "my_sys.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/thread_type.h"
 #include "mysqld.h"                         // key_mutex_slave_parallel_worker
@@ -54,10 +58,8 @@
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "sql_error.h"
 #include "sql_lex.h"
-#include "sql_plugin_ref.h"
 #include "sql_string.h"
 #include "table.h"
-#include "template_utils.h"
 #include "thr_mutex.h"
 #include "transaction_info.h"
 
@@ -1278,9 +1280,6 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
       if (entry->worker != this) // Coordinator is waiting
       {
-#ifndef DBUG_OFF
-        // TODO: open it! DBUG_ASSERT(usage_partition || !entry->worker->jobs.len);
-#endif
         DBUG_PRINT("info",
                    ("Notifying entry %p release by worker %lu", entry, this->id));
 

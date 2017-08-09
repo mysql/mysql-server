@@ -24,6 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
+#include "mysql/udf_registration_types.h"
 #include "sql_plugin_ref.h"            /* plugin_ref */
 
 class Field;

@@ -217,6 +217,11 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
          component_test_sys_var_service_int.so component_test_sys_var_service.so \
          component_test_sys_var_service_same.so component_test_sys_var_service_str.so \
+         component_test_status_var_service.so\
+         component_test_status_var_service_int.so\
+         component_test_status_var_service_reg_only.so\
+         component_test_status_var_service_str.so\
+         component_test_status_var_service_unreg_only.so\
          daemon_example.ini ha_example.so libdaemon_example.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
@@ -385,6 +390,12 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
+- Add component_test_component_sys_status_service plugin
+
+* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
+- Add component_test_status_var_service plugin
+
 * Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
 - Updated for 8.0.3 release
 

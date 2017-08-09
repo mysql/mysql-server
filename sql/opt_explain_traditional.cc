@@ -26,8 +26,8 @@
 #include "sql_class.h"
 #include "sql_lex.h"
 #include "sql_list.h"
+#include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "table.h"
 
 /**
   Heads of "extra" column parts

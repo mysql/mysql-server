@@ -27,6 +27,7 @@
 
 #include <limits.h>
 #include <algorithm>
+#include <atomic>
 
 #include "binary_log_types.h"
 #include "field.h"
@@ -34,6 +35,7 @@
 #include "key.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_table_map.h"

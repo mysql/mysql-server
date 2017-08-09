@@ -21,11 +21,12 @@
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/event.h"
 
 namespace dd {
-class Object_key;
 class Item_name_key;
+class Object_key;
 
 namespace tables {
 

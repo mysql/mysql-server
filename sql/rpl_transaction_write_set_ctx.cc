@@ -15,8 +15,13 @@
 
 #include "sql/rpl_transaction_write_set_ctx.h"
 
+#include <assert.h>
 #include <stddef.h>
+#include <utility>
 
+#include "current_thd.h"                             // current_thd
+#include "debug_sync.h"                              // debug_sync_set_action
+#include "m_string.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
@@ -25,8 +30,6 @@
 #include "psi_memory_key.h"
 #include "sql_class.h"                               // THD
 #include "transaction_info.h"
-#include "debug_sync.h"                              // debug_sync_set_action
-#include "current_thd.h"                             // current_thd
 
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx():

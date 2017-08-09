@@ -14,31 +14,40 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
+#include <memory>
 #include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "auth_acls.h"
 #include "auth_common.h"
-#include "handler.h"
+#include "dynamic_privilege_table.h"
 #include "item.h"
+#include "key.h"
 #include "lex_string.h"
 #include "log_event.h"                  /* append_query_string */
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_auth.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "password.h"                   /* my_make_scrambled_password */
 #include "protocol.h"
-#include "session_tracker.h"
-#include "sql_admin.h"
 #include "sql_class.h"
 #include "sql_connect.h"
 #include "sql_const.h"

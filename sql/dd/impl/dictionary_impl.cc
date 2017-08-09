@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,28 +19,34 @@
 #include <memory>
 
 #include "auth_common.h"                   // acl_init
-#include "binlog_event.h"
 #include "bootstrap.h"                     // bootstrap::bootstrap_functor
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_table.h"                   // dd::drop_table
 #include "dd/dd_schema.h"                  // dd::Schema_MDL_locker
-#include "dd_sql_view.h"                   // update_referencing_views_metadata
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
-#include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
-#include "dd/upgrade/upgrade.h"            // dd::upgrade
 #include "dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
+#include "dd/types/object_table_definition.h"
+#include "dd/types/system_view.h"
+#include "dd/upgrade/upgrade.h"            // dd::upgrade
+#include "derror.h"
+#include "handler.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "opt_costconstantcache.h"         // init_optimizer_cost_module
 #include "sql_class.h"                     // THD
-#include "sql_base.h"                      // close_thread_tables
+#include "sql_security_ctx.h"
 #include "system_variables.h"
-#include "transaction.h"
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +57,7 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Object_table;
+class Table;
 
 Dictionary_impl *Dictionary_impl::s_instance= NULL;
 

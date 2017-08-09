@@ -15,6 +15,7 @@
 
 #include "sql/rpl_write_set_handler.h"
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <map>
@@ -34,18 +35,20 @@
 #include "my_inttypes.h"
 #include "my_murmur3.h"    // murmur3_32
 #include "my_stacktrace.h" // my_safe_itoa
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "psi_memory_key.h"
+#include "query_options.h"
 #include "rpl_transaction_write_set_ctx.h"
+#include "session_tracker.h"
 #include "sql_class.h"     // THD
 #include "sql_const.h"
 #include "sql_list.h"      // List
-#include "sql_plugin_ref.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"         // TABLE
 #include "transaction_info.h"
-#include "rpl_handler.h"
 
 #define NAME_READ_BUFFER_SIZE 1024
 #define HASH_STRING_SEPARATOR "½"

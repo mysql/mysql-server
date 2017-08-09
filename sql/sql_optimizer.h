@@ -46,18 +46,22 @@
 #include "sql_alloc.h"
 #include "sql_array.h"
 #include "sql_class.h"
+#include "sql_const.h"
 #include "sql_executor.h"                       // Next_select_func
-#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_opt_exec_shared.h"
 #include "sql_select.h"                         // Key_use
+#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
 #include "table.h"
 #include "temp_table_param.h"
 #include "template_utils.h"
 
 class COND_EQUAL;
 class Item_sum;
+class Window;
+struct TABLE;
+struct TABLE_LIST;
 
 typedef Bounds_checked_array<Item_null_result*> Item_null_array;
 

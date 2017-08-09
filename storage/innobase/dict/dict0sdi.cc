@@ -64,21 +64,21 @@ dict_sdi_check_existence(
 
 /** Create SDI in a tablespace. This API should be used when
 upgrading a tablespace with no SDI.
-@param[in]	tablespace	tablespace object
+@param[in,out]	tablespace	tablespace object
 @retval		false		success
 @retval		true		failure */
 bool
 dict_sdi_create(
-	const dd::Tablespace&	tablespace)
+	dd::Tablespace*	tablespace)
 {
 	DBUG_EXECUTE_IF("ib_sdi",
 		ib::info() << "SDI_CREATE: dict_sdi_create("
-			<< tablespace.name() << ","
-			<< tablespace.id() << ")";
+			<< tablespace->name() << ","
+			<< tablespace->id() << ")";
 	);
 
 	uint32	space_id;
-	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
+	if (tablespace->se_private_data().get_uint32("id", &space_id)) {
 		/* error, attribute not found */
 		ut_ad(0);
 		return(true);
@@ -94,16 +94,29 @@ dict_sdi_create(
 
 	dberr_t	err = ib_sdi_create(space_id);
 
+	/* If SDI index is created, update the tablespace flags in
+	dictionary */
+	if (err == DB_SUCCESS) {
+		fil_space_t* 	space = fil_space_acquire(space_id);
+		ut_ad(space != nullptr);
+
+		dd::Properties& p = tablespace->se_private_data();
+		p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+			     static_cast<uint32>(space->flags));
+
+		fil_space_release(space);
+	}
+
 	return(err != DB_SUCCESS);
 }
 
 /** Drop SDI in a tablespace. This API should be used only
 when SDI is corrupted.
-@param[in]	tablespace	tablespace object
+@param[in,out]	tablespace	tablespace object
 @retval		false		success
 @retval		true		failure */
 bool
-dict_sdi_drop(const dd::Tablespace&	tablespace)
+dict_sdi_drop(dd::Tablespace*	tablespace)
 {
 #if 0 /* TODO: Enable in WL#9761 */
 	uint32	space_id;

@@ -15,9 +15,9 @@
 
 #include "sql/dd/dd_tablespace.h"
 
-#include <memory>
 #include <stddef.h>
-#include <string>
+#include <string.h>
+#include <memory>
 
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd.h"                            // dd::create_object
@@ -25,6 +25,7 @@
 #include "dd/impl/system_registry.h"          // dd::System_tablespaces
 #include "dd/object_id.h"
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/string_type.h"
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/partition_index.h"         // dd::Partition_index
@@ -32,14 +33,16 @@
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 #include "handler.h"
+#include "key.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql_class.h"                        // THD
-#include "sql_plugin_ref.h"
+#include "sql_servers.h"
 #include "sql_table.h"                        // validate_comment_length
 #include "table.h"
 

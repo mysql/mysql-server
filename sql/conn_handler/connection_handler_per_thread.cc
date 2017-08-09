@@ -27,20 +27,25 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_mutex.h"
-#include "mysql/psi/psi_thread.h"
-#include "mysql_com.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
 #include "mysqld_thd_manager.h"          // Global_THD_manager
+#include "pfs_thread_provider.h"
 #include "protocol_classic.h"
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
@@ -48,7 +53,6 @@
 #include "sql_parse.h"                   // do_command
 #include "sql_thd_internal_api.h"        // thd_set_thread_stack
 #include "thr_mutex.h"
-#include "violite.h"
 
 
 // Initialize static members

@@ -22,6 +22,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"              // IO_CACHE
+#include "mysql/udf_registration_types.h"
 #include "rpl_info_handler.h"    // Rpl_info_handler
 
 class Server_ids;

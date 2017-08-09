@@ -78,4 +78,12 @@ include/stop_group_replication.inc
 include/gr_wait_primary_member_uuid.inc
 include/assert.inc [Verify group_replication_primary_member is server3]
 include/stop_group_replication.inc
+[connection server1]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+[connection server3]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+[connection server4]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
 include/group_replication_end.inc

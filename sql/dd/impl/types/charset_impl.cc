@@ -15,7 +15,6 @@
 
 #include "dd/impl/types/charset_impl.h"
 
-#include "dd/impl/raw/object_keys.h"       // Primary_id_key
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/tables/character_sets.h" // Character_sets
 #include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx

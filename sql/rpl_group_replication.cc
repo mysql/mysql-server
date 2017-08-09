@@ -19,12 +19,15 @@
 #include <sys/types.h>
 
 #include "log.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"               // mysqld_port
 #include "mysqld_error.h"         // ER_*
 #include "mysqld_thd_manager.h"   // Global_THD_manager
@@ -33,7 +36,7 @@
 #include "rpl_gtid.h"             // gtid_mode_lock
 #include "rpl_slave.h"            // report_host
 #include "sql_plugin.h"           // plugin_unlock
-#include "sql_string.h"           // to_lex_cstring
+#include "sql_plugin_ref.h"
 #include "system_variables.h"     // System_variables
 
 class THD;

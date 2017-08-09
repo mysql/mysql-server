@@ -33,6 +33,7 @@
 #include "derror.h"                     // ER_THD
 #include "error_handler.h"              // Internal_error_handler
 #include "handler.h"                    // HA_LEX_CREATE_TMP_TABLE
+#include "key.h"
 #include "lex_string.h"
 #include "mdl.h"
 #include "my_dbug.h"
@@ -48,7 +49,6 @@
 #include "sql_const.h"
 #include "sql_error.h"
 #include "sql_lex.h"                    // LEX
-#include "sql_plugin.h"
 #include "sql_view.h"                   // mysql_register_view
 #include "system_variables.h"
 #include "table.h"                      // TABLE_LIST

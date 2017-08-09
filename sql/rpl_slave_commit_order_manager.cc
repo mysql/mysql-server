@@ -20,7 +20,9 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_stage.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysqld.h"          // key_commit_order_manager_mutex ..
 #include "mysqld_error.h"
 #include "rpl_rli_pdb.h"     // Slave_worker

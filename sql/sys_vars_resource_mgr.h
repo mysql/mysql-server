@@ -52,10 +52,12 @@
 
 */
 
+#include <stddef.h>
 #include <memory>
 
 #include "map_helpers.h"
 #include "my_inttypes.h"
+#include "psi_memory_key.h"
 
 class Session_sysvar_resource_manager {
 

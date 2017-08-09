@@ -15,86 +15,8 @@
 
 #include "sql/auth/sql_authorization.h"
 
-#include <limits.h>
-#include <string.h>
-#include <sys/types.h>
-#include <algorithm>
-#include <cstdlib>
-#include <iosfwd>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "dd/dd_table.h"                // dd::table_exists
-#include "debug_sync.h"
-#include "derror.h"                     /* ER_THD */
-#include "error_handler.h"              /* error_handler */
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"                   /* Key_spec */
-#include "lex_string.h"
-#include "log.h"
-#include "m_ctype.h"
-#include "m_string.h"
-#include "mdl.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_sqlcommand.h"
-#include "my_sys.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/service_mysql_alloc.h"
-#include "mysql_com.h"
-#include "mysqld.h"                     /* lower_case_table_names */
-#include "mysqld_error.h"
-#include "prealloced_array.h"
-#include "protocol.h"
-#include "role_tables.h"
-#include "session_tracker.h"
-#include "sp.h"                         /* sp_exist_routines */
-#include "sql_admin.h"
-#include "sql_alter.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_base.h"                   /* open_and_lock_tables */
-#include "sql_class.h"                  /* THD */
-#include "sql_connect.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* get_current_user */
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                   /* append_identifier */
-#include "sql_string.h"
-#include "sql_user_table.h"
-#include "sql_view.h"                   /* VIEW_ANY_ACL */
-#include "system_variables.h"
-#include "table.h"
-#include "template_utils.h"
-#include "thr_lock.h"
-#include "violite.h"
-#include <set>
-
-class Item;
-namespace dd {
-class Abstract_table;
-}  // namespace dd
 #include <boost/concept/usage.hpp>
+#include <boost/function.hpp>
 #include <boost/graph/adjacency_iterator.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
@@ -111,11 +33,87 @@ class Abstract_table;
 #include <boost/smart_ptr/make_shared_object.hpp>
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/tuple/tuple.hpp>
-#include <boost/function.hpp>
+#include <limits.h>
+#include <string.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cstdlib>
+#include <iosfwd>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <set>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "my_sys.h"
+#include "auth_acls.h"
+#include "auth_common.h"
+#include "auth_internal.h"
+#include "current_thd.h"
+#include "dd/dd_table.h"                // dd::table_exists
+#include "debug_sync.h"
+#include "derror.h"                     /* ER_THD */
 #include "dynamic_privilege_table.h"
+#include "error_handler.h"              /* error_handler */
+#include "field.h"
+#include "handler.h"
+#include "item.h"
+#include "key.h"
+#include "key_spec.h"                   /* Key_spec */
+#include "lex_string.h"
+#include "log.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "map_helpers.h"
+#include "mdl.h"
+#include "mf_wcomp.h"
+#include "my_alloc.h"
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld.h"                     /* lower_case_table_names */
+#include "mysqld_error.h"
+#include "prealloced_array.h"
+#include "protocol.h"
+#include "role_tables.h"
+#include "sp.h"                         /* sp_exist_routines */
+#include "sql_alter.h"
+#include "sql_auth_cache.h"
+#include "sql_base.h"                   /* open_and_lock_tables */
+#include "sql_class.h"                  /* THD */
+#include "sql_connect.h"
 #include "sql_db.h"
+#include "sql_error.h"
+#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_parse.h"                  /* get_current_user */
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_show.h"                   /* append_identifier */
+#include "sql_string.h"
+#include "sql_user_table.h"
+#include "sql_view.h"                   /* VIEW_ANY_ACL */
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
+#include "thr_lock.h"
+#include "violite.h"
 
 /**
    @file sql_authorization.cc

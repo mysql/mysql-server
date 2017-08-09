@@ -20,6 +20,10 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include "my_loglevel.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -27,6 +31,7 @@
 #include <list>
 
 #include "control_events.h"
+#include "m_ctype.h"
 #include "m_string.h"                  // my_strtoll
 #include "my_byteorder.h"
 #include "my_dbug.h"

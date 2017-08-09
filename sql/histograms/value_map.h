@@ -20,16 +20,21 @@
   @file sql/histograms/value_map.h
 */
 
+#include <stddef.h>
 #include <functional>           // std::less
+#include <string>
 #include <utility>              // std::pair
 #include <vector>               // std::vector
 
 #include "memroot_allocator.h"  // Memroot_allocator
 #include "my_base.h"            // ha_rows
+#include "thr_malloc.h"
 
 class String;
-class my_decimal;
 class THD;
+class my_decimal;
+template <class T> class Memroot_allocator;
+
 typedef struct st_mysql_time MYSQL_TIME;
 
 namespace histograms {

@@ -37,8 +37,8 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "opt_costmodel.h"
-#include "opt_explain_format.h"       // Explain_sort_clause
 #include "set_var.h"
 #include "sql_alloc.h"
 #include "sql_bitmap.h"
@@ -47,9 +47,9 @@
 #include "sql_const.h"
 #include "sql_lex.h"
 #include "sql_opt_exec_shared.h"      // join_type
-#include "sql_opt_exec_shared.h"      // join_type
 #include "system_variables.h"
 #include "table.h"
+#include "thr_malloc.h"
 
 class Item_func;
 class JOIN_TAB;
@@ -1182,6 +1182,7 @@ static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item)
 uint actual_key_parts(const KEY *key_info);
 
 class ORDER_with_src;
+
 uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab,
                          ha_rows limit, bool *need_sort, bool *reverse);
 int test_if_order_by_key(ORDER_with_src *order, TABLE *table, uint idx,

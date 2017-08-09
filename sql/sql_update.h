@@ -29,7 +29,6 @@
 class COPY_INFO;
 class Copy_field;
 class Item;
-class JOIN;
 class THD;
 class Temp_table_param;
 struct TABLE;

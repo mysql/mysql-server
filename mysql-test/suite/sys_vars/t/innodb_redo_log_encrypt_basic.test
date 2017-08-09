@@ -24,8 +24,8 @@ select * from performance_schema.session_variables where variable_name='innodb_r
 # show that it's writable
 #
 set global innodb_redo_log_encrypt=1;
---sleep 2
-select @@global.innodb_redo_log_encrypt;
+--let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
+--source include/wait_condition.inc
 --disable_warnings
 select * from performance_schema.global_variables where variable_name='innodb_redo_log_encrypt';
 select * from performance_schema.session_variables where variable_name='innodb_redo_log_encrypt';

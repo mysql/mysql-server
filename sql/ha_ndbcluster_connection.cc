@@ -19,22 +19,23 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "sql_class.h"
+#include "auth_acls.h"
 #include "kernel/ndb_limits.h"
 #include "my_dbug.h"
+#include "mysqld.h"         // server_id, connection_events_loop_aborted
+#include "mysqld_error.h"
 #include "ndbapi/NdbApi.hpp"
 #include "portlib/NdbTick.h"
 #include "rpl_slave.h"      // report_port
+#include "sql_class.h"
 #include "util/BaseString.hpp"
 #include "util/Vector.hpp"
-#include "mysqld.h"         // server_id, connection_events_loop_aborted
-#include "mysqld_error.h"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif
 
-#include "ndb_sleep.h"
 #include "ndb_log.h"
+#include "ndb_sleep.h"
 
 extern char *my_bind_addr_str;
 

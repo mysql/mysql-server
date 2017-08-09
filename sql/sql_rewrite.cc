@@ -78,6 +78,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"         // opt_log_builtin_as_identified_by_password
 #include "prealloced_array.h"
 #include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
@@ -87,7 +88,6 @@
 #include "sql_lex.h"        // LEX
 #include "sql_list.h"
 #include "sql_parse.h"      // get_current_user
-#include "sql_plugin.h"
 #include "sql_servers.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String

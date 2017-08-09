@@ -28,7 +28,6 @@
 #include "binary_log_types.h"           // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mysql/mysql_lex_string.h"     // LEX_STRING
 #include "parse_tree_node_base.h"       // POS
 
 /**

@@ -18,15 +18,15 @@
 
 #include "dd/sdi_fwd.h"                // Sdi_wcontext
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
+#include "dd/types/foreign_key.h"      // IWYU pragma: keep
+#include "dd/types/index.h"            // IWYU pragma: keep
+#include "dd/types/object_type.h"      // IWYU pragma: keep
 #include "dd/types/trigger.h"          // dd::Trigger::enum_*
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key;
-class Index;
-class Object_type;
 class Partition;
 class Trigger;
 

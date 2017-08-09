@@ -19,16 +19,16 @@
 
 /* This file defines structures needed by udf functions */
 
+#include <mysql/components/services/udf_registration.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // Item_result
 #include "sql_alloc.h"               // Sql_alloc
-#include <mysql/components/services/udf_registration.h>
 
 class Item;
 class Item_result_field;

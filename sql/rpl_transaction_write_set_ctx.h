@@ -16,9 +16,11 @@
 #ifndef RPL_TRANSACTION_WRITE_SET_CTX_H
 #define RPL_TRANSACTION_WRITE_SET_CTX_H
 
-#include <vector>
-#include <map>
+#include <stddef.h>
 #include <list>
+#include <map>
+#include <string>
+#include <vector>
 
 #include "my_inttypes.h"
 

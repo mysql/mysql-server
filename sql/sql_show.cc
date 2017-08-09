@@ -18,22 +18,26 @@
 
 #include "sql_show.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 #include <sys/types.h>
 #include <time.h>
+#include <algorithm>
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <new>
+#include <string>
 
 #include "auth_acls.h"
 #include "auth_common.h"                    // check_grant_db
 #include "binary_log_types.h"
-#include "binlog_event.h"
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
 #include "dd/string_type.h"
@@ -45,7 +49,6 @@
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
-#include "item_create.h"
 #include "item_func.h"
 #include "key.h"
 #include "keycache.h"                       // dflt_key_cache
@@ -54,30 +57,26 @@
 #include "m_string.h"
 #include "mdl.h"
 #include "mem_root_array.h"
-#include "mutex_lock.h"                     // MUTEX_LOCK
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
+#include "mutex_lock.h"                     // MUTEX_LOCK
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_command.h"
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_dir.h"                         // MY_DIR
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "my_time.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_error.h"
@@ -89,12 +88,8 @@
 #include "protocol.h"                       // Protocol
 #include "psi_memory_key.h"
 #include "query_options.h"
-#include "session_tracker.h"
-#include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
-#include "sp_pcontext.h"                    // sp_pcontext
 #include "sql_alloc.h"
-#include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_bitmap.h"
 #include "sql_class.h"                      // THD
@@ -111,6 +106,7 @@
 #include "sql_plugin_ref.h"
 #include "sql_profile.h"
 #include "sql_security_ctx.h"
+#include "sql_servers.h"
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_tmp_table.h"                  // create_tmp_table
 #include "sql_trigger.h"                    // acquire_shared_mdl_for_trigger
@@ -118,21 +114,16 @@
 #include "system_variables.h"
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
 #include "temp_table_param.h"
-#include "template_utils.h"                 // delete_container_pointers
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "trigger.h"                        // Trigger
-#include "trigger_def.h"
 #include "tztime.h"                         // Time_zone
+#include "value_map.h"
 
-#include <algorithm>
-#include <functional>
-#include <memory>
-#include <new>
-#include <string>
-#include <functional>
-
-#include "srv_session.h"
+namespace dd {
+class Abstract_table;
+class Schema;
+}  // namespace dd
 
 /* @see dynamic_privileges_table.cc */
 bool iterate_all_dynamic_privileges(THD *thd,
@@ -4505,7 +4496,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_IS_NULLABLE]->store(pos, strlen(pos), cs);
 
       // COMMENT
-      if (!show_table->s->keys_in_use.is_set(i))
+      if (!show_table->s->keys_in_use.is_set(i) && key_info->is_visible)
         table->field[TMP_TABLE_KEYS_COMMENT]->store(STRING_WITH_LEN("disabled"),
                                                     cs);
       else

@@ -24,13 +24,13 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <atomic>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"      // acl_authenticate
 #include "binary_log_types.h"
 #include "binlog.h"           // purge_master_logs
-#include "binlog_event.h"
-#include "control_events.h"
 #include "current_thd.h"
 #include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"            // dd::get_dictionary
@@ -53,23 +53,31 @@
 #include "log.h"              // query_logger
 #include "log_event.h"        // slave_execute_deferred_events
 #include "m_ctype.h"
+#include "m_string.h"
 #include "mdl.h"
+#include "mem_root_array.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
+#include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"           // stage_execution_of_init_command
 #include "mysqld_error.h"
 #include "mysqld_thd_manager.h" // Find_thd_with_id
@@ -79,8 +87,9 @@
 #include "parse_location.h"
 #include "parse_tree_helpers.h" // is_identifier
 #include "parse_tree_node_base.h"
-#include "persisted_variable.h"
 #include "parse_tree_nodes.h"
+#include "persisted_variable.h"
+#include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "protocol.h"
 #include "protocol_classic.h"
@@ -99,7 +108,6 @@
 #include "sp.h"               // sp_create_routine
 #include "sp_cache.h"         // sp_cache_enforce_limit
 #include "sp_head.h"          // sp_head
-#include "sql_admin.h"        // assign_to_keycache
 #include "sql_alter.h"
 #include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql_base.h"         // find_temporary_table
@@ -118,7 +126,6 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_load.h"         // mysql_load
-#include "sql_plugin.h"
 #include "sql_prepare.h"      // mysql_stmt_execute
 #include "sql_profile.h"
 #include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
@@ -144,9 +151,12 @@
 #include "violite.h"
 
 namespace dd {
+class Schema;
+}  // namespace dd
+
+namespace dd {
 class Abstract_table;
 }  // namespace dd
-struct PSI_statement_locker;
 
 using std::max;
 

@@ -21,8 +21,12 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include "my_config.h"
+
 #include <algorithm>
 #include <atomic>
+#include <memory>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"       // *_ACL
@@ -37,17 +41,16 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mdl.h"
+#include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_user.h"           // parse_user
+#include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_error.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_error.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql_com.h"
 #include "mysqld.h"            // atomic_global_query_id
 #include "opt_trace.h"         // opt_trace_disable_etc

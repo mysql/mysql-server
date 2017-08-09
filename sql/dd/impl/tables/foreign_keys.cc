@@ -16,10 +16,12 @@
 #include "dd/impl/tables/foreign_keys.h"
 
 #include <new>
+#include <string>
 
 #include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "dd/impl/types/object_table_definition_impl.h"
-#include "system_variables.h"
+#include "mysqld.h"
+#include "stateless_allocator.h"
 
 namespace dd {
 namespace tables {

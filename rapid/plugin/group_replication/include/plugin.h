@@ -54,6 +54,8 @@ extern rpl_sidno group_sidno;
 extern bool wait_on_engine_initialization;
 extern bool server_shutdown_status;
 extern const char *available_bindings_names[];
+extern char *communication_debug_options_var;
+extern char *communication_debug_file_var;
 //Flag to register server rest master command invocations
 extern bool known_server_reset;
 //Certification latch

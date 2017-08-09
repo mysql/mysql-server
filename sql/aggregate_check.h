@@ -456,7 +456,9 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"           // Sql_alloc
+#include "sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;

@@ -16,9 +16,9 @@
 #include "sql/sql_admin.h"
 
 #include <limits.h>
-#include <string>
 #include <string.h>
 #include <sys/types.h>
+#include <string>
 #include <utility>
 
 #include "auth_acls.h"
@@ -56,6 +56,7 @@
 #include "rpl_gtid.h"
 #include "sp.h"                              // Sroutine_hash_entry
 #include "sp_rcontext.h"                     // sp_rcontext
+#include "sql/histograms/histogram.h"
 #include "sql_alter.h"
 #include "sql_alter_instance.h"              // Alter_instance
 #include "sql_base.h"                        // Open_table_context
@@ -65,13 +66,10 @@
 #include "sql_list.h"
 #include "sql_parse.h"                       // check_table_access
 #include "sql_partition.h"                   // set_part_state
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
 #include "sql_prepare.h"                     // mysql_test_show
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "sql_table.h"                       // mysql_recreate_table
-#include "sql/histograms/histogram.h"
 #include "system_variables.h"
 #include "table.h"
 #include "table_trigger_dispatcher.h"        // Table_trigger_dispatcher

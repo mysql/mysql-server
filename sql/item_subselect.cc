@@ -28,6 +28,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <atomic>
 #include <utility>
 
 #include "check_stack.h"
@@ -44,11 +45,13 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql_com.h"
 #include "mysqld.h"              // in_left_expr_name
 #include "mysqld_error.h"
 #include "opt_explain_format.h"
@@ -67,7 +70,6 @@
 #include "sql_list.h"
 #include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"       // JOIN
-#include "sql_plugin_ref.h"
 #include "sql_select.h"
 #include "sql_string.h"
 #include "sql_test.h"            // print_where
@@ -79,6 +81,8 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
+#include "value_map.h"
+#include "window.h"
 
 class Json_wrapper;
 

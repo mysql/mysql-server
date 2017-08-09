@@ -18,22 +18,26 @@
 #include "set_var.h"
 
 #include <string.h>
+#include <sys/types.h>
 #include <cstdlib>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"         // SUPER_ACL
 #include "derror.h"              // ER_THD
 #include "enum_query_type.h"
-#include "handler.h"
 #include "item.h"
 #include "item_func.h"
 #include "key.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_dbug.h"
+#include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
@@ -49,14 +53,14 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"           // is_supported_parser_charset
+#include "sql_security_ctx.h"
 #include "sql_select.h"          // free_underlaid_joins
 #include "sql_show.h"            // append_identifier
 #include "sql_string.h"
-#include "strfunc.h"
+#include "sql_table.h"
 #include "sys_vars_shared.h"     // PolyLock_mutex
 #include "system_variables.h"
 #include "table.h"
-#include "template_utils.h"
 
 using std::string;
 

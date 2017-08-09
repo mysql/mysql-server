@@ -25,6 +25,8 @@
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "openssl/ssl.h"
+// IWYU pragma: no_include "openssl/prefix_ssl.h"
+// IWYU pragma: no_include "violite.h"
 
 #if defined(HAVE_YASSL)
 using namespace yaSSL;

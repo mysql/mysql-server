@@ -18,11 +18,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "m_ctype.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_macros.h"
 #include "sql_test.h" // lock_descriptions[]
-#include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 

@@ -18,6 +18,7 @@
 
 #include "my_config.h"
 
+#include "dd/string_type.h"
 #include "my_inttypes.h"
 
 #if HAVE_SYS_TIME_H
@@ -25,7 +26,6 @@
 #endif
 #include <sys/types.h>
 #include <new>
-#include <string>
 
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl

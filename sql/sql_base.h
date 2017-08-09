@@ -18,7 +18,6 @@
 
 #include <stddef.h>
 #include <sys/types.h>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -30,11 +29,13 @@
 #include "mdl.h"                    // MDL_savepoint
 #include "my_base.h"                // ha_extra_function
 #include "my_inttypes.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_array.h"              // Bounds_checked_array
+#include "sql_const.h"              // enum_resolution_type
 #include "thr_lock.h"               // thr_lock_type
 #include "trigger_def.h"            // enum_trigger_event_type
-#include "sql_const.h"              // enum_resolution_type
 
 class COPY_INFO;
 class Field;
@@ -263,7 +264,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_ftfuncs(SELECT_LEX* select);
+int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
 bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,

@@ -71,3 +71,40 @@ INSERT INTO t1c VALUES ( 1 );
 SELECT * FROM t1c;
 
 DROP TABLE t1c, t1p;
+
+--echo #
+--echo # Bug#25837038: FEATURE REQUEST : USE INVISIBLE INDEXES SPECIFIC QUERY
+--echo #
+
+CREATE TABLE t1 ( a INT, KEY( a ) INVISIBLE );
+
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+
+--connect ( con1, localhost, root, , )
+--connection con1
+SELECT @@optimizer_switch;
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+SET @@optimizer_switch='use_invisible_indexes=on';
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+
+--connection default
+SELECT @@optimizer_switch;
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+
+--connection con1
+SELECT @@optimizer_switch;
+SET @@optimizer_switch='use_invisible_indexes=off';
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+
+--disconnect con1
+--connection default
+--replace_column 10 X
+EXPLAIN SELECT a FROM t1;
+
+DROP TABLE t1;

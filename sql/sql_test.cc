@@ -16,8 +16,6 @@
 
 /* Write some debug info */
 
-#include "sql/sql_test.h"
-
 #include "my_config.h"
 
 #include <float.h>
@@ -30,7 +28,6 @@
 #include "field.h"
 #include "item.h"
 #include "key.h"
-#include "keycache.h"
 #include "keycaches.h"
 #include "lex_string.h"
 #include "m_string.h"
@@ -43,6 +40,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"         // LOCK_status
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "opt_explain.h"    // join_type_str
@@ -51,13 +49,15 @@
 #include "opt_trace_context.h"
 #include "prealloced_array.h"
 #include "psi_memory_key.h"
-#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
+#include "sql/sql_test.h"
+#include "sql_admin.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_executor.h"
 #include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"  // JOIN
+#include "sql_security_ctx.h"
 #include "sql_select.h"
 #include "sql_show.h" // calc_sum_of_all_status
 #include "sql_string.h"

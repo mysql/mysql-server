@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,17 @@
 #ifndef SOCKET_CONNECTION_INCLUDED
 #define SOCKET_CONNECTION_INCLUDED
 
+#include "my_config.h"
+
 #include <sys/types.h>
 #include <map>
 #include <string>
 
-#include "my_config.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
 #include "mysql/psi/psi_statement.h"
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif

@@ -12,16 +12,39 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-#include "sql_base.h"
-#include "records.h"
-#include "auth_internal.h"
-#include "auth_common.h"
-#include "sql_auth_cache.h"
-#include "mysqld_error.h"
-#include "current_thd.h"
-#include "sql_class.h"
-#include "dynamic_privilege_table.h"
+#include <string.h>
 #include <string>
+#include <unordered_map>
+
+#include "auth_common.h"
+#include "auth_internal.h"
+#include "current_thd.h"
+#include "dynamic_privilege_table.h"
+#include "field.h"
+#include "handler.h"
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/components/my_service.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/dynamic_privilege.h"
+#include "mysql/components/services/registry.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_plugin_registry.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld_error.h"
+#include "records.h"
+#include "sql_auth_cache.h"
+#include "sql_const.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "table.h"
+
+class THD;
 
 #define MYSQL_DYNAMIC_PRIV_FIELD_USER  0
 #define MYSQL_DYNAMIC_PRIV_FIELD_HOST  1

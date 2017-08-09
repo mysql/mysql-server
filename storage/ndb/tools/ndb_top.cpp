@@ -67,17 +67,17 @@ unsigned int opt_port_number = 0;
 char *opt_host = (char*)"localhost";
 char *opt_user = (char*)"root";
 char *opt_password = 0;
-my_bool tty_password = 0;
+bool tty_password = 0;
 char *db_name = (char *)"ndbinfo";
 unsigned int opt_node_id = 0;
 unsigned int opt_sleep_time = 0;
-my_bool opt_measured_load = 0;
-my_bool opt_os_load = 0;
-my_bool opt_color = 0;
-my_bool opt_text = 0;
-my_bool opt_graph = 0;
-my_bool opt_sort = 0;
-my_bool opt_help = 0;
+bool opt_measured_load = 0;
+bool opt_os_load = 0;
+bool opt_color = 0;
+bool opt_text = 0;
+bool opt_graph = 0;
+bool opt_sort = 0;
+bool opt_help = 0;
 
 static char percentage_sign = '%';
 

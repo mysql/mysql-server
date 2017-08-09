@@ -34,16 +34,21 @@
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/service_my_snprintf.h"
 #include "mysqld_error.h"
 #include "opt_trace.h"
 #include "opt_trace_context.h"
+#include "parse_tree_nodes.h"
+#include "sql_array.h"
 #include "sql_base.h"
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_lex.h"
 #include "sql_list.h"
+#include "sql_parse.h"
 #include "table.h"
 #include "template_utils.h"
+#include "window.h"
 
 /**
   @addtogroup AGGREGATE_CHECKS

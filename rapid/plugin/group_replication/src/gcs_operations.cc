@@ -57,6 +57,7 @@ Gcs_operations::initialize()
 {
   DBUG_ENTER("Gcs_operations::initialize");
   int error= 0;
+
   gcs_operations_lock->wrlock();
 
   leave_coordination_leaving= false;
@@ -113,7 +114,6 @@ Gcs_operations::finalize()
   DBUG_VOID_RETURN;
 }
 
-
 enum enum_gcs_error
 Gcs_operations::configure(const Gcs_interface_parameters& parameters)
 {
@@ -128,6 +128,50 @@ Gcs_operations::configure(const Gcs_interface_parameters& parameters)
   DBUG_RETURN(error);
 }
 
+enum enum_gcs_error
+Gcs_operations::do_set_debug_options(std::string &debug_options) const
+{
+  int64_t res_debug_options;
+  enum enum_gcs_error error= GCS_NOK;
+
+  if (!Gcs_debug_options::get_debug_options(debug_options, res_debug_options))
+  {
+     debug_options.clear();
+     Gcs_debug_options::force_debug_options(res_debug_options);
+     Gcs_debug_options::get_debug_options(res_debug_options, debug_options);
+     error= GCS_OK;
+
+     log_message(
+       MY_INFORMATION_LEVEL, "Current debug options are: '%s'.", debug_options.c_str()
+     );
+  }
+  else
+  {
+    std::string str_debug_options;
+    Gcs_debug_options::get_current_debug_options(str_debug_options);
+
+    log_message(
+      MY_ERROR_LEVEL,
+      "Some debug options in '%s' are not valid.", debug_options.c_str()
+    );
+  }
+
+  return error;
+}
+
+enum enum_gcs_error
+Gcs_operations::set_debug_options(std::string &debug_options) const
+{
+  DBUG_ENTER("Gcs_operations::set_debug_options");
+  enum enum_gcs_error error= GCS_NOK;
+
+  gcs_operations_lock->wrlock();
+
+  error= do_set_debug_options(debug_options);
+
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(error);
+}
 
 enum enum_gcs_error
 Gcs_operations::join(const Gcs_communication_event_listener& communication_event_listener,

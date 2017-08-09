@@ -22,12 +22,12 @@
 
 #include "filesort.h"
 
-#include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <new>
 #include <vector>
 
@@ -45,7 +45,7 @@
 #include "item.h"
 #include "item_subselect.h"
 #include "json_dom.h"                   // Json_wrapper
-#include "lex_string.h"
+#include "key_spec.h"
 #include "log.h"
 #include "m_ctype.h"
 #include "malloc_allocator.h"
@@ -55,10 +55,12 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "myisampack.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -81,10 +83,10 @@
 #include "sql_executor.h"               // QEP_TAB
 #include "sql_lex.h"
 #include "sql_optimizer.h"              // JOIN
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
 #include "sql_sort.h"
 #include "sql_string.h"
+#include "sql_tmp_table.h"
 #include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"

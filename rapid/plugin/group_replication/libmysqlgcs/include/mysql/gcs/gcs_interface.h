@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #ifndef GCS_INTERFACE_INCLUDED
 #define GCS_INTERFACE_INCLUDED
+
+#include <string>
 
 #include "gcs_logging.h"
 #include "gcs_communication_interface.h"
@@ -54,7 +56,7 @@
     }
 
     // Inject a logger if wanted
-    Ext_logger_interface *logger= new My_GCS_Ext_logger_interface();
+    Logger_interface *logger= new My_GCS_Logger_interface();
     group_if->set_logger(logger);
 
     Gcs_group_identifier *group_id= new Gcs_group_identifier("my_group");
@@ -189,7 +191,7 @@ public:
     @retval GCS_OK in case of everything goes well. Any other value of
             gcs_error in case of error
   */
-  virtual enum_gcs_error set_logger(Ext_logger_interface *logger)= 0;
+  virtual enum_gcs_error set_logger(Logger_interface *logger)= 0;
 
 
   virtual ~Gcs_interface() {}

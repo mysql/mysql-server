@@ -16,16 +16,29 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
+#if defined(__SUNPRO_CC)
+/*
+  Solaris Studio 12.5 has a bug where, if you use dynamic_cast
+  and then later #include this file (which Boost does), you will
+  get a compile error. Work around it by just including it right now.
+*/
+#include <cxxabi.h>
+#endif
+
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "binlog.h"            // MYSQL_BIN_LOG
+#include "binlog_event.h"
 #include "handler.h"
 #include "lex_string.h"
+#include "log_event.h"        //Gtid_log_event
 #include "m_string.h"
+#include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -33,35 +46,37 @@
 #include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
+#include "mysqld.h"
 #include "prealloced_array.h"  // Prealloced_array
+#include "psi_memory_key.h"
 #include "query_options.h"
+#include "rpl_filter.h"
 #include "rpl_gtid.h"          // Gtid_set
 #include "rpl_info.h"          // Rpl_info
 #include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_record.h"
 #include "rpl_slave_until_options.h"
 #include "rpl_tblmap.h"        // table_mapping
 #include "rpl_utility.h"       // Deferred_log_events
 #include "sql_class.h"         // THD
 #include "sql_lex.h"
-#include "sql_plugin_ref.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
-#include "log_event.h"        //Gtid_log_event
-#include "rpl_filter.h"
 
-struct RPL_TABLE_LIST;
 class Commit_order_manager;
 class Format_description_log_event;
 class Log_event;
 class Master_info;
-class Master_info;
 class Rows_query_log_event;
+class Rpl_filter;
 class Rpl_info_handler;
 class Slave_committed_queue;
 class Slave_worker;

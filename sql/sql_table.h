@@ -16,14 +16,19 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include <set>
 #include <stddef.h>
 #include <sys/types.h>
+#include <set>
 
 #include "binary_log_types.h"  // enum_field_types
+#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/udf_registration_types.h"
+
+template <typename Element_type, size_t Prealloc> class Prealloced_array;
 #ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
 #include "prealloced_array.h"
 #endif
@@ -31,14 +36,15 @@
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
+class FOREIGN_KEY;
+class KEY;
 class THD;
 class handler;
 struct TABLE;
-struct TABLE_SHARE;
 struct TABLE_LIST;
+struct TABLE_SHARE;
 struct handlerton;
-class KEY;
-class FOREIGN_KEY;
+
 namespace dd {
   class Schema;
   class Table;

@@ -18,6 +18,7 @@
 #include "sql/dynamic_ids.h"
 
 #include <stdlib.h>
+#include <sys/types.h>
 
 #include "m_ctype.h"
 #include "m_string.h"        // my_strtok_r

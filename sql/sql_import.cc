@@ -16,25 +16,32 @@
 
 #include "sql_import.h"
 
+#include <sys/types.h>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "auth_acls.h"
+#include "auth_common.h"
+#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client::Auto_releaser
+#include "dd/impl/sdi_utils.h"     // dd::sdi_utils::handle_errors
+#include "dd/sdi_api.h"            // dd::sdi::Import_target
+#include "dd/sdi_file.h"           // dd::sdi_file::expand_pattern
+#include "dd/string_type.h"        // dd::String_type
 #include "mdl.h"                   // MDL_request
-#include "my_dir.h"                // my_dir
-#include "my_sys.h"                // dirname_part
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysqld.h"                // is_secure_file_path
-#include "mysqld_error.h"          // my_error
 #include "prealloced_array.h"      // Prealloced_array
 #include "psi_memory_key.h"        // key_memory_DD_import
 #include "sql_class.h"             // THD
-#include "sql_table.h"             // write_bin_log
+#include "sql_error.h"
+#include "stateless_allocator.h"
+#include "system_variables.h"
 #include "transaction.h"           // trans_rollback_stmt
-#include "mysql/psi/mysql_file.h"  // mysql_file_x
-
-#include "dd/string_type.h"        // dd::String_type
-#include "dd/sdi_api.h"            // dd::sdi::Import_target
-#include "dd/sdi_file.h"           // dd::sdi_file::expand_pattern
-
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client::Auto_releaser
-#include "dd/types/table.h"        // dd::Table
-#include "dd/impl/sdi_utils.h"     // dd::sdi_utils::handle_errors
 
 namespace {
 

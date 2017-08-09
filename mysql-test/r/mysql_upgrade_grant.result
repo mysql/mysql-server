@@ -1,3 +1,4 @@
+# restart:--log-error=MYSQL_TMP_DIR/mysql_upgrade_grant.err
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
@@ -327,7 +328,7 @@ call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin va
 # check the presents of the warnings in the log file
 # end of check for the presense of the warning
 #Restart the server
-# restart
+# restart:--log-error=MYSQL_TMP_DIR/mysql_upgrade_grant.err
 #After the update all acl commands should be working fine. Trying out
 #some of them
 ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;

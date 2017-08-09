@@ -17,13 +17,17 @@
 
 #include "options_parser.h"
 
+#include <stddef.h>
 #include <algorithm>
 #include <cctype>
-#include <iterator>
+#include <stdexcept>
+#include <utility>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql_string.h"
 
 namespace options_parser {
 

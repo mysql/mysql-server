@@ -29,6 +29,7 @@
 #include "item_func.h"       // Item_int_func
 #include "item_row.h"        // Item_row
 #include "mem_root_array.h"  // Mem_root_array
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
@@ -38,16 +39,16 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
 #include "sql_alloc.h"
 #include "sql_const.h"
 #include "sql_list.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"  // down_cast
-#include "typelib.h"
+#include "thr_malloc.h"
 
 class Arg_comparator;
 class Field;
@@ -1821,8 +1822,6 @@ public:
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
-
-class Item_in_subselect;
 
 /* 
   This is like IS NOT NULL but it also remembers if it ever has

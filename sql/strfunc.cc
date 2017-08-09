@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
 
 #include "m_ctype.h"                            // my_charset_latin1
 #include "my_dbug.h"
-#include "mysqld.h"                             // system_charset_info
+#include "mysql/udf_registration_types.h"
+#include "session_tracker.h"
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_string.h"
+#include "table.h"
 #include "typelib.h"                            // TYPELIB
 
 /*

@@ -31,7 +31,7 @@
 #include "sql_opt_exec_shared.h"
 #include "sql_optimizer.h"    // JOIN
 #include "table.h"
-#include "temp_table_param.h"
+#include "thr_malloc.h"
 
 namespace AQP
 {

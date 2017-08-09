@@ -17,14 +17,15 @@
 #include "sql/dd/dd_routine.h"                        // Routine methods
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
 #include <memory>
-#include <string>
 
 #include "binary_log_types.h"
 #include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
 #include "dd/dd_table.h"                       // dd::get_new_field_type
 #include "dd/properties.h"                     // dd::Properties
+#include "dd/string_type.h"
 #include "dd/types/function.h"                 // dd::Function
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
@@ -33,24 +34,25 @@
 #include "dd/types/schema.h"                   // dd::Schema
 #include "dd/types/view.h"
 #include "field.h"
+#include "item_create.h"
 #include "key.h"
 #include "lex_string.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql_com.h"
-#include "session_tracker.h"
 #include "sp.h"
 #include "sp_head.h"                           // sp_head
 #include "sp_pcontext.h"                       // sp_variable
-#include "sql_admin.h"
 #include "sql_class.h"
+#include "sql_connect.h"
 #include "sql_db.h"                            // get_default_db_collation
+#include "sql_lex.h"
+#include "sql_string.h"
 #include "system_variables.h"
+#include "table.h"
 #include "typelib.h"
 #include "tztime.h"                            // Time_zone
+#include "value_map.h"
 
 namespace dd {
 

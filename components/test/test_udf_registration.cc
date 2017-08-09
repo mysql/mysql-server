@@ -17,6 +17,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/udf_registration.h>
+#include <stdbool.h>
 #include <list>
 #include <string>
 
@@ -114,7 +115,7 @@ namespace udf_impl
   const char *test_init= "test_init", *test_udf= "test_udf",
     *test_udf_clear= "test_clear", *test_udf_add= "test_udf_add";
 
-  static my_bool dynamic_udf_init(UDF_INIT *initid, UDF_ARGS *, char *)
+  static bool dynamic_udf_init(UDF_INIT *initid, UDF_ARGS *, char *)
   {
     initid->ptr= const_cast<char *>(test_init);
     return 0;
@@ -125,8 +126,8 @@ namespace udf_impl
     assert(initid->ptr == test_init || initid->ptr == test_udf);
   }
 
-  static longlong dynamic_udf(UDF_INIT *initid, UDF_ARGS *, char *,
-                              unsigned long *, char *is_null, char *error)
+  static long long dynamic_udf(UDF_INIT *initid, UDF_ARGS *, char *,
+                               unsigned long *, char *is_null, char *error)
   {
     if (initid->ptr == test_init)
       initid->ptr= const_cast<char *>(test_udf);
@@ -145,8 +146,8 @@ namespace udf_impl
            initid->ptr == test_udf_clear || initid->ptr == test_udf_add);
   }
 
-  static longlong dynamic_agg(UDF_INIT *initid, UDF_ARGS *, char *,
-                              unsigned long *, char *is_null, char *error)
+  static long long dynamic_agg(UDF_INIT *initid, UDF_ARGS *, char *,
+                               unsigned long *, char *is_null, char *error)
   {
     if (initid->ptr == test_init || initid->ptr == test_udf_add)
       initid->ptr= const_cast<char *>(test_udf_clear);
@@ -161,12 +162,14 @@ namespace udf_impl
     return 42;
   }
 
-  static void dynamic_agg_clear(UDF_INIT *initid, uchar *, uchar *)
+  static void dynamic_agg_clear(UDF_INIT *initid, unsigned char *,
+                                unsigned char *)
   {
     initid->ptr= const_cast<char *>(test_udf_clear);
   }
 
-  static void dynamic_agg_add(UDF_INIT *initid, UDF_ARGS *, uchar *, uchar *)
+  static void dynamic_agg_add(UDF_INIT *initid, UDF_ARGS *, unsigned char *,
+                              unsigned char *)
   {
     initid->ptr= const_cast<char *>(test_udf_add);
   }

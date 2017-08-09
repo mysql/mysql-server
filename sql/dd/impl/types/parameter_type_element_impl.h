@@ -18,9 +18,9 @@
 
 #include <sys/types.h>
 #include <new>
-#include <string>
 
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
+#include "dd/string_type.h"
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 
@@ -28,12 +28,12 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Open_dictionary_tables_ctx;
-class Parameter_impl;
-class Raw_record;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
 class Parameter;
+class Parameter_impl;
+class Raw_record;
 class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////

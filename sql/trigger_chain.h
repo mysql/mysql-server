@@ -19,7 +19,6 @@
 #define TRIGGER_CHAIN_H_INCLUDED
 
 #include "lex_string.h"
-#include "m_string.h"                       // LEX_STRING, LEX_CSTRING
 #include "sql_alloc.h"                      // Sql_alloc
 #include "sql_list.h"                       // List
 #include "thr_malloc.h"

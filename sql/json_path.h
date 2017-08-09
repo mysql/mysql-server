@@ -25,11 +25,16 @@
  */
 
 #include <stddef.h>
+#include <algorithm>
+#include <new>
 #include <string>
 #include <utility>                              // std::move
 
+#include "mem_root_fwd.h"
 #include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;

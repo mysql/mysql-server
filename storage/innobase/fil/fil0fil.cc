@@ -4452,14 +4452,6 @@ fil_discard_tablespace(space_id_t space_id)
 		ut_error;
 	}
 
-	/* Set SDI tables that ibd is missing */
-	dict_table_t*	sdi_table = dict_sdi_get_table(space_id, true, false);
-
-	if (sdi_table != nullptr) {
-		sdi_table->ibd_file_missing = true;
-		dict_sdi_close_table(sdi_table);
-	}
-
 	/* Remove all insert buffer entries for the tablespace */
 
 	ibuf_delete_for_discarded_space(space_id);

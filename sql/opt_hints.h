@@ -24,8 +24,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "dd/properties.h"
 #include "enum_query_type.h"
 #include "item_subselect.h" // Item_exists_subselect
+#include "key.h"
 #include "m_string.h"
 #include "mem_root_array.h" // Mem_root_array
 #include "my_compiler.h"
@@ -33,15 +35,15 @@
 #include "my_inttypes.h"
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_bitmap.h"     // Bitmap
-#include "sql_plugin.h"
 #include "sql_show.h"       // append_identifier
 #include "sql_string.h"     // String
 #include "system_variables.h"
-#include "typelib.h"
+#include "thr_malloc.h"
 
 class JOIN;
 class Opt_hints_table;
 class THD;
+struct TABLE;
 struct TABLE_LIST;
 
 

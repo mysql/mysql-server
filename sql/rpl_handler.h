@@ -22,8 +22,11 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"                        // free_root
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_list.h"                      // List
 #include "sql_plugin_ref.h"                // plugin_ref
 #include "thr_malloc.h"

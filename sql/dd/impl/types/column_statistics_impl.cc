@@ -15,7 +15,7 @@
 
 #include "dd/impl/types/column_statistics_impl.h"
 
-#include <stdint.h>
+#include <string.h>
 
 #include "current_thd.h"                   // current_thd
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
@@ -28,10 +28,14 @@
 #include "include/my_md5.h"                // array_to_hex
 #include "include/sha1.h"                  // compute_sha1_hash
 #include "json_dom.h"                      // Json_*
+#include "m_ctype.h"
 #include "m_string.h"                      // STRING_WITH_LEN
-#include "mysqld.h"                        // system_charset_info
+#include "my_dbug.h"
+#include "mysql_com.h"
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
+#include "sql_security_ctx.h"
+#include "template_utils.h"
 
 namespace dd {
 

@@ -19,7 +19,10 @@
 
 #include <string.h>
 #include <algorithm>
+#include <atomic>
+#include <memory>
 #include <new>
+#include <utility>
 #include <vector>
 
 #include "auth_acls.h"
@@ -31,6 +34,7 @@
 #include "dd/types/function.h"
 #include "dd/types/procedure.h"
 #include "dd/types/routine.h"
+#include "dd/types/schema.h"
 #include "dd_sp.h"          // prepare_sp_chistics_from_dd_routine
 #include "dd_sql_view.h"    // update_referencing_views_metadata
 #include "dd_table_share.h" // dd_get_mysql_charset
@@ -44,13 +48,19 @@
 #include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mdl.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
+#include "my_loglevel.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql_com.h"
 #include "mysqld.h"         // trust_function_creators
 #include "mysqld_error.h"
 #include "protocol.h"
@@ -59,8 +69,10 @@
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sp_head.h"        // Stored_program_creation_ctx
 #include "sp_pcontext.h"    // sp_pcontext
+#include "sql_class.h"
 #include "sql_const.h"
 #include "sql_db.h"         // get_default_db_collation
+#include "sql_digest_stream.h"
 #include "sql_error.h"
 #include "sql_list.h"
 #include "sql_parse.h"      // parse_sql
@@ -77,11 +89,6 @@
 #include "transaction_info.h"
 
 class sp_rcontext;
-namespace dd {
-class Schema;
-}  // namespace dd
-struct PSI_statement_locker;
-struct sql_digest_state;
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(type) \
@@ -1110,7 +1117,11 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   MDL_key::enum_mdl_namespace mdl_type= (type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_ALTER_FAILED);
+  {
+    my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type),
+             name->m_name.str);
+    DBUG_RETURN(true);
+  }
 
   // Check if routine exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

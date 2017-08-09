@@ -18,11 +18,11 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 
 #include "auth_acls.h"
 #include "auth_common.h"                    // check_access
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/types/table.h"                 // dd::Table
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "handler.h"
 #include "lex_string.h"
@@ -43,11 +43,9 @@
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "sql_class.h"                      // THD
-#include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_partition.h"
-#include "sql_plugin.h"
 #include "sql_string.h"
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "system_variables.h"
@@ -56,6 +54,10 @@
 #include "transaction.h"    // trans_commit_stmt
 
 class partition_element;
+
+namespace dd {
+class Table;
+}  // namespace dd
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
 {

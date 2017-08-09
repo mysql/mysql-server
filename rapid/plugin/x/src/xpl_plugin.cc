@@ -58,6 +58,17 @@ void exit_hook()
   google::protobuf::ShutdownProtobufLibrary();
 }
 
+bool atexit_installed = false;
+
+void check_exit_hook()
+{
+  if (!atexit_installed)
+  {
+    atexit_installed = true;
+    atexit(exit_hook);
+  }
+}
+
 } // namespace
 
 
@@ -74,15 +85,11 @@ void exit_hook()
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
-  static bool atexit_installed = false;
-  if (!atexit_installed)
-  {
-    atexit_installed = true;
-    atexit(exit_hook);
-  }
+
 
   xpl::Plugin_system_variables::clean_callbacks();
 
+  check_exit_hook();
   xpl_init_performance_schema();
 
   return xpl::Server::main(p);
@@ -101,6 +108,7 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
  */
 int xpl_plugin_deinit(MYSQL_PLUGIN p)
 {
+  check_exit_hook();
   return xpl::Server::exit(p);
 }
 

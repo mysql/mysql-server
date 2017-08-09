@@ -16,18 +16,18 @@
 #include "dd/impl/types/weak_object_impl.h"
 
 #include <memory>
-#include <string>
 
 #include "dd/impl/object_key.h"           // Needed for destructor
 #include "dd/impl/raw/raw_record.h"       // Raw_record
 #include "dd/impl/raw/raw_table.h"        // Raw_table
 #include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
 #include "dd/impl/types/entity_object_impl.h"
-#include "dd/types/entity_object.h"       // Entity_object
+#include "dd/string_type.h"
 #include "dd/types/object_table.h"        // Object_table
 #include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                 // ER_*
 

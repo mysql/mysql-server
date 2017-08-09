@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <sstream>
+#include <string>
 
 #include "dd/impl/properties_impl.h"               // Properties_impl
 #include "dd/impl/raw/raw_record.h"                // Raw_record
@@ -35,6 +36,7 @@
 #include "dd/types/partition_value.h"
 #include "dd/types/weak_object.h"
 #include "m_string.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                          // ER_*
@@ -50,7 +52,6 @@ namespace dd {
 class Index;
 class Sdi_rcontext;
 class Sdi_wcontext;
-class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition implementation.

@@ -25,6 +25,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql_class.h"     // THD
 #include "sql_error.h"

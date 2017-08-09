@@ -54,6 +54,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "opt_hints.h"
 #include "opt_range.h"           // prune_partitions
@@ -69,14 +70,15 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_optimizer.h"       // Prepare_error_tracker
-#include "sql_plugin_ref.h"
 #include "sql_select.h"
 #include "sql_servers.h"
 #include "sql_test.h"            // print_where
+#include "sql_tmp_table.h"
 #include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"
 #include "thr_malloc.h"
+#include "window.h"
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
@@ -411,7 +413,7 @@ bool SELECT_LEX::prepare(THD *thd)
   }
 
   // Setup full-text functions after resolving HAVING
-  if (has_ft_funcs() && setup_ftfuncs(this))
+  if (has_ft_funcs() && setup_ftfuncs(thd, this))
     DBUG_RETURN(true);
 
   if (query_result() && query_result()->prepare(fields_list, unit))
@@ -864,7 +866,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
       continue;
     table->pos_in_table_list= tr;
     tr->reset();
-    if (tr->process_index_hints(table))
+    if (tr->process_index_hints(thd, table))
       DBUG_RETURN(true);
     if (table->part_info)     // Count number of partitioned tables
       partitioned_table_count++;

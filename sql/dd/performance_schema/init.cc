@@ -15,21 +15,45 @@
 
 #include "init.h"
 
-#include "bootstrap.h"                     // bootstrap::run_bootstrap_thread
-#include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_table.h"                   // dd::table_exists
-#include "dd/dd_schema.h"                  // dd::schema_exists
-#include "dd/properties.h"                 // dd::Properties
-#include "dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include <sys/types.h>
+#include <list>
+#include <new>
+#include <ostream>
+#include <string>
+#include <vector>
 
-#include "dd/impl/dictionary_impl.h"       // dd::Dictionary_impl
+#include "bootstrap.h"                     // bootstrap::run_bootstrap_thread
+#include "dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include "dd/dd.h"                         // enum_dd_init_type
+#include "dd/dd_schema.h"                  // dd::schema_exists
+#include "dd/dd_table.h"                   // dd::table_exists
 #include "dd/impl/bootstrapper.h"          // execute_query
+#include "dd/impl/dictionary_impl.h"       // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"       // dd::System_tables
 #include "dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
 #include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
-
+#include "dd/properties.h"                 // dd::Properties
+#include "dd/string_type.h"
+#include "dd/types/object_table.h"
+#include "dd/types/object_table_definition.h"
+#include "dd/types/table.h"
+#include "derror.h"
 #include "handler.h"                       // Plugin_table
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_dbug.h"
+#include "mysql/thread_type.h"
+#include "set_var.h"
 #include "sql_class.h"                     // THD
+#include "sql_list.h"
+#include "sql_security_ctx.h"
+#include "stateless_allocator.h"
+#include "system_variables.h"
+#include "table.h"
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 using namespace dd;
 

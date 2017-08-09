@@ -18,6 +18,7 @@
 
 #include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"                               // Object_id
+#include "dd/string_type.h"
 #include "dd/types/column_statistics.h"
 
 namespace dd {

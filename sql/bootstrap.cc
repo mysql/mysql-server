@@ -19,23 +19,25 @@
 
 #include "my_config.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 #include <string>
 
 #include "bootstrap_impl.h"
 #include "error_handler.h"       // Internal_error_handler
-#include "lex_string.h"
 #include "log.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"              // key_file_init
 #include "mysqld_error.h"
@@ -50,7 +52,6 @@
 #include "sql_initialize.h"
 #include "sql_lex.h"
 #include "sql_parse.h"           // mysql_parse
-#include "sql_plugin.h"
 #include "sql_profile.h"
 #include "sql_security_ctx.h"
 #include "sys_vars_shared.h"     // intern_find_sys_var

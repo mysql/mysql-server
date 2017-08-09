@@ -36,7 +36,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
-#include <cmath>
 #include <vector>
 
 #include "current_thd.h"
@@ -46,20 +45,25 @@
 #include "item_geofunc_internal.h"
 #include "item_strfunc.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "parse_tree_node_base.h"
 #include "spatial.h"
 #include "sql_class.h"    // THD
 #include "sql_error.h"
+#include "sql_exception_handler.h"
 #include "sql_string.h"
+#include "srs_fetcher.h"
 #include "system_variables.h"
 #include "template_utils.h"
 
 class PT_item_list;
+
 namespace boost {
 namespace geometry {
 namespace cs {
@@ -67,9 +71,6 @@ struct cartesian;
 }  // namespace cs
 }  // namespace geometry
 }  // namespace boost
-namespace dd {
-class Spatial_reference_system;
-}  // namespace dd
 
 
 static const char *const buffer_strategy_names []=

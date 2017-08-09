@@ -17,6 +17,11 @@
 
 #include "my_config.h"
 
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
+
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -29,11 +34,10 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/thread_pool_priv.h"  // inc_thread_created
 #include "sql_class.h"               // THD
 #include "thr_mutex.h"

@@ -16,9 +16,14 @@
 #ifndef SQL_AUTHORIZATION_INCLUDED
 #define SQL_AUTHORIZATION_INCLUDED
 
-#include "mysqld.h"
+#include <string>
+#include <utility>
+
+#include "key.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
 #include "sql_auth_cache.h"
 
+class Role_id;
 class Security_context;
 class String;
 class THD;

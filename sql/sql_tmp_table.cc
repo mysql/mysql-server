@@ -20,12 +20,10 @@
 
 #include "sql_tmp_table.h"
 
-#include <cstring>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
 #include <algorithm>
+#include <cstring>
 #include <new>
 
 #include "auth_common.h"
@@ -42,6 +40,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mem_root_array.h"       // Mem_root_array
+#include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compare.h"
 #include "my_compiler.h"
@@ -59,7 +58,6 @@
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
-#include "parse_tree_nodes.h"     // PT_order_list
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "sql_base.h"             // free_io_cache
@@ -69,15 +67,18 @@
 #include "sql_executor.h"         // SJ_TMP_TABLE
 #include "sql_lex.h"
 #include "sql_list.h"
+#include "sql_opt_exec_shared.h"
+#include "sql_parse.h"
 #include "sql_plugin.h"           // plugin_unlock
 #include "sql_plugin_ref.h"
+#include "sql_select.h"
 #include "sql_servers.h"
 #include "system_variables.h"
 #include "temp_table_param.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "thr_malloc.h"
-#include "typelib.h"
+#include "window.h"
 
 using std::max;
 using std::min;

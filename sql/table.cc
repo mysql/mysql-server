@@ -27,7 +27,6 @@
 #include "auth_acls.h"
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
-#include "binlog_event.h"
 #include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
 #include "dd/dd.h"                       // dd::get_dictionary
 #include "dd/dictionary.h"               // dd::Dictionary
@@ -41,25 +40,33 @@
 #include "ft_global.h"
 #include "item.h"
 #include "item_cmpfunc.h"                // and_conds
+#include "item_create.h"
 #include "json_diff.h"                   // Json_diff_vector
 #include "json_dom.h"                    // Json_wrapper
 #include "key.h"                         // find_ref_key
 #include "log.h"
 #include "m_string.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql/components/services/log_shared.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -67,12 +74,12 @@
 #include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "mysqld_error.h"
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
+#include "opt_trace_context.h"
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
 #include "psi_memory_key.h"
 #include "query_result.h"                // Query_result
-#include "session_tracker.h"
-#include "set_var.h"
+#include "sql_base.h"
 #include "sql_class.h"                   // THD
 #include "sql_error.h"
 #include "sql_lex.h"
@@ -84,8 +91,8 @@
 #include "sql_string.h"
 #include "sql_table.h"                   // build_table_filename
 #include "sql_tablespace.h"              // validate_tablespace_name())
-#include "sql_udf.h"
 #include "strfunc.h"                     // find_type
+#include "system_variables.h"
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
@@ -516,6 +523,15 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
+}
+
+
+Key_map TABLE_SHARE::usable_indexes(const THD *thd) const
+{
+  Key_map usable_indexes(keys_in_use);
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
+    usable_indexes.intersect(visible_indexes);
+  return usable_indexes;
 }
 
 
@@ -6746,11 +6762,11 @@ uint TABLE_LIST::query_block_id_for_explain() const
   @retval FALSE no errors found
   @retval TRUE found and reported an error.
 */
-bool TABLE_LIST::process_index_hints(TABLE *tbl)
+bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 {
   /* initialize the result variables */
   tbl->keys_in_use_for_query= tbl->keys_in_use_for_group_by= 
-    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes();
+    tbl->keys_in_use_for_order_by= tbl->s->usable_indexes(thd);
 
   /* index hint list processing */
   if (index_hints)
