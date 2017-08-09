@@ -3013,7 +3013,7 @@ export void update_parser_max_mem_size()
 
 /**
   @note
-  @b BEWARE! These must have the same order as the #defines in sql_const.h!
+  @b BEWARE! These must have the same order as the \#defines in sql_const.h!
 */
 static const char *optimizer_switch_names[]=
 {

@@ -3598,7 +3598,7 @@
       <td>
         Path name to login file used by <b>mysql_config_editor</b>.
         If not set, the default is <b>$HOME/.mylogin.cnf</b>, or
-        <b>%APPDATA%\\MySQL\\.mylogin.cnf</b> on Windows.
+        <b>\%APPDATA%\\MySQL\\\.mylogin.cnf</b> on Windows.
       </td>
     </tr>
     <tr>

@@ -683,6 +683,7 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom,
   Check if a field is covered by a single-part unique index (primary key or
   unique index). Indexes that are marked as invisible are ignored.
 
+  @param thd The current session.
   @param field The field to check.
 
   @return true if the field is covered by a single-part unique index. False
