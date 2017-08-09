@@ -1801,11 +1801,11 @@ dict_table_rename_in_cache(
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path, table->name.m_name,
 				IBD, true);
 		} else {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				NULL, table->name.m_name, IBD, false);
 		}
 
@@ -1849,7 +1849,7 @@ dict_table_rename_in_cache(
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
 		} else {
-			new_path = fil_make_filepath(
+			new_path = Fil_path::make(
 				NULL, new_name, IBD, false);
 		}
 

@@ -3280,10 +3280,10 @@ srv_get_meta_data_filename(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		path = fil_make_filepath(
+		path = Fil_path::make(
 			table->data_dir_path, table->name.m_name, CFG, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
+		path = Fil_path::make(NULL, table->name.m_name, CFG, false);
 	}
 
 	ut_a(path);
@@ -3315,10 +3315,10 @@ srv_get_encryption_data_filename(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		path = fil_make_filepath(
+		path = Fil_path::make(
 			table->data_dir_path, table->name.m_name, CFP, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFP, false);
+		path = Fil_path::make(NULL, table->name.m_name, CFP, false);
 	}
 
 	ut_a(path);

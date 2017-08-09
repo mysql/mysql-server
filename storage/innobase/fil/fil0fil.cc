@@ -3928,7 +3928,7 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 	/* If it is a delete then also delete any generated files, otherwise
 	when we drop the database the remove directory will fail. */
 
-	char*	cfg_name = fil_make_filepath(path, nullptr, CFG, false);
+	char*	cfg_name = Fil_path::make(path, nullptr, CFG, false);
 
 	if (cfg_name != nullptr) {
 
@@ -3938,7 +3938,7 @@ fil_close_tablespace(trx_t* trx, space_id_t space_id)
 		ut_free(cfg_name);
 	}
 
-	char*	cfp_name = fil_make_filepath(path, nullptr, CFP, false);
+	char*	cfp_name = Fil_path::make(path, nullptr, CFP, false);
 
 	if (cfp_name != nullptr) {
 
@@ -4120,7 +4120,7 @@ Fil_shard::space_delete(
 
 #endif /* UNIV_HOTBACKUP */
 
-		char*	cfg_name = fil_make_filepath(
+		char*	cfg_name = Fil_path::make(
 			path, nullptr, CFG, false);
 
 		if (cfg_name != nullptr) {
@@ -4131,7 +4131,7 @@ Fil_shard::space_delete(
 			ut_free(cfg_name);
 		}
 
-		char*	cfp_name = fil_make_filepath(
+		char*	cfp_name = Fil_path::make(
 			path, nullptr, CFP, false);
 
 		if (cfp_name != nullptr) {
@@ -4415,7 +4415,7 @@ and a suffix.
 @param[in]	trim	whether last name on the path should be trimmed
 @return own: file name; must be freed by ut_free() */
 char*
-fil_make_filepath(
+Fil_path::make(
 	const char*	path_in,
 	const char*	name_in,
 	ib_file_suffix	ext,
@@ -4458,7 +4458,7 @@ fil_make_filepath(
 		auto	pos = filepath.rfind(OS_PATH_SEPARATOR);
 
 		if (pos != std::string::npos) {
-			filepath.resize(pos - 1);
+			filepath.resize(pos);
 		}
 	}
 
@@ -4732,7 +4732,7 @@ Fil_shard::space_rename(
 
 	if (new_path_in == nullptr) {
 
-		new_file_name = fil_make_filepath(
+		new_file_name = Fil_path::make(
 			nullptr, new_name, IBD, false);
 	} else {
 		new_file_name = mem_strdup(new_path_in);
@@ -7485,10 +7485,10 @@ fil_tablespace_iterate(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
+		filepath = Fil_path::make(
 			table->data_dir_path, table->name.m_name, IBD, true);
 	} else {
-		filepath = fil_make_filepath(
+		filepath = Fil_path::make(
 			nullptr, table->name.m_name, IBD, false);
 	}
 
@@ -7655,7 +7655,7 @@ fil_delete_file(const char* path)
 
 	os_file_delete_if_exists(innodb_data_file_key, path, nullptr);
 
-	char*	cfg_filepath = fil_make_filepath(path, nullptr, CFG, false);
+	char*	cfg_filepath = Fil_path::make(path, nullptr, CFG, false);
 
 	if (cfg_filepath != nullptr) {
 
@@ -7665,7 +7665,7 @@ fil_delete_file(const char* path)
 		ut_free(cfg_filepath);
 	}
 
-	char*	cfp_filepath = fil_make_filepath(path, nullptr, CFP, false);
+	char*	cfp_filepath = Fil_path::make(path, nullptr, CFP, false);
 
 	if (cfp_filepath != nullptr) {
 
@@ -7767,7 +7767,7 @@ fil_mtr_rename_log(
 		? old_table->data_dir_path
 		: nullptr;
 
-	char*	old_path = fil_make_filepath(
+	char*	old_path = Fil_path::make(
 		old_dir, old_table->name.m_name, IBD, (old_dir != nullptr));
 
 	if (old_path == nullptr) {
@@ -7776,7 +7776,7 @@ fil_mtr_rename_log(
 
 	if (old_is_file_per_table) {
 
-		char*	tmp_path = fil_make_filepath(
+		char*	tmp_path = Fil_path::make(
 			old_dir, tmp_name, IBD, (old_dir != nullptr));
 
 		if (tmp_path == nullptr) {
@@ -7807,7 +7807,7 @@ fil_mtr_rename_log(
 			? new_table->data_dir_path
 			: nullptr;
 
-		char*	new_path = fil_make_filepath(
+		char*	new_path = Fil_path::make(
 				new_dir, new_table->name.m_name,
 				IBD, (new_dir != nullptr));
 
@@ -8258,7 +8258,7 @@ fil_space_set_flags(
 
 /* Unit Tests */
 #ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
-#define MF  fil_make_filepath
+#define MF  Fil_path::make
 #define DISPLAY ib::info() << path
 void
 test_make_filepath()

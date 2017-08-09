@@ -7396,7 +7396,7 @@ fts_drop_aux_table_from_vector(
 
 			if (err == DB_FAIL) {
 
-				char*	path = fil_make_filepath(
+				char*	path = Fil_path::make(
 					NULL, aux_drop_table->name, IBD, false);
 
 				if (path != NULL) {

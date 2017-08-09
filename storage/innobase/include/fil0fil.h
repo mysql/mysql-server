@@ -556,6 +556,23 @@ public:
 		       && path.compare(path.size() - len, len, suffix) == 0);
 	}
 
+	/** Allocate and build a file name from a path, a table or
+	tablespace name and a suffix.
+	@param[in]	path_in		nullptr or the direcory path or
+					the full path and filename
+	@param[in]	name_in		nullptr if path is full, or
+					Table/Tablespace name
+	@param[in]	ext		the file extension to use
+	@param[in]	trim		whether last name on the path should
+					be trimmed
+	@return own: file name; must be freed by ut_free() */
+	static char* make(
+		const char*	path_in,
+		const char*	name_in,
+		ib_file_suffix	ext,
+		bool		trim)
+		MY_ATTRIBUTE((warn_unused_result));
+
 	/** @return the null path */
 	static const Fil_path& null()
 		MY_ATTRIBUTE((warn_unused_result))
@@ -1060,23 +1077,6 @@ fil_rename_tablespace(
 	const char*	old_path,
 	const char*	new_name,
 	const char*	new_path_in)
-	MY_ATTRIBUTE((warn_unused_result));
-
-/** Allocate and build a file name from a path, a table or tablespace name
-and a suffix.
-@param[in]	path_in		nullptr or the direcory path or the full path
-				and filename
-@param[in]	name_in		nullptr if path is full, or Table/Tablespace
-				name
-@param[in]	ext		The file extension to use
-@param[in]	trim		Whether last name on the path should be trimmed
-@return own: file name; must be freed by ut_free() */
-char*
-fil_make_filepath(
-	const char*	path_in,
-	const char*	name_in,
-	ib_file_suffix	ext,
-	bool		trim)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Create a tablespace file.

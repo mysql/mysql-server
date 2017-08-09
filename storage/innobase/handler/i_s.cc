@@ -8107,7 +8107,7 @@ i_s_dict_fill_sys_tablespaces(
 	}
 
 	if (filepath == NULL) {
-		filepath = fil_make_filepath(NULL, name, IBD, false);
+		filepath = Fil_path::make(NULL, name, IBD, false);
 	}
 
 	os_file_stat_t	stat;

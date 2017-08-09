@@ -3028,7 +3028,7 @@ dd_load_tablespace(
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		}

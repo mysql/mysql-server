@@ -4913,11 +4913,11 @@ row_drop_table_for_mysql(
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		} else if (!shared_tablespace) {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				NULL, table->name.m_name, IBD, false);
 		}
 
@@ -5471,7 +5471,7 @@ row_rename_table_for_mysql(
 		has changed so we need to make the complete filepath again. */
 		if (!dict_tables_have_same_db(old_name, new_name)) {
 			ut_free(new_path);
-			new_path = fil_make_filepath(NULL, new_name, IBD, false);
+			new_path = Fil_path::make(NULL, new_name, IBD, false);
 		}
 
 		info = pars_info_create();

@@ -213,7 +213,7 @@ Datafile::make_filepath(
 
 	free_filepath();
 
-	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
+	m_filepath = Fil_path::make(dirpath, filename, ext, false);
 
 	ut_ad(m_filepath != NULL);
 

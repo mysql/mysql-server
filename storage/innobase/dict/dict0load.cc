@@ -2623,7 +2623,7 @@ dict_save_data_dir_path(
 	ut_a(filepath);
 
 	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_filepath(
+	char*	default_filepath = Fil_path::make(
 			NULL, table->name.m_name, IBD, false);
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
@@ -2880,7 +2880,7 @@ dict_load_tablespace(
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		}
