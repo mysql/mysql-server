@@ -5464,8 +5464,12 @@ static Sys_var_have Sys_have_profiling(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
-       "have_query_cache", "have_query_cache",
-       READ_ONLY NON_PERSIST GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
+       "have_query_cache",
+       "have_query_cache. "
+       "This variable is deprecated and will be removed in a future release.",
+       READ_ONLY NON_PERSIST GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
+       DEPRECATED(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
