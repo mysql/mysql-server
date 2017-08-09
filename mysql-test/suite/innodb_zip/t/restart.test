@@ -39,7 +39,7 @@ LET $ALT_DIR_MOVED = $MYSQL_TMP_DIR/alt_dir_moved;
 
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
-LET $restart_parameters = restart:--innodb-scan-directories=$ALT_DIR;
+LET $restart_parameters = restart:--innodb-directories=$ALT_DIR;
 
 --enable_query_log
 
@@ -489,7 +489,7 @@ SHOW CREATE TABLE t77_restart;
 --list_files $ALT_DIR_MOVED/$SCHEMA_NAME
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-LET $restart_parameters = restart:--innodb-scan-directories="$ALT_DIR_MOVED";
+LET $restart_parameters = restart:--innodb-directories="$ALT_DIR_MOVED";
 
 --echo #
 --echo # Start the server and check tablespaces.

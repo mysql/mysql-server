@@ -206,7 +206,7 @@ static char*	innobase_enable_monitor_counter		= NULL;
 static char*	innobase_disable_monitor_counter	= NULL;
 static char*	innobase_reset_monitor_counter		= NULL;
 static char*	innobase_reset_all_monitor_counter	= NULL;
-static char*	innobase_scan_directories		= NULL;
+static char*	innobase_directories			= NULL;
 
 static ulong	innodb_change_buffering;
 static ulong	innodb_flush_method;
@@ -4866,25 +4866,31 @@ innobase_init_files(
 	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
 	/* InnoDB files should be found in the following locations only. */
-	std::string	scan_directories;
+	std::string	directories;
 
-	if (innobase_scan_directories != nullptr
-	    && *innobase_scan_directories != 0) {
+	if (innobase_directories != nullptr && *innobase_directories != 0) {
 
-		scan_directories.append(";").append(innobase_scan_directories);
+		directories.push_back(FIL_PATH_SEPARATOR);
+		directories.append(innobase_directories);
 	}
 
-	scan_directories.append(";").append(srv_data_home);
+	if (!directories.empty()) {
+		directories.push_back(FIL_PATH_SEPARATOR);
+	}
+
+	directories.append(srv_data_home);
 
 	if (srv_undo_dir != nullptr && *srv_undo_dir != 0) {
 
-		scan_directories.append(";").append(srv_undo_dir);
+		directories.push_back(FIL_PATH_SEPARATOR);
+		directories.append(srv_undo_dir);
 	}
 
 	/* This is the default directory for .ibd files. */
-	scan_directories.append(";").append(MySQL_datadir_path);
+	directories.push_back(FIL_PATH_SEPARATOR);
+	directories.append(MySQL_datadir_path);
 
-	err = srv_start(create, scan_directories);
+	err = srv_start(create, directories);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -14451,28 +14457,51 @@ validate_create_tablespace_info(
 	std::string	dirname(filepath, dirname_len);
 
 	/* The directory path must be pre-existing. */
-	Fil_path	path{dirname};
+	Fil_path	dir{dirname};
 
 	ut_free(filepath);
 
-	if (path.len() > 0 && !path.is_directory_and_exists()) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
-				"The directory does not exist.", MYF(0));
+	if (dir.len() > 0 && !dir.is_directory_and_exists()) {
+		const auto	name = alter_info->data_file_name;
+
+		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"The directory does not exist.", MYF(0));
 
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
+	/* CREATE TABLESPACE...ADD DATAFILE must be under a path that InnoDB
+	knows about. */
+	if (dir.len() > 0 && !fil_check_path(dir.path())) {
+
+		std::string	paths = fil_get_dirs();
+		const auto	name = alter_info->data_file_name;
+
+		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"CREATE TABLESPACE data file must be in one of"
+			" these directories '%s'.", MYF(0), paths.c_str());
+
+		error = HA_WRONG_CREATE_OPTION;
+	}
+
 	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
 	the datadir.*/
-	if (MySQL_datadir_path.is_ancestor(path)) {
+	if (MySQL_datadir_path.is_ancestor(dir)) {
+		const auto	name = alter_info->data_file_name;
 
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
-				"CREATE TABLESPACE data file"
-				" cannot be under the datadir.", MYF(0));
+		my_error(ER_WRONG_FILE_NAME, MYF(0), name);
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"CREATE TABLESPACE data file cannot be under the"
+			" datadir.", MYF(0));
+
 		error = HA_WRONG_CREATE_OPTION;
 	}
 
@@ -21877,7 +21906,7 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_debug, srv_buf_pool_debug,
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
-static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
+static MYSQL_SYSVAR_STR(directories, innobase_directories,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
   "List of directories 'dir1;dir2;..;dirN' to scan for tablespace files. Default is to scan 'innodb-data-home-dir;innodb-undo-directory;datadir'",
   NULL, NULL, NULL);
@@ -21975,7 +22004,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
-  MYSQL_SYSVAR(scan_directories),
+  MYSQL_SYSVAR(directories),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),

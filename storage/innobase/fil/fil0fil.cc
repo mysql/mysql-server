@@ -415,18 +415,37 @@ public:
 		Fil_path	file{path};
 
 		for (const auto& dir : m_dirs) {
+			const auto&	root = dir.root().abs_path();
 
-			const auto&	root = dir.root();
+			if (dir.root().is_ancestor(file)
+			    || root.compare(file.abs_path()) == 0) {
 
-			if (root.is_ancestor(file)) {
-
-				return(root);
+				return(dir.root());
 			}
 		}
 
-		ut_error;
-
 		return(Fil_path::null());
+	}
+
+	/** Check if a path is known to InnoDB.
+	@return the list of directories 'dir1;dir2;....;dirN' */
+	std::string get_dirs() const
+	{
+		std::string	dirs;
+
+		ut_ad(!m_dirs.empty());
+
+		for (const auto& dir : m_dirs) {
+
+			dirs.append(dir.root());
+			dirs.push_back(FIL_PATH_SEPARATOR);
+		}
+
+		dirs.pop_back();
+
+		ut_ad(!dirs.empty());
+
+		return(dirs);
 	}
 
 private:
@@ -1001,7 +1020,7 @@ public:
 	Tablespace_dirs::Result get_scanned_files(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(s_dirs.find(space_id));
+		return(m_dirs.find(space_id));
 	}
 
 	/** Fetch the file name opened for a space_id during recovery
@@ -1027,7 +1046,7 @@ public:
 	bool erase(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result))
 	{
-		return(s_dirs.erase(space_id));
+		return(m_dirs.erase(space_id));
 	}
 
 	/** Get the top level directory where this filename was found.
@@ -1226,6 +1245,23 @@ public:
 		m_moved.push_back(tuple);
 	}
 
+	/** Check if a path is known to InnoDB.
+	@param[in]	path		Path to check
+	@return true if path is known to InnoDB */
+	bool check_path(const std::string& path) const
+	{
+		const auto&	dir = m_dirs.contains(path);
+
+		return(dir != Fil_path::null());
+	}
+
+	/** Check if a path is known to InnoDB.
+	@return the list of directories 'dir1;dir2;....;dirN' */
+	std::string get_dirs() const
+	{
+		return(m_dirs.get_dirs());
+	}
+
 	/** Determines if a file belongs to the least-recently-used list.
 	@param[in]	space		Tablespace to check
 	@return true if the file belongs to fil_system->m_LRU mutex. */
@@ -1234,9 +1270,9 @@ public:
 
 	/** Scan the directories to build the tablespace ID to file name
 	mapping table. */
-	static dberr_t scan(const std::string& directories)
+	dberr_t scan(const std::string& directories)
 	{
-		return(s_dirs.scan(directories));
+		return(m_dirs.scan(directories));
 	}
 
 	/** Get the tablespace ID from an .ibd and/or an undo tablespace.
@@ -1366,7 +1402,7 @@ private:
 	dd_fil::Tablespaces	m_moved;
 
 	/** Tablespace directories scanned at startup */
-	static Tablespace_dirs	s_dirs;
+	Tablespace_dirs		m_dirs;
 
 	// Disable copying
 	Fil_system(Fil_system&&) = delete;
@@ -1379,9 +1415,6 @@ private:
 /** The tablespace memory cache. This variable is nullptr before the module is
 initialized. */
 static Fil_system*	fil_system = nullptr;
-
-/** Directories scanned on startup and the Tablespaces contained within. */
-Tablespace_dirs		Fil_system::s_dirs;
 
 /** Total number of open files. */
 std::atomic_size_t	Fil_shard::s_n_open;
@@ -9507,7 +9540,13 @@ Tablespace_dirs::scan(const std::string& directories)
 	Scanned_files	ibd_files;
 	Scanned_files	undo_files;
 
-	tokenize_paths(directories, ";");
+	{
+		std::string	separators;
+
+		separators.push_back(FIL_PATH_SEPARATOR);
+
+		tokenize_paths(directories, separators);
+	}
 
 	uint16_t	count = 0;
 	bool		print_msg = false;
@@ -9645,7 +9684,7 @@ Tablespace_dirs::scan(const std::string& directories)
 dberr_t
 fil_scan_for_tablespaces(const std::string& directories)
 {
-	return(Fil_system::scan(directories));
+	return(fil_system->scan(directories));
 }
 
 /** Callback to check tablespace size with space header size and extend.
@@ -9801,7 +9840,7 @@ Fil_system::open_for_business(bool read_only_mode)
 			<< ", failures " << failed;
 	}
 
-	s_dirs.clear();
+	m_dirs.clear();
 
 	return(failed == 0 ? DB_SUCCESS : DB_ERROR);
 }
@@ -9813,4 +9852,21 @@ dberr_t
 fil_open_for_business(bool read_only_mode)
 {
 	return(fil_system->open_for_business(read_only_mode));
+}
+
+/** Check if a path is known to InnoDB.
+@param[in]	path		Path to check
+@return true if path is known to InnoDB */
+bool
+fil_check_path(const std::string& path)
+{
+	return(fil_system->check_path(path));
+}
+
+/** Get the list of directories that InnoDB will search on startup.
+@return the list of directories 'dir1;dir2;....;dirN' */
+std::string
+fil_get_dirs()
+{
+	return(fil_system->get_dirs());
 }

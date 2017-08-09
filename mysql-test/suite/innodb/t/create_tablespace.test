@@ -12,6 +12,14 @@ SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
+--disable_query_log
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--source include/restart_mysqld.inc
+--enable_query_log
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
+
 --echo # Strict-mode has no effect on CREATE TABLESPACE.
 --echo # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
@@ -70,8 +78,10 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_WRONG_FILE_NAME
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -1002,7 +1012,7 @@ call mtr.add_suppression("Skip updating information_schema metadata in InnoDB re
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
-let $restart_parameters = restart: --innodb_read_only;
+let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 --error ER_OPEN_AS_READONLY
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
@@ -1012,7 +1022,7 @@ DROP TABLESPACE s1;
 SHOW WARNINGS;
 
 --echo # Restart in normal mode for cleanup.
-let $restart_parameters = restart;
+let $restart_parameters = restart --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 DROP TABLESPACE s1;
 

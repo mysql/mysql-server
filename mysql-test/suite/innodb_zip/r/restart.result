@@ -307,7 +307,7 @@ t7_restart#p#p1#sp#s2.ibd
 t7_restart#p#p1#sp#s3.ibd
 #
 # Start the server and show that tables are still visible and accessible.
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -605,7 +605,7 @@ t7_restart#p#p1#sp#s3.ibd
 #
 # Start the server and show the tablespaces.
 #
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -792,7 +792,7 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # Restart the server
 #
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	ON
@@ -889,7 +889,7 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # Start the server and check tablespaces.
 #
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
@@ -986,7 +986,7 @@ SUBPARTITION BY HASH (`c1`)
 #
 # Start the server and check tablespaces.
 #
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 move_test/t4_restart	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/move_test/t4_restart.ibd
@@ -1093,7 +1093,7 @@ t77_restart#p#p1#sp#s3.ibd
 #
 # Start the server and check tablespaces.
 #
-# restart:--innodb-scan-directories=MYSQL_TMP_DIR/alt_dir_moved
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir_moved
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 SELECT count(*) FROM t4_restart;
 count(*)

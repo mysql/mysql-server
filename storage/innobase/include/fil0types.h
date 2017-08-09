@@ -111,4 +111,7 @@ constexpr size_t FIL_ADDR_BYTE = 4;
 /** Address size is 6 bytes. */
 constexpr size_t FIL_ADDR_SIZE = 6;
 
+/** Path separator e.g., 'dir;...;dirN' */
+constexpr char	FIL_PATH_SEPARATOR = ';';
+
 #endif /* fil0types_h */

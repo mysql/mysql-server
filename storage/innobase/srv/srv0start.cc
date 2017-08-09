@@ -1922,6 +1922,8 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
+	fil_init(srv_max_n_open_files);
+
 	err = fil_scan_for_tablespaces(scan_directories);
 
 	if (err != DB_SUCCESS) {
@@ -2004,8 +2006,6 @@ srv_start(bool create_new_db, const std::string& scan_directories)
 
 		return(srv_init_abort(DB_ERROR));
 	}
-
-	fil_init(srv_max_n_open_files);
 
 	double	size;
 	char	unit;

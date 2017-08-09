@@ -7,6 +7,10 @@
 # on any OS, we create the tablespaces here.
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
+# restart:--innodb-directories=/ssd/work/wl8619/mysql-test/var/tmp
+SHOW VARIABLES LIKE 'innodb_directories';
+Variable_name	Value
+innodb_directories	MYSQL_TMP_DIR
 #
 # Try to create a tablespace in a read-only directory.
 #

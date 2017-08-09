@@ -1710,4 +1710,16 @@ fil_has_ibd_suffix(const std::string& path)
 	       && path.compare(path.size() - len, len, suffix) == 0);
 }
 
+/** Check if a path is known to InnoDB.
+@param[in]	path		Path to check
+@return true if path is known to InnoDB */
+bool
+fil_check_path(const std::string& path)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/** Get the list of directories that InnoDB will search on startup.
+@return the list of directories 'dir1;dir2;....;dirN' */
+std::string
+fil_get_dirs()
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* fil0fil_h */
