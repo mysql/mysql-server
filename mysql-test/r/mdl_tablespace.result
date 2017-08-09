@@ -776,12 +776,22 @@ FROM performance_schema.events_waits_current
 WHERE object_type LIKE 'TABLESPACE';
 event_name	object_name	object_type	operation
 wait/lock/metadata/sql/mdl	ts1	TABLESPACE	metadata lock
+CALL sys.ps_setup_disable_instrument('wait');
+summary
+Disabled X instruments
+CALL sys.ps_setup_enable_instrument('wait/lock/metadata/sql/mdl');
+summary
+Enabled 1 instrument
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 SET DEBUG_SYNC= 'now SIGNAL cont_con1';
 #
 # Now, the tablespace MDL information will eventually be
 # gone from both I_S and P_S, except it will remain in the
 # P_S event wait history.
+SELECT event_name, object_name, object_type, operation
+FROM performance_schema.events_waits_current
+WHERE object_type LIKE 'TABLESPACE';
+event_name	object_name	object_type	operation
 SELECT event_name, object_name, object_type, operation
 FROM performance_schema.events_waits_history_long
 WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts1';
@@ -795,6 +805,9 @@ ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE
 connection default;
 DROP TABLESPACE ts1;
 SET DEBUG_SYNC= 'RESET';
+CALL sys.ps_setup_enable_instrument('wait');
+summary
+Enabled X instruments
 ###########################################################
 #
 # Test teardown: Disconnect
