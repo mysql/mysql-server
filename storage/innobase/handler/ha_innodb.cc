@@ -14422,8 +14422,8 @@ validate_create_tablespace_info(
 		specifies the "C:" drive but allows a relative location.
 		It should be like "c:\". If a single colon is used it must
 		be the second byte the the third byte must be a separator. */
-		if (colon != filepath.path().at(1)
-		    || (colon[1] != OS_PATH_SEPARATOR)
+		if (*colon != *filepath.path().begin()
+		    || colon[1] != OS_PATH_SEPARATOR
 		    || NULL != strchr(&colon[1], ':')) {
 #endif /* _WIN32 */
 			my_error(ER_WRONG_FILE_NAME,
