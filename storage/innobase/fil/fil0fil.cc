@@ -4409,109 +4409,96 @@ fil_discard_tablespace(space_id_t space_id)
 
 /** Allocate and build a file name from a path, a table or tablespace name
 and a suffix.
-@param[in]	path	nullptr or the direcory path or the full path and
+@param[in]	path_in	nullptr or the direcory path or the full path and
 			filename
-@param[in]	name	nullptr if path is full, or Table/Tablespace name
+@param[in]	name_in	nullptr if path is full, or Table/Tablespace name
 @param[in]	ext	the file extension to use
 @param[in]	trim	whether last name on the path should be trimmed
 @return own: file name; must be freed by ut_free() */
 char*
 fil_make_filepath(
-	const char*	path,
-	const char*	name,
+	const char*	path_in,
+	const char*	name_in,
 	ib_file_suffix	ext,
 	bool		trim)
 {
 	/* The path may contain the basename of the file, if so we do not
 	need the name.  If the path is nullptr, we can use the default path,
 	but there needs to be a name. */
-	ut_ad(path != nullptr || name != nullptr);
+	ut_ad(path_in != nullptr || name_in != nullptr);
 
-	/* If we are going to strip a name off the path, there better be a
-	path and a new name to put back on. */
-	ut_ad(!trim || (path != nullptr && name != nullptr));
-
-	if (path == nullptr) {
-		path = MySQL_datadir_path;
+	if (path_in == nullptr) {
+		path_in = MySQL_datadir_path;
 	}
 
-	ulint	len		= 0;	/* current length */
-	ulint	path_len	= strlen(path);
-	ulint	name_len	= (name ? strlen(name) : 0);
-	const char* suffix	= dot_ext[ext];
-	ulint	suffix_len	= strlen(suffix);
-	ulint	full_len	= path_len + 1 + name_len + suffix_len + 1;
+	std::string	name;
 
-	char*	full_name = static_cast<char*>(ut_malloc_nokey(full_len));
-	if (full_name == nullptr) {
-		return(nullptr);
+	if (name_in != nullptr) {
+		name.append(name_in);
 	}
+
+	std::string	path(path_in);
 
 	/* If the name is a relative path, do not prepend "./". */
-	if (path[0] == '.'
-	    && (path[1] == '\0' || path[1] == OS_PATH_SEPARATOR)
-	    && name != nullptr && name[0] == '.') {
-		path = nullptr;
-		path_len = 0;
+	if (!Fil_path::is_absolute_path(path.c_str())
+	    && !name.empty()
+	    && *name.begin() == '.') {
+
+		path.resize(0);
 	}
 
-	if (path != nullptr) {
-		memcpy(full_name, path, path_len);
-		len = path_len;
-		full_name[len] = '\0';
-		Fil_path::normalize(full_name);
+	std::string	filepath;
+
+	if (!path.empty()) {
+		filepath.assign(path);
 	}
 
 	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
 		null in order to strip off the old basename from this path. */
-		char* last_dir_sep = strrchr(full_name, OS_PATH_SEPARATOR);
-		if (last_dir_sep) {
-			last_dir_sep[0] = '\0';
-			len = strlen(full_name);
+		auto	pos = filepath.rfind(OS_PATH_SEPARATOR);
+
+		if (pos != std::string::npos) {
+			filepath.resize(pos - 1);
 		}
 	}
 
-	if (name != nullptr) {
-		if (len && full_name[len - 1] != OS_PATH_SEPARATOR) {
-			/* Add a DIR separator */
-			full_name[len] = OS_PATH_SEPARATOR;
-			full_name[++len] = '\0';
+	if (!name.empty()) {
+
+		if (!filepath.empty() && filepath.back() != OS_PATH_SEPARATOR) {
+			filepath.push_back(OS_PATH_SEPARATOR);
 		}
 
-		char*	ptr = &full_name[len];
-		memcpy(ptr, name, name_len);
-		len += name_len;
-		full_name[len] = '\0';
-		Fil_path::normalize(ptr);
+		filepath.append(name);
 	}
 
-	/* Make sure that the specified suffix is at the end of the filepath
-	string provided. This assumes that the suffix starts with '.'.
-	If the first char of the suffix is found in the filepath at the same
-	length as the suffix from the end, then we will assume that there is
-	a previous suffix that needs to be replaced. */
-	if (suffix != nullptr) {
+	if (ext != NO_EXT) {
 
-		/* Need room for the trailing null byte. */
-		ut_ad(len < full_len);
+		const auto	suffix = dot_ext[ext];
+		size_t		len = strlen(suffix);
 
-		if ((len > suffix_len)
-		   && (full_name[len - suffix_len] == suffix[0])) {
+		/* This assumes that the suffix starts with '.'.  If the
+		first char of the suffix is found in the filepath at the
+		same length as the suffix from the end, then we will assume
+		that there is a previous suffix that needs to be replaced. */
 
-			/* Another suffix exists, make it the one requested. */
-			memcpy(&full_name[len - suffix_len],
-			       suffix, suffix_len);
+		ut_ad(*suffix == '.');
 
+		if (filepath.length() > len
+		    && *(filepath.end() - len) == *suffix) {
+
+			filepath.replace(
+				filepath.end() - len,
+				filepath.end(), suffix);
 		} else {
-			/* No previous suffix, add it. */
-			ut_ad(len + suffix_len < full_len);
-			memcpy(&full_name[len], suffix, suffix_len);
-			full_name[len + suffix_len] = '\0';
+
+			filepath.append(suffix);
 		}
 	}
 
-	return(full_name);
+	const auto	ptr = filepath.c_str();
+
+	return(static_cast<char*>(mem_strdupl(ptr, filepath.length())));
 }
 
 /** Write redo log for renaming a file.
