@@ -3825,14 +3825,14 @@ bool Item_param::itemize(Parse_context *pc, Item **res)
     {
       if (master_pos == master->pos_in_query)
       {
-        // Register it against its master, and don't add to param_list
+        // Register it against its master
         return master->add_clone(this);
       }
     }
     DBUG_ASSERT(false);                         /* purecov: inspected */
   }
 
-  return lex->param_list.push_back(this);
+  return false;
 }
 
 

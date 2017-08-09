@@ -12784,8 +12784,19 @@ text_string:
 param_marker:
           PARAM_MARKER
           {
-            $$= NEW_PTN Item_param(@$, YYMEM_ROOT,
-                                   (uint) (@1.raw.start - YYLIP->get_buf()));
+            auto *i= NEW_PTN Item_param(@$, YYMEM_ROOT,
+                                        (uint) (@1.raw.start - YYLIP->get_buf()));
+            if (i == NULL)
+              MYSQL_YYABORT;
+            auto *lex= Lex;
+            /*
+              If we are not re-parsing a CTE definition, this is a
+              real parameter, so add it to param_list.
+            */
+            if (!lex->reparse_common_table_expr_at &&
+                lex->param_list.push_back(i))
+              MYSQL_YYABORT;
+            $$= i;
           }
         ;
 
