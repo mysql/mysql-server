@@ -78,7 +78,7 @@ configure_file( ${CMAKE_CURRENT_BINARY_DIR}/zconf.hh
 #============================================================================
 
 set(ZLIB_PUBLIC_HDRS
-    ${CMAKE_CURRENT_BINARY_DIR}/zconf.h
+    ${CMAKE_CURRENT_BINARY_DIR}/bundled_zconf.h
     zlib.h
 )
 set(ZLIB_PRIVATE_HDRS
