@@ -67,11 +67,11 @@ check_include_file(unistd.h Z_HAVE_UNISTD_H)
 
 
 configure_file(	${CMAKE_CURRENT_SOURCE_DIR}/zconf.h.cmakein
-		${CMAKE_CURRENT_BINARY_DIR}/zconf.h @ONLY)
+		${CMAKE_CURRENT_BINARY_DIR}/zconf.hh @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR})
 
-configure_file( ${CMAKE_CURRENT_BINARY_DIR}/zconf.h
-                ${CMAKE_CURRENT_SOURCE_DIR}/zconf.h )
+configure_file( ${CMAKE_CURRENT_BINARY_DIR}/zconf.hh
+                ${CMAKE_CURRENT_BINARY_DIR}/bundled_zconf.h )
 
 #============================================================================
 # zlib

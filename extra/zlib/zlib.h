@@ -31,7 +31,7 @@
 #ifndef ZLIB_H
 #define ZLIB_H
 
-#include "zconf.h"
+#include "bundled_zconf.h"
 
 #ifdef __cplusplus
 extern "C" {
