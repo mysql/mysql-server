@@ -325,7 +325,11 @@ drop function myfunc_int;
 CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 create table t1 (a char);
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 select metaphon('MySQL') from t1;
 metaphon('MySQL')
 show status like "Qcache_hits";
@@ -345,6 +349,8 @@ Qcache_queries_in_cache	0
 drop table t1;
 drop function metaphon;
 set GLOBAL query_cache_size=default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;

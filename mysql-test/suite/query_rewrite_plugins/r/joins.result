@@ -2,6 +2,10 @@ CREATE TABLE t1 ( c1 INTEGER, c2 INTEGER );
 CREATE TABLE t2 ( c1 INTEGER, c2 INTEGER );
 INSERT INTO t1 VALUES (1, 2), (2, 0), (3, 1), (4, 3), (5, 4), (6, 1), (7, 2);
 INSERT INTO t2 VALUES (1, 1), (3, 3), (4, 0), (6, 3), (9, 1), (8, 10);
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 SET sql_mode = 'PIPES_AS_CONCAT';
 Warnings:
@@ -22,6 +26,8 @@ VALUES ( 'SELECT * FROM test.t1 JOIN test.t2 ON ' ||
 'ON ( test.t1.c1 = test.t2.c1 AND test.t2.c1 > ? AND test.t1.c2 <> ? )'
        );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
 1	SELECT * FROM test.t1 JOIN test.t2 ON ( test.t1.c1 = test.t2.c1 AND test.t1.c2 > ? )	NULL	SELECT * FROM test.t1 JOIN test.t2 ON ( test.t1.c1 = test.t2.c1 AND test.t2.c2 > ? )	YES	NULL
