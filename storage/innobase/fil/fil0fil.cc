@@ -9695,6 +9695,8 @@ Fil_system::open_for_business(bool read_only_mode)
 
 	ut_ad(!trx_is_started(trx));
 
+	trx->isolation_level = trx_t::READ_UNCOMMITTED;
+
 	trx_start_if_not_started_xa(trx, false);
 
 	size_t	batch_size = 0;
