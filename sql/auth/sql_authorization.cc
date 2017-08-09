@@ -2658,7 +2658,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       result= true;
       continue;
@@ -2879,7 +2880,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     if (set_and_validate_user_attributes(thd, Str, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       result= true;
       continue;
@@ -3273,7 +3275,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
 
     if (set_and_validate_user_attributes(thd, user, what_to_set,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
     {
       error= true;
       continue;
@@ -5412,11 +5415,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   thd->lex->ssl_cipher= thd->lex->x509_subject= thd->lex->x509_issuer= 0;
   memset(&thd->lex->mqh, 0, sizeof(thd->lex->mqh));
   /* set default values */
-  thd->lex->alter_password.update_password_expired_column= false;
-  thd->lex->alter_password.use_default_password_lifetime= true;
-  thd->lex->alter_password.expire_after_days= 0;
-  thd->lex->alter_password.update_account_locked_column= false;
-  thd->lex->alter_password.account_locked= false;
+  thd->lex->alter_password.cleanup();
 
   combo->alter_status= thd->lex->alter_password;
 

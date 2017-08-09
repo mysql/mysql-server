@@ -144,6 +144,11 @@ typedef int (*generate_authentication_string_t)(char *outbuf,
 typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int buflen);
 typedef int (*set_salt_t)(const char *password, unsigned int password_len,
                           unsigned char* salt, unsigned char *salt_len);
+typedef int
+(*compare_password_with_hash_t)(const char *hash, unsigned long hash_length,
+                                const char *cleartext,
+                                unsigned long cleartext_length,
+                                int *is_error);
 struct st_mysql_auth
 {
   int interface_version;
@@ -153,4 +158,5 @@ struct st_mysql_auth
   validate_authentication_string_t validate_authentication_string;
   set_salt_t set_salt;
   const unsigned long authentication_flags;
+  compare_password_with_hash_t compare_password_with_hash;
 };

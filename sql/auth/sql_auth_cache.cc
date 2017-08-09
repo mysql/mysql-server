@@ -2029,6 +2029,36 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= SUPER_ACL | EXECUTE_ACL;
       }
 
+      if (table->s->fields > table_schema->password_reuse_history_idx())
+      {
+        if (table->field[table_schema->password_reuse_history_idx()]->is_null(0))
+          user.use_default_password_history= true;
+        else
+        {
+          char *ptr=
+            get_field(thd->mem_root,
+                      table->field[table_schema->password_reuse_history_idx()]);
+          /* ptr is NULL in case of DB NULL. Take the default in that case */
+          user.password_history_length= ptr ? atoi(ptr) : 0;
+          user.use_default_password_history= ptr == NULL;
+        }
+      }
+
+      if (table->s->fields > table_schema->password_reuse_time_idx())
+      {
+        if (table->field[table_schema->password_reuse_time_idx()]->is_null(0))
+          user.use_default_password_reuse_interval= true;
+        else
+        {
+          char *ptr=
+            get_field(thd->mem_root,
+                      table->field[table_schema->password_reuse_time_idx()]);
+          /* ptr is NULL in case of DB NULL. Take the default in that case */
+          user.password_reuse_interval= ptr ? atoi(ptr) : 0;
+          user.use_default_password_reuse_interval= ptr == NULL;
+        }
+      }
+
       set_user_salt(&user);
       user.password_expired= password_expired;
 
@@ -2212,7 +2242,7 @@ void acl_free(bool end)
 
 bool check_engine_type_for_acl_table(THD *thd)
 {
-  TABLE_LIST tables[6];
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
 
   /*
     Open the following ACL tables to check their consistency.
@@ -2221,49 +2251,7 @@ bool check_engine_type_for_acl_table(THD *thd)
     with other code.
   */
 
-  tables[ACL_TABLES::TABLE_USER].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"),
-                           "user", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_DB].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("db"),
-                           "db", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_TABLES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxies_priv"),
-                           "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("tables_priv"),
-                           "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_PROCS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("columns_priv"),
-                           "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_PROXIES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("procs_priv"),
-                           "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_USER].next_local=
-    tables[ACL_TABLES::TABLE_USER].next_global= tables + 1;
-  tables[ACL_TABLES::TABLE_DB].next_local=
-    tables[ACL_TABLES::TABLE_DB].next_global= tables + 2;
-  tables[ACL_TABLES::TABLE_TABLES_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_TABLES_PRIV].next_global= tables + 3;
-  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_global= tables + 4;
-  tables[ACL_TABLES::TABLE_PROCS_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_PROCS_PRIV].next_global= tables + 5;
-  tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= 0;
-
-  tables[ACL_TABLES::TABLE_USER].open_type=
-    tables[ACL_TABLES::TABLE_DB].open_type=
-    tables[ACL_TABLES::TABLE_TABLES_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_PROCS_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type= OT_BASE_ONLY;
+  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
 
   bool result= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
   if (!result)
@@ -2305,110 +2293,28 @@ public:
 
 bool check_acl_tables_intact(THD *thd)
 {
-  TABLE_LIST tables[6];
-  TABLE_LIST role_tables[2];
+  TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   Acl_table_intact table_intact(thd);
   Acl_ignore_error_handler acl_ignore_handler;
 
-  /*
-    Open all the ACL tables to check their intactness. Although we don't
-    read here from the tables being opened we still request a lock type
-    MDL_SHARED_READ_ONLY for the sake of consistency with other code.
-  */
-
-  tables[ACL_TABLES::TABLE_USER].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"),
-                           "user", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_DB].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("db"),
-                           "db", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_TABLES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("tables_priv"),
-                           "tables_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("columns_priv"),
-                           "columns_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_PROCS_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("procs_priv"),
-                           "procs_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_PROXIES_PRIV].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxies_priv"),
-                           "proxies_priv", TL_READ, MDL_SHARED_READ_ONLY);
-
-  tables[ACL_TABLES::TABLE_USER].next_local=
-    tables[ACL_TABLES::TABLE_USER].next_global= tables + 1;
-  tables[ACL_TABLES::TABLE_DB].next_local=
-    tables[ACL_TABLES::TABLE_DB].next_global= tables + 2;
-  tables[ACL_TABLES::TABLE_TABLES_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_TABLES_PRIV].next_global= tables + 3;
-  tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].next_global= tables + 4;
-  tables[ACL_TABLES::TABLE_PROCS_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_PROCS_PRIV].next_global= tables + 5;
-  tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_local=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].next_global= 0;
-
-  tables[ACL_TABLES::TABLE_USER].open_type=
-    tables[ACL_TABLES::TABLE_DB].open_type=
-    tables[ACL_TABLES::TABLE_TABLES_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_COLUMNS_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_PROCS_PRIV].open_type=
-    tables[ACL_TABLES::TABLE_PROXIES_PRIV].open_type= OT_BASE_ONLY;
+  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
 
   bool result_acl= open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT);
 
   thd->push_internal_handler(&acl_ignore_handler);
   if (!result_acl)
   {
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
-                       &mysql_user_table_def);
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_DB].table,
-                       &mysql_db_table_def);
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
-                       &mysql_tables_priv_table_def);
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
-                       &mysql_columns_priv_table_def);
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
-                       &mysql_procs_priv_table_def);
-    table_intact.check(thd, tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
-                       &mysql_proxies_priv_table_def);
+    for (auto idx =0; idx < ACL_TABLES::LAST_ENTRY; idx++)
+      if (tables[idx].table)
+        table_intact.check(tables[idx].table, (ACL_TABLES) idx);
+      else
+        sql_print_warning("ACL table mysql.%.*s missing. Some operations may fail.",
+                          tables[idx].table_name_length, tables[idx].table_name);
     commit_and_close_mysql_tables(thd);
   }
   thd->pop_internal_handler();
 
-  role_tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                                C_STRING_WITH_LEN("role_edges"),
-                                "role_edges", TL_READ, MDL_SHARED_READ_ONLY);
-
-  role_tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                                C_STRING_WITH_LEN("default_roles"),
-                                "default_roles", TL_READ, MDL_SHARED_READ_ONLY);
-
-  role_tables[0].next_local=
-    role_tables[0].next_global= role_tables + 1;
-  role_tables[1].next_local=
-    role_tables[1].next_global= 0;
-
-  role_tables[0].open_type=
-  role_tables[1].open_type= OT_BASE_ONLY;
-
-  bool result_role= open_and_lock_tables(thd, role_tables, MYSQL_LOCK_IGNORE_TIMEOUT);
-
-  thd->push_internal_handler(&acl_ignore_handler);
-  if (!result_role)
-  {
-    table_intact.check(thd, role_tables[0].table, &mysql_role_edges_table_def);
-    table_intact.check(thd, role_tables[1].table, &mysql_default_roles_table_def);
-    close_all_role_tables(thd);
-  }
-  thd->pop_internal_handler();
-
-  return (result_acl || result_role);
+  return result_acl;
 }
 
 
@@ -3139,6 +3045,25 @@ void acl_update_user(const char *user, const char *host,
                                      *g_granted_roles);
           boost::put(user_pacl_user, it->second, *acl_user);
         }
+
+        /* update password history */
+        if (password_life.update_password_history)
+        {
+          acl_user->use_default_password_history=
+            password_life.use_default_password_history;
+          acl_user->password_history_length=
+            password_life.use_default_password_history ?
+            0 : password_life.password_history_length;
+        }
+        /* update password history */
+        if (password_life.update_password_reuse_interval)
+        {
+          acl_user->use_default_password_reuse_interval=
+            password_life.use_default_password_reuse_interval;
+          acl_user->password_reuse_interval=
+            password_life.use_default_password_reuse_interval ?
+            0 : password_life.password_reuse_interval;
+        }
         /* search complete: */
         break;
       }
@@ -3208,12 +3133,22 @@ void acl_insert_user(THD *thd, const char *user, const char *host,
     x509_issuer ? strdup_root(&global_acl_memory, x509_issuer) : 0;
   acl_user.x509_subject=
     x509_subject ? strdup_root(&global_acl_memory, x509_subject) : 0;
-  /* update details related to password lifetime, password expiry */
+  /* update details related to password lifetime, password expiry, history */
   acl_user.password_expired= password_life.update_password_expired_column;
   acl_user.password_lifetime= password_life.expire_after_days;
   acl_user.use_default_password_lifetime= password_life.use_default_password_lifetime;
   acl_user.password_last_changed= password_change_time;
   acl_user.account_locked= password_life.account_locked;
+  acl_user.password_history_length=
+    password_life.use_default_password_history ?
+    0 : password_life.password_history_length;
+  acl_user.use_default_password_history=
+    password_life.use_default_password_history;
+  acl_user.password_reuse_interval=
+    password_life.use_default_password_reuse_interval ?
+    0 : password_life.password_reuse_interval;
+  acl_user.use_default_password_reuse_interval=
+    password_life.use_default_password_reuse_interval;
 
   set_user_salt(&acl_user);
   /* New user is not a role by default. */
@@ -4016,3 +3951,8 @@ bool assert_acl_cache_write_lock(THD *thd)
                                                       "", "",
                                                       MDL_EXCLUSIVE);
 }
+
+/** Global sysvar: the number of old passwords to check in the history. */
+volatile uint32 global_password_history= 0;
+/** Global sysvar: the number of days before a password can be reused. */
+volatile uint32 global_password_reuse_interval= 0;

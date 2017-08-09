@@ -20,6 +20,8 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 --echo #
 
 CALL mtr.add_suppression("Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed.");
+CALL mtr.add_suppression("ACL table mysql.role_edges missing. Some operations may fail.");
+CALL mtr.add_suppression("ACL table mysql.default_roles missing. Some operations may fail.");
 
 DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;

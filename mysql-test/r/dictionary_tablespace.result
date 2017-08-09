@@ -3,6 +3,7 @@
 general_log.CSM
 general_log.CSV
 general_log_XXX.sdi
+password_history.ibd
 slow_log.CSM
 slow_log.CSV
 slow_log_XXX.sdi
@@ -44,6 +45,7 @@ innodb_index_stats	mysql
 innodb_table_stats	mysql
 parameter_type_elements	mysql
 parameters	mysql
+password_history	\N
 plugin	mysql
 procs_priv	mysql
 proxies_priv	mysql
@@ -151,6 +153,7 @@ call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression("ACL table mysql.[a-z_]* missing. Some operations may fail.");
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
@@ -183,6 +186,7 @@ mysql.innodb_dynamic_metadata                      OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
+mysql.password_history                             OK
 mysql.plugin                                       OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
@@ -206,6 +210,7 @@ sys.sys_config                                     OK
 general_log.CSM
 general_log.CSV
 general_log_XXX.sdi
+password_history.ibd
 slow_log.CSM
 slow_log.CSV
 slow_log_XXX.sdi

@@ -120,7 +120,7 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(thd, table, &mysql_role_edges_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES))
     DBUG_RETURN(true);
 
   if (!table->key_info)
@@ -192,7 +192,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(thd, table, &mysql_default_roles_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES))
     DBUG_RETURN(true);
 
   if (!table->key_info)

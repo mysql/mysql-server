@@ -10820,6 +10820,12 @@ ER_CTE_MAX_RECURSION_DEPTH
 ER_NOT_HINT_UPDATABLE_VARIABLE
   eng "Variable %s cannot be set using SET_VAR hint."
 
+ER_CREDENTIALS_CONTRADICT_TO_HISTORY
+  eng "Cannot use these credentials for '%.*s@%.*s' because they contradict the password history policy"
+
+ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
+  eng "Non-zero password history clauses ignored for user '%s'@'%s' as its authentication plugin %s does not support password history"
+
 #
 #  End of 8.0 error messages.
 #

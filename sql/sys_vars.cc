@@ -6409,3 +6409,21 @@ static Sys_var_bool Sys_always_activate_granted_roles(
        NOT_IN_BINLOG,
        ON_CHECK(0),
        ON_UPDATE(0));
+
+static PolyLock_mutex plock_sys_password_history(&LOCK_password_history);
+static Sys_var_uint Sys_password_history(
+       "password_history",
+       "The number of old passwords to check in the history."
+       " Set to 0 (the default) to turn the checks off",
+       GLOBAL_VAR(global_password_history),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
+       BLOCK_SIZE(1), &plock_sys_password_history);
+
+static PolyLock_mutex plock_sys_password_reuse_interval(&LOCK_password_reuse_interval);
+static Sys_var_uint Sys_password_reuse_interval(
+       "password_reuse_interval",
+       "The minimum number of days that need to pass before a password can "
+       "be reused. Set to 0 (the default) to turn the checks off",
+       GLOBAL_VAR(global_password_reuse_interval),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
+       BLOCK_SIZE(1), &plock_sys_password_reuse_interval);

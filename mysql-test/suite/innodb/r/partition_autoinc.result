@@ -45,7 +45,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p4 VALUES LESS THAN
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -79,7 +79,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p6 VALUES LESS THAN
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -179,7 +179,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p2;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -208,7 +208,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -237,7 +237,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION (PARTITION p3 VALUES LESS THAN
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -249,7 +249,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p0;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -288,7 +288,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p3;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -335,7 +335,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -364,7 +364,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, ADD PARTITION PARTITIONS 2;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -432,7 +432,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 2;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -471,7 +471,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, COALESCE PARTITION 4;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -542,7 +542,7 @@ PARTITION p11 VALUES LESS THAN(1993), PARTITION p12 VALUES LESS THAN(1995));
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -593,7 +593,7 @@ PARTITION p31 VALUES LESS THAN(2002), PARTITION p32 VALUES LESS THAN(2005));
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -651,7 +651,7 @@ ALTER TABLE t1 ALGORITHM = INPLACE, REBUILD PARTITION p01, p02, p31, p32;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -743,7 +743,7 @@ ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -786,7 +786,7 @@ ALTER TABLE t1 EXCHANGE PARTITION p3 WITH TABLE tp;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -893,7 +893,7 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p3 VALUES LESS THAN(2015) (SUBPARTITION 
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -960,7 +960,7 @@ ALTER TABLE t1 DROP PARTITION p3;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -1026,7 +1026,7 @@ PARTITION p22 VALUES LESS THAN (2010)
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd
@@ -1069,7 +1069,7 @@ ALTER TABLE t1 DROP PARTITION p21, p0;
 SELECT LOWER(path) FROM information_schema.innodb_sys_tablespaces AS `t`, information_schema.innodb_sys_datafiles AS `df`
 WHERE t.space = df.space
 AND t.space_type = 'Single'
-AND df.path NOT LIKE './mysql/%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 LOWER(path)
 ./sys/sys_config.ibd

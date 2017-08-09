@@ -24,6 +24,7 @@ help_topic
 innodb_dynamic_metadata
 innodb_index_stats
 innodb_table_stats
+password_history
 plugin
 procs_priv
 proxies_priv

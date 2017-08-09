@@ -792,6 +792,10 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_lifetime= 0;
   user->use_default_password_lifetime= true;
   user->account_locked= false;
+  user->use_default_password_reuse_interval= true;
+  user->password_reuse_interval= 0;
+  user->use_default_password_history= true;
+  user->password_history_length= 0;
   /*
     For now the common default account is used. Improvements might involve
     mapping a consistent hash of a username to a range of plugins.
@@ -2766,6 +2770,48 @@ static int set_sha256_salt(const char* password MY_ATTRIBUTE((unused)),
 
 
 /**
+  Compare a clear text password with a stored hash for
+  the native password plugin
+
+  If the password is non-empty it calculates a hash from
+  the cleartext and compares it with the supplied hash.
+
+  if the password is empty checks if the hash is empty too.
+
+  @arg hash              pointer to the hashed data
+  @arg hash_length       length of the hashed data
+  @arg cleartext         pointer to the clear text password
+  @arg cleartext_length  length of the cleat text password
+  @arg[out] is_error     non-zero in case of error extracting the salt
+  @retval 0              the hash was created with that password
+  @retval non-zero       the hash was created with a different password
+*/
+static int
+compare_native_password_with_hash(const char *hash, unsigned long hash_length,
+                                  const char *cleartext,
+                                  unsigned long cleartext_length,
+                                  int *is_error)
+{
+  DBUG_ENTER("compare_native_password_with_hash");
+
+  char buffer[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
+
+  /** empty password results in an empty hash */
+  if (!hash_length && !cleartext_length)
+    return 0;
+
+  DBUG_ASSERT(hash_length == SCRAMBLED_PASSWORD_CHAR_LENGTH);
+
+  /* calculate the hash from the clear text */
+  my_make_scrambled_password_sha1(buffer, cleartext, cleartext_length);
+
+  *is_error= 0;
+  int result= memcmp(hash, buffer, SCRAMBLED_PASSWORD_CHAR_LENGTH);
+
+  DBUG_RETURN(result);
+}
+
+/**
   MySQL Server Password Authentication Plugin
 
   In the MySQL authentication protocol:
@@ -2945,6 +2991,63 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
   strncpy(mpvio->scramble, scramble, SCRAMBLE_LENGTH+1);
 }
 
+/**
+  Compare a clear text password with a stored hash
+
+  Checks if a stored hash is produced using a clear text password.
+  To do that first it extracts the scramble from the hash. Then
+  calculates a new hash using the extracted scramble and the supplied
+  password. And finally compares the two scrambles.
+
+  @arg hash              pointer to the hashed data
+  @arg hash_length       length of the hashed data
+  @arg cleartext         pointer to the clear text password
+  @arg cleartext_length  length of the cleat text password
+  @arg[out] is_error     non-zero in case of error extracting the salt
+  @retval 0              the hash was created with that password
+  @retval non-zero       the hash was created with a different password
+*/
+static int
+compare_sha256_password_with_hash(const char *hash, unsigned long hash_length,
+                                             const char *cleartext,
+                                             unsigned long cleartext_length,
+                                             int *is_error)
+{
+  char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
+  char  *user_salt_begin;
+  char  *user_salt_end;
+
+  DBUG_ENTER("compare_sha256_password_with_hash");
+
+  /*
+    Fetch user authentication_string and extract the password salt
+  */
+  user_salt_begin= (char *) hash;
+  user_salt_end= (char *) (hash + hash_length);
+  if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
+  {
+    *is_error= 1;
+    DBUG_RETURN(-1);
+  }
+
+  *is_error= 0;
+
+  /* Create hash digest */
+  my_crypt_genhash(stage2,
+                   CRYPT_MAX_PASSWORD_SIZE,
+                   cleartext,
+                   cleartext_length,
+                   user_salt_begin,
+                   (const char **) 0);
+
+  /* Compare the newly created hash digest with the password record */
+  int result= memcmp(hash,
+                     stage2,
+                     hash_length);
+
+  DBUG_RETURN(result);
+}
+
 
 /**
 
@@ -2965,12 +3068,9 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
 static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                                         MYSQL_SERVER_AUTH_INFO *info)
 {
+  char scramble[SCRAMBLE_LENGTH + 1];
   uchar *pkt;
   int pkt_len;
-  char  *user_salt_begin;
-  char  *user_salt_end;
-  char scramble[SCRAMBLE_LENGTH + 1];
-  char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
 #if !defined(HAVE_YASSL)
   int cipher_length= 0;
@@ -3115,32 +3215,20 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
 
-  /*
-    Fetch user authentication_string and extract the password salt
-  */
-  user_salt_begin= (char *) info->auth_string;
-  user_salt_end= (char *) (info->auth_string + info->auth_string_length);
-  if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
+  int is_error;
+  int result= compare_sha256_password_with_hash(info->auth_string,
+                                                info->auth_string_length,
+                                                (const char *) pkt, pkt_len - 1,
+                                                &is_error);
+
+  if (is_error)
   {
     /* User salt is not correct */
     my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-      "Password salt for user '%s' is corrupt.",
-      info->user_name);
+                          "Password salt for user '%s' is corrupt.",
+                          info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
-
-  /* Create hash digest */
-  my_crypt_genhash(stage2,
-                     CRYPT_MAX_PASSWORD_SIZE,
-                     (char *) pkt,
-                     pkt_len-1,
-                     user_salt_begin,
-                     (const char **) 0);
-
-  /* Compare the newly created hash digest with the password record */
-  int result= memcmp(info->auth_string,
-                     stage2,
-                     info->auth_string_length);
 
   if (result == 0)
   {
@@ -3155,6 +3243,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
   DBUG_RETURN(CR_ERROR);
 }
+
 
 #if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
@@ -4129,7 +4218,8 @@ static struct st_mysql_auth native_password_handler=
   generate_native_password,
   validate_native_password_hash,
   set_native_salt,
-  AUTH_FLAG_USES_INTERNAL_STORAGE
+  AUTH_FLAG_USES_INTERNAL_STORAGE,
+  compare_native_password_with_hash
 };
 
 #if defined(HAVE_OPENSSL)
@@ -4141,7 +4231,8 @@ static struct st_mysql_auth sha256_password_handler=
   generate_sha256_password,
   validate_sha256_password_hash,
   set_sha256_salt,
-  AUTH_FLAG_USES_INTERNAL_STORAGE
+  AUTH_FLAG_USES_INTERNAL_STORAGE,
+  compare_sha256_password_with_hash
 };
 
 #endif /* HAVE_OPENSSL */

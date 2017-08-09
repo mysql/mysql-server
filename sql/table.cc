@@ -7761,7 +7761,10 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   ret->alter_status.update_account_locked_column= false;
   ret->alter_status.update_password_expired_column= false;
   ret->alter_status.update_password_expired_fields= false;
-  ret->alter_status.use_default_password_lifetime= false;
+  ret->alter_status.use_default_password_lifetime= true;
+  ret->alter_status.use_default_password_history= true;
+  ret->alter_status.password_history_length= 0;
+  ret->alter_status.password_reuse_interval= 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH,
                                system_charset_info, 0) ||

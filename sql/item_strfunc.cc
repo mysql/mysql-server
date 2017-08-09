@@ -1891,30 +1891,6 @@ String *Item_func_password::val_str_ascii(String *str)
   return str;
 }
 
-char *Item_func_password::
-  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
-{
-  String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-  my_validate_password_policy(password_str->ptr(), password_str->length());
-
-  char *buff= NULL;
-  if (thd->variables.old_passwords == 0)
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
-    my_make_scrambled_password_sha1(buff, password, pass_len);
-  }
-#if defined(HAVE_OPENSSL)
-  else
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
-  }
-#endif
-  return buff;
-}
 
 Item *Item_func_sysconst::safe_charset_converter(THD *,
                                                  const CHARSET_INFO *tocs)

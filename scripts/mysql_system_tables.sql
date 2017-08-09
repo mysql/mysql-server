@@ -112,6 +112,8 @@ password_lifetime smallint unsigned NULL DEFAULT NULL,
 account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
+Password_reuse_history smallint unsigned NULL DEFAULT NULL,
+Password_reuse_time smallint unsigned NULL DEFAULT NULL,
 PRIMARY KEY Host (Host,User)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges' TABLESPACE=mysql;
 
@@ -145,6 +147,16 @@ PRIMARY KEY (USER,HOST,PRIV)
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
+
+CREATE TABLE IF NOT EXISTS password_history
+(
+  Host CHAR(60) BINARY DEFAULT '' NOT NULL,
+  User CHAR(32) BINARY DEFAULT '' NOT NULL,
+  Password_timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  Password TEXT,
+  PRIMARY KEY(Host, User, Password_timestamp DESC)
+ ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin
+ comment='Password history for user accounts';
 
 
 CREATE TABLE IF NOT EXISTS func (  name char(64) binary DEFAULT '' NOT NULL, ret tinyint(1) DEFAULT '0' NOT NULL, dl char(128) DEFAULT '' NOT NULL, type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL, PRIMARY KEY (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='User defined functions' TABLESPACE=mysql;

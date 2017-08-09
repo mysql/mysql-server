@@ -73,6 +73,7 @@
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
 #include "sql_user_table.h"
+#include <sys_vars_shared.h>
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -357,6 +358,18 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->alter_password.account_locked= acl_user->account_locked;
   lex->alter_password.update_password_expired_fields= true;
 
+  lex->alter_password.password_history_length= acl_user->password_history_length;
+  lex->alter_password.use_default_password_history=
+    acl_user->use_default_password_history;
+  lex->alter_password.update_password_history=
+    !acl_user->use_default_password_history;
+
+  lex->alter_password.password_reuse_interval= acl_user->password_reuse_interval;
+  lex->alter_password.use_default_password_reuse_interval=
+    acl_user->use_default_password_reuse_interval;
+  lex->alter_password.update_password_reuse_interval=
+    !acl_user->use_default_password_reuse_interval;
+
   /* send the metadata to client */
   field=new Item_string("",0,&my_charset_latin1);
   field->max_length=256;
@@ -395,6 +408,399 @@ err:
   DBUG_RETURN(error);
 }
 
+
+#include "tztime.h"                     // Time_zone
+
+/**
+  Perform credentials history check and update the password history table
+
+  Note that the data for the checks are extracted from LEX_USER. So these
+  need to be up to date in all cases.
+
+  How credential history checks are performed:
+  ~~~
+  count= 0;
+  FOR SELECT * FROM mysql.password_history ORDER BY USER,HOST,TS DESC
+    WHERE USER=::current_user AND HOST=::current_host
+  {
+     if (count >= ::password_history && (NOW() - ts) > ::password_reuse_time)
+     {
+       delete row;
+       continue;
+     }
+
+     if (CRED was produced by ::password)
+       signal("wrong password");
+
+     count = count + 1;
+  }
+
+  INSERT INTO mysql.password_history (USER,HOST,TS,CRED)
+    VALUES (::current_user, ::current_host, NOW(), ::hashed_password);
+  ~~~
+
+  @param thd      The current thread
+  @param user     The user account user to operate on
+  @param host     The user acount host to operate on
+  @param password_history The effective password history value
+  @param password_reuse_interval The effective password reuse interval value
+  @param auth     auth plugin to use for verification
+  @param cleartext  the clear text password supplied
+  @param cleartext_length length of cleartext password
+  @param cred_hash hash of the credential to be inserted into the history
+  @param cred_hash_length length of cred_hash
+  @param history_table  The opened history table
+  @param what_to_set   The mask of what to set
+  @retval false   Password is OK
+  @retval true    Password is not OK
+*/
+static bool
+auth_verify_password_history(THD *thd,
+                             LEX_CSTRING *user,
+                             LEX_CSTRING *host,
+                             uint32 password_history,
+                             long password_reuse_interval,
+                             st_mysql_auth *auth,
+                             const char *cleartext,
+                             unsigned int cleartext_length,
+                             const char *cred_hash,
+                             unsigned int cred_hash_length,
+                             TABLE_LIST *history_table,
+                             ulong what_to_set)
+{
+  TABLE *table= history_table->table;
+  uchar user_key[MAX_KEY_LENGTH];
+  uint key_prefix_length;
+  int error;
+  Field *user_field, *host_field, *ts_field, *cred_field;
+  bool result= false;
+
+  Acl_table_intact intact(thd);
+
+  if (!table)
+  {
+    if ((password_history || password_reuse_interval) && cred_hash_length)
+    {
+      /* fail if there's no history table and we need to update it */
+      my_error(ER_NO_SUCH_TABLE, MYF(0), "mysql", "password_history");
+      return true;
+    }
+    /* threat missing table as absent and empty otherwise */
+    return false;
+  }
+
+  /* all good: we don't handle empty passwords in history */
+  if (!cleartext_length && !cred_hash_length)
+    return false;
+
+  /* invalid table causes verification to fail */
+  if (intact.check(history_table->table, ACL_TABLES::TABLE_PASSWORD_HISTORY))
+    return true;
+
+  user_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_USER];
+  host_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_HOST];
+  ts_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD_TIMESTAMP];
+  cred_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD];
+
+  table->use_all_columns();
+
+  /* create the search key on user and host */
+  user_field->store(user->str, user->length, system_charset_info);
+  host_field->store(host->str, host->length, system_charset_info);
+  key_prefix_length= (table->key_info->key_part[0].store_length +
+                      table->key_info->key_part[1].store_length);
+  key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
+
+  uint32 count= 0;
+
+  int rc=table->file->ha_index_init(0, true);
+
+  if (rc)
+  {
+    table->file->print_error(rc, MYF(0));
+    result= true;
+    goto end;
+  }
+
+
+  /* find the first matching record by the first 2 fields of a key */
+  error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                            user_key,
+                                            (key_part_map)((1L << 0) | (1L << 1)),
+                                            HA_READ_KEY_EXACT);
+
+  /* fetch the current day */
+  MYSQL_TIME tm_now;
+  long now_day;
+  thd->time_zone()->gmt_sec_to_TIME(&tm_now, thd->query_start_timeval_trunc(6));
+  now_day= calc_daynr(tm_now.year, tm_now.month, tm_now.day);
+
+  /* iterate over the password history rows for the user */
+  while (!error)
+  {
+    MYSQL_TIME ts_val;
+    char outbuf[MAX_FIELD_WIDTH]={ 0 };
+    long ts_day, date_diff;
+    String cred_val(&outbuf[0], sizeof(outbuf), &my_charset_bin);
+    int is_error= 0;
+
+    /* fetch the recorded time */
+    if (ts_field->get_date(&ts_val, 0))
+      goto get_next_row;
+
+    /* convert to a day number */
+    ts_day= calc_daynr(ts_val.year, ts_val.month, ts_val.day);
+
+    /* get the difference in days */
+    date_diff= now_day - ts_day;
+
+    count++;
+
+    /*
+       We check everything that's in any range, including the last row(s)
+    */
+    if (count <= password_history || date_diff < password_reuse_interval)
+    {
+      /* fetch the cred field */
+      cred_field->val_str(&cred_val);
+
+      /*
+        Check if the password matches the stored hash.
+        There can't possibly be a match when we're altering the plugin
+        used. So we check for that and just delete the rows in this case.
+        But we still check the validity of the hash in case someone has
+        tampered with the history table manually.
+      */
+      if (cleartext_length && cleartext &&
+          0 == (what_to_set & DIFFERENT_PLUGIN_ATTR) &&
+          (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
+          auth->validate_authentication_string &&
+          !auth->validate_authentication_string(cred_val.c_ptr(),
+                                               (unsigned) cred_val.length()) &&
+          auth->compare_password_with_hash &&
+          !auth->compare_password_with_hash(cred_val.ptr(),
+                                            (unsigned long) cred_val.length(),
+                                            cleartext,
+                                            (unsigned long) cleartext_length,
+                                            &is_error) &&
+          !is_error)
+      {
+        my_error(ER_CREDENTIALS_CONTRADICT_TO_HISTORY, MYF(0),
+                 user->length, user->str,
+                 host->length, host->str);
+        /* password found in history */
+        result= true;
+        goto end;
+      }
+    }
+
+    /*
+      Delete all rows outside all check ranges, including the last row in
+      history range count, since we're to add another one.
+    */
+    if ((count >= password_history &&
+        (!password_reuse_interval || date_diff > password_reuse_interval)) ||
+        0L != (what_to_set & DIFFERENT_PLUGIN_ATTR))
+    {
+      int ignore_error;
+      /* delete and go on, even if there's an error deleting */
+      if (0 != (ignore_error = table->file->ha_delete_row(table->record[0])))
+        table->file->print_error(ignore_error, MYF(0));
+      goto get_next_row;
+    }
+
+
+get_next_row:
+    error= table->file->ha_index_next_same(table->record[0], user_key, key_prefix_length);
+  }
+
+  /* something went wrong reading */
+  if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(error, MYF(0));
+    result= true;
+    goto end;
+  }
+
+  /* Update the history if a hash is supplied and the plugin supports it */
+  if ((password_history || password_reuse_interval) && cred_hash_length
+      && (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE))
+  {
+    /* add history if needed */
+    restore_record(table, s->default_values);
+    table->field[MYSQL_PASSWORD_HISTORY_FIELD_USER]->store(user->str, user->length,
+                                                           system_charset_info);
+    table->field[MYSQL_PASSWORD_HISTORY_FIELD_HOST]->store(host->str, host->length,
+                                                           system_charset_info);
+    table->field[MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD_TIMESTAMP]->store_time(&tm_now);
+    table->field[MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD]->store(cred_hash, cred_hash_length,
+                                                               &my_charset_utf8_bin);
+    table->field[MYSQL_PASSWORD_HISTORY_FIELD_PASSWORD]->set_notnull();
+
+    if (0 != (error= table->file->ha_write_row(table->record[0])))
+    {
+      table->file->print_error(error, MYF(0));
+      result= true;
+    }
+  }
+end:
+  if (table->file->inited != handler::NONE)
+  {
+    int rc= table->file->ha_index_end();
+
+    if (rc)
+    {
+      /* purecov: begin inspected */
+      table->file->print_error(rc, MYF(ME_ERRORLOG));
+      DBUG_ASSERT(false);
+      /* purecov: end */
+    }
+  }
+  return result;
+}
+
+
+/**
+  Updates the password history table for cases of deleting or renaming users
+
+  This function, unline the other "update" functions does not handle the
+  addition of new data. That's done by auth_verify_password_history().
+  The function only handles renames and deletes of user accounts.
+  It does not go via the normal non-mysql.user handle_grant_data() route
+  since there is a (partial) key on user/host and hence no need to do a
+  full table scan.
+
+  @param thd the execution context
+  @param tables the list of opened ACL tables
+  @param drop true if it's a drop operation
+  @param user_from the user to rename from or the user to drop
+  @param user_to the user to rename to or the user to add
+  @param[out] row_existed set to true if row matching user_from existed
+  @retval true operation failed
+  @retval false success
+*/
+
+static bool
+handle_password_history_table(THD *thd, TABLE_LIST *tables, bool drop,
+                              LEX_USER *user_from, LEX_USER *user_to,
+                              bool *row_existed)
+{
+  bool result= false;
+  TABLE *table= tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
+  uchar user_key[MAX_KEY_LENGTH];
+  uint key_prefix_length;
+  int error;
+  Field *user_field, *host_field;
+
+  Acl_table_intact table_intact(thd);
+
+  *row_existed= false;
+
+  if (!table)
+  {
+    /* table not preset is considered empty if not adding to it */
+    return false;
+  }
+
+  if (table_intact.check(table, ACL_TABLES::TABLE_PASSWORD_HISTORY))
+  {
+    result= true;
+    goto end;
+  }
+
+  user_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_USER];
+  host_field= table->field[MYSQL_PASSWORD_HISTORY_FIELD_HOST];
+
+  table->use_all_columns();
+
+  /* create the search key on user and host */
+  user_field->store(user_from->user.str, user_from->user.length,
+                    system_charset_info);
+  host_field->store(user_from->host.str, user_from->host.length,
+                    system_charset_info);
+  key_prefix_length= (table->key_info->key_part[0].store_length +
+                      table->key_info->key_part[1].store_length);
+  key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
+
+  int rc;
+
+  rc=table->file->ha_index_init(0, true);
+
+  if (rc)
+  {
+    table->file->print_error(rc, MYF(0));
+    result= true;
+    goto end;
+  }
+
+
+  /* find the first matching record by host/user key prefix */
+  error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                            user_key,
+                                            (key_part_map) ((1L << 0) | (1L << 1)),
+                                            HA_READ_KEY_EXACT);
+
+  /* iterate over the password history rows for the user */
+  while (!error)
+  {
+    /* found at least 1 row */
+    if (!*row_existed)
+    {
+      *row_existed= true;
+      /* no need to look for more rows if not updating */
+      if (!drop && !user_to)
+      {
+        /* mark the cursor as being at end */
+        error= HA_ERR_KEY_NOT_FOUND;
+        break;
+      }
+    }
+
+    if (drop)
+    {
+      /* if we're dropping, delete the row */
+      if (0 != (error = table->file->ha_delete_row(table->record[0])))
+        break;
+    }
+    else if (user_to)
+    {
+      /* we're renaming, set the new user/host values */
+      store_record(table, record[1]);
+      table->field[MYSQL_PASSWORD_HISTORY_FIELD_USER]->store(user_to->user.str,
+                                                             user_to->user.length,
+                                                             system_charset_info);
+      table->field[MYSQL_PASSWORD_HISTORY_FIELD_HOST]->store(user_to->host.str,
+                                                             user_to->host.length,
+                                                             system_charset_info);
+      error= table->file->ha_update_row(table->record[1], table->record[0]);
+      if (error)
+        break;
+    }
+    error= table->file->ha_index_next_same(table->record[0], user_key, key_prefix_length);
+  }
+  /* something went wrong reading */
+  if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(error, MYF(0));
+    result= true;
+  }
+
+end:
+  if (table->file->inited != handler::NONE)
+  {
+    int rc= table->file->ha_index_end();
+
+    if (rc)
+    {
+      /* purecov: begin inspected */
+      table->file->print_error(rc, MYF(ME_ERRORLOG));
+      DBUG_ASSERT(false);
+      /* purecov: end */
+    }
+  }
+  return result;
+}
+
 /**
    This function does following:
    1. Convert plain text password to hash and update the same in
@@ -411,6 +817,8 @@ err:
   @param is_privileged_user     Whether caller has CREATE_USER_ACL
                                 or UPDATE_ACL over mysql.*
   @param is_role      CREATE ROLE was used to create the authid.
+  @param history_table          The table to verify history against.
+  @param[out] history_check_done  Set to on if the history table is updated
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -420,7 +828,9 @@ bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
                                       bool is_privileged_user,
-                                      bool is_role)
+                                      bool is_role,
+                                      TABLE_LIST *history_table,
+                                      bool *history_check_done)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -432,6 +842,8 @@ bool set_and_validate_user_attributes(THD *thd,
   enum_sql_command command= thd->lex->sql_command;
 
   what_to_set= 0;
+  if (history_check_done)
+    *history_check_done= false;
   /* update plugin,auth str attributes */
   if (Str->uses_identified_by_clause ||
       Str->uses_identified_by_password_clause ||
@@ -453,6 +865,15 @@ bool set_and_validate_user_attributes(THD *thd,
 
   /* copy password expire attributes to individual user */
   Str->alter_status= thd->lex->alter_password;
+
+  mysql_mutex_lock(&LOCK_password_history);
+  Str->alter_status.password_history_length= Str->alter_status.use_default_password_history ?
+    global_password_history : Str->alter_status.password_history_length;
+  mysql_mutex_unlock(&LOCK_password_history);
+  mysql_mutex_lock(&LOCK_password_reuse_interval);
+  Str->alter_status.password_reuse_interval= Str->alter_status.use_default_password_reuse_interval ?
+    global_password_reuse_interval : Str->alter_status.password_reuse_interval;
+  mysql_mutex_unlock(&LOCK_password_reuse_interval);
 
   /* update password expire attributes */
   if (Str->alter_status.update_password_expired_column ||
@@ -508,6 +929,11 @@ bool set_and_validate_user_attributes(THD *thd,
         */
         if (Str->alter_status.update_password_expired_fields)
           what_to_set|= PASSWORD_EXPIRE_ATTR;
+
+        /* detect changes in the plugin name */
+        if (Str->plugin.str != acl_user->plugin.str)
+          what_to_set|= DIFFERENT_PLUGIN_ATTR;
+
         break;
       }
       default:
@@ -544,6 +970,33 @@ bool set_and_validate_user_attributes(THD *thd,
         }
       }
     };
+
+    /* if we don't update password history take the user's password history */
+    if (!Str->alter_status.update_password_history)
+    {
+      if (acl_user->use_default_password_history)
+      {
+        mysql_mutex_lock(&LOCK_password_history);
+        Str->alter_status.password_history_length= global_password_history;
+        mysql_mutex_unlock(&LOCK_password_history);
+      }
+      else
+        Str->alter_status.password_history_length= acl_user->password_history_length;
+    }
+    /* if we don't update password reuse interval take the user's interval */
+    if (!Str->alter_status.update_password_reuse_interval)
+    {
+      if (acl_user->use_default_password_reuse_interval)
+      {
+        mysql_mutex_lock(&LOCK_password_reuse_interval);
+        Str->alter_status.password_reuse_interval=
+          global_password_reuse_interval;
+        mysql_mutex_unlock(&LOCK_password_reuse_interval);
+      }
+      else
+        Str->alter_status.password_reuse_interval=
+          acl_user->password_reuse_interval;
+    }
   }
   else
   {
@@ -563,10 +1016,11 @@ bool set_and_validate_user_attributes(THD *thd,
     return(1);
   }
 
+  st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+
   if (user_exists &&
       (what_to_set & PLUGIN_ATTR))
   {
-    st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     if (auth->authentication_flags &
          AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE)
     {
@@ -613,6 +1067,31 @@ bool set_and_validate_user_attributes(THD *thd,
     }
   }
 
+  if (!(auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE))
+  {
+    if (Str->alter_status.password_history_length ||
+        Str->alter_status.password_reuse_interval)
+    {
+      /*
+        A plugin that does not use internal storage and
+        hence does not support password history is passed a password history
+      */
+      if (Str->alter_status.update_password_history ||
+          Str->alter_status.update_password_reuse_interval)
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID,
+                            ER_THD(thd, ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID),
+                            Str->user.str, Str->host.str,
+                            plugin_decl(plugin)->name);
+      /* reset back the password history clauses for that user */
+      Str->alter_status.password_history_length= 0;
+      Str->alter_status.password_reuse_interval= 0;
+      Str->alter_status.update_password_history= true;
+      Str->alter_status.update_password_reuse_interval= true;
+      Str->alter_status.use_default_password_history= true;
+      Str->alter_status.use_default_password_reuse_interval= true;
+    }
+  }
   /*
     If auth string is specified, change it to hash.
     Validate empty credentials for new user ex: CREATE USER u1;
@@ -625,15 +1104,24 @@ bool set_and_validate_user_attributes(THD *thd,
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     inbuf= Str->auth.str;
-    inbuflen= Str->auth.length;
+    inbuflen= (unsigned) Str->auth.length;
     if (auth->generate_authentication_string(outbuf,
                                              &buflen,
                                              inbuf,
-                                             inbuflen))
+                                             inbuflen) ||
+        auth_verify_password_history(thd, &Str->user,
+                                     &Str->host,
+                                     Str->alter_status.password_history_length,
+                                     Str->alter_status.password_reuse_interval,
+                                     auth, inbuf, inbuflen,
+                                     outbuf, buflen,
+                                     history_table, what_to_set))
     {
       plugin_unlock(0, plugin);
       return(1);
     }
+    if (history_check_done)
+      *history_check_done= true;
     if (buflen)
     {
       password= (char *) thd->alloc(buflen);
@@ -665,12 +1153,34 @@ bool set_and_validate_user_attributes(THD *thd,
     DBUG_ASSERT(!is_role);
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
     if (auth->validate_authentication_string((char*)Str->auth.str,
-                                             Str->auth.length))
+                                             (unsigned) Str->auth.length))
     {
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       plugin_unlock(0, plugin);
       return(1);
     }
+    /*
+      Call the password history validation so that it can store the incoming
+      hash into the password history table.
+      Here we can't check if the password was used since we don't have the
+      cleartext password, but we still want to record it into the history table.
+      Covers replication scenario too since the IDENTIFIED BY will get
+      rewritten to IDENTIFIED ... WITH ... AS
+    */
+    if (auth_verify_password_history(thd, &Str->user,
+                                     &Str->host,
+                                     Str->alter_status.password_history_length,
+                                     Str->alter_status.password_reuse_interval,
+                                     auth, NULL, 0,
+                                     Str->auth.str, (unsigned) Str->auth.length,
+                                     history_table, what_to_set))
+    {
+      /* we should have an error generated here already */
+      plugin_unlock(0, plugin);
+      return(1);
+    }
+    if (history_check_done)
+      *history_check_done= true;
   }
   plugin_unlock(0, plugin);
   return(0);
@@ -739,7 +1249,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     DBUG_RETURN(true);
   }
 
-  if (table_intact.check(thd, table, &mysql_user_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_USER))
   {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
@@ -778,12 +1288,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* set default values */
   thd->lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
   memset(&(thd->lex->mqh), 0, sizeof(thd->lex->mqh));
-  thd->lex->alter_password.update_password_expired_column= false;
-  thd->lex->alter_password.use_default_password_lifetime= true;
-  thd->lex->alter_password.expire_after_days= 0;
-  thd->lex->alter_password.update_account_locked_column= false;
-  thd->lex->alter_password.account_locked= false;
-  thd->lex->alter_password.update_password_expired_fields= false;
+  thd->lex->alter_password.cleanup();
 
   /*
     When @@log-backward-compatible-user-definitions variable is ON
@@ -794,7 +1299,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
 
-  if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false))
+  if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false,
+                                       &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
   {
     result= 1;
     goto end;
@@ -1132,8 +1638,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle user table. */
-  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
-                         &mysql_user_table_def))
+  if (table_intact.check(tables[ACL_TABLES::TABLE_USER].table,
+                         ACL_TABLES::TABLE_USER))
   {
     result= -1;
     goto end;
@@ -1164,8 +1670,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
-  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_DB].table,
-                         &mysql_db_table_def))
+  if (table_intact.check(tables[ACL_TABLES::TABLE_DB].table,
+                         ACL_TABLES::TABLE_DB))
   {
     result= -1;
     goto end;
@@ -1198,8 +1704,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
   /* Handle stored routines table. */
-  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
-                         &mysql_procs_priv_table_def))
+  if (table_intact.check(tables[ACL_TABLES::TABLE_PROCS_PRIV].table,
+                         ACL_TABLES::TABLE_PROCS_PRIV))
   {
     result= -1;
     goto end;
@@ -1250,8 +1756,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
                   DBUG_SET("+d,wl7158_handle_grant_table_2"););
   /* Handle tables table. */
-  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
-                         &mysql_tables_priv_table_def))
+  if (table_intact.check(tables[ACL_TABLES::TABLE_TABLES_PRIV].table,
+                         ACL_TABLES::TABLE_TABLES_PRIV))
   {
     result= -1;
     goto end;
@@ -1279,8 +1785,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
                     DBUG_SET("+d,wl7158_handle_grant_table_2"););
 
     /* Handle columns table. */
-    if (table_intact.check(thd, tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
-                           &mysql_columns_priv_table_def))
+    if (table_intact.check(tables[ACL_TABLES::TABLE_COLUMNS_PRIV].table,
+                           ACL_TABLES::TABLE_COLUMNS_PRIV))
     {
       result= -1;
       goto end;
@@ -1312,8 +1818,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_proxies_priv_table",
                     DBUG_SET("+d,wl7158_handle_grant_table_2"););
 
-    if (table_intact.check(thd, tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
-                           &mysql_proxies_priv_table_def))
+    if (table_intact.check(tables[ACL_TABLES::TABLE_PROXIES_PRIV].table,
+                           ACL_TABLES::TABLE_PROXIES_PRIV))
     {
       result= -1;
       goto end;
@@ -1336,6 +1842,16 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
       else if (ret < 0)
         result= -1;
     }
+  }
+
+  {
+    bool row_existed;
+    if (handle_password_history_table(thd, tables,
+                                      drop, user_from, user_to,
+                                      &row_existed))
+      DBUG_RETURN(-1);
+    else if (row_existed)
+      DBUG_RETURN(1);
   }
  end:
   DBUG_RETURN(result);
@@ -1389,6 +1905,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
 
   while ((tmp_user_name= user_list++))
   {
+    bool history_check_done= false;
     /*
       Ignore the current user as it already exists.
     */
@@ -1399,9 +1916,10 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
                   false);
       continue;
     }
-
     if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
-                                         is_role))
+                                         is_role,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
+                                         &history_check_done))
     {
       result= 1;
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
@@ -1419,9 +1937,18 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
+      We may not need to process the password history here since it may have
+      already been processed in set_and_validate_user_attributes().
+      Hence we check the flag and temporarily set the history table
+      to unopened state and then restore it back.
     */
     int ret;
+    TABLE *history_tbl= tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
+    if (history_check_done)
+      tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table= NULL;
     ret= handle_grant_data(thd, tables, 0, user_name, NULL);
+    if (history_check_done)
+      tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table= history_tbl;
     if (ret)
     {
       if (ret < 0)
@@ -1811,8 +2338,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     DBUG_RETURN(true);
   }
 
-  if (table_intact.check(thd, tables[ACL_TABLES::TABLE_USER].table,
-                         &mysql_user_table_def))
+  if (table_intact.check(tables[ACL_TABLES::TABLE_USER].table,
+                         ACL_TABLES::TABLE_USER))
   {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
@@ -1825,6 +2352,10 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     int ret;
     ACL_USER *acl_user;
     ulong what_to_alter= 0;
+    bool history_check_done= false;
+    TABLE *history_tbl;
+    bool dummy_row_existed= false;
+
 
     /* add the defaults where needed */
     if (!(user_from= get_current_user(thd, tmp_user_from)))
@@ -1839,7 +2370,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     user_from->alter_status= thd->lex->alter_password;
 
     if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
-                                         is_privileged_user, false))
+                                         is_privileged_user, false,
+                                         &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
+                                         &history_check_done))
     {
       result= 1;
       continue;
@@ -1870,7 +2403,31 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     acl_user= find_acl_user(user_from->host.str,
                             user_from->user.str, TRUE);
 
+    if (history_check_done)
+    {
+      /*
+        If the history check is already done we pretend there's no
+        history table so we can turn off the eventual check here.
+      */
+      history_tbl= tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
+      tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table= NULL;
+    }
     ret= handle_grant_data(thd, tables, false, user_from, NULL);
+
+    /* purge the password history if plugin is different */
+    if ((what_to_alter & DIFFERENT_PLUGIN_ATTR) &&
+        handle_password_history_table(thd, tables, true, user_from, NULL,
+                                      &dummy_row_existed))
+    {
+      /* can't delete stuff from password history */
+      result= 1;
+      break;
+    }
+
+    if (history_check_done)
+    {
+      tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table= history_tbl;
+    }
 
     if (!acl_user || ret <= 0)
     {

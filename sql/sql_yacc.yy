@@ -1173,6 +1173,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TIES_SYM                      /* SQL-2003-N */
 %token  UNBOUNDED_SYM                 /* SQL-2003-N */
 %token  WINDOW_SYM                    /* SQL-2003-R */
+%token  HISTORY_SYM                   /* MYSQL */
+%token  REUSE_SYM                     /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -7234,6 +7236,34 @@ opt_account_lock_password_expire_option:
             lex->alter_password.update_password_expired_column= false;
             Lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.use_default_password_lifetime= true;
+          }
+        | PASSWORD HISTORY_SYM real_ulong_num
+          {
+            LEX *lex= Lex;
+            lex->alter_password.password_history_length= $3;
+            lex->alter_password.update_password_history= true;
+            lex->alter_password.use_default_password_history= false;
+          }
+        | PASSWORD HISTORY_SYM DEFAULT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.password_history_length= 0;
+            lex->alter_password.update_password_history= true;
+            lex->alter_password.use_default_password_history= true;
+          }
+        | PASSWORD REUSE_SYM INTERVAL_SYM real_ulong_num DAY_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.password_reuse_interval= $4;
+            lex->alter_password.update_password_reuse_interval= true;
+            lex->alter_password.use_default_password_reuse_interval= false;
+          }
+        | PASSWORD REUSE_SYM INTERVAL_SYM DEFAULT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.password_reuse_interval= 0;
+            lex->alter_password.update_password_reuse_interval= true;
+            lex->alter_password.use_default_password_reuse_interval= true;
           }
         ;
 
@@ -13379,6 +13409,7 @@ role_or_label_keyword:
         | GLOBAL_SYM               {}
         | HASH_SYM                 {}
         | HISTOGRAM_SYM            {}
+        | HISTORY_SYM              {}
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
@@ -13515,6 +13546,7 @@ role_or_label_keyword:
         | RESUME_SYM               {}
         | RETURNED_SQLSTATE_SYM    {}
         | RETURNS_SYM              {}
+        | REUSE_SYM                {}
         | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
         | ROTATE_SYM               {}

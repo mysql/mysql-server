@@ -133,6 +133,7 @@ static int set_salt(const char* password MY_ATTRIBUTE((unused)),
   return 0;
 }
 
+
 static struct st_mysql_auth two_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
@@ -141,7 +142,8 @@ static struct st_mysql_auth two_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 /* dialog demo where the number of questions is not known in advance */
@@ -182,7 +184,8 @@ static struct st_mysql_auth three_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 mysql_declare_plugin(dialog)

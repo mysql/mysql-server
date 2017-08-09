@@ -40,6 +40,7 @@ call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.")
 call mtr.add_suppression("Column count of performance_schema.replication_group_members is wrong. Expected 7, found 5.*");
 call mtr.add_suppression("Column count of performance_schema.replication_group_member_stats is wrong. Expected 13, found 9.*");
 call mtr.add_suppression("Column count of performance_schema.threads is wrong. Expected 18, found 17.*");
+call mtr.add_suppression("ACL table mysql.[a-zA-Z_]* missing. Some operations may fail.");
 --enable_query_log
 
 #########################

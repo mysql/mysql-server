@@ -627,6 +627,8 @@ extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
+extern mysql_mutex_t LOCK_password_history;
+extern mysql_mutex_t LOCK_password_reuse_interval;
 extern mysql_mutex_t LOCK_default_password_lifetime;
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
