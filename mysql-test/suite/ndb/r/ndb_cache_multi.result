@@ -1,11 +1,23 @@
 drop table if exists t1, t2;
 set GLOBAL query_cache_type=on;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 set GLOBAL query_cache_type=on;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
@@ -71,4 +83,8 @@ Variable_name	Value
 Qcache_hits	0
 drop table t1, t2;
 set GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

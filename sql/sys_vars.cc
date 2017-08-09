@@ -3313,17 +3313,21 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_size(
        "query_cache_size",
-       "The memory allocated to store results from old queries",
+       "The memory allocated to store results from old queries. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size));
+       ON_UPDATE(fix_query_cache_size), DEPRECATED(""));
 
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
-       "Don't cache results that are bigger than this",
+       "Don't cache results that are bigger than this. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3333,11 +3337,12 @@ static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_min_res_unit(
        "query_cache_min_res_unit",
-       "The minimum size for blocks allocated by the query cache",
+       "The minimum size for blocks allocated by the query cache. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit));
+       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED(""));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
@@ -3359,16 +3364,19 @@ static Sys_var_enum Sys_query_cache_type(
        "query_cache_type",
        "OFF = Don't cache or retrieve results. ON = Cache all results "
        "except SELECT SQL_NO_CACHE ... queries. DEMAND = Cache only "
-       "SELECT SQL_CACHE ... queries",
+       "SELECT SQL_CACHE ... queries. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
        query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type));
+       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED(""));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "query_cache_wlock_invalidate",
-       "Invalidate queries in query cache on LOCK for write",
+       "Invalidate queries in query cache on LOCK for write. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), DEPRECATED(""));
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
@@ -4919,8 +4927,12 @@ static Sys_var_have Sys_have_profiling(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
-       "have_query_cache", "have_query_cache",
-       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
+       "have_query_cache",
+       "have_query_cache. "
+       "This variable is deprecated and will be removed in a future release.",
+       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",

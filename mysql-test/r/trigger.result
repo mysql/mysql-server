@@ -663,6 +663,8 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 insert into t1 values (0);
 ERROR 0A000: RESET is not allowed in stored function or trigger
 drop procedure p1;

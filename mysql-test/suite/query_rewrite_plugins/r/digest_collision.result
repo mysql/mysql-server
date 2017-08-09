@@ -5,6 +5,10 @@ SET sql_mode = 'PIPES_AS_CONCAT';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( a VARCHAR(10) );
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # This will supposedly fill up the token buffer.
 # We have to keep entries in the error log unique, we can't clear it.
@@ -18,6 +22,8 @@ INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement  )
 VALUES ( @pattern1, 'SELECT "Rewrite rule #1"' ),
 ( @pattern2, 'SELECT "Rewrite rule #2"' );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SELECT group_concat(replacement) =
 'SELECT "Rewrite rule #1",SELECT "Rewrite rule #2"'
 AS digests_indeed_collide

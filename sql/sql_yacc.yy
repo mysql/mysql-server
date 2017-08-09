@@ -9145,6 +9145,7 @@ select_option:
           }
         | SQL_NO_CACHE_SYM
           {
+            push_deprecated_warn_no_replacement(YYTHD, "SQL_NO_CACHE");
             /*
               Allow this flag only on the first top-level SELECT statement, if
               SQL_CACHE wasn't specified, and only once per query.
@@ -9154,6 +9155,7 @@ select_option:
           }
         | SQL_CACHE_SYM
           {
+            push_deprecated_warn_no_replacement(YYTHD, "SQL_CACHE");
             /*
               Allow this flag only on the first top-level SELECT statement, if
               SQL_NO_CACHE wasn't specified, and only once per query.
@@ -12424,7 +12426,10 @@ flush_option:
         | RELAY LOGS_SYM opt_channel
           { Lex->type|= REFRESH_RELAY_LOG; }
         | QUERY_SYM CACHE_SYM
-          { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
+          {
+            push_deprecated_warn_no_replacement(YYTHD, "FLUSH QUERY CACHE");
+            Lex->type|= REFRESH_QUERY_CACHE_FREE;
+          }
         | HOSTS_SYM
           { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
@@ -12465,7 +12470,11 @@ reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
           slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
-        | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        | QUERY_SYM CACHE_SYM
+          {
+            push_deprecated_warn_no_replacement(YYTHD, "RESET QUERY CACHE");
+            Lex->type|= REFRESH_QUERY_CACHE;
+          }
         ;
 
 slave_reset_options:

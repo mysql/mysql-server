@@ -138,6 +138,7 @@ ndb_log_exclusive_reads	#
 ndb_log_orig	#
 ndb_log_transaction_id	#
 ndb_log_update_as_write	#
+ndb_log_update_minimal	#
 ndb_log_updated_only	#
 ndb_mgmd_host	#
 ndb_nodeid	#
