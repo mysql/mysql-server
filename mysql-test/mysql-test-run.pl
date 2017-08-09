@@ -452,11 +452,8 @@ sub main {
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
-
     $opt_parallel= $sys_info->num_cpus();
-    for my $limit (2000, 1500, 1000, 500){
-      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
-    }
+
     if(defined $ENV{MTR_MAX_PARALLEL}) {
       my $max_par= $ENV{MTR_MAX_PARALLEL};
       $opt_parallel= $max_par if ($opt_parallel > $max_par);
