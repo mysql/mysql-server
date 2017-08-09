@@ -13,29 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "event_db_repository.h"
+#include "sql/event_db_repository.h"
 
 #include <vector>
 
-#include "auth_acls.h"
-#include "dd/cache/dictionary_client.h" // fetch_schema_components
-#include "dd/dd_event.h"
-#include "dd/string_type.h"
-#include "dd/types/event.h"
-#include "derror.h"
-#include "event_data_objects.h"
-#include "event_parse_data.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sp_head.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
-#include "transaction.h"
-#include "tztime.h"                     // struct Time_zone
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h" // fetch_schema_components
+#include "sql/dd/dd_event.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/event.h"
+#include "sql/derror.h"
+#include "sql/event_data_objects.h"
+#include "sql/event_parse_data.h"
+#include "sql/sp_head.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/transaction.h"
+#include "sql/tztime.h"                 // struct Time_zone
 
 /**
   @addtogroup Event_Scheduler

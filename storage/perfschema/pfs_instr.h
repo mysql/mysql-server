@@ -48,7 +48,6 @@ class THD;
 #include <arpa/inet.h>
 #endif
 #include "lf.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "pfs_column_types.h"
 #include "pfs_con_slice.h"
@@ -60,6 +59,7 @@ class THD;
 #include "pfs_lock.h"
 #include "pfs_server.h"
 #include "pfs_stat.h"
+#include "sql/mdl.h"
 #include "violite.h" /* enum_vio_type */
 
 extern PFS_single_stat *thread_instr_class_waits_array_start;

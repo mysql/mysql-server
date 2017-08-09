@@ -18,9 +18,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <sys/types.h>
 
-#include "error_handler.h"
 #include "my_compiler.h"
-#include "sql_error.h"
+#include "sql/error_handler.h"
+#include "sql/sql_error.h"
 
 /**
   Self destroying THD.

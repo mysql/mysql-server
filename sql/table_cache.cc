@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "table_cache.h"
+#include "sql/table_cache.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -21,7 +21,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "sql_test.h" // lock_descriptions[]
+#include "sql/sql_test.h" // lock_descriptions[]
 #include "thr_lock.h"
 #include "thr_mutex.h"
 

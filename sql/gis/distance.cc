@@ -18,20 +18,19 @@
 /// This file implements the distance functor and function.
 
 #include "distance.h"
-#include "distance_functor.h"
 
+#include <boost/geometry.hpp>  // boost::geometry::distance
 #include <cmath>  // std::isfinite
 #include <limits>
 
-#include <boost/geometry.hpp>  // boost::geometry::distance
-
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "distance_functor.h"
 #include "geometries.h"
 #include "geometries_traits.h"
 #include "my_inttypes.h"            // MYF
 #include "my_sys.h"                 // my_error
 #include "mysqld_error.h"           // Error codes
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 
 namespace bg = boost::geometry;
 namespace bgs = boost::geometry::srs;

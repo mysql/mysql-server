@@ -31,9 +31,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "dd/cache/dictionary_client.h"
-#include "item_create.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -44,8 +41,11 @@
 #include "mysql/components/services/psi_transaction_bits.h"
 #include "mysql/udf_registration_types.h"
 #include "pfs_thread_provider.h"
-#include "psi_memory_key.h"
-#include "xa.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/psi_memory_key.h"
+#include "sql/xa.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -56,16 +56,9 @@
 #include <new>
 #include <string>
 
-#include "auth/sql_security_ctx.h"        // Security_context
-#include "discrete_interval.h"            // Discrete_interval
 #include "dur_prop.h"                     // durability_properties
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -92,35 +85,42 @@
 #include "mysql_com.h"
 #include "mysql_com_server.h"             // NET_SERVER
 #include "mysqld_error.h"
-#include "opt_costmodel.h"
-#include "opt_trace_context.h"            // Opt_trace_context
-#include "parse_location.h"
 #include "prealloced_array.h"
-#include "protocol.h"                     // Protocol
-#include "protocol_classic.h"             // Protocol_text
-#include "query_options.h"
-#include "rpl_context.h"                  // Rpl_thd_context
-#include "rpl_gtid.h"
-#include "session_tracker.h"              // Session_tracker
-#include "set_var.h"
-#include "sql_admin.h"
-#include "sql_cmd.h"
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_digest_stream.h"            // sql_digest_state
-#include "sql_error.h"
-#include "sql_lex.h"                      // LEX
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"                  // PROFILING
-#include "sql_servers.h"
+#include "sql/auth/sql_security_ctx.h"    // Security_context
+#include "sql/discrete_interval.h"        // Discrete_interval
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/mdl.h"
+#include "sql/opt_costmodel.h"
+#include "sql/opt_trace_context.h"        // Opt_trace_context
+#include "sql/parse_location.h"
+#include "sql/protocol.h"                 // Protocol
+#include "sql/protocol_classic.h"         // Protocol_text
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"              // Rpl_thd_context
+#include "sql/rpl_gtid.h"
+#include "sql/session_tracker.h"          // Session_tracker
+#include "sql/set_var.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"        // sql_digest_state
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"                  // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"              // PROFILING
+#include "sql/sql_servers.h"
+#include "sql/sys_vars_resource_mgr.h"    // Session_sysvar_resource_manager
+#include "sql/system_variables.h"         // system_variables
+#include "sql/table.h"
+#include "sql/transaction_info.h"         // Ha_trx_info
 #include "sql_string.h"
-#include "sys_vars_resource_mgr.h"        // Session_sysvar_resource_manager
-#include "system_variables.h"             // system_variables
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction_info.h"             // Ha_trx_info
 #include "violite.h"
 
 class Query_arena;

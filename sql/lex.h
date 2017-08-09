@@ -19,16 +19,17 @@
 
 /* This file includes all reserved words and functions */
 
-#include "lex_symbol.h"
 #include "m_string.h"
+#include "sql/lex_symbol.h"
 
 /* We don't want to include sql_yacc.h into gen_lex_hash */
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
 #else
-#include "sql_hints.yy.h"
 #include <sql_yacc.h>
+
 #include "sql_hints.yy.h"
+
 #define SYM_OR_NULL(A) A
 #endif
 

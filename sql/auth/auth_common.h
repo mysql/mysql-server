@@ -26,13 +26,13 @@
 #include <utility>
 #include <vector>
 
-#include "dynamic_privileges_impl.h"
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 /* Forward Declarations */
 class Alter_info;

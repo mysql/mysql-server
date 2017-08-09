@@ -19,8 +19,8 @@
 #include "ha_example.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysqld_thd_manager.h"
-#include "table_cache.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/table_cache.h"
 #include "test_utils.h"
 
 /*

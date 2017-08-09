@@ -21,13 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "dynamic_privilege_table.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
-#include "log_event.h"                  /* append_query_string */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -47,33 +41,39 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "password.h"                   /* my_make_scrambled_password */
-#include "protocol.h"
-#include "sql_class.h"
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* check_access */
-#include "sql_plugin.h"                 /* lock_plugin_data etc. */
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/log_event.h"              /* append_query_string */
+#include "sql/protocol.h"
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              /* check_access */
+#include "sql/sql_plugin.h"             /* lock_plugin_data etc. */
+#include "sql/sql_plugin_ref.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "violite.h"
                                         /* key_restore */
 
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "derror.h"                     /* ER_THD */
-#include "log.h"
-#include "mysqld.h"
 #include "prealloced_array.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_user_table.h"
-#include <sys_vars_shared.h>
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_authentication.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/sys_vars_shared.h"
 
 /**
   Auxiliary function for constructing a  user list string.

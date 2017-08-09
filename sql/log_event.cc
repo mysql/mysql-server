@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "log_event.h"
+#include "sql/log_event.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -38,7 +38,6 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"        // my_decimal
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -50,13 +49,14 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql_time.h"
-#include "rpl_handler.h"       // RUN_HOOK
-#include "rpl_tblmap.h"
-#include "session_tracker.h"
+#include "sql/my_decimal.h"    // my_decimal
+#include "sql/rpl_handler.h"   // RUN_HOOK
+#include "sql/rpl_tblmap.h"
+#include "sql/session_tracker.h"
+#include "sql/system_variables.h"
+#include "sql/tc_log.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table_id.h"
-#include "tc_log.h"
 #include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
@@ -70,22 +70,7 @@
 #include <cstdint>
 #include <new>
 
-#include "auth/auth_common.h"
-#include "auth/sql_security_ctx.h"
 #include "binary_log.h"        // binary_log
-#include "binlog.h"
-#include "current_thd.h"
-#include "dd/types/abstract_table.h" // dd::enum_table_type
-#include "debug_sync.h"        // debug_sync_set_action
-#include "derror.h"            // ER_THD
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"         // Item_func_set_user_var
-#include "key.h"
-#include "log.h"               // Log_throttle
-#include "mdl.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dir.h"            // my_dir
@@ -97,38 +82,53 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/psi/psi_statement.h"
-#include "mysqld.h"            // lower_case_table_names server_uuid ...
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "query_result.h"      // sql_exchange
-#include "rpl_msr.h"           // channel_map
-#include "rpl_mts_submode.h"   // Mts_submode
-#include "rpl_reporting.h"
-#include "rpl_rli.h"           // Relay_log_info
-#include "rpl_rli_pdb.h"       // Slave_job_group
-#include "rpl_slave.h"         // use_slave_mask
-#include "sp_head.h"           // sp_name
-#include "sql_base.h"          // close_thread_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_cmd.h"
-#include "sql_data_change.h"
-#include "sql_db.h"            // load_db_opt_by_name
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"          // I_List
-#include "sql_load.h"          // mysql_load
-#include "sql_locale.h"        // my_locale_by_number
-#include "sql_parse.h"         // mysql_test_parse_for_slave
-#include "sql_plugin.h" // plugin_foreach
-#include "sql_show.h"          // append_identifier
-#include "table.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/debug_sync.h"    // debug_sync_set_action
+#include "sql/derror.h"        // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"     // Item_func_set_user_var
+#include "sql/key.h"
+#include "sql/log.h"           // Log_throttle
+#include "sql/mdl.h"
+#include "sql/mysqld.h"        // lower_case_table_names server_uuid ...
+#include "sql/protocol.h"
+#include "sql/query_result.h"  // sql_exchange
+#include "sql/rpl_msr.h"       // channel_map
+#include "sql/rpl_mts_submode.h" // Mts_submode
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli.h"       // Relay_log_info
+#include "sql/rpl_rli_pdb.h"   // Slave_job_group
+#include "sql/rpl_slave.h"     // use_slave_mask
+#include "sql/sp_head.h"       // sp_name
+#include "sql/sql_base.h"      // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_db.h"        // load_db_opt_by_name
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"      // I_List
+#include "sql/sql_load.h"      // mysql_load
+#include "sql/sql_locale.h"    // my_locale_by_number
+#include "sql/sql_parse.h"     // mysql_test_parse_for_slave
+#include "sql/sql_plugin.h" // plugin_foreach
+#include "sql/sql_show.h"      // append_identifier
+#include "sql/table.h"
+#include "sql/transaction.h"   // trans_rollback_stmt
+#include "sql/transaction_info.h"
+#include "sql/tztime.h"        // Time_zone
 #include "thr_lock.h"
-#include "transaction.h"       // trans_rollback_stmt
-#include "transaction_info.h"
-#include "tztime.h"            // Time_zone
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
@@ -140,9 +140,9 @@ slave_ignored_err_throttle(window_size,
                            " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_SERVER */
 
-#include "rpl_gtid.h"
-#include "rpl_utility.h"
-#include "xa_aux.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_utility.h"
+#include "sql/xa_aux.h"
 
 extern "C" {
 PSI_memory_key key_memory_log_event;

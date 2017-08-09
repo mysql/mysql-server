@@ -13,16 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_audit.h"
+#include "sql/sql_audit.h"
 
 #include <sys/types.h>
 
-#include "auto_thd.h"                           // Auto_THD
-#include "current_thd.h"
-#include "error_handler.h"                      // Internal_error_handler
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,18 +33,23 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"                             // sql_statement_names
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/auto_thd.h"                       // Auto_THD
+#include "sql/current_thd.h"
+#include "sql/error_handler.h"                  // Internal_error_handler
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                         // sql_statement_names
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"                     // my_plugin_foreach
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_rewrite.h"                    // mysql_rewrite_query
+#include "sql/table.h"
 #include "sql_chars.h"
-#include "sql_class.h"                          // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"                         // my_plugin_foreach
-#include "sql_plugin_ref.h"
-#include "sql_rewrite.h"                        // mysql_rewrite_query
 #include "sql_string.h"
-#include "table.h"
 #include "thr_mutex.h"
 
 /**

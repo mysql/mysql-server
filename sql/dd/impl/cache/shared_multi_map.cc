@@ -17,11 +17,11 @@
 
 #include <new>
 
-#include "dd/impl/cache/cache_element.h"
-#include "log.h"                             // sql_print_warning()
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/log.h"                         // sql_print_warning()
 
 namespace dd {
 namespace cache {

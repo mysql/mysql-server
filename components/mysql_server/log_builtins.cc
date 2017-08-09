@@ -20,21 +20,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
-#include "current_thd.h"      // current_thd
-#include "log.h"              // make_iso8601_timestamp, log_write_errstream,
+#include <mysql/components/services/log_service.h>
+#include <mysql/components/services/log_shared.h>   // data types
+
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h" // internal structs
+                              // connection_events_loop_aborted()
+#include "registry.h"         // mysql_registry_imp
+#include "server_component.h"
+#include "sql/current_thd.h"  // current_thd
+#include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
                               // get_server_errmsgs, LogVar
-#include <mysql/components/services/log_shared.h>   // data types
-#include <mysql/components/services/log_service.h>
-#include "server_component.h"
-#include "log_builtins_filter_imp.h"
-#include "log_builtins_imp.h" // internal structs
-#include "mysqld.h"           // opt_log_(timestamps|error_services),
-                              // connection_events_loop_aborted()
-#include "registry.h"         // mysql_registry_imp
-#include "server_component.h" // imp_mysql_server_registry
-#include "sql_class.h"        // THD
+#include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
+#include "sql/sql_class.h"    // THD
 
 #ifndef _WIN32
 #include <syslog.h>

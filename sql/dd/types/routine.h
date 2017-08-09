@@ -16,10 +16,10 @@
 #ifndef DD__ROUTINE_INCLUDED
 #define DD__ROUTINE_INCLUDED
 
-#include "dd/types/entity_object.h"       // dd::Entity_object
-#include "dd/types/view.h"                // dd::Column::enum_security_type
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/types/view.h"            // dd::Column::enum_security_type
 
 namespace dd {
 

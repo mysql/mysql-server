@@ -17,14 +17,14 @@
 #include <stddef.h>
 
 #include "dd.h"
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/raw/raw_table.h"
-#include "dd/impl/transaction_impl.h"
-#include "dd/impl/types/schema_impl.h"
-#include "dd/types/object_type.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/transaction_impl.h"
+#include "sql/dd/impl/types/schema_impl.h"
+#include "sql/dd/types/object_type.h"
 #include "test_utils.h"
 
 

@@ -13,22 +13,22 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "rpl_trx_tracking.h"
+#include "sql/rpl_trx_tracking.h"
 
 #include <algorithm>
 #include <utility>
 #include <vector>
 
-#include "binlog.h"
 #include "binlog_event.h"
-#include "current_thd.h"
 #include "my_inttypes.h"
-#include "mysqld.h"
-#include "rpl_context.h"
-#include "rpl_transaction_write_set_ctx.h"
-#include "sql_class.h"
-#include "system_variables.h"
-#include "transaction_info.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/mysqld.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
 
 
 Logical_clock::Logical_clock()

@@ -33,28 +33,28 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "field.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
-#include "opt_explain_format.h"                 // Explain_sort_clause
-#include "sql_alloc.h"
-#include "sql_array.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"                       // Next_select_func
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_select.h"                         // Key_use
-#include "sql_tmp_table.h"                      // enum_tmpfile_windowing_action
-#include "table.h"
-#include "temp_table_param.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain_format.h"             // Explain_sort_clause
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"                   // Next_select_func
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_select.h"                     // Key_use
+#include "sql/sql_tmp_table.h"                  // enum_tmpfile_windowing_action
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
 #include "template_utils.h"
 
 class COND_EQUAL;

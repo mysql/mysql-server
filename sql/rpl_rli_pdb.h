@@ -23,7 +23,6 @@
 #include <atomic>
 
 #include "binlog_event.h"
-#include "log_event.h"         // Format_description_log_event
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -38,12 +37,13 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "rpl_gtid.h"
-#include "rpl_mts_submode.h"   // enum_mts_parallel_type
-#include "rpl_rli.h"           // Relay_log_info
-#include "rpl_slave.h"         // MTS_WORKER_UNDEF
-#include "sql_class.h"
-#include "system_variables.h"
+#include "sql/log_event.h"     // Format_description_log_event
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mts_submode.h" // enum_mts_parallel_type
+#include "sql/rpl_rli.h"       // Relay_log_info
+#include "sql/rpl_slave.h"     // MTS_WORKER_UNDEF
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
 
 class Rpl_info_handler;
 class Slave_worker;

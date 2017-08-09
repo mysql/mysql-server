@@ -13,21 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_slave_commit_order_manager.h"
+#include "sql/rpl_slave_commit_order_manager.h"
 
-#include "binlog.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"          // key_commit_order_manager_mutex ..
 #include "mysqld_error.h"
-#include "rpl_rli_pdb.h"     // Slave_worker
-#include "sql_class.h"
-#include "sql_error.h"
+#include "sql/binlog.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"      // key_commit_order_manager_mutex ..
+#include "sql/rpl_rli_pdb.h" // Slave_worker
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
 
 Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   : m_rollback_trx(false), m_workers(worker_numbers), queue_head(QUEUE_EOF),

@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "trx0types.h"
 #include "ut0new.h"
+#include "sql/handler.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"

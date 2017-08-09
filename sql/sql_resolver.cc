@@ -30,22 +30,8 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "aggregate_check.h"     // Group_check
-#include "auth_acls.h"
-#include "auth_common.h"         // check_single_table_access
 #include "binary_log_types.h"
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"       // View_error_handler
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_subselect.h"
-#include "item_sum.h"            // Item_sum
 #include "lex_string.h"
-#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -56,29 +42,43 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_hints.h"
-#include "opt_range.h"           // prune_partitions
-#include "opt_trace.h"           // Opt_trace_object
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "query_result.h"        // Query_result
-#include "sql_base.h"            // setup_fields
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"       // Prepare_error_tracker
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "sql_test.h"            // print_where
-#include "sql_tmp_table.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/aggregate_check.h" // Group_check
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_single_table_access
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"   // View_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/mem_root_array.h"
+#include "sql/opt_hints.h"
+#include "sql/opt_range.h"       // prune_partitions
+#include "sql/opt_trace.h"       // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"    // Query_result
+#include "sql/sql_base.h"        // setup_fields
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"   // Prepare_error_tracker
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "window.h"
 
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);

@@ -24,18 +24,21 @@
 #include "my_pointer_arithmetic.h"
 #include "my_time.h"                            // MYSQL_TIME_NOTE_TRUNCATED
 #include "mysqld_error.h"                       // ER_*
-#include "sql_bitmap.h"
-#include "sql_error.h"                          // Sql_condition
+#include "sql/sql_bitmap.h"
+#include "sql/sql_error.h"                      // Sql_condition
+#include "sql/table.h"                          // TABLE
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                         // String
-#include "table.h"                              // TABLE
-#include "thr_malloc.h"
 
 class Create_field;
+class Field;
+class Item;
 class Json_dom;
 class Json_wrapper;
 class Protocol;
 class Relay_log_info;
 class Send_field;
+struct TABLE;
 
 /*
 

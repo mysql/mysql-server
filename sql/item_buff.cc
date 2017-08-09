@@ -25,18 +25,18 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "current_thd.h"        // current_thd
-#include "item.h"               // Cached_item, ...
-#include "json_dom.h"           // Json_wrapper
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_class.h"          // THD
+#include "sql/current_thd.h"    // current_thd
+#include "sql/item.h"           // Cached_item, ...
+#include "sql/json_dom.h"       // Json_wrapper
+#include "sql/my_decimal.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 using std::min;
 using std::max;

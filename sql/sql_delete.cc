@@ -19,56 +19,56 @@
   Multi-table deletes were introduced by Monty and Sinisa
 */
 
-#include "sql_delete.h"
+#include "sql/sql_delete.h"
 
 #include <limits.h>
 #include <string.h>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_table_access
-#include "binlog.h"                   // mysql_bin_log
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "filesort.h"                 // Filesort
-#include "handler.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"
-#include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // stage_...
 #include "mysqld_error.h"
-#include "opt_explain.h"              // Modification_plan
-#include "opt_explain_format.h"
-#include "opt_range.h"                // prune_partitions
-#include "opt_trace.h"                // Opt_trace_object
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "records.h"                  // READ_RECORD
-#include "sql_base.h"                 // update_non_unique_table_error
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"            // optimize_cond, substitute_gc
-#include "sql_resolver.h"             // setup_order
-#include "sql_select.h"
-#include "sql_sort.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_table_access
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/filesort.h"             // Filesort
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"               // stage_...
+#include "sql/opt_explain.h"          // Modification_plan
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h"            // prune_partitions
+#include "sql/opt_trace.h"            // Opt_trace_object
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/records.h"              // READ_RECORD
+#include "sql/sql_base.h"             // update_non_unique_table_error
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"        // optimize_cond, substitute_gc
+#include "sql/sql_resolver.h"         // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_view.h"             // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
+#include "sql/uniques.h"              // Unique
 #include "sql_string.h"
-#include "sql_view.h"                 // check_key_in_view
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "thr_malloc.h"
-#include "transaction_info.h"
-#include "trigger_def.h"
-#include "uniques.h"                  // Unique
 
 class COND_EQUAL;
 class Item_exists_subselect;

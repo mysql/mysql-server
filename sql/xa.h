@@ -25,9 +25,9 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_cmd.h"          // Sql_cmd
-#include "sql_plugin_ref.h"   // plugin_ref
-#include "xa_aux.h"           // serialize_xid
+#include "sql/sql_cmd.h"      // Sql_cmd
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/xa_aux.h"       // serialize_xid
 
 class Protocol;
 class THD;

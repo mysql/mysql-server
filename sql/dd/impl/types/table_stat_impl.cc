@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/dd/impl/types/table_stat_impl.h" // Table_stat_impl
+
 #include <ostream>
 #include <string>
 
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/raw/raw_record.h"        // Raw_record
-#include "dd/impl/tables/table_stats.h"    // Table_stats
-#include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
-#include "dd/impl/types/table_stat_impl.h" // Table_stat_impl
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/tables/table_stats.h" // Table_stats
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 
 namespace dd {
 class Object_key;

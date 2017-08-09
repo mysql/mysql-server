@@ -13,7 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "events.h"
+#include "sql/events.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,25 +24,9 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"           // EVENT_ACL
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
-#include "dd/string_type.h"
-#include "dd/types/event.h"
-#include "dd/types/schema.h"
-#include "event_data_objects.h"    // Event_queue_element
-#include "event_db_repository.h"   // Event_db_repository
-#include "event_parse_data.h"      // Event_parse_data
-#include "event_queue.h"           // Event_queue
-#include "event_scheduler.h"       // Event_scheduler
-#include "item.h"
 #include "lex_string.h"
-#include "lock.h"                  // lock_object_name
-#include "log.h"
 #include "m_ctype.h"               // CHARSET_INFO
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -58,24 +42,40 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                // LOCK_global_system_variables
 #include "mysqld_error.h"          // ER_*
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sp_head.h"               // Stored_program_creation_ctx
-#include "sql_class.h"             // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_show.h"              // append_definer
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"  // EVENT_ACL
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"           // dd::Schema_MDL_locker
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/schema.h"
+#include "sql/event_data_objects.h" // Event_queue_element
+#include "sql/event_db_repository.h" // Event_db_repository
+#include "sql/event_parse_data.h"  // Event_parse_data
+#include "sql/event_queue.h"       // Event_queue
+#include "sql/event_scheduler.h"   // Event_scheduler
+#include "sql/item.h"
+#include "sql/lock.h"              // lock_object_name
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"            // LOCK_global_system_variables
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"           // Stored_program_creation_ctx
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"          // append_definer
+#include "sql/sql_table.h"         // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/transaction.h"
+#include "sql/tztime.h"            // Time_zone
 #include "sql_string.h"            // String
-#include "sql_table.h"             // write_bin_log
-#include "system_variables.h"
-#include "transaction.h"
-#include "tztime.h"                // Time_zone
 
 
 /**

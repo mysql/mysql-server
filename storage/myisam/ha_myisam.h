@@ -25,12 +25,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"                            /* handler */
 #include "my_icp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "sql/handler.h"                        /* handler */
+#include "sql/table.h"                          /* TABLE_SHARE */
 #include "sql_string.h"
-#include "table.h"                              /* TABLE_SHARE */
 #include "typelib.h"
 
 struct TABLE_SHARE;

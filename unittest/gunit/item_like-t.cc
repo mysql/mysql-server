@@ -20,9 +20,9 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "sql_class.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/sql_class.h"
 #include "test_utils.h"
 
 namespace item_like_unittest {

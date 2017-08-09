@@ -26,8 +26,8 @@
 #include "mysql/plugin_auth_common.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_plugin_ref.h"             // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_plugin_ref.h"         // plugin_ref
+#include "sql/thr_malloc.h"
 
 #include <string>
 

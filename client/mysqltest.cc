@@ -38,7 +38,6 @@
 #include <my_dir.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -57,6 +56,7 @@
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "sql_common.h"
 #include "typelib.h"
 #ifndef _WIN32
 #include <sys/wait.h>

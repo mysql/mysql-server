@@ -20,13 +20,8 @@
 #include <sys/types.h>
 #include <string>
 
-#include "field.h"
-#include "handler.h"
-#include "item_create.h"
-#include "key.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "mem_root_array.h"    // Mem_root_array
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -37,17 +32,22 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sql_alloc.h"
-#include "sql_class.h"         // Query_arena
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"     // Query_arena
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 class Item;
 class Item_trigger_field;

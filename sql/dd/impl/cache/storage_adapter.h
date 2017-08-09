@@ -18,12 +18,12 @@
 
 #include <stddef.h>
 
-#include "dd/cache/object_registry.h"        // Object_registry
-#include "dd/object_id.h"
-#include "handler.h"                         // enum_tx_isolation
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "sql/dd/cache/object_registry.h"    // Object_registry
+#include "sql/dd/object_id.h"
+#include "sql/handler.h"                     // enum_tx_isolation
 #include "thr_mutex.h"
 
 class THD;

@@ -25,7 +25,7 @@
     Move month and days to language files
 */
 
-#include "item_timefunc.h"
+#include "sql/item_timefunc.h"
 
 #include "my_config.h"
 
@@ -35,32 +35,32 @@
 #include <string.h>
 
 #include "mysql_com.h"
-#include "value_map.h"
+#include "sql/histograms/value_map.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include "current_thd.h"
-#include "dd/info_schema/stats.h"
-#include "dd/object_id.h"    // dd::Object_id
 #include "decimal.h"
-#include "derror.h"          // ER_THD
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_class.h"       // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_locale.h"      // my_locale_en_US
-#include "sql_security_ctx.h"
-#include "sql_time.h"        // make_truncated_value_warning
-#include "strfunc.h"         // check_word
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/object_id.h" // dd::Object_id
+#include "sql/derror.h"      // ER_THD
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"  // my_locale_en_US
+#include "sql/sql_time.h"    // make_truncated_value_warning
+#include "sql/strfunc.h"     // check_word
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/tztime.h"      // Time_zone
 #include "template_utils.h"
-#include "tztime.h"          // Time_zone
 
 using std::min;
 using std::max;

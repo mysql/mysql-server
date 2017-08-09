@@ -25,8 +25,8 @@
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"  // my_thread_id
 #include "mysql/udf_registration_types.h"
-#include "rpl_gtid.h"         // Gitd_specification
-#include "sql_plugin_ref.h"   // plugin_ref
+#include "sql/rpl_gtid.h"     // Gitd_specification
+#include "sql/sql_plugin_ref.h" // plugin_ref
 
 class MY_LOCALE;
 class Time_zone;

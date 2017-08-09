@@ -21,9 +21,9 @@
 #include <sys/types.h>
 
 #include "fake_costmodel.h"
-#include "sql_class.h"
+#include "sql/sql_class.h"
+#include "sql/uniques.h"
 #include "test_utils.h"
-#include "uniques.h"
 
 namespace unique_unittest {
 

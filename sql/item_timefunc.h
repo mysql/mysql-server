@@ -24,15 +24,8 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "derror.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_strfunc.h"  // Item_str_func
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
@@ -40,11 +33,18 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"
-#include "sql_const.h"
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h" // Item_str_func
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h"
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 class MY_LOCALE;
 class PT_item_list;

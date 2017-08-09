@@ -23,50 +23,50 @@
 #include <utility>
 #include <vector>
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
-#include "dd/impl/cache/storage_adapter.h"    // Storage_adapter
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/sdi.h"                      // dd::sdi::store
-#include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/tables/character_sets.h"    // dd::tables::Character_sets
-#include "dd/impl/tables/collations.h"        // dd::tables::Collations
-#include "dd/impl/tables/dd_properties.h"     // dd::tables::DD_properties
-#include "dd/impl/types/plugin_table_impl.h"  // dd::Plugin_table_impl
-#include "dd/impl/types/schema_impl.h"        // dd::Schema_impl
-#include "dd/impl/types/table_impl.h"         // dd::Table_impl
-#include "dd/impl/types/tablespace_impl.h"    // dd::Table_impl
-#include "dd/object_id.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/object_table_definition.h" // dd::Object_table_definition
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
-#include "dd/upgrade/upgrade.h"               // dd::migrate_event_to_dd
-#include "error_handler.h"                    // No_such_table_error_handler
-#include "handler.h"                          // dict_init_mode_t
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "sql_base.h"                         // close_thread_tables
-#include "sql_class.h"                        // THD
-#include "sql_list.h"
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_security_ctx.h"
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"                      // trans_rollback
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
+#include "sql/dd/impl/cache/storage_adapter.h" // Storage_adapter
+#include "sql/dd/impl/dictionary_impl.h"      // dd::Dictionary_impl
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/sdi.h"                  // dd::sdi::store
+#include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/tables/character_sets.h" // dd::tables::Character_sets
+#include "sql/dd/impl/tables/collations.h"    // dd::tables::Collations
+#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::DD_properties
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/impl/types/schema_impl.h"    // dd::Schema_impl
+#include "sql/dd/impl/types/table_impl.h"     // dd::Table_impl
+#include "sql/dd/impl/types/tablespace_impl.h" // dd::Table_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/object_table.h"        // dd::Object_table
+#include "sql/dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+#include "sql/dd/upgrade/upgrade.h"           // dd::migrate_event_to_dd
+#include "sql/error_handler.h"                // No_such_table_error_handler
+#include "sql/handler.h"                      // dict_init_mode_t
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/sql_base.h"                     // close_thread_tables
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_list.h"
+#include "sql/sql_prepare.h"                  // Ed_connection
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"                  // trans_rollback
 
 // Execute a single SQL query.
 bool execute_query(THD *thd, const dd::String_type &q_buf)

@@ -30,11 +30,7 @@
 #include <random>       // std::mt19937
 #include <string>
 
-#include "dd/object_id.h"      // dd::Object_id
-#include "dd/properties.h"     // dd::Properties
-#include "discrete_interval.h" // Discrete_interval
 #include "ft_global.h"         // ft_hints
-#include "key.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -52,14 +48,18 @@
 #include "mysql/components/services/psi_table_bits.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"
-#include "sql_bitmap.h"        // Key_map
-#include "sql_const.h"         // SHOW_COMP_OPTION
-#include "sql_list.h"          // SQL_I_List
-#include "sql_plugin_ref.h"    // plugin_ref
-#include "system_variables.h"  // System_status_var
+#include "sql/dd/object_id.h"  // dd::Object_id
+#include "sql/dd/properties.h" // dd::Properties
+#include "sql/discrete_interval.h" // Discrete_interval
+#include "sql/key.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"    // Key_map
+#include "sql/sql_const.h"     // SHOW_COMP_OPTION
+#include "sql/sql_list.h"      // SQL_I_List
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/system_variables.h" // System_status_var
+#include "sql/thr_malloc.h"
 #include "thr_lock.h"          // thr_lock_type
-#include "thr_malloc.h"
 #include "typelib.h"
 
 class Alter_info;

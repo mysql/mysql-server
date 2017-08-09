@@ -33,10 +33,10 @@
 
 #include <sys/types.h>
 
-#include "handler.h"                     /* handler */
 #include "my_base.h"                     /* ha_rows */
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "sql/handler.h"                 /* handler */
 #include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
 
 /** @brief

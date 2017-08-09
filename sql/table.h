@@ -22,18 +22,9 @@
 #include <vector>
 
 #include "binary_log_types.h"
-#include "dd/properties.h"
-#include "enum_query_type.h" // enum_query_type
-#include "handler.h"       // row_type
-#include "json_diff.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mdl.h"           // MDL_wait_for_subgraph
-#include "mem_root_array.h"
-#include "memroot_allocator.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -47,22 +38,31 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/udf_registration_types.h"
-#include "opt_costmodel.h" // Cost_model_table
-#include "record_buffer.h" // Record_buffer
-#include "sql_alloc.h"
-#include "sql_bitmap.h"    // Bitmap
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plist.h"
-#include "sql_plugin_ref.h"
-#include "sql_sort.h"      // Filesort_info
+#include "sql/auth/auth_common.h"
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h" // enum_query_type
+#include "sql/handler.h"   // row_type
+#include "sql/json_diff.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"       // MDL_wait_for_subgraph
+#include "sql/mem_root_array.h"
+#include "sql/memroot_allocator.h"
+#include "sql/opt_costmodel.h" // Cost_model_table
+#include "sql/record_buffer.h" // Record_buffer
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h" // Bitmap
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_sort.h"  // Filesort_info
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table_id.h"      // Table_id
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "typelib.h"
-#include <auth/auth_common.h>
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;

@@ -21,21 +21,21 @@
 #include <utility>              // std::forward
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_strfunc.h"       // Item_str_func
-#include "json_path.h"          // Json_path
 #include "m_ctype.h"
-#include "mem_root_array.h"     // Mem_root_array
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h"   // Item_str_func
+#include "sql/json_path.h"      // Json_path
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
 
 class Item_func_like;

@@ -26,10 +26,10 @@
 #include "lf.h"
 #include "my_inttypes.h"
 #include "pfs_column_types.h"
+#include "pfs_histogram.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
-#include "pfs_histogram.h"
-#include "sql_digest.h"
+#include "sql/sql_digest.h"
 
 extern bool flag_statements_digest;
 extern size_t digest_max;

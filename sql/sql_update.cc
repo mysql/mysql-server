@@ -24,21 +24,8 @@
 #include <string.h>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_grant, check_access
 #include "binary_log_types.h"
-#include "binlog.h"                   // mysql_bin_log
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "field.h"                    // Field
-#include "filesort.h"                 // Filesort
-#include "handler.h"
-#include "item.h"                     // Item
-#include "item_json_func.h"           // Item_json_func
-#include "key.h"                      // is_key_used
-#include "key_spec.h"
 #include "m_ctype.h"
-#include "mem_root_array.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -51,44 +38,57 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // stage_... mysql_tmpdir
 #include "mysqld_error.h"
-#include "opt_explain.h"              // Modification_plan
-#include "opt_explain_format.h"
-#include "opt_range.h"                // QUICK_SELECT_I
-#include "opt_trace.h"                // Opt_trace_object
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
 #include "prealloced_array.h"         // Prealloced_array
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "records.h"                  // READ_RECORD
-#include "sql_array.h"
-#include "sql_base.h"                 // check_record, fill_record
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"            // build_equal_items, substitute_gc
-#include "sql_partition.h"            // partition_key_modified
-#include "sql_resolver.h"             // setup_order
-#include "sql_select.h"
-#include "sql_sort.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_grant, check_access
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/field.h"                // Field
+#include "sql/filesort.h"             // Filesort
+#include "sql/handler.h"
+#include "sql/item.h"                 // Item
+#include "sql/item_json_func.h"       // Item_json_func
+#include "sql/key.h"                  // is_key_used
+#include "sql/key_spec.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"               // stage_... mysql_tmpdir
+#include "sql/opt_explain.h"          // Modification_plan
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h"            // QUICK_SELECT_I
+#include "sql/opt_trace.h"            // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/records.h"              // READ_RECORD
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"             // check_record, fill_record
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"        // build_equal_items, substitute_gc
+#include "sql/sql_partition.h"        // partition_key_modified
+#include "sql/sql_resolver.h"         // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"        // create_tmp_table
+#include "sql/sql_view.h"             // check_key_in_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                // TABLE
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"
+#include "sql/transaction_info.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_tmp_table.h"            // create_tmp_table
-#include "sql_view.h"                 // check_key_in_view
-#include "system_variables.h"
-#include "table.h"                    // TABLE
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "temp_table_param.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "transaction_info.h"
-#include "trigger_def.h"
 
 class COND_EQUAL;
 class Item_exists_subselect;

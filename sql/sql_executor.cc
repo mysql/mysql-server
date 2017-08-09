@@ -24,7 +24,7 @@
   @{
 */
 
-#include "sql_executor.h"
+#include "sql/sql_executor.h"
 
 #include "my_config.h"
 
@@ -38,23 +38,9 @@
 #include <utility>
 
 #include "binary_log_types.h"
-#include "debug_sync.h"       // DEBUG_SYNC
-#include "derror.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "filesort.h"         // Filesort
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"         // Item_sum
-#include "json_dom.h"         // Json_wrapper
-#include "key.h"              // key_cmp
-#include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -66,35 +52,49 @@
 #include "my_table_map.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"           // stage_executing
 #include "mysqld_error.h"
-#include "opt_explain_format.h"
-#include "opt_range.h"        // QUICK_SELECT_I
-#include "opt_trace.h"        // Opt_trace_object
-#include "opt_trace_context.h"
-#include "parse_tree_nodes.h" // PT_frame
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "query_result.h"     // Query_result
-#include "record_buffer.h"    // Record_buffer
-#include "sql_base.h"         // fill_record
-#include "sql_bitmap.h"
-#include "sql_error.h"
-#include "sql_join_buffer.h"  // st_cache_field
-#include "sql_list.h"
-#include "sql_optimizer.h"    // JOIN
-#include "sql_servers.h"
-#include "sql_show.h"         // get_schema_tables_result
-#include "sql_sort.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/filesort.h"     // Filesort
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"     // Item_sum
+#include "sql/json_dom.h"     // Json_wrapper
+#include "sql/key.h"          // key_cmp
+#include "sql/key_spec.h"
+#include "sql/log.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"       // stage_executing
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h"    // QUICK_SELECT_I
+#include "sql/opt_trace.h"    // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_nodes.h" // PT_frame
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h" // Query_result
+#include "sql/record_buffer.h" // Record_buffer
+#include "sql/sql_base.h"     // fill_record
+#include "sql/sql_bitmap.h"
+#include "sql/sql_error.h"
+#include "sql/sql_join_buffer.h" // st_cache_field
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"     // get_schema_tables_result
+#include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h" // create_tmp_table
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_tmp_table.h"    // create_tmp_table
-#include "system_variables.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "window.h"
-#include "window_lex.h"
 
 using std::max;
 using std::min;

@@ -28,15 +28,15 @@
 #include <memory>                               // unique_ptr
 #include <string>
 
-#include "json_dom.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "psi_memory_key.h"           // key_memory_JSON
 #include "rapidjson/encodings.h"
 #include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
-#include "sql_const.h"                // STRING_BUFFER_USUAL_SIZE
+#include "sql/json_dom.h"
+#include "sql/psi_memory_key.h"       // key_memory_JSON
+#include "sql/sql_const.h"            // STRING_BUFFER_USUAL_SIZE
 #include "sql_string.h"               // String
 #include "template_utils.h"           // down_cast
 

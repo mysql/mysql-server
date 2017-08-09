@@ -29,12 +29,12 @@
 */
 
 #include "my_base.h"      // ha_rows
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "sql/histograms/value_map.h"
+#include "sql/my_decimal.h"
 #include "sql_string.h"
-#include "value_map.h"
 
 class Json_array;
 

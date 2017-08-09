@@ -13,42 +13,42 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <gtest/gtest.h>
 #include <m_string.h>
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 
-#include "../../sql/dd/dd.h"
-#include "../../sql/dd/impl/sdi.h"
-#include "../../sql/dd/impl/sdi_impl.h"
-#include "../../sql/dd/impl/types/column_impl.h"
-#include "../../sql/dd/impl/types/entity_object_impl.h"
-#include "../../sql/dd/impl/types/index_impl.h"
-#include "../../sql/dd/impl/types/table_impl.h"
-#include "../../sql/dd/impl/types/weak_object_impl.h"
-#include "../../sql/dd/sdi_file.h"
-#include "../../sql/dd/types/column.h"
-#include "../../sql/dd/types/column_statistics.h"
-#include "../../sql/dd/types/column_type_element.h"
-#include "../../sql/dd/types/foreign_key.h"
-#include "../../sql/dd/types/foreign_key_element.h"
-#include "../../sql/dd/types/index.h"
-#include "../../sql/dd/types/index_element.h"
-#include "../../sql/dd/types/object_type.h"
-#include "../../sql/dd/types/partition.h"
-#include "../../sql/dd/types/partition_index.h"
-#include "../../sql/dd/types/partition_value.h"
-#include "../../sql/dd/types/schema.h"
-#include "../../sql/dd/types/table.h"
-#include "../../sql/dd/types/tablespace.h"
-#include "../../sql/dd/types/tablespace_file.h"
-#include "histograms/equi_height.h"
-#include "histograms/histogram.h"
-#include "histograms/value_map.h"
 #include "my_inttypes.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/sdi.h"
+#include "sql/dd/impl/sdi_impl.h"
+#include "sql/dd/impl/types/column_impl.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/index_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/sdi_file.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/column_type_element.h"
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/foreign_key_element.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/index_element.h"
+#include "sql/dd/types/object_type.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_index.h"
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"
+#include "sql/histograms/equi_height.h"
+#include "sql/histograms/histogram.h"
+#include "sql/histograms/value_map.h"
 
 namespace {
 int FANOUT= 3;

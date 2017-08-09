@@ -30,14 +30,12 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include <derror.h>                      // get_server_errmsgs
 #include <mysql/components/services/log_shared.h>
 #include <mysql/service_my_snprintf.h>   // my_vsnprintf
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth/sql_security_ctx.h"  // Security_context
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_compiler.h"
@@ -56,8 +54,10 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "sql/auth/sql_security_ctx.h" // Security_context
+#include "sql/derror.h"                  // get_server_errmsgs
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "thr_malloc.h"
 
 class THD;
 struct TABLE_LIST;

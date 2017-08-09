@@ -24,25 +24,25 @@
 
 #include "control_events.h"
 #include "crypt_genhash_impl.h"       // CRYPT_MAX_PASSWORD_SIZE
-#include "derror.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"             // Item_bool_func
-#include "item_func.h"                // Item_func
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_const.h"
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"         // Item_bool_func
+#include "sql/item_func.h"            // Item_func
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_const.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 
 class MY_LOCALE;
 class PT_item_list;

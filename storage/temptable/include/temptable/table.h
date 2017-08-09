@@ -25,6 +25,7 @@ TempTable Table declarations. */
 #include <utility>       /* std::pair, std::move */
 #include <vector>        /* std::vector */
 
+#include "sql/table.h"        /* TABLE, TABLE_SHARE */
 #include "temptable/allocator.h" /* temptable::Allocator */
 #include "temptable/column.h"    /* temptable::Column */
 #include "temptable/cursor.h"    /* temptable::Cursor */
@@ -32,7 +33,6 @@ TempTable Table declarations. */
 #include "temptable/result.h"    /* temptable::Result */
 #include "temptable/row.h"       /* temptable::Row */
 #include "temptable/storage.h"   /* temptable::Storage */
-#include "table.h"            /* TABLE, TABLE_SHARE */
 
 namespace temptable {
 

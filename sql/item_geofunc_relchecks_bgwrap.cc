@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/item_geofunc_relchecks_bgwrap.h"
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
 #include <boost/geometry/algorithms/intersects.hpp>
@@ -23,10 +25,9 @@
 #include <algorithm>
 #include <utility>
 
-#include "item_geofunc_internal.h"
-#include "item_geofunc_relchecks_bgwrap.h"
 #include "my_dbug.h"
-#include "spatial.h"
+#include "sql/item_geofunc_internal.h"
+#include "sql/spatial.h"
 
 /**
   Dispatcher for 'point WITHIN xxx'.

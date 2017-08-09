@@ -22,7 +22,7 @@
 */
 
 #include "my_inttypes.h"
-#include "system_variables.h"  // COUNT_GLOBAL_STATUS_VARS
+#include "sql/system_variables.h" // COUNT_GLOBAL_STATUS_VARS
 
 struct PFS_status_stats
 {

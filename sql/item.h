@@ -25,18 +25,12 @@
 #include <new>
 
 #include "binary_log_types.h"
-#include "dd/properties.h"
-#include "enum_query_type.h"
-#include "field.h"       // Derivation
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"  // my_decimal
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -46,17 +40,23 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h" // Parse_tree_node
-#include "sql_alloc.h"
-#include "sql_array.h"   // Bounds_checked_array
-#include "sql_const.h"
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"   // Derivation
+#include "sql/handler.h"
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h" // my_decimal
+#include "sql/parse_tree_node_base.h" // Parse_tree_node
+#include "sql/sql_alloc.h"
+#include "sql/sql_array.h" // Bounds_checked_array
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h" // enum_trigger_variable_type
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "trigger_def.h" // enum_trigger_variable_type
 #include "typelib.h"
 
 class Item;

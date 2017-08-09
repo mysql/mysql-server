@@ -36,29 +36,11 @@
 #include <random>                     // std::uniform_real_distribution
 #include <string>
 
-#include "auth_common.h"              // check_readonly() and SUPER_ACL
 #include "binary_log_types.h"
-#include "binlog.h"                   // mysql_bin_log
 #include "binlog_event.h"
-#include "check_stack.h"
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "dd/dd.h"                    // dd::get_dictionary
-#include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
-#include "dd/types/table.h"           // dd::Table
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_DEFAULT
-#include "error_handler.h"            // Internal_error_handler
-#include "field.h"
-#include "item.h"
 #include "keycache.h"
-#include "lock.h"                     // MYSQL_LOCK
-#include "log.h"
-#include "log_event.h"                // Write_rows_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_bit.h"                   // my_count_bits
 #include "my_bitmap.h"                // MY_BITMAP
 #include "my_check_opt.h"
@@ -82,42 +64,60 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_version.h"            // MYSQL_VERSION_ID
-#include "mysqld.h"                   // global_system_variables heap_hton ..
 #include "mysqld_error.h"
-#include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
-#include "opt_costmodel.h"
-#include "opt_hints.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "record_buffer.h"            // Record_buffer
-#include "rpl_filter.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"              // RUN_HOOK
-#include "rpl_rli.h"                  // is_atomic_ddl_commit_on_slave
-#include "rpl_write_set_handler.h"    // add_pke
-#include "sdi_utils.h"                // import_serialized_meta_data
-#include "session_tracker.h"
-#include "sql_base.h"                 // free_io_cache
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                // check_stack_overrun
-#include "sql_plugin.h"               // plugin_foreach
-#include "sql_select.h"               // actual_key_parts
-#include "sql_servers.h"
+#include "sql/auth/auth_common.h"     // check_readonly() and SUPER_ACL
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                // dd::get_dictionary
+#include "sql/dd/dictionary.h"        // dd:acquire_shared_table_mdl
+#include "sql/dd/types/table.h"       // dd::Table
+#include "sql/dd_table_share.h"       // open_table_def
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_DEFAULT
+#include "sql/error_handler.h"        // Internal_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/lock.h"                 // MYSQL_LOCK
+#include "sql/log.h"
+#include "sql/log_event.h"            // Write_rows_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"               // global_system_variables heap_hton ..
+#include "sql/opt_costconstantcache.h" // reload_optimizer_cost_constants
+#include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/record_buffer.h"        // Record_buffer
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"          // RUN_HOOK
+#include "sql/rpl_rli.h"              // is_atomic_ddl_commit_on_slave
+#include "sql/rpl_write_set_handler.h" // add_pke
+#include "sql/sdi_utils.h"            // import_serialized_meta_data
+#include "sql/session_tracker.h"
+#include "sql/sql_base.h"             // free_io_cache
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"            // check_stack_overrun
+#include "sql/sql_plugin.h"           // plugin_foreach
+#include "sql/sql_select.h"           // actual_key_parts
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"            // build_table_filename
+#include "sql/table.h"
+#include "sql/tc_log.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_commit_implicit
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_table.h"                // build_table_filename
-#include "table.h"
-#include "tc_log.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "transaction.h"              // trans_commit_implicit
-#include "transaction_info.h"
 #include "varlen_sort.h"
-#include "xa.h"
 
 
 /**

@@ -14,19 +14,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include <gtest/gtest.h>
-
 #include <cstring>
 
 #include "dd.h"
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/column_statistics_impl.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/column_statistics_impl.h"
+#include "sql/histograms/equi_height.h"
+#include "sql/histograms/singleton.h"
+#include "sql/histograms/value_map.h"
 #include "test_utils.h"
-
-#include "histograms/equi_height.h"
-#include "histograms/singleton.h"
-#include "histograms/value_map.h"
 
 namespace dd_column_statistics_unittest {
 

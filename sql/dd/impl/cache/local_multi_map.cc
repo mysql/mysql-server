@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/cache/local_multi_map.h"
+#include "sql/dd/cache/local_multi_map.h"
 
 #include "cache_element.h"                    // Cache_element
-#include "dd/cache/multi_map_base.h"
 #include "my_dbug.h"
+#include "sql/dd/cache/multi_map_base.h"
 
 namespace dd {
 class Abstract_table;

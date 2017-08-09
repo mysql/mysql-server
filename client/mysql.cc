@@ -90,9 +90,10 @@
 #endif
 
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <algorithm>
 #include <new>
+
+#include "sql_common.h"
 
 using std::min;
 using std::max;

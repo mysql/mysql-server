@@ -18,7 +18,7 @@
 #ifndef DD_ROUTINE_INCLUDED
 #define DD_ROUTINE_INCLUDED
 
-#include "table.h"
+#include "sql/table.h"
 
 class THD;
 class sp_head;

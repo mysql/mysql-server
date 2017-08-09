@@ -21,8 +21,8 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
-#include "opt_costconstants.h"
-#include "sql_const.h"                          // defines for cost constants
+#include "sql/opt_costconstants.h"
+#include "sql/sql_const.h"                      // defines for cost constants
 
 struct TABLE;
 

@@ -45,10 +45,10 @@
 #include <atomic>
 #include <limits>
 
-#include "item_create.h"
 #include "my_loglevel.h"
 #include "mysql_com.h"
-#include "rpl_trx_tracking.h"
+#include "sql/item_create.h"
+#include "sql/rpl_trx_tracking.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -60,28 +60,13 @@
 #include <utility>
 
 #include "../components/mysql_server/log_builtins_filter_imp.h" // until we have pluggable variables
-#include "auth_acls.h"
-#include "auth_common.h"                 // validate_user_plugins
-#include "binlog.h"                      // mysql_bin_log
 #include "binlog_event.h"
-#include "connection_handler_impl.h"     // Per_thread_connection_handler
-#include "connection_handler_manager.h"  // Connection_handler_manager
-#include "dd/info_schema/stats.h"
-#include "derror.h"                      // read_texts
-#include "discrete_interval.h"
-#include "events.h"                      // Events
 #include "ft_global.h"
-#include "hostname.h"                    // host_cache_resize
-#include "item_timefunc.h"               // ISO_FORMAT
-#include "log.h"
-#include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "m_string.h"
-#include "mdl.h"
 #include "my_aes.h"                      // my_aes_opmode_names
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_dir.h"
 #include "my_double2ulonglong.h"
 #include "my_io.h"
@@ -94,35 +79,50 @@
 #include "myisam.h"                      // myisam_flush
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_version.h"
-#include "opt_trace_context.h"
-#include "options_mysqld.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_group_replication.h"       // is_group_replication_running
-#include "rpl_info_factory.h"            // Rpl_info_factory
-#include "rpl_info_handler.h"            // INFO_REPOSITORY_TABLE
-#include "rpl_mi.h"                      // Master_info
-#include "rpl_msr.h"                     // channel_map
-#include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
-#include "rpl_rli.h"                     // Relay_log_info
-#include "rpl_slave.h"                   // SLAVE_THD_TYPE
-#include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
-#include "session_tracker.h"
-#include "socket_connection.h"           // MY_BIND_ALL_ADDRESSES
-#include "sp_head.h"                     // SP_PSI_STATEMENT_INFO_COUNT
-#include "sql_lex.h"
-#include "sql_locale.h"                  // my_locale_by_number
-#include "sql_parse.h"                   // killall_non_super_threads
-#include "sql_time.h"                    // global_date_format
-#include "sql_tmp_table.h"               // internal_tmp_disk_storage_engine
-#include "system_variables.h"
-#include "table_cache.h"                 // Table_cache_manager
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"        // validate_user_plugins
+#include "sql/binlog.h"                  // mysql_bin_log
+#include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/conn_handler/socket_connection.h" // MY_BIND_ALL_ADDRESSES
+#include "sql/dd/info_schema/stats.h"
+#include "sql/derror.h"                  // read_texts
+#include "sql/discrete_interval.h"
+#include "sql/events.h"                  // Events
+#include "sql/hostname.h"                // host_cache_resize
+#include "sql/item_timefunc.h"           // ISO_FORMAT
+#include "sql/log.h"
+#include "sql/log_event.h"               // MAX_MAX_ALLOWED_PACKET
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/opt_trace_context.h"
+#include "sql/options_mysqld.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_group_replication.h"   // is_group_replication_running
+#include "sql/rpl_info_factory.h"        // Rpl_info_factory
+#include "sql/rpl_info_handler.h"        // INFO_REPOSITORY_TABLE
+#include "sql/rpl_mi.h"                  // Master_info
+#include "sql/rpl_msr.h"                 // channel_map
+#include "sql/rpl_mts_submode.h"         // MTS_PARALLEL_TYPE_DB_NAME
+#include "sql/rpl_rli.h"                 // Relay_log_info
+#include "sql/rpl_slave.h"               // SLAVE_THD_TYPE
+#include "sql/rpl_write_set_handler.h"   // transaction_write_set_hashing_algorithms
+#include "sql/session_tracker.h"
+#include "sql/sp_head.h"                 // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"              // my_locale_by_number
+#include "sql/sql_parse.h"               // killall_non_super_threads
+#include "sql/sql_time.h"                // global_date_format
+#include "sql/sql_tmp_table.h"           // internal_tmp_disk_storage_engine
+#include "sql/system_variables.h"
+#include "sql/table_cache.h"             // Table_cache_manager
+#include "sql/transaction.h"             // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "template_utils.h"              // pointer_cast
 #include "thr_lock.h"
-#include "transaction.h"                 // trans_commit_stmt
-#include "transaction_info.h"
-#include "xa.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

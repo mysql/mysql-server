@@ -17,7 +17,7 @@
 #define DD__VIEW_TABLE_INCLUDED
 
 
-#include "dd/types/weak_object.h"    // dd::Weak_object
+#include "sql/dd/types/weak_object.h" // dd::Weak_object
 
 namespace dd {
 

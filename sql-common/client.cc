@@ -44,7 +44,6 @@
 #endif
 #include <stdio.h>
 #include <violite.h>
-
 #include <string>
 
 #include "errmsg.h"
@@ -97,14 +96,18 @@
 #endif
 
 #include <mysql/client_plugin.h>
-#include <sql_common.h>
 #include <new>
 
 #include "../libmysql/init_commands_array.h"
 #include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
-#include "client_settings.h"
-#include "log_event.h"                /* Log_event_type */
-#include "rpl_constants.h"            /* mysql_binlog_XXX() */
+#include "sql_common.h"
+#ifdef MYSQL_SERVER
+#include "sql/client_settings.h"
+#else
+#include "libmysql/client_settings.h"
+#endif
+#include "sql/log_event.h"            /* Log_event_type */
+#include "sql/rpl_constants.h"        /* mysql_binlog_XXX() */
 
 using std::string;
 using std::swap;

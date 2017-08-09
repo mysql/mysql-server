@@ -22,8 +22,8 @@
 
 #include "fake_key.h"                             // Fake_KEY
 #include "fake_table.h"                           // Fake_TABLE
-#include "key.h"                                  // KEY
-#include "opt_statistics.h"                       // guess_rec_per_key
+#include "sql/key.h"                              // KEY
+#include "sql/opt_statistics.h"                   // guess_rec_per_key
 #include "test_utils.h"
 
 namespace guessrecperkey_unittest {

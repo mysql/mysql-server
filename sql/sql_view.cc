@@ -21,26 +21,9 @@
 #include <algorithm>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // CREATE_VIEW_ACL
-#include "binlog.h"         // mysql_bin_log
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd.h"          // dd::get_dictionary
-#include "dd/dd_schema.h"   // dd::schema_exists
-#include "dd/dd_view.h"     // dd::create_view
-#include "dd/dictionary.h"  // dd::Dictionary
-#include "dd/types/abstract_table.h"
-#include "dd_sql_view.h"    // update_referencing_views_metadata
-#include "derror.h"         // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"  // Internal_error_handler
-#include "field.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -50,29 +33,46 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"         // stage_end reg_ext key_file_frm
 #include "mysqld_error.h"
-#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "sp_cache.h"       // sp_cache_invalidate
-#include "sql_base.h"       // get_table_def_key
-#include "sql_class.h"      // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"      // create_default_definer
-#include "sql_security_ctx.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // CREATE_VIEW_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"     // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"      // dd::get_dictionary
+#include "sql/dd/dd_schema.h" // dd::schema_exists
+#include "sql/dd/dd_view.h" // dd::create_view
+#include "sql/dd/dictionary.h" // dd::Dictionary
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd_sql_view.h" // update_referencing_views_metadata
+#include "sql/derror.h"     // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // stage_end reg_ext key_file_frm
+#include "sql/opt_trace.h"  // opt_trace_disable_if_no_view_access
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/sp_cache.h"   // sp_cache_invalidate
+#include "sql/sql_base.h"   // get_table_def_key
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"  // create_default_definer
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
-#include "transaction.h"
 
 namespace dd {
 class View;

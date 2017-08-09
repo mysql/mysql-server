@@ -22,11 +22,11 @@
 
 #include "my_compiler.h"
 #include "my_systime.h"
-#include "mysqld.h"                             // max_connections
+#include "sql/mysqld.h"                         // max_connections
 #if defined(ENABLED_DEBUG_SYNC)
-#include "current_thd.h"
-#include "debug_sync.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/sql_class.h"
 #endif
 
 #define TIME_THOUSAND 1000

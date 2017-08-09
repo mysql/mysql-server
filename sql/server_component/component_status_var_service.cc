@@ -14,9 +14,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "../../components/mysql_server/component_status_var_service.h"
-#include "../../components/mysql_server/server_component.h"
+
 #include <string>
-#include "log.h"
+
+#include "../../components/mysql_server/server_component.h"
+#include "sql/log.h"
 
 /**
   Its a dummy initialization function. And it will be called from

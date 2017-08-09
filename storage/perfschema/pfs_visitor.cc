@@ -19,15 +19,15 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysqld.h"
-#include "mysqld_thd_manager.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
 #include "pfs_host.h"
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_user.h"
-#include "sql_class.h"
+#include "sql/mysqld.h"
+#include "sql/mysqld_thd_manager.h"
+#include "sql/sql_class.h"
 
 /**
   @file storage/perfschema/pfs_visitor.cc

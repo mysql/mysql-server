@@ -21,13 +21,13 @@
 
 #include "binary_log_types.h"
 #include "my_command.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "protocol.h"            // Protocol
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"        // Protocol
 #include "sql_string.h"
 #include "violite.h"
 

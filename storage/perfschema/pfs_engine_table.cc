@@ -20,15 +20,9 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "derror.h"
-#include "lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "log.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread.h"
-#include "mysqld.h" /* lower_case_table_names */
 #include "pfs_buffer_container.h"
 /* For show status */
 #include "pfs_column_values.h"
@@ -38,8 +32,14 @@
 #include "pfs_instr_class.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
-#include "sql_base.h"  // close_thread_tables
-#include "sql_class.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/lock.h" // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/log.h"
+#include "sql/mysqld.h" /* lower_case_table_names */
+#include "sql/sql_base.h" // close_thread_tables
+#include "sql/sql_class.h"
 #include "table_accounts.h"
 #include "table_data_lock_waits.h"
 #include "table_data_locks.h"

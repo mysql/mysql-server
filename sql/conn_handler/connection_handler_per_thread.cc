@@ -20,10 +20,6 @@
 #include <list>
 #include <new>
 
-#include "channel_info.h"                // Channel_info
-#include "connection_handler_impl.h"
-#include "connection_handler_manager.h"  // Connection_handler_manager
-#include "log.h"                         // Error_log_throttle
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -42,16 +38,20 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"                      // max_connections
 #include "mysqld_error.h"                // ER_*
-#include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "pfs_thread_provider.h"
-#include "protocol_classic.h"
-#include "sql_class.h"                   // THD
-#include "sql_connect.h"                 // close_connection
-#include "sql_error.h"
-#include "sql_parse.h"                   // do_command
-#include "sql_thd_internal_api.h"        // thd_set_thread_stack
+#include "sql/conn_handler/channel_info.h" // Channel_info
+#include "sql/conn_handler/connection_handler_impl.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/log.h"                     // Error_log_throttle
+#include "sql/mysqld.h"                  // max_connections
+#include "sql/mysqld_thd_manager.h"      // Global_THD_manager
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_connect.h"             // close_connection
+#include "sql/sql_error.h"
+#include "sql/sql_parse.h"               // do_command
+#include "sql/sql_thd_internal_api.h"    // thd_set_thread_stack
 #include "thr_mutex.h"
 
 

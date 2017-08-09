@@ -51,26 +51,10 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "dd/dd_table.h"                // dd::table_exists
-#include "debug_sync.h"
-#include "derror.h"                     /* ER_THD */
-#include "dynamic_privilege_table.h"
-#include "error_handler.h"              /* error_handler */
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"                   /* Key_spec */
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "mf_wcomp.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -87,30 +71,46 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     /* lower_case_table_names */
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "role_tables.h"
-#include "sp.h"                         /* sp_exist_routines */
-#include "sql_alter.h"
-#include "sql_auth_cache.h"
-#include "sql_base.h"                   /* open_and_lock_tables */
-#include "sql_class.h"                  /* THD */
-#include "sql_connect.h"
-#include "sql_db.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* get_current_user */
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                   /* append_identifier */
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/role_tables.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/dd/dd_table.h"            // dd::table_exists
+#include "sql/debug_sync.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/error_handler.h"          /* error_handler */
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"               /* Key_spec */
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                 /* lower_case_table_names */
+#include "sql/protocol.h"
+#include "sql/sp.h"                     /* sp_exist_routines */
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"               /* open_and_lock_tables */
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_connect.h"
+#include "sql/sql_db.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              /* get_current_user */
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"               /* append_identifier */
+#include "sql/sql_view.h"               /* VIEW_ANY_ACL */
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_user_table.h"
-#include "sql_view.h"                   /* VIEW_ANY_ACL */
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"

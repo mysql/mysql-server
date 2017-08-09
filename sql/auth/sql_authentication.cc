@@ -21,15 +21,7 @@
 #include <utility>
 #include <vector>                       /* std::vector */
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"              // optimize_plugin_compare_by_pointer
-#include "connection_handler_manager.h" // Connection_handler_manager
 #include "crypt_genhash_impl.h"         // generate_user_salt
-#include "current_thd.h"                // current_thd
-#include "derror.h"                     // ER_THD
-#include "hostname.h"                   // Host_errors, inc_host_errors
-#include "log.h"                        // query_logger
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"                 // Mutex_lock
@@ -37,7 +29,6 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
@@ -52,30 +43,39 @@
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"                     // global_system_variables
 #include "mysqld_error.h"
 #include "password.h"                   // my_make_scrambled_password
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
-#include "sql_auth_cache.h"             // acl_cache
-#include "sql_class.h"                  // THD
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"     // optimize_plugin_compare_by_pointer
+#include "sql/auth/sql_auth_cache.h"    // acl_cache
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/current_thd.h"            // current_thd
+#include "sql/derror.h"                 // ER_THD
+#include "sql/histograms/value_map.h"
+#include "sql/hostname.h"               // Host_errors, inc_host_errors
+#include "sql/log.h"                    // query_logger
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                 // global_system_variables
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"         // key_memory_MPVIO_EXT_auth_info
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_connect.h"            // thd_init_client_charset
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"                 // mysql_change_db
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"             // my_plugin_lock_by_name
+#include "sql/sql_servers.h"
+#include "sql/sql_time.h"               // Interval
+#include "sql/system_variables.h"
+#include "sql/tztime.h"                 // Time_zone
 #include "sql_common.h"                 // mpvio_info
-#include "sql_connect.h"                // thd_init_client_charset
-#include "sql_const.h"
-#include "sql_db.h"                     // mysql_change_db
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"                 // my_plugin_lock_by_name
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
 #include "sql_string.h"
-#include "sql_time.h"                   // Interval
-#include "system_variables.h"
-#include "tztime.h"                     // Time_zone
-#include "value_map.h"
 #include "violite.h"
 
 #if defined(HAVE_OPENSSL)

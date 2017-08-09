@@ -60,21 +60,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                        // check_table_access
-#include "dd/types/abstract_table.h"            // dd::enum_table_type
-#include "error_handler.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "key.h"                                // key_copy
 #include "lex_string.h"
-#include "lock.h"                               // mysql_unlock_tables
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -84,22 +73,33 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "sql_audit.h"                          // mysql_audit_table_access_notify
-#include "sql_base.h"                           // close_thread_tables
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"               // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/types/abstract_table.h"        // dd::enum_table_type
+#include "sql/error_handler.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"                            // key_copy
+#include "sql/lock.h"                           // mysql_unlock_tables
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_audit.h"                      // mysql_audit_table_access_notify
+#include "sql/sql_base.h"                       // close_thread_tables
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"
-#include "transaction_info.h"
 #include "typelib.h"
-#include "xa.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 

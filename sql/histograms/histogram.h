@@ -40,15 +40,15 @@
 #include <string>                      // std::string
 #include <utility>                     // std::pair
 
-#include "key.h"
 #include "lex_string.h"                // LEX_CSTRING
-#include "memroot_allocator.h"         // Memroot_allocator
 #include "my_base.h"                   // ha_rows
 #include "sql/histograms/value_map.h"  // Histogram_comparator
-#include "sql_alloc.h"                 // Sql_alloc
+#include "sql/key.h"
+#include "sql/memroot_allocator.h"     // Memroot_allocator
+#include "sql/sql_alloc.h"             // Sql_alloc
+#include "sql/stateless_allocator.h"   // Stateless_allocator
+#include "sql/table.h"                 // TABLE_LIST
 #include "sql_string.h"
-#include "stateless_allocator.h"       // Stateless_allocator
-#include "table.h"                     // TABLE_LIST
 
 class Json_dom;
 class Json_object;

@@ -29,21 +29,11 @@
 #include <string>
 #include <vector>
 
-#include "auth_common.h"
 #include "binary_log_types.h"
-#include "dd/dd.h"
-#include "dd/string_type.h"
-#include "dd/types/column.h"
-#include "dd/types/table.h"             // dd::Table
-#include "field.h"                      // Field
-#include "handler.h"
-#include "json_dom.h"                   // Json_*
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mdl.h"                        // MDL_request
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     // my_micro_time, get_charset
 #include "my_time.h"
@@ -51,27 +41,37 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"             // key_memory_histograms
 #include "scope_guard.h"                // create_scope_guard
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"
 #include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/table.h"         // dd::Table
+#include "sql/field.h"                  // Field
+#include "sql/handler.h"
 #include "sql/histograms/equi_height.h" // Equi_height<T>
 #include "sql/histograms/singleton.h"   // Singleton<T>
 #include "sql/histograms/value_map.h"   // Value_map
-#include "sql_base.h"                   // open_and_lock_tables,
-#include "sql_bitmap.h"
+#include "sql/json_dom.h"               // Json_*
+#include "sql/mdl.h"                    // MDL_request
+#include "sql/my_decimal.h"
+#include "sql/psi_memory_key.h"         // key_memory_histograms
+#include "sql/sql_base.h"               // open_and_lock_tables,
+#include "sql/sql_bitmap.h"
                                         // close_thread_tables
-#include "sql_class.h"                  // make_lex_string_root
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
+#include "sql/sql_class.h"              // make_lex_string_root
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"            // trans_commit_stmt, trans_rollback_stmt
+#include "sql/tztime.h"                 // my_tz_UTC
 #include "sql_string.h"                 // String
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "transaction.h"                // trans_commit_stmt, trans_rollback_stmt
-#include "tztime.h"                     // my_tz_UTC
 
 namespace histograms {
 

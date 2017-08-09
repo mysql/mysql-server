@@ -19,9 +19,9 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "query_result.h"       // Query_result_interceptor
-#include "table.h"
-#include "temp_table_param.h"   // Temp_table_param
+#include "sql/query_result.h"   // Query_result_interceptor
+#include "sql/table.h"
+#include "sql/temp_table_param.h" // Temp_table_param
 
 class Item;
 class SELECT_LEX_UNIT;

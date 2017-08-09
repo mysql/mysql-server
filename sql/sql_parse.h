@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"                 // enum_schema_tables
-#include "key.h"
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"               // enum_server_command
-#include "system_variables.h"
+#include "sql/handler.h"             // enum_schema_tables
+#include "sql/key.h"
+#include "sql/system_variables.h"
 
 template <typename T> class SQL_I_List;
 

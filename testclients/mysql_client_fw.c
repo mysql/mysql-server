@@ -20,11 +20,11 @@
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysqld_error.h>
-#include <sql_common.h>
 
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */

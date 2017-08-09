@@ -32,6 +32,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include "page0types.h"
 #include "trx0xa.h"
+#include "sql/xa.h"
 
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**

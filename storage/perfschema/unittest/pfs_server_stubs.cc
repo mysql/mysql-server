@@ -17,16 +17,15 @@
   Minimal code to be able to link a unit test.
 */
 
+#include <components/mysql_server/server_component.h>
+#include <mysql/service_plugin_registry.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "mysqld.h"
-#include "sql_class.h"
-#include "sql_show.h"
-
-#include <mysql/service_plugin_registry.h>
-#include <components/mysql_server/server_component.h>
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/sql_show.h"
 
 
 struct System_status_var global_status_var;

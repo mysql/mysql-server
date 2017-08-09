@@ -20,18 +20,18 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "bounded_queue.h"
 #include "bounded_queue_boost.cc"
 #include "bounded_queue_boost.h"
 #include "bounded_queue_c.h"
 #include "bounded_queue_std.h"
 #include "fake_costmodel.h"
-#include "filesort_utils.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "opt_costmodel.h"
+#include "sql/bounded_queue.h"
+#include "sql/filesort_utils.h"
+#include "sql/opt_costmodel.h"
 #include "test_utils.h"
 
 namespace bounded_queue_unittest {

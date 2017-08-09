@@ -23,7 +23,7 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"                  // Sql_alloc
+#include "sql/sql_alloc.h"              // Sql_alloc
 
 typedef struct st_mem_root MEM_ROOT;
 

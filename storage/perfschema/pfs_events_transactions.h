@@ -22,7 +22,6 @@
 */
 
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "my_inttypes.h"
@@ -30,7 +29,7 @@
 #include "pfs_column_types.h"
 #include "pfs_events.h"
 #include "pfs_global.h"
-#include "rpl_gtid.h"
+#include "sql/rpl_gtid.h"
 
 struct PFS_thread;
 struct PFS_account;

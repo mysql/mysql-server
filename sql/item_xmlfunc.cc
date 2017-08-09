@@ -13,17 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_xmlfunc.h"
+#include "sql/item_xmlfunc.h"
 
 #include <string.h>
 #include <sys/types.h>
 
-#include "check_stack.h"
-#include "current_thd.h"
-#include "derror.h"             // ER_THD
-#include "item.h"
-#include "item_cmpfunc.h"       // Item_bool_func
-#include "item_func.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -34,13 +28,19 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "sp_pcontext.h"        // sp_variable
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "system_variables.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"         // ER_THD
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"   // Item_bool_func
+#include "sql/item_func.h"
+#include "sql/session_tracker.h"
+#include "sql/sp_pcontext.h"    // sp_variable
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
 
 /*
   TODO: future development directions:

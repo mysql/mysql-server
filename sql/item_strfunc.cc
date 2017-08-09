@@ -27,6 +27,8 @@
     (This shouldn't be needed)
 */
 
+#include "sql/item_strfunc.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -35,20 +37,9 @@
 #include <string>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"             // check_password_policy
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "binary_log_types.h"
-#include "current_thd.h"             // current_thd
-#include "dd/info_schema/stats.h"
-#include "dd/properties.h"           // dd::Properties
-#include "dd/string_type.h"
-#include "dd_sql_view.h"             // push_view_warning_or_error
 #include "decimal.h"
-#include "derror.h"                  // ER_THD
-#include "handler.h"
-#include "item_strfunc.h"
-#include "key.h"
 #include "m_string.h"
 #include "my_aes.h"                  // MY_AES_IV_SIZE
 #include "my_byteorder.h"
@@ -68,23 +59,33 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_password_policy.h"
-#include "mysqld.h"                  // binary_keyword etc
 #include "mysqld_error.h"
 #include "password.h"                // my_make_scrambled_password
-#include "rpl_gtid.h"
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "sha2.h"
-#include "sql_class.h"               // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_locale.h"              // my_locale_by_name
-#include "sql_security_ctx.h"
-#include "sql_show.h"  // grant_types
-#include "strfunc.h"                 // hexchar_to_int
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"    // check_password_policy
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"         // current_thd
+#include "sql/dd/info_schema/stats.h"
+#include "sql/dd/properties.h"       // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd_sql_view.h"         // push_view_warning_or_error
+#include "sql/derror.h"              // ER_THD
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"              // binary_keyword etc
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_locale.h"          // my_locale_by_name
+#include "sql/sql_show.h" // grant_types
+#include "sql/strfunc.h"             // hexchar_to_int
+#include "sql/system_variables.h"
+#include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
-#include "val_int_compare.h"         // Integer_value
 #include "zlib.h"
 
 using std::min;

@@ -27,35 +27,10 @@
 #include <atomic>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"      // acl_authenticate
 #include "binary_log_types.h"
-#include "binlog.h"           // purge_master_logs
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd.h"            // dd::get_dictionary
-#include "dd/dd_schema.h"     // Schema_MDL_locker
-#include "dd/dictionary.h"    // dd::Dictionary::is_system_view_name
-#include "dd/info_schema/stats.h"
-#include "debug_sync.h"       // DEBUG_SYNC
-#include "derror.h"           // ER_THD
-#include "discrete_interval.h"
 #include "dur_prop.h"
-#include "error_handler.h"    // Strict_error_handler
-#include "events.h"           // Events
-#include "field.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_subselect.h"
-#include "item_timefunc.h"    // Item_func_unix_timestamp
-#include "key_spec.h"         // Key_spec
-#include "log.h"              // query_logger
-#include "log_event.h"        // slave_execute_deferred_events
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
-#include "mem_root_array.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -78,76 +53,101 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"           // stage_execution_of_init_command
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h" // Find_thd_with_id
 #include "mysys_err.h"        // EE_CAPACITY_EXCEEDED
-#include "opt_explain.h"      // mysql_explain_other
-#include "opt_trace.h"        // Opt_trace_start
-#include "parse_location.h"
-#include "parse_tree_helpers.h" // is_identifier
-#include "parse_tree_node_base.h"
-#include "parse_tree_nodes.h"
-#include "persisted_variable.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "query_result.h"
-#include "rpl_context.h"
-#include "rpl_filter.h"       // rpl_filter
-#include "rpl_group_replication.h" // group_replication_start
-#include "rpl_gtid.h"
-#include "rpl_master.h"       // register_slave
-#include "rpl_rli.h"          // mysql_show_relaylog_events
-#include "rpl_slave.h"        // change_master_cmd
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sp.h"               // sp_create_routine
-#include "sp_cache.h"         // sp_cache_enforce_limit
-#include "sp_head.h"          // sp_head
-#include "sql_alter.h"
-#include "sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
-#include "sql_base.h"         // find_temporary_table
-#include "sql_binlog.h"       // mysql_client_binlog_statement
-#include "sql_class.h"
-#include "sql_cmd.h"
-#include "sql_connect.h"      // decrease_user_connections
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_db.h"           // mysql_change_db
-#include "sql_digest.h"
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_handler.h"      // mysql_ha_rm_tables
-#include "sql_help.h"         // mysqld_help
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_load.h"         // mysql_load
-#include "sql_prepare.h"      // mysql_stmt_execute
-#include "sql_profile.h"
-#include "sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
-#include "sql_reload.h"       // reload_acl_and_cache
-#include "sql_rename.h"       // mysql_rename_tables
-#include "sql_rewrite.h"      // mysql_rewrite_query
-#include "sql_security_ctx.h"
-#include "sql_select.h"       // handle_query
-#include "sql_show.h"         // find_schema_table
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // acl_authenticate
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"       // purge_master_logs
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"        // dd::get_dictionary
+#include "sql/dd/dd_schema.h" // Schema_MDL_locker
+#include "sql/dd/dictionary.h" // dd::Dictionary::is_system_view_name
+#include "sql/dd/info_schema/stats.h"
+#include "sql/debug_sync.h"   // DEBUG_SYNC
+#include "sql/derror.h"       // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/error_handler.h" // Strict_error_handler
+#include "sql/events.h"       // Events
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_subselect.h"
+#include "sql/item_timefunc.h" // Item_func_unix_timestamp
+#include "sql/key_spec.h"     // Key_spec
+#include "sql/log.h"          // query_logger
+#include "sql/log_event.h"    // slave_execute_deferred_events
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"       // stage_execution_of_init_command
+#include "sql/mysqld_thd_manager.h" // Find_thd_with_id
+#include "sql/opt_explain.h"  // mysql_explain_other
+#include "sql/opt_trace.h"    // Opt_trace_start
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h" // is_identifier
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h"
+#include "sql/persisted_variable.h"
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_filter.h"   // rpl_filter
+#include "sql/rpl_group_replication.h" // group_replication_start
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_master.h"   // register_slave
+#include "sql/rpl_rli.h"      // mysql_show_relaylog_events
+#include "sql/rpl_slave.h"    // change_master_cmd
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp.h"           // sp_create_routine
+#include "sql/sp_cache.h"     // sp_cache_enforce_limit
+#include "sql/sp_head.h"      // sp_head
+#include "sql/sql_alter.h"
+#include "sql/sql_audit.h"    // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_base.h"     // find_temporary_table
+#include "sql/sql_binlog.h"   // mysql_client_binlog_statement
+#include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_connect.h"  // decrease_user_connections
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_db.h"       // mysql_change_db
+#include "sql/sql_digest.h"
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_handler.h"  // mysql_ha_rm_tables
+#include "sql/sql_help.h"     // mysqld_help
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_load.h"     // mysql_load
+#include "sql/sql_prepare.h"  // mysql_stmt_execute
+#include "sql/sql_profile.h"
+#include "sql/sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
+#include "sql/sql_reload.h"   // reload_acl_and_cache
+#include "sql/sql_rename.h"   // mysql_rename_tables
+#include "sql/sql_rewrite.h"  // mysql_rewrite_query
+#include "sql/sql_select.h"   // handle_query
+#include "sql/sql_show.h"     // find_schema_table
+#include "sql/sql_table.h"    // mysql_create_table
+#include "sql/sql_tablespace.h" // mysql_alter_tablespace
+#include "sql/sql_test.h"     // mysql_print_status
+#include "sql/sql_trigger.h"  // add_table_for_trigger
+#include "sql/sql_udf.h"
+#include "sql/sql_view.h"     // mysql_create_view
+#include "sql/system_variables.h" // System_status_var
+#include "sql/table.h"
+#include "sql/table_cache.h"  // table_cache_manager
+#include "sql/transaction.h"  // trans_rollback_implicit
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "sql_table.h"        // mysql_create_table
-#include "sql_tablespace.h"   // mysql_alter_tablespace
-#include "sql_test.h"         // mysql_print_status
-#include "sql_trigger.h"      // add_table_for_trigger
-#include "sql_udf.h"
-#include "sql_view.h"         // mysql_create_view
-#include "system_variables.h" // System_status_var
-#include "table.h"
-#include "table_cache.h"      // table_cache_manager
 #include "thr_lock.h"
-#include "transaction.h"      // trans_rollback_implicit
-#include "transaction_info.h"
 #include "violite.h"
 
 namespace dd {

@@ -19,21 +19,6 @@
 #include <string.h>
 #include <memory>
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
-#include "dd/impl/system_registry.h"          // dd::System_tablespaces
-#include "dd/object_id.h"
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/index.h"                   // dd::Index
-#include "dd/types/partition.h"               // dd::Partition
-#include "dd/types/partition_index.h"         // dd::Partition_index
-#include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -41,10 +26,25 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql_class.h"                        // THD
-#include "sql_servers.h"
-#include "sql_table.h"                        // validate_comment_length
-#include "table.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/dictionary.h"                // dd::Dictionary::is_dd_table...
+#include "sql/dd/impl/system_registry.h"      // dd::System_tablespaces
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/index.h"               // dd::Index
+#include "sql/dd/types/partition.h"           // dd::Partition
+#include "sql/dd/types/partition_index.h"     // dd::Partition_index
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/dd/types/tablespace.h"          // dd::Tablespace
+#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                    // validate_comment_length
+#include "sql/table.h"
 
 namespace {
 template <typename T>

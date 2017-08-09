@@ -26,17 +26,10 @@
 #include <utility>          // std::forward
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "item.h"           // Item_result_field
-#include "item_create.h"
-#include "item_func.h"      // Item_int_func
-#include "json_dom.h"       // Json_wrapper
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mem_root_array.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -47,21 +40,28 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "parse_tree_nodes.h" // PT_window
-#include "session_tracker.h"
-#include "sql_alloc.h"      // Sql_alloc
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"
+#include "sql/enum_query_type.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"       // Item_result_field
+#include "sql/item_create.h"
+#include "sql/item_func.h"  // Item_int_func
+#include "sql/json_dom.h"   // Json_wrapper
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h" // PT_window
+#include "sql/session_tracker.h"
+#include "sql/sql_alloc.h"  // Sql_alloc
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_udf.h"    // udf_handler
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/window.h"
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_udf.h"        // udf_handler
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "value_map.h"
-#include "window.h"
-#include "window_lex.h"
 
 class Field;
 class Item_sum;

@@ -13,16 +13,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "json_diff.h"
+#include "sql/json_diff.h"
 
-#include "field.h"                              // Field_json
-#include "json_dom.h"                           // Json_dom, Json_wrapper
-#include "json_path.h"                          // Json_path
 #include "my_dbug.h"                            // DBUG_ASSERT
-#include "psi_memory_key.h"
-#include "sql_const.h"
+#include "sql/field.h"                          // Field_json
+#include "sql/json_dom.h"                       // Json_dom, Json_wrapper
+#include "sql/json_path.h"                      // Json_path
+#include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"
+#include "sql/table.h"
 #include "sql_string.h"                         // StringBuffer
-#include "table.h"
 #include "template_utils.h"
 
 class THD;

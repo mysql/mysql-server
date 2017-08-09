@@ -378,8 +378,6 @@
 #include <algorithm>
 #include <string>
 
-#include "current_thd.h"
-#include "key.h"                                // key_copy
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -390,9 +388,11 @@
 #include "myisam.h"                             // TT_USEFRM
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"                             // my_localhost
-#include "sql_class.h"
-#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "sql/current_thd.h"
+#include "sql/key.h"                            // key_copy
+#include "sql/mysqld.h"                         // my_localhost
+#include "sql/sql_class.h"
+#include "sql/sql_servers.h"     // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
 
 using std::min;

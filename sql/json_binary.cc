@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "json_binary.h"
+#include "sql/json_binary.h"
 
 #include <string.h>
 #include <algorithm>            // std::min
@@ -22,20 +22,20 @@
 #include <string>
 #include <utility>
 
-#include "check_stack.h"
-#include "field.h"              // Field_json
-#include "json_dom.h"           // Json_dom
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
+#include "sql/check_stack.h"
+#include "sql/field.h"          // Field_json
+#include "sql/json_dom.h"       // Json_dom
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"          // TABLE::add_binary_diff()
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"              // TABLE::add_binary_diff()
 #include "template_utils.h"     // down_cast
 
 namespace

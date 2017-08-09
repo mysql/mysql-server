@@ -26,18 +26,7 @@
 #include <sys/types.h>
 #include <atomic>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "debug_sync.h"    // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_subselect.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -54,32 +43,43 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"        // stage_explaining
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "opt_costmodel.h"
-#include "opt_explain_format.h"
-#include "opt_range.h"     // QUICK_SELECT_I
-#include "opt_trace.h"     // Opt_trace_*
-#include "protocol.h"
-#include "sql_base.h"      // lock_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_cmd.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_join_buffer.h" // JOIN_CACHE
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h" // JOIN
-#include "sql_parse.h"     // is_explainable_query
-#include "sql_partition.h" // for make_used_partitions_str()
-#include "sql_security_ctx.h"
-#include "sql_select.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h" // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_subselect.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"    // stage_explaining
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/opt_costmodel.h"
+#include "sql/opt_explain_format.h"
+#include "sql/opt_range.h" // QUICK_SELECT_I
+#include "sql/opt_trace.h" // Opt_trace_*
+#include "sql/protocol.h"
+#include "sql/sql_base.h"  // lock_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_parse.h" // is_explainable_query
+#include "sql/sql_partition.h" // for make_used_partitions_str()
+#include "sql/sql_select.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 
 class Opt_trace_context;
 

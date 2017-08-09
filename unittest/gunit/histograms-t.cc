@@ -18,20 +18,20 @@
 #include <map>               // std::map
 #include <string>            // std::string
 
-#include "equi_height.h"     // Equi_height
-#include "field.h"           // my_charset_numeric
-#include "histogram.h"       // Histogram, Histogram_comparator
-#include "json_dom.h"        // Json_object
 #include "lex_string.h"
 #include "m_ctype.h"         // my_charset_latin1, my_charset_bin
-#include "my_decimal.h"      // my_decimal
 #include "my_inttypes.h"
 #include "my_time.h"         // MYSQL_TIME
-#include "singleton.h"       // Singleton
-#include "sql_time.h"        // my_time_compare
+#include "sql/field.h"       // my_charset_numeric
+#include "sql/histograms/equi_height.h" // Equi_height
+#include "sql/histograms/histogram.h" // Histogram, Histogram_comparator
+#include "sql/histograms/singleton.h" // Singleton
+#include "sql/histograms/value_map.h" // Value_map<T>
+#include "sql/json_dom.h"    // Json_object
+#include "sql/my_decimal.h"  // my_decimal
+#include "sql/sql_time.h"    // my_time_compare
+#include "sql/tztime.h"      // my_tz_UTC
 #include "template_utils.h"  // down_cast
-#include "tztime.h"          // my_tz_UTC
-#include "value_map.h"       // Value_map<T>
 
 namespace histograms_unittest {
 

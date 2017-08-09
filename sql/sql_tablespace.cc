@@ -18,15 +18,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
-#include "dd/dd_tablespace.h"                   // dd::create_tablespace
-#include "dd/string_type.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"           // dd::Tablespace_file
-#include "derror.h"                             // ER_THD
-#include "handler.h"
-#include "key.h"
-#include "lock.h"                               // lock_tablespace_name
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -35,12 +26,21 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql_class.h"                          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_table.h"                          // write_bin_log
-#include "table.h"                              // ident_name_check
-#include "transaction.h"                        // trans_commit_stmt
+#include "sql/dd/cache/dictionary_client.h"     // dd::Dictionary_client
+#include "sql/dd/dd_tablespace.h"               // dd::create_tablespace
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"       // dd::Tablespace_file
+#include "sql/derror.h"                         // ER_THD
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/lock.h"                           // lock_tablespace_name
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_table.h"                      // write_bin_log
+#include "sql/table.h"                          // ident_name_check
+#include "sql/transaction.h"                    // trans_commit_stmt
 
 
 bool validate_tablespace_name_length(const char *tablespace_name)

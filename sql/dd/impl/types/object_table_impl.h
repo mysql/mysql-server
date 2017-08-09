@@ -19,12 +19,12 @@
 
 #include <mysqld_error.h>
 
-#include "dd/impl/dictionary_impl.h"                    // get_target_dd_...
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_defin...
-#include "dd/types/object_table.h"                      // Object_table
-#include "dd/types/object_table.h"                      // Object_table
-#include "mysqld.h"                                     // opt_initialize
-#include "log.h"                                        // log_*()
+#include "sql/dd/impl/dictionary_impl.h"                // get_target_dd_...
+#include "sql/dd/impl/types/object_table_definition_impl.h" // Object_table_defin...
+#include "sql/dd/types/object_table.h"                  // Object_table
+#include "sql/dd/types/object_table.h"                  // Object_table
+#include "sql/log.h"                                    // log_*()
+#include "sql/mysqld.h"                                 // opt_initialize
 
 class THD;
 

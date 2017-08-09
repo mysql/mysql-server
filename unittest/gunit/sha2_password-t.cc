@@ -15,11 +15,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_config.h"
 #include <gtest/gtest.h>
-#include "test_utils.h"
-#include "i_sha2_password.h"
-#include "sha2_password_common.h"
-#include "mysql/service_mysql_alloc.h"
 #include "crypt_genhash_impl.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql/auth/i_sha2_password.h"
+#include "sql/auth/sha2_password_common.h"
+#include "test_utils.h"
 
 namespace sha2_password_unittest
 {

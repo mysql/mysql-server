@@ -18,9 +18,9 @@
 
 #include "base_mock_field.h"
 #include "fake_table.h"
-#include "item_json_func.h"
-#include "json_diff.h"
-#include "json_dom.h"
+#include "sql/item_json_func.h"
+#include "sql/json_diff.h"
+#include "sql/json_dom.h"
 #include "test_utils.h"
 
 namespace item_json_func_unittest

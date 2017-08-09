@@ -40,9 +40,7 @@
 #include <utility>
 
 #include "client_priv.h"
-#include "log_event.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_io.h"
@@ -51,8 +49,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
-#include "rpl_constants.h"
-#include "rpl_gtid.h"
+#include "sql/log_event.h"
+#include "sql/my_decimal.h"
+#include "sql/rpl_constants.h"
+#include "sql/rpl_gtid.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #include "sslopt-vars.h"

@@ -41,7 +41,7 @@ This file contains the implementation of error and warnings related
 
 ***********************************************************************/
 
-#include "sql_error.h"
+#include "sql/sql_error.h"
 
 #include <float.h>
 #include <stdarg.h>
@@ -49,11 +49,7 @@ This file contains the implementation of error and warnings related
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "derror.h"       // ER_THD
-#include "item.h"
-#include "log.h"          // sql_print_warning
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -62,15 +58,19 @@ This file contains the implementation of error and warnings related
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "session_tracker.h"
-#include "sql_class.h"    // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "system_variables.h"
-#include "thr_malloc.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"   // ER_THD
+#include "sql/item.h"
+#include "sql/log.h"      // sql_print_warning
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 using std::min;
 using std::max;

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "xa.h"
+#include "sql/xa.h"
 
 #include <memory>
 #include <new>
@@ -21,14 +21,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "debug_sync.h"         // DEBUG_SYNC
-#include "handler.h"            // handlerton
-#include "item.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -42,26 +37,31 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"             // server_id
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h"     // key_memory_XID
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin.h"         // plugin_foreach
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"     // DEBUG_SYNC
+#include "sql/handler.h"        // handlerton
+#include "sql/item.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"         // server_id
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h" // key_memory_XID
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"     // plugin_foreach
+#include "sql/system_variables.h"
+#include "sql/tc_log.h"         // tc_log
+#include "sql/transaction.h"    // trans_begin, trans_rollback
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "tc_log.h"             // tc_log
 #include "template_utils.h"
 #include "thr_mutex.h"
-#include "transaction.h"        // trans_begin, trans_rollback
-#include "transaction_info.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"

@@ -23,7 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"                          /* Sql_alloc */
+#include "sql/sql_alloc.h"                      /* Sql_alloc */
 
 class Addon_fields;
 class Field;

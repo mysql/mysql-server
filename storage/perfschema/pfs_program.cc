@@ -30,11 +30,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld.h"  //system_charset_info
 #include "pfs_buffer_container.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_setup_object.h"
+#include "sql/mysqld.h" //system_charset_info
 #include "sql_string.h"
 
 LF_HASH program_hash;

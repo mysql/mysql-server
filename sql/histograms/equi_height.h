@@ -72,16 +72,16 @@
 #include <string>                      // std::string
 #include <vector>                      // std::vector
 
-#include "equi_height_bucket.h"        // equi_height::Bucket, IWYU pragma: keep
-#include "histogram.h"                 // Histogram, value_map_type
 #include "my_base.h"                   // ha_rows
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/histograms/equi_height_bucket.h" // equi_height::Bucket, IWYU pragma: keep
+#include "sql/histograms/histogram.h"  // Histogram, value_map_type
 #include "sql/histograms/value_map.h"  // Value_map
+#include "sql/my_decimal.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_array;
 class Json_object;

@@ -16,11 +16,11 @@
 #ifndef DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 #define DD__SPATIAL_REFERENCE_SYSTEM_INCLUDED
 
-#include "dd/types/entity_object.h"       // dd::Entity_object
-#include "gis/srid.h"
-#include "gis/srs/srs.h"                  // srid_t
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/gis/srid.h"
+#include "sql/gis/srs/srs.h"              // srid_t
 
 class THD;
 

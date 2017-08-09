@@ -28,11 +28,11 @@
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "options_mysqld.h"                     // options_mysqld
 #include "prealloced_array.h"                   // Prealloced_arrray
-#include "rpl_gtid.h"
-#include "sql_cmd.h"                            // Sql_cmd
-#include "sql_list.h"                           // I_List
+#include "sql/options_mysqld.h"                 // options_mysqld
+#include "sql/rpl_gtid.h"
+#include "sql/sql_cmd.h"                        // Sql_cmd
+#include "sql/sql_list.h"                       // I_List
 #include "sql_string.h"
 
 class Item;

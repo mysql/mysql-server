@@ -16,32 +16,32 @@
 
 /* Functions to handle date and time */
 
-#include "sql_time.h"
+#include "sql/sql_time.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "current_thd.h"
 #include "decimal.h"
-#include "derror.h"
-#include "field.h"
-#include "item_timefunc.h"   // INTERNAL_FORMAT
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
-#include "sql_const.h"
-#include "sql_security_ctx.h"
-#include "system_variables.h"
-#include "tztime.h"                             // struct Time_zone
-#include "value_map.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_timefunc.h" // INTERNAL_FORMAT
+#include "sql/my_decimal.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h" // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
+#include "sql/tztime.h"                         // struct Time_zone
 
 
 	/* Some functions to calculate dates */

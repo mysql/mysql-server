@@ -26,7 +26,7 @@
 #include "lf.h"
 #include "mysqld_error.h" /* For lookup */
 #include "pfs_server.h"
-#include "derror.h"
+#include "sql/derror.h"
 
 static const int NUM_SECTIONS =
   sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);

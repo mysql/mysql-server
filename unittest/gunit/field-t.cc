@@ -14,13 +14,13 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include <gtest/gtest.h>
-#include <my_decimal.h>
 #include <sys/types.h>
 
 #include "fake_table.h"
-#include "field.h"
 #include "my_inttypes.h"
-#include "sql_time.h"
+#include "sql/field.h"
+#include "sql/my_decimal.h"
+#include "sql/sql_time.h"
 #include "test_utils.h"
 
 namespace field_unittests {

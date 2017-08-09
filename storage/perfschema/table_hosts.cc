@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_account.h"
@@ -32,6 +31,7 @@
 #include "pfs_memory.h"
 #include "pfs_status.h"
 #include "pfs_visitor.h"
+#include "sql/field.h"
 
 THR_LOCK table_hosts::m_table_lock;
 

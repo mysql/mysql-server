@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${SSL_INCLUDE_DIRS}

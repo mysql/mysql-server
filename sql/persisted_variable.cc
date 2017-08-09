@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "persisted_variable.h"
+#include "sql/persisted_variable.h"
 
 #include "my_config.h"
 
@@ -25,12 +25,7 @@
 #include <new>
 #include <utility>
 
-#include "current_thd.h"
-#include "derror.h"           // ER_THD
-#include "item.h"
-#include "json_dom.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -52,22 +47,27 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_version.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
 #include "pfs_mutex_provider.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"       // ER_THD
+#include "sql/item.h"
+#include "sql/json_dom.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h"
 #include "sql_string.h"
-#include "sql_table.h"
-#include "sys_vars_shared.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 

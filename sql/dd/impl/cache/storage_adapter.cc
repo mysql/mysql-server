@@ -18,40 +18,39 @@
 #include <memory>
 #include <string>
 
-#include "dd/cache/dictionary_client.h"       // Dictionary_client
-#include "dd/impl/bootstrapper.h"             // bootstrap::stage
-#include "dd/impl/cache/cache_element.h"
-#include "dd/impl/raw/object_keys.h"          // Primary_id_key
-#include "dd/impl/raw/raw_record.h"           // Raw_record
-#include "dd/impl/raw/raw_table.h"            // Raw_table
-#include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
-#include "dd/impl/transaction_impl.h"         // Transaction_ro
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/types/abstract_table.h"          // Abstract_table
-#include "dd/types/charset.h"                 // Charset
-#include "dd/types/collation.h"               // Collation
-#include "dd/types/column_statistics.h"       // Column_statistics
-#include "dd/types/entity_object_table.h"     // Entity_object_table
-#include "dd/types/event.h"                   // Event
-#include "dd/types/function.h"                // Routine, Function
-#include "dd/types/index_stat.h"              // Index_stat
-#include "dd/types/procedure.h"               // Procedure
-#include "dd/types/schema.h"                  // Schema
-#include "dd/types/spatial_reference_system.h"// Spatial_reference_system
-#include "dd/types/table.h"                   // Table
-#include "dd/types/table_stat.h"              // Table_stat
-#include "dd/types/tablespace.h"              // Tablespace
-#include "dd/types/view.h"                    // View
-#include "dd/upgrade/upgrade.h"               // allow_sdi_creation
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "log.h"
 #include "mutex_lock.h"                       // Mutex_lock
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mutex_lock.h"                       // MUTEX_LOCK
-#include "sql_class.h"                        // THD
+#include "sql/dd/cache/dictionary_client.h"   // Dictionary_client
+#include "sql/dd/impl/bootstrapper.h"         // bootstrap::stage
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/dd/impl/raw/object_keys.h"      // Primary_id_key
+#include "sql/dd/impl/raw/raw_record.h"       // Raw_record
+#include "sql/dd/impl/raw/raw_table.h"        // Raw_table
+#include "sql/dd/impl/sdi.h"                  // sdi::store() sdi::drop()
+#include "sql/dd/impl/transaction_impl.h"     // Transaction_ro
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/types/abstract_table.h"      // Abstract_table
+#include "sql/dd/types/charset.h"             // Charset
+#include "sql/dd/types/collation.h"           // Collation
+#include "sql/dd/types/column_statistics.h"   // Column_statistics
+#include "sql/dd/types/entity_object_table.h" // Entity_object_table
+#include "sql/dd/types/event.h"               // Event
+#include "sql/dd/types/function.h"            // Routine, Function
+#include "sql/dd/types/index_stat.h"          // Index_stat
+#include "sql/dd/types/procedure.h"           // Procedure
+#include "sql/dd/types/schema.h"              // Schema
+#include "sql/dd/types/spatial_reference_system.h"// Spatial_reference_system
+#include "sql/dd/types/table.h"               // Table
+#include "sql/dd/types/table_stat.h"          // Table_stat
+#include "sql/dd/types/tablespace.h"          // Tablespace
+#include "sql/dd/types/view.h"                // View
+#include "sql/dd/upgrade/upgrade.h"           // allow_sdi_creation
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/log.h"
+#include "sql/sql_class.h"                    // THD
 
 namespace dd {
 namespace cache {

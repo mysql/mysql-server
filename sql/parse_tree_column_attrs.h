@@ -16,14 +16,14 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
-#include "item_timefunc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_alter.h"
-#include "sql_class.h"
-#include "sql_parse.h"
+#include "sql/item_timefunc.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"
+#include "sql/sql_parse.h"
 
 
 /**

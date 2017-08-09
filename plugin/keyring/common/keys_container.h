@@ -17,7 +17,6 @@
 #define KEYS_CONTAINER_INCLUDED
 
 #include <sys/types.h>
-#include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 
 #include "i_keyring_io.h"
 #include "i_keys_container.h"
@@ -27,6 +26,7 @@
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
+#include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
 
 namespace keyring {
 

@@ -21,7 +21,7 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "rpl_info_handler.h"        // Rpl_info_handler
+#include "sql/rpl_info_handler.h"    // Rpl_info_handler
 
 class Rpl_info_table_access;
 class Server_ids;

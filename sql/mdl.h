@@ -39,7 +39,7 @@
 #include "mysql/psi/psi_stage.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_plist.h"
+#include "sql/sql_plist.h"
 
 class MDL_context;
 class MDL_lock;

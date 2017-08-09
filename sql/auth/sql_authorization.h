@@ -19,9 +19,9 @@
 #include <string>
 #include <utility>
 
-#include "key.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "sql_auth_cache.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/key.h"
 
 class Role_id;
 class Security_context;

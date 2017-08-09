@@ -16,8 +16,8 @@
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
 
-#include "dd/string_type.h"                    // dd::String_type
 #include "my_compiler.h"
+#include "sql/dd/string_type.h"                // dd::String_type
 
 class THD;
 struct handlerton;

@@ -19,8 +19,8 @@
 #define TRIGGER_INCLUDED
 
 #include "abstract_plain_sql_object_dump_task.h"
+#include "client/dump/table.h"
 #include "my_inttypes.h"
-#include "table.h"
 
 namespace Mysql{
 namespace Tools{

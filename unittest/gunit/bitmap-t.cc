@@ -19,7 +19,7 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql_bitmap.h"
+#include "sql/sql_bitmap.h"
 
 namespace bitmap_unittest {
 

@@ -30,21 +30,9 @@
 #include <utility>
 
 #include "binary_log_types.h"
-#include "dd/info_schema/stats.h"     // dd::info_schema::Statistics_cache
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"                     // Name_resolution_context
-#include "item_create.h"              // Cast_target
-#include "item_subselect.h"           // chooser_compare_func_creator
-#include "key.h"
-#include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_string.h"
-#include "lex_symbol.h"               // LEX_SYMBOL
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
-#include "mem_root_array.h"           // Mem_root_array
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -60,34 +48,46 @@
 #include "mysql/psi/psi_statement.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "opt_hints.h"
-#include "parse_tree_hints.h"
-#include "parse_tree_node_base.h"     // enum_parsing_context
 #include "prealloced_array.h"         // Prealloced_array
-#include "query_options.h"            // OPTION_NO_CONST_TABLES
-#include "set_var.h"
-#include "sql_admin.h"
-#include "sql_alloc.h"                // Sql_alloc
-#include "sql_alter.h"                // Alter_info
-#include "sql_array.h"
+#include "sql/dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"                 // Name_resolution_context
+#include "sql/item_create.h"          // Cast_target
+#include "sql/item_subselect.h"       // chooser_compare_func_creator
+#include "sql/key.h"
+#include "sql/key_spec.h"             // KEY_CREATE_INFO
+#include "sql/lex_symbol.h"           // LEX_SYMBOL
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"       // Mem_root_array
+#include "sql/opt_hints.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_node_base.h" // enum_parsing_context
+#include "sql/query_options.h"        // OPTION_NO_CONST_TABLES
+#include "sql/set_var.h"
+#include "sql/sql_admin.h"
+#include "sql/sql_alloc.h"            // Sql_alloc
+#include "sql/sql_alter.h"            // Alter_info
+#include "sql/sql_array.h"
+#include "sql/sql_connect.h"          // USER_RESOURCES
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"      // enum_duplicates
+#include "sql/sql_get_diagnostics.h"  // Diagnostics_information
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"          // Server_options
+#include "sql/sql_signal.h"           // enum_condition_item_name
+#include "sql/sql_udf.h"              // Item_udftype
+#include "sql/table.h"                // TABLE_LIST
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"          // enum_trigger_action_time_type
+#include "sql/window_lex.h"
+#include "sql/xa.h"                   // xa_option_words
 #include "sql_chars.h"
-#include "sql_connect.h"              // USER_RESOURCES
-#include "sql_const.h"
-#include "sql_data_change.h"          // enum_duplicates
-#include "sql_get_diagnostics.h"      // Diagnostics_information
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
-#include "sql_servers.h"              // Server_options
-#include "sql_signal.h"               // enum_condition_item_name
 #include "sql_string.h"
-#include "sql_udf.h"                  // Item_udftype
-#include "table.h"                    // TABLE_LIST
 #include "thr_lock.h"                 // thr_lock_type
-#include "thr_malloc.h"
-#include "trigger_def.h"              // enum_trigger_action_time_type
 #include "violite.h"                  // SSL_type
-#include "window_lex.h"
-#include "xa.h"                       // xa_option_words
 
 class Item_func_set_user_var;
 class Item_sum;

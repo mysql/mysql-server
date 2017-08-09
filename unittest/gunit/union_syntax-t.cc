@@ -22,7 +22,7 @@
 #include <string>
 
 #include "parsertest.h"
-#include "sql_lex.h"
+#include "sql/sql_lex.h"
 #include "test_utils.h"
 #include "thr_lock.h"
 

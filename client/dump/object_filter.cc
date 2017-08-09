@@ -18,14 +18,14 @@
 #ifndef UNITTEST_OBJECT_FILTER_PARSER
 #include "object_filter.h"
 
+#include "client/dump/table.h"
+#include "client/dump/trigger.h"
 #include "database.h"
 #include "event_scheduler_event.h"
 #include "mysql_function.h"
 #include "pattern_matcher.h"
 #include "privilege.h"
 #include "stored_procedure.h"
-#include "table.h"
-#include "trigger.h"
 #endif
 #include <boost/algorithm/string.hpp>
 #include <boost/tokenizer.hpp>

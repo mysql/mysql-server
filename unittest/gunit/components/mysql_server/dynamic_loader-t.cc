@@ -13,6 +13,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <component_status_var_service.h>
+#include <component_sys_var_service.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
 #include <m_ctype.h>
@@ -21,15 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/my_service.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
-#include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/mysql_lex_string.h>
-#include <auth/dynamic_privileges_impl.h>
-#include <udf_registration_imp.h>
 #include <persistent_dynamic_loader.h>
-#include <component_sys_var_service.h>
-#include <component_status_var_service.h>
 #include <scope_guard.h>
 #include <server_component.h>
 #include <stddef.h>
@@ -37,6 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/udf_registration_imp.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 

@@ -22,12 +22,7 @@
 #include <utility>
 
 #include "binary_log_types.h"
-#include "derror.h"
-#include "discrete_interval.h"
-#include "field.h"
-#include "key.h"                             // key_rec_cmp
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_bitmap.h"
@@ -47,23 +42,28 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_element.h"
 #include "partition_handler.h"
-#include "partition_info.h"                  // NOT_A_PARTITION_ID
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_alter.h"
-#include "sql_class.h"                       // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_partition.h"          // LIST_PART_ENTRY, part_id_range
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/key.h"                         // key_rec_cmp
+#include "sql/log.h"
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"              // NOT_A_PARTITION_ID
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"      // LIST_PART_ENTRY, part_id_range
+#include "sql/system_variables.h"
+#include "sql/table.h"                       // TABLE_SHARE
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"                           // TABLE_SHARE
 #include "template_utils.h"
 #include "thr_mutex.h"
 

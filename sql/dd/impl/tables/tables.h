@@ -18,12 +18,12 @@
 
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_table_impl.h"
-#include "dd/object_id.h"                               // dd::Object_id
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"
+#include "sql/dd/object_id.h"                           // dd::Object_id
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
 
 namespace dd {
 

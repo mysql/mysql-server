@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "abstract_plain_sql_object.h"
-#include "field.h"
+#include "client/dump/field.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

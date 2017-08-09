@@ -379,10 +379,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "sql_error.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -390,11 +390,11 @@
 #include <set>
 #include <string>
 
-#include "current_thd.h"
-#include "derror.h"
-#include "log.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"
 
 using std::max;
 using std::min;

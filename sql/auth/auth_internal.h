@@ -21,13 +21,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "auth_common.h"
 #include "mysql_time.h"                 /* MYSQL_TIME */
-#include "partitioned_rwlock.h"
-#include "table.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/partitioned_rwlock.h"
+#include "sql/sql_audit.h"
+#include "sql/table.h"
 #include "violite.h"                    /* SSL_type */
-#include "dynamic_privilege_table.h"
-#include "sql_audit.h"
 
 
 

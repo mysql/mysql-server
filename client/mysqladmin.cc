@@ -22,7 +22,6 @@
 #include <mysql.h>
 #include <mysqld_error.h>                       /* to check server error codes */
 #include <signal.h>
-#include <sql_common.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -39,6 +38,7 @@
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "typelib.h"
 
 #define MAX_MYSQL_VAR 512

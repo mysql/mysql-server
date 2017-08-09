@@ -13,20 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/transaction_impl.h"
+#include "sql/dd/impl/transaction_impl.h"
 
 #include <stddef.h>
 #include <new>
 #include <utility>
 
-#include "dd/impl/raw/raw_table.h"           // dd::Raw_table
 #include "my_base.h"
 #include "my_dbug.h"
-#include "query_options.h"
-#include "sql_base.h"                        // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql_lex.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "sql/query_options.h"
+#include "sql/sql_base.h"                    // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/sql_lex.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace dd {
 

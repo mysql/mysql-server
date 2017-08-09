@@ -16,7 +16,7 @@
 #ifndef MOCK_CREATE_FIELD_H
 #define MOCK_CREATE_FIELD_H
 
-#include "field.h"
+#include "sql/field.h"
 #include "my_dbug.h"
 
 class Mock_create_field : public Create_field

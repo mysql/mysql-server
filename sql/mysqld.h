@@ -60,11 +60,11 @@
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "rpl_filter.h"                    // Rpl_filter
-#include "sql_bitmap.h"
-#include "sql_const.h"                     // UUID_LENGTH
-#include "system_variables.h"
-#include "thr_malloc.h"
+#include "sql/rpl_filter.h"                // Rpl_filter
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"                 // UUID_LENGTH
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 class Rpl_filter;
 class THD;

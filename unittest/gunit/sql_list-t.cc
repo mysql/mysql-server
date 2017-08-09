@@ -25,11 +25,11 @@
 
 #include "my_inttypes.h"
 #include "my_thread.h"
-#include "sql_error.h"
-#include "sql_list.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "test_utils.h"
-#include "thr_malloc.h"
 
 namespace sql_list_unittest {
 

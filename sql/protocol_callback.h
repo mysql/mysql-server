@@ -27,14 +27,14 @@
 #include <sys/types.h>
 
 #include "my_command.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/service_command.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
-#include "protocol.h"
+#include "sql/my_decimal.h"
+#include "sql/protocol.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "thr_malloc.h"
 #include "violite.h"
 
 class Item_param;

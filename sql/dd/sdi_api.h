@@ -19,9 +19,9 @@
 
 #include <memory>
 
-#include "dd/string_type.h"
-#include "dd/types/table.h"
 #include "mem_root_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/table.h"
 
 class MDL_request;
 class THD;

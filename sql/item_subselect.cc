@@ -21,7 +21,7 @@
 
 */
 
-#include "item_subselect.h"
+#include "sql/item_subselect.h"
 
 #include "my_config.h"
 
@@ -31,17 +31,7 @@
 #include <atomic>
 #include <utility>
 
-#include "check_stack.h"
-#include "current_thd.h"         // current_thd
-#include "debug_sync.h"          // DEBUG_SYNC
 #include "decimal.h"
-#include "derror.h"              // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_sum.h"            // Item_sum_max
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -52,37 +42,47 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"              // in_left_expr_name
 #include "mysqld_error.h"
-#include "opt_explain_format.h"
-#include "opt_trace.h"           // OPT_TRACE_TRANSFORM
-#include "opt_trace_context.h"
-#include "parse_tree_nodes.h"    // PT_subquery
-#include "query_options.h"
-#include "query_result.h"
-#include "records.h"
-#include "sql_class.h"           // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_lex.h"             // SELECT_LEX
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_select.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"     // current_thd
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_sum.h"        // Item_sum_max
+#include "sql/key.h"
+#include "sql/mysqld.h"          // in_left_expr_name
+#include "sql/opt_explain_format.h"
+#include "sql/opt_trace.h"       // OPT_TRACE_TRANSFORM
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_nodes.h" // PT_subquery
+#include "sql/query_options.h"
+#include "sql/query_result.h"
+#include "sql/records.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h" // JOIN_CACHE
+#include "sql/sql_lex.h"         // SELECT_LEX
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_select.h"
+#include "sql/sql_test.h"        // print_where
+#include "sql/sql_tmp_table.h"   // free_tmp_table
+#include "sql/sql_union.h"       // Query_result_union
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/window.h"
 #include "sql_string.h"
-#include "sql_test.h"            // print_where
-#include "sql_tmp_table.h"       // free_tmp_table
-#include "sql_union.h"           // Query_result_union
-#include "system_variables.h"
-#include "table.h"
-#include "temp_table_param.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "value_map.h"
-#include "window.h"
 
 class Json_wrapper;
 

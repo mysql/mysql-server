@@ -17,9 +17,9 @@
 #define DD__PARTITION_INDEX_INCLUDED
 
 
-#include "dd/sdi_fwd.h"               // dd::Sdi_wcontext
-#include "dd/types/index.h"           // dd::Index
-#include "dd/types/weak_object.h"     // dd::Weak_object
+#include "sql/dd/sdi_fwd.h"           // dd::Sdi_wcontext
+#include "sql/dd/types/index.h"       // dd::Index
+#include "sql/dd/types/weak_object.h" // dd::Weak_object
 
 namespace dd {
 

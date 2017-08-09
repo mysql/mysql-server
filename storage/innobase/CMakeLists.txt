@@ -17,6 +17,10 @@
 
 INCLUDE(innodb.cmake)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/sql/auth
+)
 
 SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
 	buf/buf.cc

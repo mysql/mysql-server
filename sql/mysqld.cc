@@ -370,43 +370,16 @@
 
 #include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
 #include "../storage/perfschema/pfs_services.h"
-#include "auth_common.h"                // grant_init
-#include "auto_thd.h"                   // Auto_THD
-#include "binlog.h"                     // mysql_bin_log
 #include "binlog_event.h"
-#include "bootstrap.h"                  // bootstrap
-#include "check_stack.h"
-#include "connection_acceptor.h"        // Connection_acceptor
-#include "connection_handler_impl.h"    // Per_thread_connection_handler
-#include "connection_handler_manager.h" // Connection_handler_manager
 #include "control_events.h"
-#include "current_thd.h"                // current_thd
-#include "dd/cache/dictionary_client.h"
-#include "debug_sync.h"                 // debug_sync_end
-#include "derror.h"
 #include "errmsg.h"                     // init_client_errs
-#include "event_data_objects.h"         // init_scheduler_psi_keys
-#include "events.h"                     // Events
 #include "ft_global.h"
-#include "handler.h"
-#include "hostname.h"                   // hostname_cache_init
-#include "init.h"                       // unireg_init
-#include "item.h"
-#include "item_cmpfunc.h"               // Arg_comparator
-#include "item_create.h"
-#include "item_func.h"
-#include "item_strfunc.h"               // Item_func_uuid
 #include "keycache.h"                   // KEY_CACHE
-#include "keycaches.h"                  // get_or_create_key_cache
-#include "log.h"
-#include "log_event.h"                  // Rows_log_event
 #include "m_string.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_bitmap.h"                  // MY_BITMAP
 #include "my_command.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_default.h"                 // print_defaults
 #include "my_dir.h"
 #include "my_loglevel.h"
@@ -448,86 +421,113 @@
 #include "mysql/thread_type.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
-#include "mysqld_daemon.h"
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"         // Global_THD_manager
 #include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
-#include "opt_costconstantcache.h"      // delete_optimizer_cost_module
-#include "opt_range.h"                  // range_optimizer_init
-#include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
-#include "partitioning/partition_handler.h" // partitioning_init
-#include "persisted_variable.h"         // Persisted_variables_cache
 #include "pfs_thread_provider.h"
 #include "print_version.h"
-#include "protocol.h"
-#include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
-#include "query_options.h"
-#include "replication.h"                // thd_enter_cond
-#include "rpl_filter.h"
-#include "rpl_gtid.h"
-#include "rpl_gtid_persist.h"           // Gtid_table_persistor
-#include "rpl_handler.h"                // RUN_HOOK
-#include "rpl_info_factory.h"
-#include "rpl_info_handler.h"
-#include "rpl_injector.h"               // injector
-#include "rpl_master.h"                 // max_binlog_dump_events
-#include "rpl_mi.h"
-#include "rpl_msr.h"                    // Multisource_info
-#include "rpl_rli.h"                    // Relay_log_info
-#include "rpl_slave.h"                  // slave_load_tmpdir
-#include "rpl_trx_tracking.h"
-#include "session_tracker.h"
-#include "set_var.h"
-#include "socket_connection.h"          // stmt_info_new_packet
-#include "sp_head.h"                    // init_sp_psi_keys
-#include "sql_admin.h"
-#include "sql_audit.h"                  // mysql_audit_general
-#include "sql_authentication.h"         // init_rsa_keys
-#include "sql_base.h"
-#include "sql_callback.h"               // MUSQL_CALLBACK
-#include "sql_class.h"                  // THD
+#include "sql/auth/auth_common.h"       // grant_init
+#include "sql/auth/sql_authentication.h" // init_rsa_keys
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auto_thd.h"               // Auto_THD
+#include "sql/binlog.h"                 // mysql_bin_log
+#include "sql/bootstrap.h"              // bootstrap
+#include "sql/check_stack.h"
+#include "sql/conn_handler/connection_acceptor.h" // Connection_acceptor
+#include "sql/conn_handler/connection_handler_impl.h" // Per_thread_connection_handler
+#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/conn_handler/socket_connection.h" // stmt_info_new_packet
+#include "sql/current_thd.h"            // current_thd
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/debug_sync.h"             // debug_sync_end
+#include "sql/derror.h"
+#include "sql/event_data_objects.h"     // init_scheduler_psi_keys
+#include "sql/events.h"                 // Events
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/hostname.h"               // hostname_cache_init
+#include "sql/init.h"                   // unireg_init
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"           // Arg_comparator
+#include "sql/item_create.h"
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h"           // Item_func_uuid
+#include "sql/keycaches.h"              // get_or_create_key_cache
+#include "sql/log.h"
+#include "sql/log_event.h"              // Rows_log_event
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld_daemon.h"
+#include "sql/mysqld_thd_manager.h"     // Global_THD_manager
+#include "sql/opt_costconstantcache.h"  // delete_optimizer_cost_module
+#include "sql/opt_range.h"              // range_optimizer_init
+#include "sql/options_mysqld.h"         // OPT_THREAD_CACHE_SIZE
+#include "sql/partitioning/partition_handler.h" // partitioning_init
+#include "sql/persisted_variable.h"     // Persisted_variables_cache
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"         // key_memory_MYSQL_RELAY_LOG_index
+#include "sql/query_options.h"
+#include "sql/replication.h"            // thd_enter_cond
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_gtid_persist.h"       // Gtid_table_persistor
+#include "sql/rpl_handler.h"            // RUN_HOOK
+#include "sql/rpl_info_factory.h"
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_injector.h"           // injector
+#include "sql/rpl_master.h"             // max_binlog_dump_events
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"                // Multisource_info
+#include "sql/rpl_rli.h"                // Relay_log_info
+#include "sql/rpl_slave.h"              // slave_load_tmpdir
+#include "sql/rpl_trx_tracking.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"                // init_sp_psi_keys
+#include "sql/sql_admin.h"
+#include "sql/sql_audit.h"              // mysql_audit_general
+#include "sql/sql_base.h"
+#include "sql/sql_callback.h"           // MUSQL_CALLBACK
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_error.h"
+#include "sql/sql_initialize.h"         // opt_initialize_insecure
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_locale.h"             // MY_LOCALE
+#include "sql/sql_manager.h"            // start_handle_manager
+#include "sql/sql_parse.h"              // check_stack_overrun
+#include "sql/sql_plugin.h"             // opt_plugin_dir
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_reload.h"             // reload_acl_and_cache
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"              // build_table_filename
+#include "sql/sql_test.h"               // mysql_print_status
+#include "sql/sql_time.h"               // Date_time_format
+#include "sql/sql_udf.h"
+#include "sql/strfunc.h"
+#include "sql/sys_vars.h"               // fixup_enforce_gtid_consistency_...
+#include "sql/sys_vars_shared.h"        // intern_find_sys_var
+#include "sql/table_cache.h"            // table_cache_manager
+#include "sql/tc_log.h"                 // tc_log
+#include "sql/transaction.h"
+#include "sql/tztime.h"                 // Time_zone
+#include "sql/xa.h"
 #include "sql_common.h"                 // mysql_client_plugin_init
-#include "sql_connect.h"
-#include "sql_error.h"
-#include "sql_initialize.h"             // opt_initialize_insecure
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_locale.h"                 // MY_LOCALE
-#include "sql_manager.h"                // start_handle_manager
-#include "sql_parse.h"                  // check_stack_overrun
-#include "sql_plugin.h"                 // opt_plugin_dir
-#include "sql_plugin_ref.h"
-#include "sql_reload.h"                 // reload_acl_and_cache
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"
 #include "sql_string.h"
-#include "sql_table.h"                  // build_table_filename
-#include "sql_test.h"                   // mysql_print_status
-#include "sql_time.h"                   // Date_time_format
-#include "sql_udf.h"
-#include "strfunc.h"
-#include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
-#include "sys_vars_shared.h"            // intern_find_sys_var
-#include "table_cache.h"                // table_cache_manager
-#include "tc_log.h"                     // tc_log
 #include "thr_lock.h"
 #include "thr_mutex.h"
-#include "transaction.h"
-#include "tztime.h"                     // Time_zone
-#include "value_map.h"
 #include "violite.h"
-#include "xa.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _WIN32
-#include "named_pipe.h"
-#include "named_pipe_connection.h"
-#include "nt_servc.h"
-#include "shared_memory_connection.h"
+#include "sql/conn_handler/named_pipe_connection.h"
+#include "sql/conn_handler/shared_memory_connection.h"
+#include "sql/named_pipe.h"
+#include "sql/nt_servc.h"
 #endif
 
 #ifdef MY_MSCRT_DEBUG
@@ -580,13 +580,13 @@
 
 #include "../components/mysql_server/log_builtins_filter_imp.h"
 #include "../components/mysql_server/server_component.h"
-#include "dd/dd.h"                      // dd::shutdown
-#include "dd/dd_kill_immunizer.h"       // dd::DD_kill_immunizer
-#include "dd/dictionary.h"              // dd::get_dictionary
-#include "dd/performance_schema/init.h" // performance_schema::init
-#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
-#include "dynamic_privileges_impl.h" 
-#include "srv_session.h"
+#include "sql/auth/dynamic_privileges_impl.h" 
+#include "sql/dd/dd.h"                  // dd::shutdown
+#include "sql/dd/dd_kill_immunizer.h"   // dd::DD_kill_immunizer
+#include "sql/dd/dictionary.h"          // dd::get_dictionary
+#include "sql/dd/performance_schema/init.h" // performance_schema::init
+#include "sql/dd/upgrade/upgrade.h"     // dd::upgrade::in_progress
+#include "sql/srv_session.h"
 
 using std::min;
 using std::max;

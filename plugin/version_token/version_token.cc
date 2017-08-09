@@ -13,10 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <current_thd.h>
-#include <derror.h>
 #include <errmsg.h>
-#include <locking_service.h>
 #include <m_string.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
@@ -24,7 +21,6 @@
 #include <mysql/psi/mysql_memory.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/service_locking.h>
-#include <sql_class.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <atomic>
@@ -33,13 +29,17 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
 #include "lex_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/locking_service.h"
+#include "sql/sql_class.h"
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)

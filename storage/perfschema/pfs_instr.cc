@@ -21,14 +21,12 @@
 #include "storage/perfschema/pfs_instr.h"
 
 #include <string.h>
-
 #include <atomic>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysqld.h"  // get_thd_status_var
 #include "pfs.h"
 #include "pfs_account.h"
 #include "pfs_buffer_container.h"
@@ -38,6 +36,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_stat.h"
 #include "pfs_user.h"
+#include "sql/mysqld.h" // get_thd_status_var
 
 ulong nested_statement_lost = 0;
 

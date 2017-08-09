@@ -18,9 +18,9 @@
 
 #include <sys/types.h>
 
-#include "dd/impl/types/object_table_impl.h"  // Object_table_impl
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "my_compiler.h"
+#include "sql/dd/impl/types/object_table_impl.h" // Object_table_impl
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
 
 class THD;
 

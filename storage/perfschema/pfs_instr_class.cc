@@ -21,7 +21,6 @@
 #include "storage/perfschema/pfs_instr_class.h"
 
 #include <string.h>
-
 #include <atomic>
 
 #include "lex_string.h"
@@ -30,7 +29,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysqld.h"  // lower_case_table_names
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_column_values.h"
@@ -40,7 +38,8 @@
 #include "pfs_program.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"
-#include "table.h"
+#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/table.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers

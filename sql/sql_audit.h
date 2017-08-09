@@ -22,7 +22,7 @@
 #include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
-#include "sql_security_ctx.h"       // Security_context
+#include "sql/auth/sql_security_ctx.h" // Security_context
 
 class THD;
 struct TABLE_LIST;

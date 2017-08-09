@@ -19,7 +19,7 @@
   Functions to authenticate and handle requests for a connection
 */
 
-#include "sql_connect.h"
+#include "sql/sql_connect.h"
 
 #include "my_config.h"
 
@@ -28,7 +28,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/udf_registration_types.h"
 #include "pfs_thread_provider.h"
-#include "session_tracker.h"
+#include "sql/session_tracker.h"
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -48,14 +48,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                // SUPER_ACL
-#include "derror.h"                     // ER_THD
-#include "hostname.h"                   // Host_errors
-#include "item_func.h"                  // mqh_used
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"                   // my_stpcpy
 #include "map_helpers.h"
@@ -67,20 +60,27 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     // LOCK_user_conn
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "sql_audit.h"                  // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
-#include "sql_class.h"                  // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_parse.h"                  // sql_command_flags
-#include "sql_plugin.h"                 // plugin_thdvar_cleanup
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"       // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"                 // ER_THD
+#include "sql/hostname.h"               // Host_errors
+#include "sql/item_func.h"              // mqh_used
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                 // LOCK_user_conn
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_audit.h"              // MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"              // sql_command_flags
+#include "sql/sql_plugin.h"             // plugin_thdvar_cleanup
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "violite.h"
 
 #ifdef HAVE_ARPA_INET_H

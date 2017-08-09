@@ -19,12 +19,12 @@
 #include <sys/types.h>
 #include <string>
 
-#include "dd/object_id.h"
-#include "dd/string_type.h"                 // dd::String_type
-#include "handler.h"                        // ha_statistics
 #include "my_inttypes.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"             // dd::String_type
+#include "sql/handler.h"                    // ha_statistics
+#include "sql/stateless_allocator.h"
 #include "sql_string.h"                     // String
-#include "stateless_allocator.h"
 
 class THD;
 struct TABLE_LIST;

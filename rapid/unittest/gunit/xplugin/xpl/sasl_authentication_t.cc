@@ -13,17 +13,17 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <stdexcept>
+#include "my_config.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <stdexcept>
 
 #include "auth_plain.h"
 #include "mock/ngs_general.h"
 #include "mock/session.h"
-#include "my_config.h"
 #include "ngs/memory.h"
-#include "sql_user_require.h"
+#include "rapid/plugin/x/src/sql_user_require.h"
 
 namespace xpl
 {

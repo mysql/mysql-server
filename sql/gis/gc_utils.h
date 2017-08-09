@@ -23,9 +23,9 @@
 
 #include <memory>  // std::unique_ptr
 
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "difference_functor.h"
 #include "geometries.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 #include "union_functor.h"
 
 namespace gis {

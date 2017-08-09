@@ -15,11 +15,11 @@
 
 #include <string.h>
 
-#include "locking_service.h"       // acquire_locking_service_locks
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_locking.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/locking_service.h"   // acquire_locking_service_locks
 
 /*
   These functions are provided as UDFs rather than built-in SQL functions

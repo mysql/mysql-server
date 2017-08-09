@@ -26,12 +26,12 @@
 #include <sys/types.h>
 
 #include "dur_prop.h"      // durability_properties
-#include "handler.h"       // enum_tx_isolation
-#include "key.h"
 #include "m_ctype.h"
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/handler.h"   // enum_tx_isolation
+#include "sql/key.h"
 
 class THD;
 class partition_info;

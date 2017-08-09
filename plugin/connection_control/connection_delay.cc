@@ -14,11 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <current_thd.h>                /* current_thd */
-#include <item_cmpfunc.h>
 #include <m_ctype.h>                    /* my_charset_bin */
 #include <mysql/psi/mysql_thread.h>
-#include <sql_class.h>                  /* THD, Security context */
 #include <time.h>
 
 #include "connection_control.h"
@@ -27,6 +24,9 @@
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "security_context_wrapper.h"
+#include "sql/current_thd.h"            /* current_thd */
+#include "sql/item_cmpfunc.h"
+#include "sql/sql_class.h"              /* THD, Security context */
 
 
 

@@ -13,30 +13,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "opt_hints.h"
+#include "sql/opt_hints.h"
 
 #include <string.h>
 
-#include "derror.h"        // ER_THD
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"        // table_alias_charset
 #include "mysqld_error.h"
-#include "opt_trace.h"
-#include "parse_tree_hints.h"
-#include "sql_class.h"     // THD
-#include "sql_const.h"
-#include "sql_error.h"     // Sql_condition
-#include "sql_optimizer.h" // JOIN class
-#include "sql_security_ctx.h"
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "table.h"
-#include "error_handler.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"    // ER_THD
+#include "sql/error_handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"    // table_alias_charset
+#include "sql/opt_trace.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h" // Sql_condition
+#include "sql/sql_optimizer.h" // JOIN class
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/table.h"
 
 /**
   Information about hints. Sould be

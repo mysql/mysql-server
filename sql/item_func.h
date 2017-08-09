@@ -24,11 +24,7 @@
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "enum_query_type.h"
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"       // Item_result_field
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -36,7 +32,6 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h" // string2my_decimal
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -47,15 +42,20 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"    // enum_var_type
-#include "sql_const.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"   // Item_result_field
+#include "sql/my_decimal.h" // string2my_decimal
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h" // enum_var_type
+#include "sql/sql_const.h"
+#include "sql/sql_udf.h" // udf_handler
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_udf.h"    // udf_handler
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_wrapper;
 class PT_item_list;

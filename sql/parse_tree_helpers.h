@@ -20,20 +20,20 @@
 #include <sys/types.h>
 #include <new>
 
-#include "item.h"
-#include "item_func.h"      // Item etc.
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mem_root_array.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"        // enum_var_type
-#include "sql_list.h"
-#include "table.h"
-#include "thr_malloc.h"
+#include "sql/item.h"
+#include "sql/item_func.h"  // Item etc.
+#include "sql/mem_root_array.h"
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h"    // enum_var_type
+#include "sql/sql_list.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 class String;
 class THD;

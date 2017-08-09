@@ -18,21 +18,21 @@
 #include <memory>
 #include <string>
 
-#include "dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "dd/types/schema.h"
-#include "event_parse_data.h"   // Event_parse_data
 #include "lex_string.h"
-#include "log.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
-#include "sql_class.h"          // THD
-#include "sql_connect.h"
-#include "sql_db.h"             // get_default_db_collation
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/types/schema.h"
+#include "sql/event_parse_data.h" // Event_parse_data
+#include "sql/log.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_db.h"         // get_default_db_collation
+#include "sql/system_variables.h"
+#include "sql/tztime.h"         // Time_zone
 #include "sql_string.h"
-#include "system_variables.h"
-#include "tztime.h"             // Time_zone
 
 
 namespace dd {

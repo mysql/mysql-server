@@ -16,9 +16,9 @@
 #ifndef DD__EVENT_INCLUDED
 #define DD__EVENT_INCLUDED
 
-#include "dd/types/entity_object.h"   // dd::Entity_object
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 typedef long my_time_t;
 

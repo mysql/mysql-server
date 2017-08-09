@@ -19,16 +19,16 @@
 #include <sys/types.h>
 #include <new>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/foreign_key_element.h"     // IWYU pragma: keep
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "m_ctype.h"                          // my_strcasecmp
 #include "my_sharedlib.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h" // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
