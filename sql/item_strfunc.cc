@@ -85,7 +85,7 @@
 #include "template_utils.h"
 #include "typelib.h"
 #include "val_int_compare.h"         // Integer_value
-#include "zconf.h"
+#include "zlib.h"
 
 using std::min;
 using std::max;
