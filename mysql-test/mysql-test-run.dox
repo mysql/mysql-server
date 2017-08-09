@@ -4245,7 +4245,7 @@
     <li>
       <tt>`--mem`</tt>
 
-      This option is not supported on Windows.
+      This option is not supported on Windows and on MacOS.
 
       Run the test suite in memory, using tmpfs or ramdisk. This can
       decrease test times significantly, in particular if you would
