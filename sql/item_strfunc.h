@@ -1096,16 +1096,30 @@ public:
   }
 };
 
+
 class Item_func_conv_charset final : public Item_str_func
 {
+  /// Marks weather the underlying Item is constant and may be cached.
   bool use_cached_value;
   String tmp_value;
 public:
+  /**
+    The following types of conversions are considered safe:
+
+    Conversion to and from "binary".
+    Conversion to Unicode.
+    Other kind of conversions are potentially lossy.
+  */
   bool safe;
   const CHARSET_INFO *conv_charset; // keep it public
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
   : Item_str_func(pos, a)
-  { conv_charset= cs; use_cached_value= 0; safe= 0; }
+  {
+    conv_charset= cs;
+    use_cached_value= false;
+    safe= false;
+  }
+
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
@@ -1119,18 +1133,14 @@ public:
       if (!str || str_value.copy(str->ptr(), str->length(),
                                  str->charset(), conv_charset, &errors))
         null_value= 1;
-      use_cached_value= 1;
+      use_cached_value= true;
       str_value.mark_as_const();
       safe= (errors == 0);
     }
     else
     {
-      use_cached_value= 0;
-      /*
-        Conversion from and to "binary" is safe.
-        Conversion to Unicode is safe.
-        Other kind of conversions are potentially lossy.
-      */
+      use_cached_value= false;
+      // Marks weather the conversion is safe
       safe= (args[0]->collation.collation == &my_charset_bin ||
              cs == &my_charset_bin ||
              (cs->state & MY_CS_UNICODE));
@@ -1295,6 +1305,7 @@ public:
   const char *func_name() const override { return "uuid"; }
   String *val_str(String *) override;
   bool check_gcol_func_processor(uchar *) override { return true; }
+  bool const_item() const override { return false; }
 };
 
 class Item_func_gtid_subtract final : public Item_str_ascii_func
