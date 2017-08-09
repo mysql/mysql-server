@@ -23,6 +23,7 @@
 #include "my_config.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
 #include <string>
 #include <vector>
@@ -31,16 +32,16 @@
 #include "map_helpers.h"
 #include "my_getopt.h"        // get_opt_arg_type
 #include "my_inttypes.h"
+#include "my_systime.h"
 #include "mysql/plugin.h"     // enum_mysql_show_type
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
 #include "sql_alloc.h"        // Sql_alloc
 #include "sql_const.h"        // SHOW_COMP_OPTION
-#include "sql_plugin.h"
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "thr_malloc.h"
 #include "typelib.h"          // TYPELIB
-#include "my_systime.h"
 
 class Item;
 class Item_func_set_user_var;
@@ -52,6 +53,7 @@ class set_var;
 class sys_var;
 class sys_var_pluginvar;
 struct st_lex_user;
+template <class Key, class Value> class collation_unordered_map;
 
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;

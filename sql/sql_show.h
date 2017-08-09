@@ -20,13 +20,14 @@
 #include <vector>
 
 #include "handler.h"                            // enum_schema_tables
+#include "key.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "set_var.h"                            // enum_var_type
-#include "sql_plugin.h"
 #include "sql_string.h"                         // Simple_cstring
 #include "table.h"                              // enum_schema_table_state
+#include "thr_malloc.h"
 #include "typelib.h"
 
 /* Forward declarations */
@@ -40,10 +41,6 @@ template <class T> class List;
 
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
-
-namespace dd {
-  class Event;
-}
 enum find_files_result {
   FIND_FILES_OK,
   FIND_FILES_OOM,

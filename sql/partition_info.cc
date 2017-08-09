@@ -21,7 +21,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"                      // *_ACL
@@ -29,6 +31,7 @@
 #include "error_handler.h"
 #include "field.h"
 #include "item.h"
+#include "item_create.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -57,7 +60,6 @@
 #include "system_variables.h"
 #include "table.h"                            // TABLE_LIST
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
-#include "template_utils.h"
 #include "thr_malloc.h"
 #include "trigger_chain.h"                    // Trigger_chain
 #include "trigger_def.h"

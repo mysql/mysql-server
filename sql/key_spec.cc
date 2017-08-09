@@ -28,7 +28,6 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql_class.h"   // THD
-#include "sql_plugin.h"
 #include "sql_security_ctx.h"
 
 KEY_CREATE_INFO default_key_create_info;

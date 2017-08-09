@@ -34,16 +34,19 @@
 */
 
 #include <cstddef>                     // size_t
+#include <functional>
 #include <map>                         // std::map
 #include <set>                         // std::set
 #include <string>                      // std::string
 #include <utility>                     // std::pair
 
+#include "key.h"
 #include "lex_string.h"                // LEX_CSTRING
 #include "memroot_allocator.h"         // Memroot_allocator
 #include "my_base.h"                   // ha_rows
-#include "sql_alloc.h"                 // Sql_alloc
 #include "sql/histograms/value_map.h"  // Histogram_comparator
+#include "sql_alloc.h"                 // Sql_alloc
+#include "sql_string.h"
 #include "stateless_allocator.h"       // Stateless_allocator
 #include "table.h"                     // TABLE_LIST
 
@@ -51,7 +54,16 @@ class Json_dom;
 class Json_object;
 class THD;
 
+namespace dd {
+class Table;
+}  // namespace dd
+namespace histograms {
+struct Histogram_comparator;
+template <class T> class Value_map;
+}  // namespace histograms
+struct TABLE_LIST;
 struct st_mem_root;
+
 typedef struct st_mem_root MEM_ROOT;
 
 namespace histograms {

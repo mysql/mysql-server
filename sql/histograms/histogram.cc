@@ -20,37 +20,56 @@
 
 #include "sql/histograms/histogram.h"   // Histogram, Histogram_comparator
 
+#include <sys/types.h>
+#include <algorithm>
 #include <map>
 #include <memory>        // std::unique_ptr
 #include <new>
-#include <set>
+#include <random>
 #include <string>
 #include <vector>
 
+#include "auth_common.h"
 #include "binary_log_types.h"
 #include "dd/dd.h"
+#include "dd/string_type.h"
 #include "dd/types/column.h"
 #include "dd/types/table.h"             // dd::Table
 #include "field.h"                      // Field
+#include "handler.h"
 #include "json_dom.h"                   // Json_*
+#include "lex_string.h"
+#include "m_ctype.h"
 #include "mdl.h"                        // MDL_request
+#include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                     // my_micro_time, get_charset
+#include "my_time.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"             // key_memory_histograms
 #include "scope_guard.h"                // create_scope_guard
-#include "sql_base.h"                   // open_and_lock_tables,
-                                        // close_thread_tables
-#include "sql_class.h"                  // make_lex_string_root
-#include "sql_string.h"                 // String
-#include "sql_time.h"                   // my_time_compare
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/histograms/equi_height.h" // Equi_height<T>
 #include "sql/histograms/singleton.h"   // Singleton<T>
 #include "sql/histograms/value_map.h"   // Value_map
-#include "thr_malloc.h"                 // MEM_ROOT
+#include "sql_base.h"                   // open_and_lock_tables,
+#include "sql_bitmap.h"
+                                        // close_thread_tables
+#include "sql_class.h"                  // make_lex_string_root
+#include "sql_const.h"
+#include "sql_error.h"
+#include "sql_security_ctx.h"
+#include "sql_servers.h"
+#include "sql_string.h"                 // String
+#include "system_variables.h"
+#include "table.h"
+#include "template_utils.h"
 #include "transaction.h"                // trans_commit_stmt, trans_rollback_stmt
 #include "tztime.h"                     // my_tz_UTC
 
@@ -664,15 +683,16 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom,
   Check if a field is covered by a single-part unique index (primary key or
   unique index). Indexes that are marked as invisible are ignored.
 
+  @param thd The current session.
   @param field The field to check.
 
   @return true if the field is covered by a single-part unique index. False
           otherwise.
 */
-static bool covered_by_single_part_index(const Field *field)
+static bool covered_by_single_part_index(const THD *thd, const Field *field)
 {
   Key_map possible_keys;
-  possible_keys.merge(field->table->s->usable_indexes());
+  possible_keys.merge(field->table->s->usable_indexes(thd));
   possible_keys.intersect(field->key_start);
   DBUG_ASSERT(field->table->s->keys <= possible_keys.length());
   for (uint i= 0; i < field->table->s->keys; ++i)
@@ -1033,7 +1053,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
       Check if this field is covered by a single-part unique index. If it is, we
       don't want to create histogram statistics for it.
     */
-    if (covered_by_single_part_index(field))
+    if (covered_by_single_part_index(thd, field))
     {
       results.emplace(column_name,
                       Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX);

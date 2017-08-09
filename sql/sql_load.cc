@@ -25,9 +25,9 @@
                         // Execute_load_query_log_event,
                         // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <atomic>
 
 #include "auth_acls.h"
 #include "binlog.h"
@@ -37,7 +37,7 @@
 #include "item.h"
 #include "item_func.h"
 #include "item_timefunc.h"  // Item_func_now_local
-#include "lex_string.h"
+#include "key.h"
 #include "load_data_events.h"
 #include "log.h"
 #include "log_event.h"  // Delete_file_log_event,
@@ -49,6 +49,7 @@
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -56,6 +57,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld.h"                             // mysql_real_data_home
 #include "mysqld_error.h"
@@ -64,14 +66,12 @@
 #include "query_result.h"
 #include "rpl_rli.h"     // Relay_log_info
 #include "rpl_slave.h"
-#include "session_tracker.h"
 #include "sql_base.h"          // fill_record_n_invoke_before_triggers
 #include "sql_class.h"
 #include "sql_error.h"
 #include "sql_insert.h" // check_that_all_fields_are_given_values,
 #include "sql_lex.h"
 #include "sql_list.h"
-#include "sql_security_ctx.h"
 #include "sql_show.h"
 #include "sql_string.h"
 #include "sql_view.h"                           // check_key_in_view

@@ -16,19 +16,25 @@
 
 #include "tc_log.h"
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 
-#include "my_config.h"
+#include "histogram.h"
+#include "map_helpers.h"
+#include "my_alloc.h"
+#include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysqld_error.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
 #include "handler.h"
 #include "log.h"
-#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"

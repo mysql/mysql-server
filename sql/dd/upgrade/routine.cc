@@ -15,15 +15,41 @@
 
 
 #include "sql/dd/upgrade/routine.h"
-#include "sql/dd/upgrade/global.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+
+#include <string.h>
+#include <sys/types.h>
+
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // LogErr()
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "my_user.h"                          // parse_user
-#include "sql_base.h"                         // open_tables
+#include "mysql/components/services/log_shared.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld_error.h"
 #include "sp.h"                               // db_load_routine
 #include "sp_head.h"                          // sp_head
+#include "sql/dd/upgrade/global.h"
+#include "sql_base.h"                         // open_tables
+#include "sql_class.h"
+#include "sql_connect.h"
+#include "sql_const.h"
+#include "sql_lex.h"
+#include "sql_servers.h"
+#include "sql_string.h"
+#include "system_variables.h"
 #include "table.h"                            // Table_check_intact
-#include "transaction.h"                      // trans_commit
+#include "thr_lock.h"
+#include "thr_malloc.h"
 
 namespace dd {
 namespace upgrade {

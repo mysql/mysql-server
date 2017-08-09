@@ -18,27 +18,30 @@
 
 #include <sys/types.h>
 #include <time.h>
+#include <atomic>
 
+#include "binlog.h"
+#include "binlog_event.h"            // enum_binlog_checksum_alg
+#include "log_event.h"               // Format_description_log_event
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
+#include "rpl_gtid.h"                // Gtid
+#include "rpl_info.h"                // Rpl_info
+#include "rpl_rli.h"                 // rli->get_log_lock()
+#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
 #include "sql_const.h"
 
 class Relay_log_info;
 class Rpl_info_handler;
 class Server_ids;
 class THD;
-
-#include "binlog_event.h"            // enum_binlog_checksum_alg
-#include "log_event.h"               // Format_description_log_event
-#include "rpl_gtid.h"                // Gtid
-#include "rpl_info.h"                // Rpl_info
-#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
-#include "rpl_rli.h"                 // rli->get_log_lock()
 
 typedef struct st_mysql MYSQL;
 

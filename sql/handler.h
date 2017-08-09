@@ -38,6 +38,7 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -48,7 +49,9 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"   // my_errno
+#include "mysql/components/services/psi_table_bits.h"
 #include "mysql/psi/psi_table.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"
 #include "sql_bitmap.h"        // Key_map
 #include "sql_const.h"         // SHOW_COMP_OPTION
@@ -56,6 +59,7 @@
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
 #include "thr_lock.h"          // thr_lock_type
+#include "thr_malloc.h"
 #include "typelib.h"
 
 class Alter_info;
@@ -69,6 +73,10 @@ class String;
 class THD;
 class handler;
 class partition_info;
+
+namespace dd {
+class Properties;
+}  // namespace dd
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;

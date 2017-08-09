@@ -23,6 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"                    // strmake_root
+#include "mysql/udf_registration_types.h"
 #include "rpl_transaction_ctx.h"       // Rpl_transaction_ctx
 #include "rpl_transaction_write_set_ctx.h" // Transaction_write_set_ctx
 #include "thr_malloc.h"

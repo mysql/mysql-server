@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include "gcs_base_test.h"
 
-#include "mysql/gcs/gcs_log_system.h"
 #include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_utils.h"
 
@@ -36,7 +35,7 @@ homemade_free_site_def(unsigned int n, site_def *s, node_address *node_addrs)
 namespace gcs_parameters_unittest
 {
 
-class GcsNodeAddressTest : public ::testing::Test
+class GcsNodeAddressTest : public GcsBaseTest
 {
 protected:
   GcsNodeAddressTest() {};
@@ -44,14 +43,6 @@ protected:
   static void SetUpTestCase()
   {
     My_xp_util::init_time();
-  }
-
-  virtual void SetUp()
-  {
-  }
-
-  virtual void TearDown()
-  {
   }
 };
 
@@ -133,7 +124,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress)
   delete rep;
 }
 
-class GcsUUIDTest : public ::testing::Test
+class GcsUUIDTest : public GcsBaseTest
 {
 protected:
   GcsUUIDTest() {};
@@ -141,14 +132,6 @@ protected:
   static void SetUpTestCase()
   {
     My_xp_util::init_time();
-  }
-
-  virtual void SetUp()
-  {
-  }
-
-  virtual void TearDown()
-  {
   }
 };
 
@@ -196,7 +179,7 @@ TEST_F(GcsUUIDTest, TestGcsUUID)
   free(buffer);
 }
 
-class GcsNodeInformationTest : public ::testing::Test
+class GcsNodeInformationTest : public GcsBaseTest
 {
 protected:
   GcsNodeInformationTest() {};
@@ -204,14 +187,6 @@ protected:
   static void SetUpTestCase()
   {
     My_xp_util::init_time();
-  }
-
-  virtual void SetUp()
-  {
-  }
-
-  virtual void TearDown()
-  {
   }
 };
 
@@ -296,7 +271,7 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation)
   ASSERT_TRUE(node_5.get_member_uuid().actual_value != uuid_5.actual_value);
 }
 
-class GcsNodesTest : public ::testing::Test
+class GcsNodesTest : public GcsBaseTest
 {
 protected:
   GcsNodesTest() {};
@@ -305,20 +280,6 @@ protected:
   {
     My_xp_util::init_time();
   }
-
-  virtual void SetUp()
-  {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
-  }
-
-  virtual void TearDown()
-  {
-    Gcs_logger::finalize();
-    delete logger;
-  }
-
-  Ext_logger_interface *logger;
 };
 
 TEST_F(GcsNodesTest, TestGcsNodesBasicProperties)

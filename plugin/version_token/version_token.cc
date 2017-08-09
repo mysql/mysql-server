@@ -18,15 +18,14 @@
 #include <errmsg.h>
 #include <locking_service.h>
 #include <m_string.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_memory.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/service_locking.h>
-#include <mysql/components/my_service.h>
-#include <mysql/components/services/dynamic_privilege.h>
 #include <sql_class.h>
 #include <sys/types.h>
-
 #include <algorithm>
 #include <atomic>
 #include <sstream>
@@ -34,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "auth_acls.h"
 #include "lex_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"

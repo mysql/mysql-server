@@ -19,12 +19,12 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <new>
-#include <string>
 
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/collation.h"               // dd::Collation
 #include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
@@ -33,8 +33,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Transaction;
 class Open_dictionary_tables_ctx;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 

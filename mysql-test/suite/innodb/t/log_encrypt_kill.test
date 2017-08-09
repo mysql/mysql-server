@@ -24,10 +24,10 @@ let $restart_parameters = restart: --no-console --log-error=$SEARCH_FILE ;
 SELECT @@global.innodb_redo_log_encrypt ;
 SET GLOBAL innodb_redo_log_encrypt = 1;
 SET GLOBAL innodb_undo_log_encrypt = 1;
---sleep 1
 
-# sleep to get message recorded in error log
---sleep 1
+--let $wait_condition=SELECT @@global.innodb_redo_log_encrypt = 0
+--source include/wait_condition.inc
+
 --error ER_SP_DOES_NOT_EXIST
 UNINSTALL PLUGIN keyring_file;
 

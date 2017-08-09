@@ -20,6 +20,7 @@
 
 #include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"
+#include "dd/string_type.h"
 #include "dd/types/spatial_reference_system.h"
 
 namespace dd {

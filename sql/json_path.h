@@ -25,11 +25,16 @@
  */
 
 #include <stddef.h>
+#include <algorithm>
+#include <new>
 #include <string>
 #include <utility>                              // std::move
 
+#include "mem_root_fwd.h"
 #include "my_alloc.h"                           // MEM_ROOT
 #include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "prealloced_array.h"                   // Prealloced_array
 
 class String;
@@ -510,10 +515,8 @@ public:
 
     This effectively lets the path point at the container of the original,
     i.e. an array or an object.
-
-    @result the last leg popped off
   */
-  Json_path_leg pop();
+  void pop();
 
   /**
     Resets this to an empty path with no legs.
@@ -564,22 +567,6 @@ public:
     @return false on success, true on error
   */
   bool append(const Json_path_leg *leg) { return m_path_legs.push_back(leg); }
-
-  /**
-    Clear this clone and then add all of the
-    legs from another path.
-
-    @param[in,out] source The source path
-    @return false on success, true on error
-  */
-  bool set(const Json_seekable_path *source);
-
-  /**
-    Pop the last leg element.
-
-    @result the last leg popped off
-  */
-  const Json_path_leg *pop();
 
   /**
     Resets this to an empty path with no legs.

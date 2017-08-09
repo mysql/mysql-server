@@ -31,6 +31,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_class.h"  // THD
 #include "sql_list.h"
 #include "table.h"      // TABLE

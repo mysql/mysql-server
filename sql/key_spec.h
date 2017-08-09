@@ -22,6 +22,7 @@
 #include "m_string.h"
 #include "mem_root_array.h"
 #include "my_base.h"
+#include "mysql/udf_registration_types.h"
 #include "sql_alloc.h"
 #include "sql_list.h"
 #include "thr_malloc.h"

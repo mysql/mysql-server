@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <gtest/gtest.h>
 
+#include "auth_acls.h"
 #include "current_thd.h"
 #include "file_io.h"
 #include "mock_logger.h"

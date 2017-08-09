@@ -17,14 +17,20 @@
 
 #include "item_cmpfunc.h"                      // Item_func_like
 #include "item_func.h"
+#include "key.h"
+#include "key_spec.h"
 #include "m_string.h"                          // C_STRING_WITH_LEN
 #include "my_dbug.h"
+#include "parse_location.h"
 #include "parse_tree_helpers.h"
 #include "parse_tree_items.h"                  // PTI_simple_ident_ident
+#include "parse_tree_node_base.h"
 #include "parse_tree_nodes.h"                  // PT_select_item_list
-#include "sql_lex.h"                           // Query_options
-#include "sql_string.h"
 #include "query_options.h"                     // OPTION_SELECT_FOR_SHOW
+#include "sql_class.h"
+#include "sql_lex.h"                           // Query_options
+#include "sql_security_ctx.h"
+#include "sql_string.h"
 
 class Item;
 

@@ -32,6 +32,7 @@
 #include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_time.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "parse_tree_node_base.h"
 #include "prealloced_array.h"   // Prealloced_array
@@ -524,7 +525,6 @@ public:
 class Item_func_json_insert :public Item_json_func
 {
   String m_doc_value;
-  Json_path_clone m_path;
 
 public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -542,7 +542,6 @@ public:
 class Item_func_json_array_insert :public Item_json_func
 {
   String m_doc_value;
-  Json_path_clone m_path;
 
 public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)

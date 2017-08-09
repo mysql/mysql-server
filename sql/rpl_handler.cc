@@ -16,7 +16,10 @@
 #include "rpl_handler.h"
 
 #include <string.h>
+#include <memory>
 #include <new>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "current_thd.h"
@@ -26,12 +29,17 @@
 #include "key.h"
 #include "lex_string.h"
 #include "log.h"
+#include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"            // server_uuid
+#include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "psi_memory_key.h"
 #include "replication.h"       // Trans_param
@@ -39,13 +47,11 @@
 #include "rpl_mi.h"            // Master_info
 #include "sql_class.h"         // THD
 #include "sql_const.h"
-#include "sql_error.h"
 #include "sql_plugin.h"        // plugin_int_to_ref
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
 #include "transaction_info.h"
-#include "rpl_write_set_handler.h"
 
 Trans_delegate *transaction_delegate;
 Binlog_storage_delegate *binlog_storage_delegate;

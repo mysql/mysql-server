@@ -21,13 +21,13 @@
 #include "dd/types/abstract_table.h"
 #include "dd/types/charset.h"
 #include "dd/types/collation.h"
+#include "dd/types/column_statistics.h"
 #include "dd/types/event.h"
 #include "dd/types/routine.h"
 #include "dd/types/schema.h"
 #include "dd/types/spatial_reference_system.h"
 #include "dd/types/tablespace.h"
 #include "element_map.h"                      // Element_map
-#include "my_dbug.h"
 
 namespace dd {
 namespace cache {

@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
@@ -74,4 +75,5 @@ DROP USER recovery_user;
 SET SESSION sql_log_bin= 1;
 [connection server2]
 DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
 include/group_replication_end.inc

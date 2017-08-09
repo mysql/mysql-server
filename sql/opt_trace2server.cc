@@ -33,15 +33,16 @@
 #include "binary_log_types.h"
 #include "enum_query_type.h"
 #include "field.h"
+#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "mysql/psi/mysql_statement.h"
 #include "opt_trace.h"
 #include "opt_trace_context.h"
+#include "session_tracker.h"
 #include "set_var.h"
 #include "sp_head.h"     // sp_head
 #include "sp_instr.h"    // sp_printable
@@ -49,7 +50,6 @@
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_parse.h"   // sql_command_flags
-#include "sql_plugin.h"
 #include "sql_profile.h"
 #include "sql_security_ctx.h"
 #include "sql_show.h"    // schema_table_stored_record
@@ -58,7 +58,6 @@
 #include "table.h"
 
 class Item;
-class sp_head;
 
 #ifdef OPTIMIZER_TRACE
 

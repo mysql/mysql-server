@@ -15,6 +15,7 @@
 
 #include "sp_rcontext.h"
 
+#include <atomic>
 #include <new>
 
 #include "current_thd.h"

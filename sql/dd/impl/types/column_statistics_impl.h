@@ -16,14 +16,22 @@
 #ifndef DD__COLUMN_STATISTIC_IMPL_INCLUDED
 #define DD__COLUMN_STATISTIC_IMPL_INCLUDED
 
+#include <stdio.h>
+#include <algorithm>
 #include <new>
 
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/object_id.h"                     // dd::Object_id
-#include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/column_statistics.h"        // dd::Column_statistics
+#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
+#include "dd/types/object_type.h"             // dd::Object_type
 #include "histograms/histogram.h"
+#include "mem_root_fwd.h"
+#include "my_alloc.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "psi_memory_key.h"                   // key_memory_DD_column_statistics
 
 class THD;
@@ -32,11 +40,12 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record;
 class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 

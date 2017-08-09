@@ -44,14 +44,16 @@
 #include "mf_wcomp.h"           // wild_one, wild_many
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_sqlcommand.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld.h"             // log_10
 #include "mysqld_error.h"
 #include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
 #include "set_var.h"
+#include "sql_array.h"
 #include "sql_bitmap.h"
 #include "sql_class.h"          // THD
 #include "sql_error.h"
@@ -62,7 +64,9 @@
 #include "sql_select.h"
 #include "sql_servers.h"
 #include "sql_time.h"           // str_to_datetime
+#include "system_variables.h"
 #include "thr_malloc.h"
+#include "value_map.h"
 
 using std::min;
 using std::max;

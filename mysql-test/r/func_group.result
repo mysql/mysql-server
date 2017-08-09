@@ -438,7 +438,7 @@ select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(t1.a3)`,max(`test`.`t2`.`a2`) AS `max(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a3` = 'CA') and multiple equal(0, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(t1.a3)`,max(`test`.`t2`.`a2`) AS `max(t2.a2)` from `test`.`t1` join `test`.`t2` where (multiple equal(0, `test`.`t1`.`a2`) and multiple equal('CA', `test`.`t2`.`a3`))
 select min(t1.a3), max(t2.a2) from t1, t2 where t1.a2 = 0 and t2.a3 = 'CA';
 min(t1.a3)	max(t2.a2)
 DEN	San Diego
@@ -519,7 +519,7 @@ select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'MIN') and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where (multiple equal('MIN', `test`.`t1`.`a3`) and multiple equal(2, `test`.`t1`.`a2`))
 select max(a3) from t1 where a3 = 'MIN' and a2 = 2;
 max(a3)
 MIN
@@ -528,7 +528,7 @@ select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'DEN') and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where (multiple equal('DEN', `test`.`t1`.`a3`) and multiple equal(2, `test`.`t1`.`a2`))
 select max(a3) from t1 where a3 = 'DEN' and a2 = 2;
 max(a3)
 NULL
@@ -537,7 +537,7 @@ select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a3` < 'MIN') and (`test`.`t2`.`a3` = 'CA') and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(t1.a3)`,min(`test`.`t2`.`a2`) AS `min(t2.a2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a3` < 'MIN') and multiple equal(2, `test`.`t1`.`a2`) and multiple equal('CA', `test`.`t2`.`a3`))
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 = 'CA';
 max(t1.a3)	min(t2.a2)
 CHI	Los Angeles
@@ -645,7 +645,7 @@ select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where ((`test`.`t1`.`a3` = 'MIN') and multiple equal(2, `test`.`t1`.`a2`))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where (multiple equal(2, `test`.`t1`.`a2`) and multiple equal('MIN', `test`.`t1`.`a3`))
 select min(a3) from t1 where a2 = 2 and a3 >= 'CHI' and a3 = 'MIN';
 min(a3)
 MIN

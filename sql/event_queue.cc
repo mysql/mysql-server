@@ -18,28 +18,35 @@
 #include "sql/event_queue.h"
 
 #include <stdio.h>
+#include <atomic>
 #include <new>
 
+#include "dd/cache/dictionary_client.h" // Auto_releaser
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
 #include "lock.h"                 // lock_object_name
 #include "log.h"                  // log_*()
 #include "malloc_allocator.h"
 #include "mdl.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_systime.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysqld_error.h"
 #include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
 #include "sql_audit.h"            // mysql_audit_release
 #include "sql_class.h"            // THD
 #include "sql_lex.h"
+#include "sql_string.h"
 #include "sql_table.h"            // write_bin_log
 #include "thr_mutex.h"
-#include "tztime.h"               // my_tz_OFFSET0
 #include "transaction.h"          // trans_commit*, trans_rollback*
-
-#include "dd/cache/dictionary_client.h" // Auto_releaser
+#include "tztime.h"               // my_tz_OFFSET0
+#include "value_map.h"
 
 /**
   @addtogroup Event_Scheduler

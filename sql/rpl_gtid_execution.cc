@@ -17,14 +17,15 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <atomic>
 
-#include "lex_string.h"
+#include "key.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "my_thread_local.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "mysql/thread_type.h"
 #include "mysqld.h"                           // connection_events_loop_aborted
@@ -34,7 +35,6 @@
 #include "sql_class.h"                        // THD
 #include "sql_lex.h"
 #include "sql_parse.h"                        // stmt_causes_implicit_commit
-#include "sql_plugin.h"
 #include "system_variables.h"
 
 

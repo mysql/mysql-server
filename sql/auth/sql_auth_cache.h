@@ -15,46 +15,57 @@
 #ifndef SQL_USER_CACHE_INCLUDED
 #define SQL_USER_CACHE_INCLUDED
 
-#include <string.h>
-#include <sys/types.h>
-
-#include <atomic>
-#include <string>
-#include <unordered_map>
-
-#include "auth_common.h"
-#include "auth_internal.h"       // List_of_authid, Authid
-#include "handler.h"
-#include "key.h"
-#include "lex_string.h"
-#include "lf.h"
-#include "m_ctype.h"
-#include "map_helpers.h"
-#include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
-#include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql_com.h"                  // SCRAMBLE_LENGTH
-#include "mysql_time.h"                 // MYSQL_TIME
-#include "prealloced_array.h"           // Prealloced_array
-#include "sql_alloc.h"                  // Sql_alloc
-#include "sql_connect.h"                // USER_RESOURCES
-#include "sql_plugin_ref.h"
-#include "typelib.h"
-#include "violite.h"                    // SSL_type
-
-class Security_context;
-class THD;
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/pending/property.hpp>
+#include <string.h>
+#include <sys/types.h>
+#include <atomic>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
+#include "auth_common.h"
+#include "auth_internal.h"       // List_of_authid, Authid
+#include "dd/properties.h"
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
+#include "lf.h"
+#include "m_ctype.h"
+#include "map_helpers.h"
+#include "mem_root_fwd.h"
+#include "mf_wcomp.h"                   // wild_many, wild_one, wild_prefix
+#include "my_alloc.h"
+#include "my_decimal.h"
+#include "my_inttypes.h"
+#include "my_sharedlib.h"
+#include "my_sys.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/mysql_lex_string.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"                  // SCRAMBLE_LENGTH
+#include "mysql_time.h"                 // MYSQL_TIME
+#include "prealloced_array.h"           // Prealloced_array
+#include "sql_alloc.h"                  // Sql_alloc
+#include "sql_connect.h"                // USER_RESOURCES
+#include "sql_plugin_ref.h"
+#include "sql_string.h"
+#include "table.h"
+#include "typelib.h"
+#include "violite.h"                    // SSL_type
+
+class Security_context;
 /* Forward Declarations */
 class String;
+class THD;
 struct TABLE;
+template <typename Element_type, size_t Prealloc> class Prealloced_array;
 
 /* Classes */
 

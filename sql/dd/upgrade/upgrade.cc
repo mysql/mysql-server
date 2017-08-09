@@ -13,18 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql/dd/upgrade/event.h"
-#include "sql/dd/upgrade/global.h"
-#include "sql/dd/upgrade/routine.h"
-#include "sql/dd/upgrade/schema.h"
-#include "sql/dd/upgrade/table.h"
 #include "sql/dd/upgrade/upgrade.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <memory>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 #include <string>
 #include <vector>
 
@@ -36,16 +32,42 @@
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/info_schema/metadata.h"          // dd::info_schema::install_IS...
 #include "dd/sdi_file.h"                      // dd::sdi_file::EXT
+#include "dd/types/object_table.h"
+#include "dd/types/tablespace.h"
 #include "error_handler.h"                    // Dummy_error_handler
+#include "handler.h"
+#include "lex_string.h"
 #include "log.h"                              // sql_print_warning
+#include "my_compiler.h"
+#include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                           // key_file_sdi
+#include "mysqld_error.h"
+#include "sql/dd/upgrade/event.h"
+#include "sql/dd/upgrade/global.h"
+#include "sql/dd/upgrade/routine.h"
+#include "sql/dd/upgrade/schema.h"
+#include "sql/dd/upgrade/table.h"
 #include "sql_class.h"                        // THD
+#include "sql_plugin.h"
+#include "sql_plugin_ref.h"
 #include "sql_table.h"                        // build_tablename
+#include "stateless_allocator.h"
 #include "strfunc.h"                          // lex_cstring_handle
+#include "table.h"
 #include "transaction.h"                      // trans_rollback
+
+namespace dd {
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace upgrade{

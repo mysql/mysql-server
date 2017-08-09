@@ -16,6 +16,7 @@
 #include "dd/impl/types/parameter_type_element_impl.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "dd/impl/raw/raw_record.h"                // Raw_record
 #include "dd/impl/tables/parameter_type_elements.h"// Parameter_type_elements
@@ -25,6 +26,8 @@
 #include "dd/types/parameter_type_element.h"       // Parameter_type_element
 #include "dd/types/weak_object.h"
 #include "dd_table_share.h"                       // dd_get_mysql_charset
+#include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"

@@ -19,6 +19,7 @@
 #include "item_cmpfunc.h"          // Item_func_eq
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                // using_udf_functions
 #include "parse_tree_nodes.h"
 #include "sp.h"

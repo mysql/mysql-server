@@ -333,7 +333,8 @@ static const ulong EVENT_DEF_CACHE_MIN=          256;
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 16)
 #define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 17)
 #define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 18)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 19)
+#define OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES     (1ULL << 19)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 20)
 
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \

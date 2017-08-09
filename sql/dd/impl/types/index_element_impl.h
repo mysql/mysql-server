@@ -19,11 +19,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
-#include <string>
 
 #include "dd/impl/types/index_impl.h"       // dd::Index_impl
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
 
@@ -31,13 +31,12 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index;
-class Index_impl;
-class Open_dictionary_tables_ctx;
-class Raw_record;
 class Column;
+class Index;
 class Object_key;
 class Object_table;
+class Open_dictionary_tables_ctx;
+class Raw_record;
 class Sdi_rcontext;
 class Sdi_wcontext;
 class Weak_object;

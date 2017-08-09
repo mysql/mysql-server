@@ -12,18 +12,28 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-#include <mysql/components/service_implementation.h>
-#include <auth/auth_common.h>
 #include <auth/dynamic_privilege_table.h>
 #include <auth/sql_security_ctx.h>
+#include <ctype.h>
 #include <mysql/components/my_service.h>
+#include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_privilege.h>
-#include <stddef.h>
-#include "dynamic_privileges_impl.h"
 #include <mysql/service_plugin_registry.h>
-#include "current_thd.h"
+#include <stddef.h>
+#include <string>
+#include <unordered_map>
+#include <utility>
+
 #include "auth/sql_auth_cache.h"
+#include "current_thd.h"
+#include "dynamic_privileges_impl.h"
+#include "m_string.h"
+#include "mysql/components/service.h"
+#include "mysql/components/services/registry.h"
+#include "mysql/psi/psi_base.h"
 #include "sql_thd_internal_api.h"  // create_thd
+
+class THD;
 
 /**
   This helper class is used for either selecting a previous THD or

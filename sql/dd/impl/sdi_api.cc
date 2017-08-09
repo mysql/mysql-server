@@ -16,8 +16,11 @@
 #include "dd/sdi_api.h"
 
 #include <sys/types.h>
+#include <algorithm>
+#include <type_traits>
 
 #include "auth/auth_common.h"      // CREATE_ACL
+#include "auth_acls.h"
 #include "dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "dd/dd.h"
 #include "dd/impl/sdi.h"           // dd::deserialize
@@ -28,12 +31,19 @@
 #include "dd/types/table.h"        // dd::Table
 #include "dd_sql_view.h"           // update_referencing_views_metadata()
 #include "mdl.h"                   // MDL_request
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/psi/mysql_file.h"  // mysql_file_x
 #include "mysqld.h"                // lower_case_table_names
+#include "mysqld_error.h"
 #include "sql_base.h"              // open_tables()
 #include "sql_class.h"             // THD
+#include "sql_error.h"
+#include "sql_servers.h"
 #include "strfunc.h"               // casedn
 #include "table.h"                 // TABLE_LIST
+#include "thr_lock.h"
 
 
 namespace dd {

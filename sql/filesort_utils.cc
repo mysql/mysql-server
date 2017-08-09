@@ -18,16 +18,14 @@
 #include <string.h>
 #include <algorithm>
 #include <cmath>
-#include <functional>
-#include <memory>
-#include <new>
 
 #include "cmp_varlen_keys.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_pointer_arithmetic.h"
-#include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "opt_costmodel.h"
+#include "sort_param.h"
 #include "sql_sort.h"
 #include "thr_malloc.h"
 

@@ -14,20 +14,53 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/dd/upgrade/event.h"
-#include "sql/dd/upgrade/global.h"
+
+#include <string.h>
+#include <sys/types.h>
+
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/dd_event.h"                      // create_event
+#include "dd/types/event.h"
 #include "event_db_repository.h"              // Events
 #include "event_parse_data.h"                 // Event_parse_data
+#include "field.h"
+#include "handler.h"
+#include "key.h"
+#include "lex_string.h"
 #include "log.h"                              // LogErr()
-#include "mysqld.h"                           // default_tz_name
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_base.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
+#include "my_time.h"
 #include "my_user.h"                          // parse_user
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysqld.h"                           // default_tz_name
+#include "mysqld_error.h"
 #include "sp.h"                               // load_charset
+#include "sql/dd/upgrade/global.h"
 #include "sql_base.h"                         // open_tables
+#include "sql_class.h"
+#include "sql_const.h"
+#include "sql_servers.h"
+#include "sql_string.h"
 #include "sql_time.h"                         // interval_type_to_name
+#include "system_variables.h"
 #include "table.h"                            // Table_check_intact
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "transaction.h"                      // trans_commit
 #include "tztime.h"                           // my_tz_find
+#include "value_map.h"
+
+namespace dd {
+class Schema;
+}  // namespace dd
 
 namespace dd {
 namespace upgrade {

@@ -34,12 +34,14 @@
 
 #include <string.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <new>
 #include <vector>
 
 #include "malloc_allocator.h"
 #include "merge_many_buff.h"
+#include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
@@ -55,6 +57,7 @@
 #include "sql_class.h"
 #include "sql_const.h"
 #include "sql_sort.h"
+#include "sql_string.h"
 #include "table.h"
 
 namespace 

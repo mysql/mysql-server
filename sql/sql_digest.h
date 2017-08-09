@@ -19,7 +19,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"       // IWYU pragma: keep
 #include "my_md5_size.h"       // MD5_HASH_SIZE
 
 class String;

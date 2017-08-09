@@ -101,8 +101,8 @@ Source7:        %{compatsrc}
 Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-%{?el6:BuildRequires:  devtoolset-3-gcc}
-%{?el6:BuildRequires:  devtoolset-3-gcc-c++}
+BuildRequires:  devtoolset-6-gcc
+BuildRequires:  devtoolset-6-gcc-c++
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -591,9 +591,6 @@ fi
 )
 %endif # 0%{?rhel} < 7
 %endif # 0%{?compatlib}
-
-%{?el6:export CC=/opt/rh/devtoolset-3/root/usr/bin/gcc}
-%{?el6:export CXX=/opt/rh/devtoolset-3/root/usr/bin/g++}
 
 # Build debug versions of mysqld
 mkdir debug

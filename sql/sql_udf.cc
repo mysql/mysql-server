@@ -29,10 +29,16 @@
 
 #include "sql_udf.h"
 
-#include <string.h>
-#include <new>
+#include "my_config.h"
 
-#include "derror.h"             // ER_DEFAULT
+#include <stdio.h>
+#include <string.h>
+#include <iterator>
+#include <new>
+#include <string>
+#include <unordered_map>
+#include <utility>
+
 #include "field.h"
 #include "handler.h"
 #include "item_create.h"
@@ -42,20 +48,28 @@
 #include "map_helpers.h"
 #include "mdl.h"
 #include "my_base.h"
-#include "my_config.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/service.h"
+#include "mysql/components/service_implementation.h"
+#include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_rwlock_bits.h"
+#include "mysql/components/services/psi_memory_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_memory.h"
-#include "mysql/psi/psi_rwlock.h"
+#include "mysql_com.h"
 #include "mysqld.h"             // opt_allow_suspicious_udfs
 #include "mysqld_error.h"       // ER_*
+#include "psi_memory_key.h"
 #include "records.h"            // READ_RECORD
 #include "sql_base.h"           // close_mysql_tables
 #include "sql_class.h"          // THD

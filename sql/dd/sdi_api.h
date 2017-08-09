@@ -20,14 +20,14 @@
 #include <memory>
 
 #include "dd/string_type.h"
+#include "dd/types/table.h"
 #include "mem_root_fwd.h"
 
-class THD;
 class MDL_request;
+class THD;
 struct TABLE_LIST;
 
 namespace dd {
-class Table;
 namespace sdi {
 
 /**

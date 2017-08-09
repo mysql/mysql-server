@@ -27,6 +27,8 @@
 #include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_macros.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "mysqld.h"                    // table_alias_charset
@@ -36,7 +38,6 @@
 #include "prealloced_array.h"          // Prealloced_array
 #include "protocol.h"
 #include "select_lex_visitor.h"
-#include "session_tracker.h"
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_error.h"
@@ -50,9 +51,11 @@
 #include "sql_security_ctx.h"
 #include "sql_show.h"                  // append_identifier
 #include "sql_table.h"                 // primary_key_name
+#include "sql_tmp_table.h"
 #include "sql_yacc.h"
 #include "system_variables.h"
 #include "template_utils.h"
+#include "window.h"
 
 extern int HINT_PARSER_parse(THD *thd,
                              Hint_scanner *scanner,

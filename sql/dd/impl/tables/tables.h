@@ -21,13 +21,14 @@
 #include "dd/impl/raw/raw_record.h"
 #include "dd/impl/types/entity_object_table_impl.h"
 #include "dd/object_id.h"                               // dd::Object_id
-#include "my_inttypes.h"
+#include "dd/string_type.h"
 #include "dd/types/abstract_table.h"
+#include "my_inttypes.h"
 
 namespace dd {
 
-class Object_key;
 class Item_name_key;
+class Object_key;
 class Open_dictionary_tables_ctx;
 class Se_private_id_key;
 

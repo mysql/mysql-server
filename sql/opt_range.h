@@ -25,9 +25,11 @@
 #include <memory>
 #include <vector>
 
+#include "dd/properties.h"
 #include "field.h"            // Field
 #include "handler.h"
 #include "key.h"
+#include "key_spec.h"
 #include "m_string.h"
 #include "malloc_allocator.h"  // IWYU pragma: keep
 #include "my_base.h"
@@ -37,6 +39,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h" // Prealloced_array
 #include "priority_queue.h"   // Priority_queue
 #include "records.h"          // READ_RECORD
@@ -46,7 +49,7 @@
 #include "sql_list.h"
 #include "sql_string.h"
 #include "table.h"
-#include "typelib.h"
+#include "thr_malloc.h"
 
 class Item;
 class Item_sum;

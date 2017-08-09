@@ -15,11 +15,15 @@
 
 #include "sys_vars_resource_mgr.h"
 
+#include <unordered_map>
+#include <utility>
+
+#include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "psi_memory_key.h"
-#include "thr_malloc.h"
+#include "template_utils.h"
 
 /**
   Allocates memory for Sys_var_charptr session variable during session

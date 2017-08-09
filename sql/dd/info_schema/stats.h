@@ -24,6 +24,7 @@
 #include "handler.h"                        // ha_statistics
 #include "my_inttypes.h"
 #include "sql_string.h"                     // String
+#include "stateless_allocator.h"
 
 class THD;
 struct TABLE_LIST;

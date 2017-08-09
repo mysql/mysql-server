@@ -15,50 +15,82 @@
 
 #include "dd/upgrade/table.h"
 
-#include "dd/upgrade/global.h"
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <string>
+
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_schema.h"                     // Schema_MDL_locker
 #include "dd/dd_table.h"                      // create_dd_user_table
 #include "dd/dd_trigger.h"                    // dd::create_trigger
 #include "dd/dd_view.h"                       // create_view
+#include "dd/dictionary.h"
 #include "dd/impl/bootstrapper.h"             // execute_query
-#include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "derror.h"                           // ER_DEFAULT
+#include "dd/properties.h"
+#include "dd/string_type.h"
+#include "dd/upgrade/global.h"
+#include "field.h"
 #include "handler.h"                          // legacy_db_type
+#include "key.h"
 #include "lex_string.h"
 #include "lock.h"                             // Tablespace_hash_set
 #include "log.h"
+#include "m_string.h"
+#include "mdl.h"
+#include "my_alloc.h"
+#include "my_base.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_loglevel.h"
+#include "my_sys.h"
 #include "my_user.h"                          // parse_user
-#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysql/psi/psi_base.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "mysqld.h"                           // mysql_real_data_home
 #include "mysqld_error.h"                     // ER_*
 #include "parse_file.h"                       // File_option
+#include "partition_element.h"
 #include "partition_info.h"                   // partition_info
 #include "psi_memory_key.h"                   // key_memory_TABLE
-#include "sp.h"                               // db_load_routine
 #include "sp_head.h"                          // sp_head
+#include "sql_alter.h"
 #include "sql_base.h"                         // open_tables
-#include "sql_lex.h"                          // new_empty_query_block
-#include "sql_parse.h"                        // check_string_char_length
-#include "sql_partition.h"                    // mysql_unpack_partition
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_prepare.h"                      // Ed_connection
-#include "sql_show.h"                         // view_store_options
-#include "mysqld.h"                           // key_file_sdi
 #include "sql_class.h"                        // THD
+#include "sql_const.h"
+#include "sql_lex.h"                          // new_empty_query_block
+#include "sql_list.h"
+#include "sql_parse.h"                        // check_string_char_length
+#include "sql_show.h"                         // view_store_options
+#include "sql_string.h"
 #include "sql_table.h"                        // build_tablename
 #include "sql_view.h"                         // mysql_create_view
+#include "system_variables.h"
 #include "table.h"                            // Table_check_intact
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
+#include "thr_lock.h"
+#include "thr_malloc.h"
 #include "transaction.h"                      // trans_commit
 #include "trigger.h"                          // Trigger
+#include "trigger_def.h"
+
+class Sroutine_hash_entry;
+namespace dd {
+class Schema;
+class Table;
+}  // namespace dd
 
 namespace dd {
 namespace upgrade {

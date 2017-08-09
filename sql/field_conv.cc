@@ -26,8 +26,10 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "binary_log_types.h"
+#include "current_thd.h"
 #include "field.h"
 #include "item_timefunc.h"               // Item_func_now_local
 #include "m_ctype.h"
@@ -37,12 +39,12 @@
 #include "my_dbug.h"
 #include "my_decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sql_class.h"                          // THD
 #include "sql_const.h"
 #include "sql_error.h"
@@ -51,6 +53,7 @@
 #include "system_variables.h"
 #include "table.h"
 #include "template_utils.h"              // down_cast
+#include "value_map.h"
 
 
 /**

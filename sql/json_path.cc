@@ -30,6 +30,7 @@
 
 #include "json_dom.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "psi_memory_key.h"           // key_memory_JSON
@@ -160,33 +161,6 @@ Json_seekable_path::Json_seekable_path()
 {}
 
 
-// Json_path_clone
-
-bool Json_path_clone::set(const Json_seekable_path *source)
-{
-  clear();
-
-  for (const Json_path_leg *path_leg : *source)
-  {
-    if (append(path_leg))
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-const Json_path_leg *Json_path_clone::pop()
-{
-  DBUG_ASSERT(m_path_legs.size() > 0);
-  const Json_path_leg *p= m_path_legs.back();
-  m_path_legs.pop_back();
-  return p;
-}
-
-
 // Json_path
 
 Json_path::Json_path()
@@ -194,13 +168,11 @@ Json_path::Json_path()
 {}
 
 
-Json_path_leg Json_path::pop()
+void Json_path::pop()
 {
   DBUG_ASSERT(m_path_legs.size() > 0);
-  Json_path_leg p= *m_path_legs.back();
   m_path_legs.back()->~Json_path_leg();
   m_path_legs.pop_back();
-  return p;
 }
 
 bool Json_path::to_string(String *buf) const
@@ -229,24 +201,20 @@ bool Json_path::to_string(String *buf) const
 }
 
 
-static inline bool is_wildcard_or_ellipsis_or_range(const Json_path_leg *leg)
-{
-  switch (leg->get_type())
-  {
-  case jpl_member_wildcard:
-  case jpl_array_cell_wildcard:
-  case jpl_ellipsis:
-  case jpl_array_range:
-    return true;
-  default:
-    return false;
-  }
-}
-
-
 bool Json_path::can_match_many() const
 {
-  return std::any_of(begin(), end(), is_wildcard_or_ellipsis_or_range);
+  return std::any_of(begin(), end(), [](const Json_path_leg *leg) -> bool {
+      switch (leg->get_type())
+      {
+      case jpl_member_wildcard:
+      case jpl_array_cell_wildcard:
+      case jpl_ellipsis:
+      case jpl_array_range:
+        return true;
+      default:
+        return false;
+      }
+    });
 }
 
 
@@ -288,7 +256,7 @@ static inline bool is_whitespace(char ch)
 */
 static inline const char *purge_whitespace(const char *str, const char *end)
 {
-  return std::find_if_not(str, end, is_whitespace);
+  return std::find_if_not(str, end, [](char c) { return is_whitespace(c); });
 }
 
 

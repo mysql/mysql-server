@@ -25,9 +25,9 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
+#include "mysql/udf_registration_types.h"
 #include "partition_element.h"       // partition_state
-#include "typelib.h"
+#include "thr_malloc.h"
 
 class Alter_info;
 class Alter_table_ctx;

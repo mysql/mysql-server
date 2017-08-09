@@ -23,12 +23,14 @@
 #include "connection_handler_impl.h"   // Per_thread_connection_handler
 #include "current_thd.h"
 #include "my_dbug.h"
+#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_cond.h"
-#include "mysql/psi/psi_mutex.h"
 #include "mysql/service_thd_wait.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld.h"                    // max_connections
 #include "mysqld_error.h"              // ER_*
 #include "plugin_connection_handler.h" // Plugin_connection_handler

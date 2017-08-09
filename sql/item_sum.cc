@@ -39,18 +39,22 @@
 #include "item_json_func.h"
 #include "item_subselect.h"
 #include "json_dom.h"
+#include "key_spec.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_statement.h"
+#include "mysql_com.h"
 #include "mysqld.h"
 #include "mysqld_error.h"
+#include "opt_trace.h"
 #include "parse_tree_helpers.h"            // PT_item_list
 #include "parse_tree_nodes.h"              // PT_order_list
 #include "sql_array.h"
 #include "sql_class.h"                     // THD
+#include "sql_const.h"
 #include "sql_error.h"
 #include "sql_exception_handler.h"         // handle_std_exception
 #include "sql_executor.h"                  // copy_fields
@@ -58,7 +62,10 @@
 #include "sql_list.h"
 #include "sql_resolver.h"                  // setup_order
 #include "sql_security_ctx.h"
+#include "sql_select.h"
 #include "sql_tmp_table.h"                 // create_tmp_table
+#include "system_variables.h"
+#include "table.h"
 #include "temp_table_param.h"              // Temp_table_param
 #include "thr_malloc.h"
 #include "uniques.h"                       // Unique

@@ -56,6 +56,9 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
 #include "auth_acls.h"
 #include "auth_common.h"                        // check_table_access
@@ -69,14 +72,17 @@
 #include "lock.h"                               // mysql_unlock_tables
 #include "log.h"
 #include "m_ctype.h"
+#include "m_string.h"
+#include "map_helpers.h"
 #include "mdl.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_loglevel.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "protocol.h"
 #include "psi_memory_key.h"
@@ -84,14 +90,12 @@
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_class.h"
 #include "sql_const.h"
-#include "sql_error.h"
 #include "sql_lex.h"
 #include "sql_list.h"
 #include "sql_security_ctx.h"
 #include "sql_string.h"
 #include "system_variables.h"
 #include "table.h"
-#include "template_utils.h"
 #include "transaction.h"
 #include "transaction_info.h"
 #include "typelib.h"

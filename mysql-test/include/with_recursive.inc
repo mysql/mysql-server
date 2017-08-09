@@ -78,6 +78,17 @@ with recursive qn as
    select max(a) from qn)
 select * from qn;
 
+--echo # No GROUP BY
+with recursive qn as
+  (select 1 as a from dual group by a union all
+   select a+1 from qn where a<3)
+select * from qn;
+--error ER_CTE_RECURSIVE_FORBIDS_AGGREGATION
+with recursive qn as
+  (select 1 as a from dual union all
+   select a from qn group by a)
+select * from qn;
+
 --echo # No subquery referencing a QN
 --error ER_CTE_RECURSIVE_REQUIRES_SINGLE_REFERENCE
 with recursive qn as (
@@ -106,12 +117,16 @@ select 1 as a from dual union all
 select 1 from qn
 order by a)
 select * from qn;
-
 --echo # No matter if global, or attached to one recursive member.
 --error ER_NOT_SUPPORTED_YET
 with recursive qn as (
 select 1 as a from dual union all
 (select 1 from qn order by a))
+select * from qn;
+--echo # Allowed on non-recursive query block (though pointless)
+with recursive qn as (
+(select 1 as a from dual order by a) union all
+select a+1 from qn where a<3)
 select * from qn;
 
 --echo # no LIMIT as it's not pushed down to UNION members

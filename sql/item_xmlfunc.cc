@@ -31,10 +31,10 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_xml.h"             // my_xml_node_type
-#include "mysql/psi/mysql_statement.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "session_tracker.h"
 #include "sp_pcontext.h"        // sp_variable
 #include "sql_class.h"          // THD
 #include "sql_const.h"

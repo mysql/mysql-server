@@ -20,12 +20,11 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
 
 class Event_basic;
 class Event_parse_data;
 class THD;
-struct TABLE_LIST;
+
 typedef long my_time_t;
 
 namespace dd {

@@ -533,8 +533,7 @@ Group_member_info::comparator_group_member_weight(Group_member_info *m1,
 bool
 Group_member_info::has_greater_version(Group_member_info *other)
 {
-  if (this->member_version->get_major_version() >
-        other->member_version->get_major_version())
+  if (*member_version > *(other->member_version))
     return true;
 
   return false;

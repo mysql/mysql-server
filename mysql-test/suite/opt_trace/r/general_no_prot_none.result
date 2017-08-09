@@ -7526,15 +7526,15 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal('c', `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -7718,15 +7718,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -7877,15 +7877,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8036,15 +8036,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8195,15 +8195,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8354,15 +8354,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8561,15 +8561,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -8630,13 +8630,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t2`",
-                  "attached": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "attached": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -8745,15 +8745,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -8904,15 +8904,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9063,15 +9063,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9222,15 +9222,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9674,15 +9674,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -9837,15 +9837,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10000,15 +10000,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10163,15 +10163,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10634,15 +10634,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "resulting_condition": "((<cache>(`t6`.`d`) = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -10703,13 +10703,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t2`",
-                  "attached": "((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))"
+                  "attached": "((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10818,15 +10818,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -10977,15 +10977,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11136,15 +11136,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11295,15 +11295,15 @@ delete from t1 where id="z"	{
         "steps": [
           {
             "transformation": "equality_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "constant_propagation",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           },
           {
             "transformation": "trivial_condition_removal",
-            "resulting_condition": "(`t1`.`id` = 'z')"
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
           }
         ] /* steps */
       } /* condition_processing */
@@ -11490,15 +11490,15 @@ explain select * from v1 where id="b"	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`id` = 'b') and (`t1`.`id` < 'c'))"
+                  "resulting_condition": "(('b' < 'c') and multiple equal('b', `t1`.`id`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`id` = 'b') and ('b' < 'c'))"
+                  "resulting_condition": "(('b' < 'c') and multiple equal('b', `t1`.`id`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `t1`.`id`)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -11838,15 +11838,15 @@ explain select * from v1 where id="b"	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`v1`.`id` = 'b')"
+                  "resulting_condition": "multiple equal('b', `v1`.`id`)"
                 }
               ] /* steps */
             } /* condition_processing */

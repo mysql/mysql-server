@@ -20,11 +20,13 @@
 
 #include "dd/cache/dictionary_client.h"       // Dictionary_client
 #include "dd/impl/bootstrapper.h"             // bootstrap::stage
+#include "dd/impl/cache/cache_element.h"
 #include "dd/impl/raw/object_keys.h"          // Primary_id_key
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/raw/raw_table.h"            // Raw_table
 #include "dd/impl/sdi.h"                      // sdi::store() sdi::drop()
 #include "dd/impl/transaction_impl.h"         // Transaction_ro
+#include "dd/impl/types/entity_object_impl.h"
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation

@@ -1321,7 +1321,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(table))
+  if (table_list->process_index_hints(thd, table))
     DBUG_RETURN(HA_ADMIN_FAILED);
   map= ~(ulonglong) 0;
   if (!table->keys_in_use_for_query.is_clear_all())
@@ -1370,7 +1370,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT*)
 
   table->keys_in_use_for_query.clear_all();
 
-  if (table_list->process_index_hints(table))
+  if (table_list->process_index_hints(thd, table))
     DBUG_RETURN(HA_ADMIN_FAILED);
 
   map= ~(ulonglong) 0;

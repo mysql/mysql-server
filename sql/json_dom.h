@@ -33,6 +33,7 @@
 #include "my_dbug.h"
 #include "my_decimal.h"         // my_decimal
 #include "my_inttypes.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
@@ -323,13 +324,14 @@ public:
     ellipsis (**) token.
 
     @param[in]  path  the (possibly wildcarded) address of the sub-documents
+    @param[in]  legs  the number of legs to use from @a path
     @param[out] hits  one element per match
     @param[in]  auto_wrap
                       if true, match a tailing [0] to scalar at that position.
     @param[in]  only_need_one True if we can stop after finding one match
     @return false on success, true on error
   */
-  bool seek(const Json_seekable_path &path,
+  bool seek(const Json_seekable_path &path, size_t legs,
             Json_dom_vector *hits, bool auto_wrap,
             bool only_need_one);
 
@@ -1550,6 +1552,7 @@ public:
         $**[0]
 
     @param[in] path   the (possibly wildcarded) address of the sub-documents
+    @param[in] legs   the number of legs to use from @a path
     @param[out] hits  the result of the search
     @param[in] auto_wrap true of we match a final scalar with search for [0]
     @param[in]  only_need_one True if we can stop after finding one match
@@ -1557,7 +1560,7 @@ public:
     @retval false on success
     @retval true on error
   */
-  bool seek(const Json_seekable_path &path,
+  bool seek(const Json_seekable_path &path, size_t legs,
             Json_wrapper_vector *hits, bool auto_wrap,
             bool only_need_one);
 

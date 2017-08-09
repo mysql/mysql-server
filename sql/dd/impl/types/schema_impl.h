@@ -24,6 +24,7 @@
 #include "dd/impl/types/weak_object_impl.h"
 #include "dd/object_id.h"
 #include "dd/sdi_fwd.h"
+#include "dd/string_type.h"
 #include "dd/types/entity_object_table.h"     // dd::Entity_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd:Schema
@@ -45,6 +46,7 @@ class Sdi_wcontext;
 class Table;
 class View;
 class Weak_object;
+class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 

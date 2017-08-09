@@ -19,6 +19,8 @@
 #include "my_config.h"
 
 #include <stddef.h>
+
+#include "mysql/udf_registration_types.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
