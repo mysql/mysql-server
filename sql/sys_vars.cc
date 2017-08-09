@@ -2236,28 +2236,8 @@ static Sys_var_ulong Sys_log_throttle_queries_not_using_indexes(
        ON_CHECK(0),
        ON_UPDATE(update_log_throttle_queries_not_using_indexes));
 
-static bool update_log_warnings(sys_var*, THD*, enum_var_type)
-{
-  // log_warnings is deprecated, but for now, we'll set the
-  // new log_error_verbosity from it for backward compatibility.
-  log_error_verbosity= std::min(3UL, 1UL + log_warnings);
-  return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
-}
-
-static Sys_var_ulong Sys_log_warnings(
-       "log_warnings",
-       "Log some not critical warnings to the log file",
-       GLOBAL_VAR(log_warnings),
-       CMD_LINE(OPT_ARG, 'W'),
-       VALID_RANGE(0, 2), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_warnings),
-       DEPRECATED("log_error_verbosity"));
-
 static bool update_log_error_verbosity(sys_var*, THD*, enum_var_type)
 {
-  // log_warnings is deprecated, but for now, we'll set it from
-  // the new log_error_verbosity for backward compatibility.
-  log_warnings= log_error_verbosity - 1;
   return (log_builtins_filter_update_verbosity(log_error_verbosity) < 0);
 }
 

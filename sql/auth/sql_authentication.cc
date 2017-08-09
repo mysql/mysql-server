@@ -520,7 +520,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.user_name,
                                    mpvio->auth_info.host_or_ip);
     /*
-      Log access denied messages to the error log when log-warnings = 2
+      Log access denied messages to the error log when log_error_verbosity = 3
       so that the overhead of the general query log is not required to track
       failed connections.
     */
@@ -540,7 +540,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
                                    mpvio->auth_info.host_or_ip,
                                    passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
     /*
-      Log access denied messages to the error log when log-warnings = 2
+      Log access denied messages to the error log when log_error_verbosity = 3
       so that the overhead of the general query log is not required to track
       failed connections.
     */

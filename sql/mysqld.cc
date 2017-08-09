@@ -794,7 +794,6 @@ bool opt_using_transactions;
 ulong opt_tc_log_size;
 std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
-ulong log_warnings;
 char *opt_log_error_filter_rules;
 char *opt_log_error_services;
 bool  opt_log_syslog_enable;
@@ -3437,8 +3436,6 @@ int init_common_variables()
     return 1;
   }
   set_server_version();
-
-  log_warnings= log_error_verbosity - 1; // backward compatibility
 
   LogErr(INFORMATION_LEVEL, ER_STARTING_AS,
          my_progname, server_version, (ulong) getpid());
@@ -8145,16 +8142,6 @@ mysqld_get_one_option(int optid,
   case 'V':
     print_server_version();
     exit(MYSQLD_SUCCESS_EXIT);
-  case 'W':
-    push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
-    if (!argument)
-      log_error_verbosity++;
-    else if (argument == disabled_my_option)
-     log_error_verbosity= 1L;
-    else
-      log_error_verbosity= 1 + atoi(argument);
-    log_error_verbosity= min(3UL, log_error_verbosity);
-    break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;

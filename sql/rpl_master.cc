@@ -540,7 +540,7 @@ void kill_zombie_dump_threads(THD *thd)
       it will be slow because it will iterate through the list
       again. We just to do kill the thread ourselves.
     */
-    if (log_warnings > 1)
+    if (log_error_verbosity > 2)
     {
       if (slave_uuid.length())
       {
