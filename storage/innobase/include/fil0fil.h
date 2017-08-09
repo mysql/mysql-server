@@ -537,6 +537,25 @@ public:
 		return(std::equal(lhs.begin(), lhs.end(), rhs.begin()));
 	}
 
+	/** Check if the name is an undo tablespace name.
+	@param[in]	name	Tablespace name
+	@param[in]	len	Tablespace name length in bytes
+	@return true if it is an undo tablespace name */
+	static bool is_undo_tablespace_name(const char* name, size_t len)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if the file has the .ibd suffix
+	@param[in]	path		Filename to check
+	@return true if it has the the ".ibd" suffix. */
+	static bool has_ibd_suffix(const std::string& path)
+	{
+		static const char	suffix[] = ".ibd";
+		static constexpr auto	len = sizeof(suffix) - 1;
+
+		return(path.size() >= len
+		       && path.compare(path.size() - len, len, suffix) == 0);
+	}
+
 	/** @return the null path */
 	static const Fil_path& null()
 		MY_ATTRIBUTE((warn_unused_result))
@@ -1124,7 +1143,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	table_id	table id
 @return true if a matching tablespace exists in the memory cache */
 bool
-fil_space_for_table_exists_in_mem(
+fil_space_exists_in_mem(
 	space_id_t	space_id,
 	const char*	name,
 	bool		print_err,
@@ -1702,20 +1721,6 @@ fil_mtr_rename_log(
 dberr_t
 fil_open_for_business(bool read_only_mode)
 	MY_ATTRIBUTE((warn_unused_result));
-
-/** Check if the file has the .ibd suffix
-@param[in]	path		Filename to check
-@return true if it has the the ".ibd" suffix. */
-inline
-bool
-fil_has_ibd_suffix(const std::string& path)
-{
-	static const char	suffix[] = ".ibd";
-	static constexpr auto	len = sizeof(suffix) - 1;
-
-	return(path.size() >= len
-	       && path.compare(path.size() - len, len, suffix) == 0);
-}
 
 /** Check if a path is known to InnoDB.
 @param[in]	path		Path to check

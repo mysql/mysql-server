@@ -4347,8 +4347,8 @@ row_drop_single_table_tablespace(
 	dberr_t	err = DB_SUCCESS;
 
 	/* If the tablespace is not in the cache, just delete the file. */
-	if (!fil_space_for_table_exists_in_mem(
-		    space_id, tablename, true, false, NULL, 0)) {
+	if (!fil_space_exists_in_mem(
+		space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
 		fil_delete_file(filepath);

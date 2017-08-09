@@ -3003,9 +3003,10 @@ dd_load_tablespace(
 	}
 
 	/* The tablespace may already be open. */
-	if (fil_space_for_table_exists_in_mem(
+	if (fil_space_exists_in_mem(
 		table->space, space_name, false,
 		true, heap, table->id)) {
+
 		ut_free(shared_space_name);
 		return;
 	}

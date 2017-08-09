@@ -82,7 +82,7 @@ dd_parse_tbl_name(
 {
 	std::string	path{filename};
 
-	ut_ad(!fil_has_ibd_suffix(path) != 0);
+	ut_ad(!Fil_path::has_ibd_suffix(path) != 0);
 
 	auto pos = path.rfind('/');
 

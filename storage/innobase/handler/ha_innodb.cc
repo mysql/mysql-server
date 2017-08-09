@@ -3629,7 +3629,7 @@ Validate_files::check(
 			}
 		}
 
-		if (fil_space_for_table_exists_in_mem(
+		if (fil_space_exists_in_mem(
 			space_id, space_name, false, true, heap, 0)) {
 
 			continue;
@@ -14396,7 +14396,7 @@ validate_create_tablespace_info(
 	const char*	basename = filepath + dirname_len;
 	auto		basename_len = strlen(basename);
 
-	if (basename_len <= 4 || !fil_has_ibd_suffix(basename)) {
+	if (basename_len <= 4 || !Fil_path::has_ibd_suffix(basename)) {
 
 		if (basename_len <= 4) {
 

@@ -1745,9 +1745,8 @@ Fil_shard::space_rename(fil_space_t* space, char* name)
 @param[in]	name	Tablespace name
 @param[in]	len	Tablespace name length in bytes
 @return true if it is an undo tablespace name */
-static
 bool
-fil_is_undo_tablespace_name(const char* name, size_t len)
+Fil_path::is_undo_tablespace_name(const char* name, size_t len)
 {
 	if (len >= 8) {
 
@@ -1777,7 +1776,7 @@ Tablespace_files::add(space_id_t space_id, const std::string& name)
 
 	Names*	names;
 
-	if (fil_is_undo_tablespace_name(name.c_str(), name.length())) {
+	if (Fil_path::is_undo_tablespace_name(name.c_str(), name.length())) {
 
 		if (!dict_sys_t::is_reserved(space_id)) {
 
@@ -1792,7 +1791,7 @@ Tablespace_files::add(space_id_t space_id, const std::string& name)
 
 	} else {
 
-		ut_ad(fil_has_ibd_suffix(name.c_str()));
+		ut_ad(Fil_path::has_ibd_suffix(name.c_str()));
 
 		names = &m_ibd_paths[space_id];
 	}
@@ -5316,7 +5315,7 @@ fil_path_to_space_name(const char* filename)
 
 	char*	name;
 
-	if (fil_has_ibd_suffix(space_name)) {
+	if (Fil_path::has_ibd_suffix(space_name)) {
 
 		/* fil_space_t::name uses '/', not OS_PATH_SEPARATOR. */
 
@@ -5768,7 +5767,7 @@ startup, there may be many tablespaces which are not yet in the memory cache.
 @param[in]	table_id	table ID
 @return true if a matching tablespace exists in the memory cache */
 bool
-fil_space_for_table_exists_in_mem(
+fil_space_exists_in_mem(
 	space_id_t	space_id,
 	const char*	name,
 	bool		print_err,
@@ -8205,18 +8204,16 @@ Fil_path::get_file_type(const std::string& path)
 	stat64() to fail on Windows unless the path is the root of some
 	drive; like "C:\".  _stat64() will fail if it is "C:". */
 
-	std::string	p;
+	std::string	p{path};
 
 	if (path.length() > 3
 	    && path.back() == OS_PATH_SEPARATOR
 	    && path.at(p.length() - 2) != ':') {
 
 		p.pop_back();
-
-		ptr = &p;
-	} else {
-		ptr = &path;
 	}
+
+	ptr = &p;
 #else
 	ptr = &path;
 #endif /* WIN32 */
@@ -8720,7 +8717,7 @@ fil_tablespace_redo_create(
 
 	ptr += len;
 
-	if (!fil_has_ibd_suffix(name)) {
+	if (!Fil_path::has_ibd_suffix(name)) {
 
 		recv_sys->found_corrupt_log = true;
 
@@ -8816,7 +8813,7 @@ fil_tablespace_redo_rename(
 
 	ptr += from_len;
 
-	if (!fil_has_ibd_suffix(abs_from_name)) {
+	if (!Fil_path::has_ibd_suffix(abs_from_name)) {
 
 		ib::error()
 			<< "MLOG_FILE_RENAME: From file name doesn't end in"
@@ -8872,7 +8869,7 @@ fil_tablespace_redo_rename(
 
 	ptr += to_len;
 
-	if (!fil_has_ibd_suffix(abs_to_name)) {
+	if (!Fil_path::has_ibd_suffix(abs_to_name)) {
 
 		ib::error()
 			<< "MLOG_FILE_RENAME: To file name doesn't end in"
@@ -9053,7 +9050,7 @@ fil_tablespace_redo_delete(
 
 	ptr += len;
 
-	if (!fil_has_ibd_suffix(name)) {
+	if (!Fil_path::has_ibd_suffix(name)) {
 
 		recv_sys->found_corrupt_log = true;
 
@@ -9511,11 +9508,11 @@ Tablespace_dirs::scan(const std::string& directories)
 
 			using value = Scanned_files::value_type;
 
-			if (fil_has_ibd_suffix(file.c_str())) {
+			if (Fil_path::has_ibd_suffix(file.c_str())) {
 
 				ibd_files.push_back(value{count, file});
 
-			} else if (fil_is_undo_tablespace_name(
+			} else if (Fil_path::is_undo_tablespace_name(
 				   file.c_str(), file.length())) {
 
 				undo_files.push_back(value{count, file});
