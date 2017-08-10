@@ -6212,7 +6212,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     if (!result && !thd->is_plugin_fake_ddl())
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
 
-    if (result)
+    if (result && !thd->is_plugin_fake_ddl())
     {
       trans_rollback_stmt(thd);
       /*
