@@ -4804,17 +4804,33 @@ public:
 
   bool fix_fields(THD *, Item **) override;
 
-  /*
+  /**
     Takes into account whether an Item in a derived table / view is part of an
     inner table of an outer join.
-  */
+
+    1) If the field is an outer reference, return OUTER_TABLE_REF_BIT.
+    2) Else
+       2a) If the field is const_for_execution and the field is used in the
+           inner part of an outer join, return the inner tables of the outer
+           join. (A 'const' field that depends on the inner table of an outer
+           join shouldn't be interpreted as const.)
+       2b) Else return the used_tables info of the underlying field.
+
+    @note The call to const_for_execution has been replaced by
+          "!(inner_map & ~INNER_TABLE_BIT)" to avoid multiple and recursive
+          calls to used_tables. This can create a problem when Views are
+          created using other views
+ */
   table_map used_tables() const override
   {
-    return depended_from ?
-      OUTER_REF_TABLE_BIT :
-      (*ref)->const_for_execution() && first_inner_table != NULL ?
+    if (depended_from != NULL)
+      return OUTER_REF_TABLE_BIT;
+
+    table_map inner_map= (*ref)->used_tables();
+    return
+      !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != NULL ?
         first_inner_table->map() :
-        (*ref)->used_tables();
+        inner_map;
   }
 
   bool eq(const Item *item, bool) const override;
