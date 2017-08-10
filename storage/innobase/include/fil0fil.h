@@ -471,8 +471,11 @@ public:
 		}
 
 #ifdef _WIN32
-		// FIXME: This doesn't look right. path can be "."
-		if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+		/* FIXME: What about \\Host\share paths? */
+		if (isalpha(path[0])
+		    && path[1] == ':'
+		    && path[2] == OS_PATH_SEPARATOR) {
+
 			return(true);
 		}
 #endif /* _WIN32 */
