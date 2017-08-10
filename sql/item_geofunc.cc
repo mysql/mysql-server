@@ -29,7 +29,6 @@
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/strategies/spherical/distance_haversine.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/geometry/geometry.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -56,6 +55,7 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"   // ER_THD
 #include "sql/gis/distance.h"
+#include "sql/gis/distance_sphere.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/is_simple.h"
 #include "sql/gis/length.h"
@@ -6580,238 +6580,110 @@ double Item_func_distance::val_real()
 }
 
 
-double Item_func_distance_sphere::val_real()
+double Item_func_st_distance_sphere::val_real()
 {
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-
-  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ENTER("Item_func_st_distance_sphere::val_real");
   DBUG_ASSERT(fixed);
 
-  String tmp_value1;
-  String tmp_value2;
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  // Earth radius in meters.
-  double earth_radius= 6370986.0;
+  String backing_arg_wkb1;
+  String *arg_wkb1= args[0]->val_str(&backing_arg_wkb1);
 
-  if ((null_value= (!res1 || args[0]->null_value ||
-                    !res2 || args[1]->null_value)))
-    DBUG_RETURN(0.0);
+  String backing_arg_wkb2;
+  String *arg_wkb2= args[1]->val_str(&backing_arg_wkb2);
 
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
-  {
-    // If construction fails, we assume invalid input data.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
 
-  // The two geometry operand must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid())
-  {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
-             g1->get_srid(), g2->get_srid());
-    DBUG_RETURN(error_real());
-  }
-
-  // Normally, we would have called normalize_ring_order() here, but
-  // it's not necessary since we only support points and multipoints.
-
-  Geometry::wkbType gt1= g1->get_geotype();
-  Geometry::wkbType gt2= g2->get_geotype();
-  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
-  {
-    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  if (g1->get_srid() != 0)
-  {
-    THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_real()); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
-      DBUG_RETURN(error_real());
-    }
-
-    if (!srs->is_cartesian())
-    {
-      DBUG_ASSERT(srs->is_geographic());
-      std::string parameters(g1->get_class_info()->m_name.str);
-      parameters.append(", ").append(g2->get_class_info()->m_name.str);
-      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
-               parameters.c_str());
-      DBUG_RETURN(error_real());
-    }
-  }
-
-  if (arg_count == 3)
-  {
-    earth_radius= args[2]->val_real();
-    if ((null_value= args[2]->null_value))
-      DBUG_RETURN(0.0);
-    if (earth_radius <= 0.0)
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
-    }
-  }
-
-  /*
-    Make sure all points' coordinates are valid:
-    x in (-180, 180], y in [-90, 90].
-  */
-  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
-  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
-  Point_coordinate_checker checker(x_range, y_range);
-
-  uint32 wkblen= res1->length() - SRID_SIZE;
-  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  wkblen= res2->length() - SRID_SIZE;
-  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  double distance= bg_distance_spherical(g1, g2, earth_radius);
-
-  if (null_value)
-    DBUG_RETURN(error_real());
-
-  if (!std::isfinite(distance) || distance < 0.0)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-  DBUG_RETURN(distance);
-}
-
-
-double Item_func_distance_sphere::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                  double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-double Item_func_distance_sphere::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                       double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
-                                                        const Geometry *g2,
-                                                        double earth_radius)
-{
-  double res= 0.0;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2, earth_radius);
-      break;
-    case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
+  if (args[0]->null_value || args[1]->null_value)
   {
     null_value= true;
-    handle_gis_exception("st_distance_sphere");
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
   }
 
-  return res;
+  if (!arg_wkb1 || !arg_wkb2)
+  {
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+    DBUG_RETURN(error_real());
+  }
+
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs1;
+  std::unique_ptr<gis::Geometry> g1;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb1, &srs1, &g1))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g1);
+
+  const dd::Spatial_reference_system *srs2;
+  std::unique_ptr<gis::Geometry> g2;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb2, &srs2, &g2))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g2);
+
+  gis::srid_t srid1= srs1 ? srs1->id() : 0;
+  gis::srid_t srid2= srs2 ? srs2->id() : 0;
+
+  if (srid1 != srid2)
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    DBUG_RETURN(error_real());
+  }
+
+  // Sphere raduis initialized to default radius for SRID 0. Approximates Earth
+  // radius.
+  double sphere_radius= 6370986.0;
+
+  // Non-zero SRS overrides default radius.
+  if (srs1)
+  {
+    double a = srs1->semi_major_axis();
+    double b = srs1->semi_minor_axis();
+    if (a == b)
+      // Avoid possible loss of precission.
+      sphere_radius= a;
+    else
+      // Mean radius, as defined by the IUGG
+      sphere_radius= ((2.0*a + b) / 3.0);
+  }
+
+  // Optional 3rd argument overrides both default and SRS-based choice.
+  if (arg_count >= 3)
+  {
+    sphere_radius= args[2]->val_real();
+
+    if (args[2]->null_value)
+    {
+      null_value= true;
+      DBUG_RETURN(0.0);
+    }
+
+    if (sphere_radius <= 0.0)
+    {
+      my_error(ER_NONPOSITIVE_RADIUS, MYF(0), func_name());
+      DBUG_RETURN(error_real());
+    }
+  }
+
+  double result;
+  if (gis::distance_sphere(srs1, g1.get(), g2.get(), func_name(),
+                           sphere_radius, &result, &null_value))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  // gis::gistance_sphere will always return a valid result or error.
+  DBUG_ASSERT(!null_value);
+
+  DBUG_RETURN(result);
 }

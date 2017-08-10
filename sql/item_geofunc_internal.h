@@ -87,26 +87,6 @@ public:
 };
 
 
-template<>
-class BG_models<
-      boost::geometry::cs::spherical_equatorial<boost::geometry::degree> >
-{
-public:
-  typedef Gis_point_spherical Point;
-  // An counter-clockwise, closed Polygon type. It can hold open Polygon data,
-  // but not clockwise ones, otherwise things can go wrong, e.g. intersection.
-  typedef Gis_polygon_spherical Polygon;
-  typedef Gis_line_string_spherical Linestring;
-  typedef Gis_multi_point_spherical Multipoint;
-  typedef Gis_multi_line_string_spherical Multilinestring;
-  typedef Gis_multi_polygon_spherical Multipolygon;
-
-  typedef double Coordinate_type;
-  typedef boost::geometry::cs::spherical_equatorial<boost::geometry::degree>
-    Coordinate_system;
-};
-
-
 namespace bg= boost::geometry;
 namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
