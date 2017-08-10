@@ -179,6 +179,41 @@ MACRO (MYSQL_CHECK_SSL)
        OPENSSL_MAJOR_VERSION STREQUAL "1"
       )
       SET(OPENSSL_FOUND TRUE)
+      FIND_PROGRAM(OPENSSL_EXECUTABLE openssl
+        DOC "path to the openssl executable")
+      IF(OPENSSL_EXECUTABLE)
+        SET(OPENSSL_EXECUTABLE_HAS_ZLIB 0)
+        EXECUTE_PROCESS(
+          COMMAND ${OPENSSL_EXECUTABLE} "list-cipher-commands"
+          OUTPUT_VARIABLE stdout
+          ERROR_VARIABLE  stderr
+          RESULT_VARIABLE result
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          )
+#       If previous command failed, try alternative command line (debian)
+        IF(NOT result EQUAL 0)
+          EXECUTE_PROCESS(
+            COMMAND ${OPENSSL_EXECUTABLE} "list" "-cipher-commands"
+            OUTPUT_VARIABLE stdout
+            ERROR_VARIABLE  stderr
+            RESULT_VARIABLE result
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+        ENDIF()
+        IF(result EQUAL 0)
+          STRING(REGEX REPLACE "[ \n]+" ";" CIPHER_COMMAND_LIST ${stdout})
+          FOREACH(cipher_command ${CIPHER_COMMAND_LIST})
+            IF(${cipher_command} STREQUAL "zlib")
+              SET(OPENSSL_EXECUTABLE_HAS_ZLIB 1)
+            ENDIF()
+          ENDFOREACH()
+          IF(OPENSSL_EXECUTABLE_HAS_ZLIB)
+            MESSAGE(STATUS "The openssl command does support zlib")
+          ELSE()
+            MESSAGE(STATUS "The openssl command does not support zlib")
+          ENDIF()
+        ENDIF()
+      ENDIF()
     ELSE()
       SET(OPENSSL_FOUND FALSE)
     ENDIF()
