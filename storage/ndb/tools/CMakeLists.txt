@@ -173,11 +173,23 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
                         COMPILE_FLAGS "-Wno-undef")
     ENDIF()
 
-
+    CHECK_LIBRARY_EXISTS("${NCURSESW_LIB}"
+      stdscr "" NCURSES_HAS_STDSCR)
+    IF(NOT NCURSES_HAS_STDSCR)
+      FIND_LIBRARY(NCURSES_TINFO_LIB
+                   NAMES tinfo)
+    ENDIF()
     MYSQL_ADD_EXECUTABLE(ndb_top
       ndb_top.cpp
       COMPONENT ClusterTools)
-    TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+    IF(NCURSES_HAS_STDSCR)
+      TARGET_LINK_LIBRARIES(ndb_top mysqlclient ${NCURSESW_LIB})
+    ELSE()
+      TARGET_LINK_LIBRARIES(ndb_top
+                            mysqlclient
+                            ${NCURSESW_LIB}
+                            ${NCURSES_TINFO_LIB})
+    ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "ndb_top executable could not be built, install ncursesw library")
   ENDIF()
