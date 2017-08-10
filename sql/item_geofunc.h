@@ -1892,41 +1892,13 @@ public:
 };
 
 
-class Item_func_distance_sphere: public Item_real_func
+class Item_func_st_distance_sphere: public Item_real_func
 {
-  double distance_point_geometry_spherical(const Geometry *g1,
-                                           const Geometry *g2,
-                                           double earth_radius);
-  double distance_multipoint_geometry_spherical(const Geometry *g1,
-                                                const Geometry *g2,
-                                                double earth_radius);
 public:
-  double bg_distance_spherical(const Geometry *g1, const Geometry *g2,
-                               double earth_radius);
-
-  Item_func_distance_sphere(const POS &pos, PT_item_list *ilist)
-    : Item_real_func(pos, ilist)
-  {
-    /*
-      Either operand can be an empty geometry collection, and it's meaningless
-      for a distance between them.
-    */
-    maybe_null= true;
-  }
-
-  bool resolve_type(THD *thd) override
-  {
-    if (Item_real_func::resolve_type(thd))
-      return true;
-    maybe_null= true;
-    return false;
-  }
-
+  Item_func_st_distance_sphere(const POS &pos, PT_item_list *ilist)
+    : Item_real_func(pos, ilist) {}
   double val_real() override;
-  const char *func_name() const override
-  {
-    return "st_distance_sphere";
-  }
+  const char *func_name() const override { return "st_distance_sphere"; }
 };
 
 #endif /*ITEM_GEOFUNC_INCLUDED*/

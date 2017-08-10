@@ -1634,7 +1634,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
   { "ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
-  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
+  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_st_distance_sphere, 2, 3) },
   { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
   { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
   { "ST_EQUALS", SQL_FN(Item_func_st_equals, 2) },
