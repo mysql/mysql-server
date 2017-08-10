@@ -1403,8 +1403,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    // maximum string length of all options is expected
-    // to be less than 256 characters.
+    /* maximum string length of all options is expected
+    to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
 
@@ -1425,8 +1425,8 @@ public:
 
   bool resolve_type(THD *) override
   {
-    // maximum string length of all options is expected
-    // to be less than 256 characters.
+    /* maximum string length of all options is expected
+    to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
 

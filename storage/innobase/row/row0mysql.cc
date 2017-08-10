@@ -3617,8 +3617,8 @@ row_add_table_to_background_drop_list(
 /*==================================*/
 	const char*	name)	/*!< in: table name */
 {
-	/* WL9535 report assertion when adding table to background list.
-	Since, it should not happend in WL9535 branch. */
+	/* WL6049 assertion when adding table to background list.
+	Since it should not happend in WL6049. */
 	ut_ad(0);
 
 	row_mysql_drop_t*	drop;

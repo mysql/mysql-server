@@ -1472,7 +1472,7 @@ struct dict_sys_t{
 	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
-	/** Handle to sys_* tables, they're only for upgrade */
+	/** Handler to sys_* tables, they're only for upgrade */
 	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
@@ -1536,6 +1536,9 @@ struct dict_sys_t{
 
 	/** Number of hard coded new dd tables */
 	static constexpr table_id_t	NUM_HARD_CODED_TABLES = 32;
+
+	/** Max table id for DD table */
+	static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
 
 	/** The first ID of the redo log pseudo-tablespace */
 	static constexpr space_id_t	log_space_first_id = 0xFFFFFFF0UL;

@@ -5108,10 +5108,10 @@ error_handling:
 		my_error(ER_TABLESPACE_EXISTS, MYF(0), "(unknown)");
 		break;
 	case DB_DUPLICATE_KEY:
-		my_error(ER_DUP_KEY, MYF(0), "SYS_INDEXES");
+		my_error(ER_DUP_KEY, MYF(0));
 		break;
 	case DB_UNSUPPORTED:
-		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0), "SYS_COLUMNS");
+		my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
 		break;
 	default:
 		my_error_innodb(error, table_name, user_table->flags);
@@ -7498,7 +7498,6 @@ commit_cache_norebuild(
 
 	DBUG_RETURN(found);
 }
-
 
 /** Adjust the persistent statistics after non-rebuilding ALTER TABLE.
 Remove statistics for dropped indexes, add statistics for created indexes

@@ -8,11 +8,11 @@
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big  --report-features --unit-tests-report --no-skip
 
 # Run all default suites with ps-protocol
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps --ps-protocol --no-skip --max-test-fail=30
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps --ps-protocol --no-skip
 
 
 # Run with innodb page size 4k
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb --mysqld=--innodb-page-size=4k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb --mysqld=--innodb-page-size=4k --no-skip
 
 
 # Run default suites with innodb_undo_tablespace set to > 0
