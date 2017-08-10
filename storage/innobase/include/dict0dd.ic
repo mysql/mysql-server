@@ -452,14 +452,15 @@ dd_mdl_acquire(
 @param[in]	dd_table	dd::Table
 @return table dynamic metadata version if exists, otherwise 0 */
 inline
-uint64
+uint64_t
 dd_get_version(
 	const dd::Table*	dd_table)
 {
-	uint64			version;
+	uint64_t		version = 0;
 	const dd::Properties&	p = dd_table->se_private_data();
 	if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION])
-	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION], &version)) {
+	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
+			    reinterpret_cast<uint64*>(&version))) {
 		return(0);
 	}
 

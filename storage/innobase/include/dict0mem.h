@@ -1702,7 +1702,7 @@ struct dict_table_t {
 	UT_LIST_NODE_T(dict_table_t)		table_LRU;
 
 	/** metadata version number of dd::Table::se_private_data() */
-	uint64					version;
+	uint64_t				version;
 
 	/** table dirty_status, which is protected by dict_persist->mutex */
 	table_dirty_status			dirty_status;

@@ -300,7 +300,7 @@ dd_set_autoinc(
 @param[in]	dd_table	dd::Table
 @return	table dynamic metadata version if exists, otherwise 0 */
 inline
-uint64
+uint64_t
 dd_get_version(
 	const dd::Table*	dd_table);
 
