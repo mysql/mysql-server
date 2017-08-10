@@ -21,7 +21,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 # The server restart aborts
 # [ERROR] unknown variable 'performance-schema-enabled=maybe'
 let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-enabled=maybe';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Server start with invalid startup option value 'performance-schema-enabled=maybe' : pass
 
 --remove_file $error_log
@@ -30,7 +30,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-enabled=maybe
 # The server restart aborts
 # [ERROR] unknown variable 'performance-schema-max_=12'
 let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-max_=12';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Server start with ambigous startup option 'performance-schema-max_=12' : pass
 # The important points is here:
 # 1. There is no option 'performance-schema-max_' or 'performance-schema-max-' at all.
@@ -45,7 +45,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown variable 'performance-schema-max_=12';
 --exec $MYSQLD_CMD --loose-console --performance-schema-unknown_99 > $error_log 2>&1
 # The server restart aborts
 let SEARCH_PATTERN= \[ERROR\] unknown option '--performance-schema-unknown_99';
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Server start with invalid startup option '--performance-schema-unknown_99' : pass
 
 --remove_file $error_log
@@ -54,7 +54,7 @@ let SEARCH_PATTERN= \[ERROR\] unknown option '--performance-schema-unknown_99';
 # The server restart aborts
 # [ERROR] failed to set datadir to /work/repo1/mysql-trunk2/bad_option_h_param/
 let SEARCH_PATTERN= \[ERROR\] failed to set datadir to .*bad_option_h_param;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Server start with invalid startup option value '--datadir=bad_option_h_param' : pass
 # The important point is here:
 # There is no directory "bad_option_h_param".

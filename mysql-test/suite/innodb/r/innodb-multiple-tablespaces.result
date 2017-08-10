@@ -365,6 +365,8 @@ ny.ibd
 wy.ibd
 yw.ibd
 yy.ibd
+Pattern "InnoDB: Could not find any file associated with the tablespace \d+" found
+Pattern "InnoDB: Tablespace file '.*.tmp.*alt_dir.test.yw.ibd' ID mismatch, expected \d+ but found \d+" found
 # restoring yn.ibd, yw.ibd
 # restart
 SELECT * FROM ny;

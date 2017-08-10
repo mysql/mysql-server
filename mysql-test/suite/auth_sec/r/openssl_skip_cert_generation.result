@@ -5,5 +5,6 @@ call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # Remove some of the auto generated files and restart server with --auto_generate_certs
 # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
+Pattern "Skipping generation of SSL certificates as certificate files are present in data directory" found
 # Remove auto generated files and restart
 # Clean-up

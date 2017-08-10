@@ -48,7 +48,7 @@ DELETE FROM t1;
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
 let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 # On Windows, DBUG_SUICIDE() does exit(3) instead of SIGKILL (128+9).
@@ -56,51 +56,51 @@ let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 --error 137,3
 --exec $MYSQLD_CMD $crash=1
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=3
 --error 137,3
 --exec $MYSQLD_CMD $crash=3
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
 let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-only-mode;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=4
 --error 137,3
 --exec $MYSQLD_CMD $crash=4
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=5
 --error 137,3
 --exec $MYSQLD_CMD $crash=5
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
 let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-only-mode;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=6
 --error 137,3
 --exec $MYSQLD_CMD $crash=6
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=7
 --error 137,3
@@ -111,20 +111,20 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
 let SEARCH_PATTERN= InnoDB: Cannot create log files in read-only mode;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=8
 --error 137,3
 --exec $MYSQLD_CMD $crash=8
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=9
 --error 137,3
 --exec $MYSQLD_CMD $crash=9
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 # We should have perfectly synced files here.
@@ -134,7 +134,7 @@ let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: Only one log file found;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
 
@@ -146,7 +146,7 @@ EOF
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile0
 --move_file $MYSQLD_DATADIR/ib_logfile101 $MYSQLD_DATADIR/ib_logfile0
@@ -160,7 +160,7 @@ EOF
 --error 1,42
 --exec $MYSQLD_CMD $args
 let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 bytes than other log files;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1
 --move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
@@ -170,9 +170,9 @@ let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 
 --error 137,3
 --exec $MYSQLD_CMD $crash=10
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= InnoDB: Renaming log file .*ib_logfile101 to .*ib_logfile0;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --source include/start_mysqld.inc

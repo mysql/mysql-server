@@ -277,5 +277,7 @@ c1	c2
 # Test[4] End
 # Test[5] for lock.
 # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+Pattern "Error: Unable to lock file:: MYSQLD_DATADIR/test/t1.ibd" found
+Pattern "fcntl: Resource temporarily unavailable" found
 # Test[5] end
 DROP TABLE t1;

@@ -125,6 +125,11 @@ FLUSH PRIVILEGES;
 Warnings:
 Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The table is probably corrupted
 # let's check for the presense of the warning
+Pattern "User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+Pattern "1. Stop" found
+Pattern "2. Run" found
+Pattern "3. Restart" found
+Pattern "For complete instructions on how to upgrade MySQL" found
 # end of check for the presense of the warning
 # repair the user's plugin
 mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
@@ -220,6 +225,8 @@ FLUSH PRIVILEGES;
 Warnings:
 Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The table is probably corrupted
 # check the presents of the warnings in the log file
+Pattern "User entry 'user_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
+Pattern "User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 # end of check for the presense of the warning
 #Connect using root account - should succeed
 #Connecting user with pre 4.1 hash and empty plugin- should fail
@@ -326,6 +333,8 @@ sys.sys_config                                     OK
 call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # check the presents of the warnings in the log file
+Pattern "User entry 'user_old_pass_pn'@'%' has an empty plugin value." found
+Pattern "User entry 'su_old_pass_pn'@'%' has an empty plugin value." found
 # end of check for the presense of the warning
 #Restart the server
 # restart:--log-error=MYSQL_TMP_DIR/mysql_upgrade_grant.err
@@ -391,6 +400,7 @@ FLUSH PRIVILEGES;
 Warnings:
 Warning	1805	Column count of mysql.user is wrong. Expected 47, found 43. The table is probably corrupted
 # check the presents of the warnings in the log file
+Pattern "User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 # end of check for the presense of the warning
 mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
@@ -433,6 +443,7 @@ mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # check the presents of the warnings in the log file
+Pattern "User entry 'B20614545'@'localhost' has an empty plugin value." found
 # end of check for the presense of the warning
 #Restart the server
 # restart

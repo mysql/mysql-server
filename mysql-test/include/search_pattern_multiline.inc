@@ -24,8 +24,8 @@
 #
 #    CURRENT_TEST: innodb.innodb_page_size
 #    # ERROR: The file '<name>' does not contain the expected pattern  <pattern>
-#    mysqltest: In included file "./include/search_pattern_in_file.inc":
-#    included from ./include/search_pattern_in_file.inc at line 36:
+#    mysqltest: In included file "./include/search_pattern_multiline.inc":
+#    included from ./include/search_pattern_multiline.inc at line 36:
 #    At line 25: command "perl" failed with error 255. my_errno=175
 #
 #    The result from queries just before the failure was:
@@ -48,27 +48,22 @@
 #    --exec $MYSQLD_CMD <whatever wrong setting> > $error_log 2>&1
 #    # The server restart aborts
 #    let SEARCH_PATTERN= \[ERROR\] Aborting;
-#    --source include/search_pattern_in_file.inc
+#    --source include/search_pattern_multiline.inc
 #
 # Created: 2011-11-11 mleich
 # Modified: 2014-04-26 hvadodar
+# Modified: 2017-07-03 sribr
 #
 
 perl;
     use strict;
     my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    my $file_content=          "";
-    my $found=                  0;
     open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-    while ( read(FILE, $file_content, 50000, 0) ) {
-          if ( $file_content =~ m{$search_pattern} ) {
-             $found= 1;
-             last;
-          }
+
+    my $scalar_content= join("", <FILE>);
+    if ( not $scalar_content =~ m{$search_pattern} ) {
+           die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$scalar_content<-\n");
     }
     close(FILE);
-    if ( ($found == 0) && (not $file_content =~ m{$search_pattern}) ) {
-       die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$file_content<-\n");
-    }
 EOF

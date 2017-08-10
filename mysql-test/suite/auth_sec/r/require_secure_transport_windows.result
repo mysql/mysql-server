@@ -33,6 +33,8 @@ ERROR HY000: Connections using insecure transport are prohibited while --require
 # Shutdown server
 # Ensure that server does not start and aborts when there is no
 # SHM support, --require-secure-transport=on and ssl is disabled
+Pattern "Server is started with --require-secure-transport=ON but no secure transports" found
+Pattern "Aborting" found
 # Now start server normally without ssl support, with MEM and require-secure-transport=on
 # Connection type testing for TCP/IP protocol, secure transport required, should fail
 ERROR HY000: Connections using insecure transport are prohibited while --require_secure_transport=ON.

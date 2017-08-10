@@ -184,8 +184,20 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 # both short and long options "allow-mismatches" and "end-page"
 [9]: check the both short and long options "page" and "start-page" when
 # seek value is larger than file size.
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
+Pattern "Error: Unable to seek to necessary offset: Invalid argument" found
 [34]: check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 # innochecksum will fail with error code: 1
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
+Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
 # Restart the server
 # restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB
 DROP TABLE tab1;

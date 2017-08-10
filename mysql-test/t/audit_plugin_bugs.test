@@ -33,7 +33,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo # Search for default abort message
 let SEARCH_FILE= $error_log;
 let SEARCH_PATTERN= \[ERROR\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 0,1
 --remove_file $error_log
@@ -45,7 +45,7 @@ let SEARCH_PATTERN= \[ERROR\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTU
 
 --echo # Search for custom abort message
 let SEARCH_PATTERN= \[ERROR\] Abort message custom;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --error 0,1
 --remove_file $error_log

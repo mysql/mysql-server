@@ -10,7 +10,7 @@ call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # We let our server restart attempts write to the file $server_log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
@@ -95,11 +95,11 @@ EOF
 
 --echo # Search for : Skipping generation of SSL certificates as --auto_generate_certs is set to OFF.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as --auto_generate_certs is set to OFF;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 --echo # Search for : Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF.
 let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Ensure that certificate files are not there after server is started
@@ -161,7 +161,7 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Search for SSL certificate and key files in Data directory.
@@ -212,7 +212,7 @@ EOF
 
 --echo # Search for : Auto generated RSA key files are placed in data directory.
 let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # Search for RSA key files in Data directory.
@@ -264,9 +264,9 @@ EOF
 
 --echo # Search for : Messages related to skipped generation of SSL certificates and RSA key pair files.
 let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files are present in data directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN= Skipping generation of RSA key pair as key files are present in data directory;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # 5.2 : System variables
@@ -333,11 +333,11 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 --echo # Search for : Auto generated RSA key files are placed in data directory.
 let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --echo # 6.2 : System variables
@@ -411,7 +411,7 @@ EOF
 
 --echo # Search for : Auto generated RSA key files are placed in data directory.
 let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 --error 1
@@ -493,7 +493,7 @@ EOF
 
 --echo # Search for : Auto generated SSL certificates are placed in data directory.
 let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # Search completed.
 
 # Using SSL Certificates

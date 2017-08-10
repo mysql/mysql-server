@@ -43,6 +43,7 @@ DROP TABLE mysql.role_edges;
 DROP TABLE mysql.default_roles;
 # restart:--log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
 # let's check for the presense of the warning
+Pattern "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed." found
 # ACL DDLs should not work
 CREATE USER u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist

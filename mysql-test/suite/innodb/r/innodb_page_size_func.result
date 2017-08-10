@@ -2,25 +2,40 @@
 # 1. Try to restart the server with some other legal innodb page size value.
 #    It must fail because we had a different value before.
 # 1.1 The value assigned is a number.
+Pattern "InnoDB: innodb-page-size has been changed from the default value DEFAULT_PAGE_SIZE to OTHER_PAGE_SIZE" found
+Pattern "Data file '.*ibdata1' uses page size START_PAGE_SIZE, but the innodb_page_size start-up parameter is OTHER_PAGE_SIZE" found
+Pattern "\[ERROR\] Aborting" found
 # 1.2 The value assigned is a number followed by 'k'.
+Pattern "InnoDB: innodb-page-size has been changed from the default value 16384 to 4096" found
+Pattern "Data file '.*ibdata1' uses page size 16384, but the innodb_page_size start-up parameter is 4096" found
+Pattern "\[ERROR\] Aborting" found
 # 2. Try to restart the server with some innodb page size.which is either
 #    bigger than the maximum or smaller than the minimum supported one.
 #    It must fail because we had a different value before.
+Pattern "\[Warning\] option 'innodb-page-size': unsigned value 2048 adjusted to 4096" found
+Pattern "InnoDB: innodb-page-size has been changed from the default value 16384 to 4096" found
 # 3. Try to restart the server with the plain wrong innodb page size value "garbage".
 #    The restart attempt has to
 #    - fail in case start of test page size <> the minimal legal page size.
 #    - to be successful in case start of test page size = minimal legal page size.
 #      In this case we omit the execution of the current sub test!
+Pattern "\[Warning\] option 'innodb-page-size': unsigned value 0 adjusted to 4096" found
+Pattern "InnoDB: innodb-page-size has been changed from the default value 16384 to 4096" found
 # 4. Try to restart the server with some illegal innodb page size value
 #    being between minimum and maximum legal page size value.
 #    The restart attempt has to fail.
+Pattern "\[ERROR\] InnoDB: Invalid page size=4097" found
 # 5. Try to restart the server with wrong innodb page size <number>karamel.
 #    <number>k is a legal page size.
+Pattern "InnoDB: innodb-page-size has been changed from the default value 16384 to 4096" found
 # 6. Try to restart the server with the plain wrong innodb page size <number>caramel
 #    <number>k is a legal page size.
 #    The restart attempt has to
 #    - fail in case start of test page size <> the minimal legal page size.
 #    - to be successful in case start of test page size = minimal legal page size.
 #      In this case we omit the execution of the current sub test!
+Pattern "Unknown suffix 'c' used for variable 'innodb-page-size' \(value '4caramel'\)" found
+Pattern "\[Warning\] option 'innodb-page-size': unsigned value 0 adjusted to 4096" found
+Pattern "mysqld.*: Error while setting value '4caramel' to 'innodb-page-size'" found
 # 7. Restart the server and cleanup
 # restart
