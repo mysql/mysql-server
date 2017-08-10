@@ -68,14 +68,14 @@ SET(PUBLIC_XPROTOCOL_FLAGS "")
 IF(HAVE_VISIBILITY_HIDDEN)
   SET(XPROTOCOL_FLAGS "${XPROTOCOL_FLAGS} -fvisibility=hidden")
 ENDIF(HAVE_VISIBILITY_HIDDEN)
- 
+
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(PUBLIC_XPROTOCOL_FLAGS
-    "${PUBLIC_XPROTOCOL_FLAGS} -Wno-unused-parameter"
+    "${PUBLIC_XPROTOCOL_FLAGS} -Wno-unused-parameter -Wno-undef"
   )
 
   SET(XPROTOCOL_FLAGS
-    "${XPROTOCOL_FLAGS} -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable"
+    "${XPROTOCOL_FLAGS} -Wno-ignored-qualifiers -Wno-sign-compare -Wno-unused-variable -Wno-undef"
   )
 
   MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)

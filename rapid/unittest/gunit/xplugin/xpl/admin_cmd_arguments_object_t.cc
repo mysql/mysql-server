@@ -33,7 +33,8 @@ class Admin_command_arguments_object_test : public ::testing::Test {
   };
 
   Admin_command_arguments_object_test()
-      : extractor(new Admin_command_arguments_object(args)) {}
+  : extractor(new Admin_command_arguments_object(args))
+  {}
 
   void set_arguments(const Any& value) {
     args.Add()->CopyFrom(value);
@@ -220,7 +221,6 @@ TEST_F(Admin_command_arguments_object_test, docpath_arg_root) {
   ASSERT_EQ("$", value);
   ASSERT_TRUE(extractor->is_end());
 }
-
 TEST_F(Admin_command_arguments_object_test, docpath_arg_no_dollar) {
   set_arguments(Any::Object{{"first", ".path.to.member"}});
   std::string value("none");

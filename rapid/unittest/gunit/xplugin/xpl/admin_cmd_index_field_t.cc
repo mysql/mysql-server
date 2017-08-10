@@ -318,7 +318,8 @@ class Index_field_is_column_exists_test : public Test {
   }
 
   using Sql = ngs::PFS_string;
-  Any::Object constraint{MEMBER, {"type", "int"}, REQUIRED};
+  using Fld = Any::Object::Fld;
+  Any::Object constraint{MEMBER, Fld{"type", "int"}, REQUIRED};
   Admin_command_arguments_object args{constraint};
   StrictMock<ngs::test::Mock_sql_data_context> data_context;
   std::unique_ptr<const Index_field> field;

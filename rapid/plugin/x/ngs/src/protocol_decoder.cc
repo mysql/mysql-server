@@ -131,9 +131,8 @@ Error_code Message_decoder::parse(Request &request)
     // incrementing the value & checking result for failure
     stream.SetRecursionLimit(max_recursion_limit);
 
-    message->ParseFromCodedStream(&stream);
-
-    if (!message->IsInitialized())
+    if (!message->ParseFromCodedStream(&stream) ||
+        !message->IsInitialized())
     {
       log_debug("Error parsing message of type %i: %s",
                 request.get_type(), message->InitializationErrorString().c_str());
