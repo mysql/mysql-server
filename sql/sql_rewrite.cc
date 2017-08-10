@@ -94,6 +94,7 @@
 #include "sql/table.h"
 #include "sql_string.h"     // String
 #include "violite.h"
+#include "auth_internal.h"
 
 #ifndef DBUG_OFF
 #define HASH_STRING_WITH_QUOTE \
@@ -172,6 +173,56 @@ static bool append_str(String *str, bool comma, const char *key,
     return true;
   }
   return comma;
+}
+
+/**
+  Used with List<>::sort for alphabetic sorting of LEX_USER records
+  using user,host as keys.
+
+  @param n1 A LEX_USER element
+  @param n2 A LEX_USER element
+  @param arg Not used
+
+  @return
+    @retval 1 if n1 &gt; n2
+    @retval 0 if n1 &lt;= n2
+*/
+static int lex_user_comp(void *n1, void *n2, void *arg MY_ATTRIBUTE((unused)))
+{
+  LEX_USER *l1= (LEX_USER *)n1;
+  LEX_USER *l2= (LEX_USER *)n2;
+  size_t length= std::min(l1->user.length,l2->user.length);
+  int key= memcmp(l1->user.str, l2->user.str, length);
+  if (key == 0 && l1->user.length == l2->user.length)
+  {
+    length= std::min(l1->host.length,l2->host.length);
+    key= memcmp(l1->host.str, l2->host.str, length);
+    if (key == 0 && l1->host.length == l2->host.length)
+      return 0;
+  }
+  if (key == 0)
+    return (l1->user.length > l2->user.length ? 1 : 0);
+  else
+    return (key > 0 ? 1 : 0);
+}
+
+static void rewrite_default_roles(LEX *lex, String *rlb)
+{
+  bool comma= false;
+  if (lex->default_roles && lex->default_roles->elements > 0)
+  {
+    rlb->append(" DEFAULT ROLE ");
+    lex->default_roles->sort(&lex_user_comp, 0);
+    List_iterator<LEX_USER> role_it(*(lex->default_roles));
+    LEX_USER *role;
+    while ((role= role_it++))
+    {
+      if (comma)
+        rlb->append(',');
+      rlb->append(create_authid_str_from(role).c_str());
+      comma= true;
+    }
+  }
 }
 
 static void rewrite_ssl_properties(LEX *lex, String *rlb)
@@ -546,6 +597,8 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
     }
   }
 
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rewrite_default_roles(lex, rlb);
   rewrite_ssl_properties(lex, rlb);
   rewrite_user_resources(lex, rlb);
 

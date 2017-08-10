@@ -6587,6 +6587,19 @@ bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user)
   return errors;
 }
 
+
+/**
+  Set the default roles for a particular user.
+
+  @param thd           Thread handle
+  @param table         Table handle to an open table
+  @param user          AST component for the user for which we set def roles
+  @param new_auth_ids  Default roles to set
+  @return
+   @retval true  Operation failed
+   @retval false Operation was successful.
+*/
+
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
                                   const List_of_auth_id_refs &new_auth_ids)
 {
