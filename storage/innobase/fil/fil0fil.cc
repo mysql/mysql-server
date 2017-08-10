@@ -708,10 +708,10 @@ public:
 	bool mutex_acquire_and_prepare_for_io(space_id_t space_id)
 		MY_ATTRIBUTE((warn_unused_result));
 
-	/** Remap the the tablespace to the new name. Set space->name to name.
-	@param[in,out]	space		Tablespace instance
-	@param[in]	name		New tablespace name */
-	void space_rename(fil_space_t* space, char* name);
+	/** Remap the the tablespace to the new name.
+	@param[in]	space		Tablespace instance with old name
+	@param[in]	new_name	New tablespace name */
+	void update_space_name_map(fil_space_t* space, const char* new_name);
 
 	/** Collect the tablespace IDs of unflushed tablespaces in space_ids.
 	@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG,
@@ -1723,20 +1723,17 @@ Fil_shard::close_file(space_id_t space_id)
 	return(true);
 }
 
-/** Remap the the tablespace to the new name. Set space->name to name.
-@param[in,out]	space		Tablespace instance
+/** Remap the the tablespace to the new name.
+@param[in]	space		Tablespace instance, with old name.
 @param[in]	name		New tablespace name */
 void
-Fil_shard::space_rename(fil_space_t* space, char* name)
+Fil_shard::update_space_name_map(fil_space_t* space, const char* new_name)
 {
 	ut_ad(mutex_owned());
 
 	m_names.erase(space->name);
 
-	space->name = name;
-
-	auto	it = m_names.insert(
-		Names::value_type(space->name, space));
+	auto	it = m_names.insert(Names::value_type(new_name, space));
 
 	ut_a(it.second);
 }
@@ -4690,8 +4687,9 @@ Fil_shard::space_rename(
 		    || file->n_pending_flushes > 0
 		    || file->in_use > 0) {
 
-			/* There are pending I/O's or flushes or the file is
-			currently being extended, sleep for a while and retry */
+			/* There are pending I/O's or flushes or the
+			file is currently being extended, sleep for
+			a while and retry */
 
 			retry = true;
 
@@ -4788,7 +4786,9 @@ Fil_shard::space_rename(
 
 	if (success) {
 
-		space_rename(space, new_space_name);
+		update_space_name_map(space, new_space_name);
+
+		space->name = new_space_name;
 
 	} else {
 		/* Because nothing was renamed, we must free the new
@@ -5614,7 +5614,9 @@ Fil_shard::space_check_exists(
 		char*	old_name = space->name;
 		char*	new_name = mem_strdup(name);
 
-		space_rename(space, new_name);
+		update_space_name_map(space, new_name);
+
+		space->name = new_name;
 
 		ut_free(old_name);
 
@@ -9729,7 +9731,7 @@ Fil_system::open_for_business(bool read_only_mode)
 		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
 			ib::info()
-				<< "Updated "
+				<< "Processed "
 				<< count << "/"  << m_moved.size()
 				<< " tablespace paths. Failures " << failed;
 
