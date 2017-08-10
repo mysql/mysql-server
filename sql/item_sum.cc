@@ -746,12 +746,15 @@ void Item_sum::update_used_tables()
       depends on all tables of this join. Otherwise, it depends on
       outer tables, even if its arguments args[] do not explicitly
       reference an outer table, like COUNT (*) or COUNT(123).
+
+      Window functions are always evaluated in the local scope
+      and depend on all tables involved in the join since they cannot
+      be evaluated until after the join is completed.
     */
-    if (!m_is_window_function)
-      used_tables_cache|=
-        aggr_select == base_select ?
-            base_select->all_tables_map() :
-          OUTER_REF_TABLE_BIT;
+    used_tables_cache|=
+      aggr_select == base_select || m_is_window_function ?
+          base_select->all_tables_map() :
+        OUTER_REF_TABLE_BIT;
   }
 }
 

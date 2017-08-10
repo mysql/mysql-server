@@ -3525,7 +3525,7 @@ FROM t  GROUP BY a);
 DROP TABLE twf,t;
 
 --echo #
---echo # That that user hasn't changed default internal temporary table storage
+--echo # Check that user hasn't changed default internal temporary table storage
 --echo # engine
 --echo #
 SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
@@ -3534,6 +3534,13 @@ SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
 SELECT ROW_NUMBER() OVER () FROM DUAL;
 SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
 
+--echo #
+--echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

@@ -8484,7 +8484,7 @@ FROM t  GROUP BY a);
 rnk
 DROP TABLE twf,t;
 #
-# That that user hasn't changed default internal temporary table storage
+# Check that user hasn't changed default internal temporary table storage
 # engine
 #
 SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
@@ -8492,3 +8492,15 @@ SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
 SELECT ROW_NUMBER() OVER () FROM DUAL;
 ERROR HY000: Windowing requires @@internal_tmp_mem_storage_engine=TempTable.
 SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
+#
+# Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+ISNULL(COS(RANK() OVER()))
+0
+0
+0
+0
+DROP TABLE t;
