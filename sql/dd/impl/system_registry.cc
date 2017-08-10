@@ -21,6 +21,11 @@
 #include "dd/impl/system_views/column_statistics.h"  // Column_statistics
 #include "dd/impl/system_views/columns.h"            // Columns
 #include "dd/impl/system_views/events.h"             // Events
+#include "dd/impl/system_views/innodb_datafiles.h"   // Innodb_datafiles
+#include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
+#include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
+#include "dd/impl/system_views/innodb_fields.h"      // Innodb_fields
+#include "dd/impl/system_views/innodb_tablespace_brief.h"   // Innodb_tablespace_brief
 #include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
 #include "dd/impl/system_views/parameters.h"         // Parameters
 #include "dd/impl/system_views/routines.h"           // Routines
@@ -32,11 +37,6 @@
 #include "dd/impl/system_views/tables.h"             // Tables
 #include "dd/impl/system_views/triggers.h"           // Triggers
 #include "dd/impl/system_views/views.h"              // Views
-#include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
-#include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
-#include "dd/impl/system_views/innodb_fields.h"      // Innodb_fields
-#include "dd/impl/system_views/innodb_datafiles.h"   // Innodb_datafiles
-#include "dd/impl/system_views/innodb_tablespace_brief.h"   // Innodb_tablespace_brief
 
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
@@ -169,6 +169,11 @@ void System_views::init()
   register_view<dd::system_views::Columns>(is);
   register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
+  register_view<dd::system_views::Innodb_datafiles>(is);
+  register_view<dd::system_views::Innodb_foreign>(is);
+  register_view<dd::system_views::Innodb_foreign_cols>(is);
+  register_view<dd::system_views::Innodb_fields>(is);
+  register_view<dd::system_views::Innodb_tablespace_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Routines>(is);
@@ -184,11 +189,6 @@ void System_views::init()
   register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
-  register_view<dd::system_views::Innodb_foreign>(is);
-  register_view<dd::system_views::Innodb_foreign_cols>(is);
-  register_view<dd::system_views::Innodb_fields>(is);
-  register_view<dd::system_views::Innodb_datafiles>(is);
-  register_view<dd::system_views::Innodb_tablespace_brief>(is);
 }
 
 } // namespace dd

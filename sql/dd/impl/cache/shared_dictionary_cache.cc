@@ -79,7 +79,7 @@ void Shared_dictionary_cache::reset(bool keep_dd_entities)
 }
 
 
-// Woraround to be used during recovery at server restart.
+// Workaround to be used during recovery at server restart.
 bool Shared_dictionary_cache::reset_tables_and_tablespaces(THD *thd)
 {
   return (instance()->m_map<Abstract_table>()->reset(thd) ||

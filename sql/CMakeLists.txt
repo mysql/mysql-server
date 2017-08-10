@@ -104,6 +104,11 @@ SET(DD_SOURCES
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
+  dd/impl/system_views/innodb_datafiles.cc
+  dd/impl/system_views/innodb_foreign.cc
+  dd/impl/system_views/innodb_foreign_cols.cc
+  dd/impl/system_views/innodb_fields.cc
+  dd/impl/system_views/innodb_tablespace_brief.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/routines.cc
@@ -115,11 +120,6 @@ SET(DD_SOURCES
   dd/impl/system_views/table_constraints.cc
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/views.cc
-  dd/impl/system_views/innodb_foreign.cc
-  dd/impl/system_views/innodb_foreign_cols.cc
-  dd/impl/system_views/innodb_fields.cc
-  dd/impl/system_views/innodb_datafiles.cc
-  dd/impl/system_views/innodb_tablespace_brief.cc
 
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc

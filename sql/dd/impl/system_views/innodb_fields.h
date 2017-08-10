@@ -23,10 +23,11 @@ namespace dd {
 namespace system_views {
 
 /*
-  The class representing INFORMATION_SCHEMA.INNODB_FIELDS system view definition
-
+  The class representing INFORMATION_SCHEMA.INNODB_FIELDS system view
+  definition
 */
-class Innodb_fields : public System_view_impl<System_view_select_definition_impl>
+class Innodb_fields :
+  public System_view_impl<System_view_select_definition_impl>
 {
 public:
   enum enum_fields
