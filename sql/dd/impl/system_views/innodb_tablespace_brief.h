@@ -23,10 +23,11 @@ namespace dd {
 namespace system_views {
 
 /*
-  The class representing INFORMATION_SCHEMA.INNODB_TABLESPACE_BRIEF system view definition
-
+  The class representing INFORMATION_SCHEMA.INNODB_TABLESPACE_BRIEF system
+  view definition
 */
-class Innodb_tablespace_brief : public System_view_impl<System_view_select_definition_impl>
+class Innodb_tablespace_brief :
+  public System_view_impl<System_view_select_definition_impl>
 {
 public:
   enum enum_fields

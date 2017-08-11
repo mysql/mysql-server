@@ -4981,8 +4981,8 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
     char option_buff[350],*ptr;
     ptr=option_buff;
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
       if (p->exists("id"))
       {
         p->get_uint32("id", &opt_value);
@@ -4990,8 +4990,8 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
+    {
       if (p->exists("flags"))
       {
         p->get_uint32("flags", &opt_value);
@@ -5046,8 +5046,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
     char option_buff[350],*ptr;
     ptr=option_buff;
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
       if (p->exists("id"))
       {
         p->get_uint32("id", &opt_value);
@@ -5055,8 +5055,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
+    {
       if (p->exists("root"))
       {
         p->get_uint32("root", &opt_value);
@@ -5064,8 +5064,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
+    {
       if (p->exists("trx_id"))
       {
         p->get_uint32("trx_id", &opt_value);

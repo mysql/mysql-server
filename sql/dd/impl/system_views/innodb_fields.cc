@@ -29,7 +29,7 @@ Innodb_fields::Innodb_fields()
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_INDEX_ID, "INDEX_ID",
-                         "GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id')");
+                 "GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id')");
   m_target_def.add_field(FIELD_NAME, "NAME", "col.name");
   m_target_def.add_field(FIELD_POS, "POS", "fld.ordinal_position");
 
@@ -40,7 +40,7 @@ Innodb_fields::Innodb_fields()
 
   m_target_def.add_where("NOT tbl.type = 'VIEW'");
   m_target_def.add_where("AND tbl.hidden = 'Visible'");
-  m_target_def.add_where("AND fld.hidden = 0");
+  m_target_def.add_where("AND NOT fld.hidden");
   m_target_def.add_where("AND tbl.se_private_id IS NOT NULL");
   m_target_def.add_where("AND tbl.engine='INNODB'");
 }

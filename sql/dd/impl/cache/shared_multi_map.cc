@@ -163,12 +163,23 @@ void Shared_multi_map<T>::shutdown()
 
 
 typedef std::map<Object_id, const String_type> schema_map_t;
-static MDL_request *lock_request(THD *thd,
-                                 const schema_map_t &schema_map,
-                                 const Abstract_table *object)
+
+template <typename T>
+MDL_request *lock_request(THD*, const schema_map_t&, const T*)
+{
+  DBUG_ASSERT(false);
+  return nullptr;
+}
+
+
+template <>
+MDL_request *lock_request(THD *thd,
+                          const schema_map_t &schema_map,
+                          const Abstract_table *object)
 {
   // Fetch the schema to get hold of the schema name.
-  const schema_map_t::const_iterator schema_name= schema_map.find(object->schema_id());
+  const schema_map_t::const_iterator schema_name=
+                                       schema_map.find(object->schema_id());
   if (schema_name == schema_map.end() || object == nullptr)
     return nullptr;
 
@@ -185,9 +196,11 @@ static MDL_request *lock_request(THD *thd,
   return request;
 }
 
-static MDL_request *lock_request(THD *thd,
-                                 const schema_map_t&,
-                                 const Tablespace *object)
+
+template <>
+MDL_request *lock_request(THD *thd,
+                          const schema_map_t&,
+                          const Tablespace *object)
 {
   MDL_request *request= new (thd->mem_root) MDL_request;
   if (request == nullptr || object == nullptr)
@@ -200,92 +213,45 @@ static MDL_request *lock_request(THD *thd,
   return request;
 }
 
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Collation*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
 
-static MDL_request *lock_request(THD *,
-                                 const schema_map_t&,
-                                 const Charset*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Column_statistics*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Event*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Routine*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Schema*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-static MDL_request *lock_request(THD*,
-                                 const schema_map_t&,
-                                 const Spatial_reference_system*)
-{
-  DBUG_ASSERT(false);
-  return nullptr;
-}
-
-// Reset the shared map. Delete all objects present after acquiring
-// metadata locks. Keep the capacity.
+/*
+  Reset the shared map. Delete all objects present after acquiring
+  metadata locks. Keep the capacity.
+*/
 template <typename T>
 bool Shared_multi_map<T>::reset(THD* thd)
 {
-  // Establish a map from schema ids to schema names. Must do this
-  // before we can lock the cache partition.
+  /*
+    Establish a map from schema ids to schema names. Must do this
+    before we can lock the cache partition.
+  */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   std::vector<const Schema*> schema_vector;
   if (thd->dd_client()->fetch_global_components(&schema_vector))
     return true;
 
   schema_map_t schema_map;
-  for (const Schema *schema: schema_vector)
-    schema_map.insert(typename schema_map_t::value_type(schema->id(), schema->name()));
+  for (const Schema *schema : schema_vector)
+    schema_map.insert(typename schema_map_t::value_type(schema->id(),
+                                                        schema->name()));
 
-  // Noww, we can lock the cache partition and start acquiring MDL.
+  // Now, we can lock the cache partition and start acquiring MDL.
   Autolocker lock(this);
   MDL_request_list mdl_requests;
   typename Element_map<const T*, Cache_element<T> >::Const_iterator it=
     m_map<const T*>()->begin();
   for ( ; it != m_map<const T*>()->end(); it++)
-    mdl_requests.push_front(lock_request(thd, schema_map, it->second->object()));
+    mdl_requests.push_front(lock_request(thd, schema_map,
+                                         it->second->object()));
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
-          thd->variables.lock_wait_timeout))
+                                     thd->variables.lock_wait_timeout))
     return true;
 
-  // We have now locked all objects, hence, once we evict the unused
-  // object, no objects should be left.
+  /*
+    We have now locked all objects, hence, once we evict the unused
+    object, no objects should be left.
+  */
   evict_all_unused(&lock);
   if (m_map<const T*>()->size() > 0)
   {

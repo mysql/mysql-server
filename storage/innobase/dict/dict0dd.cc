@@ -1355,16 +1355,17 @@ dd_copy_autoinc(
 	const dd::Properties&	src,
 	dd::Properties&		dest)
 {
-	uint64	autoinc;
-	uint64	version;
+	uint64_t	autoinc = 0;
+	uint64_t	version = 0;
 
 	if (!src.exists(dd_table_key_strings[DD_TABLE_AUTOINC])) {
 		return;
 	}
 
-	if (src.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC], &autoinc)
+	if (src.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
+			   reinterpret_cast<uint64*>(&autoinc))
 	    || src.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
-			      &version)) {
+			      reinterpret_cast<uint64*>(&version))) {
 		ut_ad(0);
 		return;
 	}

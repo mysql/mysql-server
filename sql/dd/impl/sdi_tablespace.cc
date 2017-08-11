@@ -186,6 +186,7 @@ void check_error_state(THD *thd, const char *operation,
                        const dd::Tablespace &tspc)
 {
   // TODO: Bug#26516584 - Handle SDI API error
+  // Gopal: What is expected here ?
   if (thd->is_error() || thd->killed)
   {
     // An error should not be set here, but if it is, we don't want to report
