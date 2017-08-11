@@ -40,6 +40,34 @@
 
 namespace gis {
 
+/// Longitude out of range exception
+///
+/// Thrown by GIS functors when longtitude is out of range when reinterpreting
+/// geometry coordinates.
+struct longitude_out_of_range_exception : public std::exception {
+  double value;
+  double range_min;
+  double range_max;
+
+  longitude_out_of_range_exception(double value, double range_min,
+                                   double range_max)
+      : value{value}, range_min{range_min}, range_max{range_max} {}
+};
+
+/// Latitude out of range exception
+///
+/// Thrown by GIS functors when latitude is out of range when reinterpreting
+/// geometry coordinates.
+struct latitude_out_of_range_exception : public std::exception {
+  double value;
+  double range_min;
+  double range_max;
+
+  latitude_out_of_range_exception(double value, double range_min,
+                                  double range_max)
+      : value{value}, range_min{range_min}, range_max{range_max} {}
+};
+
 /// Function/parameter combination not implemented exception.
 ///
 /// Geometry is tagged as geographic or Cartesian/projected. In the latter case,
