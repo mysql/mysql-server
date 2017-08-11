@@ -4938,11 +4938,7 @@ innobase_init_files(
 
 	if (innobase_directories != nullptr && *innobase_directories != 0) {
 
-		directories.push_back(FIL_PATH_SEPARATOR);
 		directories.append(innobase_directories);
-	}
-
-	if (!directories.empty()) {
 		directories.push_back(FIL_PATH_SEPARATOR);
 	}
 
@@ -4956,7 +4952,7 @@ innobase_init_files(
 
 	/* This is the default directory for .ibd files. */
 	directories.push_back(FIL_PATH_SEPARATOR);
-	directories.append(MySQL_datadir_path);
+	directories.append(MySQL_datadir_path.path());
 
 	err = srv_start(create, directories);
 
