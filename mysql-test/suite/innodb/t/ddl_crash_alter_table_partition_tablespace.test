@@ -3,6 +3,10 @@
 --source include/not_crashrep.inc
 --source include/big_test.inc
 
+--disable_query_log
+call mtr.add_suppression("Checksum mismatch in datafile");
+--enable_query_log
+
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
 CREATE TABLESPACE ts1 ADD DATAFILE 'data1.ibd';
