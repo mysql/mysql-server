@@ -2245,7 +2245,8 @@ row_import_discard_changes(
 
 	table->ibd_file_missing = TRUE;
 
-	fil_close_tablespace(trx, table->space);
+	err = fil_close_tablespace(trx, table->space);
+	ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
 }
 
 /*****************************************************************//**
@@ -3728,10 +3729,10 @@ row_import_for_mysql(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
+		filepath = Fil_path::make(
 			table->data_dir_path, table->name.m_name, IBD, true);
 	} else {
-		filepath = fil_make_filepath(
+		filepath = Fil_path::make(
 			NULL, table->name.m_name, IBD, false);
 	}
 

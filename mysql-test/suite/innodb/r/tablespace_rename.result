@@ -11,7 +11,7 @@ SHOW TABLES;
 Tables_in_test
 t1
 #
-# Test crash before writing MLOG_FILE_OPEN t2.
+# Test crash before writing MLOG_FILE_RENAME t2.
 # On recovery the rename never happened.
 #
 SET SESSION debug="+d,ib_crash_rename_log_1";

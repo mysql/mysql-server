@@ -95,9 +95,6 @@ enum enum_sp_return_code
   // Drop routine failed
   SP_DROP_FAILED,
 
-  // Alter routine failed
-  SP_ALTER_FAILED,
-
   // Routine load failed
   SP_LOAD_FAILED,
 

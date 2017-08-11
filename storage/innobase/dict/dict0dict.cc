@@ -1634,14 +1634,20 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
+
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-	if (table2) {
-		ib::error() << "Cannot rename table '" << old_name
+
+	if (table2 != nullptr) {
+
+		ib::error()
+			<< "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '" << new_name << "'.";
+			" dictionary cache already contains '"
+			<< new_name << "'.";
+
 		return(DB_ERROR);
 	}
 
@@ -1660,11 +1666,11 @@ dict_table_rename_in_cache(
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ut_a(table->data_dir_path);
 
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path, table->name.m_name,
 				IBD, true);
 		} else {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				NULL, table->name.m_name, IBD, false);
 		}
 
@@ -1672,7 +1678,20 @@ dict_table_rename_in_cache(
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+		err = fil_delete_tablespace(
+                        table->space, BUF_REMOVE_ALL_NO_WRITE);
+
+                ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		if (err == DB_IO_ERROR) {
+
+			ib::info()
+				<< "IO error while deleting: " << table->space
+				<< " during rename of '" << old_name << "' to"
+				<< " '" << new_name << "'";
+		}
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)
@@ -1695,7 +1714,7 @@ dict_table_rename_in_cache(
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
 		} else {
-			new_path = fil_make_filepath(
+			new_path = Fil_path::make(
 				NULL, new_name, IBD, false);
 		}
 

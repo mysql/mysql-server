@@ -108,7 +108,7 @@ Clone_Snapshot::add_file_from_desc(
 
 		/* For absolute path, we must ensure that the file is not
 		present. This would always fail for local clone. */
-		if (is_absolute_path(file_desc->m_file_name)) {
+		if (Fil_path::is_absolute_path(file_desc->m_file_name)) {
 
 			os_file_type_t	type;
 			bool		exists = false;

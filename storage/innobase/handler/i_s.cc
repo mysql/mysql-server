@@ -72,28 +72,28 @@ struct buf_page_desc_t{
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
-#define I_S_PAGE_TYPE_INDEX		1
+constexpr size_t I_S_PAGE_TYPE_INDEX = 1;
 
 /** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+constexpr auto I_S_PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
 
 /** R-tree index page */
-#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
+constexpr auto I_S_PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
 
 /** Change buffer B-tree page */
-#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
+constexpr auto I_S_PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
 
 /** SDI B-tree page */
-#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
+constexpr auto I_S_PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
 
-#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
+constexpr auto I_S_PAGE_TYPE_LAST = I_S_PAGE_TYPE_SDI;
 
-#define I_S_PAGE_TYPE_BITS		5
+constexpr auto I_S_PAGE_TYPE_BITS = 5;
 
 /* Check if we can hold all page types */
-#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
-# error i_s_page_type[] is too large
-#endif
+static_assert(
+        I_S_PAGE_TYPE_LAST < (1 << I_S_PAGE_TYPE_BITS),
+        "i_s_page_type[] is too large");
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -7483,7 +7483,7 @@ i_s_dict_fill_innodb_tablespaces(
 			filepath = fil_space_get_first_path(space);
 			mutex_exit(&dict_sys->mutex);
 		} else {
-			filepath = fil_make_filepath(NULL, name, IBD, false);
+			filepath = Fil_path::make(nullptr, name, IBD, false);
 		}
 	}
 
@@ -7683,6 +7683,9 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 	STRUCT_FLD(flags, 0UL),
 };
 
+#define	STORE_ULINT(i,v)	field_store_ulint(fields[(i)], (v))
+#define	STORE_STRNG(i,v)	field_store_string(fields[(i)], (v))
+
 /** Fill handlerton based INFORMATION_SCHEMA.FILES table.
 @param[in,out]	thd	thread/connection descriptor
 @param[in,out]	tables	information schema tables to fill
@@ -7694,136 +7697,225 @@ i_s_files_table_fill(
 	THD*		thd,
 	TABLE_LIST*	tables)
 {
-	TABLE*			table_to_fill	= tables->table;
-	Field**			fields		= table_to_fill->field;
-	/* Use this class so that if the OK() macro returns,
-	fil_space_release() is called. */
-	FilSpace		space;
+	TABLE*		table_to_fill	= tables->table;
+	Field**		fields		= table_to_fill->field;
 
 	DBUG_ENTER("i_s_files_table_fill");
 
-	/* Gather information reportable to information_schema.files
-	for the first or next file in fil_system. */
-	for (const fil_node_t* node = fil_node_next(NULL);
-	     node != NULL;
-	     node = fil_node_next(node)) {
-		const char*	type = "TABLESPACE";
-		const char*	space_name;
-		/** Buffer to build file-per-table tablespace names.
-		Even though a space_id is often stored in a ulint, it cannot
-		be larger than 1<<32-1, which is 10 numeric characters. */
-		char		file_per_table_name[
-			sizeof("innodb_file_per_table_1234567890")];
-		uintmax_t	avail_space;
-		page_no_t	extent_pages;
-		page_no_t	extend_pages;
+	Space_ids	space_ids;
 
-		space = node->space;
-		fil_type_t	purpose = space()->purpose;
+	/* Gather information reportable to information_schema.files. */
 
-		switch (purpose) {
-		case FIL_TYPE_LOG:
-			/* Do not report REDO LOGs to I_S.FILES */
-			space = NULL;
-			continue;
-		case FIL_TYPE_TABLESPACE:
-			if (fsp_is_undo_tablespace(space()->id)) {
-				type = "UNDO LOG";
+	/* Fetch all the active tablespace IDs. */
+	fil_space_ids_get(&space_ids);
+
+	for (auto space_id : space_ids) {
+
+		fil_space_t::Files	files;
+
+		/* This will "lock" the tablespace files. */
+		fil_node_fetch(space_id, &files);
+
+		for (const auto& file : files) {
+
+			const char*		space_name;
+			const char*		type = "TABLESPACE";
+			const fil_space_t*	space = file.space;
+
+			/** Buffer to build file-per-table tablespace names.
+			Even though a space_id is often stored in a ulint,
+			it cannot be larger than 1<<32-1, which is 10 numeric
+			characters. */
+
+			char		file_per_table_name[
+				sizeof("innodb_file_per_table_1234567890")];
+
+			fil_type_t	purpose = space->purpose;
+
+			if (purpose == FIL_TYPE_LOG) {
+				/* Do not report REDO LOGs to I_S.FILES */
 				break;
-			} /* else fall through for TABLESPACE */
-		case FIL_TYPE_IMPORT:
-			/* 'IMPORTING'is a status. The type is TABLESPACE. */
-			break;
-		case FIL_TYPE_TEMPORARY:
-			type = "TEMPORARY";
-			break;
-		};
+			}
 
-		page_size_t	page_size(space()->flags);
+			switch (purpose) {
+			case FIL_TYPE_LOG:
+				ut_error;
 
-		/* Single-table tablespaces are assigned to a schema. */
-		if (fsp_is_file_per_table(space()->id, space()->flags)) {
-			/* Their names will be like "test/t1" */
-			ut_ad(NULL != strchr(space()->name, '/'));
+			case FIL_TYPE_TABLESPACE:
 
-			/* File-per-table tablespace names are generated
-			internally and certain non-file-system-allowed
-			characters are expanded which can make the space
-			name too long. In order to avoid that problem,
-			use a modified tablespace name.
-			Since we are not returning dbname and tablename,
-			the user must match the space_id to i_s_table.space
-			in order find the single table that is in it or the
-			schema it belongs to. */
-			snprintf(
-				file_per_table_name,
-				sizeof(file_per_table_name),
-				"innodb_file_per_table_" SPACE_ID_PF,
-				space()->id);
-			space_name = file_per_table_name;
-		} else {
-			/* Only file-per-table space names contain '/'.
-			This is not file-per-table . */
-			ut_ad(NULL == strchr(space()->name, '/'));
+				if (fsp_is_undo_tablespace(space->id)) {
+					type = "UNDO LOG";
+					break;
+				} /* else fall through for TABLESPACE */
 
-			space_name = space()->name;
+			case FIL_TYPE_IMPORT:
+				/* 'IMPORTING'is a status. The type
+				is TABLESPACE. */
+				break;
+
+			case FIL_TYPE_TEMPORARY:
+				type = "TEMPORARY";
+				break;
+			}
+
+			page_size_t	page_size(space->flags);
+
+			bool	file_per_table;
+
+			file_per_table = fsp_is_file_per_table(
+				space->id, space->flags);
+
+			/* Single-table tablespaces are assigned to a schema. */
+			if (file_per_table) {
+
+				/* Their names will be like "test/t1" */
+				ut_ad(NULL != strchr(space->name, '/'));
+
+				/* File-per-table tablespace names are generated
+				internally and certain non-file-system-allowed
+				characters are expanded which can make the space
+				name too long. In order to avoid that problem,
+				use a modified tablespace name.
+				Since we are not returning dbname and tablename,
+				the user must match the space_id to
+				i_s_table.space in order find the single table
+				that is in it or the schema it belongs to. */
+				snprintf(
+					file_per_table_name,
+					sizeof(file_per_table_name),
+					"innodb_file_per_table_" SPACE_ID_PF,
+					space->id);
+
+				space_name = file_per_table_name;
+
+			} else {
+				/* Only file-per-table space names contain '/'.
+				This is not file-per-table . */
+				ut_ad(NULL == strchr(space->name, '/'));
+
+				space_name = space->name;
+			}
+
+			init_fill_schema_files_row(table_to_fill);
+
+			if (STORE_ULINT(IS_FILES_FILE_ID, space->id) != 0) {
+				break;
+			}
+
+			if (STORE_STRNG(IS_FILES_FILE_NAME, file.name)) {
+				break;
+			}
+
+			if (STORE_STRNG(IS_FILES_FILE_TYPE, type)) {
+				break;
+			}
+
+			if (STORE_STRNG(
+				IS_FILES_TABLESPACE_NAME, space_name)) {
+
+				break;
+			}
+
+			if (STORE_STRNG(IS_FILES_ENGINE, "InnoDB")) {
+				break;
+			}
+
+			if (STORE_ULINT(IS_FILES_FREE_EXTENTS,
+				space->free_len)) {
+
+				break;
+			}
+
+			page_no_t	extent_pages;
+
+			extent_pages = fsp_get_extent_size_in_pages(page_size);
+
+			if (STORE_ULINT(
+				IS_FILES_TOTAL_EXTENTS,
+				space->size_in_header / extent_pages)) {
+
+				break;
+			}
+
+			if (STORE_ULINT(
+				IS_FILES_EXTENT_SIZE,
+				extent_pages * page_size.physical())) {
+
+				break;
+			}
+
+			if (STORE_ULINT(
+				IS_FILES_INITIAL_SIZE,
+				file.init_size * page_size.physical())) {
+
+				break;
+			}
+
+			if (file.max_size >= PAGE_NO_MAX) {
+
+				fields[IS_FILES_MAXIMUM_SIZE]->set_null();
+
+			} else if (STORE_ULINT(
+				IS_FILES_MAXIMUM_SIZE,
+				file.max_size * page_size.physical())) {
+
+				break;
+			}
+
+			page_no_t	extend_pages;
+
+			if (space->id == TRX_SYS_SPACE) {
+
+				extend_pages = srv_sys_space.get_increment();
+
+			} else if (fsp_is_system_temporary(space->id)) {
+
+				extend_pages = srv_tmp_space.get_increment();
+
+			} else {
+
+				extend_pages = fsp_get_pages_to_extend_ibd(
+					page_size, file.size);
+			}
+
+			if (STORE_ULINT(
+				IS_FILES_AUTOEXTEND_SIZE,
+				extend_pages * page_size.physical())) {
+
+				break;
+			}
+
+			uintmax_t	avail_space;
+
+			avail_space = fsp_get_available_space_in_free_extents(
+				space);
+
+			if (STORE_ULINT(
+				IS_FILES_DATA_FREE,
+				static_cast<ulint>(avail_space * 1024))) {
+
+				break;
+			}
+
+			if (STORE_STRNG(
+				IS_FILES_STATUS,
+				(purpose == FIL_TYPE_IMPORT)
+				? "IMPORTING" : "NORMAL")) {
+
+				break;
+			}
+
+			schema_table_store_record(thd, table_to_fill);
 		}
 
-		init_fill_schema_files_row(table_to_fill);
-
-		OK(field_store_ulint(fields[IS_FILES_FILE_ID],
-				     space()->id));
-		OK(field_store_string(fields[IS_FILES_FILE_NAME],
-				      node->name));
-		OK(field_store_string(fields[IS_FILES_FILE_TYPE],
-				      type));
-		OK(field_store_string(fields[IS_FILES_TABLESPACE_NAME],
-				      space_name));
-		OK(field_store_string(fields[IS_FILES_ENGINE],
-				      "InnoDB"));
-		OK(field_store_ulint(fields[IS_FILES_FREE_EXTENTS],
-				     space()->free_len));
-
-		extent_pages = fsp_get_extent_size_in_pages(page_size);
-
-		OK(field_store_ulint(fields[IS_FILES_TOTAL_EXTENTS],
-				     space()->size_in_header / extent_pages));
-		OK(field_store_ulint(fields[IS_FILES_EXTENT_SIZE],
-				     extent_pages * page_size.physical()));
-		OK(field_store_ulint(fields[IS_FILES_INITIAL_SIZE],
-				     node->init_size * page_size.physical()));
-
-		if (node->max_size >= PAGE_NO_MAX) {
-			fields[IS_FILES_MAXIMUM_SIZE]->set_null();
-		} else {
-			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],
-				node->max_size * page_size.physical()));
-		}
-		if (space()->id == TRX_SYS_SPACE) {
-			extend_pages = srv_sys_space.get_increment();
-		} else if (fsp_is_system_temporary(space()->id)) {
-			extend_pages = srv_tmp_space.get_increment();
-		} else {
-			extend_pages = fsp_get_pages_to_extend_ibd(
-				page_size, node->size);
-		}
-
-		OK(field_store_ulint(fields[IS_FILES_AUTOEXTEND_SIZE],
-				     extend_pages * page_size.physical()));
-
-		avail_space = fsp_get_available_space_in_free_extents(space());
-		OK(field_store_ulint(fields[IS_FILES_DATA_FREE],
-				     static_cast<ulint>(avail_space * 1024)));
-		OK(field_store_string(fields[IS_FILES_STATUS],
-				      (purpose == FIL_TYPE_IMPORT)
-				      ? "IMPORTING" : "NORMAL"));
-
-		schema_table_store_record(thd, table_to_fill);
-		space = NULL;
+		fil_node_release(space_id);
 	}
 
 	DBUG_RETURN(0);
 }
+
+#undef STORE_ULINT
+#undef STORE_STRNG
 
 /** INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,19 +14,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ctime>
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
+
+#include "gcs_base_test.h"
+
 #include "gcs_internal_message.h"
 #include "gcs_message_stages.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "mysql/gcs/gcs_message.h"
 #include "gcs_message_stage_lz4.h"
-#include "mysql/gcs/gcs_log_system.h"
 
 namespace gcs_xcom_packet_unittest
 {
 
-class GcsPacketTest : public ::testing::Test
+class GcsPacketTest : public GcsBaseTest
 {
 protected:
 
@@ -34,21 +34,16 @@ protected:
 
   virtual void SetUp()
   {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
     lz4_stage= new Gcs_message_stage_lz4(1024);
   }
 
   virtual void TearDown()
   {
     delete lz4_stage;
-    Gcs_logger::finalize();
-    logger->finalize();
-    delete logger;
   }
 
-  Gcs_simple_ext_logger_impl *logger;
   Gcs_message_stage_lz4 *lz4_stage;
+
 public:
   static const unsigned long long LARGE_PAYLOAD_LEN;
   static const unsigned long long SMALL_PAYLOAD_LEN;

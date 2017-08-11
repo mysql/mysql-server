@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -151,7 +151,7 @@ Tablespace::open_or_create(bool is_temp)
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
-		ut_a(fil_validate());
+		ut_ad(fil_validate());
 
 		/* Create the tablespace node entry for this data file. */
 		if (!fil_node_create(
@@ -220,18 +220,18 @@ Tablespace::add_datafile(
 	/* The path provided ends in ".ibd".  This was assured by
 	validate_create_tablespace_info() */
 	ut_d(const char* dot = strrchr(datafile_added, '.'));
-	ut_ad(dot != NULL && 0 == strcmp(dot, DOT_IBD));
+	ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
 
 	char* filepath = mem_strdup(datafile_added);
 	if (filepath == NULL) {
 		return(DB_OUT_OF_MEMORY);
 	}
-	os_normalize_path(filepath);
+	Fil_path::normalize(filepath);
 
 	/* If the path is an absolute path, separate it onto m_path and a
 	basename. For relative paths, make the whole thing a basename so that
 	it can be appended to the datadir. */
-	bool	is_abs_path = is_absolute_path(filepath);
+	bool	is_abs_path = Fil_path::is_absolute_path(filepath);
 	size_t	dirlen = (is_abs_path ? dirname_length(filepath) : 0);
 	const char* basename = filepath + dirlen;
 

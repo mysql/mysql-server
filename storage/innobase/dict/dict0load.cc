@@ -1138,7 +1138,7 @@ dict_get_first_path(
 
 				/* The dictionary may have been written on
 				another OS. */
-				os_normalize_path(filepath);
+				Fil_path::normalize(filepath);
 			}
 		}
 	}
@@ -1421,7 +1421,7 @@ dict_check_sys_tablespaces(
 		if (fsp_is_system_or_temp_tablespace(space_id)
 		    || fsp_is_undo_tablespace(space_id)
 		    || !fsp_is_shared_tablespace(fsp_flags)
-		    || fil_space_for_table_exists_in_mem(
+		    || fil_space_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
 			continue;
 		}
@@ -1648,7 +1648,7 @@ dict_check_sys_tables(
 		whether it is a shared tablespace or a single table
 		tablespace, look to see if it is already in the tablespace
 		cache. */
-		if (fil_space_for_table_exists_in_mem(
+		if (fil_space_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
 			ut_free(table_name.m_name);
 			ut_free(shared_space_name);
@@ -2188,16 +2188,19 @@ dict_save_data_dir_path(
 	ut_a(filepath);
 
 	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_filepath(
+	char*	default_filepath = Fil_path::make(
 			NULL, table->name.m_name, IBD, false);
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
+
 			ulint pathlen = strlen(filepath);
+
 			ut_a(pathlen < OS_FILE_MAX_PATH);
-			ut_a(0 == strcmp(filepath + pathlen - 4, DOT_IBD));
+			ut_a(Fil_path::has_ibd_suffix(filepath));
 
 			table->data_dir_path = mem_heap_strdup(
 				table->heap, filepath);
+
 			os_file_make_data_dir_path(table->data_dir_path);
 		}
 
@@ -2421,7 +2424,7 @@ dict_load_tablespace(
 	}
 
 	/* The tablespace may already be open. */
-	if (fil_space_for_table_exists_in_mem(
+	if (fil_space_exists_in_mem(
 		    table->space, space_name, false,
 		    true, heap, table->id)) {
 		ut_free(shared_space_name);
@@ -2445,7 +2448,7 @@ dict_load_tablespace(
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		}

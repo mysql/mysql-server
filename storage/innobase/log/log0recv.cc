@@ -854,35 +854,35 @@ static
 bool
 recv_check_log_header_checksum(const byte* buf)
 {
-	return(log_block_get_checksum(buf)
-	       == log_block_calc_checksum_crc32(buf));
+	auto	c1 = log_block_get_checksum(buf);
+	auto	c2 = log_block_calc_checksum_crc32(buf);
+
+	return(c1 == c2);
 }
 
 #ifndef UNIV_HOTBACKUP
 /** Copy of the LOG_HEADER_CREATOR field. */
 static char log_header_creator[LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR + 1];
 
-/** Determine if a redo log from MySQL 5.7.9 is clean.
+/** Determine if a redo log from a version before MySQL 8.0.3 is clean.
 @param[in]	lsn	checkpoint LSN
 @return error code
-@retval	DB_SUCCESS	if the redo log is clean
+@retval DB_SUCCESS	if the redo log is clean
 @retval DB_ERROR	if the redo log is corrupted or dirty */
 static
 dberr_t
-recv_log_recover_5_7(lsn_t lsn)
+recv_log_recover_pre_8_0_3(lsn_t lsn)
 {
-	log_mutex_enter();
+       ut_ad(log_mutex_own());
 
 	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	lsn_t		source_offset = log_group_calc_lsn_offset(lsn, group);
+	lsn_t	source_offset = log_group_calc_lsn_offset(lsn, group);
 
-	log_mutex_exit();
-
-	page_no_t	page_no;
+	page_no_t       page_no;
 
 	page_no = (page_no_t) (source_offset / univ_page_size.physical());
 
-	byte*		buf = log_sys->buf;
+	byte*           buf = log_sys->buf;
 
 	static const char* NO_UPGRADE_RECOVERY_MSG =
 		"Upgrade after a crash is not supported."
@@ -892,12 +892,16 @@ recv_log_recover_5_7(lsn_t lsn)
 		". Please follow the instructions at "
 		REFMAN "upgrading.html";
 
-	fil_io(IORequestLogRead, true,
-	       page_id_t(group->space_id, page_no),
-	       univ_page_size,
-	       (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
-			% univ_page_size.physical()),
-	       OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
+	dberr_t err;
+
+	err = fil_io(
+		IORequestLogRead, true,
+                page_id_t(group->space_id, page_no), univ_page_size,
+                (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
+                         % univ_page_size.physical()),
+                OS_FILE_LOG_BLOCK_SIZE, buf, nullptr);
+
+	ut_a(err == DB_SUCCESS);
 
 	if (log_block_calc_checksum(buf) != log_block_get_checksum(buf)) {
 
@@ -911,7 +915,7 @@ recv_log_recover_5_7(lsn_t lsn)
 	}
 
 	/* On a clean shutdown, the redo log will be logically empty
-	after the checkpoint lsn. */
+	after the checkpoint LSN. */
 
 	if (log_block_get_data_len(buf)
 	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
@@ -955,96 +959,106 @@ recv_find_max_checkpoint(
 	*max_field = 0;
 	*max_group = nullptr;
 
+	/* We've never supported more than one group. */
+	ut_a(UT_LIST_GET_LEN(log_sys->log_groups) == 1);
+
+	auto group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	group->state = LOG_GROUP_CORRUPTED;
+
+	log_group_header_read(group, 0);
+
 	byte*	buf = log_sys->checkpoint_buf;
 
-	for (auto group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	     group != nullptr;
-	     /* No op */ ) {
+	/* Check the header page checksum. There was no
+	checksum in the first redo log format (version 0). */
+	group->format = mach_read_from_4(buf + LOG_HEADER_FORMAT);
 
-		group->state = LOG_GROUP_CORRUPTED;
+	if (group->format != 0 && !recv_check_log_header_checksum(buf)) {
 
-		log_group_header_read(group, 0);
+		ib::error() << "Invalid redo log header checksum.";
 
-		/* Check the header page checksum. There was no
-		checksum in the first redo log format (version 0). */
-		group->format = mach_read_from_4(buf + LOG_HEADER_FORMAT);
+		return(DB_CORRUPTION);
+	}
 
-		if (group->format != 0
-		    && !recv_check_log_header_checksum(buf)) {
+	auto	ptr = buf + LOG_HEADER_CREATOR;
 
-			ib::error() << "Invalid redo log header checksum.";
+	memcpy(log_header_creator, ptr, sizeof(log_header_creator));
 
-			return(DB_CORRUPTION);
-		}
+	log_header_creator[sizeof(log_header_creator) - 1] = 0;
 
-		memcpy(log_header_creator, buf + LOG_HEADER_CREATOR,
-		       sizeof log_header_creator);
+	switch (group->format) {
+	case LOG_HEADER_FORMAT_CURRENT:
+		break;
 
-		log_header_creator[(sizeof log_header_creator) - 1] = 0;
+	case 0:
+		ib::error()
+			<< "Unsupported redo log format ("
+			<< group->format << "). The redo log was created"
+			<< " before MySQL 5.7.9";
 
-		switch (group->format) {
-		case 0:
-			ib::error() << "Unsupported redo log format."
-				" The redo log was created"
-				" before MySQL 5.7.9.";
-			return(DB_ERROR);
+		return(DB_ERROR);
 
-		case LOG_HEADER_FORMAT_5_7_9:
-			/* The checkpoint page format is identical. */
+	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
 
-		case LOG_HEADER_FORMAT_CURRENT:
-			break;
+		/* The checkpoint page format is identical upto v3. */
 
-		default:
-			ib::error() << "Unsupported redo log format."
-				" The redo log was created"
-				" with " << log_header_creator <<
-				". Please follow the instructions at "
-				REFMAN "upgrading-downgrading.html";
-			return(DB_ERROR);
-		}
+		ib::info()
+			<< "Redo log format is v" << group->format
+			<< ". The redo log was created before"
+			<< " MySQL 8.0.3.";
+		break;
 
-		for (auto field = LOG_CHECKPOINT_1;
-		     field <= LOG_CHECKPOINT_2;
-		     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
+	default:
+		ib::error()
+			<< "Unknown redo log format ("
+			<< group->format << ")."
+			<< " Please follow the instructions at "
+			REFMAN "upgrading-downgrading.html";
 
-			log_group_header_read(group, field);
+		return(DB_ERROR);
+	}
 
-			if (!recv_check_log_header_checksum(buf)) {
-				DBUG_PRINT("ib_log",
-					   ("invalid checkpoint,"
-					    " group " ULINTPF " at %d"
-					    ", checksum %x",
-					    group->id, field,
-					    (unsigned) log_block_get_checksum(
-						    buf)));
-				continue;
-			}
+	constexpr auto CKP1 = LOG_CHECKPOINT_1;
+	constexpr auto CKP2 = LOG_CHECKPOINT_2;
 
-			group->state = LOG_GROUP_OK;
+	for (auto i = CKP1; i <= CKP2; i += CKP2 - CKP1) {
 
-			group->lsn = mach_read_from_8(
-				buf + LOG_CHECKPOINT_LSN);
+		log_group_header_read(group, i);
 
-			group->lsn_offset = mach_read_from_8(
-				buf + LOG_CHECKPOINT_OFFSET);
-
-			uint64_t	checkpoint_no = mach_read_from_8(
-				buf + LOG_CHECKPOINT_NO);
-
+		if (!recv_check_log_header_checksum(buf)) {
 			DBUG_PRINT("ib_log",
-				   ("checkpoint " UINT64PF " at " LSN_PF
-				    " found in group " ULINTPF,
-				    checkpoint_no, group->lsn, group->id));
-
-			if (checkpoint_no >= max_no) {
-				*max_group = group;
-				*max_field = field;
-				max_no = checkpoint_no;
-			}
+				   ("invalid checkpoint,"
+				    " group " ULINTPF " at %d"
+				    ", checksum %x",
+				    group->id, i,
+				    (unsigned) log_block_get_checksum(buf)));
+			continue;
 		}
 
-		group = UT_LIST_GET_NEXT(log_groups, group);
+		group->state = LOG_GROUP_OK;
+
+		group->lsn = mach_read_from_8(buf + LOG_CHECKPOINT_LSN);
+
+		ptr = buf + LOG_CHECKPOINT_OFFSET;
+
+		group->lsn_offset = mach_read_from_8(ptr);
+
+		ptr = buf + LOG_CHECKPOINT_NO;
+
+		uint64_t	checkpoint_no = mach_read_from_8(ptr);
+
+		DBUG_PRINT("ib_log",
+			   ("checkpoint " UINT64PF " at " LSN_PF
+			    " found in group " ULINTPF,
+			    checkpoint_no, group->lsn, group->id));
+
+		if (checkpoint_no >= max_no) {
+			*max_field = i;
+			*max_group = group;
+			max_no = checkpoint_no;
+		}
 	}
 
 	if (*max_group == nullptr) {
@@ -1336,17 +1350,22 @@ recv_parse_or_apply_log_rec_body(
 	ut_ad(!block == !mtr);
 
 	switch (type) {
-	case MLOG_FILE_OPEN:
-		ut_ad(parsed_bytes != ULINT_UNDEFINED);
-		// Fall through
 	case MLOG_FILE_DELETE:
-	case MLOG_FILE_CREATE2:
-	case MLOG_FILE_RENAME2:
 
-		ut_ad(block == nullptr);
+		return(fil_tablespace_redo_delete(
+			ptr,end_ptr, page_id_t(space_id, page_no),
+			parsed_bytes));
 
-		return(fil_tablespace_name_recover(
-			ptr, end_ptr, page_id_t(space_id, page_no), type,
+	case MLOG_FILE_CREATE:
+
+		return(fil_tablespace_redo_create(
+			ptr,end_ptr, page_id_t(space_id, page_no),
+			parsed_bytes));
+
+	case MLOG_FILE_RENAME:
+
+		return(fil_tablespace_redo_rename(
+			ptr, end_ptr, page_id_t(space_id, page_no),
 			parsed_bytes));
 
 	case MLOG_INDEX_LOAD:
@@ -1539,7 +1558,8 @@ recv_parse_or_apply_log_rec_body(
 
 		if (ptr != nullptr
 		    && page != nullptr
-		    && page_no == 0 && type == MLOG_4BYTES) {
+		    && page_no == 0
+		    && type == MLOG_4BYTES) {
 
 			ulint	offs = mach_read_from_2(old_ptr);
 
@@ -1566,9 +1586,13 @@ recv_parse_or_apply_log_rec_body(
 					break;
 
 				case FSP_HEADER_OFFSET + FSP_SIZE:
+
 					bool	success;
+
 					space->size_in_header = val;
+
 					success = fil_space_extend(space, val);
+
 					if (!success) {
 						ib::error()
 						<< "Could not extend tablespace"
@@ -2006,10 +2030,9 @@ recv_add_to_hash_table(
 	lsn_t		start_lsn,
 	lsn_t		end_lsn)
 {
-	ut_ad(type != MLOG_FILE_OPEN);
 	ut_ad(type != MLOG_FILE_DELETE);
-	ut_ad(type != MLOG_FILE_CREATE2);
-	ut_ad(type != MLOG_FILE_RENAME2);
+	ut_ad(type != MLOG_FILE_CREATE);
+	ut_ad(type != MLOG_FILE_RENAME);
 	ut_ad(type != MLOG_DUMMY_RECORD);
 	ut_ad(type != MLOG_INDEX_LOAD);
 
@@ -2529,9 +2552,18 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 		unit = batch_size;
 	}
 
+	auto	start_time = ut_time();
+
 	for (const auto& space : *recv_sys->spaces) {
 
-		fil_tablespace_open_for_recovery(space.first);
+		if (space.first != TRX_SYS_SPACE
+		    && !fil_tablespace_open_for_recovery(space.first)) {
+
+			/* Tablespace was dropped. */
+			ut_ad(!fil_tablespace_lookup_for_recovery(space.first));
+
+			continue;
+		}
 
 		for (auto pages : space.second.m_pages) {
 
@@ -2542,8 +2574,21 @@ recv_apply_hashed_log_recs(bool allow_ibuf)
 			++applied;
 
 			if (unit == 0 || (applied % unit) == 0) {
+
 				ib::info() << pct << "%";
+
 				pct += PCT;
+
+				start_time = ut_time();
+
+			} else if (ut_time() - start_time
+                                   >= PRINT_INTERVAL_SECS) {
+
+				start_time = ut_time();
+
+				ib::info()
+					<< "Applied: "
+					<< applied << "/" << batch_size;
 			}
 		}
 	}
@@ -2706,16 +2751,18 @@ recv_apply_log_rec_for_backup(recv_addr_t* recv_addr)
 
 	if (page_size.is_compressed()) {
 
-		error = fil_io(
+		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.physical(),
 			block->page.zip.data, NULL);
 	} else {
-		error = fil_io(
+		err = fil_io(
 			IORequestWrite, true, page_id,
 			page_size, 0, page_size.logical(),
 			block->frame, NULL);
 	}
+
+        ut_a(err == DB_SUCCESS);
 }
 
 /** Applies log records in the hash table to a backup. */
@@ -2934,10 +2981,9 @@ recv_single_rec(
 		/* fall through */
 
 	case MLOG_INDEX_LOAD:
-	case MLOG_FILE_OPEN:
 	case MLOG_FILE_DELETE:
-	case MLOG_FILE_RENAME2:
-	case MLOG_FILE_CREATE2:
+	case MLOG_FILE_RENAME:
+	case MLOG_FILE_CREATE:
 	case MLOG_TABLE_DYNAMIC_META:
 
 		/* These were already handled by
@@ -3098,10 +3144,9 @@ recv_multi_rec(byte* ptr, byte*	end_ptr)
 			break;
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-		case MLOG_FILE_OPEN:
 		case MLOG_FILE_DELETE:
-		case MLOG_FILE_CREATE2:
-		case MLOG_FILE_RENAME2:
+		case MLOG_FILE_CREATE:
+		case MLOG_FILE_RENAME:
 		case MLOG_TABLE_DYNAMIC_META:
 			/* case MLOG_TRUNCATE: Disabled for WL6378 */
 			/* These were already handled by
@@ -3541,11 +3586,16 @@ recv_read_log_seg(
 		const page_no_t	page_no = static_cast<page_no_t>(
 			source_offset / univ_page_size.physical());
 
-		fil_io(IORequestLogRead, true,
-		       page_id_t(group->space_id, page_no),
-		       univ_page_size,
-		       (ulint) (source_offset % univ_page_size.physical()),
-		       len, buf, NULL);
+                dberr_t
+
+		err = fil_io(
+                        IORequestLogRead, true,
+                        page_id_t(group->space_id, page_no),
+                        univ_page_size,
+                        (ulint) (source_offset % univ_page_size.physical()),
+                        len, buf, NULL);
+
+                ut_a(err == DB_SUCCESS);
 
 		start_lsn += len;
 		buf += len;
@@ -3633,11 +3683,6 @@ recv_init_crash_recovery()
 	ib::info() << "Database was not shutdown normally!";
 	ib::info() << "Starting crash recovery.";
 
-	/* Open the tablespace ID to file name mapping file. Required for
-	redo log apply and dblwr buffer page restore. */
-
-	fil_tablespace_open_init_for_recovery(true);
-
 	buf_dblwr_process();
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3711,8 +3756,11 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
-	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
-	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
+	err = fil_io(
+                IORequestLogRead, true, page_id, univ_page_size, 0,
+                LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
+
+        ut_a(err == DB_SUCCESS);
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
 		(byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
@@ -3748,9 +3796,12 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 		       + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
 
 		/* Write to the log file to wipe over the label */
-		fil_io(IORequestLogWrite, true, page_id,
-		       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
-		       max_cp_group);
+		err = fil_io(
+                        IORequestLogWrite, true, page_id,
+                        univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, log_hdr_buf,
+                        max_cp_group);
+
+                ut_a(err == DB_SUCCESS);
 
 	} else if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
 		(byte*)LOG_HEADER_CREATOR_CLONE,
@@ -3779,14 +3830,33 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 	contiguous_lsn = checkpoint_lsn;
 
 	switch (group->format) {
-	case LOG_HEADER_FORMAT_5_7_9:
-		log_mutex_exit();
-		return(recv_log_recover_5_7(checkpoint_lsn));
-
 	case LOG_HEADER_FORMAT_CURRENT:
 		break;
 
+	case LOG_HEADER_FORMAT_5_7_9:
+	case LOG_HEADER_FORMAT_8_0_1:
+
+		ib::info()
+			<< "Redo log is from an earlier version,"
+			<< " v" << group->format << ".";
+
+		/* Check if the redo log from an older known redo log
+		version is from a clean shutdown. */
+		err = recv_log_recover_pre_8_0_3(checkpoint_lsn);
+
+		if (err != DB_SUCCESS) {
+			log_mutex_exit();
+			return(err);
+		}
+
+		break;
+
 	default:
+		ib::error()
+			<< "Redo log format (" << group->format << ")"
+			<< " not supported. Current supported format is"
+			<< " v" << LOG_HEADER_FORMAT_CURRENT;
+
 		ut_ad(0);
 		recv_sys->found_corrupt_log = true;
 		log_mutex_exit();
@@ -3834,9 +3904,6 @@ recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
 			recv_init_crash_recovery();
 		}
 
-	} else if (!srv_read_only_mode) {
-		/* Read the UNDO tablespace locations only. */
-		fil_tablespace_open_init_for_recovery(false);
 	}
 
 	contiguous_lsn = checkpoint_lsn;
@@ -3960,7 +4027,7 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 	}
 
 	MetadataRecover*	metadata;
-       
+
 	if (!aborting) {
 
 		metadata = recv_sys->metadata_recover;
@@ -4012,8 +4079,6 @@ recv_recovery_from_checkpoint_finish(bool aborting)
 		fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 
 		mtr.commit();
-
-		fil_tablespace_open_create();
 	}
 
 	/* Free up the flush_rbt. */
@@ -4340,8 +4405,8 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_COMP_PAGE_REORGANIZE:
 		return("MLOG_COMP_PAGE_REORGANIZE");
 
-	case MLOG_FILE_CREATE2:
-		return("MLOG_FILE_CREATE2");
+	case MLOG_FILE_CREATE:
+		return("MLOG_FILE_CREATE");
 
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		return("MLOG_ZIP_WRITE_NODE_PTR");
@@ -4361,11 +4426,8 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_ZIP_PAGE_REORGANIZE:
 		return("MLOG_ZIP_PAGE_REORGANIZE");
 
-	case MLOG_FILE_RENAME2:
-		return("MLOG_FILE_RENAME2");
-
-	case MLOG_FILE_OPEN:
-		return("MLOG_FILE_OPEN");
+	case MLOG_FILE_RENAME:
+		return("MLOG_FILE_RENAME");
 
 	case MLOG_PAGE_CREATE_RTREE:
 		return("MLOG_PAGE_CREATE_RTREE");

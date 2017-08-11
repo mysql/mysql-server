@@ -950,34 +950,32 @@ dd_table_close(
 /** Update filename of dd::Tablespace
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_path	new data file path
-@retval true if fail. */
-bool
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_tablespace_update_filename(
 	dd::Object_id		dd_space_id,
 	const char*		new_path)
 {
-	dd::Tablespace*		dd_space = nullptr;
-	dd::Tablespace*		new_space = nullptr;
-	bool			ret = false;
 	THD*			thd = current_thd;
 
 	DBUG_ENTER("dd_tablespace_update_for_rename");
 #ifdef UNIV_DEBUG
 	btrsea_sync_check       check(false);
 	ut_ad(!sync_check_iterate(check));
-#endif
+#endif /* UNIV_DEBUG */
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(new_path != nullptr);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
-	/* Get the dd tablespace */
+	dd::Tablespace*		dd_space = nullptr;
 
+	/* Get the dd tablespace */
 	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
 			dd_space_id, &dd_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_a(dd_space != nullptr);
@@ -985,28 +983,29 @@ dd_tablespace_update_filename(
 	if (dd::acquire_exclusive_tablespace_mdl(
 		    thd, dd_space->name().c_str(), false)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
+
+	dd::Tablespace*		new_space = nullptr;
 
 	/* Acquire the new dd tablespace for modification */
 	if (client->acquire_for_modification<dd::Tablespace>(
 			dd_space_id, &new_space)) {
 		ut_ad(false);
-		DBUG_RETURN(true);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_ad(new_space->files().size() == 1);
 	dd::Tablespace_file*	dd_file = const_cast<
 		dd::Tablespace_file*>(*(new_space->files().begin()));
 	dd_file->set_filename(new_path);
-	bool fail = client->update(new_space);
 
-	if (fail) {
+	if (client->update(new_space)) {
 		ut_ad(false);
-		ret = true;
+		DBUG_RETURN(DB_ERROR);
 	}
 
-	DBUG_RETURN(ret);
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /** Validate the table format options.
@@ -3071,8 +3070,10 @@ dd_save_data_dir_path(
 	ut_a(filepath);
 
 	/* Be sure this filepath is not the default filepath. */
-	char*	default_filepath = fil_make_filepath(
-			NULL, table->name.m_name, IBD, false);
+	char*	default_filepath;
+
+	default_filepath = Fil_path::make(NULL, table->name.m_name, IBD, false);
+
 	if (default_filepath) {
 		if (0 != strcmp(filepath, default_filepath)) {
 			ulint pathlen = strlen(filepath);
@@ -3218,24 +3219,23 @@ dd_get_meta_data_filename(
 	char*		filename,
 	ulint		max_len)
 {
-	ulint		len;
-	char*		path;
-
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path(table, dd_table, false);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
+	char*		path;
 
-		path = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, CFG, true);
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+
+		ut_a(table->data_dir_path != nullptr);
+
+		const auto	dir = table->data_dir_path;
+
+		path = Fil_path::make(dir, table->name.m_name, CFG, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
+		path = Fil_path::make(NULL, table->name.m_name, CFG, false);
 	}
 
-	ut_a(path);
-	len = ut_strlen(path);
-	ut_a(max_len >= len);
+	ut_a(max_len >= strlen(path) + 1);
 
 	strcpy(filename, path);
 
@@ -3260,7 +3260,8 @@ dd_load_tablespace(
 	ut_ad(!table->is_temporary());
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	/* The system and temporary tablespaces are preloaded and always available. */
+	/* The system and temporary tablespaces are preloaded and
+	always available. */
 	if (fsp_is_system_or_temp_tablespace(table->space)) {
 		return;
 	}
@@ -3308,9 +3309,10 @@ dd_load_tablespace(
 	}
 
 	/* The tablespace may already be open. */
-	if (fil_space_for_table_exists_in_mem(
+	if (fil_space_exists_in_mem(
 		table->space, space_name, false,
 		true, heap, table->id)) {
+
 		ut_free(shared_space_name);
 		return;
 	}
@@ -3332,7 +3334,7 @@ dd_load_tablespace(
 		dd_get_and_save_data_dir_path(table, dd_table, true);
 
 		if (table->data_dir_path) {
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 		}
@@ -5119,7 +5121,7 @@ dd_rename_fts_table(
 		char* new_path = fil_space_get_first_path(table->space);
 
 		if (dd_tablespace_update_filename(
-			    table->dd_space_id, new_path)) {
+			    table->dd_space_id, new_path) != DB_SUCCESS) {
 			ut_a(false);
 		}
 
@@ -5203,7 +5205,9 @@ dd_get_referenced_table(
 {
 	char*		ref;
 	const char*	db_name;
-	bool		is_part = (strstr(name, part_sep) != nullptr);
+	bool		is_part;
+
+	is_part = (strstr(name, PARTITION_SEPARATOR) != nullptr);
 
 	*table = nullptr;
 

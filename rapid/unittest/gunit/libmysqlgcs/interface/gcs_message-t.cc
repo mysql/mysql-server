@@ -13,12 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include "gcs_base_test.h"
 
 #include "mysql/gcs/gcs_message.h"
 #include "mysql/gcs/gcs_group_identifier.h"
 #include "mysql/gcs/gcs_member_identifier.h"
-#include "mysql/gcs/gcs_log_system.h"
 
 #include <vector>
 #include <string>
@@ -28,27 +27,9 @@ using std::vector;
 namespace gcs_message_unittest
 {
 
-class MessageEncodingDecodingTest : public ::testing::Test
+class MessageEncodingDecodingTest : public GcsBaseTest
 {
-protected:
-  MessageEncodingDecodingTest() {}
-
-  virtual void SetUp()
-  {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
-  }
-
-  virtual void TearDown()
-  {
-    Gcs_logger::finalize();
-    logger->finalize();
-    delete logger;
-  }
-
-  Gcs_simple_ext_logger_impl *logger;
 };
-
 
 TEST_F(MessageEncodingDecodingTest, EncodeDecodeTest)
 {
@@ -126,25 +107,8 @@ TEST_F(MessageEncodingDecodingTest, EncodeDecodeTest)
 }
 
 
-class MessageDataTest : public ::testing::Test
+class MessageDataTest : public GcsBaseTest
 {
-protected:
-  MessageDataTest() {}
-
-  virtual void SetUp()
-  {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
-  }
-
-  virtual void TearDown()
-  {
-    Gcs_logger::finalize();
-    logger->finalize();
-    delete logger;
-  }
-
-  Gcs_simple_ext_logger_impl *logger;
 };
 
 

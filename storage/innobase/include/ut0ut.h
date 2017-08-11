@@ -528,7 +528,7 @@ by crashing it.  Use this class when MySQL server needs to be stopped
 immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
 public:
-	~fatal();
+	~fatal() MY_ATTRIBUTE((noreturn));
 };
 
 /** Emit an error message if the given predicate is true, otherwise emit a

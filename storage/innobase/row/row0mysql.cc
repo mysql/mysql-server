@@ -4149,8 +4149,8 @@ row_drop_single_table_tablespace(
 	dberr_t	err = DB_SUCCESS;
 
 	/* If the tablespace is not in the cache, just delete the file. */
-	if (!fil_space_for_table_exists_in_mem(
-		    space_id, tablename, true, false, NULL, 0)) {
+	if (!fil_space_exists_in_mem(
+		space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
 		fil_delete_file(filepath);
@@ -4554,12 +4554,12 @@ row_drop_table_for_mysql(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
-			table->data_dir_path,
-			table_name, IBD, true);
+		filepath = Fil_path::make(
+			table->data_dir_path, table_name, IBD, true);
+
 	} else if (!shared_tablespace) {
-		filepath = fil_make_filepath(
-			NULL, table_name, IBD, false);
+
+		filepath = Fil_path::make(nullptr, table_name, IBD, false);
 	}
 
 	/* Free the dict_table_t object. */

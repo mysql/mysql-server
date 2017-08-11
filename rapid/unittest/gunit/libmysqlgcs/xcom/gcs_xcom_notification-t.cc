@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,33 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ctime>
-#include <gtest/gtest.h>
+
+#include "gcs_base_test.h"
 
 #include "gcs_xcom_notification.h"
-#include "mysql/gcs/gcs_log_system.h"
 
 namespace gcs_xcom_notification_unittest
 {
-class XcomNotificationTest : public ::testing::Test
+class XcomNotificationTest : public GcsBaseTest
 {
-protected:
-
-  XcomNotificationTest() {};
-
-  virtual void SetUp()
-  {
-    logger= new Gcs_simple_ext_logger_impl();
-    Gcs_logger::initialize(logger);
-  }
-
-  virtual void TearDown()
-  {
-    Gcs_logger::finalize();
-    logger->finalize();
-    delete logger;
-  }
-
-  Gcs_simple_ext_logger_impl *logger;
 };
 
 void function(int &val)

@@ -779,10 +779,11 @@ buf_read_ibuf_merge_pages(
 
 /** Issues read requests for pages which recovery wants to read in.
 @param[in]	sync		true if the caller wants this function to wait
-for the highest address page to get read in, before this function returns
+				for the highest address page to get read in,
+				before this function returns
 @param[in]	space_id	tablespace id
 @param[in]	page_nos	array of page numbers to read, with the
-highest page number the last in the array
+				highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
 void
 buf_read_recv_pages(
@@ -793,8 +794,6 @@ buf_read_recv_pages(
 {
 	ulint			count;
 	bool			success;
-	dberr_t			err;
-	ulint			i;
 	fil_space_t*		space	= fil_space_get(space_id);
 
 	if (space == NULL) {
@@ -809,8 +808,8 @@ buf_read_recv_pages(
 	page_no_t	last_page = page_nos[n_stored - 1];
 
 	/* Align size to multiple of extent size */
-	success = fil_space_extend(space,
-		ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
+	success = fil_space_extend(
+		space, ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
 
 	if (!success) {
 		ib::error()
@@ -822,14 +821,15 @@ buf_read_recv_pages(
 
 	const page_size_t	page_size(space->flags);
 
-	for (i = 0; i < n_stored; i++) {
-		buf_pool_t*		buf_pool;
+	for (ulint i = 0; i < n_stored; i++) {
+		buf_pool_t*	buf_pool;
 		const page_id_t	cur_page_id(space_id, page_nos[i]);
 
 		count = 0;
 
 		buf_pool = buf_pool_get(cur_page_id);
 		os_rmb;
+
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
@@ -846,6 +846,8 @@ buf_read_recv_pages(
 					<< " pending reads";
 			}
 		}
+
+		dberr_t		err;
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(

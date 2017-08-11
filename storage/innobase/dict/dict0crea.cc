@@ -105,7 +105,7 @@ dict_build_tablespace(
 	}
 	tablespace->set_space_id(space);
 
-	Datafile* datafile = tablespace->first_datafile();
+	Datafile*	datafile = tablespace->first_datafile();
 
 	log_ddl->write_delete_space_log(
 		trx, NULL, space, datafile->filepath(), false, true);
@@ -211,14 +211,14 @@ dict_build_tablespace_for_table(
 		/* Determine the full filepath */
 		if (has_data_dir) {
 			ut_ad(table->data_dir_path);
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
 
 		} else {
 			/* Make the tablespace file in the default dir
 			using the table name */
-			filepath = fil_make_filepath(
+			filepath = Fil_path::make(
 				NULL, table->name.m_name, IBD, false);
 		}
 

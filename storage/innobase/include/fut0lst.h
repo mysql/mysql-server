@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,10 +40,10 @@ typedef	byte	flst_base_node_t;
 typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
-#define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
+constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
 
 /* The physical size of a list node in bytes */
-#define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
+constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
 
 #if !defined UNIV_HOTBACKUP
 /** Initializes a list base node.

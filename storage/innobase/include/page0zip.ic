@@ -145,11 +145,11 @@ page_zip_rec_needs_ext(
 	ut_ad(rec_size > (comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES));
 	ut_ad(comp || !page_size.is_compressed());
 
-#if UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE
-	if (rec_size >= REC_MAX_DATA_SIZE) {
+        if (UNIV_PAGE_SIZE_MAX > REC_MAX_DATA_SIZE
+            && rec_size >= REC_MAX_DATA_SIZE) {
+
 		return(TRUE);
 	}
-#endif
 
 	if (page_size.is_compressed()) {
 		ut_ad(comp);

@@ -404,8 +404,9 @@ create_log_files(
 		"innodb_redo_log", dict_sys_t::s_log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
-	ut_a(fil_validate());
-	ut_a(log_space != NULL);
+
+	ut_ad(fil_validate());
+	ut_a(log_space != nullptr);
 
 	/* Once the redo log is set to be encrypted,
 	initialize encryption information. */
@@ -429,7 +430,8 @@ create_log_files(
 	logfile0 = fil_node_create(
 		logfilename, static_cast<page_no_t>(srv_log_file_size),
 		log_space, false, false);
-	ut_a(logfile0);
+
+	ut_a(logfile0 != nullptr);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
 
@@ -440,7 +442,7 @@ create_log_files(
 				     log_space, false, false)) {
 
 			ib::error()
-				<< "Cannot create file node for log file "
+				<< "Cannot create file for log file "
 				<< logfilename;
 
 			return(DB_ERROR);
@@ -454,7 +456,6 @@ create_log_files(
 	}
 
 	fil_open_log_and_system_tablespace_files();
-	fil_tablespace_open_create();
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
@@ -785,7 +786,7 @@ srv_undo_tablespace_fixup(
 }
 
 /** Open an undo tablespace.
-@param[in]	space_id	tablespace ID
+@param[in]	space_id	Undo tablespace ID
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -795,33 +796,47 @@ srv_undo_tablespace_open(space_id_t space_id)
 	bool			success;
 	ulint			flags;
 	bool			atomic_write;
+	std::string		scanned_name;
 	dberr_t			err = DB_ERROR;
 	undo::Tablespace	undo_space(space_id);
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
-	fil_space_t*		space;
-	fil_node_t*		node = nullptr;
 
-	/* See if the previous name in the file map is correct. */
-	std::string	recover_name = fil_system_open_fetch(space_id);
-	if (recover_name.length() != 0
-	    && !fil_paths_equal(file_name, recover_name.c_str())) {
-		/* Make sure that this space_id is used by the
-		correctly named undo tablespace. */
-		ib::error() << "Cannot create " << file_name
-			<< " because " << recover_name.c_str()
-			<< " already uses Space ID=" << space_id
-			<< "!  Did you change innodb_undo_directory?";
+	if (srv_is_being_started) {
 
-		return(DB_WRONG_FILE_NAME);
+		/* See if the previous name in the file map is correct. */
+		scanned_name = fil_system_open_fetch(space_id);
+
+		if (scanned_name.length() != 0
+		    && !Fil_path::equal(file_name, scanned_name)) {
+
+			/* Make sure that this space_id is used by the
+			correctly named undo tablespace. */
+			ib::error()
+				<< "Cannot create " << file_name
+				<< " because " << scanned_name.c_str()
+				<< " already uses Space ID=" << space_id
+				<< "!  Did you change innodb_undo_directory?";
+
+			return(DB_WRONG_FILE_NAME);
+		}
+	} else {
+
+		/* If we are not in recovery then the paths and filenames
+		should all be known and synced with the data dictionary. */
+
+		scanned_name = file_name;
 	}
 
 	/* Check if it was already opened during redo recovery. */
-	space = fil_space_get(space_id);
-	if (space != nullptr) {
-		node = UT_LIST_GET_FIRST(space->chain);
+	fil_space_t*	space = fil_space_get(space_id);
 
-		ut_ad(fil_paths_equal(recover_name.c_str(), node->name));
+	if (space != nullptr) {
+
+#ifdef UNIV_DEBUG
+		const auto&     file = space->files.front();
+		ut_ad(Fil_path::equal(scanned_name, file.name));
+#endif /* UNIV_DEBUG */
 
 		fil_flush(space_id);
 
@@ -871,8 +886,8 @@ srv_undo_tablespace_open(space_id_t space_id)
 		space = fil_space_create(
 			undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
 
-		ut_a(space);
-		ut_a(fil_validate());
+		ut_a(space != nullptr);
+		ut_ad(fil_validate());
 
 		os_offset_t size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t)-1);
@@ -882,11 +897,19 @@ srv_undo_tablespace_open(space_id_t space_id)
 		if (nullptr == fil_node_create(file_name, n_pages, space,
 					       false, atomic_write)) {
 			os_file_close(fh);
-			ib::error() << "Error creating file node for " << undo_name;
+
+			ib::error()
+				<< "Error creating file for "
+				<< undo_name;
+
 			return(DB_ERROR);
 		}
+
 	} else {
-		node->atomic_write = atomic_write;
+
+		auto&	file = space->files.front();
+
+		file.atomic_write = atomic_write;
 	}
 
 	/* Read the encryption metadata in this undo tablespace.
@@ -925,7 +948,7 @@ dberr_t
 srv_undo_tablespaces_open(
 	ulong	target_undo_spaces)
 {
-	dberr_t					err;
+	dberr_t		err;
 
 	/* Build a list of existing undo tablespaces from the references
 	in the TRX_SYS page. (not including the system tablespace) */
@@ -1120,8 +1143,10 @@ srv_undo_tablespaces_create(
 
 		undo::spaces->add(space_id);
 
+		++cur_undo_spaces;
+
 		/* Quit when we have enough. */
-		if (++cur_undo_spaces >= target_undo_spaces) {
+		if (cur_undo_spaces >= target_undo_spaces) {
 			break;
 		}
 	}
@@ -1153,7 +1178,6 @@ srv_undo_tablespaces_construct(bool create_new_db)
 	ut_a(!srv_read_only_mode);
 	ut_a(!srv_force_recovery);
 
-	Space_Ids::const_iterator	it;
 	for (auto space_id : undo::s_under_construction) {
 
 		/* Enable undo log encryption if it's ON. */
@@ -1275,6 +1299,7 @@ srv_undo_tablespaces_upgrade()
 /** Downgrade undo tablespaces by deleting the new undo tablespaces which
 are not referenced by the TRX_SYS page.
 @return error code */
+static
 void
 srv_undo_tablespaces_downgrade()
 {
@@ -1770,7 +1795,7 @@ srv_prepare_to_delete_redo_log_files(
 					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(bool create_new_db, const char* scan_directories)
+srv_start(bool create_new_db, const std::string& scan_directories)
 {
 	lsn_t		flushed_lsn;
 	page_no_t	sum_of_data_file_sizes;
@@ -1892,15 +1917,12 @@ srv_start(bool create_new_db, const char* scan_directories)
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
-	if (!create_new_db
-	    && scan_directories != nullptr
-	    && strlen(scan_directories) > 0) {
+	fil_init(srv_max_n_open_files);
 
-		err = fil_scan_for_tablespaces(scan_directories);
+	err = fil_scan_for_tablespaces(scan_directories);
 
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
 	}
 
 	if (!srv_read_only_mode) {
@@ -1912,12 +1934,12 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 			srv_monitor_file_name = static_cast<char*>(
 				ut_malloc_nokey(
-					strlen(fil_path_to_mysql_datadir)
+					MySQL_datadir_path.len()
 					+ 20 + sizeof "/innodb_status."));
 
 			sprintf(srv_monitor_file_name,
 				"%s/innodb_status." ULINTPF,
-				fil_path_to_mysql_datadir,
+				static_cast<const char*>(MySQL_datadir_path),
 				os_proc_get_number());
 
 			srv_monitor_file = fopen(srv_monitor_file_name, "w+");
@@ -1979,8 +2001,6 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 		return(srv_init_abort(DB_ERROR));
 	}
-
-	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
 
 	double	size;
 	char	unit;
@@ -2257,8 +2277,8 @@ srv_start(bool create_new_db, const char* scan_directories)
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
-		ut_a(fil_validate());
-		ut_a(log_space);
+		ut_ad(fil_validate());
+		ut_a(log_space != nullptr);
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
@@ -2340,7 +2360,8 @@ files_checked:
 
 		flushed_lsn = log_get_lsn();
 
-		fil_write_flushed_lsn(flushed_lsn);
+		err = fil_write_flushed_lsn(flushed_lsn);
+                ut_a(err == DB_SUCCESS);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, flushed_lsn, logfile0);
@@ -2414,15 +2435,13 @@ files_checked:
 		    && fil_check_missing_tablespaces()) {
 
 			ib::error()
-				<< "Use --innodb-scan-directories to find the"
-				<< " the tablespace files. If that fails then use"
 				<< " --innodb-force-recvovery=1 to ignore"
 				<< " this and to permanently lose all changes"
 				<< " to the missing tablespace(s)";
 
 			/* Set the abort flag to true. */
-			void*	ptr = recv_recovery_from_checkpoint_finish(true);
-			ut_a(ptr == nullptr);
+			auto	p = recv_recovery_from_checkpoint_finish(true);
+			ut_a(p == nullptr);
 
 			return(srv_init_abort(DB_ERROR));
 		}
@@ -2510,7 +2529,8 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn(flushed_lsn);
+			err = fil_write_flushed_lsn(flushed_lsn);
+                        ut_a(err == DB_SUCCESS);
 
 			RECOVERY_CRASH(4);
 
@@ -2698,9 +2718,12 @@ files_checked:
 	server could crash in middle of key rotation. Some tablespace
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
-	if (!srv_read_only_mode && !create_new_db
+	if (!srv_read_only_mode
+            && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		fil_encryption_rotate();
+
+		bool    success = fil_encryption_rotate();
+                ut_a(success);
 	}
 
 	srv_is_being_started = false;
@@ -3242,10 +3265,10 @@ srv_get_encryption_data_filename(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
 
-		path = fil_make_filepath(
+		path = Fil_path::make(
 			table->data_dir_path, table->name.m_name, CFP, true);
 	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFP, false);
+		path = Fil_path::make(NULL, table->name.m_name, CFP, false);
 	}
 
 	ut_a(path);

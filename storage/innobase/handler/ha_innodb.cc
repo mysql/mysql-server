@@ -117,6 +117,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_data_lock.h"
 #include "os0file.h"
 #include "os0thread.h"
+#include "os0thread-create.h"
 #include "p_s.h"
 #include "page0zip.h"
 #include "pars0pars.h"
@@ -148,8 +149,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0mem.h"
 
+#include <vector>
+#include <mutex>
+
+/** Stop printing warnings, if the count exceeds this threshold. */
+static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
+
 /** fil_space_t::flags for hard-coded tablespaces */
-ulint			predefined_flags;
+ulint	predefined_flags;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -194,7 +201,7 @@ static char*	innobase_enable_monitor_counter		= NULL;
 static char*	innobase_disable_monitor_counter	= NULL;
 static char*	innobase_reset_monitor_counter		= NULL;
 static char*	innobase_reset_all_monitor_counter	= NULL;
-static char*	innobase_scan_directories		= NULL;
+static char*	innobase_directories			= NULL;
 
 static ulong	innodb_change_buffering;
 static ulong	innodb_flush_method;
@@ -789,7 +796,7 @@ innodb_tmpdir_validate(
 		return(1);
 	}
 
-	os_normalize_path(alter_tmp_dir);
+	Fil_path::normalize(alter_tmp_dir);
 	my_realpath(tmp_abs_path, alter_tmp_dir, 0);
 	size_t  tmp_abs_len = strlen(tmp_abs_path);
 
@@ -3334,6 +3341,358 @@ filename_to_space_name(char* filename)
 	return(space_name);
 }
 
+/** Validate the DD tablespace data against what's read during the
+directory scan on startup. */
+class Validate_files {
+
+	using Tablespaces = std::vector<const dd::Tablespace*>;
+	using Const_iter = Tablespaces::const_iterator;
+
+public:
+	/** Constructor */
+	Validate_files()
+		:
+		m_n_errors(),
+		m_mutex(),
+		m_space_max_id(),
+		m_checked(),
+		m_n_threads() {}
+
+	/** Validate the tablespaces against the DD.
+	@param[in]	tablespaces	Tablespace files read from the DD
+	@return DB_SUCCESS if all OK */
+	dberr_t validate(const Tablespaces& tablespaces);
+
+private:
+	/** Validate the tablespace filenames.
+	@param[in]	begin		Start of the slice
+	@param[in]	end		End of the slice
+	@param[in]	thread_id	Thread ID */
+	void check(
+		const Const_iter&	begin,
+		const Const_iter&	end,
+		size_t			thread_id);
+
+	/** @return true if there were failures. */
+	bool failed() const
+	{
+		return(m_n_errors != 0);
+	}
+
+	/** @return the number of tablespaces checked. */
+	size_t checked() const
+	{
+		return(m_checked);
+	}
+
+	/** @return the maximum tablespace ID found. */
+	space_id_t get_space_max_id() const
+	{
+		return(m_space_max_id);
+	}
+
+private:
+	/** Number of threads that failed. */
+	std::atomic_size_t	m_n_errors;
+
+	/** Mutex protecting the parallel check. */
+	std::mutex		m_mutex;
+
+	/** Maximum tablespace ID found. */
+	space_id_t		m_space_max_id;
+
+	/** Number of tablespaces checked. */
+	std::atomic_size_t	m_checked;
+
+	/** Number of threads used in the parallel for. */
+	size_t			m_n_threads;
+};
+
+/** Validate the tablespace filenames.
+@param[in]	begin		Start of the slice
+@param[in]	end		End of the slice
+@param[in]	thread_id	Thread ID */
+void
+Validate_files::check(
+	const Const_iter&	begin,
+	const Const_iter&	end,
+	size_t			thread_id)
+{
+	const auto	fpt_str = dict_sys_t::s_file_per_table_name;
+	const auto	sys_space_name = dict_sys_t::s_sys_space_name;
+	const auto	fpt_str_len = strlen(fpt_str);
+
+	size_t		count = 0;
+	size_t		moved = 0;
+	bool		print_msg = false;
+	auto		start_time = ut_time();
+	auto		heap = mem_heap_create(FN_REFLEN * 2 + 1);
+
+	const bool	validate = recv_needed_recovery
+		&& srv_force_recovery == 0;
+
+	std::string		prefix;
+
+	if (m_n_threads > 0) {
+		std::ostringstream	msg;
+
+		msg << "Thread# " << thread_id << " - ";
+
+		prefix = msg.str();
+	}
+
+	for (auto it = begin; it != end; ++it, ++m_checked, ++count) {
+
+		const auto&	tablespace = *it;
+
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+
+			std::ostringstream	msg;
+
+			msg	<< prefix
+				<< "Checked " << count << "/" << (end - begin)
+				<< " tablespaces";
+
+			if (moved > 0) {
+				msg << ", moved count " << moved;
+			}
+
+			ib::info() << msg.str();
+
+			start_time = ut_time();
+
+			print_msg = true;
+		}
+
+		if (tablespace->engine() != innobase_hton_name) {
+			continue;
+		}
+
+		space_id_t	space_id;
+		uint32_t	flags = 0;
+		const auto&	p = tablespace->se_private_data();
+		const char*	space_name = tablespace->name().c_str();
+		const auto	se_key_value = dd_space_key_strings;
+
+		/* There should be exactly one file name associated
+		with each InnoDB tablespace, except innodb_system */
+
+		if (p.get_uint32(se_key_value[DD_SPACE_ID], &space_id)) {
+
+			/* Failed to fetch the tablespace ID */
+
+			++m_n_errors;
+
+			break;
+
+		} else if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
+
+			/* Failed to fetch the tablespace flags. */
+
+			++m_n_errors;
+
+			break;
+
+		} else if (tablespace->files().size() != 1
+			   && strcmp(space_name, sys_space_name) != 0) {
+
+			/* Only the InnoDB system tablespace has support for
+			multiple files per tablespace. For historial reasons. */
+
+			++m_n_errors;
+
+			break;
+		}
+
+		{
+			std::lock_guard<std::mutex> guard(m_mutex);
+
+			if (!dict_sys_t::is_reserved(space_id)
+			    && space_id > m_space_max_id) {
+
+				/* Currently try to find the max one only,
+				it should be able to reuse the deleted smaller
+				ones later */
+				m_space_max_id = space_id;
+			}
+		}
+
+		const auto	file = *tablespace->files().begin();
+
+		if (fsp_is_system_or_temp_tablespace(space_id)
+		    || fsp_is_undo_tablespace(space_id)) {
+
+			/* These are tracked and opened separately. */
+			continue;
+		}
+
+		std::string	new_path;
+		const char*	filename = file->filename().c_str();
+
+		if (fsp_is_ibd_tablespace(space_id)) {
+
+			std::lock_guard<std::mutex> guard(m_mutex);
+
+			switch(fil_tablespace_path_equals(
+					tablespace->id(),
+					space_id, filename, &new_path)) {
+
+			case Fil_state::MATCHES:
+				break;
+
+			case Fil_state::MISSING:
+
+				ib::info()
+					<< prefix
+					<< "Tablespace " << space_id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " is missing!";
+
+				continue;
+
+			case Fil_state::DELETED:
+
+				ib::info()
+					<< prefix
+					<< "Tablespace " << space_id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " was deleted!";
+
+				continue;
+
+			case Fil_state::MOVED:
+
+				++moved;
+
+				if (moved > MOVED_FILES_PRINT_THRESHOLD) {
+
+					filename = new_path.c_str();
+
+					break;
+				}
+
+				ib::info()
+					<< prefix
+					<< "DD ID: " << tablespace->id()
+					<< " - "
+					<< "Tablespace " << space_id << ","
+					<< " name '" << space_name << "',"
+					<< " file '" << filename << "'"
+					<< " has been moved to"
+					<< " '" << new_path << "'";
+
+				filename = new_path.c_str();
+
+				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
+
+					ib::info()
+						<< prefix
+						<< "Too many files have"
+						<< " have been moved, disabling"
+						<< " logging of detailed"
+						<< " messages";
+				}
+
+				break;
+			}
+		}
+
+		char	buf[FN_REFLEN * 2 + 1];
+
+		ut_ad(strlen(filename) < sizeof(buf));
+
+		/* Make a copy for extracting the space_name. space_name will
+		be a pointer within this buf if it is derived from buf below. */
+
+		strncpy(buf, filename, strlen(filename) + 1);
+
+		/* Currently, innodb_file_per_table space name is not the one
+		including schema/table, so get it from filename instead. */
+
+		if (strncmp(space_name, fpt_str, fpt_str_len) == 0) {
+
+			space_name = filename_to_space_name(buf);
+
+			if (space_name == nullptr) {
+
+				++m_n_errors;
+				break;
+			}
+		}
+
+		if (fil_space_exists_in_mem(
+			space_id, space_name, false, true, heap, 0)) {
+
+			continue;
+		}
+
+		dberr_t	err = fil_ibd_open(
+			validate, FIL_TYPE_TABLESPACE,
+			space_id, flags, space_name, filename, false);
+
+		switch (err) {
+		case DB_SUCCESS:
+		case DB_CANNOT_OPEN_FILE:
+			break;
+
+		default:
+			ib::error()
+				<< prefix
+				<< "Tablespace " << space_id << ","
+				<< " name '" << space_name << "',"
+				<< " unable to open file"
+				<< " '" << filename << "' - "
+				<< ut_strerr(err);
+		}
+	}
+
+	if (!print_msg) {
+		ib::info()
+			<< prefix
+			<< "Validated "
+			<< count << "/" << (end - begin) << "  tablespaces";
+	}
+
+	mem_heap_free(heap);
+}
+
+/** Validate the tablespaces against the DD.
+@param[in]	tablespaces	Tablespace files read from the DD
+@return DB_SUCCESS if all OK */
+dberr_t
+Validate_files::validate(const Tablespaces& tablespaces)
+{
+	m_n_threads = tablespaces.size() / 50000;
+
+	if (m_n_threads > 8) {
+		m_n_threads = 8;
+	}
+
+	using std::placeholders::_1;
+	using std::placeholders::_2;
+	using std::placeholders::_3;
+
+	std::function<void(
+		const Validate_files::Const_iter&,
+		const Validate_files::Const_iter&,
+		size_t)> check = std::bind(
+			&Validate_files::check, this, _1, _2, _3);
+
+	par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check);
+
+	ib::info() << "Validated " << checked();
+
+	if (failed()) {
+		return(DB_ERROR);
+	}
+
+	fil_set_max_space_id_if_bigger(get_space_max_id());
+
+	return(DB_SUCCESS);
+}
+
 /** Discover all InnoDB tablespaces.
 @param[in,out]	thd	thread handle
 @retval	true	on error
@@ -3342,117 +3701,42 @@ static MY_ATTRIBUTE((warn_unused_result))
 bool
 boot_tablespaces(THD* thd)
 {
-	dd::cache::Dictionary_client*			dc
-		= dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(dc);
-	std::vector<const dd::Tablespace*>		tablespaces;
+	auto	dc = dd::get_dd_client(thd);
+
+	using DD_tablespaces = std::vector<const dd::Tablespace*>;
+	using Releaser = dd::cache::Dictionary_client::Auto_releaser;
+
+	DD_tablespaces	tablespaces;
+	Releaser	releaser(dc);
 
 	/* Initialize the max space_id from sys header */
 	mutex_enter(&dict_sys->mutex);
+
 	mtr_t	mtr;
+
 	mtr_start(&mtr);
-	space_id_t	max_id = mtr_read_ulint(
-		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID,
-		MLOG_4BYTES, &mtr);
+
+	space_id_t	space_max_id = mtr_read_ulint(
+		dict_hdr_get(&mtr) + DICT_HDR_MAX_SPACE_ID, MLOG_4BYTES, &mtr);
+
 	mtr_commit(&mtr);
-	fil_set_max_space_id_if_bigger(max_id);
+
+	fil_set_max_space_id_if_bigger(space_max_id);
+
 	mutex_exit(&dict_sys->mutex);
 
+	ib::info() << "Reading DD tablespace files";
+
 	if (dc->fetch_global_components(&tablespaces)) {
+
+		/* Failed to fetch the tablespaces from the DD. */
+
 		return(true);
 	}
 
-	const bool	validate = recv_needed_recovery
-		&& srv_force_recovery == 0;
-	bool		fail = false;
-	mem_heap_t*	heap = mem_heap_create(FN_REFLEN * 2 + 1);
-	max_id = 0;
+	Validate_files	validator;
 
-	for (const dd::Tablespace* t : tablespaces) {
-		ut_ad(!fail);
-
-		if (t->engine() != innobase_hton_name) {
-			continue;
-		}
-
-		const dd::Properties&	p	= t->se_private_data();
-		uint32			id;
-		uint32			flags	= 0;
-
-		/* There should be exactly one file name associated
-		with each InnoDB tablespace, except innodb_system */
-		fail = p.get_uint32(dd_space_key_strings[DD_SPACE_ID], &id)
-			|| p.get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-					&flags)
-			|| (t->files().size() != 1 &&
-			    strcmp(t->name().c_str(),
-				   dict_sys_t::s_sys_space_name) != 0);
-
-		if (fail) {
-			break;
-		}
-
-		if (!dict_sys_t::is_reserved(id) && id > max_id) {
-			/* Currently try to find the max one only, it should
-			be able to reuse the deleted smaller ones later */
-			max_id = id;
-		}
-
-		const dd::Tablespace_file* f = *t->files().begin();
-		fail = f == nullptr;
-		if (fail) {
-			break;
-		}
-
-		const char*	space_name = t->name().c_str();
-		fil_type_t	purpose = fsp_is_system_temporary(id)
-			? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE;
-		const char*	filename = f->filename().c_str();
-		char		buf[FN_REFLEN * 2 + 1];
-
-		ut_ad(strlen(filename) < sizeof(buf));
-		strncpy(buf, filename, strlen(filename) + 1);
-
-		/* Currently, innodb_file_per_table space name is not the one
-		including schema/table, so get it from filename instead */
-		if (strncmp(t->name().c_str(), dict_sys_t::s_file_per_table_name,
-			    strlen(dict_sys_t::s_file_per_table_name)) == 0) {
-			space_name = filename_to_space_name(buf);
-			if (space_name == nullptr) {
-				fail = true;
-				break;
-			}
-		}
-
-		if (fsp_is_system_or_temp_tablespace(id)
-		    || fsp_is_undo_tablespace(id)
-		    || fil_space_for_table_exists_in_mem(
-			id, space_name, false, true, heap, 0)) {
-			continue;
-		}
-
-		dberr_t	err = fil_ibd_open(
-			validate, purpose, id, flags, space_name,
-			filename, false);
-		switch (err) {
-		case DB_SUCCESS:
-		case DB_CANNOT_OPEN_FILE:
-			break;
-		default:
-			ib::info() << "Unable to open tablespace " << id
-				<< " (flags=" << flags
-				<< ", filename=" << filename << ")."
-				<< " This should be fixed after data"
-				<< " dictionary and DDL recovery later.";
-			ut_strerr(err);
-		}
-	}
-
-	fil_set_max_space_id_if_bigger(max_id);
-
-	mem_heap_free(heap);
-
-	return(fail);
+	return(validator.validate(tablespaces) != DB_SUCCESS);
 }
 
 /** Create metadata for a predefined tablespace at server initialization.
@@ -3590,6 +3874,7 @@ innobase_dict_recover(
 	dict_recovery_mode_t		dict_recovery_mode,
 	uint				version)
 {
+	dberr_t		err;
 	THD*		thd = current_thd;
 
 	switch (dict_recovery_mode) {
@@ -3635,25 +3920,36 @@ innobase_dict_recover(
 			return(true);
 		}
 
-		goto success;
+		break;
 	}
 	case DICT_RECOVERY_RESTART_SERVER:
 		if (boot_tablespaces(thd)) {
 			return(true);
 		}
 
-		/* Check and extend space files, if needed. */
-		if (fil_iterate_tablespace_files(false, nullptr,
-			fil_check_extend_space) != DB_SUCCESS) {
+		/* Check and extend space files, if needed, ignore
+		redo log files. */
+
+		err = Fil_iterator::for_each_file(false, [](fil_node_t* file)
+		{
+			return(fil_check_extend_space(file));
+		});
+
+		if (err != DB_SUCCESS){
 
 			return(true);
 		}
 
 		srv_dict_recover_on_restart();
-success:
-		srv_start_threads(
-			dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
+
+		err = fil_open_for_business(srv_read_only_mode);
+
+		if (err != DB_SUCCESS) {
+			return(true);
+		}
 	}
+
+	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 
 	return(false);
 }
@@ -3935,21 +4231,29 @@ innodb_init_params()
 	current_dir[1] = FN_LIBCHAR;
 	current_dir[2] = 0;
 	default_path = current_dir;
-	ut_a(default_path);
-	fil_path_to_mysql_datadir = default_path;
-	folder_mysql_datadir = default_path;
+
+	ut_a(default_path != nullptr);
+
+	std::string	mysqld_datadir{default_path};
+
+	if (mysqld_datadir.back() != OS_PATH_SEPARATOR) {
+		mysqld_datadir.push_back(OS_PATH_SEPARATOR);
+	}
+
+	MySQL_datadir_path = Fil_path{mysqld_datadir};
 
 	/* Validate, normalize and interpret the InnoDB start-up parameters. */
 
 	/* The default dir for data files is the datadir of MySQL */
 
-	srv_data_home = innobase_data_home_dir
+	srv_data_home = innobase_data_home_dir != nullptr
 			? innobase_data_home_dir : default_path;
 
 	if (srv_undo_dir == nullptr) {
 		srv_undo_dir = default_path;
 	}
-	os_normalize_path(srv_undo_dir);
+
+	Fil_path::normalize(srv_undo_dir);
 
 	/* The default dir for log files is the datadir of MySQL */
 
@@ -4562,26 +4866,34 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
 	ulint		mysql_flags = FSP_FLAGS_SET_SDI(predefined_flags);
 
-	if (space != NULL) {
+	if (space != nullptr) {
+
 		/* ADD SDI flag presence in predefined flags of mysql
 		tablespace. */
 
 		/* The tablespace was already opened up by redo log apply. */
 		ut_ad(space->flags == mysql_flags);
-		if (strstr(UT_LIST_GET_FIRST(space->chain)->name, filename) != 0
+
+		if (strstr(space->files.front().name, filename) != 0
 		    && space->flags == mysql_flags) {
+
 			fil_space_open_if_needed(space);
+
 		} else {
 			fail = true;
 		}
 
 		fil_space_release(space);
+
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
 				mysql_flags, dict_sys_t::s_dd_space_name,
 				filename, true)
 		   == DB_SUCCESS) {
+
 		/* Set fil_space_t::size, which is 0 initially. */
-		fil_space_get_size(space_id);
+		ulint   size = fil_space_get_size(space_id);
+                ut_a(size != ULINT_UNDEFINED);
+
 	} else {
 		fail = true;
 	}
@@ -4621,7 +4933,32 @@ innobase_init_files(
 
 	srv_is_upgrade_mode = (dict_init_mode == DICT_INIT_UPGRADE_FILES);
 
-	err = srv_start(create, innobase_scan_directories);
+	/* InnoDB files should be found in the following locations only. */
+	std::string	directories;
+
+	if (innobase_directories != nullptr && *innobase_directories != 0) {
+
+		directories.push_back(FIL_PATH_SEPARATOR);
+		directories.append(innobase_directories);
+	}
+
+	if (!directories.empty()) {
+		directories.push_back(FIL_PATH_SEPARATOR);
+	}
+
+	directories.append(srv_data_home);
+
+	if (srv_undo_dir != nullptr && *srv_undo_dir != 0) {
+
+		directories.push_back(FIL_PATH_SEPARATOR);
+		directories.append(srv_undo_dir);
+	}
+
+	/* This is the default directory for .ibd files. */
+	directories.push_back(FIL_PATH_SEPARATOR);
+	directories.append(MySQL_datadir_path);
+
+	err = srv_start(create, directories);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -6444,9 +6781,6 @@ ha_innobase::innobase_initialize_autoinc()
 	dict_table_autoinc_initialize(m_prebuilt->table, auto_inc);
 }
 
-/** partition separator */
-extern const char*	part_sep;
-
 /** Open an InnoDB table.
 @param[in]	name		table name
 @param[in]	open_flags	flags for opening table from SQL-layer.
@@ -6486,7 +6820,7 @@ ha_innobase::open(
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. */
-	is_part = strstr(norm_name, part_sep);
+	is_part = strstr(norm_name, PARTITION_SEPARATOR);
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
@@ -13342,10 +13676,8 @@ innobase_basic_ddl::rename_impl(
 			dd::Object_id	dd_space_id =
 				dd_first_index(to_table)->tablespace_id();
 
-			if (dd_tablespace_update_filename(
-				dd_space_id, new_path)) {
-				error = DB_ERROR;
-			}
+			error = dd_tablespace_update_filename(
+				dd_space_id, new_path);
 
 			ut_free(new_path);
 		}
@@ -13940,7 +14272,7 @@ ha_innobase::truncate_rename_tablespace(
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		new_path = os_file_make_new_pathname(old_path, temp_name);
 	} else {
-		new_path = fil_make_filepath(nullptr, temp_name, IBD, false);
+		new_path = Fil_path::make(nullptr, temp_name, IBD, false);
 	}
 
 	/* New filepath must not exist. */
@@ -14181,8 +14513,6 @@ validate_create_tablespace_info(
 	THD*			thd,
 	st_alter_tablespace*	alter_info)
 {
-	space_id_t	space_id;
-
 	/* The parser ensures that these fields are provided. */
 	ut_a(alter_info->tablespace_name);
 	ut_a(alter_info->data_file_name);
@@ -14200,7 +14530,11 @@ validate_create_tablespace_info(
 	int	error = 0;
 
 	/* Make sure the tablespace is not already open. */
+
+	space_id_t	space_id;
+
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
+
 	if (space_id != SPACE_UNKNOWN) {
 		my_printf_error(ER_TABLESPACE_EXISTS,
 				"InnoDB: A tablespace named `%s`"
@@ -14242,47 +14576,51 @@ validate_create_tablespace_info(
 	}
 
 	/* Validate the ADD DATAFILE name. */
-	char*	filepath = mem_strdup(alter_info->data_file_name);
-	os_normalize_path(filepath);
+	Fil_path	filepath{alter_info->data_file_name};
 
 	/* It must end with '.ibd' and contain a basename of at least
 	1 character before the.ibd extension. */
-	ulint dirname_len = dirname_length(filepath);
-	const char* basename = filepath + dirname_len;
-	ulint	basename_len = strlen(basename);
-	if (basename_len < 5) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-		alter_info->data_file_name);
-		ut_free(filepath);
-		return(HA_WRONG_CREATE_OPTION);
-	}
-	if (memcmp(&basename[basename_len - 4], DOT_IBD, 5)) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
+
+	ulint		dirname_len = dirname_length(filepath);
+	const char*	basename = filepath + dirname_len;
+	auto		basename_len = strlen(basename);
+
+	if (basename_len <= 4 || !Fil_path::has_ibd_suffix(basename)) {
+
+		if (basename_len <= 4) {
+
+			my_error(ER_WRONG_FILE_NAME,
+				 MYF(0), filepath.path().c_str());
+		} else {
+
+			my_printf_error(
+				ER_WRONG_FILE_NAME,
 				"An IBD filepath must end with `.ibd`.",
 				MYF(0));
-		ut_free(filepath);
+		}
+
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
 	/* Do not allow an invalid colon in the file name. */
-	const char* colon = strchr(filepath, ':');
+	const char*	colon = strchr(filepath, ':');
+
 	if (colon != NULL) {
 #ifdef _WIN32
 		/* Do not allow names like "C:name.ibd" because it
 		specifies the "C:" drive but allows a relative location.
 		It should be like "c:\". If a single colon is used it must
 		be the second byte the the third byte must be a separator. */
-		if (colon != &filepath[1]
-		    || (colon[1] != OS_PATH_SEPARATOR)
+		if (*colon != *filepath.path().begin()
+		    || colon[1] != OS_PATH_SEPARATOR
 		    || NULL != strchr(&colon[1], ':')) {
 #endif /* _WIN32 */
-			my_error(ER_WRONG_FILE_NAME, MYF(0),
-				 alter_info->data_file_name);
+			my_error(ER_WRONG_FILE_NAME,
+				 MYF(0), filepath.path().c_str());
+
 			my_printf_error(ER_WRONG_FILE_NAME,
 					"Invalid use of ':'.", MYF(0));
-			ut_free(filepath);
+
 			return(HA_WRONG_CREATE_OPTION);
 #ifdef _WIN32
 		}
@@ -14293,31 +14631,54 @@ validate_create_tablespace_info(
 	/* On Non-Windows platforms, '\\' is a valid file name character.
 	But for InnoDB datafiles, we always assume it is a directory
 	separator and convert these to '/' */
-	if (strchr(alter_info->data_file_name, '\\') != NULL) {
-		ib::warn() << "Converting backslash to forward slash in"
-			" ADD DATAFILE " << alter_info->data_file_name;
+	if (strchr(filepath, '\\') != NULL) {
+
+		ib::warn()
+			<< "Converting backslash to forward slash in"
+			" ADD DATAFILE " << filepath.path();
 	}
 #endif /* _WIN32 */
 
-	/* The directory path must be pre-existing. */
-	Folder folder(filepath, dirname_len);
-	ut_free(filepath);
-	if (!folder.exists()) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
-				"The directory does not exist.", MYF(0));
+	Fil_path	dirpath{alter_info->data_file_name, dirname_len};
+
+	if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
+
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"The directory does not exist.", MYF(0));
+
 		return(HA_WRONG_CREATE_OPTION);
+	}
+
+	/* CREATE TABLESPACE...ADD DATAFILE must be under a path that InnoDB
+	knows about. */
+	if (dirpath.len() > 0 && !fil_check_path(dirpath.path())) {
+
+		std::string	paths = fil_get_dirs();
+
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"CREATE TABLESPACE data file must be in one of"
+			" these directories '%s'.", MYF(0), paths.c_str());
+
+		error = HA_WRONG_CREATE_OPTION;
 	}
 
 	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
 	the datadir.*/
-	if (folder_mysql_datadir > folder) {
-		my_error(ER_WRONG_FILE_NAME, MYF(0),
-			 alter_info->data_file_name);
-		my_printf_error(ER_WRONG_FILE_NAME,
-				"CREATE TABLESPACE data file"
-				" cannot be under the datadir.", MYF(0));
+	if (MySQL_datadir_path.is_ancestor(dirpath)) {
+
+		my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
+
+		my_printf_error(
+			ER_WRONG_FILE_NAME,
+			"CREATE TABLESPACE data file cannot be under the"
+			" datadir.", MYF(0));
+
 		error = HA_WRONG_CREATE_OPTION;
 	}
 
@@ -20271,7 +20632,9 @@ checkpoint_now_set(
 			fil_flush_file_spaces(to_int(FIL_TYPE_LOG));
 		}
 
-		fil_write_flushed_lsn(log_sys->lsn);
+		dberr_t err = fil_write_flushed_lsn(log_sys->lsn);
+
+                ut_a(err == DB_SUCCESS);
 	}
 }
 
@@ -21441,10 +21804,10 @@ static MYSQL_SYSVAR_BOOL(ddl_log_crash_reset_debug,
   NULL, ddl_log_crash_reset, FALSE);
 #endif /* UNIV_DEBUG */
 
-static MYSQL_SYSVAR_STR(scan_directories, innobase_scan_directories,
+static MYSQL_SYSVAR_STR(directories, innobase_directories,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
-  "List of directories to scan for missing tablespace files.",
-  NULL, NULL, "");
+  "List of directories 'dir1;dir2;..;dirN' to scan for tablespace files. Default is to scan 'innodb-data-home-dir;innodb-undo-directory;datadir'",
+  NULL, NULL, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
@@ -21539,7 +21902,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
-  MYSQL_SYSVAR(scan_directories),
+  MYSQL_SYSVAR(directories),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),

@@ -844,22 +844,21 @@ fsp_parse_init_file_page(
 	return(ptr);
 }
 
-/**********************************************************************//**
-Initializes the fsp system. */
+/** Initializes the fsp system. */
 void
-fsp_init(void)
-/*==========*/
+fsp_init()
 {
 	/* FSP_EXTENT_SIZE must be a multiple of page & zip size */
+	ut_a(UNIV_PAGE_SIZE > 0);
 	ut_a(0 == (UNIV_PAGE_SIZE % FSP_EXTENT_SIZE));
-	ut_a(UNIV_PAGE_SIZE);
 
-#if UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX
-# error "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0"
-#endif
-#if UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN
-# error "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0"
-#endif
+        static_assert(
+                !(UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX),
+                "UNIV_PAGE_SIZE_MAX % FSP_EXTENT_SIZE_MAX != 0");
+
+        static_assert(
+                !(UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN),
+                "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE_MIN != 0");
 
 	/* Does nothing at the moment */
 }
@@ -1576,8 +1575,8 @@ fsp_fill_free_list(
 
 		i += FSP_EXTENT_SIZE;
 	}
-
-	space->free_len += count;
+	ut_a(count < std::numeric_limits<uint32_t>::max());
+	space->free_len += (uint32_t) count;
 }
 
 /** Allocates a new free extent.
@@ -3458,12 +3457,18 @@ tablespace without running out of space.
 uintmax_t
 fsp_get_available_space_in_free_extents(space_id_t space_id)
 {
-	FilSpace	space(space_id);
-	if (space() == NULL) {
+	fil_space_t*	space = fil_space_acquire(space_id);
+
+	if (space == nullptr) {
+
 		return(UINTMAX_MAX);
 	}
 
-	return(fsp_get_available_space_in_free_extents(space));
+	auto	n_free_extents = fsp_get_available_space_in_free_extents(space);
+
+	fil_space_release(space);
+
+	return(n_free_extents);
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the
