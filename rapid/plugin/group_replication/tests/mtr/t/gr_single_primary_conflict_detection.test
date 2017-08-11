@@ -286,6 +286,10 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo ############################################################
 --echo # 20. Clean up.
+
 DROP TABLE t2;
 DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
 --source ../inc/group_replication_end.inc

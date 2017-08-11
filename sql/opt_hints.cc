@@ -36,6 +36,7 @@
 #include "sql_select.h"
 #include "sql_servers.h"
 #include "table.h"
+#include "error_handler.h"
 
 /**
   Information about hints. Sould be
@@ -206,6 +207,14 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type)
 
   DBUG_ASSERT(0);
   return NULL;
+}
+
+
+void Opt_hints_global::print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
+                                             String *str)
+{
+  if (sys_var_hint)
+    sys_var_hint->print(str);
 }
 
 
@@ -658,6 +667,153 @@ PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type)
 
   DBUG_ASSERT(0);
   return NULL;
+}
+
+
+/**
+  Function prints hint using the info from set_var variable.
+
+  @param str            Pointer to string object
+  @param var            Pointer to set_var object
+*/
+
+static void print_hint_from_var(String *str, set_var *var)
+{
+  str->append(STRING_WITH_LEN("SET_VAR("));
+  var->print_short(str);
+  str->append(STRING_WITH_LEN(") "));
+}
+
+
+/**
+  Function prints hint as it is specified.
+
+  @param str            Pointer to string object
+  @param sys_var_name   Variable name
+  @param sys_var_value  Variable value
+*/
+
+static void print_hint_specified(String *str,
+                                 LEX_CSTRING* sys_var_name,
+                                 Item *sys_var_value)
+{
+  str->append(STRING_WITH_LEN("SET_VAR("));
+  str->append(sys_var_name->str, sys_var_name->length);
+  str->append(STRING_WITH_LEN("="));
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String str_buff(buff, sizeof(buff), system_charset_info), *str_res;
+  str_res= sys_var_value->val_str(&str_buff);
+  if (sys_var_value->result_type() == STRING_RESULT)
+  {
+    str->append(STRING_WITH_LEN("'"));
+    str->append(str_res->ptr(), str_res->length());
+    str->append(STRING_WITH_LEN("'"));
+  }
+  else if (sys_var_value->result_type() == INT_RESULT)
+    str->append(str_res->ptr(), str_res->length());
+  str->append(STRING_WITH_LEN(") "));
+}
+
+
+bool Sys_var_hint::add_var(THD *thd, sys_var *sys_var, Item *sys_var_value)
+{
+  for (uint i= 0; i < var_list.size(); i++)
+  {
+    const Hint_set_var *hint_var= var_list[i];
+    set_var *var= hint_var->var;
+    /*
+      Issue a warning if system variable is already present in hint list.
+    */
+    if (!cmp_lex_string(&var->var->name,
+                        &sys_var->name, system_charset_info))
+    {
+      String str;
+      print_hint_specified(&str, &var->var->name, sys_var_value);
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_CONFLICTING_HINT,
+                          ER_THD(thd, ER_WARN_CONFLICTING_HINT),
+                          str.c_ptr_safe());
+      return false;
+    }
+  }
+
+  set_var *var= new (thd->mem_root)
+    set_var(OPT_SESSION, sys_var,
+            (const LEX_STRING*) &sys_var->name,
+            sys_var_value);
+  if (!var)
+    return true;
+
+  Hint_set_var *hint_var= new (thd->mem_root) Hint_set_var(var);
+  if(!hint_var)
+    return true;
+
+  return var_list.push_back(hint_var);
+}
+
+
+void Sys_var_hint::update_vars(THD *thd)
+{
+  // Skip SET_VAR hint applying on the slave.
+  if (thd->slave_thread)
+    return;
+
+  Set_var_error_handler error_handler(false);
+  for (uint i= 0; i < var_list.size(); i++)
+  {
+    thd->push_internal_handler(&error_handler);
+    Hint_set_var *hint_var= var_list[i];
+    set_var *var= hint_var->var;
+    if (!var->resolve(thd) && !var->check(thd))
+    {
+      Item *save_value= var->var->copy_value(thd);
+      if (!var->update(thd))
+        hint_var->save_value= save_value;
+    }
+    thd->pop_internal_handler();
+    error_handler.reset_state();
+  }
+}
+
+
+void Sys_var_hint::restore_vars(THD *thd)
+{
+  Set_var_error_handler error_handler(true);
+  thd->push_internal_handler(&error_handler);
+  for (uint i= 0; i < var_list.size(); i++)
+  {
+    Hint_set_var *hint_var= var_list[i];
+    set_var *var= hint_var->var;
+    if (hint_var->save_value)
+    {
+      /* Restore original vaule for update */
+      std::swap(var->value, hint_var->save_value);
+      /*
+        There should be no error since original value is restored.
+      */
+#ifndef DBUG_OFF
+      DBUG_ASSERT(!var->check(thd));
+      DBUG_ASSERT(!var->update(thd));
+#else
+      (void) var->check(thd);
+      (void) var->update(thd);
+#endif
+      /* Restore hint vaule for further executions */
+      std::swap(var->value, hint_var->save_value);
+    }
+  }
+  thd->pop_internal_handler();
+}
+
+
+void Sys_var_hint::print(String *str)
+{
+  for (uint i= 0; i < var_list.size(); i++)
+  {
+    Hint_set_var *hint_var= var_list[i];
+    if (hint_var->save_value)
+      print_hint_from_var(str, hint_var->var);
+  }
 }
 
 

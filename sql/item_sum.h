@@ -717,6 +717,18 @@ public:
     @return true if case two above holds, else false
   */
   bool wf_common_init();
+
+protected:
+  /*
+    Raise an error (ER_NOT_SUPPORTED_YET) with the detail that this
+    function is not yet supported as a window function.
+  */
+  void unsupported_as_wf()
+  {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    my_snprintf(buff, sizeof(buff), "%s as window function", func_name());
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), buff);
+  }
 };
 
 
@@ -1161,7 +1173,6 @@ public:
   { DBUG_ASSERT(0); return "sum_bit_field"; }
 };
 
-
 /// Common abstraction for Item_sum_json_array and Item_sum_json_object
 class Item_sum_json : public Item_sum
 {
@@ -1206,7 +1217,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };
@@ -1671,7 +1682,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };
@@ -2028,7 +2039,7 @@ public:
                           Window::Evaluation_requirements *reqs
                             MY_ATTRIBUTE((unused))) override
   {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "this aggregate as window function");
+    unsupported_as_wf();
     return true;
   }
 };

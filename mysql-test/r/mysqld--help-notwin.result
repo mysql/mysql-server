@@ -495,8 +495,6 @@ The following options may be given as the first argument:
  local time. This affects only log files, not log tables,
  as the timestamp columns of the latter can be converted
  at will.
- -W, --log-warnings[=#] 
- Log some not critical warnings to the log file
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -702,6 +700,13 @@ The following options may be given as the first argument:
  Offset of first optimizer trace to show; see manual
  --parser-max-mem-size=# 
  Maximum amount of memory available to the parser
+ --password-history=# 
+ The number of old passwords to check in the history. Set
+ to 0 (the default) to turn the checks off
+ --password-reuse-interval=# 
+ The minimum number of days that need to pass before a
+ password can be reused. Set to 0 (the default) to turn
+ the checks off
  --performance-schema 
  Enable the performance schema.
  (Defaults to on; use --skip-performance-schema to disable.)
@@ -1404,7 +1409,6 @@ log-tc tc.log
 log-tc-size #####
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
-log-warnings 1
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1470,6 +1474,8 @@ optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
+password-history 0
+password-reuse-interval 0
 performance-schema TRUE
 performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE

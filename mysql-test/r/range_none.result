@@ -3517,7 +3517,7 @@ EXPLAIN SELECT MAX(col2) FROM t1 WHERE col1 = 'abcde  ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`col2`) AS `MAX(col2)` from `test`.`t1` where (`test`.`t1`.`col1` = 'abcde  ')
+Note	1003	/* select#1 */ select max(`test`.`t1`.`col2`) AS `MAX(col2)` from `test`.`t1` where multiple equal('abcde  ', `test`.`t1`.`col1`)
 SELECT MAX(col2) FROM t1 WHERE col1 = 'abcdeaa';
 MAX(col2)
 NULL

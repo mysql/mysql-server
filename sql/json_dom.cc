@@ -348,24 +348,30 @@ static bool find_child_doms(Json_dom *dom,
   ellipses, or if it contains an auto-wrapping array path leg after an
   ellipses. See #Json_wrapper::seek() for more details.
 
-  @param path       the path to search for
+  @param begin      the beginning of the path
+  @param end        the end of the path (exclusive)
   @param auto_wrap  true if array auto-wrapping is used
 
   @retval true if duplicate elimination is needed
   @retval false if the path won't produce duplicates
 */
-static bool path_gives_duplicates(const Json_seekable_path &path,
+static bool path_gives_duplicates(const Json_path_iterator &begin,
+                                  const Json_path_iterator &end,
                                   bool auto_wrap)
 {
-  bool has_ellipsis= false;
-  for (const Json_path_leg *leg : path)
-  {
-    if (has_ellipsis && (leg->get_type() == jpl_ellipsis ||
-                         (auto_wrap && leg->is_autowrap())))
-      return true;
-    has_ellipsis|= (leg->get_type() == jpl_ellipsis);
-  }
-  return false;
+  auto it= std::find_if(begin, end, [](const Json_path_leg *leg) {
+      return leg->get_type() == jpl_ellipsis;
+    });
+
+  // If no ellipsis, no duplicates.
+  if (it == end)
+    return false;
+
+  // Otherwise, possibly duplicates if ellipsis or autowrap leg follows.
+  return std::any_of(it + 1, end, [auto_wrap](const Json_path_leg *leg) {
+      return leg->get_type() == jpl_ellipsis ||
+             (auto_wrap && leg->is_autowrap());
+    });
 }
 
 
@@ -2199,15 +2205,18 @@ Json_path Json_dom::get_location()
 }
 
 
-bool Json_dom::seek(const Json_seekable_path &path,
+bool Json_dom::seek(const Json_seekable_path &path, size_t legs,
                     Json_dom_vector *hits,
                     bool auto_wrap, bool only_need_one)
 {
+  const auto begin= path.begin();
+  const auto end= begin + legs;
+
   Json_dom_vector duplicates(key_memory_JSON);
   Json_dom_vector *dup_vector=
-    path_gives_duplicates(path, auto_wrap) ? &duplicates : nullptr;
+    path_gives_duplicates(begin, end, auto_wrap) ? &duplicates : nullptr;
 
-  return find_child_doms(this, path.begin(), path.end(), auto_wrap,
+  return find_child_doms(this, begin, end, auto_wrap,
                          only_need_one, dup_vector, hits);
 }
 
@@ -2473,11 +2482,14 @@ get_seek_func(const Json_path_iterator &it, const Json_seek_params &params)
 }
 
 
-bool Json_wrapper::seek(const Json_seekable_path &path,
+bool Json_wrapper::seek(const Json_seekable_path &path, size_t legs,
                         Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
 {
   DBUG_ASSERT(!empty());
+
+  const auto begin= path.begin();
+  const auto end= begin + legs;
 
   /*
     If the wrapper wraps a DOM, let's call Json_dom::seek() directly,
@@ -2487,14 +2499,14 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     duplicate elimination, convert to DOM since duplicate detection is
     difficult on binary values.
   */
-  if (is_dom() || path_gives_duplicates(path, auto_wrap))
+  if (is_dom() || path_gives_duplicates(begin, end, auto_wrap))
   {
     Json_dom *dom= to_dom(current_thd);
     if (dom == nullptr)
       return true;                            /* purecov: inspected */
 
     Json_dom_vector dom_hits(key_memory_JSON);
-    if (dom->seek(path, &dom_hits, auto_wrap, only_need_one))
+    if (dom->seek(path, legs, &dom_hits, auto_wrap, only_need_one))
       return true;                            /* purecov: inspected */
 
     for (const Json_dom *hit : dom_hits)
@@ -2506,8 +2518,8 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     return false;
   }
 
-  return seek_no_dup_elimination(m_value, path.begin(),
-                                 Json_seek_params(path.end(), hits,
+  return seek_no_dup_elimination(m_value, begin,
+                                 Json_seek_params(end, hits,
                                                   auto_wrap, only_need_one));
 }
 

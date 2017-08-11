@@ -67258,7 +67258,8 @@ my_caseup_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-    NULL,		/* init */
+    nullptr,		/* init */
+    nullptr,
     my_strnncoll_simple,/* strnncoll    */
     my_strnncollsp_simple,
     my_strnxfrm_mb,	/* strnxfrm     */

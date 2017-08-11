@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,52 +21,6 @@
 
 #ifndef UCA_DATA_H
 #define UCA_DATA_H
-
-#define MY_UCA_CNT_FLAG_SIZE 4096
-#define MY_UCA_CNT_FLAG_MASK 4095
-
-/** Whether the given character can be the first in any contraction. */
-#define MY_UCA_CNT_HEAD  1
-
-/** Whether the given character can be the last in any contraction. */
-#define MY_UCA_CNT_TAIL  2
-
-/**
- Whether the given character can be the second in any contraction.
-
- Also defined implicitly through shifting MY_UCA_CNT_MID1:
-
- \#define MY_UCA_CNT_MID2  8
- \#define MY_UCA_CNT_MID3  16
- \#define MY_UCA_CNT_MID4  32
-
- There's no need for MY_UCA_CNT_MID5 (which would cause us to run out of
- bits) since MY_UCA_MAX_CONTRACTION is 6 (so head, four in the middle,
- and then tail).
-*/
-#define MY_UCA_CNT_MID1  4
-
-/**
- Whether the given character is the first part of a context-sensitive
- contraction. Context-sensitive contractions are like normal contractions,
- except that for performance reasons, they trigger on the _last_ character
- instead of the first. The case given in Unicode TR35 is that in some
- scripts (such as katakana in Japanese), "a-" should sort as "aa"
- (except on the tertiary level), "e-" should sort as "ee" and so on.
- However, adding regular contractions on "a" and "e" would cause undue
- performance loss, so instead, we add a special "context-sensitive"
- contraction on "-" that then looks at the _previous_ character.
-
- We don't support context-sensitive contractions longer than two characters
- at the moment, since none exist in CLDR. Thus, there is no
- MY_UCA_PREVIOUS_CONTEXT_MID1 and so on.
-*/
-#define MY_UCA_PREVIOUS_CONTEXT_HEAD 64
-
-/** Similar to MY_UCA_PREVIOUS_CONTEXT_HEAD, just for the tail. */
-#define MY_UCA_PREVIOUS_CONTEXT_TAIL 128
-
-#define MY_UCA_PSHIFT 8
 
 uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,

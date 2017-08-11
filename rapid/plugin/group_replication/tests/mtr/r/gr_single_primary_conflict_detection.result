@@ -140,4 +140,5 @@ include/diff_tables.inc [server1:test.t2, server2:test.t2, server3:test.t2]
 # 20. Clean up.
 DROP TABLE t2;
 DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
 include/group_replication_end.inc

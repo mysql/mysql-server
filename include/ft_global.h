@@ -67,12 +67,12 @@ struct _ft_vft_ext
 
 #define FTS_NGRAM_PARSER_NAME "ngram"
 
-#ifndef FT_CORE
 struct st_ft_info
 {
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 
+#ifndef FT_CORE
 struct st_ft_info_ext
 {
   struct _ft_vft     *please; /* INTERCAL style :-) */

@@ -101,7 +101,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_page_size=$START_PAGE_SIZE --innodb
 let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/mysqld_log.err;
 let SEARCH_PATTERN=Cannot create .*undo_001 because .*undo_001 already uses Space ID=4294967279!  Did you change innodb_undo_directory;
 
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqld_log.err
 
 --echo # Start the DB server with right path, expect no recovery errors

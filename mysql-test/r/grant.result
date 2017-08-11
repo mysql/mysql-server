@@ -70,6 +70,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
@@ -152,6 +154,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`
@@ -206,6 +210,8 @@ password_lifetime	NULL
 account_locked	N
 Create_role_priv	N
 Drop_role_priv	N
+Password_reuse_history	NULL
+Password_reuse_time	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO `mysqltest_1`@`localhost`

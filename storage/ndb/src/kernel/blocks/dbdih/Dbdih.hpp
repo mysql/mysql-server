@@ -1053,6 +1053,7 @@ private:
   void execCOPY_TABCONF(Signal *);
   void execTCGETOPSIZECONF(Signal *);
   void execTC_CLOPSIZECONF(Signal *);
+  void execCHECK_LCP_IDLE_ORD(Signal *);
 
   void execDIH_GET_TABINFO_REQ(Signal*);
 

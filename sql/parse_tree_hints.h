@@ -298,4 +298,28 @@ public:
 };
 
 
+class PT_hint_sys_var : public PT_hint
+{
+  const LEX_CSTRING sys_var_name;
+  Item *sys_var_value;
+
+  typedef PT_hint super;
+public:
+  explicit PT_hint_sys_var(const LEX_CSTRING sys_var_name_arg,
+                           Item *sys_var_value_arg)
+    : PT_hint(MAX_HINT_ENUM, true), sys_var_name(sys_var_name_arg),
+      sys_var_value(sys_var_value_arg)
+  {}
+  /**
+    Function initializes SET_VAR hint.
+
+    @param pc   Pointer to Parse_context object
+
+    @return  true in case of error,
+             false otherwise
+  */
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
 #endif /* PARSE_TREE_HINTS_INCLUDED */

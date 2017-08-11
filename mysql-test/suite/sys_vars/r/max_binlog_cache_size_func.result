@@ -1,6 +1,6 @@
 drop table if exists t1;
-## Setting value of log_warning to 1 ##
-SET @@global.log_warnings = 1;
+## Setting value of log_error_verbosity to 2 ##
+SET @@global.log_error_verbosity = 2;
 ## Creating new table t1 ##
 CREATE TABLE t1
 (

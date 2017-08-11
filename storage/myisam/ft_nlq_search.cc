@@ -35,9 +35,8 @@ typedef struct ft_doc_rec
   double    weight;
 } FT_DOC;
 
-struct st_ft_info
+struct st_ft_info_nlq : public FT_INFO
 {
-  struct _ft_vft *please;
   MI_INFO  *info;
   int       ndocs;
   int       curdoc;
@@ -229,7 +228,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   TREE	      wtree;
   ALL_IN_ONE  aio;
   FT_DOC     *dptr;
-  FT_INFO    *dlist=NULL;
+  st_ft_info_nlq *dlist=NULL;
   my_off_t    saved_lastpos=info->lastpos;
   struct st_mysql_ftparser *parser;
   MYSQL_FTPARSER_PARAM *ftparser_param;
@@ -299,8 +298,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
     If ndocs == 0, this will not allocate RAM for FT_INFO.doc[],
     so if ndocs == 0, FT_INFO.doc[] must not be accessed.
    */
-  dlist=(FT_INFO *)my_malloc(mi_key_memory_FT_INFO,
-                             sizeof(FT_INFO)+
+  dlist=(st_ft_info_nlq *)my_malloc(mi_key_memory_FT_INFO,
+                             sizeof(st_ft_info_nlq)+
 			     sizeof(FT_DOC)*
 			     (int)(aio.dtree.elements_in_tree-1),
 			     MYF(0));
@@ -324,12 +323,13 @@ err:
   delete_tree(&aio.dtree);
   delete_tree(&wtree);
   info->lastpos=saved_lastpos;
-  DBUG_RETURN(dlist);
+  DBUG_RETURN((FT_INFO *)dlist);
 }
 
 
-int ft_nlq_read_next(FT_INFO *handler, char *record)
+int ft_nlq_read_next(FT_INFO *handler_base, char *record)
 {
+  st_ft_info_nlq *handler= (st_ft_info_nlq *) handler_base;
   MI_INFO *info= (MI_INFO *) handler->info;
 
   if (++handler->curdoc >= handler->ndocs)
@@ -350,10 +350,11 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
 }
 
 
-float ft_nlq_find_relevance(FT_INFO *handler,
+float ft_nlq_find_relevance(FT_INFO *handler_base,
 			    uchar *record MY_ATTRIBUTE((unused)),
 			    uint length MY_ATTRIBUTE((unused)))
 {
+  st_ft_info_nlq *handler= (st_ft_info_nlq *) handler_base;
   int a,b,c;
   FT_DOC  *docs=handler->doc;
   my_off_t docid=handler->info->lastpos;
@@ -384,14 +385,16 @@ void ft_nlq_close_search(FT_INFO *handler)
 }
 
 
-float ft_nlq_get_relevance(FT_INFO *handler)
+float ft_nlq_get_relevance(FT_INFO *handler_base)
 {
+  st_ft_info_nlq *handler= (st_ft_info_nlq *) handler_base;
   return (float) handler->doc[handler->curdoc].weight;
 }
 
 
-void ft_nlq_reinit_search(FT_INFO *handler)
+void ft_nlq_reinit_search(FT_INFO *handler_base)
 {
+  st_ft_info_nlq *handler= (st_ft_info_nlq *) handler_base;
   handler->curdoc=-1;
 }
 

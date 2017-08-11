@@ -331,8 +331,7 @@ bool sys_var::is_default(THD*, set_var *var)
   DBUG_ENTER("sys_var::is_default");
   bool ret= false;
   longlong def= option.def_value;
-  ulong var_type= (option.var_type & GET_TYPE_MASK);
-  switch(var_type)
+  switch(get_var_type())
   {
     case GET_INT:
     case GET_UINT:
@@ -407,6 +406,48 @@ void sys_var::do_deprecated_warning(THD *thd)
       LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }
 }
+
+
+Item *sys_var::copy_value(THD *thd)
+{
+  LEX_STRING str;
+  uchar* val_ptr= session_value_ptr(thd, thd, &str);
+  switch(get_var_type())
+  {
+    case GET_INT:
+      return new Item_int(*(int*) val_ptr);
+    case GET_UINT:
+      return new Item_int((ulonglong)*(uint*) val_ptr);
+    case GET_LONG:
+      return new Item_int((longlong)*(long*) val_ptr);
+    case GET_ULONG:
+      return new Item_int((ulonglong)*(ulong*) val_ptr);
+    case GET_LL:
+      return new Item_int(*(longlong*) val_ptr);
+    case GET_ULL:
+      return new Item_int(*(ulonglong*) val_ptr);
+    case GET_BOOL:
+      return new Item_int(*(bool*) val_ptr);
+    case GET_ENUM:
+    case GET_SET:
+    case GET_FLAGSET:
+    case GET_STR_ALLOC:
+    case GET_STR:
+    case GET_NO_ARG:
+    case GET_PASSWORD:
+    {
+      const char *tmp_str_val= (const char*) val_ptr;
+      return new Item_string(tmp_str_val, strlen(tmp_str_val),
+                             system_charset_info);
+    }
+    case GET_DOUBLE:
+      return new Item_float(*(double*) val_ptr, NOT_FIXED_DEC);
+    default:
+      DBUG_ASSERT(0);
+  }
+  return NULL;
+}
+
 
 /**
   Throw warning (error in STRICT mode) if value for variable needed bounding.
@@ -1036,6 +1077,18 @@ int set_var::update(THD *thd)
   return ret;
 }
 
+
+void set_var::print_short(String *str)
+{
+  str->append(var->name.str,var->name.length);
+  str->append(STRING_WITH_LEN("="));
+  if (value)
+    value->print(str, QT_ORDINARY);
+  else
+    str->append(STRING_WITH_LEN("DEFAULT"));
+}
+
+
 /**
   Self-print assignment
 
@@ -1062,12 +1115,7 @@ void set_var::print(THD*, String *str)
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  str->append(var->name.str,var->name.length);
-  str->append(STRING_WITH_LEN("="));
-  if (value)
-    value->print(str, QT_ORDINARY);
-  else
-    str->append(STRING_WITH_LEN("DEFAULT"));
+  print_short(str);
 }
 
 

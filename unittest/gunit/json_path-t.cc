@@ -276,16 +276,19 @@ void verify_clone(bool begins_with_column_id,
                   const char *path_expression_1,
                   const char *path_expression_2)
 {
-  Json_path_clone cloned_path;
-
   Json_path real_path1;
   good_path_common(begins_with_column_id, path_expression_1, &real_path1);
-  EXPECT_FALSE(cloned_path.set(&real_path1));
+
+  Json_path_clone cloned_path;
+  for (const Json_path_leg *leg : real_path1)
+    cloned_path.append(leg);
   compare_paths(real_path1, cloned_path);
 
   Json_path real_path2;
   good_path_common(begins_with_column_id, path_expression_2, &real_path2);
-  EXPECT_FALSE(cloned_path.set(&real_path2));
+  cloned_path.clear();
+  for (const Json_path_leg *leg : real_path2)
+    cloned_path.append(leg);
   compare_paths(real_path2, cloned_path);
 }
 
@@ -347,7 +350,7 @@ void JsonPathTest::vet_wrapper_seek(Json_wrapper *wrapper,
                                     bool expected_null) const
 {
   Json_wrapper_vector hits(PSI_NOT_INSTRUMENTED);
-  wrapper->seek(path, &hits, true, false);
+  wrapper->seek(path, path.leg_count(), &hits, true, false);
   String result_buffer;
 
   if (hits.size() == 1)
@@ -425,7 +428,7 @@ void vet_dom_location(bool begins_with_column_id,
   good_path_common(begins_with_column_id, path_text, &path);
   Json_dom_vector hits(PSI_NOT_INSTRUMENTED);
 
-  dom->seek(path, &hits, true, false);
+  dom->seek(path, path.leg_count(), &hits, true, false);
   EXPECT_EQ(1U, hits.size());
   if (hits.size() > 0)
   {
@@ -450,12 +453,12 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
                         uint expected_hits)
 {
   Json_wrapper_vector all_hits(PSI_NOT_INSTRUMENTED);
-  wrapper.seek(path, &all_hits, true, false);
+  wrapper.seek(path, path.leg_count(), &all_hits, true, false);
 
   EXPECT_EQ(expected_hits, all_hits.size());
 
   Json_wrapper_vector only_needs_one_hits(PSI_NOT_INSTRUMENTED);
-  wrapper.seek(path, &only_needs_one_hits, true, true);
+  wrapper.seek(path, path.leg_count(), &only_needs_one_hits, true, true);
   uint expected_onoh_hits= (expected_hits == 0) ? 0 : 1;
   EXPECT_EQ(expected_onoh_hits, only_needs_one_hits.size());
 }

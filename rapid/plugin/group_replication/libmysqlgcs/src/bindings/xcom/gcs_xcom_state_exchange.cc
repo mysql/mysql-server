@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <time.h>
 
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 #include "gcs_xcom_communication_interface.h"
 #include "synode_no.h"
 
@@ -97,8 +97,9 @@ Xcom_member_state::Xcom_member_state(const uchar *data,
   }
 
   MYSQL_GCS_LOG_TRACE(
-    "Decoded header and payload for exchageable data: (header)=" <<
-    exchangeable_header_size << "(payload)=" << exchangeable_data_size
+    "Decoded header and payload for exchageable data: (header)=%llu (payload)=%llu",
+    static_cast<long long unsigned>(exchangeable_header_size),
+    static_cast<long long unsigned>(exchangeable_data_size)
   );
 }
 
@@ -192,8 +193,8 @@ bool Xcom_member_state::encode_header(uchar *buffer, uint64_t *buffer_len)
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
   MYSQL_GCS_LOG_TRACE(
-    "Encoded header for exchangeable data: (header)=" <<
-    encoded_size
+    "Encoded header for exchangeable data: (header)=%llu",
+    static_cast<long long unsigned>(encoded_size)
   );
 
   return false;
@@ -243,8 +244,10 @@ bool Xcom_member_state::encode(uchar *buffer, uint64_t *buffer_len)
   assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
 
   MYSQL_GCS_LOG_TRACE(
-    "Encoded header and payload for exchageable data: (header)=" <<
-    encoded_header_size << "(payload)=" << m_data_size
+    "Encoded header and payload for exchageable data: (header)= %llu"
+    "(payload)= %llu",
+    static_cast<long long unsigned>(encoded_header_size),
+    static_cast<long long unsigned>(m_data_size)
   );
 
   return false;
@@ -494,8 +497,9 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     the data.
   */
   MYSQL_GCS_LOG_TRACE(
-    "Allocating buffer to carry exchangeable data: (header)=" <<
-    exchangeable_header_len << " (payload)=" << exchangeable_data_len
+    "Allocating buffer to carry exchangeable data: (header)=%llu (payload)=%llu",
+    static_cast<long long unsigned>(exchangeable_header_len),
+    static_cast<long long unsigned>(exchangeable_data_len)
   );
   buffer_len= exchangeable_header_len + exchangeable_data_len;
   buffer= slider= static_cast<uchar *>(malloc(buffer_len * sizeof(uchar)));
@@ -506,8 +510,8 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   }
 
   MYSQL_GCS_LOG_TRACE(
-    "Populating header for exchangeable data: (header)=" <<
-    exchangeable_header_len
+    "Populating header for exchangeable data: (header)=%llu",
+    static_cast<long long unsigned>(exchangeable_header_len)
   );
   Xcom_member_state member_state(proposed_view, m_configuration_id, NULL, 0);
   member_state.encode_header(slider, &exchangeable_header_len);
@@ -531,8 +535,8 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
       {
         slider_len= msg_data->get_encode_size();
         MYSQL_GCS_LOG_TRACE(
-          "Populating payload for exchangeable data: (payload)=" <<
-          slider_len
+          "Populating payload for exchangeable data: (payload)=%llu",
+          static_cast<long long unsigned>(slider_len)
         );
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
@@ -550,7 +554,8 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     this.
   */
   MYSQL_GCS_LOG_TRACE(
-    "Creating message to carry exchangeable data: (payload)=" << buffer_len
+    "Creating message to carry exchangeable data: (payload)=%llu",
+    static_cast<long long unsigned>(buffer_len)
   );
   Gcs_message_data *message_data= new Gcs_message_data(0, buffer_len);
   message_data->append_to_payload(buffer, buffer_len);
@@ -609,13 +614,15 @@ process_member_state(Xcom_member_state *ms_info,
       synode_no configuration_id= ms_info->get_configuration_id();
       MYSQL_GCS_LOG_DEBUG(
         "Ignoring exchangeable data because its from a previous state "
-        "exchange phase. Message is from group_id("
-        << configuration_id.group_id << "), msg_no( "
-        << configuration_id.msgno << "), node_no("
-        << configuration_id.node << ") but current phase is "
-        << m_configuration_id.group_id << "), msg_no( "
-        << m_configuration_id.msgno << "), node_no("
-        << m_configuration_id.node << ")."
+        "exchange phase. Message is from group_id(%d), msg_no(%llu), "
+        "node_no(%d) but current phase is group_id(%d), msg_no(%llu), "
+        "node_no(%d). ",
+        configuration_id.group_id,
+        static_cast<long long unsigned>(configuration_id.msgno),
+        configuration_id.node,
+        m_configuration_id.group_id,
+        static_cast<long long unsigned>(m_configuration_id.msgno),
+        m_configuration_id.node
       )
     );
     return false;

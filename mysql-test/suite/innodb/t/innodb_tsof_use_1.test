@@ -66,7 +66,7 @@
 #    the latter requires that we know the number of hits ($assert_count)
 #    in advance. But during test development were several cases where the number
 #    of hits was unstable but with guarantee > 0.
-#    The use of "search_pattern_in_file.inc" for processing the server error log
+#    The use of "search_pattern.inc" for processing the server error log
 #    forces to delete that log before the next restart attempt in order to get
 #    rid of warnings, error, notes belonging to the previous server startup.
 # 3. Certain "UPDATE db_test_a.t_aux SET col2 = .." (autocommit is on)
@@ -259,7 +259,7 @@ if(0)
 # [ERROR] InnoDB: Could not find any file associated with the tablespace 62
 --let $p= .* \[ERROR\] InnoDB: Could not find any file associated with
 --let SEARCH_PATTERN= $p the tablespace .*
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 }
 --remove_file $SEARCH_FILE
 # The restart attempt above might have created some tablespaces.open.* file.
@@ -413,7 +413,7 @@ if($script_debug)
 --let SEARCH_PATTERN= $p
 --echo # InnoDB warning about too small tablespaces.open.* file found in
 --echo # server error log.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 eval $check_cmd;
 eval $drop_standard_table;
 SHOW CREATE TABLE db_test_a.t_aux_10;
@@ -442,7 +442,7 @@ if($script_debug)
 --let $p= .* \[Warning\] InnoDB: File '.*tablespaces.open.*' size is .* bytes,
 --let $p= $p should be at least .* bytes
 --let SEARCH_PATTERN= $p
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # InnoDB warning about too small tablespaces.open.* file found in
 --echo # server error log.
 eval $check_cmd;
@@ -478,7 +478,7 @@ if(0)
 --let $p= .* \[Note\] InnoDB: Tablespace file './db_test_a/t1.ibd' ID mismatch,
 --let $p= $p expected .* but found .*
 --let SEARCH_PATTERN= $p
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --echo # InnoDB note about Tablespace file './db_test_a/t1.ibd' ID mismatches
 --echo # found in server error log.
 # There were several tables db_test_a . t1 TABLESPACE innodb_file_per_table

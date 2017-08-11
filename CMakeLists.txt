@@ -649,6 +649,9 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+ENDIF()
 # Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
@@ -846,6 +849,8 @@ IF(UNIX)
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
      ./runtime_output_directory bin
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+     ./library_output_directory lib
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 ENDIF()

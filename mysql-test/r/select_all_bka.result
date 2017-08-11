@@ -2512,7 +2512,7 @@ EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`city` AS `city` from `test`.`t1` where (`test`.`t1`.`city` = 'London')
+Note	1003	/* select#1 */ select `test`.`t1`.`city` AS `city` from `test`.`t1` where ((`test`.`t1`.`city` = 'London') and (`test`.`t1`.`city` like '%london%'))
 SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
 city
 London
@@ -4257,11 +4257,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL = '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL = '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
 DROP TABLE t1;
 SELECT 1 AS ` `;
 
@@ -4735,18 +4735,19 @@ SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 a	b
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
+2001-01-01 00:00:00	2001-01-01
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');

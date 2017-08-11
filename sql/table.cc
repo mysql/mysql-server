@@ -6721,6 +6721,7 @@ uint TABLE_LIST::query_block_id_for_explain() const
 /**
   Compiles the tagged hints list and fills up the bitmasks.
 
+  @param thd The current session.
   @param tbl the TABLE to operate on.
 
     The parser collects the index hints for each table in a "tagged list" 
@@ -6759,8 +6760,8 @@ uint TABLE_LIST::query_block_id_for_explain() const
     e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
     as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
 
-  @retval FALSE no errors found
-  @retval TRUE found and reported an error.
+  @retval false No errors found.
+  @retval true Found and reported an error.
 */
 bool TABLE_LIST::process_index_hints(const THD *thd, TABLE *tbl)
 {
@@ -7760,7 +7761,10 @@ st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
   ret->alter_status.update_account_locked_column= false;
   ret->alter_status.update_password_expired_column= false;
   ret->alter_status.update_password_expired_fields= false;
-  ret->alter_status.use_default_password_lifetime= false;
+  ret->alter_status.use_default_password_lifetime= true;
+  ret->alter_status.use_default_password_history= true;
+  ret->alter_status.password_history_length= 0;
+  ret->alter_status.password_reuse_interval= 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH,
                                system_charset_info, 0) ||

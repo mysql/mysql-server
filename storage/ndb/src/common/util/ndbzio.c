@@ -46,7 +46,7 @@
  * (needed by NDB)
  */
 #include "../../../../extra/zlib/zutil.h"
-#include "../../../../extra/zlib/zconf.h"
+#include "../../../../extra/zlib/zlib.h"
 #include "../../../../extra/zlib/inftrees.h"
 #include "../../../../extra/zlib/inflate.h"
 #include "../../../../extra/zlib/deflate.h"

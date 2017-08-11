@@ -25,6 +25,10 @@ information_schema_stats
 information_schema_stats
 mandatory_roles
 mandatory_roles
+password_history
+password_history
+password_reuse_interval
+password_reuse_interval
 tls_version
 tls_version
 windowing_use_high_precision

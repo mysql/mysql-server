@@ -175,6 +175,17 @@ bool my_init()
 
 	/* End my_sys */
 
+void charset_uninit()
+{
+  for (CHARSET_INFO *cs : all_charsets)
+  {
+    if (cs && cs->coll->uninit)
+    {
+      cs->coll->uninit(cs);
+    }
+  }
+}
+
 void my_end(int infoflag)
 {
   /*
@@ -201,6 +212,7 @@ void my_end(int infoflag)
     }
   }
   my_error_unregister_all();
+  charset_uninit();
   my_once_free();
 
   if ((infoflag & MY_GIVE_INFO) || (info_file != stderr))

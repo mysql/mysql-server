@@ -1401,13 +1401,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 }
 
 
-static int Item_param_comp(Item_param *e1, Item_param *e2, void*)
-{
-  return ((e1->pos_in_query < e2->pos_in_query) ? -1 :
-          ((e1->pos_in_query > e2->pos_in_query) ? 1 : 0));
-}
-
-
 /**
   Initialize array of parameters in statement from LEX.
   (We need to have quick access to items by number in mysql_stmt_get_longdata).
@@ -1425,16 +1418,6 @@ static bool init_param_array(Prepared_statement *stmt)
       my_error(ER_PS_MANY_PARAM, MYF(0));
       return TRUE;
     }
-    /*
-      Sort parameters by order of char position in the query, to correspond
-      with the order in which the user supplies values.
-      Parameters may have been added to param_list (by itemize()) in a
-      different order, for example a CTE is itemized when a reference
-      to it ('FROM ref') is found, and references can be in any order in the
-      FROM clause.
-    */
-    lex->param_list.sort(reinterpret_cast<Node_cmp_func>(Item_param_comp),
-                         NULL);
 
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);

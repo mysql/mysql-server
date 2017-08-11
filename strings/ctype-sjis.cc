@@ -34133,7 +34133,8 @@ size_t my_well_formed_len_sjis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
-  NULL,			/* init */
+  nullptr,              /* init */
+  nullptr,
   my_strnncoll_sjis,
   my_strnncollsp_sjis,
   my_strnxfrm_mb,

@@ -7,6 +7,7 @@ WHERE t.space = df.space
 AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
+AND df.path NOT LIKE '._mysql_%'
 ORDER BY t.space;
 
 CREATE TABLE tr (

@@ -30,6 +30,8 @@
 #ifdef MULTI_THREADED
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <pthread.h>
 #endif
 #endif
 
@@ -38,8 +40,6 @@ namespace yaSSL {
 
 #ifdef MULTI_THREADED
     #ifdef _WIN32
-        #include <windows.h>
-
         class Mutex {
             CRITICAL_SECTION cs_;
         public:
@@ -57,8 +57,6 @@ namespace yaSSL {
             };
         };
     #else  // _WIN32
-        #include <pthread.h>
-
         class Mutex {
             pthread_mutex_t mutex_;
         public:

@@ -198,6 +198,19 @@ MACRO(MYSQL_ADD_PLUGIN)
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
 
+    IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+                "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+                 $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+                "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+                 $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY
+        ${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}
+        )
+    ENDIF()
+
     # Install dynamic library
     IF(NOT ARG_SKIP_INSTALL)
       SET(INSTALL_COMPONENT Server)

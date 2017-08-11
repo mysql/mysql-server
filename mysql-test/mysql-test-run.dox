@@ -3598,7 +3598,7 @@
       <td>
         Path name to login file used by <b>mysql_config_editor</b>.
         If not set, the default is <b>$HOME/.mylogin.cnf</b>, or
-        <b>%APPDATA%\\MySQL\\.mylogin.cnf</b> on Windows.
+        <b>\%APPDATA%\\MySQL\\\.mylogin.cnf</b> on Windows.
       </td>
     </tr>
     <tr>
@@ -4245,7 +4245,7 @@
     <li>
       <tt>`--mem`</tt>
 
-      This option is not supported on Windows.
+      This option is not supported on Windows and on MacOS.
 
       Run the test suite in memory, using tmpfs or ramdisk. This can
       decrease test times significantly, in particular if you would

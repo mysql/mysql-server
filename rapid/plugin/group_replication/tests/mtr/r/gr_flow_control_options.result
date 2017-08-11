@@ -15,9 +15,11 @@ SET @group_replication_flow_control_hold_percent_save= @@GLOBAL.group_replicatio
 SET @group_replication_flow_control_release_percent_save= @@GLOBAL.group_replication_flow_control_release_percent;
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,flow_control_simulate_delayed_members';
+set session sql_log_bin=0;
 CALL mtr.add_suppression("group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota");
 CALL mtr.add_suppression("group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota");
 CALL mtr.add_suppression("group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota");
+set session sql_log_bin=1;
 
 ############################################################
 # 1. Test group_replication_flow_control_mode option.
@@ -197,13 +199,13 @@ SET GLOBAL group_replication_flow_control_min_recovery_quota= 10;
 SET GLOBAL group_replication_flow_control_min_quota= 10;
 SET GLOBAL group_replication_flow_control_max_quota= 100;
 SET GLOBAL group_replication_flow_control_min_quota= 1000;
-ERROR 42000: Variable 'group_replication_flow_control_min_quota' can't be set to the value of '1000'
+ERROR 42000: group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota
 include/assert.inc [group_replication_flow_control_min_quota cannot be larger than max_quota]
 SET GLOBAL group_replication_flow_control_min_recovery_quota= 1000;
-ERROR 42000: Variable 'group_replication_flow_control_min_recovery_quota' can't be set to the value of '1000'
+ERROR 42000: group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota
 include/assert.inc [group_replication_flow_control_min_recovery_quota cannot be larger than max_quota]
 SET GLOBAL group_replication_flow_control_max_quota= 1;
-ERROR 42000: Variable 'group_replication_flow_control_max_quota' can't be set to the value of '1'
+ERROR 42000: group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota
 include/assert.inc [group_replication_flow_control_max_quota cannot be lower than min_quota or min_recovery_quota]
 SET GLOBAL group_replication_flow_control_min_recovery_quota= 0;
 SET GLOBAL group_replication_flow_control_min_quota= 0;
@@ -237,7 +239,30 @@ SET GLOBAL group_replication_flow_control_release_percent= 150;
 include/assert.inc [group_replication_flow_control_release_percent is correct]
 
 ############################################################
+# 13. Set group_replication_flow_control options on command
+#    line during server start and then start Group
+#    Replication.
+[connection server2]
+include/start_group_replication.inc
+set session sql_log_bin=0;
+CALL mtr.add_suppression("group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota");
+CALL mtr.add_suppression("group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota");
+set session sql_log_bin=1;
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_flow_control_max_quota=10 --group_replication_flow_control_min_quota=20
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_flow_control_min_quota=20 --group_replication_flow_control_max_quota=10
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_flow_control_min_recovery_quota=20 --group_replication_flow_control_max_quota=10
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
 # Clean up.
+include/rpl_reconnect.inc
+[connection server1]
 SET GLOBAL group_replication_flow_control_mode= @group_replication_flow_control_mode_save;
 SET GLOBAL group_replication_flow_control_certifier_threshold= @group_replication_flow_control_certifier_threshold_save;
 SET GLOBAL group_replication_flow_control_applier_threshold= @group_replication_flow_control_applier_threshold_save;

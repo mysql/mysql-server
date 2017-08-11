@@ -29,7 +29,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/rapid/plugin/group_replication/libmysqlgcs/xdr_gen
   ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom
-  ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom)
+  ${CMAKE_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
+  ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit/libmysqlgcs/include)
 
 IF (WIN32)
   SET (XCOM_BASEDIR
@@ -48,6 +49,7 @@ SET(GCS_INTERFACE_TESTS
 
 SET(GCS_XCOM_TESTS
     xcom/gcs_logging
+    xcom/gcs_logging_system
     xcom/gcs_parameters
     xcom/gcs_xcom_notification
     xcom/gcs_xcom_utils

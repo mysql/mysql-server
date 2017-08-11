@@ -20149,6 +20149,29 @@ void Dbdih::checkLcpStart(Signal* signal, Uint32 lineNo, Uint32 delay)
   }
 }//Dbdih::checkLcpStart()
 
+/**
+ * It is possible that the previous LCP is fully completed by the master
+ * node. Still we could be waiting for some delayed LCP_COMPLETE_REP(LQH)
+ * signals from non-master nodes. To ensure that those signals are not
+ * arriving when a new LCP has started we delay responding to this signal
+ * until we have reached the LCP idle state.
+ */
+void Dbdih::execCHECK_LCP_IDLE_ORD(Signal *signal)
+{
+  jamEntry();
+  if (c_lcpState.lcpStatus == LCP_STATUS_IDLE ||
+      c_lcpState.lcpStatus == LCP_TCGET)
+  {
+    jam();
+    BlockReference ref = signal->theData[2];
+    sendSignal(ref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
+    return;
+  }
+  jam();
+  DEB_LCP(("Delay LCP start, state = %u", c_lcpState.lcpStatus));
+  sendSignalWithDelay(reference(), GSN_CHECK_LCP_IDLE_ORD, signal, 10, 3);
+}
+
 /* ------------------------------------------------------------------------- */
 /*TCGETOPSIZECONF          HOW MUCH OPERATION SIZE HAVE BEEN EXECUTED BY TC  */
 /* ------------------------------------------------------------------------- */

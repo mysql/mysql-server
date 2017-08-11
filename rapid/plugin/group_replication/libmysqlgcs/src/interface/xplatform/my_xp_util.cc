@@ -17,7 +17,7 @@
 
 #include <errno.h>
 
-#include "mysql/gcs/gcs_logging.h"
+#include "mysql/gcs/gcs_logging_system.h"
 
 void My_xp_util::sleep_seconds(unsigned int seconds)
 {
