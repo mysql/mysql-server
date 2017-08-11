@@ -889,24 +889,6 @@ my_uca_have_contractions(const MY_UCA_INFO *uca)
   return uca->have_contractions;
 }
 
-
-/**
-  Check if a code point can be contraction part
-
-  @param flags    Pointer to UCA contraction flag data
-  @param wc       Code point
-  @param flag     UCA contraction flag
-
-  @retval   0 - cannot be contraction part
-  @retval   1 - can be contraction part
-*/
-
-static inline bool
-my_uca_can_be_contraction_part(const char *flags, my_wc_t wc, int flag)
-{
-  return flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
-}
-
 struct trie_node_cmp
 {
   bool operator() (const MY_CONTRACTION &a, const my_wc_t b)
@@ -4313,6 +4295,7 @@ static MY_CONTRACTION*
 add_contraction_to_trie(std::vector<MY_CONTRACTION> *cont_nodes,
                         MY_COLL_RULE *r)
 {
+  MY_CONTRACTION new_node{0, {}, {}, {}, false, 0};
   if (r->with_context) // previous-context contraction
   {
     DBUG_ASSERT(my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION) == 2);
@@ -4320,14 +4303,16 @@ add_contraction_to_trie(std::vector<MY_CONTRACTION> *cont_nodes,
       find_contraction_part_in_trie(*cont_nodes, r->curr[1]);
     if (node_it == cont_nodes->end() || node_it->ch != r->curr[1])
     {
-      node_it= cont_nodes->insert(node_it, {r->curr[1]});
+      new_node.ch= r->curr[1];
+      node_it= cont_nodes->insert(node_it, new_node);
     }
     cont_nodes= &node_it->child_nodes_context;
 
     node_it= find_contraction_part_in_trie(*cont_nodes, r->curr[0]);
     if (node_it == cont_nodes->end() || node_it->ch != r->curr[0])
     {
-      node_it= cont_nodes->insert(node_it, {r->curr[0]});
+      new_node.ch= r->curr[0];
+      node_it= cont_nodes->insert(node_it, new_node);
     }
     node_it->is_contraction_tail= true;
     node_it->contraction_len= 2;
@@ -4342,7 +4327,8 @@ add_contraction_to_trie(std::vector<MY_CONTRACTION> *cont_nodes,
       node_it= find_contraction_part_in_trie(*cont_nodes, r->curr[ch_ind]);
       if (node_it == cont_nodes->end() || node_it->ch != r->curr[ch_ind])
       {
-        node_it= cont_nodes->insert(node_it, {r->curr[ch_ind]});
+        new_node.ch= r->curr[ch_ind];
+        node_it= cont_nodes->insert(node_it, new_node);
       }
       cont_nodes= &node_it->child_nodes;
     }
