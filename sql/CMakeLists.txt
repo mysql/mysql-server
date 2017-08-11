@@ -119,7 +119,7 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_foreign_cols.cc
   dd/impl/system_views/innodb_fields.cc
   dd/impl/system_views/innodb_datafiles.cc
-  dd/impl/system_views/innodb_tablespace_brief.cc
+  dd/impl/system_views/innodb_tablespaces_brief.cc
 
   dd/impl/tables/table_stats.cc
   dd/impl/tables/index_stats.cc

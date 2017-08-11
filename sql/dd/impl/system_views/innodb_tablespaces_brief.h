@@ -13,8 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef DD_SYSTEM_VIEWS__INNODB_TABLESPACE_BRIEF_INCLUDED
-#define DD_SYSTEM_VIEWS__INNODB_TABLESPACE_BRIEF_INCLUDED
+#ifndef DD_SYSTEM_VIEWS__INNODB_TABLESPACES_BRIEF_INCLUDED
+#define DD_SYSTEM_VIEWS__INNODB_TABLESPACES_BRIEF_INCLUDED
 
 #include "dd/impl/system_views/system_view_definition_impl.h"
 #include "dd/impl/system_views/system_view_impl.h"
@@ -23,35 +23,36 @@ namespace dd {
 namespace system_views {
 
 /*
-  The class representing INFORMATION_SCHEMA.INNODB_TABLESPACE_BRIEF system view definition
+  The class representing INFORMATION_SCHEMA.INNODB_TABLESPACES_BRIEF system view definition
 
 */
-class Innodb_tablespace_brief : public System_view_impl<System_view_select_definition_impl>
+class Innodb_tablespaces_brief : public System_view_impl<System_view_select_definition_impl>
 {
 public:
   enum enum_fields
   {
     FIELD_SPACE,
+    FIELD_NAME,
     FIELD_PATH,
     FIELD_FLAG,
-    FIELD_TYPE
+    FIELD_SPACE_TYPE
   };
 
-  Innodb_tablespace_brief ();
+  Innodb_tablespaces_brief ();
 
-  static const Innodb_tablespace_brief &instance();
+  static const Innodb_tablespaces_brief &instance();
 
   static const String_type &view_name()
   {
-    static String_type s_view_name("INNODB_TABLESPACE_BRIEF");
+    static String_type s_view_name("INNODB_TABLESPACES_BRIEF");
     return s_view_name;
   }
 
   virtual const String_type &name() const
-  { return Innodb_tablespace_brief::view_name(); }
+  { return Innodb_tablespaces_brief::view_name(); }
 };
 
 }
 }
 
-#endif // DD_SYSTEM_VIEWS__INNODB_TABLESPACE_BRIEF_INCLUDED
+#endif // DD_SYSTEM_VIEWS__INNODB_TABLESPACES_BRIEF_INCLUDED

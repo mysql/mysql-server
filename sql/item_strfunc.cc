@@ -4947,19 +4947,14 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 
 /**
   @brief
-    This function prepares string representing create_options for table.
-    This is required for IS implementation which uses views on DD tables.
-    In older non-DD model, FRM file had only user options specified in
-    CREATE TABLE statement.
-    With new IS implementation using DD, all internal option values are
-    also stored in options field.
-    So, this UDF filters internal options from user defined options
+    This function prepares string representing se_private_data for tablespace.
+    This is required for IS implementation which uses views on DD tablespace.
 
     Syntax:
-      string get_dd_tablespace_private_data(dd.table.options)
+      string get_dd_tablespace_private_data(dd.tablespace.se_private_data)
 
-    The arguments accept values from options from 'tables' DD table,
-    as shown above.
+    The arguments accept values from se_private_data from 'tablespace'
+    DD table.
 
  */
 String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
@@ -4970,19 +4965,19 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
   String option;
   String *option_ptr;
   std::ostringstream oss("");
-  if ((option_ptr=args[0]->val_str(&option)) != nullptr)
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
   {
     // Read required values from properties
     std::unique_ptr<dd::Properties> p
       (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
 
     // Read used_flags
-    uint opt_value= 0;
-    char option_buff[350],*ptr;
-    ptr=option_buff;
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
       if (p->exists("id"))
       {
         p->get_uint32("id", &opt_value);
@@ -4990,8 +4985,8 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
+    {
       if (p->exists("flags"))
       {
         p->get_uint32("flags", &opt_value);
@@ -4999,12 +4994,12 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
       }
     }
 
-   if (ptr == option_buff)
-     oss << "";
-   else
-     oss << option_buff;
-
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
   }
+
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
@@ -5012,42 +5007,37 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
 
 /**
   @brief
-    This function prepares string representing create_options for table.
-    This is required for IS implementation which uses views on DD tables.
-    In older non-DD model, FRM file had only user options specified in
-    CREATE TABLE statement.
-    With new IS implementation using DD, all internal option values are
-    also stored in options field.
-    So, this UDF filters internal options from user defined options
+    This function prepares string representing se_private_data for index.
+    This is required for IS implementation which uses views on DD indexes.
 
     Syntax:
-      string get_dd_index_private_data(dd.table.options)
+      string get_dd_index_private_data(dd.indexes.se_private_data)
 
-    The arguments accept values from options from 'tables' DD table,
-    as shown above.
+    The arguments accept values from se_private_data from 'indexes'
+    DD table.
 
  */
 String *Item_func_get_dd_index_private_data::val_str(String *str)
 {
   DBUG_ENTER("Item_func_get_dd_index_private_data::val_str");
 
-  // Read tables.options
+  // Read indexes.se_private_data
   String option;
   String *option_ptr;
   std::ostringstream oss("");
-  if ((option_ptr=args[0]->val_str(&option)) != nullptr)
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
   {
     // Read required values from properties
     std::unique_ptr<dd::Properties> p
       (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
 
     // Read used_flags
-    uint opt_value= 0;
-    char option_buff[350],*ptr;
-    ptr=option_buff;
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
       if (p->exists("id"))
       {
         p->get_uint32("id", &opt_value);
@@ -5055,8 +5045,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
+    {
       if (p->exists("root"))
       {
         p->get_uint32("root", &opt_value);
@@ -5064,8 +5054,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
       }
     }
 
-	if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
-	{
+    if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
+    {
       if (p->exists("trx_id"))
       {
         p->get_uint32("trx_id", &opt_value);
@@ -5077,8 +5067,8 @@ String *Item_func_get_dd_index_private_data::val_str(String *str)
       oss << "";
     else
       oss << option_buff;
-
   }
+
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
