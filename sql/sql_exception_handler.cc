@@ -110,6 +110,16 @@ void handle_gis_exception(const char *funcname)
   {
     throw;
   }
+  catch (const gis::longitude_out_of_range_exception &e)
+  {
+    my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0),
+        e.value, funcname, e.range_min, e.range_max);
+  }
+  catch (const gis::latitude_out_of_range_exception &e)
+  {
+    my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0),
+        e.value, funcname, e.range_min, e.range_max);
+  }
   catch (const gis::not_implemented_exception &e)
   {
     int er_variant;
