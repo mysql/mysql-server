@@ -3110,6 +3110,7 @@ dd_get_first_path(
 	dd::Object_id   dd_space_id;
 
 	ut_ad(!srv_is_being_shutdown);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
@@ -3176,7 +3177,9 @@ dd_get_and_save_data_dir_path(
 
 		if (path == NULL) {
 			heap = mem_heap_create(1000);
+			dict_mutex_exit_for_mysql();
 			path = dd_get_first_path(heap, table, dd_table);
+			dict_mutex_enter_for_mysql();
 		}
 
 		if (path != NULL) {
@@ -3343,7 +3346,9 @@ dd_load_tablespace(
 	}
 	else if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 
+		mutex_exit(&dict_sys->mutex);
 		filepath = dd_get_first_path(heap, table, dd_table);
+		mutex_enter(&dict_sys->mutex);
 		if (filepath == nullptr) {
 			ib::warn() << "Could not find the filepath"
 				" for table " << table->name <<
