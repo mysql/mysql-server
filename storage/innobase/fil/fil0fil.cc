@@ -8395,9 +8395,6 @@ fil_tablespace_path_equals(
 
 		ut_ad(real_new_path.back() == OS_PATH_SEPARATOR);
 
-		ib::info()
-			<< "'" << real_old_path << "','" << real_new_path << "'";
-
 		if (real_old_path.compare(real_new_path) != 0) {
 
 			*new_path = result.first + result.second->front();
