@@ -297,8 +297,7 @@ bool Crosses::operator()(const Geometry *g1, const Geometry *g2) const {
 bool Crosses::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
   DBUG_ASSERT(false);
-  throw not_implemented_exception(g1->coordinate_system(), g1->type(),
-                                  g2->type());
+  throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////
