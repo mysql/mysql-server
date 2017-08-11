@@ -8282,11 +8282,6 @@ Fil_Open::from_file(bool recovery)
 
 			++n_errors;
 
-			ib::warn()
-				<< "File '" << abspath << "' size is "
-				<< n_bytes << " bytes. Must be at least "
-				<< sizeof(uint32_t) * 3 << " bytes";
-
 			continue;
 		}
 
