@@ -53,6 +53,7 @@ Hint_scanner::Hint_scanner(THD *thd_arg,
   : thd(thd_arg),
     cs(thd->charset()),
     is_ansi_quotes(thd->variables.sql_mode & MODE_ANSI_QUOTES),
+    backslash_escapes(!(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)),
     lineno(lineno_arg),
     char_classes(cs->state_maps->hint_map),
     input_buf(buf),
@@ -136,6 +137,12 @@ void Hint_scanner::add_hint_token_digest()
     add_digest('@');
     add_digest(IDENT);
     break;
+  case HINT_ARG_TEXT:
+    add_digest(TEXT_STRING);
+    break;
+  case HINT_IDENT_OR_NUMBER_WITH_SCALE:
+    add_digest(NUM);
+    break;
   default:
     if (prev_token <= UCHAR_MAX) // Single-char token.
       add_digest(prev_token);
@@ -160,6 +167,7 @@ void Hint_scanner::add_hint_token_digest()
       case NO_SEMIJOIN_HINT:
       case QB_NAME_HINT:
       case SEMIJOIN_HINT:
+      case SET_VAR_HINT:
       case SUBQUERY_HINT:
       case DERIVED_MERGE_HINT:
       case NO_DERIVED_MERGE_HINT:

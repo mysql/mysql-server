@@ -51,9 +51,6 @@ Data dictionary interface */
 class THD;
 class MDL_ticket;
 
-/** Max table id for DD table */
-static constexpr uint	INNODB_DD_TABLE_ID_MAX = 60;
-
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
@@ -325,6 +322,7 @@ dd_copy_private(
 	const Table&	old_table);
 
 /** Write metadata of a table to dd::Table
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_space_id	Tablespace id, which server allocates
 @param[in,out]	dd_table	dd::Table
 @param[in]	table		InnoDB table object */
@@ -423,29 +421,29 @@ dd_table_load_fk_from_dd(
 void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 
 /** Scan a new dd system table, like mysql.tables...
-@param[in]		thd			thd
-@param[in,out]	mdl			mdl lock
+@param[in]	thd		thd
+@param[in,out]	mdl		mdl lock
 @param[in,out]	pcur		persistent cursor
-@param[in]		mtr			the mini-transaction
-@param[in]		system_id	which dd system table to open
+@param[in]	mtr		the mini-transaction
+@param[in]	system_id	which dd system table to open
 @param[in,out]	table		dict_table_t obj of dd system table
 @retval the first rec of the dd system table */
 const rec_t*
 dd_startscan_system(
-	THD*			thd,
+	THD*		thd,
 	MDL_ticket**	mdl,
-	btr_pcur_t*		pcur,
-	mtr_t*			mtr,
-	dd_system_id_t system_id,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr,
+	dd_system_id_t	system_id,
 	dict_table_t**	table);
 
 /** Process one mysql.tables record and get the dict_table_t
-@param[in]		heap		temp memory heap
-@param[in,out]	rec			mysql.tables record
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.tables record
 @param[in,out]	table		dict_table_t to fill
-@param[in]		dd_tables	dict_table_t obj of dd system table
+@param[in]	dd_tables	dict_table_t obj of dd system table
 @param[in]	mdl		mdl on the table
-@param[in]		mtr			the mini-transaction
+@param[in]	mtr		the mini-transaction
 @retval error message, or NULL on success */
 const char*
 dd_process_dd_tables_rec_and_mtr_commit(
@@ -553,8 +551,8 @@ bool
 dd_process_dd_indexes_rec_simple(
 	mem_heap_t*	heap,
 	const rec_t*	rec,
-	uint*		index_id,
-	uint*		space_id,
+	space_index_t*	index_id,
+	space_id_t*	space_id,
 	dict_table_t*	dd_indexes);
 /** Process one mysql.tablespaces record and get info
 @param[in]	heap		temp memory heap
@@ -574,7 +572,8 @@ dd_process_dd_tablespaces_rec(
 	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
-@param[in]	table		Table object
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	table		Table object
 @param[in]	dd_table	DD table object
 @param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template<typename Table>
@@ -593,7 +592,7 @@ single-table tablespace.
 void
 dd_get_meta_data_filename(
 	dict_table_t*	table,
-	dd::Table*		dd_table,
+	dd::Table*	dd_table,
 	char*		filename,
 	ulint		max_len);
 
@@ -742,6 +741,7 @@ dd_table_open_on_name_in_mem(
 	ibool		dict_locked);
 
 /** Open or load a table definition based on a Global DD object.
+@tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
@@ -938,6 +938,7 @@ dd_tablespace_get_filename(const dd::Tablespace* dd_space)
 }
 
 /** Check if the InnoDB table is consistent with dd::Table
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	table			InnoDB table
 @param[in]	dd_table		dd::Table or dd::Partition
 @return	true	if match

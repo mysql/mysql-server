@@ -9,7 +9,6 @@ CALL mtr.add_suppression("option 'log_error_verbosity'");
 CALL mtr.add_suppression("--verbose is for use with");
 
 SET @old_log_error_verbosity= @@global.log_error_verbosity;
-SET @old_log_warnings       = @@global.log_warnings;
 SET @old_log_timestamps     = @@global.log_timestamps;
 
 
@@ -138,32 +137,11 @@ SET GLOBAL  log_error_verbosity=DEFAULT;
 
 
 --echo
---echo # Spec 7 "--log_warning throws deprecation warning" -- see below in error log
+--echo # Spec 7 "--log_warning throws deprecation warning" -- now removed
 
 
 --echo
---echo # Spec 8/Spec 8a "log_warnings sets log_error_verbosity"
-
---error ER_GLOBAL_VARIABLE
-SET SESSION log_warnings=2;
-
-SET GLOBAL  log_warnings=0;
-SELECT      @@global.log_error_verbosity;
-
-SET GLOBAL  log_warnings=1;
-SELECT      @@global.log_error_verbosity;
-
-SET GLOBAL  log_warnings=2;
-SELECT      @@global.log_error_verbosity;
-
---echo # out of range
-SET GLOBAL  log_warnings=4;
-SELECT      @@global.log_error_verbosity, @@global.log_warnings;
-
---echo # reverse: log_error_verbosity updates log_warnings
-SET GLOBAL  log_error_verbosity=1;
-SELECT      @@global.log_warnings;
-
+--echo # Spec 8/Spec 8a "log_warnings sets log_error_verbosity" -- now removed
 
 --echo
 --echo # Spec 9 -- no test; limits part shown in Spec 4c/Spec 8
@@ -171,7 +149,6 @@ SELECT      @@global.log_warnings;
 
 --echo
 --echo # Spec A -- see Spec 4c "range" and Spec 8
---echo #           "interaction of log_warnings and log_error_verbosity"
 
 
 --echo
@@ -204,7 +181,7 @@ SELECT      @@global.log_timestamps;
 --echo
 --echo # Spec 4d "--log_error_verbosity settable on command-line"
 --echo # Spec 5  "--verbose without --help throws an error"
---echo # Spec 7  "--log_warning throws deprecation warning"
+--echo # Spec 7  "--log_warning throws deprecation warning" -- now removed
 --echo # Spec D  "ISO 8601 / RFC 3339 compliant timestamps"
 --echo #
 --echo # error log:
@@ -235,7 +212,6 @@ EOF
 
 --echo
 --echo # cleanup
-SET GLOBAL log_warnings        = @old_log_warnings;
 SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
 SET GLOBAL log_timestamps      = @old_log_timestamps;
 

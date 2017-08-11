@@ -172,7 +172,8 @@ const char *relay_log_basename= 0;
 const ulong mts_slave_worker_queue_len_max= 16384;
 
 /*
-  Statistics go to the error log every # of seconds when --log-warnings > 1
+  Statistics go to the error log every # of seconds when
+  --log_error_verbosity > 2
 */
 const long mts_online_stat_period= 60 * 2;
 
@@ -9331,8 +9332,11 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
         report_level= ERROR_LEVEL;
         current_thd->is_slave_error= 1;
       }
-      /* In case of ignored errors report warnings only if log_warnings > 1. */
-      else if (log_warnings > 1)
+      /*
+        In case of ignored errors report warnings only if
+        log_error_verbosity > 2.
+      */
+      else if (log_error_verbosity > 2)
         report_level= WARNING_LEVEL;
 
       if (report_level != INFORMATION_LEVEL)

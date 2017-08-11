@@ -32,7 +32,7 @@ EOF
 --echo #              directory is accessible through --secure-file-priv.
 --echo #              Consider choosing a different directory.
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Data directory is accessible through --secure-file-priv. Consider choosing a different directory.;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --disable_warnings
 --source include/force_restart.inc

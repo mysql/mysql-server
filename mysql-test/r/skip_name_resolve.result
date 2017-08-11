@@ -56,4 +56,5 @@ FLUSH PRIVILEGES;
 DELETE FROM mysql.user WHERE user='b20438524';
 FLUSH PRIVILEGES;
 # must find the pattern
+Pattern "'user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode" found
 End of 5.7 tests

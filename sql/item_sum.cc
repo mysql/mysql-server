@@ -151,9 +151,13 @@ bool Item_sum::init_sum_func_check(THD *thd)
 {
   if (m_is_window_function)
   {
-    if (!thd->lex->allow_sum_func ||
-        ((thd->lex->m_deny_window_func >>
-          thd->lex->current_select()->nest_level) & 0x1))
+    /*
+      Are either no aggregates of any kind allowed at this level, or
+      specifically not window functions?
+    */
+    LEX * const lex= thd->lex;
+    if (((~lex->allow_sum_func |
+	  lex->m_deny_window_func) >> lex->current_select()->nest_level) & 0x1)
     {
       my_error(ER_WINDOW_INVALID_WINDOW_FUNC_USE, MYF(0),
                func_name());

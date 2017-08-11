@@ -19,13 +19,13 @@ let $args=--no-defaults --lc_messages_dir=$MYSQL_SHAREDIR --datadir=$datadir --s
 --exec $MYSQLD $args --innodb_buffer_pool_size=64M --help --verbose
 
 let SEARCH_PATTERN= innodb-buffer-pool-size                                      67108864;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Start with 1G buffer pool
 --exec $MYSQLD $args --innodb_buffer_pool_size=1G --help --verbose
 
 let SEARCH_PATTERN= innodb-buffer-pool-size                                      1073741824;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Cleanup
 --force-rmdir $bugdir

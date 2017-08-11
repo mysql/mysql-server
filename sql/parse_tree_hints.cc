@@ -547,3 +547,52 @@ bool PT_hint_max_execution_time::contextualize(Parse_context *pc)
   return false;
 }
 
+
+bool PT_hint_sys_var::contextualize(Parse_context *pc)
+{
+  if (!sys_var_value)
+  {
+    // No warning here, warning is issued by parser.
+    return false;
+  }
+
+  sys_var *sys_var= find_sys_var_ex(pc->thd, sys_var_name.str,
+                                    sys_var_name.length, true, false);
+  if (!sys_var)
+  {
+    String str;
+    str.append(STRING_WITH_LEN("'"));
+    str.append(sys_var_name.str, sys_var_name.length);
+    str.append(STRING_WITH_LEN("'"));
+    push_warning_printf(pc->thd, Sql_condition::SL_WARNING,
+                        ER_UNRESOLVED_HINT_NAME,
+                        ER_THD(pc->thd, ER_UNRESOLVED_HINT_NAME),
+                        str.c_ptr_safe(), "SET_VAR");
+    return false;
+  }
+
+  if (!sys_var->is_hint_updateable())
+  {
+    String str;
+    str.append(STRING_WITH_LEN("'"));
+    str.append(sys_var_name.str, sys_var_name.length);
+    str.append(STRING_WITH_LEN("'"));
+    push_warning_printf(pc->thd, Sql_condition::SL_WARNING,
+                        ER_NOT_HINT_UPDATABLE_VARIABLE,
+                        ER_THD(pc->thd, ER_NOT_HINT_UPDATABLE_VARIABLE),
+                        str.c_ptr_safe());
+    return false;
+  }
+
+  Opt_hints_global *global_hint= get_global_hints(pc);
+  if (!global_hint)
+    return true;
+  if (!global_hint->sys_var_hint)
+    global_hint->sys_var_hint= new (pc->thd->mem_root) Sys_var_hint(pc->thd->mem_root);
+  if (!global_hint->sys_var_hint)
+    return true;
+
+  return global_hint->sys_var_hint->add_var(pc->thd, sys_var, sys_var_value);
+}
+
+

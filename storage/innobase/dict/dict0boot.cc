@@ -276,7 +276,8 @@ dict_boot(void)
 
 		/* Insert into the dictionary cache the descriptions of the basic
 		system tables */
-		table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0, 0);
+		table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE,
+					      8, 0, 0, 0);
 
 		dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
 				       MAX_FULL_NAME_LEN);
@@ -291,7 +292,8 @@ dict_boot(void)
 		ROW_FORMAT!=REDUNDANT.  Currently, these flags include
 		DICT_TF2_TEMPORARY. */
 		dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4);
-		dict_mem_table_add_col(table, heap, "CLUSTER_NAME", DATA_BINARY, 0, 0);
+		dict_mem_table_add_col(table, heap, "CLUSTER_NAME",
+				       DATA_BINARY, 0, 0);
 		dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
 
 		table->id = DICT_TABLES_ID;

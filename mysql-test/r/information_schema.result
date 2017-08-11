@@ -109,6 +109,7 @@ help_category
 help_keyword
 help_relation
 help_topic
+password_history
 plugin
 procs_priv
 proxies_priv
@@ -661,6 +662,8 @@ max_user_connections	select,insert,update,references
 password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
+Password_reuse_history	select,insert,update,references
+Password_reuse_time	select,insert,update,references
 Process_priv	select,insert,update,references
 Reload_priv	select,insert,update,references
 Show_db_priv	select,insert,update,references
@@ -846,7 +849,7 @@ AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like '
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
 information_schema	30
-mysql	30
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1153,7 +1156,7 @@ table_schema='information_schema' AND
 GROUP BY column_type ORDER BY num;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(7)	information_schema.INNODB_TABLESPACE_BRIEF,information_schema.VIEWS	2
+varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.VIEWS	2
 varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;

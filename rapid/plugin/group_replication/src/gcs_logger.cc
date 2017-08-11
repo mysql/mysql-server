@@ -30,26 +30,24 @@ enum_gcs_error Gcs_gr_logger_impl::finalize()
   DBUG_RETURN(GCS_OK);
 }
 
-void Gcs_gr_logger_impl::log_event(gcs_log_level_t level,
-                                   const char *message)
+void Gcs_gr_logger_impl::log_event(const gcs_log_level_t level,
+                                   const std::string &message)
 {
   DBUG_ENTER("Gcs_gr_logger_impl::log_event");
 
   switch (level)
   {
-    case GCS_TRACE:
-    case GCS_DEBUG:
     case GCS_INFO:
-      log_message(MY_INFORMATION_LEVEL, message);
+      log_message(MY_INFORMATION_LEVEL, message.c_str());
       break;
 
     case GCS_WARN:
-      log_message(MY_WARNING_LEVEL, message);
+      log_message(MY_WARNING_LEVEL, message.c_str());
       break;
 
     case GCS_ERROR:
     case GCS_FATAL:
-      log_message(MY_ERROR_LEVEL, message);
+      log_message(MY_ERROR_LEVEL, message.c_str());
       break;
 
     default:

@@ -34,6 +34,7 @@ SELECT SLEEP(30);
 SLEEP(30)
 0
 COMMIT;
+Pattern "INNODB MONITOR OUTPUT" found
 BEGIN;
 SELECT * FROM t FOR UPDATE;
 a
@@ -43,6 +44,7 @@ SELECT SLEEP(30);
 SLEEP(30)
 0
 COMMIT;
+Pattern "ready for connections. Version:" found
 BEGIN;
 SELECT * FROM t FOR UPDATE;
 a
@@ -53,4 +55,5 @@ SLEEP(30)
 0
 COMMIT;
 # restart
+Pattern "INNODB MONITOR OUTPUT" found
 DROP TABLE t;

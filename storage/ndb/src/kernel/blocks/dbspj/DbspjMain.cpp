@@ -760,6 +760,7 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
     hash = &m_scan_request_hash;
     break;
   default:
+    hash = NULL; //Silence compiler warning
     ndbrequire(false); //Impossible, avoid warning
   }
   hash->next(bucket, iter);

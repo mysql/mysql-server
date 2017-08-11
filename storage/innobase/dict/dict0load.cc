@@ -2245,7 +2245,6 @@ dict_get_and_save_data_dir_path(
 	}
 }
 
-
 /** Make sure the tablespace name is saved in dict_table_t if the table
 uses a general tablespace.
 Try to read it from the fil_system_t first, then from SYS_TABLESPACES.

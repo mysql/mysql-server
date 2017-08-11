@@ -776,6 +776,7 @@ int JOIN_CACHE_BKA::init()
 
   tables= qep_tab - tab;
 
+  filter_virtual_gcol_base_cols();
   calc_record_fields();
 
   /* Mark all fields that can be used as arguments for this key access */
@@ -887,6 +888,7 @@ int JOIN_CACHE_BKA::init()
   use_emb_key= check_emb_key_usage();
 
   create_remaining_fields(FALSE);
+  restore_virtual_gcol_base_cols();
   bitmap_clear_all(&qep_tab->table()->tmp_set);
 
   set_constants();

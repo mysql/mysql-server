@@ -2660,8 +2660,8 @@ INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME = 'test/t1' ORDER BY I.NAME, F.NAME;
 TABLE_NAME	INDEX_NAME	INDEX_TYPE	FIELD_NAME	FIELD_POS
-test/t1	a	Unique	a	1
-test/t1	b	Primary	b	1
+test/t1	a	Unique	a	0
+test/t1	b	Primary	b	0
 DROP TABLE t1;
 #
 # BUG#16886196 - ALTER TABLE FAILS TO CONVERT TO PREFIX INDEX IN
@@ -2956,11 +2956,11 @@ INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 TABLE_NAME	INDEX_NAME	IS_PRIMARY_KEY	FIELD_NAME	FIELD_POS
-test/t0	a	yes	a	1
-test/t1	a	no	a	1
-test/t2	no_pk	no	a	1
-test/t3	a	no	a	1
-test/t4	b	no	b	1
+test/t0	a	yes	a	0
+test/t1	a	no	a	0
+test/t2	no_pk	no	a	0
+test/t3	a	no	a	0
+test/t4	b	no	b	0
 DROP TABLE t0;
 DROP TABLE t1;
 DROP TABLE t2;

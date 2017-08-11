@@ -3,8 +3,8 @@
 #
 # Problem:
 # ========
-# If a slave is configured with replication filters and log-warnings=2, every
-# statement which is filtered writes an entry to the error log:
+# If a slave is configured with replication filters and log-error-verbosity=3,
+# every statement which is filtered writes an entry to the error log:
 #
 # [Warning] Slave SQL: Could not execute Query event. Detailed error: Slave
 # SQL thread ignored the query because of replicate-*-table rules
@@ -21,6 +21,8 @@
 # checks if 1 minute has elapsed and prints the actual error message and along
 # with that it also prints the number of errors that were suppressed. With fix
 # less warnings should be printed. With bug we get 5 warnings.
+#
+# NB  log_warnings has been replaced by log_error_verbosity now.
 ###############################################################################
 --source include/have_binlog_format_statement.inc
 # Inorder to grep a specific error pattern in error log a fresh error log

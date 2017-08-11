@@ -857,7 +857,7 @@ EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where (`test`.`t1`.`c_char` = NULL)
+Note	1003	/* select#1 */ select `test`.`t1`.`c_int` AS `c_int`,`test`.`t1`.`c_decimal` AS `c_decimal`,`test`.`t1`.`c_float` AS `c_float`,`test`.`t1`.`c_bit` AS `c_bit`,`test`.`t1`.`c_date` AS `c_date`,`test`.`t1`.`c_datetime` AS `c_datetime`,`test`.`t1`.`c_timestamp` AS `c_timestamp`,`test`.`t1`.`c_time` AS `c_time`,`test`.`t1`.`c_year` AS `c_year`,`test`.`t1`.`c_char` AS `c_char` from `test`.`t1` where multiple equal(NULL, `test`.`t1`.`c_char`)
 EXPLAIN SELECT * FROM t1 WHERE c_char IN (NULL, NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table

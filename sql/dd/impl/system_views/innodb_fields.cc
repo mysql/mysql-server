@@ -31,7 +31,7 @@ Innodb_fields::Innodb_fields()
   m_target_def.add_field(FIELD_INDEX_ID, "INDEX_ID",
                  "GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id')");
   m_target_def.add_field(FIELD_NAME, "NAME", "col.name");
-  m_target_def.add_field(FIELD_POS, "POS", "fld.ordinal_position");
+  m_target_def.add_field(FIELD_POS, "POS", "fld.ordinal_position - 1");
 
   m_target_def.add_from("mysql.index_column_usage fld");
   m_target_def.add_from("JOIN mysql.columns col ON fld.column_id=col.id");

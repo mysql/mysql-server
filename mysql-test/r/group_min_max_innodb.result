@@ -265,7 +265,7 @@ EXPLAIN SELECT c1, i1, max(i2) FROM t2
 WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
 GROUP BY c1,i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	k2	k2	12	NULL	ROWS	15.90	Using where; Using index
+1	SIMPLE	t2	NULL	index	k2	k2	12	NULL	ROWS	19.72	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,max(`test`.`t2`.`i2`) AS `max(i2)` from `test`.`t2` where (((`test`.`t2`.`c1` = 'C') and (`test`.`t2`.`i1` < 40)) or ((`test`.`t2`.`c1` = 'F') and (`test`.`t2`.`i1` < 35)) or (`test`.`t2`.`i2` = 17)) group by `test`.`t2`.`c1`,`test`.`t2`.`i1`
 SELECT c1, i1, max(i2) FROM t2 
@@ -378,7 +378,7 @@ WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,a1_idx	a1_idx	261	NULL	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where (((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)) and (`test`.`t1`.`a1` = 'a'))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where ((`test`.`t1`.`a1` = 'a') and ((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)))
 SELECT DISTINCT a1
 FROM t1
 WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
@@ -435,7 +435,7 @@ WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	PRIMARY,a1_idx	a1_idx	257	const	5	40.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where (((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)) and (`test`.`t1`.`a1` = 'a'))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a1` AS `a1` from `test`.`t1` where ((`test`.`t1`.`a1` = 'a') and ((`test`.`t1`.`pk_col` = 2) or (`test`.`t1`.`pk_col` = 22)))
 SELECT DISTINCT a1
 FROM t1
 WHERE (pk_col = 2 OR pk_col = 22) AND a1 = 'a';

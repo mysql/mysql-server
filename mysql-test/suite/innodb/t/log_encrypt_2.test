@@ -133,7 +133,7 @@ DROP DATABASE tde_db;
 
 --let SEARCH_FILE=$MYSQL_TMP_DIR/keyring_query_log
 let SEARCH_PATTERN= ALTER INSTANCE ROTATE INNODB MASTER KEY;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # Loading tables from mysqlpump_encrypt.sql
 --exec $MYSQL --skip-comments < $MYSQL_TMP_DIR/mysqlpump_encrypt.sql

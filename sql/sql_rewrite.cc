@@ -575,6 +575,33 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   {
     rewrite_account_lock(lex, rlb);
   }
+
+  if (!for_binlog || lex->alter_password.update_password_history)
+  {
+    if (lex->alter_password.use_default_password_history)
+    {
+      rlb->append(STRING_WITH_LEN(" PASSWORD HISTORY DEFAULT"));
+    }
+    else
+    {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD HISTORY"),
+                 lex->alter_password.password_history_length, TRUE);
+    }
+  }
+
+  if (!for_binlog || lex->alter_password.update_password_reuse_interval)
+  {
+    if (lex->alter_password.use_default_password_reuse_interval)
+    {
+      rlb->append(STRING_WITH_LEN(" PASSWORD REUSE INTERVAL DEFAULT"));
+    }
+    else
+    {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD REUSE INTERVAL"),
+                 lex->alter_password.password_reuse_interval, TRUE);
+      rlb->append(STRING_WITH_LEN(" DAY"));
+    }
+  }
 }
 
 /**

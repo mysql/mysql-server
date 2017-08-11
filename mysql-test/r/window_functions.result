@@ -5,17 +5,17 @@ SET NAMES utf8;
 Flag unsupported aggregates as window functions
 
 select json_objectagg('a','3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'json_objectagg as window function'
 select json_arrayagg('3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'json_arrayagg as window function'
 select group_concat('3') over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'group_concat as window function'
 select bit_or(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_or as window function'
 select bit_and(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_and as window function'
 select bit_xor(3) over ();
-ERROR 42000: This version of MySQL doesn't yet support 'this aggregate as window function'
+ERROR 42000: This version of MySQL doesn't yet support 'bit_xor as window function'
 Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
@@ -5064,6 +5064,17 @@ SELECT * FROM t HAVING 1 = rank() OVER (ORDER BY a);
 ERROR HY000: You cannot use the window function 'rank' in this context.'
 SELECT 1 FROM t HAVING 1=(SELECT 1 FROM (SELECT 1) foo) AND COUNT(a) OVER ();
 ERROR HY000: You cannot use the window function 'count' in this context.'
+#
+# Bug#26502118: WINDOW FUNCTIONS: CRASH AND LARGE MEMORY ALLOCATION,
+#               FIRST_VALUE, BLOBS
+#
+# This was really missing error detection
+#
+CREATE TABLE tb(a LONGBLOB NOT NULL);
+INSERT INTO tb VALUES ('1'), ('2'), ('3'), ('4'), ('5');
+SELECT (SELECT 1 FROM tb WHERE (SELECT 1 FROM tb WHERE FIRST_VALUE(a) OVER()));
+ERROR HY000: You cannot use the window function 'first_value' in this context.'
+DROP TABLE tb;
 Windows should only be allowed in order by of a simple table query
 (select a from t) union (select a from t) order by (row_number() over ());
 ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION

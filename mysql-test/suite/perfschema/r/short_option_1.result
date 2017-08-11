@@ -21,6 +21,3 @@ general_log	ON
 show global variables like 'new';
 Variable_name	Value
 new	ON
-show global variables like 'log_warnings';
-Variable_name	Value
-log_warnings	2

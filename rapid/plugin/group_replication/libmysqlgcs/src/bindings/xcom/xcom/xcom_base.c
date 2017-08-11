@@ -431,7 +431,7 @@ void set_max_synode_from_unified_boot(synode_no unified_boot_synode) {
    Set node group
 */
 void set_group(uint32_t id) {
-  MAY_DBG(FN; STRLIT("changing group id of global variables "); NDBG(id, u););
+  MAY_DBG(FN; STRLIT("changing group id of global variables "); NDBG((unsigned long) id, lu););
   /*	set_group_id(id); */
   current_message.group_id = id;
   executed_msg.group_id = id;
@@ -560,6 +560,10 @@ static int ignoresig(int signum) { return 0; }
 static void	dbg_machine_and_msg(pax_machine *p, pax_msg *pm)
 {
   GET_GOUT;
+
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
+
   STRLIT("machine ");
   ADD_GOUT(dbg_pax_machine(p));
   STRLIT(" ");
@@ -854,6 +858,8 @@ static void free_forced_config_site_def() {
 static void dbg_proposers() MY_ATTRIBUTE((unused));
 static void dbg_proposers() {
   GET_GOUT;
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
   NDBG(PROPOSERS, d);
   {
     PROP_ITER { PPUT(proposer[i]); }
@@ -1347,6 +1353,10 @@ static void dbg_reply_set(site_def const *site, const char *s, bit_set *bs) {
   unsigned int i = 0;
   unsigned int n = get_maxnodes(site);
   GET_GOUT;
+
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
+
   STRLIT(s);
   for (i = 0;
        i < n &&
@@ -1667,7 +1677,6 @@ void execute_msg(site_def const *site, pax_machine *pma, pax_msg *p) {
         break;
       case xcom_recover:
         break;
-      /* purecov: end */
       case app_type:
         MAY_DBG(FN; STRLIT(" learner.msg ");
                 COPY_AND_FREE_GOUT(dbg_pax_msg(pma->learner.msg)););
@@ -1848,6 +1857,9 @@ static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
   int old_n = *_old_n;
   double old_t = *_old_t;
 
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
+
   DBGOHK(FN; SYCEXP(executed_msg));
   if (!(n % 5000)) {
     GET_GOUT;
@@ -1905,6 +1917,8 @@ static inline int LOSER(synode_no x, site_def const *site) {
 static void debug_loser(synode_no x) MY_ATTRIBUTE((unused));
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
 static void debug_loser(synode_no x) {
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
+    return;
   if (1 || x.msgno < 10) {
     GET_GOUT;
     NDBG(get_nodeno(find_site_def(x)), u);
@@ -1921,8 +1935,7 @@ static void debug_loser(synode_no x MY_ATTRIBUTE((unused))) {}
 /* purecov: end */
 #endif
 
-/* #define DBGFIX2(x){ GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT;
- * FREE_GOUT; } */
+/* #define DBGFIX2(x){ if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return; GET_GOUT; ADD_F_GOUT("%f ",task_now()); x; PRINT_GOUT; FREE_GOUT; } */
 #define DBGFIX2(x)
 static void send_value(site_def const *site, node_no to, synode_no synode) {
   pax_machine *pm = get_cache(synode);

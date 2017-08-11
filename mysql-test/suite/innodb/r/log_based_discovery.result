@@ -18,6 +18,7 @@ c1	c2
 # Stop the DB server with datadir2
 # DB1 server started with the wrong path of undo tablespaces.
 # Expect errors during recovery.
+Pattern "Cannot create .*undo_001 because .*undo_001 already uses Space ID=4294967279!  Did you change innodb_undo_directory" found
 # Start the DB server with right path, expect no recovery errors
 SELECT @@innodb_undo_tablespaces;
 @@innodb_undo_tablespaces

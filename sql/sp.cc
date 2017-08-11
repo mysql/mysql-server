@@ -1117,7 +1117,11 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   MDL_key::enum_mdl_namespace mdl_type= (type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_ALTER_FAILED);
+  {
+    my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type),
+             name->m_name.str);
+    DBUG_RETURN(true);
+  }
 
   // Check if routine exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

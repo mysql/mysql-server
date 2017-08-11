@@ -133,7 +133,8 @@ static struct st_mysql_auth auth_test_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 /**
@@ -167,7 +168,8 @@ static struct st_mysql_auth auth_cleartext_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 mysql_declare_plugin(test_plugin)

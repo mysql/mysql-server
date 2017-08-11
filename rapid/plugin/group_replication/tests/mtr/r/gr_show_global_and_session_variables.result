@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 42 GR variables.
-include/assert.inc [There are 42 GR variables at present.]
+# Test#1: Basic check that there are 43 GR variables.
+include/assert.inc [There are 43 GR variables at present.]
 
 # Test#2: Verify that all the group replication variables are GLOBAL variables.
 SET @@SESSION.group_replication_allow_local_disjoint_gtids_join= 1;
@@ -71,6 +71,8 @@ SET @@SESSION.group_replication_start_on_boot= 1;
 ERROR HY000: Variable 'group_replication_start_on_boot' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_transaction_size_limit= 10240;
 ERROR HY000: Variable 'group_replication_transaction_size_limit' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_communication_debug_options= "";
+ERROR HY000: Variable 'group_replication_communication_debug_options' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 ERROR HY000: Variable 'group_replication_unreachable_majority_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_member_weight= 80;
@@ -198,6 +200,10 @@ include/assert.inc [Verify GLOBAL value of group_replication_transaction_size_li
 include/assert.inc [Verify GLOBAL value of group_replication_transaction_size_limit]
 include/assert.inc [Verify SESSION value of group_replication_transaction_size_limit]
 include/assert.inc [Verify SESSION value of group_replication_transaction_size_limit]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_debug_options]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_debug_options]
+include/assert.inc [Verify SESSION value of group_replication_communication_debug_options]
+include/assert.inc [Verify SESSION value of group_replication_communication_debug_options]
 include/assert.inc [Verify GLOBAL value of group_replication_unreachable_majority_timeout]
 include/assert.inc [Verify GLOBAL value of group_replication_unreachable_majority_timeout]
 include/assert.inc [Verify SESSION value of group_replication_unreachable_majority_timeout]

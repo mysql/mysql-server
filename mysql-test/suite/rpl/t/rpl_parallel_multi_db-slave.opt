@@ -1,2 +1,2 @@
---thread_stack=512K --slave-transaction-retries=0 --log-warnings=0
+--thread_stack=512K --slave-transaction-retries=0 --log-error-verbosity=1
 

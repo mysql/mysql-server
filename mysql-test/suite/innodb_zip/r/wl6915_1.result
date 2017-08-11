@@ -1826,3 +1826,5 @@ c1
 140
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
 DROP PROCEDURE populate_tables;
+SHOW TABLES;
+Tables_in_test

@@ -3554,6 +3554,15 @@ public:
   // other stuff:
   List<set_var_base>  var_list;
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
+  /**
+    List of placeholders ('?') for parameters of a prepared statement. Because
+    we append to this list during parsing, it is naturally sorted by
+    position of the '?' in the query string. The code which fills placeholders
+    with user-supplied values, and the code which writes a query for
+    statement-based logging, rely on this order.
+    This list contains only real placeholders, not the clones which originate
+    in a re-parsed CTE definition.
+  */
   List<Item_param>    param_list;
 
   void insert_values_map(Field *f1, Field *f2)

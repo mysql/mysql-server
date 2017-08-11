@@ -3735,7 +3735,8 @@ static bool innobase_is_supported_system_table(
 		"user",
 		"role_edges",
 		"default_roles",
-		"global_grants"};
+		"global_grants",
+                "password_history"};
 
 	static const char*const*const end = tables + UT_ARR_SIZE(tables);
 

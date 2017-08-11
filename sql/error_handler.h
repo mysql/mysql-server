@@ -100,6 +100,48 @@ public:
 
 
 /**
+  Implements the error handler for SET_VAR hint.
+  For Sys_var_hint::update_vars handler accepts first warning or error.
+  Subsequent error are ignored to avoid message duplication.
+  For Sys_var_hint::restore_vars all warnings and errors are ignored
+  since valid value is restored.
+*/
+
+class Set_var_error_handler : public Internal_error_handler
+{
+public:
+  Set_var_error_handler(bool ignore_warn_arg)
+    : Internal_error_handler(), ignore_warn(ignore_warn_arg),
+      ignore_subsequent_messages(false)
+  {}
+
+  virtual bool handle_condition(THD*,
+                                uint,
+                                const char*,
+                                Sql_condition::enum_severity_level* level,
+                                const char*)
+  {
+    if (*level == Sql_condition::SL_ERROR)
+      (*level)= Sql_condition::SL_WARNING;
+
+    if (ignore_subsequent_messages)
+      return true;
+    ignore_subsequent_messages= true;
+
+    return ignore_warn;
+  }
+
+  void reset_state()
+  {
+    ignore_subsequent_messages= false;
+  }
+private:
+  bool ignore_warn;
+  bool ignore_subsequent_messages;
+};
+
+
+/**
   This class is an internal error handler implementation for
   DROP TABLE statements. The thing is that there may be warnings during
   execution of these statements, which should not be exposed to the user.
