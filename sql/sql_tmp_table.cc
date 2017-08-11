@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1494,7 +1494,7 @@ update_hidden:
     hash_key->actual_key_parts= hash_key->usable_key_parts= 1;
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
-    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+    hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     hash_key->algorithm= HA_KEY_ALG_UNDEF;
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
