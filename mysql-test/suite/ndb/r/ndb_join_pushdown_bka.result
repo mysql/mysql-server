@@ -5247,7 +5247,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	68	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5265,7 +5265,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5283,7 +5283,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	2054	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5351,10 +5351,10 @@ explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,const	1	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
@@ -5362,10 +5362,10 @@ explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	66	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
