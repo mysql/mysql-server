@@ -3024,7 +3024,7 @@ bool JOIN::update_equalities_for_sjm()
         uint fieldno= 0;
         while ((old= it++))
         {
-          if (old->real_item()->eq(keyuse->val, false))
+          if (old->real_item()->eq(keyuse->val->real_item(), false))
           {
             /*
               Replace the expression selected from the subquery with the
