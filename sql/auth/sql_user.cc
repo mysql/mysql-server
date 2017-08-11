@@ -575,10 +575,10 @@ auth_verify_password_history(THD *thd,
           0 == (what_to_set & DIFFERENT_PLUGIN_ATTR) &&
           (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
           auth->validate_authentication_string &&
-          !auth->validate_authentication_string(cred_val.c_ptr(),
+          !auth->validate_authentication_string(cred_val.c_ptr_safe(),
                                                (unsigned) cred_val.length()) &&
           auth->compare_password_with_hash &&
-          !auth->compare_password_with_hash(cred_val.ptr(),
+          !auth->compare_password_with_hash(cred_val.c_ptr_safe(),
                                             (unsigned long) cred_val.length(),
                                             cleartext,
                                             (unsigned long) cleartext_length,
