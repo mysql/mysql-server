@@ -96,10 +96,13 @@ external tools. */
 #if defined(gnuc64) || defined(_WIN32)
 /*
   GCC 4.8 can't include intrinsic headers without -msse4.2.
-  4.9 and newer can, so we can remove this block once we no longer
+  4.9 and newer can, so we can remove this test once we no longer
   support 4.8.
 */
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 5
+#if defined(__SSE4_2__) || defined(__clang__) || !defined(__GNUC__) || __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
+#include <nmmintrin.h>
+#else
+// GCC 4.8 without -msse4.2.
 MY_ATTRIBUTE((target("sse4.2")))
 ALWAYS_INLINE uint32 _mm_crc32_u8(uint32 __C, uint32 __V)
 {
@@ -111,8 +114,6 @@ ALWAYS_INLINE uint64 _mm_crc32_u64(uint64 __C, uint64 __V)
 {
   return __builtin_ia32_crc32di(__C, __V);
 }
-#else
-#include <nmmintrin.h>
 #endif
 #endif  // defined(gnuc64) || defined(_WIN32)
 
