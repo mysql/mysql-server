@@ -154,6 +154,9 @@ ut_crc32_swap_byteorder(
 The CRC32 instructions are part of the SSE4.2 instruction set. */
 bool	ut_crc32_cpu_enabled = false;
 
+#if defined(_WIN32)
+#include <intrin.h>
+#endif
 #if defined(gnuc64) || defined(_WIN32)
 /** Checks whether the CPU has the CRC32 instructions (part of the SSE4.2
 instruction set).
