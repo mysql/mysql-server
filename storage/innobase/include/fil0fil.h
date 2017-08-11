@@ -319,6 +319,15 @@ See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
 /** Wrapper for a path to a directory that may or may not exist. */
 class Fil_path {
 public:
+	/** schema '/' table separator */
+	static constexpr auto	DB_SEPARATOR = '/';
+
+	/** OS specific path separator. */
+	static constexpr auto	OS_SEPARATOR = OS_PATH_SEPARATOR;
+
+	/** Directory separators that are supported. */
+	static constexpr auto	SEPARATOR = "\\/";
+
 	/** Default constructor. Defaults to MySQL_datadir_path.  */
 	Fil_path();
 
@@ -463,7 +472,7 @@ public:
 
 			return(false);
 
-		} else if (path[0] == OS_PATH_SEPARATOR) {
+		} else if (path[0] == OS_SEPARATOR) {
 
 			return(true);
 		}
@@ -472,7 +481,7 @@ public:
 		/* FIXME: What about \\Host\share paths? */
 		if (isalpha(path[0])
 		    && path[1] == ':'
-		    && path[2] == OS_PATH_SEPARATOR) {
+		    && path[2] == OS_SEPARATOR) {
 
 			return(true);
 		}
@@ -488,7 +497,7 @@ public:
 	{
 		for (auto& c : path) {
 			if (c == OS_PATH_SEPARATOR_ALT) {
-				c = OS_PATH_SEPARATOR;
+				c = OS_SEPARATOR;
 			}
 		}
 	}
@@ -501,7 +510,7 @@ public:
 		for (auto ptr = path; *ptr; ++ptr) {
 
 			if (*ptr == OS_PATH_SEPARATOR_ALT) {
-				*ptr = OS_PATH_SEPARATOR;
+				*ptr = OS_SEPARATOR;
 			}
 		}
 	}
@@ -540,8 +549,8 @@ public:
 	}
 
 	/** Check if the name is an undo tablespace name.
-	@param[in]	name	Tablespace name
-	@param[in]	len	Tablespace name length in bytes
+	@param[in]	name		Tablespace name
+	@param[in]	len		Tablespace name length in bytes
 	@return true if it is an undo tablespace name */
 	static bool is_undo_tablespace_name(const char* name, size_t len)
 		MY_ATTRIBUTE((warn_unused_result));
@@ -556,6 +565,14 @@ public:
 
 		return(path.size() >= len
 		       && path.compare(path.size() - len, len, suffix) == 0);
+	}
+
+	/** Check if a character is a path separator ('\' or '/')
+	@param[in]	c		Character to check
+	@reurn true if it is a separator */
+	static bool is_separator(char c)
+	{
+		return(c == '\\' || c == '/');
 	}
 
 	/** Allocate and build a file name from a path, a table or

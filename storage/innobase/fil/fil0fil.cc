@@ -3865,15 +3865,15 @@ Fil_path::get_real_path(const char* path, const std::string& filename)
 	/* On Windows, my_realpath() puts a '\' at the end of any directory
 	path, on non-Windows it does not. */
 
-	if (real_path.back() != OS_PATH_SEPARATOR
+	if (!is_separator(real_path.back())
 	    && get_file_type(real_path) == OS_FILE_TYPE_DIR) {
 
-		real_path.push_back(OS_PATH_SEPARATOR);
+		real_path.push_back(OS_SEPARATOR);
 	}
 
 	if (!filename.empty()) {
 
-		ut_ad(real_path.back() == OS_PATH_SEPARATOR);
+		ut_ad(is_separator(real_path.back()));
 
 		real_path.append(filename);
 	}
@@ -3891,7 +3891,7 @@ Tablespace_files::Tablespace_files(const std::string& dir)
 	m_undo_paths(),
 	m_dir(dir)
 {
-	ut_ad(dir.back() == OS_PATH_SEPARATOR);
+	ut_ad(Fil_path::is_separator(dir.back()));
 }
 
 /** Fetch the file name opened for a space_id during recovery
@@ -4034,7 +4034,7 @@ fil_op_write_log(
 	switch (type) {
 	case MLOG_FILE_RENAME:
 
-		ut_ad(strchr(new_path, OS_PATH_SEPARATOR) != nullptr);
+		ut_ad(strchr(new_path, Fil_path::OS_SEPARATOR) != nullptr);
 
 		len = strlen(new_path) + 1;
 
@@ -4453,8 +4453,13 @@ Fil_path::make(
 	but there needs to be a name. */
 	ut_ad(path_in != nullptr || name_in != nullptr);
 
-	if (path_in == nullptr) {
-		path_in = MySQL_datadir_path;
+	if (path_in == nullptr || *path_in == 0) {
+
+		if (!is_absolute_path(name_in)) {
+			path_in = MySQL_datadir_path;
+		} else {
+			path_in = "";
+		}
 	}
 
 	std::string	name;
@@ -4465,12 +4470,13 @@ Fil_path::make(
 
 	std::string	path(path_in);
 
-	/* If the name is a relative path, do not prepend "./". */
+	/* If the name is a relative path like './', do not prepend "./". */
 	if (!Fil_path::is_absolute_path(path.c_str())
 	    && !name.empty()
-	    && *name.begin() == '.') {
+	    && *name.begin() == '.'
+	    && is_separator(*(name.begin() + 1))) {
 
-		path.resize(0);
+		path.clear();
 	}
 
 	std::string	filepath;
@@ -4482,7 +4488,7 @@ Fil_path::make(
 	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
 		null in order to strip off the old basename from this path. */
-		auto	pos = filepath.rfind(OS_PATH_SEPARATOR);
+		auto	pos = filepath.find_last_of(SEPARATOR);
 
 		if (pos != std::string::npos) {
 			filepath.resize(pos);
@@ -4491,8 +4497,9 @@ Fil_path::make(
 
 	if (!name.empty()) {
 
-		if (!filepath.empty() && filepath.back() != OS_PATH_SEPARATOR) {
-			filepath.push_back(OS_PATH_SEPARATOR);
+		if (!filepath.empty() && !is_separator(filepath.back())) {
+
+			filepath.push_back(OS_SEPARATOR);
 		}
 
 		filepath.append(name);
@@ -4522,9 +4529,9 @@ Fil_path::make(
 		}
 	}
 
-	const auto	ptr = filepath.c_str();
+	normalize(filepath);
 
-	return(static_cast<char*>(mem_strdupl(ptr, filepath.length())));
+	return(static_cast<char*>(mem_strdup(filepath.c_str())));
 }
 
 /** Write redo log for renaming a file.
@@ -5383,15 +5390,15 @@ char*
 fil_path_to_space_name(const char* filename)
 {
 	std::string	path{filename};
-	auto	 	pos = path.rfind(OS_PATH_SEPARATOR);
+	auto	 	pos = path.find_last_of(Fil_path::SEPARATOR);
 
-	ut_a(pos != std::string::npos && path.back() != OS_PATH_SEPARATOR);
+	ut_a(pos != std::string::npos && !Fil_path::is_separator(path.back()));
 
 	std::string	db_name = path.substr(0, pos);
 	std::string	space_name = path.substr(pos + 1, path.length());
 
 	/* If it is a path such as a/b/c.ibd, ignore everything before 'b'. */
-	pos = db_name.rfind(OS_PATH_SEPARATOR);
+	pos = db_name.find_last_of(Fil_path::SEPARATOR);
 
 	if (pos != std::string::npos){
 		db_name = db_name.substr(pos + 1);
@@ -5401,7 +5408,7 @@ fil_path_to_space_name(const char* filename)
 
 	if (Fil_path::has_ibd_suffix(space_name)) {
 
-		/* fil_space_t::name uses '/', not OS_PATH_SEPARATOR. */
+		/* fil_space_t::name always uses '/' . */
 
 		path = db_name;
 		path.push_back('/');
@@ -8112,7 +8119,7 @@ Fil_path::get_file_type(const std::string& path)
 	std::string	p{path};
 
 	if (path.length() > 3
-	    && path.back() == OS_PATH_SEPARATOR
+	    && is_separator(path.back())
 	    && path.at(p.length() - 2) != ':') {
 
 		p.pop_back();
@@ -8370,20 +8377,20 @@ fil_tablespace_path_equals(
 
 		real_old_path = Fil_path::get_real_path(old_path);
 
-		auto	pos = real_old_path.rfind(OS_PATH_SEPARATOR);
+		auto	pos = real_old_path.find_last_of(Fil_path::SEPARATOR);
 
 		ut_a(pos != std::string::npos);
 
 		/* Ignore the filename component of the old path. */
 		real_old_path.resize(pos + 1);
 
-		ut_ad(result.first.back() == OS_PATH_SEPARATOR);
-		ut_ad(real_old_path.back() == OS_PATH_SEPARATOR);
+		ut_ad(Fil_path::is_separator(result.first.back()));
+		ut_ad(Fil_path::is_separator(real_old_path.back()));
 
-		std::string	real_new_path{result.first};
-		std::string	file{result.second->front()};
+		std::string		real_new_path{result.first};
+		const std::string&	file = result.second->front();
 
-		pos = result.second->front().find(OS_PATH_SEPARATOR);
+		pos = file.find_first_of(Fil_path::SEPARATOR);
 
 		if (pos != std::string::npos) {
 
@@ -8393,7 +8400,7 @@ fil_tablespace_path_equals(
 
 		real_new_path = Fil_path::get_real_path(real_new_path.c_str());
 
-		ut_ad(real_new_path.back() == OS_PATH_SEPARATOR);
+		ut_ad(Fil_path::is_separator(real_new_path.back()));
 
 		if (real_old_path.compare(real_new_path) != 0) {
 
@@ -8893,8 +8900,8 @@ fil_tablespace_redo_rename(
 			to_name + dirlen, strlen(to_name + dirlen)
 			- 4 /* Remove ".ibd" */);
 
-		ut_ad(new_table[namend - to_name - dirlen]
-		      == OS_PATH_SEPARATOR);
+		ut_ad(Fil_path::is_separator(
+			new_table[namend - to_name - dirlen]));
 
 #if OS_PATH_SEPARATOR != '/'
 		new_table[namend - to_name - dirlen] = '/';
@@ -9007,7 +9014,7 @@ fil_tablespace_redo_delete(
 
 	auto	abs_name = Fil_path::get_real_path(name);
 
-	ut_ad(abs_name.back() != OS_PATH_SEPARATOR);
+	ut_ad(!Fil_path::is_separator(abs_name.back()));
 
 	ib::info() << "REDO DELETE: " << page_id.space() << ", " << abs_name;
 
@@ -9066,8 +9073,8 @@ Tablespace_dirs::tokenize_paths(
 				cur_path = Fil_path::get_real_path(
 					d.c_str());
 
-				if (d.back() != OS_PATH_SEPARATOR) {
-					d.push_back(OS_PATH_SEPARATOR);
+				if (!Fil_path::is_separator(d.back())) {
+					d.push_back(Fil_path::OS_SEPARATOR);
 				}
 
 				using	value = Paths::value_type;
@@ -9261,7 +9268,7 @@ fil_op_replay_rename(
 		return(err == DB_SUCCESS);
 	}
 
-	auto	path_sep_pos = name.rfind(OS_PATH_SEPARATOR);
+	auto	path_sep_pos = name.find_last_of(Fil_path::SEPARATOR);
 
 	ut_a(path_sep_pos != std::string::npos);
 
@@ -9276,13 +9283,13 @@ fil_op_replay_rename(
 	bool	success = os_file_create_directory(name.c_str(), false);
 	ut_a(success);
 
-	auto	datadir_pos = name.rfind(OS_PATH_SEPARATOR);
+	auto	datadir_pos = name.find_last_of(Fil_path::SEPARATOR);
 
 	ut_ad(datadir_pos != std::string::npos);
 
 	name.erase(0, datadir_pos + 1);
 
-	ut_ad(name.back() != OS_PATH_SEPARATOR);
+	ut_ad(!Fil_path::is_separator(name.back()));
 
 	/* schema/table separator is always a '/'. */
 	name.push_back('/');
@@ -9609,7 +9616,7 @@ Tablespace_dirs::scan(const std::string& directories)
 
 		const auto&	real_path_dir = dir.real_path();
 
-		ut_a(dir.path().back() == OS_PATH_SEPARATOR);
+		ut_a(Fil_path::is_separator(dir.path().back()));
 
 		ib::info() << "Scanning '" << dir.path() << "'";
 
