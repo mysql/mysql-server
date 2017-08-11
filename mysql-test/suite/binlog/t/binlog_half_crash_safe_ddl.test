@@ -49,6 +49,10 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_mixed.inc
 
+--disable_query_log
+call mtr.add_suppression("Could not find a valid tablespace file for");
+--enable_query_log
+
 # The *internal* var is used by gtid_step_assert.inc
 --let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
 # To use by gtid_assert
