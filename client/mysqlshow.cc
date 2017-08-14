@@ -17,19 +17,19 @@
 
 /* Show databases, tables or columns */
 
+#include <caching_sha2_passwordopt-vars.h>
 #include <m_string.h>
 #include <my_sys.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <signal.h>
 #include <sslopt-vars.h>
-#include <caching_sha2_passwordopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -268,8 +268,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
+#include <sslopt-longopts.h>
 
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

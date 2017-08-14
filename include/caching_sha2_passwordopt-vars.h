@@ -17,7 +17,9 @@
   @file include/caching_sha2_passwordopt-vars.h
 */
 
-static bool opt_get_server_public_key= FALSE;
+#include "mysql.h"
+
+static bool opt_get_server_public_key= false;
 
 static void set_get_server_public_key_option(MYSQL *mysql)
 {

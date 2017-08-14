@@ -15,16 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/base/mysql_connection_options.h"
+
 #include <mysys_err.h>
 #include <stdlib.h>
 #include <functional>
 #include <sstream>
 #include <vector>
 
-#include "abstract_options_provider.h"
-#include "abstract_program.h"
+#include "client/base/abstract_options_provider.h"
+#include "client/base/abstract_program.h"
 #include "mysys_err.h"
-#include "mysql_connection_options.h"
 #include "typelib.h"
 
 using Mysql::Nullable;

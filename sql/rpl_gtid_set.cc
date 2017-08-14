@@ -53,7 +53,7 @@
 #endif
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 extern "C" {

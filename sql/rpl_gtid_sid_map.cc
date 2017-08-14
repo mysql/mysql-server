@@ -32,7 +32,7 @@
 #include "sql/thr_malloc.h"
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"  // IWYU pragma: keep
+#include "client/mysqlbinlog.h" // IWYU pragma: keep
 #endif
 
 extern "C" {

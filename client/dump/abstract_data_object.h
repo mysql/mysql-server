@@ -20,7 +20,7 @@
 
 #include <string>
 
-#include "i_data_object.h"
+#include "client/dump/i_data_object.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

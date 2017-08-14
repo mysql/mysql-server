@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "standard_progress_watcher.h"
+#include "client/dump/standard_progress_watcher.h"
 
 #include <functional>
 

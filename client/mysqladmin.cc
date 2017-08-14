@@ -29,7 +29,7 @@
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -82,6 +82,7 @@ static bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
+
 #include "caching_sha2_passwordopt-vars.h"
 
 static void usage(void);
@@ -219,6 +220,7 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
 #include "caching_sha2_passwordopt-longopts.h"
 
   {"user", 'u', "User for login if not current user.", &user,

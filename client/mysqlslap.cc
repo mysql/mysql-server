@@ -80,13 +80,13 @@ TODO:
 
 #include "my_config.h"
 
+#include <caching_sha2_passwordopt-vars.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
 #include <mysqld_error.h>
 #include <signal.h>
 #include <sslopt-vars.h>
-#include <caching_sha2_passwordopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -99,7 +99,7 @@ TODO:
 #include <time.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -714,8 +714,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
+#include <sslopt-longopts.h>
 
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #include <functional>
 #include <string>
 
+#include "client/base/abstract_value_option.h"
 #include "my_getopt.h"
-#include "abstract_value_option.h"
 #include "nullable.h"
 
 namespace Mysql{

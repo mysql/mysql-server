@@ -44,7 +44,7 @@
 #include <violite.h>
 #include <cmath> // std::isinf
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -7565,8 +7565,8 @@ static struct my_option my_long_options[] =
   {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.",
    &no_skip, &no_skip, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#include "sslopt-longopts.h"
 #include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",

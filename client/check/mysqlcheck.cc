@@ -15,21 +15,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/check/mysqlcheck.h"
+
+#include <caching_sha2_passwordopt-vars.h>
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
-#include <caching_sha2_passwordopt-vars.h>
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqlcheck.h"
 #include "print_version.h"
 #include "typelib.h"
 
@@ -195,8 +196,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
+#include <sslopt-longopts.h>
 
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},

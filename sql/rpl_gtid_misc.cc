@@ -47,7 +47,7 @@
 #endif // ifdef MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #ifndef I_OBJECT_READER_WRAPPER_INCLUDED
 #define I_OBJECT_READER_WRAPPER_INCLUDED
 
-#include "i_object_reader.h"
+#include "client/dump/i_object_reader.h"
 
 namespace Mysql{
 namespace Tools{

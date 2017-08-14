@@ -60,7 +60,7 @@
 #include "wrapper_functions.h"
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 #ifdef MYSQL_SERVER

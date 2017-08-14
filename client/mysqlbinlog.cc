@@ -39,7 +39,8 @@
 #include <map>
 #include <utility>
 
-#include "client_priv.h"
+#include "caching_sha2_passwordopt-vars.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
@@ -56,7 +57,6 @@
 #include "sql_common.h"
 #include "sql_string.h"
 #include "sslopt-vars.h"
-#include "caching_sha2_passwordopt-vars.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
@@ -1577,8 +1577,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
+#include <sslopt-longopts.h>
 
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "

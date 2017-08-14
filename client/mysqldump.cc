@@ -53,10 +53,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
 #include <string>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -164,8 +163,8 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
-#include <sslopt-vars.h>
 #include <caching_sha2_passwordopt-vars.h>
+#include <sslopt-vars.h>
 
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
@@ -551,8 +550,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <sslopt-longopts.h>
 #include <caching_sha2_passwordopt-longopts.h>
+#include <sslopt-longopts.h>
 
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "

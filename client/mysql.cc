@@ -45,7 +45,8 @@
 #include <time.h>
 #include <violite.h>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
+#include "client/my_readline.h"
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -54,7 +55,6 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_readline.h"
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "typelib.h"
@@ -124,7 +124,7 @@ static char *server_version= NULL;
 
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-#include "completion_hash.h"
+#include "client/completion_hash.h"
 #include "print_version.h"
 
 #define PROMPT_CHAR '\\'
@@ -219,8 +219,8 @@ static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
-#include "sslopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
+#include "sslopt-vars.h"
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
@@ -1816,8 +1816,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include "sslopt-longopts.h"
 #include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"table", 't', "Output in table format.", &output_tables,
    &output_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},

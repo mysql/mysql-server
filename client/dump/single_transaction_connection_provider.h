@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,11 +20,11 @@
 
 #include <functional>
 
-#include "thread_specific_connection_provider.h"
-#include "i_connection_provider.h"
-#include "base/message_data.h"
-#include "base/mysql_query_runner.h"
-#include "base/mutex.h"
+#include "client/base/message_data.h"
+#include "client/base/mutex.h"
+#include "client/base/mysql_query_runner.h"
+#include "client/dump/i_connection_provider.h"
+#include "client/dump/thread_specific_connection_provider.h"
 
 namespace Mysql{
 namespace Tools{
