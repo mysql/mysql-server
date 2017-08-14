@@ -649,7 +649,7 @@ INCLUDE_DIRECTORIES(
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
 ENDIF()
 # Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()

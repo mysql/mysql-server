@@ -30,7 +30,6 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h"
-#include "zlib.h"
 
 /*
    This replaces the packet with a compressed packet

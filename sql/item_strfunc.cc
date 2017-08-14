@@ -29,6 +29,7 @@
 
 #include "sql/item_strfunc.h"
 
+#include <zlib.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>                     // std::isfinite
@@ -86,7 +87,6 @@
 #include "sql/val_int_compare.h"     // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
-#include "zlib.h"
 
 using std::min;
 using std::max;
@@ -4244,8 +4244,6 @@ longlong Item_func_crc32::val_int()
   null_value=0;
   return (longlong) crc32(0L, (uchar*)res->ptr(), res->length());
 }
-
-#include "zlib.h"
 
 String *Item_func_compress::val_str(String *str)
 {
