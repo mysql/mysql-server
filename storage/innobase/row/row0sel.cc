@@ -1197,18 +1197,17 @@ lock_match:
 
 	for (rtr_rec_vector::iterator it = match_rec->begin();
 	     it != end; ++it) {
-		dberr_t		err2;
 		rtr_rec_t*	rtr_rec = &(*it);
 
 		my_offsets = rec_get_offsets(
 				rtr_rec->r_rec, index, my_offsets,
 				ULINT_UNDEFINED, &heap);
 
-		err2 = lock_sec_rec_read_check_and_lock(
+		err = lock_sec_rec_read_check_and_lock(
 			0, &match->block, rtr_rec->r_rec, index, my_offsets,
 			sel_mode, static_cast<lock_mode>(mode), type, thr);
 
-		switch (err2) {
+		switch (err) {
 		case DB_SUCCESS:
 		case DB_SUCCESS_LOCKED_REC:
 			rtr_rec->locked = true;
@@ -1221,7 +1220,6 @@ lock_match:
 			break;
 
 		default:
-			err = err2;
 			goto func_end;
 		}
 	}
