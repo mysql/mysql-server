@@ -3508,7 +3508,7 @@ predefine_undo_tablespaces(
 	return(false);
 }
 
-/** Invalidate an entry from the dict cache.
+/** Invalidate an entry or entries for partitoined table from the dict cache.
 @param[in]	schema_name	Schema name
 @param[in]	table_name	Table name */
 static
@@ -3519,18 +3519,19 @@ innobase_dict_cache_reset(
 {
 	char	name[FN_REFLEN];
 	snprintf(name, sizeof name, "%s/%s", schema_name, table_name);
-	dict_table_t* table = dd_table_open_on_name(
-		current_thd, NULL, name,
-		false, DICT_ERR_IGNORE_NONE);
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_t* table = dict_table_check_if_in_cache_low(name);
 
 	if (table != nullptr) {
 		btr_drop_ahi_for_table(table);
-
-		mutex_enter(&dict_sys->mutex);
-		dd_table_close(table, NULL, NULL, true);
 		dict_table_remove_from_cache(table);
-		mutex_exit(&dict_sys->mutex);
+	} else if (strcmp(schema_name, "mysql") != 0) {
+		dict_partitioned_table_remove_from_cache(name);
 	}
+
+	mutex_exit(&dict_sys->mutex);
 }
 
 /** Invalidate user table dict cache after Replication Plugin recovers. Table

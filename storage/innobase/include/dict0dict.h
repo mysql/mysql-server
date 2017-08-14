@@ -341,6 +341,13 @@ dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table);	/*!< in, own: table */
 
+/** Try to invalidate an entry from the dict cache, for a partitioned table,
+if any table found.
+@param[in]	name	Table name */
+void
+dict_partitioned_table_remove_from_cache(
+	const char*	name);
+
 #ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
 @param[in,out]	table		table object
