@@ -312,7 +312,9 @@ static bool is_secure_transport(MYSQL *mysql)
       if (mysql_get_ssl_cipher(mysql) == NULL)
         return false;
     }
+    // Fall through
     case VIO_TYPE_SHARED_MEMORY:
+    // Fall through
     case VIO_TYPE_SOCKET:
       return true;
     default:
