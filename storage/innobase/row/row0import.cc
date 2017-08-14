@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3952,14 +3952,7 @@ row_import_for_mysql(
 						  encrypt_info,
 						  &mtr)) {
 			mtr_commit(&mtr);
-			ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				ER_FILE_NOT_FOUND,
-				filepath, err, ut_strerr(err));
-
-			ut_free(filepath);
-			row_mysql_unlock_data_dictionary(trx);
-
-			return(row_import_cleanup(prebuilt, trx, err));
+			return(row_import_cleanup(prebuilt, trx, DB_ERROR));
 		}
 
 		mtr_commit(&mtr);
