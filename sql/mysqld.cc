@@ -4040,10 +4040,8 @@ static int init_ssl_communication()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
-#ifndef HAVE_YASSL
   if (init_rsa_keys())
     return 1;
-#endif
 #endif /* HAVE_OPENSSL */
   return 0;
 }

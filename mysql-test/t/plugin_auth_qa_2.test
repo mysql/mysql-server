@@ -20,7 +20,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_pas
 GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
 --sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
+SELECT user,plugin FROM mysql.user WHERE user != 'root';
 SELECT @@proxy_user;
 SELECT @@external_user;
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_1_user --password=qa_test_1_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1

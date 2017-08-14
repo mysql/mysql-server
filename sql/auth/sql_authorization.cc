@@ -2503,6 +2503,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool is_privileged_user= false;
   bool result= false;
   int ret= 0;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_table_grant");
 
@@ -2665,6 +2666,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;
     }
 
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
+
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
                                   0, revoke_grant, create_new_users,
@@ -2781,6 +2786,22 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   result= log_and_commit_acl_ddl(thd, transactional_tables);
 
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   if (!result) /* success */
     my_ok(thd);
 
@@ -2820,6 +2841,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool is_privileged_user= false;
   bool result= false;
   int ret;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_routine_grant");
 
@@ -2886,6 +2908,10 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= true;
       continue;
     }
+
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
 
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
@@ -2964,6 +2990,23 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   result= log_and_commit_acl_ddl(thd, transactional_tables, NULL, result,
                                  write_to_binlog, write_to_binlog);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    for (LEX_USER * one_user : existing_users)
+    {
+      LEX_USER * existing_user;
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
@@ -3219,6 +3262,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool error= false;
   int ret;
   TABLE *dynpriv_table;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_grant");
   if (!initialized)
@@ -3293,6 +3337,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       */
       rights= 0;
     }
+
+    ACL_USER *this_user= find_acl_user(user->host.str, user->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(target_user);
 
     if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                  user, (!db ? rights : 0), revoke_grant,
@@ -3438,6 +3486,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   DBUG_ASSERT(!error || thd->is_error());
 
   error= log_and_commit_acl_ddl(thd, transactional_tables);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
 
   if (!error)
     my_ok(thd);

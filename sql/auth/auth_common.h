@@ -732,6 +732,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd);
+void notify_flush_event(THD *thd);
 
 /* sql_authorization */
 bool has_grant_role_privilege(THD *thd);

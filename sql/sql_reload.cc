@@ -98,6 +98,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
+      notify_flush_event(thd);
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;

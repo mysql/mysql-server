@@ -95,7 +95,7 @@ public:
   bool has_client_capability(unsigned long) {return false;}
   void end_partial_result_set() {}
   int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) { return 0; }
-  void *get_ssl() { return 0; }
+  SSL_handle get_ssl() { return 0; }
   void start_row() {}
   bool end_row() { return false; }
   bool connection_alive() { return false; }

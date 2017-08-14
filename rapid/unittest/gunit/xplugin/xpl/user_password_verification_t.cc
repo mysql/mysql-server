@@ -19,6 +19,7 @@
 #include "native_verification.h"
 #include "sha1.h"  // for SHA1_HASH_SIZE
 #include "sha256_plain_verification.h"
+#include "sha2_plain_verification.h"
 
 namespace xpl {
 

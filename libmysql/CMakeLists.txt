@@ -171,7 +171,8 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
   ../sql-common/net_serv.cc
-  ../sql/auth/password.c
+  ../sql/auth/password.cc
+  ../sql/auth/sha2_password_common.cc
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)

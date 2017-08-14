@@ -86,6 +86,7 @@ TODO:
 #include <mysqld_error.h>
 #include <signal.h>
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -370,6 +371,7 @@ int main(int argc, char **argv)
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
                   (char*) &opt_enable_cleartext_plugin);
+  set_get_server_public_key_option(&mysql);
   if (!opt_only_print) 
   {
     if (!(mysql_real_connect(&mysql, host, user, opt_password,
@@ -713,6 +715,7 @@ static struct my_option my_long_options[] =
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
 
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

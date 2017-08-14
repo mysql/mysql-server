@@ -720,6 +720,7 @@ void c16toa(uint16, opaque*);
 void c24toa(const uint24, opaque*);
 void c32toa(uint32 u32, opaque*);
 
+int read_file(x509*& x, FILE* input, CertType type);
 
 } // naemspace
 

@@ -38,16 +38,15 @@
 
 int extract_user_salt(char **salt_begin,
                       char **salt_end);
-C_MODE_START
 char *
 my_crypt_genhash(char *ctbuffer,
                  size_t ctbufflen,
                  const char *plaintext,
                  size_t plaintext_len,
                  const char *switchsalt,
-                 const char **params);
+                 const char **params,
+                 unsigned int *num_rounds = NULL);
 void generate_user_salt(char *buffer, int buffer_len);
 void xor_string(char *to, int to_len, char *pattern, int pattern_len);
 
-C_MODE_END
 #endif

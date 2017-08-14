@@ -165,6 +165,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
@@ -551,6 +552,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
 
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
@@ -1662,6 +1664,7 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
+  set_get_server_public_key_option(&mysql_connection);
 
   if (opt_network_timeout)
   {

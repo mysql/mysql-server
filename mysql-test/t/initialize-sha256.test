@@ -62,7 +62,7 @@ source $passwd_file;
 --source include/wait_until_connected_again.inc
 
 --echo # connect as root
-connect(root_con,localhost,root,$new_pwd,mysql);
+connect(root_con,localhost,root,$new_pwd,mysql,,,SSL);
 
 --echo # must fail due to password expiration
 --error ER_MUST_CHANGE_PASSWORD

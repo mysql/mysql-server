@@ -3241,6 +3241,22 @@ static auth_plugin_t sha256_password_client_plugin=
   NULL,
   sha256_password_auth_client
 };
+
+static auth_plugin_t caching_sha2_password_client_plugin=
+{
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  "caching_sha2_password",
+  "Oracle Inc",
+  "SHA2 based authentication with salt",
+  {1, 0, 0},
+  "GPL",
+  NULL,
+  caching_sha2_password_init,
+  caching_sha2_password_deinit,
+  NULL,
+  caching_sha2_password_auth_client
+};
 #endif
 #ifdef AUTHENTICATION_WIN
 extern "C" auth_plugin_t win_auth_client_plugin;
@@ -3263,6 +3279,7 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
 #if defined(HAVE_OPENSSL)
   (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
+  (struct st_mysql_client_plugin *) &caching_sha2_password_client_plugin,
 #endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
@@ -5908,6 +5925,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                          static_cast<const char*>(arg));
     break;
 
+  case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    mysql->options.extension->get_server_public_key=
+    (*(bool*) arg) ? TRUE : FALSE;
+    break;
+
   case MYSQL_OPT_CONNECT_ATTR_RESET:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     if (mysql->options.extension->connection_attributes)
@@ -6133,6 +6156,11 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_SERVER_PUBLIC_KEY:
     *((char **)arg)= mysql->options.extension ?
                      mysql->options.extension->server_public_key_path : NULL;
+    break;
+  case MYSQL_OPT_GET_SERVER_PUBLIC_KEY:
+    *((bool *)arg)= (mysql->options.extension &&
+                     mysql->options.extension->get_server_public_key) ?
+                       TRUE : FALSE;
     break;
   case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
     *((bool *)arg)= (mysql->options.extension &&

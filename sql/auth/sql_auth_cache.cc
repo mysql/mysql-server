@@ -1459,7 +1459,7 @@ validate_user_plugin_records()
         }
       }
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
-          rsa_auth_status() && !ssl_acceptor_fd)
+          sha256_rsa_auth_status() && !ssl_acceptor_fd)
       {
 #if !defined(HAVE_YASSL)
         const char *missing= "but neither SSL nor RSA keys are";
@@ -1473,10 +1473,34 @@ validate_user_plugin_records()
                static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), missing);
       }
+      if (acl_user->plugin.str == caching_sha2_password_plugin_name.str &&
+          caching_sha2_rsa_auth_status() && !ssl_acceptor_fd)
+      {
+        const char *missing= "but neither SSL nor RSA keys are";
+
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
+               caching_sha2_password_plugin_name.str,
+               acl_user->user,
+               static_cast<int>(acl_user->host.get_host_len()),
+               acl_user->host.get_host(), missing);
+      }
     }
   }
   unlock_plugin_data();
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Audit notification for flush
+
+  @param [in] thd Handle to THD
+*/
+
+void notify_flush_event(THD *thd)
+{
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_FLUSH),
+                     0, NULL, NULL, NULL, false, NULL, NULL);
 }
 
 
@@ -1598,6 +1622,7 @@ bool acl_init(bool dont_read_acl_tables)
   */
   return_val|= acl_reload(thd);
   roles_init(thd);
+  notify_flush_event(thd);
   thd->release_resources();
   delete thd;
 
@@ -1894,11 +1919,13 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
                             native_password_plugin_name.str) == 0)
             user.plugin= native_password_plugin_name;
 #if defined(HAVE_OPENSSL)
-          else
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              sha256_password_plugin_name.str) == 0)
+          else if(my_strcasecmp(system_charset_info, tmpstr,
+                                sha256_password_plugin_name.str) == 0)
               user.plugin= sha256_password_plugin_name;
 #endif
+          else if(my_strcasecmp(system_charset_info, tmpstr,
+                                caching_sha2_password_plugin_name.str) == 0)
+            user.plugin= caching_sha2_password_plugin_name;
           else
             {
               user.plugin.str= tmpstr;
