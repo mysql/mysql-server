@@ -4886,7 +4886,9 @@ public:
          Engines that support atomic DDL only prepare for the commit during this step
          but do not finalize it. Real commit happens later when the whole statement is
          committed. Also in some situations statement might be rolled back after call
-         to commit_inplace_alter_table() for such storage engines.
+         to commit_inplace_alter_table() for such storage engines. In the latter
+         special case SE might require call to handlerton::dict_cache_reset() in
+         order to invalidate its internal table definition cache after rollback.
       b) If we have failed to upgrade lock or any errors have occured during the
          handler functions calls (including commit), we call
          handler::ha_commit_inplace_alter_table()
@@ -5101,7 +5103,9 @@ protected:
     prepare for the commit but do not finalize it. Real commit should happen
     later when the whole statement is committed. Also in some situations
     statement might be rolled back after call to commit_inplace_alter_table()
-    for such storage engines.
+    for such storage engines. In the latter special case SE might require call
+    to handlerton::dict_cache_reset() in order to invalidate its internal
+    table definition cache after rollback.
 
     @note Storage engines are responsible for reporting any errors by
     calling my_error()/print_error()

@@ -8449,6 +8449,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
+  bool rollback_needs_dict_cache_reset= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -8710,6 +8711,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     table_list->table= table= NULL;
     reopen_tables= true;
     close_temporary_table(thd, altered_table, true, false);
+    rollback_needs_dict_cache_reset= true;
 
     /*
       Replace table definition in the data-dictionary.
@@ -8942,6 +8944,17 @@ cleanup2:
       db_type->post_ddl)
     db_type->post_ddl(thd);
 
+
+  /*
+    InnoDB requires additional SE dictionary cache invalidation if we rollback
+    after successfull call to handler::ha_commit_inplace_alter_table().
+  */
+  if (rollback_needs_dict_cache_reset)
+  {
+    if (db_type->dict_cache_reset != nullptr)
+      db_type->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
+  }
+
   /*
     Re-opening of table needs to be done after rolling back the failed
     statement/transaction and clearing THD::transaction_rollback_request
@@ -8952,12 +8965,6 @@ cleanup2:
     /* Close the only table instance which might be still around. */
     if (table)
       close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
-    else
-    {
-      handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-      if (ddse->dict_cache_reset != nullptr)
-        ddse->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
-    }
     if (thd->locked_tables_list.reopen_tables(thd))
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
     /* QQ; do something about metadata locks ? */
