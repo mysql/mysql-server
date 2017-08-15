@@ -17,7 +17,7 @@
    by Mats Kindahl <mats@mysql.com>.
 */
 
-#include "tap.h"
+#include "unittest/mytap/tap.h"
 
 #include "my_config.h"
 

@@ -17,13 +17,13 @@
 #include <pfs_global.h>
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
-#include <tap.h>
 
 #include "lex_string.h"
 #include "my_thread.h"
 #include "sql/sql_class.h"
 #include "stub_pfs_global.h"
 #include "stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 static void test_oom()
 {

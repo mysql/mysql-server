@@ -15,8 +15,7 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/zlib
                     ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${CMAKE_SOURCE_DIR}/unittest/mytap)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 # We omit core-t here, since it will always fail.
 SET(TESTS simple skip todo skip_all no_plan)

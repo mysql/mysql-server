@@ -18,9 +18,9 @@
 
 
 #include <gmock/gmock.h>
-#include "fake_table.h"
 
 #include "sql/opt_range.cc"
+#include "unittest/gunit/fake_table.h"
 
 using ::testing::Return;
 using ::testing::_;

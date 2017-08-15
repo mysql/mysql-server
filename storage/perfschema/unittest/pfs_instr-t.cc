@@ -19,10 +19,10 @@
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
 #include <pfs_stat.h>
-#include <tap.h>
 
 #include "my_thread.h"
 #include "stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 static void test_no_instruments()
 {

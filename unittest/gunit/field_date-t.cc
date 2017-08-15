@@ -15,12 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "field_temporal_utils.h"
-#include "test_utils.h"
-#include "fake_table.h"
 #include "sql/field.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/field_temporal_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace field_date_unittests {
 

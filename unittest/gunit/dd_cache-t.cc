@@ -22,7 +22,6 @@
 #include <typeinfo>
 #include <vector>
 
-#include "dd.h"
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -45,8 +44,9 @@
 #include "sql/dd/properties.h"
 #include "sql/mdl.h"
 #include "sql/sql_base.h"
-#include "test_mdl_context_owner.h"
-#include "test_utils.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_mdl_context_owner.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace dd {

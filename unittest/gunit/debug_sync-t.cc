@@ -29,8 +29,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/debug_sync.h"
-#include "test_utils.h"
-#include "thread_utils.h"
+#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
 extern uchar* debug_sync_value_ptr(THD* thd);

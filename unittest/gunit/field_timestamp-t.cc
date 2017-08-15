@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,12 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
-#include "fake_table.h"
-#include "mock_field_timestamp.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_timestamp.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace field_timestamp_unittests {
 

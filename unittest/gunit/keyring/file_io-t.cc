@@ -17,12 +17,12 @@
 #include <gtest/gtest.h>
 
 #include "file_io.h"
-#include "mock_logger.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
-#include "test_utils.h"
+#include "unittest/gunit/keyring/mock_logger.h"
+#include "unittest/gunit/test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring

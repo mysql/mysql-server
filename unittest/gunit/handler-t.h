@@ -19,8 +19,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "base_mock_handler.h"
 #include "my_inttypes.h"
+#include "unittest/gunit/base_mock_handler.h"
 
 /**
   A mock handler extending Base_mock_HANDLER

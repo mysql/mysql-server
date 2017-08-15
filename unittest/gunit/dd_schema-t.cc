@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "dd.h"
 #include "my_inttypes.h"
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/raw/object_keys.h"
@@ -25,7 +24,8 @@
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"
 #include "sql/dd/types/object_type.h"
-#include "test_utils.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_utils.h"
 
 
 /*

@@ -21,7 +21,7 @@
 #include "sql/item_func.h"
 #include "sql/item_timefunc.h"
 #include "sql/parse_tree_helpers.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace dd_info_schema_native_func {
 using my_testing::Server_initializer;

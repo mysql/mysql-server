@@ -20,11 +20,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "fake_table.h"
-#include "mock_field_long.h"
 #include "sql/parse_tree_helpers.h"
 #include "sql/sql_optimizer.cc"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/mock_field_long.h"
+#include "unittest/gunit/test_utils.h"
 
 
 // Unit tests of the ref optimizer.

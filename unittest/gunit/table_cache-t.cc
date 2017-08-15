@@ -21,7 +21,7 @@
 #include "my_inttypes.h"
 #include "sql/mysqld_thd_manager.h"
 #include "sql/table_cache.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 /*
   We need example_hton to be able short-cut creation of example

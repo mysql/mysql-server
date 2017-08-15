@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <cstring>
 
-#include "dd.h"
 #include "my_inttypes.h"
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/raw/raw_record.h"
@@ -26,6 +25,8 @@
 #include "sql/histograms/value_map.h"
 #include "sql/histograms/value_map_type.h"
 #include "test_utils.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace dd_column_statistics_unittest {
 

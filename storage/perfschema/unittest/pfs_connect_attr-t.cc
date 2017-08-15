@@ -20,10 +20,10 @@
 #include <pfs_server.h>
 #include <string.h>
 #include <sys/types.h>
-#include <tap.h>
 
 #include "my_inttypes.h"
 #include "my_thread.h"
+#include "unittest/mytap/tap.h"
 
 /* test helpers, to inspect data */
 bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,

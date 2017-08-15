@@ -35,7 +35,7 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
-#include "thread_utils.h"
+#include "unittest/gunit/thread_utils.h"
 #include "rsa.hpp"
 #include "buffer.hpp"
 #include "cert_wrapper.hpp"

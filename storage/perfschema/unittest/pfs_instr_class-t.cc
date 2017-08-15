@@ -17,10 +17,10 @@
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
 #include <string.h>                             // strncpy
-#include <tap.h>
 
 #include "my_thread.h"
 #include "stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 static void test_no_registration()
 {

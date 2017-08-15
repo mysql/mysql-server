@@ -21,10 +21,10 @@
 #include <fstream>
 
 #include "buffered_file_io.h"
-#include "buffered_file_io_10.h"
 #include "i_serialized_object.h"
-#include "mock_logger.h"
 #include "my_inttypes.h"
+#include "unittest/gunit/keyring/buffered_file_io_10.h"
+#include "unittest/gunit/keyring/mock_logger.h"
 
 
 namespace keyring__keys_container_unittest

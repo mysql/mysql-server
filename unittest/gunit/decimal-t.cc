@@ -23,12 +23,12 @@
 #include <gtest/gtest.h>
 #include <math.h>
 
-#include "benchmark.h"
 #include "decimal.h"
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "sql/my_decimal.h"
+#include "unittest/gunit/benchmark.h"
 
 
 namespace decimal_unittest {

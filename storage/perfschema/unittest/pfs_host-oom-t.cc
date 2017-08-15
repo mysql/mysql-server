@@ -19,11 +19,11 @@
 #include <pfs_instr.h>
 #include <pfs_stat.h>
 #include <string.h> /* memset */
-#include <tap.h>
 
 #include "my_thread.h"
 #include "stub_pfs_global.h"
 #include "stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 extern struct PSI_bootstrap PFS_bootstrap;
 

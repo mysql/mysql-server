@@ -19,7 +19,7 @@
 #include "my_inttypes.h"
 #include "sql/dd/impl/properties_impl.h"
 #include "sql/dd/properties.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace dd_properties_unittest {

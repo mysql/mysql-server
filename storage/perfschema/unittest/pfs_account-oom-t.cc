@@ -23,11 +23,11 @@
 #include <pfs_user.h>
 #include <string.h> /* memset */
 #include <sys/types.h>
-#include <tap.h>
 
 #include "my_thread.h"
 #include "stub_pfs_global.h"
 #include "stub_pfs_plugin_table.h"
+#include "unittest/mytap/tap.h"
 
 PFS_thread pfs_thread;
 

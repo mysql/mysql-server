@@ -23,7 +23,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/sql_get_diagnostics.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace get_diagnostics_unittest {
 

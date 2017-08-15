@@ -19,13 +19,13 @@
 #include <string>
 #include <vector>
 
-#include "fake_table.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/parse_tree_helpers.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_filter_unittest {
 

@@ -20,10 +20,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "fake_costmodel.h"
 #include "sql/sql_class.h"
 #include "sql/uniques.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_costmodel.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace unique_unittest {
 

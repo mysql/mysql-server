@@ -18,9 +18,6 @@
 #include <memory>
 
 #include "base64.h"
-#include "base_mock_field.h"
-#include "benchmark.h"
-#include "fake_table.h"
 #include "my_inttypes.h"
 #include "sql/json_binary.h"
 #include "sql/json_diff.h"
@@ -30,7 +27,10 @@
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast
-#include "test_utils.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h

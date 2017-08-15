@@ -21,7 +21,6 @@
 #include <pfs_instr_class.h>
 #include <pfs_server.h>
 #include <string.h>
-#include <tap.h>
 
 #include "m_ctype.h"
 #include "my_io.h"
@@ -29,6 +28,7 @@
 #include "stub_pfs_defaults.h"
 #include "stub_pfs_plugin_table.h"
 #include "stub_print_error.h"
+#include "unittest/mytap/tap.h"
 
 /* test helpers, to simulate the setup */
 

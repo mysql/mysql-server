@@ -22,7 +22,7 @@
 #include <sys/types.h>
 
 #include "sql/auth/partitioned_rwlock.h"
-#include "thread_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 
 namespace partitioned_rwlock_unittest {

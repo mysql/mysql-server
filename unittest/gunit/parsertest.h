@@ -20,10 +20,9 @@
 
 */
 
-#include "test_utils.h"
-
 #include "sql/sql_class.h"
 #include "sql/sql_parse.h"
+#include "unittest/gunit/test_utils.h"
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

@@ -16,12 +16,12 @@
 #include <gtest/gtest.h>
 #include <cstring>
 
-#include "base_mock_field.h"
-#include "fake_table.h"
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
-#include "test_utils.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_json_func_unittest
 {

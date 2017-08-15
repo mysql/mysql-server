@@ -16,8 +16,8 @@
 #ifndef MOCK_FIELD_TIMESTAMP_H
 #define MOCK_FIELD_TIMESTAMP_H
 
-#include "fake_table.h"
 #include "sql/field.h"
+#include "unittest/gunit/fake_table.h"
 
 /*
   Strictly speaking not a mock class. Does not expect to be used in a

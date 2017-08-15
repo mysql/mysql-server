@@ -20,7 +20,7 @@
 
 #include "my_inttypes.h"
 #include "sql/filesort_utils.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace filesort_compare_unittest {
 

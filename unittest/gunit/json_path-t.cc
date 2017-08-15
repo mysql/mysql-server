@@ -29,7 +29,7 @@
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql_string.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 /**
  Test json path abstraction.

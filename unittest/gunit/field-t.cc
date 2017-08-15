@@ -16,12 +16,12 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "fake_table.h"
 #include "my_inttypes.h"
 #include "sql/field.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_time.h"
-#include "test_utils.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace field_unittests {
 
@@ -768,8 +768,8 @@ TEST_F(FieldTest, copyInteger)
 
 }
 
-#include "field_date-t.cc"
-#include "field_datetime-t.cc"
-#include "field_long-t.cc"
-#include "field_newdecimal-t.cc"
-#include "field_timestamp-t.cc"
+#include "unittest/gunit/field_date-t.cc"
+#include "unittest/gunit/field_datetime-t.cc"
+#include "unittest/gunit/field_long-t.cc"
+#include "unittest/gunit/field_newdecimal-t.cc"
+#include "unittest/gunit/field_timestamp-t.cc"

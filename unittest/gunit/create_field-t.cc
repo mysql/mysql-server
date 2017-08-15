@@ -20,9 +20,9 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "mock_create_field.h"
 #include "sql/item_timefunc.h"     // Item_func_now_local
-#include "test_utils.h"
+#include "unittest/gunit/mock_create_field.h"
+#include "unittest/gunit/test_utils.h"
 
 
 namespace create_field_unittest {

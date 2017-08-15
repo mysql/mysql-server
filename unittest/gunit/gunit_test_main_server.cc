@@ -23,15 +23,15 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "test_utils.h"
 #include "temptable/allocator.h"
+#include "unittest/gunit/test_utils.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 
-#include "fake_table.h"
+#include "unittest/gunit/fake_table.h"
 
 // We choose non-zero to avoid it working by coincidence.
 int Fake_TABLE::highest_table_id= 5;

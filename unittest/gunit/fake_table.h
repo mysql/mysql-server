@@ -25,17 +25,15 @@
 
 #include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
-#include "handler-t.h"
 #include "lex_string.h"
-#include "mock_field_long.h" // todo: put this #include first
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/item.h"
 #include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -43,6 +41,8 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
+#include "unittest/gunit/handler-t.h"
+#include "unittest/gunit/mock_field_long.h" // todo: put this #include first
 
 using ::testing::NiceMock;
 using std::vector;

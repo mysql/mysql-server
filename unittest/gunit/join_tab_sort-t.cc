@@ -20,7 +20,7 @@
 #include "my_inttypes.h"
 #include "sql/merge_sort.h"
 #include "sql/sql_select.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace join_tab_sort_unittest {
 

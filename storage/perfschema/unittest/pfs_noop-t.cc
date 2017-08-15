@@ -19,13 +19,13 @@
 #include <pfs_instr_class.h>
 #include <pfs_server.h>
 #include <string.h>
-#include <tap.h>
 
 #include "my_thread.h"
 #include "mysql/psi/psi_transaction.h"
 #include "stub_pfs_defaults.h"
 #include "stub_pfs_plugin_table.h"
 #include "stub_print_error.h"
+#include "unittest/mytap/tap.h"
 
 static void test_noop()
 {

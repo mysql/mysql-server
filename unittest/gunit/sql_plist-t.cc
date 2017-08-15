@@ -20,7 +20,7 @@
 #include <sys/types.h>
 
 #include "sql/sql_plist.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace sql_plist_unittest {
 
