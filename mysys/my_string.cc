@@ -27,7 +27,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
                          size_t init_alloc, size_t alloc_increment)

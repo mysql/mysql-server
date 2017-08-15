@@ -26,8 +26,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_static.h"
 #include "my_sys.h"
+#include "mysys/my_static.h"
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif

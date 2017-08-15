@@ -15,9 +15,9 @@
 
 #include "sql/keycaches.h"
 
-#include "../mysys/mysys_priv.h"
 #include "m_string.h"
 #include "my_dbug.h"
+#include "mysys/mysys_priv.h"
 #include "template_utils.h"
 
 

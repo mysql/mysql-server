@@ -23,7 +23,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #include "prealloced_array.h"
 
 #if defined(_WIN32)

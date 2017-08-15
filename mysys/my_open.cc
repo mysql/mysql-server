@@ -34,8 +34,8 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 
 /*

@@ -68,7 +68,7 @@
 #include "my_sys.h"
 #include "my_tree.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 #define BLACK		1
 #define RED		0

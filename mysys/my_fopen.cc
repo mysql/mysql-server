@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 
 static void make_ftype(char * to,int flag);

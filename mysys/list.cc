@@ -25,7 +25,7 @@
 #include "my_list.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 
 	/* Add a element to start of list */
 

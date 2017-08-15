@@ -34,7 +34,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #include "template_utils.h"
 
 using std::string;

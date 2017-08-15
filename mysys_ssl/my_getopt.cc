@@ -24,7 +24,6 @@
 #include <sys/types.h>
 #include <array>
 
-#include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -37,6 +36,7 @@
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
 #include "typelib.h"
 

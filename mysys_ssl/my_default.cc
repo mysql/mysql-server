@@ -43,14 +43,12 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_aes.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
-#include "my_default_priv.h"
 #include "my_dir.h"
 #include "my_getopt.h"
 #include "my_inttypes.h"
@@ -61,6 +59,8 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/mysys_priv.h"
+#include "mysys_ssl/my_default_priv.h"
 #include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>

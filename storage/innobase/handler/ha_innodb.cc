@@ -51,7 +51,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysql/service_thd_wait.h>
 #include <mysql_com.h>
 #include <mysqld.h>
-#include <mysys_err.h>
 #include <sql_acl.h>
 #include <sql_class.h>
 #include <sql_show.h>
@@ -115,6 +114,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_data_lock.h"
+#include "mysys_err.h"
 #include "os0file.h"
 #include "os0thread.h"
 #include "p_s.h"

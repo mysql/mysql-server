@@ -22,8 +22,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "aes.hpp"
 #include "m_string.h"
 #include "my_aes.h"
-#include "my_aes_impl.h"
 #include "my_inttypes.h"
+#include "mysys_ssl/my_aes_impl.h"
 #include "openssl/ssl.h"
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */

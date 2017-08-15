@@ -72,7 +72,7 @@ TODO:
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #include "thr_mutex.h"
 
 PSI_file_key key_file_io_cache;

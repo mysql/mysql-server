@@ -31,7 +31,7 @@
 #include "my_thread_local.h"
 #include "mysys_err.h"
 #if defined(_WIN32)
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #endif
 
 	/*

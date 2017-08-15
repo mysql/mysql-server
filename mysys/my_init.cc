@@ -37,7 +37,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_static.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_cond.h"
@@ -56,8 +55,9 @@
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysys/my_static.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

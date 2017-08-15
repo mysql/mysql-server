@@ -93,7 +93,7 @@ lock at the same time as multiple read locks.
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_table.h"
-#include "mysys_priv.h"
+#include "mysys/mysys_priv.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 

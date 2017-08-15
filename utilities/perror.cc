@@ -36,8 +36,8 @@
 static bool verbose;
 
 #include "../include/my_base.h"
-#include "../mysys/my_handler_errors.h"
 #include "my_compiler.h"
+#include "mysys/my_handler_errors.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static bool ndb_code;
