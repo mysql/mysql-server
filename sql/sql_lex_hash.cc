@@ -19,13 +19,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "lex_hash.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/lex.h"
+#include "sql/lex_hash.h"
 #include "sql/lex_symbol.h"
 
 const Lex_hash Lex_hash::sql_keywords(sql_keywords_map, sql_keywords_max_len);

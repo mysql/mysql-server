@@ -24,7 +24,7 @@
 
 #include "sql/lex.h"
 #include "sql/lex_symbol.h"
-#include "sql_yacc.h"
+#include "sql/sql_yacc.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /*
