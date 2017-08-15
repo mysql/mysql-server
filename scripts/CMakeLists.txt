@@ -335,6 +335,11 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   SET(RPATH_OPTION " -R$pkglibdir")
 ENDIF()
 
+IF(LINUX_INSTALL_RPATH_ORIGIN)
+  SET(RPATH_OPTION " -Wl,-R,$pkglibdir")    # for mysql_config
+  SET(RPATH_OPTION_PC " -Wl,-R,\${libdir}") # for pkg_config
+ENDIF()
+
 # some scripts use  @TARGET_LINUX@
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(TARGET_LINUX "true")
