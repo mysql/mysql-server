@@ -15,12 +15,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <lz4frame.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <welcome_copyright_notice.h>
 
-#include "lz4frame.h"
 #include "my_sys.h"
 #include "print_version.h"
 
