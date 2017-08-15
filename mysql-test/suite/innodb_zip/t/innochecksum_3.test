@@ -1,6 +1,8 @@
 #************************************************************
 # WL6045:Improve Innochecksum
 #************************************************************
+# Run this a as big test, otherwise MTR's check-warnings times out
+--source include/big_test.inc
 --source include/have_innodb_max_16k.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
