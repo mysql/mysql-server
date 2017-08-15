@@ -17,7 +17,6 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include "client/client_priv.h"
 #include "my_compiler.h"
@@ -31,6 +30,7 @@
 #include "mysqld_error.h"
 #include "print_version.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using namespace std;
 
@@ -155,7 +155,7 @@ my_arguments_get_one_option(int optid,
     password_provided= TRUE;
     break;
 
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,

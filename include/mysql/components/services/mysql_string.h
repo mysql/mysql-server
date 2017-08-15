@@ -17,7 +17,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #define MYSQL_STRING_SERVICE_H
 
 #include <mysql/components/service.h>
-#include <my_inttypes.h>
+
+#include "my_inttypes.h"
 
 /**
   The string functions as a service to the mysql_server component.

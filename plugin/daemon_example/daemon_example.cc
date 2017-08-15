@@ -15,7 +15,6 @@
 
 #include <ctype.h>
 #include <fcntl.h>
-#include <my_dir.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdio.h>
@@ -24,6 +23,7 @@
 
 #include "m_string.h"                           // strlen
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"

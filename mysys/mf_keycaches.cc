@@ -22,12 +22,11 @@
   the cache.
 */
 
-#include <keycache.h>
 #include <string.h>
 #include <sys/types.h>
-
 #include <string>
 
+#include "keycache.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_dbug.h"

@@ -14,7 +14,6 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <my_thread.h>
 #include <pfs_global.h>
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
@@ -22,10 +21,11 @@
 #include <string.h>
 #include <tap.h>
 
+#include "my_thread.h"
 #include "mysql/psi/psi_transaction.h"
 #include "stub_pfs_defaults.h"
-#include "stub_print_error.h"
 #include "stub_pfs_plugin_table.h"
+#include "stub_print_error.h"
 
 static void test_noop()
 {

@@ -28,9 +28,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _WIN32
 # include <unistd.h>
 #endif
-#include <m_string.h>
-#include <my_getopt.h>
-#include <welcome_copyright_notice.h>
 #include <zlib.h>
 #include <iostream>
 #include <map>
@@ -40,10 +37,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "lob0lob.h"
+#include "m_string.h"
 #include "mach0data.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_getopt.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "page0page.h"
@@ -54,6 +53,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0crc32.h"
+#include "welcome_copyright_notice.h"
 
 typedef enum {
 	SUCCESS = 0,

@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-#include <errmsg.h>
-#include <m_string.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysqld_error.h>
 
+#include "errmsg.h"
+#include "m_string.h"
 #include "my_default.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "sql_common.h"

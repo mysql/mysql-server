@@ -20,10 +20,11 @@
   to make available YaSSL's MD5 implementation.
 */
 
-#include <my_md5.h>
+#include "my_md5.h"
 
 #if defined(HAVE_YASSL)
 #include "my_config.h"
+
 #include "md5.hpp"
 
 static void my_md5_hash(char *digest, const char *buf, int len)

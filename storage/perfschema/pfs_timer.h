@@ -16,13 +16,12 @@
 #ifndef PFS_TIMER_H
 #define PFS_TIMER_H
 
+#include "my_inttypes.h"
 /**
   @file storage/perfschema/pfs_timer.h
   Performance schema timers (declarations).
 */
-#include <my_rdtsc.h>
-
-#include "my_inttypes.h"
+#include "my_rdtsc.h"
 #include "pfs_column_types.h"
 #include "pfs_histogram.h"
 

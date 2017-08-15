@@ -16,11 +16,11 @@
 
 #define RPL_TRX_TRACKING_INCLUDED
 
-#include <my_inttypes.h>
 #include <atomic>
 #include <map>
 
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/sql_class.h"
 

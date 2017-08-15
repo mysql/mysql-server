@@ -18,7 +18,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <my_sys.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
@@ -30,6 +29,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sys.h"
 
 
 

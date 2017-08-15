@@ -28,7 +28,6 @@
 
 #include <string.h>
 #include <sys/types.h>
-#include <violite.h>
 #include <algorithm>
 
 #include "my_byteorder.h"
@@ -41,6 +40,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "violite.h"
 
 using std::min;
 using std::max;

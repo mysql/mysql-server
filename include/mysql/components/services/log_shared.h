@@ -16,9 +16,10 @@
 #ifndef LOG_SHARED_H
 #define LOG_SHARED_H
 
-#include <my_inttypes.h>
-#include <my_loglevel.h>
 #include <mysql/mysql_lex_string.h>
+
+#include "my_inttypes.h"
+#include "my_loglevel.h"
 
 /** fallback: includer may not have set this to something sensible. */
 #ifndef LOG_SUBSYSTEM_TAG

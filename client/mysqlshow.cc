@@ -17,27 +17,27 @@
 
 /* Show databases, tables or columns */
 
-#include <caching_sha2_passwordopt-vars.h>
-#include <m_string.h>
-#include <my_sys.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <signal.h>
-#include <sslopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sslopt-vars.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h"   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static char * host=0, *opt_password=0, *user=0;
 static bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
@@ -268,8 +268,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <caching_sha2_passwordopt-longopts.h>
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -343,7 +343,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : "d:t:o");
     debug_check_flag= 1;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     print_version();

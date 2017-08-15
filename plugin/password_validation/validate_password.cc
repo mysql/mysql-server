@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_sys.h>
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>
 #include <mysql/service_mysql_string.h>
@@ -21,7 +20,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include <typelib.h>
 #include <algorithm> // std::swap
 #include <fstream>
 #include <set>
@@ -30,6 +28,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_rwlock.h"
@@ -39,6 +38,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_security_context.h"
+#include "typelib.h"
 
 class THD;
 

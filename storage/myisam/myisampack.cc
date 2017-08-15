@@ -19,27 +19,26 @@
 
 #include <assert.h>
 #include <fcntl.h>
-#include <my_getopt.h>
-#include <my_tree.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-
 #include <algorithm>
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "my_tree.h"
 #include "myisam_sys.h"
 #include "myisamdef.h"
 #include "mysys_err.h"
 #include "print_version.h"
 #include "queues.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64

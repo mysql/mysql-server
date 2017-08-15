@@ -18,10 +18,10 @@
 #ifndef I_OPTIONS_PROVIDER_INCLUDED
 #define I_OPTIONS_PROVIDER_INCLUDED
 
-#include <my_getopt.h>
 #include <vector>
 
 #include "client/base/i_option_changed_listener.h"
+#include "my_getopt.h"
 
 namespace Mysql{
 namespace Tools{

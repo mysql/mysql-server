@@ -17,21 +17,21 @@
 /* Return error-text for system error messages and handler messages */
 
 #include <errno.h>
-#include <m_string.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#include "m_string.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define PERROR_VERSION "2.11"
 #include "../storage/ndb/include/mgmapi/mgmapi_error.h"
 #include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
 #include "../storage/ndb/src/ndbapi/ndberror.c"
 #endif
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
 #include "print_version.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static bool verbose;
 

@@ -29,20 +29,20 @@
 
 #include "my_config.h"
 
-#include <m_string.h>
-#include <my_sys.h>
-#include <my_thread.h>
 #include <mysql/client_plugin.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
 #include "errmsg.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
+#include "my_thread.h"
 #include "mysql.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"

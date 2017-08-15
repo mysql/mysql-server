@@ -14,7 +14,6 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <my_thread.h>
 #include <mysql/psi/psi_file.h>
 #include <pfs_buffer_container.h>
 #include <pfs_global.h>
@@ -24,11 +23,12 @@
 #include <string.h>
 #include <tap.h>
 
-#include "my_io.h"
 #include "m_ctype.h"
+#include "my_io.h"
+#include "my_thread.h"
 #include "stub_pfs_defaults.h"
-#include "stub_print_error.h"
 #include "stub_pfs_plugin_table.h"
+#include "stub_print_error.h"
 
 /* test helpers, to simulate the setup */
 

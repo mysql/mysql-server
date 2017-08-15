@@ -15,11 +15,11 @@
 
 /* Functions to map mysqld errno to sql_state */
 
-#include <m_string.h> // ### MEOW
 #include <mysqld_error.h>
 #include <sys/types.h>
 
 #include "../storage/perfschema/pfs_error.h" // ### MEOW
+#include "m_string.h" // ### MEOW
 #include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql_com.h"  // IWYU pragma: keep
 #include "sql/derror.h" // ### MEOW

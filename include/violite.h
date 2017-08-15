@@ -24,9 +24,10 @@
 
 #include "my_config.h"
 
-#include <my_thread.h> /* my_thread_handle */
 #include <mysql/psi/mysql_socket.h>
 #include <stddef.h>
+
+#include "my_thread.h" /* my_thread_handle */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif

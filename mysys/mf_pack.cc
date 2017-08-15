@@ -18,10 +18,11 @@
   @file mysys/mf_pack.cc
 */
 
-#include <m_string.h>
+#include "my_config.h"
+
 #include <string.h>
 
-#include "my_config.h"
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

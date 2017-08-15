@@ -22,12 +22,13 @@
 
 #include <debug_sync.h>
 #include <log_event.h>
-#include <my_sys.h>
-#include <my_thread.h>
 #include <replication.h>
 #include <rpl_channel_service_interface.h>
 #include <rpl_gtid.h>
 #include <rpl_write_set_handler.h>
+
+#include "my_sys.h"
+#include "my_thread.h"
 
 
 /**

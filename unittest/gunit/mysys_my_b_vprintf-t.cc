@@ -15,8 +15,10 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
-#include <my_sys.h>
+
+#include "my_sys.h"
 
 namespace my_b_vprintf_unittest {
 

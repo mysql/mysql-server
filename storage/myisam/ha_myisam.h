@@ -20,14 +20,14 @@
   MyISAM storage engine.
 */
 
-#include <ft_global.h>
-#include <myisam.h>
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "ft_global.h"
 #include "my_icp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "myisam.h"
 #include "sql/handler.h"                        /* handler */
 #include "sql/table.h"                          /* TABLE_SHARE */
 #include "sql_string.h"

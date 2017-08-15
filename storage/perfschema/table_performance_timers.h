@@ -21,7 +21,7 @@
   Table PERFORMANCE_TIMERS (declarations).
 */
 
-#include <my_rdtsc.h>
+#include "my_rdtsc.h"
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 

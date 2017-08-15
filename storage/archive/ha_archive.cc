@@ -21,14 +21,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <my_dir.h>
-#include <myisam.h>
 #include <mysql/plugin.h>
 
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_psi_config.h"
+#include "myisam.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "sql/derror.h"

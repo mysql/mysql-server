@@ -18,12 +18,12 @@
   Private interface for the server (implementation).
 */
 
-#include <my_thread.h> /* For pthread_t */
 #include <sys/types.h>
 #include <algorithm>
 
 #include "my_dbug.h"
 #include "my_psi_config.h"
+#include "my_thread.h" /* For pthread_t */
 #include "pfs_server.h"
 #include "sql/sql_const.h"
 

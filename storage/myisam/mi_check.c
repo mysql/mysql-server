@@ -47,16 +47,16 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <my_getopt.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "ftdefs.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

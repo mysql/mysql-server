@@ -17,11 +17,11 @@
 /* Create a MyISAM table */
 
 #include <fcntl.h>
-#include <my_bit.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include "ftdefs.h"
+#include "my_bit.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -33,7 +33,7 @@
 #include <fcntl.h>
 #include <process.h>
 #endif
-#include <m_ctype.h>
+#include "m_ctype.h"
 
 /*
   Old options is used when recreating database, from myisamchk

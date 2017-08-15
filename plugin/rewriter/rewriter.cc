@@ -16,13 +16,13 @@
 
 #include "my_config.h"
 
-#include <m_string.h> // Needed because debug_sync.h is not self-sufficient.
 #include <mysql/service_parser.h>
 #include <mysql/service_rules_table.h>
 #include <stddef.h>
 #include <memory>
 #include <string>
 
+#include "m_string.h" // Needed because debug_sync.h is not self-sufficient.
 #include "messages.h"
 #include "my_dbug.h"
 #include "nullable.h"

@@ -18,13 +18,14 @@
 
 */
 
+#include "my_config.h"
+
 #include <ctype.h>
-#include <my_sys.h>
 #include <mysql.h>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "rewriter_plugin.h"
 
 extern "C" {

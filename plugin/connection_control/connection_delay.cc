@@ -14,12 +14,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <m_ctype.h>                    /* my_charset_bin */
 #include <mysql/psi/mysql_thread.h>
 #include <time.h>
 
 #include "connection_control.h"
 #include "connection_delay.h"
+#include "m_ctype.h"                    /* my_charset_bin */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_systime.h"

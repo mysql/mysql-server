@@ -16,15 +16,14 @@
 #ifndef CONNECTION_DELAY_H
 #define CONNECTION_DELAY_H
 
-#include <atomic>
-
-#include <lf.h>                         /* LF Hash */
 #include <mysql_com.h>                  /* USERNAME_LENGTH */
+#include <atomic>
 
 #include "connection_control_data.h"    /* variables and status */
 #include "connection_control_interfaces.h" /* Observer interface */
 #include "connection_control_memory.h"  /* Connection_control_alloc */
 #include "connection_delay_api.h"       /* Constants */
+#include "lf.h"                         /* LF Hash */
 #include "my_inttypes.h"
 #include "table.h"                      /* TABLE_LIST */
 

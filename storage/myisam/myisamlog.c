@@ -18,7 +18,6 @@
 #include "my_config.h"
 
 #include <fcntl.h>
-#include <my_tree.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -28,6 +27,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_tree.h"
 #include "myisamdef.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"

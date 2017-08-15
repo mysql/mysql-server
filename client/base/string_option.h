@@ -18,10 +18,10 @@
 #ifndef STRING_OPTION_INCLUDED
 #define STRING_OPTION_INCLUDED
 
-#include <my_getopt.h>
 #include <string>
 
 #include "client/base/abstract_string_option.h"
+#include "my_getopt.h"
 #include "nullable.h"
 
 namespace Mysql{

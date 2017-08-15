@@ -14,8 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
-#include <m_ctype.h>
-#include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <mysqld_error.h>
@@ -23,9 +21,11 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sys.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {

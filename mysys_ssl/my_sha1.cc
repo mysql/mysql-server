@@ -20,9 +20,8 @@
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
-#include <sha1.h>
-
 #include "my_inttypes.h"
+#include "sha1.h"
 
 #if defined(HAVE_YASSL)
 #include "sha.hpp"

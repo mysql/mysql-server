@@ -56,7 +56,6 @@
   ft_boolean_search.c (at least) relies on that.
 */
 
-#include <my_tree.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -67,6 +66,7 @@
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
+#include "my_tree.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_priv.h"
 

@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <gtest/gtest.h>
-#include <m_string.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/impl/sdi.h"

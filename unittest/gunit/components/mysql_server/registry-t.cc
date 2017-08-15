@@ -14,27 +14,27 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <m_ctype.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/mysql_lex_string.h>
 #include <stddef.h>
 
-typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
+#include "m_ctype.h"
+
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <persistent_dynamic_loader.h>
-#include <system_variable_source_imp.h>
-#include <scope_guard.h>
 #include <server_component.h>
+#include <system_variable_source_imp.h>
 
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
+#include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
 

@@ -22,10 +22,9 @@
 
 #include "client/completion_hash.h"
 
-#include <m_string.h>
-#include <my_sys.h>
-
+#include "m_string.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 
 static uint hashpjw(const char *arKey, uint nKeyLength)

@@ -15,10 +15,10 @@
 
 #include "my_config.h"
 
-#include <m_string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "m_string.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

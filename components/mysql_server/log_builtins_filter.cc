@@ -66,11 +66,11 @@
   The event itself is not locked.
 */
 
-#include <my_atomic.h>
 #include <mysqld_error.h>
 
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
+#include "my_atomic.h"
 #include "sql/log.h"
 // for the default rules
 #include "sql/mysqld.h"

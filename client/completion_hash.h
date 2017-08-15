@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2006 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -23,7 +22,8 @@
 #define FAILURE 1
 
 #include <sys/types.h>
-#include <my_sys.h>
+
+#include "my_sys.h"
 
 typedef struct _entry {
 	char *str;

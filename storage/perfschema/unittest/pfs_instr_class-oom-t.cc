@@ -13,7 +13,6 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include <my_thread.h>
 #include <pfs_buffer_container.h>
 #include <pfs_global.h>
 #include <pfs_instr.h>
@@ -21,6 +20,7 @@
 #include <tap.h>
 
 #include "lex_string.h"
+#include "my_thread.h"
 #include "sql/sql_class.h"
 #include "stub_pfs_global.h"
 #include "stub_pfs_plugin_table.h"

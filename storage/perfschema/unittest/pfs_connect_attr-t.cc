@@ -14,7 +14,6 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <my_thread.h>
 #include <pfs_global.h>
 #include <pfs_instr.h>
 #include <pfs_instr_class.h>
@@ -24,6 +23,7 @@
 #include <tap.h>
 
 #include "my_inttypes.h"
+#include "my_thread.h"
 
 /* test helpers, to inspect data */
 bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,

@@ -15,11 +15,11 @@
 
 /* The hash functions used for saveing keys */
 
-#include <m_ctype.h>
 #include <math.h>
 #include <sys/types.h>
 
 #include "heapdef.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"

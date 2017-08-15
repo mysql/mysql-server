@@ -33,22 +33,21 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <mf_wcomp.h>   // wild_compare
-#include <my_dir.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <violite.h>
 #include <cmath> // std::isinf
 
 #include "client/client_priv.h"
+#include "m_ctype.h"
 #include "map_helpers.h"
+#include "mf_wcomp.h"   // wild_compare
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -58,23 +57,24 @@
 #include "mysql/service_my_snprintf.h"
 #include "sql_common.h"
 #include "typelib.h"
+#include "violite.h"
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
 #include <direct.h>
 #endif
-#include <my_stacktrace.h>
 #include <signal.h>
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <algorithm>
 #include <functional>
 #include <new>
 #include <string>
 
+#include "my_stacktrace.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "template_utils.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using std::min;
 using std::max;
@@ -7693,7 +7693,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     else
       tty_password= 1;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 't':
     my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));

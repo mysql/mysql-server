@@ -13,16 +13,17 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <fcntl.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/mysql_string.h>
-#include "test_string_service_long.h"           // same header
-#include <sql_string.h>
-#include <fcntl.h>
-#include <my_inttypes.h>
 #include <stdio.h>
-#include "my_sys.h"                             // my_write, my_malloc
+
 #include "m_string.h"                           // strlen
+#include "my_inttypes.h"
+#include "my_sys.h"                             // my_write, my_malloc
+#include "sql_string.h"
+#include "test_string_service_long.h"           // same header
 
 FILE *outfile;
 

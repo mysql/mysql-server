@@ -15,11 +15,12 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
-#include <my_sys.h>
-#include <base64.h>
+#include <gtest/gtest.h>
 #include <string.h>
+
+#include "base64.h"
+#include "my_sys.h"
 
 namespace mysys_base64_unittest {
 

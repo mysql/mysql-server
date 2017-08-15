@@ -15,6 +15,6 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
-#include <service_versions.h>
+#include "service_versions.h"
 
 SERVICE_VERSION *srv_session_service= (void*)VERSION_srv_session_service;

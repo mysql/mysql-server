@@ -88,12 +88,12 @@
 #define MYSQL_SERVER 1
 #include "my_config.h"
 
-#include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <algorithm>
 
 #include "../myisam/ha_myisam.h"
 #include "ha_myisammrg.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"

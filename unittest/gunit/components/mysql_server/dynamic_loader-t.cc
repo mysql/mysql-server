@@ -18,8 +18,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <system_variable_source_imp.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
-#include <m_ctype.h>
-#include <my_sys.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service.h>
@@ -29,14 +27,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/mysql_lex_string.h>
-#include <persistent_dynamic_loader.h>
-#include <scope_guard.h>
 #include <server_component.h>
 #include <stddef.h>
 
+#include "components/mysql_server/persistent_dynamic_loader.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sys.h"
+#include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
 

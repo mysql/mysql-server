@@ -17,22 +17,22 @@
 
 #include "client/check/mysqlcheck.h"
 
-#include <caching_sha2_passwordopt-vars.h>
-#include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <sslopt-vars.h>
 #include <stdlib.h>
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
+#include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sslopt-vars.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Check;
 using std::string;
@@ -196,8 +196,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <caching_sha2_passwordopt-longopts.h>
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -314,7 +314,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : "d:t:o");
     debug_check_flag= 1;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case OPT_TABLES:
     opt_databases = 0;

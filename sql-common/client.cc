@@ -33,17 +33,17 @@
 
 #include "my_config.h"
 
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <mysys_err.h>
 #include <stdarg.h>
 #include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysys_err.h"
 #ifndef _WIN32
 #include <netdb.h>
 #endif
 #include <stdio.h>
-#include <violite.h>
 #include <string>
 
 #include "errmsg.h"
@@ -68,9 +68,10 @@
 #include "mysqld_error.h"
 #include "template_utils.h"
 #include "typelib.h"
+#include "violite.h"
 
 #if !defined(_WIN32)
-#include <my_thread.h>				/* because of signal()	*/
+#include "my_thread.h"				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
 #include <signal.h>

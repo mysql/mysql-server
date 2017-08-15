@@ -18,12 +18,11 @@
   Code for handling strings with can grow dynamically.
 */
 
-#include <m_string.h>
-#include <stdarg.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"

@@ -29,9 +29,8 @@
 
 #ifdef OPTIMIZER_TRACE
 
-#include <mysys_err.h>                          // for testing of OOM
-
 #include "m_string.h"                           // llstr
+#include "mysys_err.h"                          // for testing of OOM
 #include "sql/mysqld.h"                         // system_charset_info
 #include "sql/opt_trace.h"
 #ifdef HAVE_SYS_WAIT_H

@@ -18,7 +18,6 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <m_ctype.h>
 #include <sys/types.h>
 #include <cstring>
 #include <fstream>
@@ -26,6 +25,7 @@
 #include <string>
 #include <utility>
 
+#include "m_ctype.h"
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql_string.h"

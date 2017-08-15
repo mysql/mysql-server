@@ -21,10 +21,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <my_dir.h> /* for stat */
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "my_dir.h" /* for stat */
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif

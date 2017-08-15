@@ -14,7 +14,8 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <cstring>
-#include <my_dbug.h>
+
+#include "my_dbug.h"
 #include "pfs_example_continent.h"
 
 /* Global share pointer for a table */

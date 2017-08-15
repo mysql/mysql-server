@@ -20,11 +20,12 @@
 
 /* Common defines for all clients */
 
-#include <errmsg.h>
-#include <m_string.h>
-#include <my_getopt.h>
-#include <my_sys.h>
 #include <mysql.h>
+
+#include "errmsg.h"
+#include "m_string.h"
+#include "my_getopt.h"
+#include "my_sys.h"
 
 #ifndef WEXITSTATUS
 # ifdef _WIN32

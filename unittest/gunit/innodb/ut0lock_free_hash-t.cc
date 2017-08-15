@@ -62,10 +62,10 @@ unittest/gunit/innodb/CMakeLists.txt */
 #endif /* TEST_TBB */
 
 #include <gtest/gtest.h>
-#include <my_thread_local.h> /* Needed to access thread local variables */
 #include <stddef.h>
 #include <thread>
 
+#include "my_thread_local.h" /* Needed to access thread local variables */
 #include "os0thread-create.h" /* os_thread_*() */
 #include "os0thread.h" /* os_thread_*() */
 #include "srv0conc.h" /* srv_max_n_threads */

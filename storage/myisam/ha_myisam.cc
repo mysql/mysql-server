@@ -20,20 +20,20 @@
 
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <my_bit.h>
-#include <myisampack.h>
 #include <stdarg.h>
 #include <algorithm>
 #include <new>
 
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "my_bit.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
 #include "myisamdef.h"
+#include "myisampack.h"
 #include "rt_index.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"

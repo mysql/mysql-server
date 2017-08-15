@@ -34,23 +34,22 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
 #include <math.h>
-#include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
-#include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
-#include <violite.h>
 
 #include "client/client_priv.h"
 #include "client/my_readline.h"
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "mf_wcomp.h"                  // wild_prefix, wild_one, wild_any
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
@@ -58,6 +57,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "typelib.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -122,10 +122,9 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-
 #include "client/completion_hash.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -2056,7 +2055,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     usage(1);

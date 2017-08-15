@@ -52,7 +52,6 @@ TODO:
 #include <fcntl.h>
 #include <math.h>
 #include <stdarg.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1668,7 +1667,7 @@ int end_io_cache(IO_CACHE *info)
 
 #ifdef MAIN
 
-#include <my_dir.h>
+#include "my_dir.h"
 
 void die(const char* fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 

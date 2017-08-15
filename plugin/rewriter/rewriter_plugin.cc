@@ -16,12 +16,10 @@
 
 #include "my_config.h"
 
-#include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
-
 #include <algorithm>
 #include <atomic>
 #include <new>
@@ -29,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
 #include "mysqld_error.h"
 #include "rewriter.h"
 #include "rewriter_plugin.h"
