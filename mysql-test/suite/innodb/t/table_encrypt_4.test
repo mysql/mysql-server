@@ -4,6 +4,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 --source include/not_embedded.inc
+--source include/have_debug.inc
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- send_shutdown
