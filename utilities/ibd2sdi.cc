@@ -16,10 +16,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <my_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>

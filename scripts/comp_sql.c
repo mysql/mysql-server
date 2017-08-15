@@ -18,12 +18,13 @@
   into other programs
 */
 
+#include "my_config.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "../include/my_compiler.h"
-#include "../include/my_config.h"
 #include "../sql/sql_bootstrap.h"
 /*
   This is an internal tool used during the build process only,

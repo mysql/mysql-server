@@ -17,9 +17,10 @@
    versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
  */
 
+#include "my_config.h"
+
 #include <errno.h>
 #include <fcntl.h>
-#include <my_config.h>
 #include <mysql_version.h>
 #include <stdarg.h>
 #include <stdio.h>                              // Needed on SunOS 5.10
