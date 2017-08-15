@@ -84,9 +84,6 @@ bool Sql_cmd_delete::precheck(THD *thd)
   {
     if (check_one_table_access(thd, DELETE_ACL, tables))
       DBUG_RETURN(true);
-
-    // Set desired privilege for the columns of the WHERE clause
-    tables->set_want_privilege(SELECT_ACL);
   }
   else
   {

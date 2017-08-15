@@ -9491,9 +9491,6 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **)
 
     if (table_grants)
     {
-#ifndef DBUG_OFF
-      table_grants->want_privilege= want_privilege;
-#endif
       if (check_grant_column(thd, table_grants,
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,

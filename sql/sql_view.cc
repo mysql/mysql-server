@@ -379,15 +379,6 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                thd->security_context()->priv_host().str, tbl->table_name);
       goto err;
     }
-    /*
-      All tables will be marked as needing SELECT_ACL privileges. This is
-      sufficient for all tables that are referenced in conditions, GROUP BY and
-      ORDER BY lists, and for any other tables if view is used in a SELECT
-      statement. For tables that are changed in INSERT, UPDATE or DELETE
-      statements, more specific marking will be made during resolving of the
-      query that embeds the view.
-    */
-    tbl->set_want_privilege(SELECT_ACL);
 
     /*
       Make sure that current table privileges are loaded to the
@@ -1514,16 +1505,10 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     tbl->belong_to_view= top_view;
     tbl->referencing_view= view_ref;
     tbl->prelocking_placeholder= view_ref->prelocking_placeholder;
-    /*
-      First we fill want_privilege with SELECT_ACL (this is needed for the
-      tables which belong to view subqueries and temporary table views,
-      then for the merged view underlying tables we will set wanted
-      privileges of top_view. Clear privilege since this is based on
-      user's security context.
-    */
+
+    // Clear privilege since this is based on user's security context.
     tbl->grant.privilege= 0;
     
-    tbl->set_want_privilege(SELECT_ACL);
     /*
       For LOCK TABLES we need to acquire "strong" metadata lock to ensure
       that we properly protect underlying tables for storage engines which

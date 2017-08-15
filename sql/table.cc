@@ -271,9 +271,6 @@ GRANT_INFO::GRANT_INFO()
   grant_table= 0;
   version= 0;
   privilege= NO_ACCESS;
-#ifndef DBUG_OFF
-  want_privilege= 0;
-#endif
 }
 
 
@@ -5070,25 +5067,6 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
       break;
   }
   return cur_table_ref;
-}
-
-
-/**
-  Set privileges needed for columns of underlying tables
-
-  @param want_privilege  Required privileges
-*/
-
-void TABLE_LIST::set_want_privilege(ulong want_privilege MY_ATTRIBUTE((unused)))
-{
-#ifndef DBUG_OFF
-  // Remove SHOW_VIEW_ACL, because it will be checked during making view
-  want_privilege&= ~SHOW_VIEW_ACL;
-
-  grant.want_privilege= want_privilege & ~grant.privilege;
-  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-    tbl->set_want_privilege(want_privilege);
-#endif
 }
 
 

@@ -1194,7 +1194,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
   if (duplicates == DUP_UPDATE)
   {
-    table_list->set_want_privilege(UPDATE_ACL);
     // Setup the columns to be updated
     if (setup_fields(thd, Ref_item_array(), update_field_list, UPDATE_ACL,
                      NULL, false, true))
@@ -1202,8 +1201,6 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
 
     if (check_valid_table_refs(table_list, update_field_list, map))
       DBUG_RETURN(true);
-
-    table_list->set_want_privilege(SELECT_ACL);
   }
 
   if (table_list->is_merged())

@@ -323,8 +323,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    @details The privilege checking process is divided into phases depending on
    the level of the privilege to be checked and the type of object to be
    accessed. Due to the mentioned scattering of privilege checking
-   functionality, it is necessary to keep track of the state of the
-   process. This information is stored in privilege and want_privilege.
+   functionality, it is necessary to keep track of the state of the process.
 
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
@@ -367,15 +366,6 @@ struct GRANT_INFO
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
   ulong privilege;
-#ifndef DBUG_OFF
-  /**
-     @brief the set of privileges that the current user needs to fulfil in
-     order to carry out the requested operation. Used in debug build to
-     ensure individual column privileges are assigned consistently.
-     @todo remove this member in 8.0.
-   */
-  ulong want_privilege;
-#endif
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
 };
@@ -2657,9 +2647,6 @@ struct TABLE_LIST
 
   /// Clean up the query expression for a materialized derived table
   bool cleanup_derived();
-
-  /// Set wanted privilege for subsequent column privilege checking
-  void set_want_privilege(ulong want_privilege);
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);

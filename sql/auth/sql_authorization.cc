@@ -2591,7 +2591,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         }
       }
       ulong missing_privilege= rights & ~table_list->grant.privilege;
-      DBUG_ASSERT(missing_privilege == table_list->grant.want_privilege);
       if (missing_privilege)
       {
         char command[128];
@@ -3589,9 +3588,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
            Depend on the controls in the P_S table itself.
         */
         t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
         goto err;
@@ -3607,26 +3603,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 
     if (!(~t_ref->grant.privilege & want_access) ||
         t_ref->is_derived() || t_ref->schema_table)
-    {
-      /*
-        It is subquery in the FROM clause. VIEW set t_ref->derived after
-        table opening, but this function always called before table opening.
-      */
-      if (!t_ref->referencing_view)
-      {
-        /*
-          If it's a temporary table created for a subquery in the FROM
-          clause, or an INFORMATION_SCHEMA table, drop the request for
-          a privilege.
-        */
-
-// TODO Why would we make a difference between debug and non-debug here?
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
-      }
       continue;
-    }
 
     if (is_temporary_table(t_ref))
     {
@@ -3637,9 +3614,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         if user has CREATE_TMP_ACL.
       */
       t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-      t_ref->grant.want_privilege= 0;
-#endif
       continue;
     }
 
@@ -3672,7 +3646,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (any_combination_will_do)
         continue;
       t_ref->grant.privilege= aggr.table_access;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
       if (!(~t_ref->grant.privilege & want_access))
       {
         DBUG_PRINT("info",("Access not denied because of column acls for %s.%s."
@@ -3718,7 +3691,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       t_ref->grant.grant_table= grant_table; // Remember for column test
       t_ref->grant.version= grant_version;
       t_ref->grant.privilege|= grant_table->privs;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
 
       DBUG_PRINT("info",("t_ref->grant.privilege = %lu",
                          t_ref->grant.privilege));
@@ -3779,12 +3751,6 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   DBUG_ENTER("check_grant_column");
   DBUG_PRINT("enter", ("table: %s  want_privilege: %lu",
                        table_name, want_privilege));
-
-  /*
-    Make sure that the privilege request is aligned with the overall privileges
-    granted to and requested for the table.
-  */
-  DBUG_ASSERT(!(want_privilege & ~(grant->want_privilege | grant->privilege)));
 
   // Adjust wanted privileges based on privileges granted to table:
   want_privilege&= ~grant->privilege;
