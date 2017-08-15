@@ -20,15 +20,15 @@
 #include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include "crosses_functor.h"
-#include "disjoint_functor.h"
-#include "gc_utils.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "relops.h"
 #include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/crosses_functor.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/gc_utils.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/within_functor.h"
 #include "sql/sql_exception_handler.h" // handle_gis_exception
-#include "within_functor.h"
 
 namespace bg = boost::geometry;
 

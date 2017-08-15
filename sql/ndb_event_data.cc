@@ -15,10 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_event_data.h"
+#include "sql/ndb_event_data.h"
 
 #include "my_pointer_arithmetic.h"
-#include "table.h"
+#include "sql/table.h"
 
 
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :

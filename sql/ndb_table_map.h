@@ -18,8 +18,9 @@
 #ifndef NDB_TABLE_MAP_H
 #define NDB_TABLE_MAP_H
 
-#include <my_bitmap.h>
+#include <ndbapi/NdbApi.hpp>
 
+#include "my_bitmap.h"
 #include "my_dbug.h"
 
 /** Ndb_table_map

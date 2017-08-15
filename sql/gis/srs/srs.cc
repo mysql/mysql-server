@@ -31,7 +31,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                  // ER_*
-#include "wkt_parser.h"
+#include "sql/gis/srs/wkt_parser.h"
 
 /**
   Extract projection parameter values from the parse tree and assign

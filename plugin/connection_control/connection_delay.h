@@ -25,7 +25,7 @@
 #include "connection_delay_api.h"       /* Constants */
 #include "lf.h"                         /* LF Hash */
 #include "my_inttypes.h"
-#include "table.h"                      /* TABLE_LIST */
+#include "sql/table.h"                  /* TABLE_LIST */
 
 namespace connection_control
 {

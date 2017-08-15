@@ -27,7 +27,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "myisammrg.h"
-#include "table.h"
+#include "sql/table.h"
 
 /** 
   Represents one name of a MERGE child.

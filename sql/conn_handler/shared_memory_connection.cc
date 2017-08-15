@@ -19,14 +19,14 @@
 
 #include <errno.h>
 
-#include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
-#include "log.h"
-#include "mysqld.h"                     // connection_events_loop_aborted
 #include "my_shm_defaults.h"
-#include "sql_class.h"                  // THD
-#include "psi_memory_key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                 // connection_events_loop_aborted
+#include "sql/psi_memory_key.h"
+#include "sql/sql_class.h"              // THD
+#include "violite.h"                    // Vio
 
 ///////////////////////////////////////////////////////////////////////////
 // Channel_info_shared_mem implementation

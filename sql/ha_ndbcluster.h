@@ -20,7 +20,7 @@
   NDB Cluster
 */
 
-#include "sql_base.h"
+#include "sql/sql_base.h"
 
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
@@ -33,10 +33,10 @@
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/ndbapi_limits.h>
 
-#include "ndb_conflict.h"
-#include "ndb_table_map.h"
-#include "partitioning/partition_handler.h"
-#include "table.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_table_map.h"
+#include "sql/partitioning/partition_handler.h"
+#include "sql/table.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -100,8 +100,8 @@ public:
 };
 
 
-#include "ndb_ndbapi_util.h"
-#include "ndb_share.h"
+#include "sql/ndb_ndbapi_util.h"
+#include "sql/ndb_share.h"
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
@@ -109,7 +109,7 @@ struct Ndb_local_table_statistics {
   ha_rows records;
 };
 
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd_ndb.h"
 
 struct st_ndb_status {
   st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }

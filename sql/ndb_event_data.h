@@ -18,11 +18,11 @@
 #ifndef NDB_EVENT_DATA_H
 #define NDB_EVENT_DATA_H
 
+#include <ndbapi/ndbapi_limits.h>
 #include <stdio.h>
 
 #include "my_alloc.h" // MEM_ROOT
-#include "ndb_bitmap.h"
-#include <ndbapi/ndbapi_limits.h>
+#include "sql/ndb_bitmap.h"
 
 
 class Ndb_event_data

@@ -16,8 +16,6 @@
 #ifndef RESOURCEGROUPS_RESOURCE_GROUP_MGR_H_
 #define RESOURCEGROUPS_RESOURCE_GROUP_MGR_H_
 
-#include <resourcegroups/resource_group.h>
-
 #include <memory>
 #include <unordered_map>
 
@@ -32,6 +30,7 @@
 #include "mysql_version.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/sql_class.h"
+#include "sql/resourcegroups/resource_group.h"
 
 namespace resourcegroups
 {

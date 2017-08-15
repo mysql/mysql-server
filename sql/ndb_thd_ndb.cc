@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd_ndb.h"
 
 #include "my_dbug.h"
 #include "mysql/plugin.h"          // thd_get_thread_id

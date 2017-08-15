@@ -21,10 +21,9 @@
   MySQL and NDB Cluster
 */
 
-#include "ha_ndbcluster.h"
+#include "sql/ha_ndbcluster.h"
 
 #include <mysql/psi/mysql_thread.h>
-
 #include <memory>
 #include <string>
 
@@ -32,56 +31,56 @@
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-#include "abstract_query_plan.h"
-#include "ha_ndb_index_stat.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "ha_ndbcluster_connection.h"
-#include "ha_ndbcluster_push.h"
-#include "ha_ndbcluster_tables.h"
 #include "m_ctype.h"
 #include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
-#include "mysqld_thd_manager.h"  // Global_THD_manager
-#include "ndb_anyvalue.h"
-#include "ndb_binlog_extra_row_info.h"
-#include "ndb_bitmap.h"
-#include "ndb_component.h"
-#include "ndb_conflict.h"
-#include "ndb_dist_priv_util.h"
-#include "ndb_event_data.h"
 #include "ndb_global.h"
-#include "ndb_global_schema_lock.h"
-#include "ndb_global_schema_lock_guard.h"
-#include "ndb_local_connection.h"
-#include "ndb_local_schema.h"
-#include "ndb_log.h"
-#include "ndb_mi.h"
-#include "ndb_name_util.h"
-#include "ndb_schema_dist.h"
-#include "ndb_table_guard.h"
-#include "ndb_tdc.h"
-#include "ndb_thd.h"
 #include "ndb_version.h"
 #include "ndbapi/NdbApi.hpp"
 #include "ndbapi/NdbIndexStat.hpp"
 #include "ndbapi/NdbInterpretedCode.hpp"
-#include "partition_info.h"
+#include "sql/abstract_query_plan.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"     // ER_THD
+#include "sql/ha_ndb_index_stat.h"
+#include "sql/ha_ndbcluster_binlog.h"
+#include "sql/ha_ndbcluster_cond.h"
+#include "sql/ha_ndbcluster_connection.h"
+#include "sql/ha_ndbcluster_push.h"
+#include "sql/ha_ndbcluster_tables.h"
+#include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/ndb_anyvalue.h"
+#include "sql/ndb_binlog_extra_row_info.h"
+#include "sql/ndb_bitmap.h"
+#include "sql/ndb_component.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_event_data.h"
+#include "sql/ndb_global_schema_lock.h"
+#include "sql/ndb_global_schema_lock_guard.h"
+#include "sql/ndb_local_connection.h"
+#include "sql/ndb_local_schema.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_mi.h"
+#include "sql/ndb_name_util.h"
+#include "sql/ndb_schema_dist.h"
+#include "sql/ndb_sleep.h"
+#include "sql/ndb_table_guard.h"
+#include "sql/ndb_tdc.h"
+#include "sql/ndb_thd.h"
+#include "sql/partition_info.h"
 #include "template_utils.h"
-#include "mysqld.h"         // global_system_variables table_alias_charset ...
-#include "current_thd.h"
-#include "derror.h"         // ER_THD
-#include "ndb_sleep.h"
 
 #ifndef DBUG_OFF
-#include "sql_test.h"       // print_where
+#include "sql/sql_test.h"   // print_where
 #endif
-#include "auth_common.h"    // wild_case_compare
-#include "sql_table.h"      // build_table_filename,
+#include "sql/auth/auth_common.h" // wild_case_compare
+#include "sql/ndb_dd.h"
                             // tablename_to_filename
-#include "sql_class.h"
-#include "ndb_dd.h"
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"  // build_table_filename,
 
 using std::string;
 using std::unique_ptr;

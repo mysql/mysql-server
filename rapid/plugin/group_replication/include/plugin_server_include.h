@@ -23,14 +23,14 @@
 #include "config.h"
 #endif
 
-#include <my_thread.h>
-#include <my_sys.h>
 #include <my_stacktrace.h>
+#include <my_sys.h>
+#include <my_thread.h>
 
 /*
   We should have a different access to these definitions.
 */
-#include "current_thd.h"  // current_thd
-#include "mysqld.h"       // mysql_tmpdir, stage_executing
+#include "sql/current_thd.h"  // current_thd
+#include "sql/mysqld.h"       // mysql_tmpdir, stage_executing
 
 #endif /* PLUGIN_SERVER_INCLUDE */

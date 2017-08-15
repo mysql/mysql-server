@@ -30,7 +30,7 @@
 #include "my_sys.h"                             // my_write, my_malloc
 #include "my_thread.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_plugin.h"                         // st_plugin_int
+#include "sql/sql_plugin.h"                     // st_plugin_int
 
 PSI_memory_key key_memory_mysql_heartbeat_context;
 

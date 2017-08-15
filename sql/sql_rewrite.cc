@@ -94,7 +94,6 @@
 #include "sql/table.h"
 #include "sql_string.h"     // String
 #include "violite.h"
-#include "auth_internal.h"
 
 #ifndef DBUG_OFF
 #define HASH_STRING_WITH_QUOTE \

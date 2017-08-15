@@ -13,18 +13,18 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "wkb_parser.h"
+#include "sql/gis/wkb_parser.h"
 
 #include <cmath>  // M_PI, M_PI_2
 #include <exception>
 
-#include "coordinate_range_visitor.h"
-#include "geometries.h"
-#include "geometries_cs.h"
 #include "my_byteorder.h"
 #include "my_sys.h"  // my_error()
 #include "mysqld_error.h"
-#include "ring_flip_visitor.h"
+#include "sql/gis/coordinate_range_visitor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/ring_flip_visitor.h"
 #include "sql/sql_error.h"
 #include "sql/srs_fetcher.h"
 #include "sql_string.h"

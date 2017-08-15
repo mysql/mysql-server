@@ -15,18 +15,18 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
-#include "ha_ndbinfo.h"
-#include "my_dbug.h"
-#include "ndb_tdc.h"
-#include "ndb_log.h"
-
-#include "sql_table.h"      // build_table_filename
-#include "sql_class.h"
-#include "current_thd.h"
-#include "derror.h"         // ER_THD
+#include "sql/ha_ndbinfo.h"
 
 #include <mysql/plugin.h>
+
+#include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
+#include "my_dbug.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"     // ER_THD
+#include "sql/ndb_log.h"
+#include "sql/ndb_tdc.h"
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"  // build_table_filename
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */

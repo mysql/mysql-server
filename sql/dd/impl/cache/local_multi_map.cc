@@ -15,9 +15,9 @@
 
 #include "sql/dd/cache/local_multi_map.h"
 
-#include "cache_element.h"                    // Cache_element
 #include "my_dbug.h"
 #include "sql/dd/cache/multi_map_base.h"
+#include "sql/dd/impl/cache/cache_element.h"  // Cache_element
 
 namespace dd {
 class Abstract_table;

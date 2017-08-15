@@ -15,15 +15,15 @@
 
 #include "sql/dd/cache/multi_map_base.h"
 
-#include "cache_element.h"                    // Cache_element
 #include "my_dbug.h"
+#include "sql/dd/impl/cache/cache_element.h"  // Cache_element
 #include "sql/dd/types/abstract_table.h"      // Abstract_table
 #include "sql/dd/types/charset.h"             // Charset
 #include "sql/dd/types/collation.h"           // Collation
 #include "sql/dd/types/column_statistics.h"   // Column_statistics
 #include "sql/dd/types/event.h"               // Event
+#include "sql/dd/types/resource_group.h"      // Resource_group
 #include "sql/dd/types/routine.h"             // Routine
-#include "dd/types/resource_group.h"          // Resource_group
 #include "sql/dd/types/schema.h"              // Schema
 #include "sql/dd/types/spatial_reference_system.h"// Spatial_reference_system
 #include "sql/dd/types/tablespace.h"          // Tablespace

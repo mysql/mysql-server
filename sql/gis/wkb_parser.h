@@ -23,8 +23,8 @@
 
 #include <memory>  // std::unique_ptr
 
-#include "geometries.h"
-#include "srid.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/srid.h"
 
 class THD;
 class String;

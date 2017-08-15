@@ -13,14 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <fts0tokenize.h>
-#include <log.h>
+#include "my_config.h"
+
 #include <mecab.h>
 #include <string>
 
-#include "my_config.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
+#include "sql/log.h"
+#include "storage/innobase/include/fts0tokenize.h"
 
 /* We are following InnoDB coding guidelines. */
 

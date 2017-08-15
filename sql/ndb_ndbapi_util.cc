@@ -15,12 +15,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_ndbapi_util.h"
+#include "sql/ndb_ndbapi_util.h"
 
 #include <string.h>           // memcpy
 
 #include "m_string.h"         // my_strtok_r
-
 #include "my_byteorder.h"
 
 

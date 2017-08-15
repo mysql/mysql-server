@@ -29,16 +29,16 @@
 
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
-#include "abstract_query_plan.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_binlog.h"
-#include "ha_ndbcluster_cond.h"
-#include "ha_ndbcluster_push.h"
-#include "sql_class.h"
+#include "sql/abstract_query_plan.h"
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_binlog.h"
+#include "sql/ha_ndbcluster_cond.h"
+#include "sql/ha_ndbcluster_push.h"
+#include "sql/sql_class.h"
 #include "my_dbug.h"
-#include "current_thd.h"
+#include "sql/current_thd.h"
 
-#include "ndb_thd.h"
+#include "sql/ndb_thd.h"
 
 /*
   Explain why an operation could not be pushed

@@ -16,11 +16,11 @@
 */
 
 
-#include "ndb_find_files_list.h"
+#include "sql/ndb_find_files_list.h"
 
-#include "auth_acls.h"
-#include "sql_class.h"      // THD::col_access
-#include "sql_show.h"       // find_files()
+#include "sql/auth/auth_acls.h"
+#include "sql/sql_class.h"  // THD::col_access
+#include "sql/sql_show.h"   // find_files()
 
 
 // Hides the usage of MEM_ROOT and List<> from the interface

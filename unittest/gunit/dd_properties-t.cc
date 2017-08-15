@@ -16,9 +16,9 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "../../sql/dd/impl/properties_impl.h"
-#include "../../sql/dd/properties.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/properties_impl.h"
+#include "sql/dd/properties.h"
 #include "test_utils.h"
 
 

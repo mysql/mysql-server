@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/resource_groups.h"
+#include "sql/dd/impl/tables/resource_groups.h"
 
-#include "dd/impl/raw/object_keys.h" // dd::Global_name_key
-#include "dd/impl/types/object_table_definition_impl.h" // dd::Raw_record
-#include "dd/impl/types/resource_group_impl.h" // dd::Resource_group_impl
+#include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
+#include "sql/dd/impl/types/object_table_definition_impl.h" // dd::Raw_record
+#include "sql/dd/impl/types/resource_group_impl.h" // dd::Resource_group_impl
 
 
 namespace dd {

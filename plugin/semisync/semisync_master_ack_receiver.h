@@ -22,7 +22,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_thread.h"
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 struct Slave
 {

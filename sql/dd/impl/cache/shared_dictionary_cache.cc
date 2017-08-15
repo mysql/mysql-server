@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "shared_dictionary_cache.h"
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"
 
 #include <atomic>
 
 #include "my_dbug.h"
 #include "sql/dd/impl/cache/shared_multi_map.h"
+#include "sql/dd/impl/cache/storage_adapter.h" // Storage_adapter
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"                  // THD::is_error()
-#include "storage_adapter.h"                // Storage_adapter
 
 namespace dd {
 namespace cache {

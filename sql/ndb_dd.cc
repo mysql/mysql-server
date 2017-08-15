@@ -15,18 +15,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_dd.h"
+#include "sql/ndb_dd.h"
 
-#include "sql_class.h"
-#include "transaction.h"
-#include "mdl.h"            // MDL_*
-
-#include "dd/dd.h"
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/cache/dictionary_client.h" // dd::Dictionary_client
-#include "dd/impl/sdi.h"           // dd::deserialize
-#include "dd/dd_table.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/dd.h"
+#include "sql/dd/dd_table.h"
+#include "sql/dd/impl/sdi.h"       // dd::deserialize
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/mdl.h"        // MDL_*
+#include "sql/sql_class.h"
+#include "sql/transaction.h"
 
 
 bool ndb_sdi_serialize(THD *thd,

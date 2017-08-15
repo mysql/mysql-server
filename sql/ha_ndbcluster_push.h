@@ -16,7 +16,7 @@
 */
 
 #include "my_dbug.h"
-#include "sql_bitmap.h"
+#include "sql/sql_bitmap.h"
 
 class NdbTransaction;
 class NdbQueryBuilder;

@@ -17,18 +17,18 @@
 ///
 /// This file implements the mbr_disjoint function.
 
-#include "mbr_utils.h"
+#include "sql/gis/mbr_utils.h"
 
 #include <boost/geometry.hpp>
 #include <cmath>  // std::isnan
 #include <exception>
 
-#include "box.h"
-#include "box_traits.h"
-#include "geometries.h"
-#include "geometries_cs.h"
-#include "geometries_traits.h"
 #include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometries_traits.h"
 #include "template_utils.h"  // down_cast
 
 namespace bg = boost::geometry;

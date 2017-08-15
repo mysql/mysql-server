@@ -14,23 +14,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "i_sha2_password.h"            /* Internal classes            */
-#include "auth_internal.h"              /* Rsa_authentication_keys     */
-#include "sql_auth_cache.h"             /* ACL_USER                    */
-#include "sql_authentication.h"
-#include "my_inttypes.h"                /* typedefs                    */
-#include "my_dbug.h"                    /* DBUG instrumentation        */
-#include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
-#include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
-#include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
-#include "mysql/service_mysql_password_policy.h"
-                                        /* my_validate_password_policy */
-#include <sstream>                      /* std::stringstream           */
 #include <iomanip>                      /* std::setfill(), std::setw() */
 #include <iostream>                     /* For debugging               */
-#include <sql/sql_const.h>              /* MAX_FIELD_WIDTH             */
-#include <sql/protocol_classic.h>       /* Protocol_classic            */
+                                        /* my_validate_password_policy */
+#include <sstream>                      /* std::stringstream           */
+
+#include "my_dbug.h"                    /* DBUG instrumentation        */
+#include "my_inttypes.h"                /* typedefs                    */
+#include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
+#include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
+#include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
+#include "mysql/service_mysql_password_policy.h"
 #include "rwlock_scoped_lock.h"         /* rwlock_scoped_lock          */
+#include "sql/auth/auth_internal.h"     /* Rsa_authentication_keys     */
+#include "sql/auth/i_sha2_password.h"   /* Internal classes            */
+#include "sql/auth/sql_auth_cache.h"    /* ACL_USER                    */
+#include "sql/auth/sql_authentication.h"
+#include "sql/protocol_classic.h"       /* Protocol_classic            */
+#include "sql/sql_const.h"              /* MAX_FIELD_WIDTH             */
 
 #if defined(HAVE_YASSL)
 #include <openssl/ssl.h>

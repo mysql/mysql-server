@@ -16,8 +16,8 @@
 #ifndef DD_SYSTEM_VIEWS__INNODB_FIELDS_INCLUDED
 #define DD_SYSTEM_VIEWS__INNODB_FIELDS_INCLUDED
 
-#include "dd/impl/system_views/system_view_definition_impl.h"
-#include "dd/impl/system_views/system_view_impl.h"
+#include "sql/dd/impl/system_views/system_view_definition_impl.h"
+#include "sql/dd/impl/system_views/system_view_impl.h"
 
 namespace dd {
 namespace system_views {

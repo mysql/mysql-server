@@ -21,7 +21,7 @@
 #include "kernel/ndb_limits.h" // MAX_NDB_NODES
 #include "map_helpers.h"
 #include "my_base.h"          // ha_rows
-#include "ndb_share.h"
+#include "sql/ndb_share.h"
 
 /*
   Place holder for ha_ndbcluster thread specific data

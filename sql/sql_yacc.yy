@@ -38,68 +38,63 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 
 #include <limits>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h"         // TT_BASE_TABLE
-#include "derror.h"
-#include "event_parse_data.h"
-#include "item_cmpfunc.h"
-#include "item_create.h"
-#include "item_geofunc.h"
-#include "item_json_func.h"
-#include "key_spec.h"
-#include "keycaches.h"
-#include "lex_symbol.h"
-#include "lex_token.h"
-#include "log_event.h"
 #include "my_dbug.h"
 #include "myisam.h"
 #include "myisammrg.h"
-#include "mysqld.h"        // slave_net_timeout national_charset_info ...
-#include "opt_explain_json.h"
-#include "opt_explain_traditional.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_hints.h"
-#include "partition_info.h"                   /* partition_info */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
-#include "resourcegroups/resource_group_mgr.h" // resource_group_support
-#include "resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
-#include "rpl_filter.h"
-#include "rpl_msr.h"       /* multisource replication */
-#include "rpl_slave.h"
-#include "rpl_slave.h"                       // Sql_cmd_change_repl_filter
-#include "set_var.h"
-#include "sp.h"
-#include "sp_head.h"
-#include "sp_instr.h"
-#include "sp_pcontext.h"
-#include "sp_rcontext.h"
-#include "sql_admin.h"                         // Sql_cmd_analyze/Check..._table
-#include "sql_alter.h"                         // Sql_cmd_alter_table*
-#include "sql_backup_lock.h"                   // Sql_cmd_lock_instance,
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
+#include "sql/dd/info_schema/show.h"             // build_show_...
+#include "sql/dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql/derror.h"
+#include "sql/event_parse_data.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_create.h"
+#include "sql/item_geofunc.h"
+#include "sql/item_json_func.h"
+#include "sql/key_spec.h"
+#include "sql/keycaches.h"
+#include "sql/lex_symbol.h"
+#include "sql/lex_token.h"
+#include "sql/log_event.h"
+#include "sql/opt_explain_json.h"
+#include "sql/opt_explain_traditional.h"
+#include "sql/resourcegroups/resource_group_mgr.h" // resource_group_support
+#include "sql/resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
+#include "sql/rpl_filter.h"
+#include "sql/rpl_msr.h"       /* multisource replication */
+#include "sql/rpl_slave.h"
+#include "sql/rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "sql/set_var.h"
+#include "sql/sp.h"
+#include "sql/sp_head.h"
+#include "sql/sp_instr.h"
+#include "sql/sp_pcontext.h"
+#include "sql/sp_rcontext.h"
+#include "sql/sql_admin.h"                         // Sql_cmd_analyze/Check..._table
+#include "sql/sql_alter.h"                         // Sql_cmd_alter_table*
+#include "sql/sql_backup_lock.h"                   // Sql_cmd_lock_instance,
                                                // Sql_cmd_unlock_instance
-#include "sql_base.h"                        // find_temporary_table
-#include "sql_class.h"      /* Key_part_spec, enum_filetype */
-#include "sql_component.h"
-#include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
-#include "sql_handler.h"                       // Sql_cmd_handler_*
-#include "sql_import.h"                        // Sql_cmd_import_table
-#include "sql_parse.h"                        /* comp_*_creator */
-#include "sql_partition.h"                    /* mem_alloc_error */
-#include "sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
-#include "sql_plugin.h"                      // plugin_is_ready
-#include "sql_select.h"                        // Sql_cmd_select...
-#include "sql_servers.h"
-#include "sql_show_status.h"                 // build_show_session_status, ...
-#include "sql_signal.h"
-#include "sql_tablespace.h"                  // Sql_cmd_alter_tablespace
-#include "sql_table.h"                        /* primary_key_name */
-#include "sql_trigger.h"                     // Sql_cmd_create_trigger,
+#include "sql/sql_base.h"                        // find_temporary_table
+#include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
+#include "sql/sql_component.h"
+#include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
+#include "sql/sql_handler.h"                       // Sql_cmd_handler_*
+#include "sql/sql_import.h"                        // Sql_cmd_import_table
+#include "sql/sql_parse.h"                        /* comp_*_creator */
+#include "sql/sql_partition.h"                    /* mem_alloc_error */
+#include "sql/sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
+#include "sql/sql_plugin.h"                      // plugin_is_ready
+#include "sql/sql_select.h"                        // Sql_cmd_select...
+#include "sql/sql_servers.h"
+#include "sql/sql_show_status.h"                 // build_show_session_status, ...
+#include "sql/sql_signal.h"
+#include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
+#include "sql/sql_table.h"                        /* primary_key_name */
+#include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
-#include "sql_truncate.h"                      // Sql_cmd_truncate_table
+#include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
                                              // used in RESET_MASTER parsing check
 #include "sql/gis/srid.h"                    // gis::srid_t
 
@@ -409,10 +404,10 @@ static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
 
 bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
-#include "parse_tree_column_attrs.h"
-#include "parse_tree_items.h"
-#include "parse_tree_nodes.h"
-#include "parse_tree_partitions.h"
+#include "sql/parse_tree_column_attrs.h"
+#include "sql/parse_tree_items.h"
+#include "sql/parse_tree_nodes.h"
+#include "sql/parse_tree_partitions.h"
 
 %}
 

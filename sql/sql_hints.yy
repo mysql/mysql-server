@@ -19,11 +19,11 @@
 */
 
 %{
-#include "sql_class.h"
-#include "parse_tree_hints.h"
-#include "sql_lex_hints.h"
-#include "sql_const.h"
-#include "derror.h"
+#include "sql/derror.h"
+#include "sql/parse_tree_hints.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)
 

@@ -12,18 +12,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd_resource_group.h"
+#include "sql/dd/dd_resource_group.h"
 
 #include <memory>
 
-#include "dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
-#include "dd/dd.h"                         // dd::create_object
-#include "dd/types/resource_group.h"       // dd::Resource_group
-#include "my_dbug.h"                       // DBUG_*
-#include "mysqld_error.h"                  // ER_RESOURCE_GROUP_EXISTS
-#include "sql_class.h"                     // THD
-#include "resourcegroups/resource_group.h" // resourcegroups::Resource_group
-#include "transaction.h"                   // trans_commit
+#include "my_dbug.h"                           // DBUG_*
+#include "mysqld_error.h"                      // ER_RESOURCE_GROUP_EXISTS
+#include "sql/dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                         // dd::create_object
+#include "sql/dd/types/resource_group.h"       // dd::Resource_group
+#include "sql/resourcegroups/resource_group.h" // resourcegroups::Resource_group
+#include "sql/sql_class.h"                     // THD
+#include "sql/transaction.h"                   // trans_commit
 
 namespace dd {
 

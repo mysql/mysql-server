@@ -23,9 +23,6 @@
 ///
 /// @see geometries_cs.h
 
-#include "geometries_cs.h"
-#include "malloc_allocator.h"
-
 #include <boost/geometry/core/access.hpp>
 #include <boost/geometry/core/closure.hpp>
 #include <boost/geometry/core/coordinate_dimension.hpp>
@@ -42,6 +39,9 @@
 #include <boost/geometry/geometries/concepts/point_concept.hpp>
 #include <boost/geometry/geometries/concepts/polygon_concept.hpp>
 #include <boost/geometry/multi/core/tags.hpp>
+
+#include "sql/gis/geometries_cs.h"
+#include "sql/malloc_allocator.h"
 
 namespace boost {
 namespace geometry {

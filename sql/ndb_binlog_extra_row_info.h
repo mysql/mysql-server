@@ -21,7 +21,7 @@
 #include "my_byteorder.h"
 #include "ndb_types.h"
 #include "rows_event.h"
-#include "rpl_constants.h"
+#include "sql/rpl_constants.h"
 
 /*
    Helper for reading/writing Binlog extra row info

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "shared_multi_map.h"
+#include "sql/dd/impl/cache/shared_multi_map.h"
 
 #include <new>
 
@@ -25,7 +25,7 @@
 #include "sql/dd/types/resource_group.h"
 #include "sql/mdl.h"                         // MDL_request
 #include "sql/log.h"                         // sql_print_warning()
-#include "sql_class.h"                       // THD
+#include "sql/sql_class.h"                   // THD
 
 namespace dd {
 namespace cache {

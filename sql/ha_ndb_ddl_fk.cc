@@ -15,19 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ha_ndbcluster.h"
-#include "sql_class.h"
-#include "key_spec.h"
-#include "my_dbug.h"
-#include "ndb_log.h"
-#include "mysql/service_thd_alloc.h"
-#include "ndb_table_guard.h"
-#include "template_utils.h"
-#include "mysqld.h"         // global_system_variables table_alias_charset ...
-#include "ndb_tdc.h"
-#include "sql_table.h"
-
 #include <algorithm>
+
+#include "my_dbug.h"
+#include "mysql/service_thd_alloc.h"
+#include "sql/ha_ndbcluster.h"
+#include "sql/key_spec.h"
+#include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
+#include "sql/ndb_log.h"
+#include "sql/ndb_table_guard.h"
+#include "sql/ndb_tdc.h"
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"
+#include "template_utils.h"
 
 #define ERR_RETURN(err)                  \
 {                                        \

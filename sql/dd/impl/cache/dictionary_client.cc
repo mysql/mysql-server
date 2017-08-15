@@ -26,10 +26,11 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "shared_dictionary_cache.h"         // get(), release(), ...
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/impl/bootstrapper.h"        // bootstrap_stage
+#include "sql/dd/impl/cache/shared_dictionary_cache.h" // get(), release(), ...
+#include "sql/dd/impl/cache/storage_adapter.h" // store(), drop(), ...
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/object_key.h"
 #include "sql/dd/impl/raw/object_keys.h"     // Primary_id_key, ...
@@ -84,7 +85,6 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
 #include "sql/tztime.h"                      // Time_zone, my_tz_OFFSET0
-#include "storage_adapter.h"                 // store(), drop(), ...
 
 namespace {
 

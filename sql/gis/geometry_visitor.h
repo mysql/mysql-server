@@ -21,7 +21,7 @@
 /// The geometries implement a hierarchical visitor pattern. This file declares
 /// the interface for visitors.
 
-#include "geometries.h"
+#include "sql/gis/geometries.h"
 
 namespace gis {
 

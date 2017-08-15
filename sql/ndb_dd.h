@@ -18,7 +18,7 @@
 #ifndef NDB_DD_H
 #define NDB_DD_H
 
-#include "dd/string_type.h"
+#include "sql/dd/string_type.h"
 
 namespace dd {
   class Table;

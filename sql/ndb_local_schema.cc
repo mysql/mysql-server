@@ -15,15 +15,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_local_schema.h"
+#include "sql/ndb_local_schema.h"
 
-#include "sql_class.h"
-#include "mdl.h"
-#include "dd/dd_trigger.h"  // dd::table_has_triggers
-#include "sql_trigger.h"    // drop_all_triggers
-
-#include "ndb_dd.h"
-#include "ndb_log.h"
+#include "sql/dd/dd_trigger.h" // dd::table_has_triggers
+#include "sql/mdl.h"
+#include "sql/ndb_dd.h"
+#include "sql/ndb_log.h"
+#include "sql/sql_class.h"
+#include "sql/sql_trigger.h" // drop_all_triggers
 
 
 bool Ndb_local_schema::Base::mdl_try_lock(void) const

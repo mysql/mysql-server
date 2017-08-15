@@ -22,11 +22,11 @@
 #include "violite.h"                    // Vio
 #include "channel_info.h"               // Channel_info
 #include "connection_handler_manager.h" // Connection_handler_manager
-#include "log.h"
-#include "mysqld.h"                     // global_system_variables
-#include "named_pipe.h"                 // create_server_named_pipe.
-#include "sql_class.h"                  // THD
 #include "init_net_server_extension.h"  // init_net_server_extension
+#include "sql/log.h"
+#include "sql/mysqld.h"                     // global_system_variables
+#include "sql/named_pipe.h"                 // create_server_named_pipe.
+#include "sql/sql_class.h"                  // THD
 
 
 ///////////////////////////////////////////////////////////////////////////

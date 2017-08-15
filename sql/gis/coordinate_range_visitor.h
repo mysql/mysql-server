@@ -18,8 +18,8 @@
 
 #include <cmath>  // M_PI, M_PI_2
 
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
-#include "geometry_visitor.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/geometry_visitor.h"
 
 namespace gis {
 

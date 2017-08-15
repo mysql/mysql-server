@@ -17,14 +17,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef I_SHA2_PASSWORD_INCLUDED
 #define I_SHA2_PASSWORD_INCLUDED
 
-#include "i_sha2_password_common.h"
-
-#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
-#include "mysql/plugin.h"               /* MYSQL_PLUGIN */
-#include "crypt_genhash_impl.h"         /* For salt, sha2 digest */
-
 #include <string>
 #include <unordered_map>
+
+#include "crypt_genhash_impl.h"         /* For salt, sha2 digest */
+#include "mysql/plugin.h"               /* MYSQL_PLUGIN */
+#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
+#include "sql/auth/i_sha2_password_common.h"
 
 /**
   @file sql/auth/i_sha2_password.h

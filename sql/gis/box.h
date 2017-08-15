@@ -22,8 +22,8 @@
 ///
 /// @see box_cs.h
 
-#include "geometries.h"
-#include "geometries_cs.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
 
 namespace gis {
 

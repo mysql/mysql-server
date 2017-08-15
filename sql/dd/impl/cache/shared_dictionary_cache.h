@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 
-#include "shared_multi_map.h"               // Shared_multi_map
+#include "sql/dd/impl/cache/shared_multi_map.h" // Shared_multi_map
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"           // Charset
 #include "sql/dd/types/collation.h"         // Collation

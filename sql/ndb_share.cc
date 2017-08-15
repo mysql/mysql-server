@@ -15,19 +15,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "ndb_share.h"
+#include "sql/ndb_share.h"
 
-#include "ha_ndbcluster_tables.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "ndbapi/NdbEventOperation.hpp"
-#include "ndb_conflict.h"
-#include "ndb_dist_priv_util.h"
-#include "ndb_event_data.h"
-#include "ndb_name_util.h"
-#include "ndb_table_map.h"
-#include "table.h"
-#include "field.h"
+#include "sql/field.h"
+#include "sql/ha_ndbcluster_tables.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_event_data.h"
+#include "sql/ndb_name_util.h"
+#include "sql/ndb_table_map.h"
+#include "sql/table.h"
 
 extern Ndb* g_ndb;
 

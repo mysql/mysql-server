@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/resource_group_impl.h"
+#include "sql/dd/impl/types/resource_group_impl.h"
 
-#include "dd/impl/raw/object_keys.h"        // Primary_id_keys
-#include "dd/impl/raw/raw_record.h"         // Raw_record
-#include "dd/impl/tables/resource_groups.h" // Resource_groups
-#include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
+#include "sql/dd/impl/raw/object_keys.h"        // Primary_id_keys
+#include "sql/dd/impl/raw/raw_record.h"         // Raw_record
+#include "sql/dd/impl/tables/resource_groups.h" // Resource_groups
+#include "sql/dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 
 using dd::tables::Resource_groups;
 

@@ -19,10 +19,10 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/types/resource_group_impl.h"
-#include "dd/impl/types/entity_object_table_impl.h"   // dd::Object_table_i...
-#include "dd/types/resource_group.h"
+#include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/types/resource_group_impl.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"   // dd::Object_table_i...
+#include "sql/dd/types/resource_group.h"
 
 namespace dd
 {

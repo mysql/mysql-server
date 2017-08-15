@@ -15,7 +15,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
 #include "components/mysql_server/system_variable_source_imp.h"
 #include "components/mysql_server/server_component.h"
-#include "set_var.h"
+#include "sql/set_var.h"
 
 void mysql_comp_system_variable_source_init()
 {

@@ -13,13 +13,13 @@
 // this program; if not, write to the Free Software Foundation, 51 Franklin
 // Street, Suite 500, Boston, MA 02110-1335 USA.
 
-#include "geometries.h"
-#include "geometries_cs.h"
+#include "sql/gis/geometries.h"
 
 #include <utility>  // std::swap
 
-#include "geometry_visitor.h"
 #include "my_dbug.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometry_visitor.h"
 
 namespace gis {
 

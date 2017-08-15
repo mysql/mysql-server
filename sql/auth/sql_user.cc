@@ -450,7 +450,7 @@ err:
 }
 
 
-#include "tztime.h"                     // Time_zone
+#include "sql/tztime.h"                 // Time_zone
 
 /**
   Perform credentials history check and update the password history table

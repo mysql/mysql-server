@@ -22,13 +22,13 @@
 #include <string>
 #include <vector>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/types/resource_group.h"           // dd::Resource_group
-#include "dd/types/object_type.h"              // dd::Object_type
-#include "resourcegroups/resource_group_sql_cmd.h" // resourcegroups::Type
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/resource_group.h"           // dd::Resource_group
+#include "sql/dd/types/object_type.h"              // dd::Object_type
+#include "sql/resourcegroups/resource_group_sql_cmd.h" // resourcegroups::Type
 
 
 namespace dd {

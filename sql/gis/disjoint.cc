@@ -19,14 +19,14 @@
 
 #include <boost/geometry.hpp>
 
-#include "box.h"
-#include "box_traits.h"
-#include "disjoint_functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "mbr_utils.h"
-#include "relops.h"
 #include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/relops.h"
 #include "sql/sql_exception_handler.h" // handle_gis_exception
 
 namespace bg = boost::geometry;

@@ -17,7 +17,7 @@
 
 #include "mysqld_error.h"     // ER_SPECIFIC_ACCESS_DENIED_ERROR
 #include "sql_class.h"        // THD
-#include "sql_security_ctx.h" // Security_context
+#include "sql/auth/sql_security_ctx.h" // Security_context
 
 /**
   Check if a current user has the privilege BACKUP_ADMIN required to run
