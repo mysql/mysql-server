@@ -22,7 +22,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "str_uca_type.h"
+#include "strings/str_uca_type.h"
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)

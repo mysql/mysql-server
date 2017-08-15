@@ -39,7 +39,6 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mb_wc.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -47,11 +46,12 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
-#include "str_uca_type.h"
+#include "strings/mb_wc.h"
+#include "strings/str_uca_type.h"
+#include "strings/uca900_data.h"
+#include "strings/uca900_ja_data.h"
+#include "strings/uca_data.h"
 #include "template_utils.h"
-#include "uca900_data.h"
-#include "uca900_ja_data.h"
-#include "uca_data.h"
 
 MY_UCA_INFO my_uca_v400=
 {
