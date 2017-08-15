@@ -220,3 +220,19 @@ a	d
 3	11120436154190595086
 drop table t1, t2;
 End of 5.0 tests
+#
+# Bug#19875294 ASSERTION `SRC' FAILED IN MY_STRNXFRM_UNICODE
+#              (SIG 6 -STRINGS/CTYPE-UTF8.C:5151)
+#
+set @@sql_mode='';
+CREATE TABLE t1(c1 SET('','')CHARACTER SET ucs2) engine=innodb;
+Warnings:
+Note	1291	Column 'c1' has duplicated value '' in SET
+INSERT INTO t1 VALUES(990101.102);
+Warnings:
+Warning	1265	Data truncated for column 'c1' at row 1
+SELECT COALESCE(c1)FROM t1 ORDER BY 1;
+COALESCE(c1)
+
+DROP TABLE t1;
+set @@sql_mode=default;
