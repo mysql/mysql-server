@@ -347,6 +347,7 @@ static bool acquire_mdl(THD *thd,
                         const char *schema_name,
                         const char *table_name,
                         bool no_wait,
+                        ulong lock_wait_timeout,
                         enum_mdl_type lock_type,
                         enum_mdl_duration lock_duration,
                         MDL_ticket **out_mdl_ticket)
@@ -362,8 +363,7 @@ static bool acquire_mdl(THD *thd,
     if (thd->mdl_context.try_acquire_lock(&mdl_request))
       DBUG_RETURN(true);
   }
-  else if (thd->mdl_context.acquire_lock(&mdl_request,
-                                         thd->variables.lock_wait_timeout))
+  else if (thd->mdl_context.acquire_lock(&mdl_request, lock_wait_timeout))
     DBUG_RETURN(true);
 
   if (out_mdl_ticket)
@@ -380,7 +380,8 @@ bool acquire_shared_table_mdl(THD *thd,
                               MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                     MDL_SHARED, MDL_EXPLICIT, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_SHARED,
+                     MDL_EXPLICIT, out_mdl_ticket);
 }
 
 
@@ -414,7 +415,8 @@ bool acquire_exclusive_tablespace_mdl(THD *thd,
 {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
-                     MDL_EXCLUSIVE, MDL_TRANSACTION, NULL);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION, NULL);
 }
 
 
@@ -424,7 +426,8 @@ bool acquire_shared_tablespace_mdl(THD *thd,
 {
   // When requesting a tablespace name lock, we leave the schema name empty.
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
-                     MDL_SHARED, MDL_TRANSACTION, NULL);
+                     thd->variables.lock_wait_timeout, MDL_SHARED,
+                     MDL_TRANSACTION, NULL);
 }
 
 
@@ -458,7 +461,19 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
-                           MDL_EXCLUSIVE, MDL_TRANSACTION, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_TRANSACTION, out_mdl_ticket);
+}
+
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 ulong lock_wait_timeout,
+                                 MDL_ticket **out_mdl_ticket)
+{
+  return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, false,
+                     lock_wait_timeout, MDL_EXCLUSIVE, MDL_TRANSACTION,
+                     out_mdl_ticket);
 }
 
 bool acquire_exclusive_schema_mdl(THD *thd,
@@ -467,7 +482,8 @@ bool acquire_exclusive_schema_mdl(THD *thd,
                                  MDL_ticket **out_mdl_ticket)
 {
   return acquire_mdl(thd, MDL_key::SCHEMA, schema_name, "", no_wait,
-                           MDL_EXCLUSIVE, MDL_EXPLICIT, out_mdl_ticket);
+                     thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
+                     MDL_EXPLICIT, out_mdl_ticket);
 }
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)

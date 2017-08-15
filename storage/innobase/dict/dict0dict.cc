@@ -7972,19 +7972,13 @@ dd_sdi_acquire_exclusive_mdl(
 	snprintf(tbl_buf, sizeof(tbl_buf),
 		 "SDI_" SPACE_ID_PF, space_id);
 
-	ulint   lock_loop = 0;
-retry:
+	/* Submit a higher than default lock wait timeout */
+	ulong lock_wait_timeout = thd_lock_wait_timeout(thd);
+	if (lock_wait_timeout < 100000) {
+		lock_wait_timeout += 100000;
+	}
 	if (dd::acquire_exclusive_table_mdl(
-		thd, db_buf, tbl_buf, false, sdi_mdl)) {
-
-		/* If server lock timeout is too short, let's try a few
-		times before quit */
-		if (lock_loop < 10000 / thd_lock_wait_timeout(thd)) {
-			lock_loop++;
-			os_thread_yield();
-			goto retry;
-		}
-
+		thd, db_buf, tbl_buf, lock_wait_timeout, sdi_mdl)) {
 		/* MDL failure can happen with lower timeout
 		values chosen by user */
 		return(DB_LOCK_WAIT_TIMEOUT);

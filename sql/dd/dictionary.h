@@ -303,6 +303,26 @@ bool acquire_exclusive_table_mdl(THD *thd,
 
 
 /**
+  Acquire exclusive metadata lock on the given table name with
+  TRANSACTIONAL duration.
+
+  @param[in]  thd               THD to which lock belongs to.
+  @param[in]  schema_name       Schema name
+  @param[in]  table_name        Table name
+  @param[in]  lock_wait_timeout Time to wait.
+  @param[out] out_mdl_ticket    A pointer to MDL_ticket upon successful lock
+                                attempt.
+*/
+
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 ulong lock_wait_timeout,
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
   Acquire exclusive metadata lock on the given schema name with
   explicit duration.
 
