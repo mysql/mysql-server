@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_utility.h"
+#include "sql/rpl_utility.h"
 
 #include <string.h>
 #include <iterator>
@@ -28,36 +28,36 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "thr_malloc.h"
+#include "sql/thr_malloc.h"
 
 #ifdef MYSQL_SERVER
 
 #include <algorithm>
 
 #include "binlog_event.h"                // checksum_crv32
-#include "dd/dd.h"                       // get_dictionary
-#include "dd/dictionary.h"               // is_dd_table_access_allowed
-#include "derror.h"                      // ER_THD
-#include "field.h"                       // Field
-#include "log.h"
-#include "log_event.h"                   // Log_event
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-#include "my_decimal.h"
 #include "mysql/psi/psi_memory.h"
-#include "mysqld.h"                      // slave_type_conversions_options
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_rli.h"                     // Relay_log_info
-#include "rpl_slave.h"
-#include "sql_class.h"                   // THD
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plugin_ref.h"
+#include "sql/dd/dd.h"                   // get_dictionary
+#include "sql/dd/dictionary.h"           // is_dd_table_access_allowed
+#include "sql/derror.h"                  // ER_THD
+#include "sql/field.h"                   // Field
+#include "sql/log.h"
+#include "sql/log_event.h"               // Log_event
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                  // slave_type_conversions_options
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_rli.h"                 // Relay_log_info
+#include "sql/rpl_slave.h"
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_tmp_table.h"           // create_virtual_tmp_table
 #include "sql_string.h"
-#include "sql_tmp_table.h"               // create_virtual_tmp_table
 #include "template_utils.h"              // delete_container_pointers
 #include "typelib.h"
 

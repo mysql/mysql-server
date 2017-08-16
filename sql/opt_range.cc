@@ -108,7 +108,7 @@
            subject and may omit some details.
 */
 
-#include "opt_range.h"
+#include "sql/opt_range.h"
 
 #include "my_config.h"
 
@@ -126,22 +126,8 @@
 #include <set>
 
 #include "binary_log_types.h"
-#include "check_stack.h"
-#include "current_thd.h"
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "filesort.h"            // filesort_free_buffers
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_row.h"
-#include "item_sum.h"            // Item_sum
-#include "key.h"                 // is_key_used
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "malloc_allocator.h"
-#include "mem_root_array.h"
 #include "mf_wcomp.h"            // wild_compare
 #include "my_alloc.h"
 #include "my_byteorder.h"
@@ -154,33 +140,47 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
-#include "opt_costmodel.h"
-#include "opt_hints.h"           // hint_key_state
-#include "opt_statistics.h"      // guess_rec_per_key
-#include "opt_trace.h"           // Opt_trace_array
-#include "opt_trace_context.h"
-#include "partition_info.h"      // partition_info
-#include "psi_memory_key.h"
-#include "set_var.h"
-#include "sql_base.h"            // free_io_cache
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h" // QEP_shared_owner
-#include "sql_optimizer.h"       // JOIN
-#include "sql_partition.h"       // HA_USE_AUTO_PARTITION
-#include "sql_security_ctx.h"
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "sql_tmp_table.h"
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"          // ER_THD
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/filesort.h"        // filesort_free_buffers
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_row.h"
+#include "sql/item_sum.h"        // Item_sum
+#include "sql/key.h"             // is_key_used
+#include "sql/log.h"
+#include "sql/malloc_allocator.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
+#include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"       // hint_key_state
+#include "sql/opt_statistics.h"  // guess_rec_per_key
+#include "sql/opt_trace.h"       // Opt_trace_array
+#include "sql/opt_trace_context.h"
+#include "sql/partition_info.h"  // partition_info
+#include "sql/psi_memory_key.h"
+#include "sql/set_var.h"
+#include "sql/sql_base.h"        // free_io_cache
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h" // QEP_shared_owner
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_partition.h"   // HA_USE_AUTO_PARTITION
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/uniques.h"         // Unique
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "uniques.h"             // Unique
                                  // idx_merge_hint_state()
 
 using std::min;
@@ -15691,6 +15691,7 @@ static inline void print_tree(String *out,
       append_range_all_keyparts()
     */
     char buff1[512];
+    buff1[0]= '\0';
     String range_result(buff1, sizeof(buff1), system_charset_info);
     range_result.length(0);
 
@@ -15720,7 +15721,8 @@ static inline void print_tree(String *out,
       DBUG_PRINT("info",
                  ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
                   tree->keys[i], static_cast<int>(tree->keys[i]->type),
-                  tree_name, i, real_key_nr, range_result.ptr()));
+                  tree_name, i, real_key_nr,
+                  range_result.ptr()));
   }
 }
 

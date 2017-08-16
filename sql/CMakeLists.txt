@@ -17,10 +17,7 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include 
-  ${CMAKE_SOURCE_DIR}/sql/conn_handler
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/sql 
-  ${CMAKE_SOURCE_DIR}/sql/auth
   ${CMAKE_SOURCE_DIR}/extra/regex
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
@@ -244,13 +241,15 @@ SET(SQL_SHARED_SOURCES
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
-  auth/password.c
+  auth/password.cc
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
   auto_thd.cc
   keyring_service.cc
   auth/role_tables.cc
+  auth/sha2_password_common.cc
+  auth/sha2_password.cc
   ssl_wrapper_service.cc
   bootstrap.cc
   check_stack.cc
@@ -520,6 +519,7 @@ SET(SQL_BOOST_SOURCES
   auth/role_tables.cc
   auth/dynamic_privilege_table.cc
   auth/dynamic_privileges_impl.cc
+  auth/sha2_password.cc
   handler.cc
   ${SQL_GIS_SOURCES}
   spatial.cc

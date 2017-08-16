@@ -16,7 +16,7 @@
 
 /* Function with list databases, tables or fields */
 
-#include "sql_show.h"
+#include "sql/sql_show.h"
 
 #include "my_config.h"
 
@@ -35,28 +35,10 @@
 #include <new>
 #include <string>
 
-#include "auth_acls.h"
-#include "auth_common.h"                    // check_grant_db
 #include "binary_log_types.h"
-#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/string_type.h"
-#include "debug_sync.h"                     // DEBUG_SYNC
-#include "derror.h"                         // ER_THD
-#include "enum_query_type.h"
-#include "error_handler.h"                  // Internal_error_handler
-#include "field.h"                          // Field
-#include "filesort.h"                       // filesort_free_buffers
-#include "item.h"                           // Item_empty_string
-#include "item_cmpfunc.h"                   // Item_cond
-#include "item_func.h"
-#include "key.h"
 #include "keycache.h"                       // dflt_key_cache
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
-#include "mem_root_array.h"
 #include "mf_wcomp.h"                       // wild_compare,wild_one,wild_many
 #include "mutex_lock.h"                     // MUTEX_LOCK
 #include "my_base.h"
@@ -78,47 +60,65 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"             // Global_THD_manager
-#include "opt_trace.h"                      // fill_optimizer_trace_info
-#include "partition_element.h"
-#include "partition_info.h"                 // partition_info
-#include "partitioning/partition_handler.h" // Partition_handler
-#include "protocol.h"                       // Protocol
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sp_head.h"                        // sp_head
-#include "sql_alloc.h"
-#include "sql_base.h"                       // close_thread_tables
-#include "sql_bitmap.h"
-#include "sql_class.h"                      // THD
-#include "sql_const.h"
-#include "sql_db.h"                         // get_default_db_collation
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"                  // JOIN
-#include "sql_parse.h"                      // command_name
-#include "sql_partition.h"
-#include "sql_plugin.h"                     // PLUGIN_IS_DELETED, LOCK_plugin
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_table.h"                      // filename_to_tablename
-#include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_trigger.h"                    // acquire_shared_mdl_for_trigger
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
-#include "temp_table_param.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"           // check_grant_db
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "sql/dd/string_type.h"
+#include "sql/debug_sync.h"                 // DEBUG_SYNC
+#include "sql/derror.h"                     // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/error_handler.h"              // Internal_error_handler
+#include "sql/field.h"                      // Field
+#include "sql/filesort.h"                   // filesort_free_buffers
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"                       // Item_empty_string
+#include "sql/item_cmpfunc.h"               // Item_cond
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"                     // lower_case_table_names
+#include "sql/mysqld_thd_manager.h"         // Global_THD_manager
+#include "sql/opt_trace.h"                  // fill_optimizer_trace_info
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"             // partition_info
+#include "sql/partitioning/partition_handler.h" // Partition_handler
+#include "sql/protocol.h"                   // Protocol
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sp_head.h"                    // sp_head
+#include "sql/sql_alloc.h"
+#include "sql/sql_base.h"                   // close_thread_tables
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"                     // get_default_db_collation
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"              // JOIN
+#include "sql/sql_parse.h"                  // command_name
+#include "sql/sql_partition.h"
+#include "sql/sql_plugin.h"                 // PLUGIN_IS_DELETED, LOCK_plugin
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                  // filename_to_tablename
+#include "sql/sql_tmp_table.h"              // create_tmp_table
+#include "sql/sql_trigger.h"                // acquire_shared_mdl_for_trigger
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table_trigger_dispatcher.h"   // Table_trigger_dispatcher
+#include "sql/temp_table_param.h"
+#include "sql/thr_malloc.h"
+#include "sql/trigger.h"                    // Trigger
+#include "sql/tztime.h"                     // Time_zone
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "trigger.h"                        // Trigger
-#include "tztime.h"                         // Time_zone
-#include "value_map.h"
 
 namespace dd {
 class Abstract_table;

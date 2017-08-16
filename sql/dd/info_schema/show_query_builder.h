@@ -17,7 +17,7 @@
 #define SQL_DD_SHOW_QUERY_BUILDER_H
 
 #include "lex_string.h"
-#include "mem_root_array.h"
+#include "sql/mem_root_array.h"
 
 class Item;
 class PT_derived_table;

@@ -18,8 +18,8 @@
 #include <memory>
 #include <vector>
 
-#include "filesort_utils.h"
 #include "my_inttypes.h"
+#include "sql/filesort_utils.h"
 #include "test_utils.h"
 
 namespace filesort_compare_unittest {

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd_table_share.h"
+#include "sql/dd_table_share.h"
 
 #include "my_config.h"
 
@@ -22,27 +22,7 @@
 #include <string>
 #include <type_traits>
 
-#include "dd/collection.h"
-#include "dd/dd_table.h"                      // dd::FIELD_NAME_SEPARATOR_CHAR
-#include "dd/dd_tablespace.h"                 // dd::get_tablespace_name
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/utils.h"                    // dd::eat_str
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/column.h"                  // dd::enum_column_types
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/index.h"                   // dd::Index
-#include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/partition.h"               // dd::Partition
-#include "dd/types/partition_value.h"         // dd::Partition_value
-#include "dd/types/table.h"                   // dd::Table
-#include "default_values.h"                   // prepare_default_value_buffer...
-#include "error_handler.h"                    // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -59,23 +39,43 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_element.h"                // partition_element
-#include "partition_info.h"                   // partition_info
-#include "sql_bitmap.h"
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_partition.h"                    // generate_partition_syntax
-#include "sql_plugin.h"                       // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/collection.h"
+#include "sql/dd/dd_table.h"                  // dd::FIELD_NAME_SEPARATOR_CHAR
+#include "sql/dd/dd_tablespace.h"             // dd::get_tablespace_name
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "sql/dd/impl/utils.h"                // dd::eat_str
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"              // dd::enum_column_types
+#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/index.h"               // dd::Index
+#include "sql/dd/types/index_element.h"       // dd::Index_element
+#include "sql/dd/types/partition.h"           // dd::Partition
+#include "sql/dd/types/partition_value.h"     // dd::Partition_value
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/default_values.h"               // prepare_default_value_buffer...
+#include "sql/error_handler.h"                // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/partition_element.h"            // partition_element
+#include "sql/partition_info.h"               // partition_info
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_partition.h"                // generate_partition_syntax
+#include "sql/sql_plugin.h"                   // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"                    // primary_key_name
+#include "sql/strfunc.h"                      // lex_cstring_handle
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
-#include "system_variables.h"
-#include "table.h"
 #include "typelib.h"
 
 

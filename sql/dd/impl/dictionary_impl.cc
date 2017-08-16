@@ -13,32 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/dictionary_impl.h"
 
 #include <string.h>
 #include <memory>
 
-#include "auth_common.h"                   // acl_init
-#include "auto_thd.h"                        // Auto_thd
-#include "binlog_event.h"
-#include "bootstrap.h"                     // bootstrap::bootstrap_functor
-#include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
-#include "dd/dd.h"                         // enum_dd_init_type
-#include "dd/dd_schema.h"                  // dd::Schema_MDL_locker
-#include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
-#include "dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
-#include "dd/impl/system_registry.h"       // dd::System_tables
-#include "dd/impl/tables/dd_properties.h"  // get_actual_dd_version()
-#include "dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
-#include "dd/info_schema/metadata.h"       // dd::info_schema::store_dynamic...
-#include "dd/types/object_table_definition.h"
-#include "dd/types/system_view.h"
-#include "dd/upgrade/upgrade.h"            // dd::upgrade
-#include "derror.h"
-#include "handler.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -46,10 +27,28 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "opt_costconstantcache.h"         // init_optimizer_cost_module
-#include "sql_class.h"                     // THD
-#include "sql_security_ctx.h"
-#include "system_variables.h"
+#include "sql/auth/auth_common.h"          // acl_init
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auto_thd.h"                  // Auto_thd
+#include "sql/bootstrap.h"                 // bootstrap::bootstrap_functor
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/dd.h"                     // enum_dd_init_type
+#include "sql/dd/dd_schema.h"              // dd::Schema_MDL_locker
+#include "sql/dd/impl/bootstrapper.h"      // dd::Bootstrapper
+#include "sql/dd/impl/cache/shared_dictionary_cache.h" // Shared_dictionary_cache
+#include "sql/dd/impl/system_registry.h"   // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h" // get_actual_dd_version()
+#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
+#include "sql/dd/info_schema/metadata.h"   // dd::info_schema::store_dynamic...
+#include "sql/dd/types/object_table_definition.h"
+#include "sql/dd/types/system_view.h"
+#include "sql/dd/upgrade/upgrade.h"        // dd::upgrade
+#include "sql/derror.h"
+#include "sql/handler.h"
+#include "sql/mdl.h"
+#include "sql/opt_costconstantcache.h"     // init_optimizer_cost_module
+#include "sql/sql_class.h"                 // THD
+#include "sql/system_variables.h"
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -16,11 +16,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Glue code for registering the TempTable plugin at MySQL. */
 
 #include "mysql/plugin.h"
-#include "handler.h"
+
+#include "mem_root_fwd.h"
+#include "sql/handler.h"
+#include "sql/table.h"
 #include "temptable/allocator.h"
 #include "temptable/handler.h"
-#include "mem_root_fwd.h"
-#include "table.h"
 
 static handler* create_handler(handlerton* hton, TABLE_SHARE* table_share, bool,
                                MEM_ROOT* mem_root) {

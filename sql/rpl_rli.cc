@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql/rpl_rli.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,12 +22,7 @@
 #include <algorithm>
 
 #include "binlog_event.h"
-#include "debug_sync.h"
-#include "derror.h"
-#include "log.h"
-#include "log_event.h"             // Log_event
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_dir.h"                // MY_STAT
 #include "my_sqlcommand.h"
@@ -39,27 +36,31 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
-#include "mysqld.h"                // sync_relaylog_period ...
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "rpl_info_factory.h"      // Rpl_info_factory
-#include "rpl_info_handler.h"
-#include "rpl_mi.h"                // Master_info
-#include "rpl_msr.h"               // channel_map
-#include "rpl_reporting.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"           // Slave_worker
-#include "rpl_slave.h"
-#include "rpl_trx_boundary_parser.h"
-#include "sql_base.h"              // close_thread_tables
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_plugin.h"
-#include "strfunc.h"               // strconvert
+#include "sql/debug_sync.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/log_event.h"         // Log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"            // sync_relaylog_period ...
+#include "sql/protocol.h"
+#include "sql/rpl_info_factory.h"  // Rpl_info_factory
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"            // Master_info
+#include "sql/rpl_msr.h"           // channel_map
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli_pdb.h"       // Slave_worker
+#include "sql/rpl_slave.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/sql_base.h"          // close_thread_tables
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plugin.h"
+#include "sql/strfunc.h"           // strconvert
+#include "sql/transaction.h"       // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "thr_mutex.h"
-#include "transaction.h"           // trans_commit_stmt
-#include "transaction_info.h"
-#include "xa.h"
 
 class Item;
 

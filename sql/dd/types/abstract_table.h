@@ -16,10 +16,10 @@
 #ifndef DD__ABSTRACT_TABLE_INCLUDED
 #define DD__ABSTRACT_TABLE_INCLUDED
 
-#include "dd/collection.h"                // dd::Collection
-#include "dd/object_id.h"                 // dd::Object_id
-#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/collection.h"            // dd::Collection
+#include "sql/dd/object_id.h"             // dd::Object_id
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 namespace dd {
 

@@ -26,12 +26,12 @@
 
 #include <sys/types.h>
 
-#include "item.h"           // Item
-#include "mem_root_array.h"
 #include "my_base.h"        // ha_rows
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "table.h"
+#include "sql/item.h"       // Item
+#include "sql/mem_root_array.h"
+#include "sql/table.h"
 
 class Create_field;
 class Field;

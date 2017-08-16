@@ -19,15 +19,15 @@
 #include <sys/types.h>
 #include <map>
 
-#include "dd/dd_kill_immunizer.h"     // dd::DD_kill_immunizer
-#include "dd/string_type.h"           // dd::String_type
-#include "discrete_interval.h"
-#include "field.h"
-#include "handler.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "set_var.h"
-#include "sql_class.h"                // THD::killed_state
+#include "sql/dd/dd_kill_immunizer.h" // dd::DD_kill_immunizer
+#include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"            // THD::killed_state
 #include "thr_lock.h"
 
 struct LEX;

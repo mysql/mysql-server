@@ -13,76 +13,76 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/cache/dictionary_client.h"
+#include "sql/dd/cache/dictionary_client.h"
 
 #include <stdio.h>
 #include <memory>
 
-#include "dd/cache/multi_map_base.h"
-#include "dd/dd_schema.h"                    // dd::Schema_MDL_locker
-#include "dd/impl/bootstrapper.h"            // bootstrap_stage
-#include "dd/impl/dictionary_impl.h"
-#include "dd/impl/object_key.h"
-#include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
-#include "dd/impl/raw/raw_table.h"           // Raw_table
-#include "dd/impl/sdi.h"                     // dd::sdi::drop_after_update
-#include "dd/impl/tables/character_sets.h"   // create_name_key()
-#include "dd/impl/tables/collations.h"       // create_name_key()
-#include "dd/impl/tables/column_statistics.h"// create_name_key()
-#include "dd/impl/tables/events.h"           // create_name_key()
-#include "dd/impl/tables/foreign_keys.h"
-#include "dd/impl/tables/index_stats.h"      // dd::Index_stats
-#include "dd/impl/tables/routines.h"         // create_name_key()
-#include "dd/impl/tables/schemata.h"         // create_name_key()
-#include "dd/impl/tables/spatial_reference_systems.h" // create_name_key()
-#include "dd/impl/tables/table_partitions.h" // get_partition_table_id()
-#include "dd/impl/tables/table_stats.h"      // dd::Table_stats
-#include "dd/impl/tables/tables.h"           // create_name_key()
-#include "dd/impl/tables/tablespaces.h"      // create_name_key()
-#include "dd/impl/tables/triggers.h"         // dd::tables::Triggers
-#include "dd/impl/tables/view_routine_usage.h" // create_name_key
-#include "dd/impl/tables/view_table_usage.h" // create_name_key
-#include "dd/impl/transaction_impl.h"        // Transaction_ro
-#include "dd/impl/types/entity_object_impl.h"// Entity_object_impl
-#include "dd/impl/types/object_table_definition_impl.h" // fs_name_case()
-#include "dd/properties.h"                   // Properties
-#include "dd/types/abstract_table.h"         // Abstract_table
-#include "dd/types/charset.h"                // Charset
-#include "dd/types/collation.h"              // Collation
-#include "dd/types/column_statistics.h"      // Column_statistics
-#include "dd/types/event.h"                  // Event
-#include "dd/types/function.h"               // Function
-#include "dd/types/index_stat.h"             // Index_stat
-#include "dd/types/procedure.h"              // Procedure
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"                 // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/table.h"                  // Table
-#include "dd/types/table_stat.h"             // Table_stat
-#include "dd/types/tablespace.h"             // Tablespace
-#include "dd/types/view.h"                   // View
-#include "dd/types/view_routine.h"           // View_routine
-#include "dd/types/view_table.h"             // View_table
-#include "debug_sync.h"                      // DEBUG_SYNC()
-#include "handler.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
 #include "shared_dictionary_cache.h"         // get(), release(), ...
-#include "sql_class.h"                       // THD
-#include "sql_plugin_ref.h"
+#include "sql/dd/cache/multi_map_base.h"
+#include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "sql/dd/impl/bootstrapper.h"        // bootstrap_stage
+#include "sql/dd/impl/dictionary_impl.h"
+#include "sql/dd/impl/object_key.h"
+#include "sql/dd/impl/raw/object_keys.h"     // Primary_id_key, ...
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/raw/raw_record_set.h"  // Raw_record_set
+#include "sql/dd/impl/raw/raw_table.h"       // Raw_table
+#include "sql/dd/impl/sdi.h"                 // dd::sdi::drop_after_update
+#include "sql/dd/impl/tables/character_sets.h" // create_name_key()
+#include "sql/dd/impl/tables/collations.h"   // create_name_key()
+#include "sql/dd/impl/tables/column_statistics.h"// create_name_key()
+#include "sql/dd/impl/tables/events.h"       // create_name_key()
+#include "sql/dd/impl/tables/foreign_keys.h"
+#include "sql/dd/impl/tables/index_stats.h"  // dd::Index_stats
+#include "sql/dd/impl/tables/routines.h"     // create_name_key()
+#include "sql/dd/impl/tables/schemata.h"     // create_name_key()
+#include "sql/dd/impl/tables/spatial_reference_systems.h" // create_name_key()
+#include "sql/dd/impl/tables/table_partitions.h" // get_partition_table_id()
+#include "sql/dd/impl/tables/table_stats.h"  // dd::Table_stats
+#include "sql/dd/impl/tables/tables.h"       // create_name_key()
+#include "sql/dd/impl/tables/tablespaces.h"  // create_name_key()
+#include "sql/dd/impl/tables/triggers.h"     // dd::tables::Triggers
+#include "sql/dd/impl/tables/view_routine_usage.h" // create_name_key
+#include "sql/dd/impl/tables/view_table_usage.h" // create_name_key
+#include "sql/dd/impl/transaction_impl.h"    // Transaction_ro
+#include "sql/dd/impl/types/entity_object_impl.h"// Entity_object_impl
+#include "sql/dd/impl/types/object_table_definition_impl.h" // fs_name_case()
+#include "sql/dd/properties.h"               // Properties
+#include "sql/dd/types/abstract_table.h"     // Abstract_table
+#include "sql/dd/types/charset.h"            // Charset
+#include "sql/dd/types/collation.h"          // Collation
+#include "sql/dd/types/column_statistics.h"  // Column_statistics
+#include "sql/dd/types/event.h"              // Event
+#include "sql/dd/types/function.h"           // Function
+#include "sql/dd/types/index_stat.h"         // Index_stat
+#include "sql/dd/types/procedure.h"          // Procedure
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"             // Schema
+#include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
+#include "sql/dd/types/table.h"              // Table
+#include "sql/dd/types/table_stat.h"         // Table_stat
+#include "sql/dd/types/tablespace.h"         // Tablespace
+#include "sql/dd/types/view.h"               // View
+#include "sql/dd/types/view_routine.h"       // View_routine
+#include "sql/dd/types/view_table.h"         // View_table
+#include "sql/debug_sync.h"                  // DEBUG_SYNC()
+#include "sql/handler.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                   // THD
+#include "sql/sql_plugin_ref.h"
+#include "sql/table.h"
 #include "storage_adapter.h"                 // store(), drop(), ...
-#include "table.h"
 
 namespace {
 

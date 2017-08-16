@@ -17,10 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_dbug.h"
-#include "my_decimal.h"                // my_decimal
 #include "mysql/mysql_lex_string.h"    // LEX_STRING
 #include "mysql_com.h"                 // mysql_enum_shutdown_level
 #include "mysql_time.h"                // MYSQL_TIME
+#include "sql/my_decimal.h"            // my_decimal
 #include "sql_string.h"                // String
 #include "violite.h"                            /* SSL && enum_vio_type */
 #ifdef HAVE_OPENSSL

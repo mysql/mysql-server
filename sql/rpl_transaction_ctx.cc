@@ -22,10 +22,10 @@
 #include "my_inttypes.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h" // Global_THD_manager
-#include "rpl_gtid.h"           // rpl_sidno
-#include "sql_class.h"          // THD
-#include "transaction_info.h"
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/rpl_gtid.h"       // rpl_sidno
+#include "sql/sql_class.h"      // THD
+#include "sql/transaction_info.h"
 
 
 Rpl_transaction_ctx::Rpl_transaction_ctx()

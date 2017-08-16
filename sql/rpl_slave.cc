@@ -43,8 +43,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "rpl_channel_service_interface.h"
-#include "thr_malloc.h"
+#include "sql/rpl_channel_service_interface.h"
+#include "sql/thr_malloc.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -59,25 +59,14 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
 #include "binary_log_types.h"
-#include "binlog.h"
 #include "binlog_event.h"
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"                        // DEBUG_SYNC
 #include "debug_vars.h"
-#include "derror.h"                            // ER_THD
-#include "dynamic_ids.h"                       // Server_ids
 #include "errmsg.h"                            // CR_*
-#include "handler.h"
-#include "item.h"
 #include "lex_string.h"
-#include "log.h"
-#include "log_event.h"                         // Rotate_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_bitmap.h"                         // MY_BITMAP
 #include "my_byteorder.h"
 #include "my_command.h"
@@ -99,46 +88,57 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
-#include "mysqld.h"                            // ER
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"                // Global_THD_manager
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_filter.h"
-#include "rpl_group_replication.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"                       // RUN_HOOK
-#include "rpl_info.h"
-#include "rpl_info_factory.h"                  // Rpl_info_factory
-#include "rpl_info_handler.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h"                           // Multisource_info
-#include "rpl_mts_submode.h"
-#include "rpl_reporting.h"
-#include "rpl_rli.h"                           // Relay_log_info
-#include "rpl_rli_pdb.h"                       // Slave_worker
-#include "rpl_slave_commit_order_manager.h"    // Commit_order_manager
-#include "rpl_slave_until_options.h"
-#include "rpl_trx_boundary_parser.h"
-#include "rpl_utility.h"
-#include "sql_class.h"                         // THD
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                    // DEBUG_SYNC
+#include "sql/derror.h"                        // ER_THD
+#include "sql/dynamic_ids.h"                   // Server_ids
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                     // Rotate_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                        // ER
+#include "sql/mysqld_thd_manager.h"            // Global_THD_manager
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_group_replication.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"                   // RUN_HOOK
+#include "sql/rpl_info.h"
+#include "sql/rpl_info_factory.h"              // Rpl_info_factory
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"                       // Multisource_info
+#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_rli.h"                       // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                   // Slave_worker
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/rpl_utility.h"
+#include "sql/sql_class.h"                     // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                     // execute_init_command
+#include "sql/sql_plugin.h"                    // opt_plugin_dir_ptr
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction.h"                   // trans_begin
+#include "sql/transaction_info.h"
 #include "sql_common.h"                        // end_server
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                         // execute_init_command
-#include "sql_plugin.h"                        // opt_plugin_dir_ptr
-#include "sql_security_ctx.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
-#include "transaction.h"                       // trans_begin
-#include "transaction_info.h"
 #include "typelib.h"
 
 using std::min;

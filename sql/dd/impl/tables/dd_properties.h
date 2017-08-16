@@ -19,9 +19,9 @@
 #include <sys/types.h>
 #include <string>
 
-#include "dd/impl/properties_impl.h"                // dd::Properties_impl
-#include "dd/impl/types/object_table_impl.h"
-#include "dd/string_type.h"
+#include "sql/dd/impl/properties_impl.h"            // dd::Properties_impl
+#include "sql/dd/impl/types/object_table_impl.h"
+#include "sql/dd/string_type.h"
 
 class THD;
 

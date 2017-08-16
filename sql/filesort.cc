@@ -20,7 +20,7 @@
   Sorts a database.
 */
 
-#include "filesort.h"
+#include "sql/filesort.h"
 
 #include <limits.h>
 #include <math.h>
@@ -33,28 +33,12 @@
 
 #include "binary_log_types.h"
 #include "binlog_config.h"
-#include "bounded_queue.h"
-#include "cmp_varlen_keys.h"
-#include "debug_sync.h"
 #include "decimal.h"
-#include "derror.h"
-#include "error_handler.h"
-#include "field.h"
-#include "filesort_utils.h"
-#include "handler.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "json_dom.h"                   // Json_wrapper
-#include "key_spec.h"
-#include "log.h"
 #include "m_ctype.h"
-#include "malloc_allocator.h"
-#include "merge_many_buff.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -64,33 +48,49 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"                             // mysql_tmpdir
 #include "mysqld_error.h"
-#include "opt_costmodel.h"
-#include "opt_range.h"                          // QUICK
-#include "opt_trace.h"
-#include "opt_trace_context.h"
 #include "priority_queue.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "sort_param.h"
-#include "sql_array.h"
-#include "sql_base.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_executor.h"               // QEP_TAB
-#include "sql_lex.h"
-#include "sql_optimizer.h"              // JOIN
-#include "sql_security_ctx.h"
-#include "sql_sort.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/bounded_queue.h"
+#include "sql/cmp_varlen_keys.h"
+#include "sql/debug_sync.h"
+#include "sql/derror.h"
+#include "sql/error_handler.h"
+#include "sql/field.h"
+#include "sql/filesort_utils.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/json_dom.h"               // Json_wrapper
+#include "sql/key_spec.h"
+#include "sql/log.h"
+#include "sql/malloc_allocator.h"
+#include "sql/merge_many_buff.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                         // mysql_tmpdir
+#include "sql/opt_costmodel.h"
+#include "sql/opt_range.h"                      // QUICK
+#include "sql/opt_trace.h"
+#include "sql/opt_trace_context.h"
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/sort_param.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"           // QEP_TAB
+#include "sql/sql_lex.h"
+#include "sql/sql_optimizer.h"          // JOIN
+#include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_tmp_table.h"
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 using std::max;
 using std::min;

@@ -16,9 +16,9 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include "lock.h"                    // Tablespace_hash_set
 #include "mem_root_fwd.h"
-#include "thr_malloc.h"
+#include "sql/lock.h"                // Tablespace_hash_set
+#include "sql/thr_malloc.h"
 
 class THD;
 class st_alter_tablespace;

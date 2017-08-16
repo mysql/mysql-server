@@ -17,7 +17,7 @@
 #include "my_command.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_command.h"
-#include "srv_session.h"
+#include "sql/srv_session.h"
 
 /**
   @file

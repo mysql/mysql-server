@@ -23,13 +23,11 @@ host	%
 user	user2
 plugin	mysql_native_password
 authentication_string	
-CREATE USER user9@localhost IDENTIFIED BY PASSWORD 'auth_string';
+CREATE USER user9@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 
 CREATE USER user10@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$ABCDEFGHIJKLMNOPQRSTabcdefgh01234567ijklmnop89012345ABCDEFGH678';
 
 CREATE USER u1@localhost;
 SELECT User,plugin,authentication_string FROM mysql.user
@@ -1260,7 +1258,7 @@ CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NON
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
 SHOW CREATE USER u2@localhost;
 CREATE USER for u2@localhost
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 # DDL output for SHOW CREATE USER u2@localhost and recreating user
 DROP USER u2@localhost;
 CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
@@ -1305,13 +1303,13 @@ CREATE USER u6@localhost IDENTIFIED BY 'auth_string'
                          REQUIRE X509 PASSWORD EXPIRE INTERVAL 5 DAY;
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 ALTER USER u6@localhost IDENTIFIED BY 'auth_string'
                         REQUIRE X509 PASSWORD EXPIRE INTERVAL 19 DAY;
 # SHOW CREATE USER after ALTER user attributes
 SHOW CREATE USER u6@localhost;
 CREATE USER for u6@localhost
-CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE X509 PASSWORD EXPIRE INTERVAL 19 DAY ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 # Recreating user from SHOW CREATE output
 DROP USER u6@localhost;
 CREATE USER 'u6'@'localhost' IDENTIFIED WITH 'mysql_native_password'
@@ -1357,7 +1355,7 @@ CREATE USER u12@localhost IDENTIFIED BY 'auth_string'
                           WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u12@localhost;
 CREATE USER for u12@localhost
-CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
                           WITH MAX_CONNECTIONS_PER_HOUR 2;
 SHOW CREATE USER u13@localhost;
@@ -1458,7 +1456,7 @@ max_questions	60
 max_updates	100
 max_connections	1000
 CREATE USER user3@localhost IDENTIFIED BY 'auth_string';
-GRANT SELECT ON  mysql.user TO user3@localhost IDENTIFIED BY PASSWORD 'auth_string';
+GRANT SELECT ON  mysql.user TO user3@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 GRANT SELECT ON mysql.* TO user3@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
@@ -1467,18 +1465,16 @@ GRANT SELECT ON mysql.* TO user3@localhost IDENTIFIED WITH 'mysql_native_passwor
 MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-GRANT SELECT ON mysql.* TO user4@localhost IDENTIFIED BY PASSWORD 'auth_string';
+GRANT SELECT ON mysql.* TO user4@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 
 GRANT SELECT ON mysql.user TO user5@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT ON mysql.user TO user3@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost,user5@localhost;
@@ -1665,17 +1661,13 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS  '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 SELECT USER();
 USER()
@@ -1687,13 +1679,10 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Show binlog events
 include/show_binlog_events.inc
@@ -1758,17 +1747,13 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 SELECT USER();
 USER()
@@ -1778,13 +1763,10 @@ GRANT SELECT ON test.* TO u3@localhost IDENTIFIED BY 'azundris1' WITH GRANT OPTI
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET PASSWORD FOR u3@localhost = 'def';
-CREATE USER user10@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+CREATE USER user10@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 CREATE TABLE test_log_off (argument TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_password_OFF.log'
@@ -1809,12 +1791,12 @@ SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 CREATE USER 'user13'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK
 CREATE USER 'user15'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER
-CREATE USER user10@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user10@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
 command_type NOT LIKE 'Prepare';
 argument
@@ -1840,7 +1822,7 @@ command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 ------ done ------
 DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
 user12@localhost,user13@localhost,user14@localhost,user15@localhost,
@@ -1889,17 +1871,13 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 SELECT USER();
 USER()
@@ -1911,13 +1889,10 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Show binlog events
 include/show_binlog_events.inc
@@ -1941,7 +1916,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user16'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
 0.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*474F9F196851C7025F166095EDBBD42CFAB1DA6B'
 0.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*D29C6746E0E6EB234A3A7AC8BD4D8679D851DE53' WITH GRANT OPTION
-0.000001	#	Query	#	#	use `test`; SET PASSWORD FOR 'u3'@'localhost'='*EFA28F5E94885AA962E1AFC1912CE376EE374F65'
+0.000001	#	Query	#	#	use `test`; SET PASSWORD FOR '<some_user>'='<non-deterministic-password-hash>'
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user10'@'localhost' IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 0.000001	#	Query	#	#	use `test`; GRANT SELECT ON `mysql`.`user` TO 'user8'@'localhost' IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
@@ -1983,17 +1958,13 @@ ALTER USER user12@localhost IDENTIFIED WITH 'mysql_native_password'
 CREATE USER user13@localhost IDENTIFIED BY 'auth_string' ACCOUNT UNLOCK;
 ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 CREATE USER user15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'azundris1'
                              PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK;
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER;
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK;
 SELECT USER();
 USER()
@@ -2005,13 +1976,10 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET PASSWORD FOR u3@localhost = 'def';
 CREATE USER user10@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
 Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 CREATE TABLE test_log (argument TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_password_ON.log'
@@ -2037,13 +2005,13 @@ SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
                           ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
                           WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
 CREATE USER 'user13'@'localhost' IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER user14@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK
 CREATE USER 'user15'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER
 CREATE USER user10@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
 command_type NOT LIKE 'Prepare';
 argument
@@ -2069,7 +2037,7 @@ command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
 GRANT SELECT ON mysql.user TO user8@localhost
-IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
+IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 ------ done ------
 DROP USER user1@localhost,user8@localhost,user10@localhost,user11@localhost,
 user12@localhost,user13@localhost,user14@localhost,user15@localhost,
@@ -2170,10 +2138,10 @@ CREATE USER for user1@localhost
 CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SHOW CREATE USER user1@47.9.9.9;
 CREATE USER for user1@47.9.9.9
-CREATE USER 'user1'@'47.9.9.9' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'user1'@'47.9.9.9' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 SHOW CREATE USER user2;
 CREATE USER for user2@%
-CREATE USER 'user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 SHOW CREATE USER invalid_user;
 ERROR HY000: Operation SHOW CREATE USER failed for 'invalid_user'@'%'
 # case3 with all global privileges except SELECT
@@ -2227,6 +2195,6 @@ SHOW CREATE USER bug20625566_user@localhost;
 ERROR 42000: Access denied for user 'bug20625566_dest'@'localhost' to database 'mysql'
 SHOW CREATE USER bug20625566_dest@localhost;
 CREATE USER for bug20625566_dest@localhost
-CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*64AC67AF30F51749441BE9044F20D83D608F4B33' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<non-deterministic-password-hash>'
 DROP USER user1@localhost, user1@47.9.9.9, user2,
 bug20625566_user@localhost, bug20625566_dest@localhost;

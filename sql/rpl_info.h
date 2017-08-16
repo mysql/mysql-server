@@ -29,8 +29,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"            // NAME_LEN
-#include "rpl_info_handler.h"     // Rpl_info_handler
-#include "rpl_reporting.h"        // Slave_reporting_capability
+#include "sql/rpl_info_handler.h" // Rpl_info_handler
+#include "sql/rpl_reporting.h"    // Slave_reporting_capability
 
 class THD;
 

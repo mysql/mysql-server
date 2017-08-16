@@ -18,7 +18,7 @@
 #ifndef DEBUG_OPTIONS_INCLUDED
 #define DEBUG_OPTIONS_INCLUDED
 
-#include "abstract_options_provider.h"
+#include "client/base/abstract_options_provider.h"
 #include "my_compiler.h"
 #include "nullable.h"
 

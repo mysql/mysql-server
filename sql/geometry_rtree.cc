@@ -24,8 +24,8 @@
 #include <utility>
 #include <vector>
 
-#include "item_geofunc.h"
-#include "item_geofunc_internal.h"
+#include "sql/item_geofunc.h"
+#include "sql/item_geofunc_internal.h"
 
 
 struct Rtree_value_maker

@@ -16,13 +16,12 @@
 #ifndef DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
 #define DD_SYSTEM_VIEWS__SYSTEM_VIEW_DEFINITION_IMPL_INCLUDED
 
-#include "mysqld.h"                           // lower_case_table_names
-
-#include "dd/string_type.h"                   // dd::String_type
-#include "dd/types/system_view_definition.h"  // dd::System_view_definition
-
 #include <map>
 #include <vector>
+
+#include "sql/dd/string_type.h"               // dd::String_type
+#include "sql/dd/types/system_view_definition.h" // dd::System_view_definition
+#include "sql/mysqld.h"                       // lower_case_table_names
 
 namespace dd {
 namespace system_views {

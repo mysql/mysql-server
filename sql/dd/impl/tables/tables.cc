@@ -13,21 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/tables.h"
+#include "sql/dd/impl/tables/tables.h"
 
 #include <new>
 #include <string>
 
-#include "dd/dd.h"                         // dd::create_object
-#include "dd/impl/raw/object_keys.h"       // dd::Item_name_key
-#include "dd/impl/raw/raw_record.h"        // dd::Raw_record
-#include "dd/impl/types/object_table_definition_impl.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/table.h"
-#include "dd/types/view.h"                 // dd::View
 #include "mysql_com.h"
-#include "mysqld.h"
-#include "stateless_allocator.h"
+#include "sql/dd/dd.h"                     // dd::create_object
+#include "sql/dd/impl/raw/object_keys.h"   // dd::Item_name_key
+#include "sql/dd/impl/raw/raw_record.h"    // dd::Raw_record
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/view.h"             // dd::View
+#include "sql/mysqld.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace tables {

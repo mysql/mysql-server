@@ -38,9 +38,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <time.h>
-
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
@@ -58,13 +55,14 @@
 #include <mysql/components/services/psi_table_service.h>
 #include <mysql/components/services/psi_thread_service.h>
 #include <mysql/components/services/psi_transaction_service.h>
+#include <sys/types.h>
+#include <time.h>
 
 /**
   @file storage/perfschema/pfs.cc
   The performance schema implementation of all instruments.
 */
 #include "lex_string.h"
-#include "mdl.h" /* mdl_key_init */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -91,8 +89,10 @@
 #include "pfs_instr_class.h"
 #include "pfs_memory_provider.h"
 #include "pfs_metadata_provider.h"
+#include "pfs_plugin_table.h"
 #include "pfs_prepared_stmt.h"
 #include "pfs_program.h"
+#include "pfs_services.h"
 #include "pfs_setup_actor.h"
 #include "pfs_setup_object.h"
 #include "pfs_socket_provider.h"
@@ -104,15 +104,11 @@
 #include "pfs_transaction_provider.h"
 #include "pfs_user.h"
 #include "service_pfs_notification.h"
-#include "sp_head.h"
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/mdl.h" /* mdl_key_init */
+#include "sql/sp_head.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
 #include "thr_lock.h"
-#include "pfs_services.h"
-
-#include <mysql/components/component_implementation.h>
-#include "pfs_plugin_table.h"
-#include "pfs_services.h"
 
 /*
   Exporting cmake compilation flags to doxygen,

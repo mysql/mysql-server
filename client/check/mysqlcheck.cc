@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/check/mysqlcheck.h"
+
+#include <caching_sha2_passwordopt-vars.h>
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
@@ -22,13 +25,12 @@
 #include <stdlib.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqlcheck.h"
 #include "print_version.h"
 #include "typelib.h"
 
@@ -194,6 +196,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <caching_sha2_passwordopt-longopts.h>
 #include <sslopt-longopts.h>
 
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
@@ -448,6 +451,7 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqlcheck");
+  set_get_server_public_key_option(&mysql_connection);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {

@@ -22,9 +22,9 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "abstract_output_writer_wrapper.h"
-#include "base/mutex.h"
-#include "i_output_writer.h"
+#include "client/base/mutex.h"
+#include "client/dump/abstract_output_writer_wrapper.h"
+#include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
 #include "zlib.h"
 

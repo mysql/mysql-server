@@ -17,12 +17,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef BUILTIN_STUBS
 #define BUILTIN_STUBS
 
-#include "sql_class.h"
+#include <mysql/components/services/log_shared.h>
+#include <atomic>
 
 #include "my_compiler.h"
-#include <mysql/components/services/log_shared.h>
-
-#include <atomic>
+#include "sql/sql_class.h"
 
 std::atomic<int32> connection_events_loop_aborted_flag;
 thread_local THD  *current_thd= nullptr;

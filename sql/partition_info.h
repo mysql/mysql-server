@@ -19,16 +19,16 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "handler.h"
-#include "lock.h"                             // Tablespace_hash_set
 #include "my_bitmap.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "partition_element.h"
-#include "sql_alloc.h"
-#include "sql_bitmap.h"                       // Bitmap
-#include "sql_data_change.h"                  // enum_duplicates
-#include "sql_list.h"
+#include "sql/handler.h"
+#include "sql/lock.h"                         // Tablespace_hash_set
+#include "sql/partition_element.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h"                   // Bitmap
+#include "sql/sql_data_change.h"              // enum_duplicates
+#include "sql/sql_list.h"
 
 class Field;
 class Item;

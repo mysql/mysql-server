@@ -22,11 +22,11 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_global.h"
 #include "pfs_timer.h"
+#include "sql/field.h"
 #include "table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;

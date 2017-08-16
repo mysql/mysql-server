@@ -14,10 +14,10 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
+#include "sql/sql_bootstrap.h"
+
 #include <ctype.h>
 #include <string.h>
-
-#include "sql_bootstrap.h"
 
 int read_bootstrap_query(char *query, size_t *query_length,
                          fgets_input_t input, fgets_fn_t fgets_fn, int *error)

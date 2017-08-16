@@ -13,23 +13,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd/info_schema/show_query_builder.h" // Select_lex_builder
+#include "sql/dd/info_schema/show_query_builder.h" // Select_lex_builder
 
-#include "item_cmpfunc.h"                      // Item_func_like
-#include "item_func.h"
-#include "key.h"
-#include "key_spec.h"
 #include "m_string.h"                          // C_STRING_WITH_LEN
 #include "my_dbug.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h"
-#include "parse_tree_items.h"                  // PTI_simple_ident_ident
-#include "parse_tree_node_base.h"
-#include "parse_tree_nodes.h"                  // PT_select_item_list
-#include "query_options.h"                     // OPTION_SELECT_FOR_SHOW
-#include "sql_class.h"
-#include "sql_lex.h"                           // Query_options
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/item_cmpfunc.h"                  // Item_func_like
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h"
+#include "sql/parse_tree_items.h"              // PTI_simple_ident_ident
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h"              // PT_select_item_list
+#include "sql/query_options.h"                 // OPTION_SELECT_FOR_SHOW
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"                       // Query_options
 #include "sql_string.h"
 
 class Item;

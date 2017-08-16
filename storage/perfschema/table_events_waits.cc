@@ -20,7 +20,6 @@
 
 #include "storage/perfschema/table_events_waits.h"
 
-#include "field.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -32,6 +31,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
+#include "sql/field.h"
 
 bool
 PFS_index_events_waits::match(PFS_thread *pfs)

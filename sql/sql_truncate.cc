@@ -18,20 +18,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // DROP_ACL
-#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
-#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
-#include "dd/dd_table.h"    // dd::table_storage_engine
-#include "dd/types/abstract_table.h" // dd::enum_table_type
-#include "debug_sync.h"     // DEBUG_SYNC
-#include "handler.h"
-#include "item_create.h"
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"           // MYSQL_OPEN_* flags
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -39,21 +27,33 @@
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "sql_audit.h"      // mysql_audit_table_access_notify
-#include "sql_base.h"       // open_and_lock_tables
-#include "sql_class.h"      // THD
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_show.h"       // append_identifier()
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // DROP_ACL
+#include "sql/dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h" // dd::Schema_MDL_locker
+#include "sql/dd/dd_table.h" // dd::table_storage_engine
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/debug_sync.h" // DEBUG_SYNC
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/key.h"
+#include "sql/lock.h"       // MYSQL_OPEN_* flags
+#include "sql/mdl.h"
+#include "sql/query_options.h"
+#include "sql/sql_audit.h"  // mysql_audit_table_access_notify
+#include "sql/sql_base.h"   // open_and_lock_tables
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"   // append_identifier()
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"      // TABLE, FOREIGN_KEY_INFO
+#include "sql/transaction.h" // trans_commit_stmt()
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"          // TABLE, FOREIGN_KEY_INFO
 #include "thr_lock.h"
-#include "transaction.h"    // trans_commit_stmt()
-#include "transaction_info.h"
 
 namespace dd {
 class Table;

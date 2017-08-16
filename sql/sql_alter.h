@@ -23,16 +23,16 @@
 
 #include "binary_log_types.h" // enum_field_types
 #include "lex_string.h"
-#include "mem_root_array.h" // Mem_root_array
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_alloc.h"
-#include "sql_cmd.h"  // Sql_cmd
-#include "sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
-#include "sql_list.h" // List
-#include "thr_malloc.h"
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_alloc.h"
+#include "sql/sql_cmd.h" // Sql_cmd
+#include "sql/sql_cmd_ddl_table.h" // Sql_cmd_ddl_table
+#include "sql/sql_list.h" // List
+#include "sql/thr_malloc.h"
 
 class Create_field;
 class FOREIGN_KEY;

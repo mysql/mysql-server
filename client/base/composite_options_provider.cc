@@ -21,7 +21,7 @@
 #include <stddef.h>
 #include <vector>
 
-#include "i_options_provider.h"
+#include "client/base/i_options_provider.h"
 #include "my_dbug.h"
 
 using std::vector;

@@ -20,9 +20,9 @@
 
 #include <atomic>
 
-#include "base/abstract_connection_program.h"
-#include "mysql_chain_element_options.h"
-#include "mysqldump_tool_chain_maker_options.h"
+#include "client/base/abstract_connection_program.h"
+#include "client/dump/mysql_chain_element_options.h"
+#include "client/dump/mysqldump_tool_chain_maker_options.h"
 
 namespace Mysql{
 namespace Tools{

@@ -24,7 +24,7 @@
 #include "my_inttypes.h"
 #include "my_time.h"                 // interval_type
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"               // Sql_alloc
+#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class THD;

@@ -16,10 +16,11 @@
 */
 
 #include <cmath>
-#include <spatial.h>
+
 #include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "rtree_support.h"
+#include "sql/spatial.h"
 
 /* Types of "well-known binary representation" (wkb) format. */
 enum wkbType

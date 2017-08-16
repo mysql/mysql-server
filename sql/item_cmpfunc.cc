@@ -21,7 +21,7 @@
   This file defines all compare functions
 */
 
-#include "item_cmpfunc.h"
+#include "sql/item_cmpfunc.h"
 
 #include <limits.h>
 #include <math.h>
@@ -29,16 +29,7 @@
 #include <functional>
 #include <type_traits>
 
-#include "aggregate_check.h"    // Distinct_check
-#include "check_stack.h"
-#include "current_thd.h"        // current_thd
 #include "decimal.h"
-#include "field.h"
-#include "item_json_func.h"     // json_value, get_json_atom_wrapper
-#include "item_subselect.h"     // Item_subselect
-#include "item_sum.h"           // Item_sum_hybrid
-#include "json_dom.h"           // Json_scalar_holder
-#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mf_wcomp.h"           // wild_one, wild_many
@@ -48,25 +39,34 @@
 #include "my_sqlcommand.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"             // log_10
 #include "mysqld_error.h"
-#include "opt_trace.h"          // Opt_trace_object
-#include "parse_tree_helpers.h" // PT_item_list
-#include "set_var.h"
-#include "sql_array.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"          // THD
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"      // JOIN
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "sql_time.h"           // str_to_datetime
-#include "system_variables.h"
-#include "thr_malloc.h"
-#include "value_map.h"
+#include "sql/aggregate_check.h" // Distinct_check
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"    // current_thd
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_json_func.h" // json_value, get_json_atom_wrapper
+#include "sql/item_subselect.h" // Item_subselect
+#include "sql/item_sum.h"       // Item_sum_hybrid
+#include "sql/json_dom.h"       // Json_scalar_holder
+#include "sql/key.h"
+#include "sql/mysqld.h"         // log_10
+#include "sql/opt_trace.h"      // Opt_trace_object
+#include "sql/parse_tree_helpers.h" // PT_item_list
+#include "sql/set_var.h"
+#include "sql/sql_array.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_time.h"       // str_to_datetime
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 using std::min;
 using std::max;

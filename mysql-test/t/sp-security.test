@@ -758,7 +758,7 @@ DROP DATABASE mysqltest;
 GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
 user19857@localhost;
-SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
+SELECT Host,User FROM mysql.user WHERE User='user19857';
 
 --connect (mysqltest_2_con,localhost,user19857,meow,test)
 --echo
@@ -790,7 +790,7 @@ DROP PROCEDURE IF EXISTS test.sp19857;
 
 --disconnect mysqltest_2_con
 
-SELECT Host,User,authentication_string FROM mysql.user WHERE User='user19857';
+SELECT Host,User FROM mysql.user WHERE User='user19857';
 
 DROP USER user19857@localhost;
 

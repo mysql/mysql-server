@@ -18,7 +18,7 @@
 #ifndef MYSQL_FUNCTION_INCLUDED
 #define MYSQL_FUNCTION_INCLUDED
 
-#include "abstract_plain_sql_object_dump_task.h"
+#include "client/dump/abstract_plain_sql_object_dump_task.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

@@ -30,7 +30,7 @@
   deletes in disk order.
 */
 
-#include "uniques.h"                            // Unique
+#include "sql/uniques.h"                        // Unique
 
 #include <string.h>
 #include <algorithm>
@@ -39,8 +39,6 @@
 #include <new>
 #include <vector>
 
-#include "malloc_allocator.h"
-#include "merge_many_buff.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -49,16 +47,18 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                             // mysql_tmpdir
-#include "opt_costmodel.h"
 #include "priority_queue.h"
-#include "psi_memory_key.h"
-#include "sql_base.h"                           // TEMP_PREFIX
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_sort.h"
+#include "sql/malloc_allocator.h"
+#include "sql/merge_many_buff.h"
+#include "sql/mysqld.h"                         // mysql_tmpdir
+#include "sql/opt_costmodel.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_base.h"                       // TEMP_PREFIX
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_sort.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 
 namespace 
 {

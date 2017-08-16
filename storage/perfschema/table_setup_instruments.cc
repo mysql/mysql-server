@@ -22,7 +22,6 @@
 
 #include <stddef.h>
 
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "pfs_builtin_memory.h"
@@ -32,6 +31,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_setup_object.h"
+#include "sql/field.h"
 
 THR_LOCK table_setup_instruments::m_table_lock;
 

@@ -25,7 +25,7 @@ Clone handler interface to access clone plugin
 
 #include "my_io.h"
 #include "mysql/plugin_clone.h"
-#include "sql_plugin_ref.h"    // plugin_ref
+#include "sql/sql_plugin_ref.h" // plugin_ref
 
 class THD;
 struct Mysql_clone;

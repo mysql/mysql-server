@@ -35,7 +35,7 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "rpl_channel_service_interface.h" // enum_channel_type
+#include "sql/rpl_channel_service_interface.h" // enum_channel_type
 
 class Master_info;
 class Relay_log_info;

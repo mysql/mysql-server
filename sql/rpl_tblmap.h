@@ -23,8 +23,8 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 /* Forward declarations */
 #ifdef MYSQL_SERVER

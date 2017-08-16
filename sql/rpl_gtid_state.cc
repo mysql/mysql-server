@@ -18,12 +18,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog.h"
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"            // DEBUG_SYNC
-#include "key.h"
-#include "mdl.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -31,16 +26,21 @@
 #include "my_systime.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"                // opt_bin_log
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "rpl_gtid_persist.h"      // gtid_table_persistor
-#include "sql_class.h"             // THD
-#include "sql_error.h"
-#include "system_variables.h"
-#include "thr_malloc.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"        // DEBUG_SYNC
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"            // opt_bin_log
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_gtid_persist.h"  // gtid_table_persistor
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_error.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 struct TABLE_LIST;
 

@@ -21,7 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "../../components/mysql_server/component_sys_var_service.h"
 #include "../components/mysql_server/server_component.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -42,15 +41,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"
-#include "persisted_variable.h"// Persisted_variables_cache
-#include "set_var.h"
-#include "sql_plugin_var.h"
-#include "sql_show.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/persisted_variable.h"// Persisted_variables_cache
+#include "sql/set_var.h"
+#include "sql/sql_plugin_var.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_table.h"
-#include "sys_vars_shared.h"
-#include "thr_malloc.h"
 
 #define FREE_RECORD(sysvar)                                                 \
   my_free((void *)                                                             \

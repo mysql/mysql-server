@@ -18,11 +18,10 @@
 Clone handler implementation
 */
 
-#include "clone_handler.h"
+#include "sql/clone_handler.h"
 
 #include <string.h>
 
-#include "log.h"                  // sql_print_error
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
@@ -32,10 +31,11 @@ Clone handler implementation
 #include "mysql/plugin_clone.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "sql_parse.h"
-#include "sql_plugin.h"           // plugin_unlock
+#include "sql/log.h"              // sql_print_error
+#include "sql/mysqld.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_plugin.h"       // plugin_unlock
 #include "sql_string.h"           // to_lex_cstring
 
 class THD;

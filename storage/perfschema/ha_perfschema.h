@@ -18,8 +18,8 @@
 
 #include <sys/types.h>
 
-#include "handler.h" /* class handler */
 #include "my_inttypes.h"
+#include "sql/handler.h" /* class handler */
 
 /**
   @file storage/perfschema/ha_perfschema.h

@@ -19,14 +19,15 @@
 */
 
 #include <mysql/components/services/pfs_plugin_table_service.h>
+#include <list>
+#include <string>
 
 #include "pfs_column_values.h"
 #include "pfs_plugin_table.h"
-#include "table_plugin_table.h"
+#include "sql/handler.h"
+#include "sql/pfs_priv_util.h"
 #include "table_helper.h"
-#include "pfs_priv_util.h"
-#include <list>
-#include <string>
+#include "table_plugin_table.h"
 
 /* clang-format off */
 /**

@@ -17,12 +17,12 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "item.h"
-#include "item_func.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_get_diagnostics.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/sql_get_diagnostics.h"
 #include "test_utils.h"
 
 namespace get_diagnostics_unittest {

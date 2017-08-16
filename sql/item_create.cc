@@ -35,19 +35,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "item.h"
-#include "item_cmpfunc.h"        // Item_func_any_value
-#include "item_func.h"           // Item_func_udf_str
-#include "item_geofunc.h"        // Item_func_area
-#include "item_inetfunc.h"       // Item_func_inet_ntoa
-#include "item_json_func.h"      // Item_func_json
-#include "item_strfunc.h"        // Item_func_aes_encrypt
-#include "item_sum.h"            // Item_sum_udf_str
-#include "item_timefunc.h"       // Item_func_add_time
-#include "item_xmlfunc.h"        // Item_func_xml_extractvalue
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -55,19 +44,30 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h"  // PT_item_list
-#include "sql_class.h"           // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_exception_handler.h"  // handle_std_exception
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"    // Item_func_any_value
+#include "sql/item_func.h"       // Item_func_udf_str
+#include "sql/item_geofunc.h"    // Item_func_area
+#include "sql/item_inetfunc.h"   // Item_func_inet_ntoa
+#include "sql/item_json_func.h"  // Item_func_json
+#include "sql/item_strfunc.h"    // Item_func_aes_encrypt
+#include "sql/item_sum.h"        // Item_sum_udf_str
+#include "sql/item_timefunc.h"   // Item_func_add_time
+#include "sql/item_xmlfunc.h"    // Item_func_xml_extractvalue
+#include "sql/my_decimal.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h" // PT_item_list
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h" // handle_std_exception
+#include "sql/sql_lex.h"
+#include "sql/sql_time.h"        // str_to_datetime
+#include "sql/sql_udf.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "sql_time.h"            // str_to_datetime
-#include "sql_udf.h"
-#include "system_variables.h"
-#include "value_map.h"
 
 
 /**

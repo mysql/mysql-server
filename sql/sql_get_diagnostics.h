@@ -18,8 +18,8 @@
 
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "sql_alloc.h"   // Sql_alloc
-#include "sql_cmd.h"     // Sql_cmd
+#include "sql/sql_alloc.h" // Sql_alloc
+#include "sql/sql_cmd.h" // Sql_cmd
 
 class Diagnostics_area;
 class Diagnostics_information;

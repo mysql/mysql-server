@@ -21,7 +21,7 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+#include "sql/sql_class.h"                      // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
 
 using std::string;

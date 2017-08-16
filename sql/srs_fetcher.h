@@ -18,8 +18,8 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include "gis/geometries.h"
-#include "gis/srid.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/srid.h"
 
 namespace dd {
   class Spatial_reference_system;

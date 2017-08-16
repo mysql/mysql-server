@@ -27,7 +27,7 @@
    dynamic functions, so this shouldn't be a real problem.
 */
 
-#include "sql_udf.h"
+#include "sql/sql_udf.h"
 
 #include "my_config.h"
 
@@ -39,14 +39,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "field.h"
-#include "handler.h"
-#include "item_create.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_stpcpy
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -67,21 +62,26 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
-#include "mysqld.h"             // opt_allow_suspicious_udfs
 #include "mysqld_error.h"       // ER_*
-#include "psi_memory_key.h"
-#include "records.h"            // READ_RECORD
-#include "sql_base.h"           // close_mysql_tables
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_parse.h"          // check_string_char_length
-#include "sql_plugin.h"         // check_valid_path
-#include "sql_servers.h"
-#include "sql_table.h"          // write_bin_log
-#include "table.h"              // TABLE_LIST
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"         // opt_allow_suspicious_udfs
+#include "sql/psi_memory_key.h"
+#include "sql/records.h"        // READ_RECORD
+#include "sql/sql_base.h"       // close_mysql_tables
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_parse.h"      // check_string_char_length
+#include "sql/sql_plugin.h"     // check_valid_path
+#include "sql/sql_servers.h"
+#include "sql/sql_table.h"      // write_bin_log
+#include "sql/table.h"          // TABLE_LIST
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"    // trans_*
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"        // trans_*
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -828,7 +828,7 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name)
   DBUG_RETURN(error);
 }
 
-#include "udf_registration_imp.h"
+#include "sql/udf_registration_imp.h"
 
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc)
 {

@@ -16,7 +16,7 @@
 #ifndef DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED
 #define DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED
 
-#include "dd/types/system_view.h"                       // System_view
+#include "sql/dd/types/system_view.h"                   // System_view
 
 namespace dd {
 namespace system_views {

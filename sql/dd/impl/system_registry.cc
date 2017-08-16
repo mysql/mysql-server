@@ -67,7 +67,7 @@
 #include "dd/impl/tables/view_routine_usage.h"       // View_routine_usage
 #include "dd/impl/tables/view_table_usage.h"         // View_table_usage
 #include "lex_string.h"
-#include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
+#include "sql/table.h"                               // MYSQL_SYSTEM_SCHEMA
 
 using namespace dd::tables;
 

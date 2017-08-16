@@ -24,8 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -41,20 +39,22 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_context.h"
-#include "rpl_gtid.h"
-#include "set_var.h"
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_show.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_context.h"
+#include "sql/rpl_gtid.h"
+#include "sql/set_var.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "template_utils.h"
-#include "transaction_info.h"
-#include "xa.h"
 
 static void store_lenenc_string(String &to, const char *from,
                                 size_t length);

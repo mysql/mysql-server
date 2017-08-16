@@ -1257,6 +1257,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1269,6 +1271,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	1
@@ -1281,6 +1285,8 @@ c1	c2	c3
 1	hello	world
 2	hello2	world2
 3	hello3	world3
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 show status like 'slow_queries';
 Variable_name	Value
 Slow_queries	2

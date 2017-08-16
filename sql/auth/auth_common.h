@@ -26,13 +26,13 @@
 #include <utility>
 #include <vector>
 
-#include "dynamic_privileges_impl.h"
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 /* Forward Declarations */
 class Alter_info;
@@ -732,6 +732,7 @@ bool is_acl_user(THD *thd, const char *host, const char *user);
 bool acl_getroot(THD *thd, Security_context *sctx, char *user,
                  char *host, char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd);
+void notify_flush_event(THD *thd);
 
 /* sql_authorization */
 bool has_grant_role_privilege(THD *thd);

@@ -26,8 +26,6 @@
 #include <string>
 #include <vector>
 
-#include "handler.h"              // Handler_share
-#include "key.h"                  // key_rec_cmp
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"              // ha_rows.
@@ -40,8 +38,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"         // ER_ILLEGAL_HA
 #include "priority_queue.h"
-#include "sql_alloc.h"
-#include "sql_partition.h"        // part_id_range
+#include "sql/handler.h"          // Handler_share
+#include "sql/key.h"              // key_rec_cmp
+#include "sql/sql_alloc.h"
+#include "sql/sql_partition.h"    // part_id_range
 
 class Field;
 class THD;

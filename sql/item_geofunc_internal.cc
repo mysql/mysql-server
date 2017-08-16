@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item_geofunc_internal.h"
+#include "sql/item_geofunc_internal.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
@@ -28,19 +28,19 @@
 #include <iterator>
 #include <memory>
 
-#include "dd/cache/dictionary_client.h"
-#include "item_func.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "parse_tree_node_base.h"
-#include "sql_class.h"             // THD
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/item_func.h"
+#include "sql/mdl.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_class.h"         // THD
+#include "sql/srs_fetcher.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "srs_fetcher.h"
-#include "system_variables.h"
 #include "template_utils.h"
 
 namespace dd {

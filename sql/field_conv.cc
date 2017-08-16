@@ -29,31 +29,31 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "current_thd.h"
-#include "field.h"
-#include "item_timefunc.h"               // Item_func_now_local
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "session_tracker.h"
-#include "sql_class.h"                          // THD
-#include "sql_const.h"
-#include "sql_error.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_timefunc.h"           // Item_func_now_local
+#include "sql/my_decimal.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_time.h"
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"              // down_cast
-#include "value_map.h"
 
 
 /**

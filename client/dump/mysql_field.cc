@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_field.h"
+#include "client/dump/mysql_field.h"
 
 using namespace Mysql::Tools::Dump;
 using namespace std;

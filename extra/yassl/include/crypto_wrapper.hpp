@@ -421,6 +421,7 @@ struct EncryptedInfo {
 };
 
 x509* PemToDer(FILE*, CertType, EncryptedInfo* info = 0);
+x509* PemToDer(const void * buffer, CertType type, long buffer_size);
 
 
 } // naemspace

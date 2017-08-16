@@ -3356,7 +3356,6 @@ CREATE TABLE `A` (
   KEY `col_int_key` (`col_int_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 
-
 INSERT INTO `A` VALUES ('nznrrizpfk','znrrizpfkx',66,'2006-07-12','2004-06-08','nrrizpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhh',1,'TWLFR',NULL,'CROGF','the','back','0000-00-00 00:00:00','LHIBY',217),('c','GQPFO',28,NULL,'0000-00-00','well',2,'or',NULL,'rrizpfkxce','rizpfkxceksatef','izpfkxceks','0000-00-00 00:00:00','zpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsx',179),('but','XXDMG',44,'2002-09-18',NULL,'some',3,'come','2004-10-05 00:00:00','pfkxceksat','it','p','2001-02-20 00:00:00','YOTTT',238),('fkxceksate','WVXCD',168,'2009-12-23','2005-04-16','kxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuj',4,'SJYOI',NULL,'y','xceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuju','have','0000-00-00 00:00:00','ceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujul',99),('just','i',0,'2003-11-07','0000-00-00','come',5,'can\'t','2006-03-17 18:41:01','not','eksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulp','ksatefqsdk','2000-11-05 22:46:38','k',75);
 
 CREATE TABLE `AA` (
@@ -3414,7 +3413,6 @@ CREATE TABLE `B` (
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 
 INSERT INTO `B` VALUES (1,229,'a','2003-05-12 00:00:00','x','2002-07-16 00:00:00','p','satefqsdks','can\'t','0000-00-00','atefqsdksj','tefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvt','my',92,NULL),(2,159,'efqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnoz','0000-00-00 00:00:00','fqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxnd','2007-04-08 09:43:38','her','qsdksjijcs','sdksjijcsz','2006-03-26','VXECY','why','JNAFV',70,'0000-00-00'),(3,42,'dksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaij','2009-02-12 04:14:15','back','2000-07-26 07:47:30','r','go','ksjijcszxw','0000-00-00','s','o','sjijcszxwb',200,'0000-00-00'),(4,146,'jijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurs','0000-00-00 00:00:00','EXVCL','0000-00-00 00:00:00','DFVNQ','ijcszxwbjj','NMTOX','2004-12-17','p','jcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurspr','i',104,'2002-03-06'),(5,235,'i','0000-00-00 00:00:00','he\'s','2000-01-06 20:32:48','cszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyci','YGVHA','EFEOY','2000-01-18','szxwbjjvvk','oh','not',239,'2001-07-22');
-
 
 ALTER TABLE A ADD COLUMN col_varchar_10_latin1_gckey VARCHAR(20) GENERATED ALWAYS AS (CONCAT(col_varchar_10_latin1_key,'x')) VIRTUAL;
 ALTER TABLE B ADD COLUMN col_int_gckey INT GENERATED ALWAYS AS (col_int_key + col_int_key) VIRTUAL;
@@ -3525,7 +3523,7 @@ FROM t  GROUP BY a);
 DROP TABLE twf,t;
 
 --echo #
---echo # That that user hasn't changed default internal temporary table storage
+--echo # Check that user hasn't changed default internal temporary table storage
 --echo # engine
 --echo #
 SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
@@ -3534,6 +3532,57 @@ SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
 SELECT ROW_NUMBER() OVER () FROM DUAL;
 SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
 
+--echo #
+--echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3), (4);
+SELECT ISNULL(COS(RANK() OVER())) FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
+--echo #
+
+SET @savmode=@@SESSION.SQL_MODE;
+SET SQL_MODE='';
+CREATE TABLE t(a JSON NOT NULL);
+INSERT INTO t VALUES();
+SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496733
+
+--echo #
+--echo # Bug#26497353: ASSERTION FAILED: M_OPENED_TABLE != NULLPTR
+--echo #
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+
+SELECT DENSE_RANK() OVER w2 FROM t GROUP BY 'a' WITH ROLLUP
+WINDOW w2 AS (ROWS UNBOUNDED PRECEDING);
+
+DROP TABLE t;
+
+--echo # End of test for Bug#26497353
+
+--echo #
+--echo # Bug #26496645: WINDOW FUNCTIONS: CRASH IN
+--echo #                WINDOW::RESTORE_SPECIAL_RECORD
+--echo #
+
+CREATE TABLE t (
+b VARCHAR(20) DEFAULT NULL,
+d INT DEFAULT NULL);
+insert into t values(1,-1);
+insert into t values(1,-1);
+SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+                              UNBOUNDED FOLLOWING) FROM t;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496645
 
 # Local Variables:
 # mode: sql

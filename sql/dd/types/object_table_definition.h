@@ -18,8 +18,8 @@
 
 #include <vector>
 
-#include "dd/string_type.h"                    // dd::String_type
 #include "my_inttypes.h"
+#include "sql/dd/string_type.h"                // dd::String_type
 
 namespace dd {
 

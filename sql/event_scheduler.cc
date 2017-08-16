@@ -15,22 +15,13 @@
 
 #define LOG_SUBSYSTEM_TAG "event"
 
-#include "event_scheduler.h"
+#include "sql/event_scheduler.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
-#include "event_data_objects.h"
-#include "event_db_repository.h"
-#include "event_queue.h"
-#include "events.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
@@ -46,19 +37,28 @@
 #include "mysql/thread_type.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                  // my_localhost slave_net_timeout
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"      // Global_THD_manager
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "sql_class.h"               // THD
-#include "sql_const.h"
-#include "sql_error.h"               // Sql_condition
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/dd/dd_schema.h"           // dd::Schema_MDL_locker
+#include "sql/event_data_objects.h"
+#include "sql/event_db_repository.h"
+#include "sql/event_queue.h"
+#include "sql/events.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"              // my_localhost slave_net_timeout
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"           // Sql_condition
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "thr_mutex.h"
 
 /**

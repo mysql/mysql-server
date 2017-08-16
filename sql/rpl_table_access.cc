@@ -19,20 +19,20 @@
 
 #include <stddef.h>
 
-#include "current_thd.h" // my_thread_set_THR_THD
-#include "handler.h"     // ha_rollback_trans
 #include "lex_string.h"
-#include "log.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_base.h"    // close_thread_tables
-#include "sql_class.h"   // THD
-#include "sql_lex.h"     // Query_tables_list
-#include "sql_security_ctx.h"
-#include "table.h"       // TABLE_LIST
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h" // my_thread_set_THR_THD
+#include "sql/handler.h" // ha_rollback_trans
+#include "sql/log.h"
+#include "sql/sql_base.h" // close_thread_tables
+#include "sql/sql_class.h" // THD
+#include "sql/sql_lex.h" // Query_tables_list
+#include "sql/table.h"   // TABLE_LIST
 
 
 bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,

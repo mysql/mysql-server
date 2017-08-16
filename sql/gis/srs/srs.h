@@ -21,8 +21,8 @@
 #include <cmath>
 #include <cstdint>
 
-#include "gis/srid.h"
 #include "my_dbug.h"
+#include "sql/gis/srid.h"
 
 namespace gis { namespace srs {
 

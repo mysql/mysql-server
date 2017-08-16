@@ -23,7 +23,6 @@
 
 #include "my_config.h"
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -41,6 +40,7 @@
 #include "pfs_setup_object.h"
 #include "pfs_user.h"
 #include "pfs_variable.h"
+#include "sql/field.h"
 
 /* TINYINT TYPE */
 void

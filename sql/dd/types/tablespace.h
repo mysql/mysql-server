@@ -18,11 +18,11 @@
 
 #include <vector>
 
-#include "dd/collection.h"                // dd::Collection
-#include "dd/sdi_fwd.h"                   // RJ_Document
-#include "dd/types/entity_object.h"       // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/collection.h"            // dd::Collection
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
+#include "sql/dd/sdi_fwd.h"               // RJ_Document
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 class THD;
 

@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "sp.h"
+#include "sql/sp.h"
 
 #include <string.h>
 #include <algorithm>
@@ -25,30 +25,8 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"    // check_some_routine_access
-#include "binlog.h"         // mysql_bin_log
-#include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
-#include "dd/dd_routine.h"                     // dd routine methods.
-#include "dd/string_type.h"
-#include "dd/types/function.h"
-#include "dd/types/procedure.h"
-#include "dd/types/routine.h"
-#include "dd/types/schema.h"
-#include "dd_sp.h"          // prepare_sp_chistics_from_dd_routine
-#include "dd_sql_view.h"    // update_referencing_views_metadata
-#include "dd_table_share.h" // dd_get_mysql_charset
-#include "debug_sync.h"     // DEBUG_SYNC
-#include "error_handler.h"  // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "key.h"            // key_copy
-#include "lock.h"           // lock_object_name
-#include "log.h"
-#include "log_event.h"      // append_query_string
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -61,32 +39,54 @@
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
-#include "mysqld.h"         // trust_function_creators
 #include "mysqld_error.h"
-#include "protocol.h"
-#include "psi_memory_key.h" // key_memory_sp_head_main_root
-#include "set_var.h"
-#include "sp_cache.h"       // sp_cache_invalidate
-#include "sp_head.h"        // Stored_program_creation_ctx
-#include "sp_pcontext.h"    // sp_pcontext
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_db.h"         // get_default_db_collation
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_list.h"
-#include "sql_parse.h"      // parse_sql
-#include "sql_security_ctx.h"
-#include "sql_show.h"       // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_some_routine_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"     // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
+#include "sql/dd/dd_routine.h"                 // dd routine methods.
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/function.h"
+#include "sql/dd/types/procedure.h"
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd_sp.h"      // prepare_sp_chistics_from_dd_routine
+#include "sql/dd_sql_view.h" // update_referencing_views_metadata
+#include "sql/dd_table_share.h" // dd_get_mysql_charset
+#include "sql/debug_sync.h" // DEBUG_SYNC
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"        // key_copy
+#include "sql/lock.h"       // lock_object_name
+#include "sql/log.h"
+#include "sql/log_event.h"  // append_query_string
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // trust_function_creators
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h" // key_memory_sp_head_main_root
+#include "sql/set_var.h"
+#include "sql/sp_cache.h"   // sp_cache_invalidate
+#include "sql/sp_head.h"    // Stored_program_creation_ctx
+#include "sql/sp_pcontext.h" // sp_pcontext
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"     // get_default_db_collation
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"  // parse_sql
+#include "sql/sql_show.h"   // append_identifier
+#include "sql/sql_table.h"  // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "sql_table.h"      // write_bin_log
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"
-#include "transaction_info.h"
 
 class sp_rcontext;
 

@@ -25,7 +25,7 @@
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "rpl_rli_pdb.h"    // get_thd_worker
+#include "sql/rpl_rli_pdb.h" // get_thd_worker
 
 class THD;
 

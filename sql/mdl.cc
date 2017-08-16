@@ -14,14 +14,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "mdl.h"
+#include "sql/mdl.h"
 
 #include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
 
-#include "debug_sync.h"
 #include "lf.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -44,7 +43,8 @@
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "thr_malloc.h"
+#include "sql/debug_sync.h"
+#include "sql/thr_malloc.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 

@@ -16,7 +16,7 @@
 #ifndef ROLE_TABLES_H
 #define	ROLE_TABLES_H
 
-#include "auth_common.h"
+#include "sql/auth/auth_common.h"
 
 class THD;
 struct TABLE;

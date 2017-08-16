@@ -21,8 +21,8 @@
 /// This file declares the interface to calculate distance between two
 /// geometries.
 
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "geometries.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
 
 namespace gis {
 

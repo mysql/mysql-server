@@ -66,14 +66,14 @@
   The event itself is not locked.
 */
 
-#include "log.h"
-#include "log_builtins_imp.h"
-#include "log_builtins_filter_imp.h"
-
-// for the default rules
-#include <mysqld.h>
-#include <mysqld_error.h>
 #include <my_atomic.h>
+#include <mysqld_error.h>
+
+#include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h"
+#include "sql/log.h"
+// for the default rules
+#include "sql/mysqld.h"
 
 
 static bool  filter_inited=    false;

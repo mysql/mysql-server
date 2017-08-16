@@ -21,25 +21,14 @@
   Sum functions (COUNT, MIN...)
 */
 
-#include "item_sum.h"
+#include "sql/item_sum.h"
 
 #include <algorithm>
 #include <cstring>
 #include <functional>
 #include <string>
 
-#include "aggregate_check.h"               // Distinct_check
-#include "current_thd.h"                   // current_thd
 #include "decimal.h"
-#include "derror.h"                        // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_json_func.h"
-#include "item_subselect.h"
-#include "json_dom.h"
-#include "key_spec.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
@@ -47,29 +36,40 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "opt_trace.h"
-#include "parse_tree_helpers.h"            // PT_item_list
-#include "parse_tree_nodes.h"              // PT_order_list
-#include "sql_array.h"
-#include "sql_class.h"                     // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_exception_handler.h"         // handle_std_exception
-#include "sql_executor.h"                  // copy_fields
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_resolver.h"                  // setup_order
-#include "sql_security_ctx.h"
-#include "sql_select.h"
-#include "sql_tmp_table.h"                 // create_tmp_table
-#include "system_variables.h"
-#include "table.h"
-#include "temp_table_param.h"              // Temp_table_param
-#include "thr_malloc.h"
-#include "uniques.h"                       // Unique
-#include "window.h"
+#include "sql/aggregate_check.h"           // Distinct_check
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"               // current_thd
+#include "sql/derror.h"                    // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_json_func.h"
+#include "sql/item_subselect.h"
+#include "sql/json_dom.h"
+#include "sql/key_spec.h"
+#include "sql/mysqld.h"
+#include "sql/opt_trace.h"
+#include "sql/parse_tree_helpers.h"        // PT_item_list
+#include "sql/parse_tree_nodes.h"          // PT_order_list
+#include "sql/sql_array.h"
+#include "sql/sql_class.h"                 // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"     // handle_std_exception
+#include "sql/sql_executor.h"              // copy_fields
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_resolver.h"              // setup_order
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"             // create_tmp_table
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/thr_malloc.h"
+#include "sql/uniques.h"                   // Unique
+#include "sql/window.h"
 
 using std::min;
 using std::max;
@@ -746,12 +746,15 @@ void Item_sum::update_used_tables()
       depends on all tables of this join. Otherwise, it depends on
       outer tables, even if its arguments args[] do not explicitly
       reference an outer table, like COUNT (*) or COUNT(123).
+
+      Window functions are always evaluated in the local scope
+      and depend on all tables involved in the join since they cannot
+      be evaluated until after the join is completed.
     */
-    if (!m_is_window_function)
-      used_tables_cache|=
-        aggr_select == base_select ?
-            base_select->all_tables_map() :
-          OUTER_REF_TABLE_BIT;
+    used_tables_cache|=
+      aggr_select == base_select || m_is_window_function ?
+          base_select->all_tables_map() :
+        OUTER_REF_TABLE_BIT;
   }
 }
 

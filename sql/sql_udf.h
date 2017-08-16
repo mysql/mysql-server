@@ -28,7 +28,7 @@
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // Item_result
-#include "sql_alloc.h"               // Sql_alloc
+#include "sql/sql_alloc.h"           // Sql_alloc
 
 class Item;
 class Item_result_field;

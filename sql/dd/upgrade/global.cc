@@ -17,15 +17,15 @@
 
 #include <stdarg.h>
 
-#include "handler.h"
-#include "log.h"                              // sql_print_error
 #include "my_loglevel.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_com.h"
+#include "sql/handler.h"
+#include "sql/log.h"                          // sql_print_error
 #include "sql/sql_base.h"
-#include "sql_class.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace dd {
 namespace upgrade {

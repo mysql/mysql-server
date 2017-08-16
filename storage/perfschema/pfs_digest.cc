@@ -32,9 +32,9 @@
 #include "pfs_builtin_memory.h"
 #include "pfs_global.h"
 #include "pfs_instr.h"
-#include "sql_get_diagnostics.h"
-#include "sql_lex.h"
-#include "sql_signal.h"
+#include "sql/sql_get_diagnostics.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_signal.h"
 #include "sql_string.h"
 #include "table_helper.h"
 

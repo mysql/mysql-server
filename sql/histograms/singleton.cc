@@ -18,18 +18,18 @@
   Singleton histogram (implementation).
 */
 
-#include "singleton.h"
+#include "sql/histograms/singleton.h"
 
 #include <new>
 #include <utility>          // std::make_pair
 
 #include "binary_log_types.h"
-#include "json_dom.h"       // Json_*
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
 #include "sql/histograms/value_map.h"      // Value_map
+#include "sql/json_dom.h"   // Json_*
 
 namespace histograms {
 

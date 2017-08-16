@@ -19,10 +19,10 @@
 
 #include <sys/types.h>
 
-#include "handler.h"
 #include "heap.h"
 #include "my_inttypes.h"
-#include "table.h"
+#include "sql/handler.h"
+#include "sql/table.h"
 
 class ha_heap: public handler
 {

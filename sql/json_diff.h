@@ -32,9 +32,9 @@
 #include <memory>                               // std::unique_ptr
 #include <vector>
 
-#include "json_dom.h"
-#include "json_path.h"
-#include "memroot_allocator.h"
+#include "sql/json_dom.h"
+#include "sql/json_path.h"
+#include "sql/memroot_allocator.h"
 
 class Field_json;
 class Json_dom;

@@ -21,9 +21,9 @@
 #include <new>
 
 #include "mysql/udf_registration_types.h"
-#include "sql_alloc.h"
-#include "sql_class.h"                          /* Query_arena */
-#include "sql_servers.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h"                      /* Query_arena */
+#include "sql/sql_servers.h"
 
 class JOIN;
 class Query_result;

@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "json_dom.h"
+#include "sql/json_dom.h"
 
 #include <errno.h>
 #include <float.h>
@@ -26,12 +26,7 @@
 #include <functional>           // std::function
 
 #include "base64.h"
-#include "check_stack.h"
-#include "current_thd.h"        // current_thd
 #include "decimal.h"
-#include "derror.h"             // ER_THD
-#include "field.h"
-#include "json_path.h"
 #include "m_ctype.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
 #include "my_byteorder.h"
@@ -43,22 +38,27 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
-#include "psi_memory_key.h"     // key_memory_JSON
 #include "rapidjson/error/en.h"
 #include "rapidjson/error/error.h"
 #include "rapidjson/memorystream.h"
 #include "rapidjson/reader.h"
-#include "session_tracker.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"          // STACK_MIN_SIZE
-#include "sql_error.h"
-#include "sql_sort.h"
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"    // current_thd
+#include "sql/derror.h"         // ER_THD
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/json_path.h"
+#include "sql/psi_memory_key.h" // key_memory_JSON
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"      // STACK_MIN_SIZE
+#include "sql/sql_error.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_time.h"
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"     // down_cast, pointer_cast
-#include "value_map.h"
 
 using namespace rapidjson;
 

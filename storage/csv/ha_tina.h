@@ -17,9 +17,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "handler.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "sql/handler.h"
 #include "sql_string.h"
 #include "transparent_file.h"
 

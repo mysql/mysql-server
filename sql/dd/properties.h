@@ -19,9 +19,9 @@
 #include <limits>
 #include <map>
 
-#include "dd/string_type.h" // String_type, Stringstream_type
 #include "m_string.h"       // my_strtoll10
 #include "my_dbug.h"
+#include "sql/dd/string_type.h" // String_type, Stringstream_type
 
 typedef struct st_mem_root MEM_ROOT;
 

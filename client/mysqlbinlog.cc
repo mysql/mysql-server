@@ -39,10 +39,9 @@
 #include <map>
 #include <utility>
 
-#include "client_priv.h"
-#include "log_event.h"
+#include "caching_sha2_passwordopt-vars.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_io.h"
@@ -51,8 +50,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "prealloced_array.h"
 #include "print_version.h"
-#include "rpl_constants.h"
-#include "rpl_gtid.h"
+#include "sql/log_event.h"
+#include "sql/my_decimal.h"
+#include "sql/rpl_constants.h"
+#include "sql/rpl_gtid.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #include "sslopt-vars.h"
@@ -1576,6 +1577,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+#include <caching_sha2_passwordopt-longopts.h>
 #include <sslopt-longopts.h>
 
   {"start-datetime", OPT_START_DATETIME,
@@ -1972,6 +1974,7 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+  set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {

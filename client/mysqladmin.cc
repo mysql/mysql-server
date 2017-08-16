@@ -22,7 +22,6 @@
 #include <mysql.h>
 #include <mysqld_error.h>                       /* to check server error codes */
 #include <signal.h>
-#include <sql_common.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -30,7 +29,7 @@
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -39,6 +38,7 @@
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "typelib.h"
 
 #define MAX_MYSQL_VAR 512
@@ -82,6 +82,8 @@ static bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
+
+#include "caching_sha2_passwordopt-vars.h"
 
 static void usage(void);
 extern "C" bool get_one_option(int optid, const struct my_option *opt,
@@ -218,6 +220,8 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+
+#include "caching_sha2_passwordopt-longopts.h"
 
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -416,6 +420,7 @@ int main(int argc,char *argv[])
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
+  set_get_server_public_key_option(&mysql);
   if (sql_connect(&mysql, option_wait))
   {
     /*

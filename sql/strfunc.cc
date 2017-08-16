@@ -15,16 +15,16 @@
 
 /* Some useful string utility functions used by the MySQL server */
 
-#include "strfunc.h"
+#include "sql/strfunc.h"
 
 #include "m_ctype.h"                            // my_charset_latin1
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
-#include "session_tracker.h"
-#include "sql_class.h"
-#include "sql_const.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 #include "typelib.h"                            // TYPELIB
 
 /*

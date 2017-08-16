@@ -5126,7 +5126,11 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 ex:
   (loader->mem_free)(rules.rule);
   if (rc != 0 && loader->error[0])
+  {
+    if (new_uca.contraction_nodes)
+      delete new_uca.contraction_nodes;
     loader->reporter(ERROR_LEVEL, "%s", loader->error);
+  }
   return rc;
 }
 

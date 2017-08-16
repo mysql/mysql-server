@@ -16,12 +16,12 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
-#include "dd/sdi_fwd.h"                // Sdi_wcontext
-#include "dd/types/abstract_table.h"   // dd::Abstract_table
-#include "dd/types/foreign_key.h"      // IWYU pragma: keep
-#include "dd/types/index.h"            // IWYU pragma: keep
-#include "dd/types/object_type.h"      // IWYU pragma: keep
-#include "dd/types/trigger.h"          // dd::Trigger::enum_*
+#include "sql/dd/sdi_fwd.h"            // Sdi_wcontext
+#include "sql/dd/types/abstract_table.h" // dd::Abstract_table
+#include "sql/dd/types/foreign_key.h"  // IWYU pragma: keep
+#include "sql/dd/types/index.h"        // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"  // IWYU pragma: keep
+#include "sql/dd/types/trigger.h"      // dd::Trigger::enum_*
 
 namespace dd {
 

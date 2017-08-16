@@ -83,7 +83,7 @@ When one supplies long data for a placeholder:
     at statement execute.
 */
 
-#include "sql_prepare.h"
+#include "sql/sql_prepare.h"
 
 #include "my_config.h"
 
@@ -97,27 +97,16 @@ When one supplies long data for a placeholder:
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"        // check_table_access
 #include "binary_log_types.h"
-#include "binlog.h"
 #include "decimal.h"
-#include "derror.h"             // ER_THD
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"          // user_var_entry
-#include "log.h"                // query_logger
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -126,38 +115,49 @@ When one supplies long data for a placeholder:
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"             // opt_general_log
 #include "mysqld_error.h"
-#include "opt_trace.h"          // Opt_trace_array
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "set_var.h"            // set_var_base
-#include "sp_cache.h"           // sp_cache_enforce_limit
-#include "sql_audit.h"          // mysql_global_audit_mask
-#include "sql_base.h"           // open_tables_for_query, open_temporary_table
-#include "sql_cmd.h"
-#include "sql_cmd_ddl_table.h"
-#include "sql_const.h"
-#include "sql_cursor.h"         // Server_side_cursor
-#include "sql_db.h"             // mysql_change_db
-#include "sql_digest_stream.h"
-#include "sql_handler.h"        // mysql_ha_rm_tables
-#include "sql_lex.h"
-#include "sql_parse.h"          // sql_command_flags
-#include "sql_profile.h"
-#include "sql_query_rewrite.h"
-#include "sql_rewrite.h"        // mysql_rewrite_query
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/derror.h"         // ER_THD
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item.h"
+#include "sql/item_func.h"      // user_var_entry
+#include "sql/log.h"            // query_logger
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"         // opt_general_log
+#include "sql/opt_trace.h"      // Opt_trace_array
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"        // set_var_base
+#include "sql/sp_cache.h"       // sp_cache_enforce_limit
+#include "sql/sql_audit.h"      // mysql_global_audit_mask
+#include "sql/sql_base.h"       // open_tables_for_query, open_temporary_table
+#include "sql/sql_cmd.h"
+#include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_const.h"
+#include "sql/sql_cursor.h"     // Server_side_cursor
+#include "sql/sql_db.h"         // mysql_change_db
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_handler.h"    // mysql_ha_rm_tables
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"      // sql_command_flags
+#include "sql/sql_profile.h"
+#include "sql/sql_query_rewrite.h"
+#include "sql/sql_rewrite.h"    // mysql_rewrite_query
+#include "sql/sql_view.h"       // create_view_precheck
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"    // trans_rollback_implicit
+#include "sql/window.h"
 #include "sql_string.h"
-#include "sql_view.h"           // create_view_precheck
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
-#include "transaction.h"        // trans_rollback_implicit
-#include "value_map.h"
 #include "violite.h"
-#include "window.h"
 
 using std::max;
 using std::min;

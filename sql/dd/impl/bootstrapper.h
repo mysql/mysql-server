@@ -19,8 +19,8 @@
 
 #include <sys/types.h>
 
-#include "dd/string_type.h"                    // dd::String_type
-#include "handler.h"                           // dict_init_mode_t
+#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/handler.h"                       // dict_init_mode_t
 
 class THD;
 

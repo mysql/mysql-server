@@ -13,42 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "parse_tree_nodes.h"
+#include "sql/parse_tree_nodes.h"
 
 #include <string.h>
 #include <algorithm>
 
-#include "dd/info_schema/show.h"             // build_show_...
-#include "dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
-#include "derror.h"         // ER_THD
-#include "item_timefunc.h"
-#include "key_spec.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // global_system_variables
-#include "parse_tree_column_attrs.h" // PT_field_def_base
-#include "parse_tree_hints.h"
-#include "parse_tree_partitions.h" // PT_partition
-#include "query_options.h"
-#include "sp.h"             // sp_add_used_routine
-#include "sp_instr.h"       // sp_instr_set
-#include "sp_pcontext.h"
-#include "sql_array.h"
-#include "sql_base.h"                        // find_temporary_table
-#include "sql_call.h"       // Sql_cmd_call...
-#include "sql_cmd_ddl_table.h"
-#include "sql_data_change.h"
-#include "sql_delete.h"     // Sql_cmd_delete...
-#include "sql_do.h"         // Sql_cmd_do...
-#include "sql_error.h"
-#include "sql_insert.h"     // Sql_cmd_insert...
-#include "sql_select.h"     // Sql_cmd_select...
+#include "sql/dd/info_schema/show.h"         // build_show_...
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type::BASE_TABLE
+#include "sql/derror.h"     // ER_THD
+#include "sql/item_timefunc.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"     // global_system_variables
+#include "sql/parse_tree_column_attrs.h" // PT_field_def_base
+#include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_partitions.h" // PT_partition
+#include "sql/query_options.h"
+#include "sql/sp.h"         // sp_add_used_routine
+#include "sql/sp_instr.h"   // sp_instr_set
+#include "sql/sp_pcontext.h"
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"                    // find_temporary_table
+#include "sql/sql_call.h"   // Sql_cmd_call...
+#include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_delete.h" // Sql_cmd_delete...
+#include "sql/sql_do.h"     // Sql_cmd_do...
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h" // Sql_cmd_insert...
+#include "sql/sql_select.h" // Sql_cmd_select...
+#include "sql/sql_update.h" // Sql_cmd_update...
+#include "sql/system_variables.h"
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_update.h"     // Sql_cmd_update...
-#include "system_variables.h"
-#include "trigger_def.h"
 
 class Sql_cmd;
 

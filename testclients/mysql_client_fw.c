@@ -20,11 +20,11 @@
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <mysqld_error.h>
-#include <sql_common.h>
 
 #include "my_default.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -265,6 +265,7 @@ base on Windows.
 static MYSQL *mysql_client_init(MYSQL* con)
 {
  MYSQL* res = mysql_init(con);
+ uint ssl_mode= SSL_MODE_REQUIRED;
  #if defined (_WIN32)
  if (res && shared_memory_base_name)
  mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
@@ -275,6 +276,7 @@ static MYSQL *mysql_client_init(MYSQL* con)
  if (opt_default_auth && *opt_default_auth)
  mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+ mysql_options(res, MYSQL_OPT_SSL_MODE, &ssl_mode);
  return res;
 }
 

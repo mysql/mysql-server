@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"                         /* timestamp_type */
-#include "sql_error.h"                          /* Sql_condition */
+#include "sql/sql_error.h"                      /* Sql_condition */
 #include "sql_string.h"
 
 class THD;

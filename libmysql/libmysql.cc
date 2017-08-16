@@ -70,11 +70,11 @@
 #define INADDR_NONE	-1
 #endif
 
-#include <sql_common.h>
 #include <memory>
 
 #include "client_settings.h"
 #include "mysql_trace.h"
+#include "sql_common.h"
 
 /*
   Temporary replacement for COM_SHUTDOWN. This will be removed once

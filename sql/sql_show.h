@@ -19,15 +19,15 @@
 #include <stddef.h>
 #include <vector>
 
-#include "handler.h"                            // enum_schema_tables
-#include "key.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
-#include "set_var.h"                            // enum_var_type
+#include "sql/handler.h"                        // enum_schema_tables
+#include "sql/key.h"
+#include "sql/set_var.h"                        // enum_var_type
+#include "sql/table.h"                          // enum_schema_table_state
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                         // Simple_cstring
-#include "table.h"                              // enum_schema_table_state
-#include "thr_malloc.h"
 #include "typelib.h"
 
 /* Forward declarations */

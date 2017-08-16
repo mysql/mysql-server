@@ -16,7 +16,7 @@
 
 #include <mysql/plugin.h>            // st_plugin_int
 
-#include "dd/string_type.h"          // dd::String_type
+#include "sql/dd/string_type.h"      // dd::String_type
 
 class THD;
 struct st_plugin_int;

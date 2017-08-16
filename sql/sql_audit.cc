@@ -13,16 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_audit.h"
+#include "sql/sql_audit.h"
 
 #include <sys/types.h>
 
-#include "auto_thd.h"                           // Auto_THD
-#include "current_thd.h"
-#include "error_handler.h"                      // Internal_error_handler
-#include "key.h"
 #include "lex_string.h"
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,18 +33,23 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"                             // sql_statement_names
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/auto_thd.h"                       // Auto_THD
+#include "sql/current_thd.h"
+#include "sql/error_handler.h"                  // Internal_error_handler
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"                         // sql_statement_names
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"                     // my_plugin_foreach
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_rewrite.h"                    // mysql_rewrite_query
+#include "sql/table.h"
 #include "sql_chars.h"
-#include "sql_class.h"                          // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"                         // my_plugin_foreach
-#include "sql_plugin_ref.h"
-#include "sql_rewrite.h"                        // mysql_rewrite_query
 #include "sql_string.h"
-#include "table.h"
 #include "thr_mutex.h"
 
 /**
@@ -999,6 +999,58 @@ int mysql_audit_notify(THD *thd,
   event.parameters= parameters;
 
   return event_class_dispatch_error(thd, MYSQL_AUDIT_STORED_PROGRAM_CLASS,
+                                    subclass_name, &event);
+}
+
+int mysql_audit_notify(THD *thd,
+                       mysql_event_authentication_subclass_t subclass,
+                       const char *subclass_name,
+                       int status,
+                       const char * user,
+                       const char * host,
+                       const char * authentication_plugin,
+                       bool is_role,
+                       const char * new_user,
+                       const char * new_host)
+{
+  mysql_event_authentication event;
+
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_AUTHENTICATION_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
+
+  event.event_subclass= subclass;
+  event.status= status;
+  event.connection_id= thd->thread_id();
+  event.sql_command_id= thd->lex->sql_command;
+
+  thd_get_audit_query(thd, &event.query, &event.query_charset);
+
+  LEX_CSTRING obj_str;
+
+  lex_cstring_set(&obj_str, user ? user : "");
+  event.user.str= obj_str.str;
+  event.user.length= obj_str.length;
+
+  lex_cstring_set(&obj_str, host ? host : "");
+  event.host.str= obj_str.str;
+  event.host.length= obj_str.length;
+
+  lex_cstring_set(&obj_str, authentication_plugin ? authentication_plugin : "");
+  event.authentication_plugin.str= obj_str.str;
+  event.authentication_plugin.length= obj_str.length;
+
+  event.is_role= is_role;
+
+  lex_cstring_set(&obj_str, new_user ? new_user : "");
+  event.new_user.str= obj_str.str;
+  event.new_user.length= obj_str.length;
+
+  lex_cstring_set(&obj_str, new_host ? new_host : "");
+  event.new_host.str= obj_str.str;
+  event.new_host.length= obj_str.length;
+
+  return event_class_dispatch_error(thd, MYSQL_AUDIT_AUTHENTICATION_CLASS,
                                     subclass_name, &event);
 }
 

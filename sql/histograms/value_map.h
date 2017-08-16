@@ -26,9 +26,9 @@
 #include <utility>              // std::pair
 #include <vector>               // std::vector
 
-#include "memroot_allocator.h"  // Memroot_allocator
 #include "my_base.h"            // ha_rows
-#include "thr_malloc.h"
+#include "sql/memroot_allocator.h" // Memroot_allocator
+#include "sql/thr_malloc.h"
 
 class String;
 class THD;

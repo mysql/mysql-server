@@ -45,7 +45,7 @@ Created 5/11/1994 Heikki Tuuri
 # include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "log.h"
+#include "sql/log.h"
 
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);

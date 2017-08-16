@@ -17,14 +17,14 @@
 
 #include <new>
 
-#include "dd/impl/cache/cache_element.h"
-#include "log.h"                             // sql_print_warning()
-#include "mdl.h"                             // MDL_request
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysqld_error.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/impl/cache/cache_element.h"
+#include "sql/mdl.h"                         // MDL_request
+#include "sql/log.h"                         // sql_print_warning()
 #include "sql_class.h"                       // THD
-#include "dd/cache/dictionary_client.h"
 
 namespace dd {
 namespace cache {

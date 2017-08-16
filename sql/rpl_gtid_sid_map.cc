@@ -28,11 +28,11 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"  // IWYU pragma: keep
 #include "prealloced_array.h"
-#include "rpl_gtid.h"
-#include "thr_malloc.h"
+#include "sql/rpl_gtid.h"
+#include "sql/thr_malloc.h"
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"  // IWYU pragma: keep
+#include "client/mysqlbinlog.h" // IWYU pragma: keep
 #endif
 
 extern "C" {

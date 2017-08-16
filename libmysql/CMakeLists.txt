@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/libmysql
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${SSL_INCLUDE_DIRS}
@@ -171,7 +170,8 @@ SET(CLIENT_SOURCES
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
   ../sql-common/net_serv.cc
-  ../sql/auth/password.c
+  ../sql/auth/password.cc
+  ../sql/auth/sha2_password_common.cc
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)

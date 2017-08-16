@@ -26,8 +26,8 @@
 #include <string>
 #include <utility>
 
-#include "json_dom.h"
-#include "json_path.h"
+#include "sql/json_dom.h"
+#include "sql/json_path.h"
 #include "sql_string.h"
 #include "test_utils.h"
 

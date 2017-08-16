@@ -13,26 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd/info_schema/stats.h"             // dd::info_schema::*
+#include "sql/dd/info_schema/stats.h"         // dd::info_schema::*
 
 #include <assert.h>
 #include <string.h>
 #include <cmath>
 #include <memory>                             // unique_ptr
 
-#include "auth_common.h"
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::create_object
-#include "dd/properties.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/index_stat.h"              // dd::Index_stat
-#include "dd/types/table_stat.h"              // dd::Table_stat
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "error_handler.h"                    // Internal_error_handler
-#include "field.h"
-#include "key.h"
 #include "m_ctype.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -40,18 +28,30 @@
 #include "my_time.h"                          // TIME_to_ulonglong_datetime
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "sql_base.h"                         // open_tables_for_query
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                         // make_table_list
-#include "system_variables.h"
-#include "table.h"                            // TABLE_LIST
-#include "tztime.h"                           // Time_zone
-#include "value_map.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::create_object
+#include "sql/dd/properties.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/index_stat.h"          // dd::Index_stat
+#include "sql/dd/types/table_stat.h"          // dd::Table_stat
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/error_handler.h"                // Internal_error_handler
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/key.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"                     // open_tables_for_query
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"                     // make_table_list
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // TABLE_LIST
+#include "sql/tztime.h"                       // Time_zone
 
 namespace dd {
   namespace info_schema {

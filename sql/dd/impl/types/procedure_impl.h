@@ -18,16 +18,16 @@
 
 #include <new>
 
-#include "dd/impl/types/entity_object_impl.h"
-#include "dd/impl/types/routine_impl.h"        // dd::Routine_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/string_type.h"
-#include "dd/types/object_type.h"              // dd::Object_type
-#include "dd/types/procedure.h"                // dd::Procedure
-#include "dd/types/routine.h"
-#include "dd/types/view.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/routine_impl.h"    // dd::Routine_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_type.h"          // dd::Object_type
+#include "sql/dd/types/procedure.h"            // dd::Procedure
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/view.h"
 
 namespace dd {
 

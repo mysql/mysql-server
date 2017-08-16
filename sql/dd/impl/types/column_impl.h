@@ -21,16 +21,16 @@
 #include <memory>   // std::unique_ptr
 #include <new>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/properties.h"
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/column.h"                  // dd::Column
-#include "dd/types/column_type_element.h"     // IWYU pragma: keep
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "my_dbug.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/column.h"              // dd::Column
+#include "sql/dd/types/column_type_element.h" // IWYU pragma: keep
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 

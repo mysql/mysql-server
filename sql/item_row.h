@@ -18,16 +18,16 @@
 
 #include <sys/types.h>
 
-#include "enum_query_type.h"
-#include "item.h"  // Item
 #include "my_compiler.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
+#include "sql/enum_query_type.h"
+#include "sql/item.h" // Item
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
 
 class SELECT_LEX;
 class Send_field;

@@ -20,7 +20,7 @@
   This file defines all numerical functions
 */
 
-#include "item_func.h"
+#include "sql/item_func.h"
 
 #include <string.h>
 #include <time.h>
@@ -35,30 +35,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // check_password_strength
-#include "binlog.h"              // mysql_bin_log
-#include "check_stack.h"
-#include "current_thd.h"         // current_thd
-#include "dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
-#include "dd/object_id.h"
-#include "dd/properties.h"       // dd::Properties
-#include "dd/types/abstract_table.h"
-#include "dd/types/index.h"      // Index::enum_index_type
-#include "dd_sql_view.h"         // push_view_warning_or_error
-#include "dd_table_share.h"      // dd_get_old_field_type
-#include "debug_sync.h"          // DEBUG_SYNC
-#include "derror.h"              // ER_THD
-#include "error_handler.h"       // Internal_error_handler
-#include "item_cmpfunc.h"        // get_datetime_value
-#include "item_create.h"
-#include "item_strfunc.h"        // Item_func_concat_ws
-#include "json_dom.h"            // Json_wrapper
-#include "key.h"
-#include "log_event.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "mutex_lock.h"          // MUTEX_LOCK
 #include "my_bit.h"              // my_count_bits
 #include "my_bitmap.h"
@@ -79,34 +57,56 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql/service_thd_wait.h"
-#include "mysqld.h"              // log_10 stage_user_sleep
-#include "parse_tree_helpers.h"  // PT_item_list
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "query_result.h"        // sql_exchange
-#include "rpl_gtid.h"
-#include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // channel_map
-#include "rpl_rli.h"             // Relay_log_info
-#include "sp.h"                  // sp_setup_routine
-#include "sp_head.h"             // sp_name
-#include "sql_audit.h"           // audit_global_variable
-#include "sql_base.h"            // Internal_error_handler_holder
-#include "sql_bitmap.h"
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"       // JOIN
-#include "sql_parse.h"           // check_stack_overrun
-#include "sql_security_ctx.h"
-#include "sql_show.h"            // append_identifier
-#include "sql_time.h"            // TIME_from_longlong_packed
-#include "strfunc.h"             // find_type
-#include "system_variables.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // check_password_strength
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"          // mysql_bin_log
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"     // current_thd
+#include "sql/dd/info_schema/stats.h" // dd::info_schema::Statistics_cache
+#include "sql/dd/object_id.h"
+#include "sql/dd/properties.h"   // dd::Properties
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/index.h"  // Index::enum_index_type
+#include "sql/dd_sql_view.h"     // push_view_warning_or_error
+#include "sql/dd_table_share.h"  // dd_get_old_field_type
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/histograms/value_map.h"
+#include "sql/item_cmpfunc.h"    // get_datetime_value
+#include "sql/item_create.h"
+#include "sql/item_strfunc.h"    // Item_func_concat_ws
+#include "sql/json_dom.h"        // Json_wrapper
+#include "sql/key.h"
+#include "sql/log_event.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"          // log_10 stage_user_sleep
+#include "sql/parse_tree_helpers.h" // PT_item_list
+#include "sql/psi_memory_key.h"
+#include "sql/query_result.h"    // sql_exchange
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_mi.h"          // Master_info
+#include "sql/rpl_msr.h"         // channel_map
+#include "sql/rpl_rli.h"         // Relay_log_info
+#include "sql/sp.h"              // sp_setup_routine
+#include "sql/sp_head.h"         // sp_name
+#include "sql/sql_audit.h"       // audit_global_variable
+#include "sql/sql_base.h"        // Internal_error_handler_holder
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"   // JOIN
+#include "sql/sql_parse.h"       // check_stack_overrun
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_time.h"        // TIME_from_longlong_packed
+#include "sql/strfunc.h"         // find_type
+#include "sql/system_variables.h"
+#include "sql/val_int_compare.h" // Integer_value
 #include "thr_mutex.h"
-#include "val_int_compare.h"     // Integer_value
-#include "value_map.h"
 
 class Protocol;
 class sp_rcontext;

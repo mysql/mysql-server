@@ -48,14 +48,14 @@ TODO:
 #include <mysql/psi/mysql_file.h>
 #include <algorithm>
 
-#include "field.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/field.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "template_utils.h"
 
 using std::max;

@@ -20,7 +20,7 @@
 #include <sys/types.h>
 
 #include "mysqld_error.h"  // ER_*
-#include "sql_error.h"     // Sql_condition
+#include "sql/sql_error.h" // Sql_condition
 
 class THD;
 struct TABLE_LIST;

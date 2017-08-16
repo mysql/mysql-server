@@ -26,13 +26,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/thr_malloc.h"
 #include "test_mdl_context_owner.h"
-#include "thr_malloc.h"
 #include "thread_utils.h"
 
 /*

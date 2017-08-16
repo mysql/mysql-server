@@ -18,8 +18,7 @@
 
 
 #include "my_inttypes.h"
-
-#include "dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 namespace dd {
 

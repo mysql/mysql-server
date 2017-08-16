@@ -28,15 +28,10 @@
 #include <unordered_map>
 #include <utility>
 
-#include "binlog.h"
 #include "config.h"
-#include "current_thd.h"
-#include "debug_sync.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -50,18 +45,23 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"                         // key_mutex_slave_parallel_worker
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "rpl_info_handler.h"
-#include "rpl_reporting.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "sql_error.h"
-#include "sql_lex.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // key_mutex_slave_parallel_worker
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_reporting.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_mutex.h"
-#include "transaction_info.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;

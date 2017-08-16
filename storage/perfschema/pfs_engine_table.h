@@ -16,18 +16,18 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include <mysql/components/services/pfs_plugin_table_service.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_common.h" /* struct ACL_* */
-#include "key.h"
-#include <mysql/components/services/pfs_plugin_table_service.h>
 #include "lex_string.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "pfs.h"
+#include "sql/auth/auth_common.h" /* struct ACL_* */
+#include "sql/key.h"
 
 class PFS_engine_key;
 class PFS_engine_index;

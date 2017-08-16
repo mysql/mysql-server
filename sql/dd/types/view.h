@@ -17,7 +17,7 @@
 #define DD__VIEW_INCLUDED
 
 
-#include "dd/types/abstract_table.h"       // dd::Abstract_table
+#include "sql/dd/types/abstract_table.h"   // dd::Abstract_table
 
 namespace dd {
 

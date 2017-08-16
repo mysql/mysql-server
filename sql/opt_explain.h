@@ -48,10 +48,10 @@ SELECT_LEX), by calling explain_unit() for each of them.
 */
 
 #include "my_base.h"
-#include "opt_explain_format.h"
-#include "parse_tree_node_base.h"
-#include "query_result.h"                // Query_result_send
-#include "sql_lex.h"
+#include "sql/opt_explain_format.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_result.h"            // Query_result_send
+#include "sql/sql_lex.h"
 #include "sys/types.h"
 
 class Item;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define SQL_CALL_INCLUDED
 
 #include "my_sqlcommand.h"
-#include "sql_cmd_dml.h"    // Sql_cmd_dml
+#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
 
 class Item;
 class THD;

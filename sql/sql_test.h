@@ -18,10 +18,10 @@
 
 #include <sys/types.h>
 
-#include "enum_query_type.h"    // enum_query_type
-#include "mem_root_array.h"     // Mem_root_array
-#include "sql_lex.h"
-#include "sql_select.h"
+#include "sql/enum_query_type.h" // enum_query_type
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/sql_lex.h"
+#include "sql/sql_select.h"
 #include "thr_lock.h"           // TL_WRITE_ONLY
 
 class Item;

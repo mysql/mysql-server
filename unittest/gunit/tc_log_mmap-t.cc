@@ -21,9 +21,9 @@
 
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "mysqld.h"
-#include "sql_class.h"
-#include "tc_log.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/tc_log.h"
 #include "test_utils.h"
 #include "thread_utils.h"
 

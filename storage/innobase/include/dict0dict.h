@@ -28,7 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
-#include "dd/object_id.h"
+#include "sql/dd/object_id.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0mem.h"

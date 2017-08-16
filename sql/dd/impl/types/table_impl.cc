@@ -13,40 +13,42 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/types/table_impl.h"
+#include "sql/dd/impl/types/table_impl.h"
 
 #include <string.h>
 #include <sstream>
 #include <string>
 
-#include "current_thd.h"                             // current_thd
-#include "dd/impl/properties_impl.h"                 // Properties_impl
-#include "dd/impl/raw/raw_record.h"                  // Raw_record
-#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
-#include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
-#include "dd/impl/tables/indexes.h"                  // Indexes
-#include "dd/impl/tables/table_partitions.h"         // Table_partitions
-#include "dd/impl/tables/tables.h"                   // Tables
-#include "dd/impl/tables/triggers.h"                 // Triggers
-#include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
-#include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
-#include "dd/impl/types/index_impl.h"                // Index_impl
-#include "dd/impl/types/partition_impl.h"            // Partition_impl
-#include "dd/impl/types/trigger_impl.h"              // Trigger_impl
-#include "dd/properties.h"
-#include "dd/string_type.h"                          // dd::String_type
-#include "dd/types/column.h"                         // Column
-#include "dd/types/foreign_key.h"
-#include "dd/types/index.h"
-#include "dd/types/partition.h"
-#include "dd/types/weak_object.h"
+#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                            // ER_*
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"                         // current_thd
+#include "sql/dd/impl/properties_impl.h"             // Properties_impl
+#include "sql/dd/impl/raw/raw_record.h"              // Raw_record
+#include "sql/dd/impl/sdi_impl.h"                    // sdi read/write functions
+#include "sql/dd/impl/tables/foreign_keys.h"         // Foreign_keys
+#include "sql/dd/impl/tables/indexes.h"              // Indexes
+#include "sql/dd/impl/tables/table_partitions.h"     // Table_partitions
+#include "sql/dd/impl/tables/tables.h"               // Tables
+#include "sql/dd/impl/tables/triggers.h"             // Triggers
+#include "sql/dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/foreign_key_impl.h"      // Foreign_key_impl
+#include "sql/dd/impl/types/index_impl.h"            // Index_impl
+#include "sql/dd/impl/types/partition_impl.h"        // Partition_impl
+#include "sql/dd/impl/types/trigger_impl.h"          // Trigger_impl
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"                      // dd::String_type
+#include "sql/dd/types/column.h"                     // Column
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/weak_object.h"
+#include "sql/sql_class.h"
 
 using dd::tables::Foreign_keys;
 using dd::tables::Indexes;

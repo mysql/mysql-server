@@ -37,7 +37,6 @@
 
 #include "binlog_event.h"
 #include "control_events.h"
-#include "item_create.h"
 #include "lex_string.h"
 #include "load_data_events.h"
 #include "m_string.h"                // native_strncasecmp
@@ -55,24 +54,23 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"               // SERVER_VERSION_LENGTH
-#include "psi_memory_key.h"
-#include "query_options.h"           // OPTION_AUTO_IS_NULL
 #include "rows_event.h"
-#include "rpl_gtid.h"                // enum_group_type
-#include "rpl_utility.h"             // Hash_slave_rows
-#include "session_tracker.h"
-#include "sql_const.h"
+#include "sql/item_create.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"       // OPTION_AUTO_IS_NULL
+#include "sql/rpl_gtid.h"            // enum_group_type
+#include "sql/rpl_utility.h"         // Hash_slave_rows
+#include "sql/session_tracker.h"
+#include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "statement_events.h"
-#include "thr_malloc.h"
 #include "typelib.h"                 // TYPELIB
 
 class THD;
 class Table_id;
 
 #ifdef MYSQL_SERVER
-#include "field.h"
-#include "key.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_psi_config.h"
@@ -80,18 +78,20 @@ class Table_id;
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/service_my_snprintf.h"
-#include "rpl_filter.h"              // rpl_filter
-#include "rpl_record.h"              // unpack_row
-#include "sql_class.h"               // THD
-#include "sql_plugin.h"
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"
-#include "table.h"
-#include "xa.h"
+#include "sql/field.h"
+#include "sql/key.h"
+#include "sql/rpl_filter.h"          // rpl_filter
+#include "sql/rpl_record.h"          // unpack_row
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_plugin.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"
+#include "sql/table.h"
+#include "sql/xa.h"
 #endif
 
 #ifndef MYSQL_SERVER
-#include "rpl_tblmap.h"              // table_mapping
+#include "sql/rpl_tblmap.h"          // table_mapping
 #endif
 
 #include <limits.h>

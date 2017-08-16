@@ -19,18 +19,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "auth_common.h"
-#include "enum_query_type.h"
-#include "handler.h"
-#include "item.h"
-#include "item_create.h"
-#include "item_func.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "mdl.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_bit.h"                  // is_single_bit
 #include "my_dbug.h"
@@ -40,35 +30,45 @@
 #include "my_time.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"                  // table_alias_charset
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h"      // PT_item_list
-#include "parse_tree_node_base.h"
-#include "parse_tree_partitions.h"
-#include "partition_info.h"
-#include "query_result.h"            // Query_result
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sp_head.h"                 // sp_head
-#include "sql_admin.h"               // Sql_cmd_shutdown etc.
-#include "sql_alloc.h"
-#include "sql_alter.h"
-#include "sql_class.h"               // THD
-#include "sql_cmd_ddl_table.h"       // Sql_cmd_create_table
-#include "sql_lex.h"                 // LEX
-#include "sql_list.h"
-#include "sql_parse.h"               // add_join_natural
-#include "sql_partition_admin.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_create.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"              // table_alias_charset
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h"  // PT_item_list
+#include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_partitions.h"
+#include "sql/partition_info.h"
+#include "sql/query_result.h"        // Query_result
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"             // sp_head
+#include "sql/sql_admin.h"           // Sql_cmd_shutdown etc.
+#include "sql/sql_alloc.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_class.h"           // THD
+#include "sql/sql_cmd_ddl_table.h"   // Sql_cmd_create_table
+#include "sql/sql_lex.h"             // LEX
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"           // add_join_natural
+#include "sql/sql_partition_admin.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"
+#include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
+#include "sql/table.h"               // Common_table_expr
+#include "sql/window.h"              // Window
+#include "sql/window_lex.h"
 #include "sql_string.h"
-#include "sql_truncate.h"            // Sql_cmd_truncate_table
-#include "table.h"                   // Common_table_expr
 #include "thr_lock.h"
-#include "window.h"                  // Window
-#include "window_lex.h"
 
 class PT_field_def_base;
 class PT_hint_list;

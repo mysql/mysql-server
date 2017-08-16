@@ -37,10 +37,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"        // Item_result
 #include "prealloced_array.h" // Prealloced_array
-#include "sql_alloc.h"        // Sql_alloc
-#include "sql_const.h"        // SHOW_COMP_OPTION
-#include "sql_plugin_ref.h"   // plugin_ref
-#include "thr_malloc.h"
+#include "sql/sql_alloc.h"    // Sql_alloc
+#include "sql/sql_const.h"    // SHOW_COMP_OPTION
+#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/thr_malloc.h"
 #include "typelib.h"          // TYPELIB
 
 class Item;

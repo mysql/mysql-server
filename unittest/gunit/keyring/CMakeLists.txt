@@ -29,7 +29,6 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/plugin/keyring
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common
   ${CMAKE_SOURCE_DIR}/unittest/gunit

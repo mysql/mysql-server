@@ -17,19 +17,19 @@
 
 #include <stddef.h>
 
-#include "derror.h"
-#include "item_subselect.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
-#include "mysqld.h"        // table_alias_charset
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"
+#include "sql/item_subselect.h"
+#include "sql/mysqld.h"    // table_alias_charset
+#include "sql/query_options.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
 
 
 extern struct st_opt_hint_info opt_hint_info[];

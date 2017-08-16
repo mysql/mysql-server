@@ -23,7 +23,7 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql_alloc.h"          // Sql_alloc
+#include "sql/sql_alloc.h"      // Sql_alloc
 
 class JOIN;
 class Item_func_match;

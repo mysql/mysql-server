@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,14 +18,14 @@
 #ifndef ABSTRACT_CONNECTION_PROGRAM_INCLUDED
 #define ABSTRACT_CONNECTION_PROGRAM_INCLUDED
 
-#include "client_priv.h"
 #include <string>
 
-#include "i_options_provider.h"
-#include "composite_options_provider.h"
-#include "mysql_connection_options.h"
-#include "i_connection_factory.h"
-#include "abstract_program.h"
+#include "client/base/abstract_program.h"
+#include "client/base/composite_options_provider.h"
+#include "client/base/i_connection_factory.h"
+#include "client/base/i_options_provider.h"
+#include "client/base/mysql_connection_options.h"
+#include "client/client_priv.h"
 
 namespace Mysql{
 namespace Tools{

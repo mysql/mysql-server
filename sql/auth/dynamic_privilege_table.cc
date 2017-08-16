@@ -12,16 +12,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+#include "sql/auth/dynamic_privilege_table.h"
+
 #include <string.h>
 #include <string>
 #include <unordered_map>
 
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "dynamic_privilege_table.h"
-#include "field.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
@@ -38,12 +34,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "records.h"
-#include "sql_auth_cache.h"
-#include "sql_const.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "table.h"
-#include "sql_user_table.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/records.h"
+#include "sql/sql_const.h"
+#include "sql/sql_servers.h"
+#include "sql/table.h"
 
 class THD;
 

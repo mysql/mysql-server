@@ -28,15 +28,15 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/udf_registration_types.h"
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
 #ifdef MYSQL_SERVER
 #include <memory>
 
-#include "handler.h"
 #include "map_helpers.h"
 #include "prealloced_array.h"   // Prealloced_array
-#include "table.h"              // TABLE_LIST
+#include "sql/handler.h"
+#include "sql/table.h"          // TABLE_LIST
 
 class Log_event;
 class Relay_log_info;
