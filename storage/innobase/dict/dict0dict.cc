@@ -7973,7 +7973,7 @@ dd_sdi_acquire_exclusive_mdl(
 		 "SDI_" SPACE_ID_PF, space_id);
 
 	/* Submit a higher than default lock wait timeout */
-	ulong lock_wait_timeout = thd_lock_wait_timeout(thd);
+	unsigned long int lock_wait_timeout = thd_lock_wait_timeout(thd);
 	if (lock_wait_timeout < 100000) {
 		lock_wait_timeout += 100000;
 	}

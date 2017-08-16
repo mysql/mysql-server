@@ -317,7 +317,7 @@ bool acquire_exclusive_table_mdl(THD *thd,
 bool acquire_exclusive_table_mdl(THD *thd,
                                  const char *schema_name,
                                  const char *table_name,
-                                 ulong lock_wait_timeout,
+                                 unsigned long int lock_wait_timeout,
                                  MDL_ticket **out_mdl_ticket)
   MY_ATTRIBUTE((warn_unused_result));
 
