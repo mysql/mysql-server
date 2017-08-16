@@ -4795,7 +4795,7 @@ process_buffered_windowing_record(THD *thd,
     /*
       We have already saved the computed results for previous current row's
       range framing aggregates. Prime the out-record with its values, since
-      since there may be no new rows to aggregate for this current row, e.g. if
+      there may be no new rows to aggregate for this current row, e.g. if
       it has the same value in the order by expression so that the row is in
       the same peer set.  Fields and other window functions need to be
       moved/computed as always.
@@ -5023,13 +5023,23 @@ process_buffered_windowing_record(THD *thd,
     if ((range_frame || w.has_dynamic_frame_upper_bound()) &&
         rowno > upper) // no more rows in partition
     {
-      if (range_frame && !first_row_in_range_frame_seen)
+      if (range_frame)
       {
         /*
-          Empty frame: optimize starting point for next row: monotonic increase
-          in frame bounds
+          For a range frame, if we did not aggregate above, save the
+          record from table->record[0] for restoration later.
         */
-        w.set_first_rowno_in_range_frame(rowno);
+        if (optimizable && !range_did_aggregate)
+          w.save_special_record(Window::FBC_LAST_RESULT_OPTIMIZED_RANGE,
+                                out_table);
+        if (!first_row_in_range_frame_seen)
+        {
+          /*
+            Empty frame: optimize starting point for next row: monotonic
+            increase in frame bounds
+          */
+          w.set_first_rowno_in_range_frame(rowno);
+        }
       }
       w.set_last_rowno_in_range_frame(rowno - 1);
     } // else: we already set it before breaking out of loop

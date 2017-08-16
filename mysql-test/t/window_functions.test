@@ -3568,6 +3568,22 @@ DROP TABLE t;
 
 --echo # End of test for Bug#26497353
 
+--echo #
+--echo # Bug #26496645: WINDOW FUNCTIONS: CRASH IN
+--echo #                WINDOW::RESTORE_SPECIAL_RECORD
+--echo #
+
+CREATE TABLE t (
+b VARCHAR(20) DEFAULT NULL,
+d INT DEFAULT NULL);
+insert into t values(1,-1);
+insert into t values(1,-1);
+SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
+                              UNBOUNDED FOLLOWING) FROM t;
+DROP TABLE t;
+
+--echo # End of test for Bug#26496645
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
