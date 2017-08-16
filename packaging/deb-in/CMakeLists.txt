@@ -37,6 +37,15 @@ ELSE()
   SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-cluster-community-server, mysql-cluster-commercial-server")
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-cluster-community-client, mysql-cluster-commercial-client")
 ENDIF()
+# Timestamp for use in debian/changelog
+IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
+  execute_process(
+    COMMAND date --rfc-2822
+    OUTPUT_VARIABLE DEB_CHANGELOG_TIMESTAMP
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
+ENDIF()
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
