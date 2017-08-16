@@ -522,6 +522,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(parser_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(fil_system_mutex, 0, 0, PSI_DOCUMENT_ME),
 	PSI_MUTEX_KEY(file_open_mutex, 0, 0, PSI_DOCUMENT_ME),
