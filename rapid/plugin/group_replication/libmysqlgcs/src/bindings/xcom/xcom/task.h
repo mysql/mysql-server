@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ extern "C" {
    	Nonblocking IO and event handling need to be rewritten for each new OS.
 */
 
-#define USE_SELECT
+/* #define USE_SELECT */
 
 #if 0
 void add_base_event(double when, char const *file, int state);
@@ -281,16 +281,17 @@ struct task_queue {
 };
 typedef struct task_queue task_queue;
 
-#define MAXFILES MAXTASKS
-
 #define _ep ((struct env*)(stack->sp->ptr))
 
 #define TASK_ALLOC(pool, type)                  \
   (task_allocate(pool, sizeof(type)))
 
 #if 0
-#define TASK_DEBUG(x)       \
-  if(stack->debug){DBGOUT(FN; STRLIT(x " task "); PTREXP((void*)stack);STRLIT(stack->name));}
+#define TASK_DEBUG(x)                                     \
+  if (stack->debug) {                                     \
+    DBGOUT(FN; STRLIT(x " task "); PTREXP((void *)stack); \
+           STRLIT(stack->name); NDBG(stack->sp->state,d));\
+  }
 #else
 #define TASK_DEBUG(x)
 #endif
