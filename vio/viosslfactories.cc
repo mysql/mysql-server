@@ -17,7 +17,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 

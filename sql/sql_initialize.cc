@@ -20,10 +20,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "../scripts/sql_commands_help_data.h"
-#include "../scripts/sql_commands_sys_schema.h"
-#include "../scripts/sql_commands_system_data.h"
-#include "../scripts/sql_commands_system_tables.h"
 #include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
 #include "m_ctype.h"
 #include "my_dir.h"
@@ -35,6 +31,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scripts/sql_commands_help_data.h"
+#include "scripts/sql_commands_sys_schema.h"
+#include "scripts/sql_commands_system_data.h"
+#include "scripts/sql_commands_system_tables.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
