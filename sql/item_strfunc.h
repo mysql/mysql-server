@@ -1299,11 +1299,11 @@ public:
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
+  table_map get_initial_pseudo_tables() const override {return RAND_TABLE_BIT;}
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "uuid"; }
   String *val_str(String *) override;
   bool check_gcol_func_processor(uchar *) override { return true; }
-  bool const_item() const override { return false; }
 };
 
 class Item_func_gtid_subtract final : public Item_str_ascii_func

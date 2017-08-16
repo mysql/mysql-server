@@ -1239,3 +1239,16 @@ rollup_null
 DROP TABLE t;
 DROP PREPARE ps;
 DROP VIEW v;
+# Bug#25727892: Refactor Item::const_item() as a non-virtual function
+Extended coverage for ROLLUP and const expressions
+CREATE TABLE t1 (a INTEGER) ENGINE=InnoDB;
+CREATE TABLE t2 (c INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (7),(8);
+INSERT INTO t2 VALUES (-3);
+SELECT c, a, SUM(c) OVER () FROM t1,t2 GROUP BY c,a WITH ROLLUP;
+c	a	SUM(c) OVER ()
+-3	7	-12
+-3	8	-12
+-3	NULL	-12
+NULL	NULL	-12
+DROP TABLE t1, t2;

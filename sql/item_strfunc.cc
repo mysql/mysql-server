@@ -2460,7 +2460,6 @@ bool Item_func_make_set::resolve_type(THD *)
   set_data_type_string(char_length);
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
-  const_item_cache&=	  item->const_item();
   add_accum_properties(item);
 
   return false;
@@ -2472,7 +2471,6 @@ void Item_func_make_set::update_used_tables()
   Item_func::update_used_tables();
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
   add_accum_properties(item);
 }
 

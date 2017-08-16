@@ -200,7 +200,6 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
 
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
-   const_item_cache(false),
    allowed_arg_cols(item->allowed_arg_cols),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -289,7 +288,6 @@ Item_func::fix_fields(THD *thd, Item**)
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= true;
 
   /*
     Use stack limit of STACK_MIN_SIZE * 2 since
@@ -337,7 +335,6 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
   maybe_null|=            item->maybe_null;
   used_tables_cache|=     item->used_tables();
   not_null_tables_cache|= item->not_null_tables();
-  const_item_cache&=      item->const_item();
   add_accum_properties(item);
 
   return false;
@@ -360,7 +357,6 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
 
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= true;
 
   if (arg_count)
   {
@@ -368,10 +364,8 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
     {
       Item *const item= *arg;
       item->fix_after_pullout(parent_select, removed_select);
-
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
-      const_item_cache&=      item->const_item();
     }
   }
 }
@@ -510,14 +504,12 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_func::update_used_tables()
 {
   used_tables_cache= get_initial_pseudo_tables();
-  const_item_cache= true;
   m_accum_properties= 0;
 
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
-    const_item_cache&=args[i]->const_item();
     add_accum_properties(args[i]);
   }
 }
@@ -4489,7 +4481,6 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
   /* Fix all arguments */
   func->maybe_null=0;
   used_tables_cache=0;
-  const_item_cache= true;
 
   if ((f_args.arg_count=arg_count))
   {
@@ -4528,9 +4519,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 	func->collation.set(&my_charset_bin);
       func->maybe_null|= item->maybe_null;
       func->add_accum_properties(item);
-      used_tables_cache|=item->used_tables();
-      const_item_cache&=item->const_item();
-      f_args.arg_type[i]=item->result_type();
+      used_tables_cache|= item->used_tables();
+      f_args.arg_type[i]= item->result_type();
     }
     //TODO: why all following memory is not allocated with 1 call of sql_alloc?
     if (!(buffers=new String[arg_count]) ||
@@ -4551,7 +4541,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     DBUG_RETURN(true);
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
-  initid.const_item=const_item_cache;
+  initid.const_item= used_tables_cache == 0;
   initid.decimals=func->decimals;
   initid.ptr=0;
 
@@ -4618,12 +4608,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
     }
     func->max_length= min<uint32>(initid.max_length, MAX_BLOB_WIDTH);
     func->maybe_null=initid.maybe_null;
-    const_item_cache=initid.const_item;
-    /* 
-      Keep used_tables_cache in sync with const_item_cache.
-      See the comment in Item_udf_func::update_used tables.
-    */
-    if (!const_item_cache && !used_tables_cache)
+    if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache= RAND_TABLE_BIT;
     func->decimals= min<uint>(initid.decimals, NOT_FIXED_DEC);
   }
@@ -7155,6 +7140,8 @@ bool Item_func_get_user_var::resolve_type(THD *thd)
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
+  used_tables_cache= thd->lex->locate_var_assignment(name) ? RAND_TABLE_BIT : 0;
+
   if (get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry))
     return true;
 
@@ -7209,12 +7196,6 @@ bool Item_func_get_user_var::resolve_type(THD *thd)
   }
 
   return false;
-}
-
-
-bool Item_func_get_user_var::const_item() const
-{
-  return (!var_entry || current_thd->query_id != var_entry->update_query_id);
 }
 
 
@@ -8027,7 +8008,6 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   thd->mark_used_columns= save_mark_used_columns;
 
   bool allows_multi_table_search= true;
-  const_item_cache=0;
   for (uint i= 0 ; i < arg_count ; i++)
   {
     item= args[i]= args[i]->real_item(); 

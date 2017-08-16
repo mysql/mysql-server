@@ -1039,7 +1039,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1093,7 +1092,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1147,7 +1145,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1372,7 +1369,6 @@ class Item_func_sysdate_local final :public Item_datetime_func
 public:
   Item_func_sysdate_local(uint8 dec_arg) :
     Item_datetime_func() { decimals= dec_arg; }
-  bool const_item() const override { return false; }
   const char *func_name() const override { return "sysdate"; }
   bool resolve_type(THD *) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;

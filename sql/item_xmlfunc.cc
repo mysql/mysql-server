@@ -241,7 +241,6 @@ public:
     collation.collation= pxml->charset();
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache= RAND_TABLE_BIT;
-    const_item_cache= false;
     return false;
   }
   const char *func_name() const override { return "nodeset"; }

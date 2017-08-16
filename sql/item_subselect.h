@@ -115,8 +115,6 @@ protected:
   enum_parsing_context parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
-  /* cache of constant state */
-  bool const_item_cache;
 
 public:
   /* subquery is transformed */
@@ -181,7 +179,6 @@ public:
   bool resolve_type(THD *) override;
   table_map used_tables() const override { return used_tables_cache; }
   table_map not_null_tables() const override { return 0; }
-  bool const_item() const override { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
   void print(String *str, enum_query_type query_type) override;

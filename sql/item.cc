@@ -3295,7 +3295,6 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
                Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                pointer_cast<uchar *>(&ut));
     subq_predicate->used_tables_cache|= ut.used_tables;
-    subq_predicate->const_item_cache&= this->const_item();
   }
 }
 
@@ -5296,7 +5295,6 @@ void mark_select_range_as_dependent(THD *thd,
     Item_subselect *prev_subselect_item=
       previous_select->master_unit()->item;
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= false;
   }
   {
     Item_subselect *prev_subselect_item=
@@ -5317,7 +5315,7 @@ void mark_select_range_as_dependent(THD *thd,
     else
       prev_subselect_item->used_tables_cache|=
         found_field->table->pos_in_table_list->map();
-    prev_subselect_item->const_item_cache= false;
+
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
   }
@@ -5677,7 +5675,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         {
           prev_subselect_item->used_tables_cache|=
             (*from_field)->table->pos_in_table_list->map();
-          prev_subselect_item->const_item_cache= false;
           set_field(*from_field);
 
           if (!last_checked_context->select_lex->having_fix_field &&
@@ -5730,8 +5727,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                       pointer_cast<uchar *>(&ut));
           prev_subselect_item->used_tables_cache|= ut.used_tables;
-          prev_subselect_item->const_item_cache&=
-            (*reference)->const_item();
 
           if (select->group_list.elements && place == CTX_HAVING)
           {
@@ -5760,11 +5755,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
 
-          mark_as_dependent(thd, last_checked_context->select_lex,
-                            context->select_lex, this,
-                            ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
-                             (Item_ident*) (*reference) :
-                             0));
+          if ((*reference)->used_tables() != 0)
+            mark_as_dependent(thd, last_checked_context->select_lex,
+                              context->select_lex, this,
+                              ref_type == REF_ITEM || ref_type == FIELD_ITEM ?
+                                down_cast<Item_ident *>(*reference) : NULL);
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables
@@ -5791,7 +5786,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         */
         DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
         prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
-        prev_subselect_item->const_item_cache&= (*ref)->const_item();
         break;
       }
     }
@@ -5802,7 +5796,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
       case it does not matter which used tables bits we set)
     */
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= false;
   }
 
   DBUG_ASSERT(ref != 0);
@@ -5871,9 +5864,10 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     if (rf->fix_fields(thd, reference) || rf->check_cols(1))
       return -1;
 
-    mark_as_dependent(thd, last_checked_context->select_lex,
-                      context->select_lex, this,
-                      rf);
+    if (rf->used_tables() != 0)
+      mark_as_dependent(thd, last_checked_context->select_lex,
+                        context->select_lex, this,
+                        rf);
     return 0;
   }
   else
@@ -7772,17 +7766,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
         !(basic_const_item() || item->basic_const_item() ||
           item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
-          item->type() == CACHE_ITEM ||
-           /*
-             Do not cache GET_USER_VAR() function as its const_item() may
-             return TRUE for the current thread but it still may change
-             during the execution.
-             Do not cache TRIG_COND_FUNC as it must be evaluated in join
-             processing.
-           */
-          (item->type() == Item::FUNC_ITEM &&
-           (((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC ||
-            ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC))))
+          item->type() == CACHE_ITEM))
       /*
         Note that we use cache_item as a flag (NULL vs non-NULL), but we
         are storing the pointer so that we can assert that we cache the
@@ -8281,7 +8265,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           {
             DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
             prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
-            prev_subselect_item->const_item_cache&= (*ref)->const_item();
             break;
           }
           /*
@@ -8326,8 +8309,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             Item::Type refer_type= (*reference)->type();
             prev_subselect_item->used_tables_cache|=
               (*reference)->used_tables();
-            prev_subselect_item->const_item_cache&=
-              (*reference)->const_item();
             DBUG_ASSERT((*reference)->type() == REF_ITEM);
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
@@ -8364,7 +8345,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             }
             prev_subselect_item->used_tables_cache|=
               from_field->table->pos_in_table_list->map();
-            prev_subselect_item->const_item_cache= false;
             break;
           }
         }
@@ -8372,7 +8352,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         /* Reference is not found => depend on outer (or just error). */
         prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-        prev_subselect_item->const_item_cache= false;
 
         outer_context= outer_context->outer_context;
       } while (outer_context);

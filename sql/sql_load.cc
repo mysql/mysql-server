@@ -388,6 +388,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
         DBUG_RETURN(true);
       }
+      if (item->type() == Item::STRING_ITEM)
+      {
+        /*
+          This item represents a user variable. Create a new item with the
+          same name that can be added to LEX::set_var_list. This ensures
+          that corresponding Item_func_get_user_var items are resolved as
+          non-const items.
+        */
+        Item_func_set_user_var *user_var= new (thd->mem_root)
+          Item_func_set_user_var(item->item_name, item, false);
+        if (user_var == NULL)
+          DBUG_RETURN(true);
+        thd->lex->set_var_list.push_back(user_var);
+      }
     }
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
