@@ -10826,6 +10826,9 @@ ER_CREDENTIALS_CONTRADICT_TO_HISTORY
 ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
   eng "Non-zero password history clauses ignored for user '%s'@'%s' as its authentication plugin %s does not support password history"
 
+ER_CLIENT_DOES_NOT_SUPPORT
+  eng "The client doesn't support %s"
+
 #
 #  End of 8.0 error messages.
 #

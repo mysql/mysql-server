@@ -622,6 +622,14 @@
 
   @deprecated in favor of --ssl-mode.
 */
+
+
+/**
+  The client can handle optional metadata information in the resultset.
+*/
+#define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
+
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 /**
   Don't reset the options after an unsuccessful connect
@@ -666,6 +674,7 @@
                            | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
                            | CLIENT_SESSION_TRACK \
                            | CLIENT_DEPRECATE_EOF \
+                           | CLIENT_OPTIONAL_RESULTSET_METADATA \
 )
 
 /**
@@ -896,6 +905,14 @@ enum mysql_enum_shutdown_level {
 /** @}*/
 
 
+enum enum_resultset_metadata {
+  /** No metadata will be sent. */
+  RESULTSET_METADATA_NONE= 0,
+  /** The server will send all metadata. */
+  RESULTSET_METADATA_FULL= 1
+};
+
+
 enum enum_cursor_type
 {
   CURSOR_TYPE_NO_CURSOR= 0,
@@ -911,6 +928,7 @@ enum enum_mysql_set_option
   MYSQL_OPTION_MULTI_STATEMENTS_ON,
   MYSQL_OPTION_MULTI_STATEMENTS_OFF
 };
+
 
 /**
   Type of state change information that the server can include in the Ok

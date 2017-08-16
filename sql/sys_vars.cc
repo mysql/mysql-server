@@ -6431,3 +6431,33 @@ static Sys_var_uint Sys_password_reuse_interval(
        GLOBAL_VAR(global_password_reuse_interval),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(0),
        BLOCK_SIZE(1), &plock_sys_password_reuse_interval);
+
+static bool check_resultset_metadata(sys_var *, THD *thd, set_var *var)
+{
+  /*
+    Set @@resultset_metadata to the value other than FULL only if
+    the client supports it.
+  */
+  if (var->save_result.ulonglong_value != RESULTSET_METADATA_FULL &&
+      !thd->get_protocol()->has_client_capability(CLIENT_OPTIONAL_RESULTSET_METADATA))
+  {
+    my_error(ER_CLIENT_DOES_NOT_SUPPORT, MYF(0), "optional metadata transfer");
+    return true;
+  }
+  return false;
+}
+
+static const char *resultset_metadata_names[]= {"NONE", "FULL", NullS};
+
+static Sys_var_enum Sys_resultset_metadata(
+       "resultset_metadata",
+       "Controls what meatadata the server will send to the client: "
+       "either FULL (default) for all metadata, NONE for no metadata.",
+       SESSION_ONLY(resultset_metadata),
+       NO_CMD_LINE,
+       resultset_metadata_names,
+       DEFAULT(static_cast<ulong>(RESULTSET_METADATA_FULL)),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_resultset_metadata),
+       ON_UPDATE(0));
