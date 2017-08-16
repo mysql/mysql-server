@@ -740,7 +740,7 @@ mysql_rwlock_t mysql_registry_imp::LOCK_registry;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_registry_rwlocks[]=
 {
-  { &::key_rwlock_LOCK_registry, "LOCK_registry", PSI_FLAG_GLOBAL }
+  { &::key_rwlock_LOCK_registry, "LOCK_registry", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 

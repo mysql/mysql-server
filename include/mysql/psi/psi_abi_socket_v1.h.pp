@@ -67,7 +67,9 @@ struct PSI_socket_info_v1
 {
   PSI_socket_key *m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  int m_volatility;
+  const char *m_documentation;
 };
 typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
 struct PSI_socket_locker_state_v1

@@ -1590,12 +1590,12 @@ static PSI_mutex_key key_tz_LOCK;
 
 static PSI_mutex_info all_tz_mutexes[]=
 {
-  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL, 0}
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_tz_memory[]=
 {
-  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_GLOBAL}
+  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 class Tz_names_entry;

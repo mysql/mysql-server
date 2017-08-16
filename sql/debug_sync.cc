@@ -518,20 +518,20 @@ static PSI_mutex_key key_debug_sync_globals_ds_mutex;
 
 static PSI_mutex_info all_debug_sync_mutexes[]=
 {
-  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL, 0}
+  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_debug_sync_globals_ds_cond;
 
 static PSI_cond_info all_debug_sync_conds[]=
 {
-  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_GLOBAL}
+  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_debug_sync_memory[]=
 {
-  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0},
-  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0}
+  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0, 0, PSI_DOCUMENT_ME},
+  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_debug_sync_psi_keys(void)

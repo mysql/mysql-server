@@ -187,7 +187,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void* thdp)
     static PSI_mutex_info all_dyloader_mutexes[]=
     {
       { &key_component_id_by_urn_mutex,
-        "key_component_id_by_urn_mutex", 0, 0
+        "key_component_id_by_urn_mutex", 0, 0, PSI_DOCUMENT_ME
       }
     };
 

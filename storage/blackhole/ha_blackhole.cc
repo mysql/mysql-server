@@ -338,12 +338,12 @@ static PSI_mutex_key bh_key_mutex_blackhole;
 
 static PSI_mutex_info all_blackhole_mutexes[]=
 {
-  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL, 0}
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_blackhole_memory[]=
 {
-  { &bh_key_memory_blackhole_share, "blackhole_share", 0}
+  { &bh_key_memory_blackhole_share, "blackhole_share", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_blackhole_psi_keys()

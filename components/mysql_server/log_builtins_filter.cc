@@ -86,7 +86,7 @@ static PSI_rwlock_key key_rwlock_THR_LOCK_log_builtins_filter;
 static PSI_rwlock_info log_builtins_filter_rwlocks[]=
 {
   { &key_rwlock_THR_LOCK_log_builtins_filter,
-    "THR_LOCK_log_builtin_filter", PSI_FLAG_GLOBAL}
+    "THR_LOCK_log_builtin_filter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

@@ -2334,7 +2334,7 @@ pfs_register_rwlock_v1(const char *category,
     DBUG_ASSERT(info->m_name != NULL);
     len = strlen(info->m_name);
 
-    if (info->m_flags & PSI_RWLOCK_FLAG_SX)
+    if (info->m_flags & PSI_FLAG_RWLOCK_SX)
     {
       full_length = sx_prefix_length + len;
       if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))

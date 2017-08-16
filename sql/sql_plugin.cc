@@ -1329,26 +1329,29 @@ static PSI_mutex_key key_LOCK_plugin;
 static PSI_mutex_key key_LOCK_plugin_delete;
 static PSI_mutex_key key_LOCK_plugin_install;
 
+/* clang-format off */
 static PSI_mutex_info all_plugin_mutexes[]=
 {
-  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_plugin_install, "LOCK_plugin_install", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
-
+/* clang-format off */
 static PSI_memory_info all_plugin_memory[]=
 {
 #ifndef DBUG_OFF
-  { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_GLOBAL},
+  { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
 #endif
-  { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
-  { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
-  { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
-  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
-  { &key_memory_mysql_plugin, "mysql_plugin", 0},
-  { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_GLOBAL}
+  { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin, "mysql_plugin", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
 static void init_plugin_psi_keys(void)
 {

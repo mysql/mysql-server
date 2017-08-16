@@ -147,16 +147,16 @@ PSI_memory_key key_memory_create_shared_memory;
 static PSI_memory_info all_client_memory[]=
 {
 #if defined (_WIN32)
-  { &key_memory_create_shared_memory, "create_shared_memory", 0},
+  { &key_memory_create_shared_memory, "create_shared_memory", 0, 0, PSI_DOCUMENT_ME},
 #endif /* _WIN32 */
 
-  { &key_memory_mysql_options, "mysql_options", 0},
-  { &key_memory_MYSQL_DATA, "MYSQL_DATA", 0},
-  { &key_memory_MYSQL, "MYSQL", 0},
-  { &key_memory_MYSQL_RES, "MYSQL_RES", 0},
-  { &key_memory_MYSQL_ROW, "MYSQL_ROW", 0},
-  { &key_memory_MYSQL_state_change_info, "MYSQL_STATE_CHANGE_INFO", 0},
-  { &key_memory_MYSQL_HANDSHAKE, "MYSQL_HANDSHAKE", 0}
+  { &key_memory_mysql_options, "mysql_options", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL_DATA, "MYSQL_DATA", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL, "MYSQL", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL_RES, "MYSQL_RES", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL_ROW, "MYSQL_ROW", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL_state_change_info, "MYSQL_STATE_CHANGE_INFO", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_MYSQL_HANDSHAKE, "MYSQL_HANDSHAKE", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void init_client_psi_keys(void)

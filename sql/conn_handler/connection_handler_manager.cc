@@ -135,14 +135,14 @@ static PSI_mutex_key key_LOCK_connection_count;
 
 static PSI_mutex_info all_conn_manager_mutexes[]=
 {
-  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_connection_count, "LOCK_connection_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_COND_connection_count;
 
 static PSI_cond_info all_conn_manager_conds[]=
 {
-  { &key_COND_connection_count, "COND_connection_count", PSI_FLAG_GLOBAL}
+  { &key_COND_connection_count, "COND_connection_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

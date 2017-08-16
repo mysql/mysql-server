@@ -334,6 +334,22 @@ get_field_enum(Field *f)
   return f2->val_int();
 }
 
+/* SET TYPE */
+void
+set_field_set(Field *f, ulonglong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
+  f2->store_type(value);
+}
+ulonglong
+get_field_set(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
+  return f2->val_int();
+}
+
 /* DATE TYPE */
 void
 set_field_date(Field *f, const char *value, uint len)
@@ -1985,10 +2001,6 @@ PFS_key_event_name::match_view(uint view)
   case PFS_instrument_view_constants::VIEW_METADATA:
     return do_match_prefix(
       false, metadata_lock_class_name.str, metadata_lock_class_name.length);
-
-  case PFS_instrument_view_constants::VIEW_THREAD:
-    return do_match_prefix(
-      false, thread_instrument_prefix.str, thread_instrument_prefix.length);
 
   case PFS_instrument_view_constants::VIEW_STAGE:
     return do_match_prefix(

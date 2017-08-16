@@ -30,12 +30,6 @@ C_MODE_START
 */
 
 /**
-  Shared Exclusive flag.
-  Indicates that rwlock support the shared exclusive state.
-*/
-#define PSI_RWLOCK_FLAG_SX (1 << 4)
-
-/**
   Instrumented rwlock key.
   To instrument a rwlock, a rwlock key must be obtained
   using @c register_rwlock.
@@ -121,9 +115,13 @@ struct PSI_rwlock_info_v1
   const char *m_name;
   /**
     The flags of the rwlock to register.
-    @sa PSI_FLAG_GLOBAL
+    @sa PSI_FLAG_SINGLETON
   */
-  int m_flags;
+  uint m_flags;
+  /** Volatility index. */
+  int m_volatility;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 

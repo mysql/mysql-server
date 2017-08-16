@@ -163,7 +163,7 @@ PSI_mutex_key az_key_mutex_Archive_share_mutex;
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_archive_mutexes[]=
 {
-  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0, 0}
+  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -173,17 +173,17 @@ PSI_file_key arch_key_file_data;
 PSI_file_key arch_key_file_metadata, arch_key_file_frm;
 static PSI_file_info all_archive_files[]=
 {
-  { &arch_key_file_metadata, "metadata", 0},
-  { &arch_key_file_data, "data", 0},
-  { &arch_key_file_frm, "FRM", 0}
+  { &arch_key_file_metadata, "metadata", 0, 0, PSI_DOCUMENT_ME},
+  { &arch_key_file_data, "data", 0, 0, PSI_DOCUMENT_ME},
+  { &arch_key_file_frm, "FRM", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_archive_memory[]=
 {
-  { &az_key_memory_frm, "FRM", 0},
-  { &az_key_memory_record_buffer, "record_buffer", 0},
+  { &az_key_memory_frm, "FRM", 0, 0, PSI_DOCUMENT_ME},
+  { &az_key_memory_record_buffer, "record_buffer", 0, 0, PSI_DOCUMENT_ME},
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 

@@ -1239,7 +1239,7 @@ static PSI_mutex_key key_LOCK_audit_mask;
 
 static PSI_mutex_info all_audit_mutexes[]=
 {
-  { &key_LOCK_audit_mask, "LOCK_audit_mask", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_audit_mask, "LOCK_audit_mask", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_audit_psi_keys(void)

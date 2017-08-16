@@ -85,13 +85,13 @@ static PSI_memory_key key_memory_Partition_admin;
 PSI_mutex_key key_partition_auto_inc_mutex;
 static PSI_memory_info all_partitioning_memory[]=
 {
-  { &key_memory_Partition_share, "Partition_share", 0},
-  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0},
-  { &key_memory_Partition_admin, "Partition_admin", 0}
+  { &key_memory_Partition_share, "Partition_share", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_partition_sort_buffer, "partition_sort_buffer", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_Partition_admin, "Partition_admin", 0, 0, PSI_DOCUMENT_ME}
 };
 static PSI_mutex_info all_partitioning_mutex[]=
 {
-  { &key_partition_auto_inc_mutex, "Partiton_share::auto_inc_mutex", 0, 0}
+  { &key_partition_auto_inc_mutex, "Partition_share::auto_inc_mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

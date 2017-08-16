@@ -5991,10 +5991,9 @@ mysql_mutex_t LOCK_item_func_sleep;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_item_func_sleep;
 
-
 static PSI_mutex_info item_func_sleep_mutexes[]=
 {
-  { &key_LOCK_item_func_sleep, "LOCK_item_func_sleep", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_item_func_sleep, "LOCK_item_func_sleep", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 

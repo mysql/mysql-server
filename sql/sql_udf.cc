@@ -152,12 +152,12 @@ static PSI_rwlock_key key_rwlock_THR_LOCK_udf;
 
 static PSI_rwlock_info all_udf_rwlocks[]=
 {
-  { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_GLOBAL}
+  { &key_rwlock_THR_LOCK_udf, "THR_LOCK_udf", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_udf_memory[]=
 {
-  { &key_memory_udf_mem, "udf_mem", PSI_FLAG_GLOBAL}
+  { &key_memory_udf_mem, "udf_mem", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_udf_psi_keys(void)

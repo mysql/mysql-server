@@ -103,7 +103,7 @@ static PSI_mutex_key key_LOCK_slave_list;
 
 static PSI_mutex_info all_slave_list_mutexes[]=
 {
-  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_all_slave_list_mutexes(void)

@@ -63,7 +63,7 @@ PSI_memory_key key_memory_comp_sys_var;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info comp_sys_var_memory[]=
 {
-  {&key_memory_comp_sys_var, "component_system_variables", 0}
+  {&key_memory_comp_sys_var, "component_system_variables", 0, 0, PSI_DOCUMENT_ME}
 };
 
 void comp_sys_var_init_psi_keys(void)

@@ -76,7 +76,7 @@ PSI_file_key key_persist_file_cnf;
 #ifdef HAVE_PSI_FILE_INTERFACE
 static PSI_file_info all_persist_files[]=
 {
-  { &key_persist_file_cnf, "cnf", 0}
+  { &key_persist_file_cnf, "cnf", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
@@ -85,8 +85,8 @@ PSI_mutex_key key_persist_file, key_persist_hash;
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_info all_persist_mutexes[]=
 {
-  { &key_persist_file, "m_LOCK_persist_file", 0, 0},
-  { &key_persist_hash, "m_LOCK_persist_hash", 0, 0}
+  { &key_persist_file, "m_LOCK_persist_file", 0, 0, PSI_DOCUMENT_ME},
+  { &key_persist_hash, "m_LOCK_persist_hash", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
@@ -95,7 +95,7 @@ PSI_memory_key key_memory_persisted_variables;
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_options[]=
 {
-  {&key_memory_persisted_variables, "persisted_options_root", PSI_FLAG_GLOBAL}
+  {&key_memory_persisted_variables, "persisted_options_root", 0, PSI_FLAG_ONLY_GLOBAL_STAT, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
@@ -112,7 +112,7 @@ void my_init_persist_psi_keys(void)
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= static_cast<int>(array_elements(all_persist_mutexes));
-  PSI_MUTEX_CALL(register_mutex)(category, all_persist_mutexes, count);
+  mysql_mutex_register(category, all_persist_mutexes, count);
 #endif
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE

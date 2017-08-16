@@ -54,10 +54,14 @@ struct PSI_memory_info_v1
   /** The name of the memory instrument to register. */
   const char *m_name;
   /**
-    The flags of the socket instrument to register.
-    @sa PSI_FLAG_GLOBAL
+    The flags of the memory instrument to register.
+    @sa PSI_FLAG_ONLY_GLOBAL_STAT
   */
-  int m_flags;
+  uint m_flags;
+  /** Volatility index. */
+  int m_volatility;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
 

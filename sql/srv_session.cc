@@ -107,7 +107,7 @@ public:
     const char* category= "session";
     PSI_mutex_info all_mutexes[]=
     {
-      { &key_LOCK_collection, "LOCK_srv_session_threads", PSI_FLAG_GLOBAL, 0}
+      { &key_LOCK_collection, "LOCK_srv_session_threads", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
     };
 
     initted= true;
@@ -330,7 +330,7 @@ public:
     const char* category= "session";
     PSI_rwlock_info all_rwlocks[]=
     {
-      { &key_LOCK_collection, "LOCK_srv_session_collection", PSI_FLAG_GLOBAL}
+      { &key_LOCK_collection, "LOCK_srv_session_collection", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
     };
 
     initted= true;

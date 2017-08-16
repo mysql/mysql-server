@@ -1188,7 +1188,7 @@ static PSI_mutex_key key_LOCK_transaction_cache;
 
 static PSI_mutex_info transaction_cache_mutexes[]=
 {
-  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_transaction_cache, "LOCK_transaction_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_transaction_cache_psi_keys(void)
