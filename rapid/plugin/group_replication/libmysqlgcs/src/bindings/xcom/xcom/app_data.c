@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,8 +33,11 @@
 #include "node_list.h"
 #include "xcom_vp_str.h"
 
+define_xdr_funcs(synode_no)
+define_xdr_funcs(app_data_ptr)
 
 static app_data_list nextp(app_data_list l);
+static unsigned long msg_count(app_data_ptr a);
 
 /**
    Debug a single app_data struct.
@@ -370,8 +373,7 @@ void follow(app_data_list l, app_data_ptr p)
 /**
    Count the number of messages in a list.
  */
-unsigned long msg_count(app_data_ptr a)
-{
+static unsigned long msg_count(app_data_ptr a) {
   unsigned long n = 0;
   while(a){
     n++;
@@ -380,7 +382,6 @@ unsigned long msg_count(app_data_ptr a)
   return n;
 }
 
-define_xdr_funcs(app_data_ptr)
 
 /* {{{ Message constructors */
 

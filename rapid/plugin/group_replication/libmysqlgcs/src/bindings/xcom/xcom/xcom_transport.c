@@ -892,41 +892,43 @@ int	srv_unref(server *s)
 /* }}} */
 
 /* Listen for connections on socket and create a handler task */
-int	tcp_server(task_arg arg)
-{
-	DECL_ENV
-	    int	fd;
-	int	cfd;
-	int refused;
-	END_ENV;
-	TASK_BEGIN
-	    ep->fd = get_int_arg(arg);
-	ep->refused= 0;
-	unblock_fd(ep->fd);
-	DBGOUT(FN; NDBG(ep->fd, d); );
-        G_MESSAGE("Ready to accept incoming connections on %s:%d "
-                  "(socket=%d)!",
-                  "0.0.0.0",
-                  xcom_listen_port, ep->fd);
-	do {
-		TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
-                /* Callback to check that the file descriptor is accepted. */
-                if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd))
-                {
-                  shut_close_socket(&ep->cfd);
-                  ep->cfd= -1;
-                  ep->refused= 1;
-                  TASK_YIELD;
-                  continue;
-                }
-                ep->refused= 0;
-		DBGOUT(FN; NDBG(ep->cfd, d); );
-		task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task", XCOM_THREAD_DEBUG);
-	} while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
-	FINALLY
-	assert(ep->fd >= 0);
-	shut_close_socket(&ep->fd);
-	TASK_END;
+int tcp_server(task_arg arg) {
+  DECL_ENV
+  int fd;
+  int cfd;
+  int refused;
+  END_ENV;
+  TASK_BEGIN
+  ep->fd = get_int_arg(arg);
+  ep->refused = 0;
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  G_MESSAGE(
+      "Ready to accept incoming connections on %s:%d "
+      "(socket=%d)!",
+      "0.0.0.0", xcom_listen_port, ep->fd);
+  do {
+    TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
+    /* Callback to check that the file descriptor is accepted. */
+    if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
+      shut_close_socket(&ep->cfd);
+      ep->cfd = -1;
+    }
+    if(ep->cfd == -1){
+      G_MESSAGE("accept failed");
+      ep->refused = 1;
+      TASK_DELAY(0.1);
+    } else {
+      ep->refused = 0;
+      DBGOUT(FN; NDBG(ep->cfd, d););
+      task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
+               XCOM_THREAD_DEBUG);
+    }
+  } while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
+  FINALLY
+  assert(ep->fd >= 0);
+  shut_close_socket(&ep->fd);
+  TASK_END;
 }
 
 #ifdef XCOM_HAVE_OPENSSL
