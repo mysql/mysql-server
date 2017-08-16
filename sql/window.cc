@@ -880,6 +880,15 @@ bool Window::check_border_sanity(THD *thd, Window *w,
         {
           // postpone check till execute time
         }
+        // Only integer values can be specified as args for ROW frames
+        else if (fr.m_unit == WFU_ROWS &&
+                 ((border_t == WBT_VALUE_PRECEDING ||
+                   border_t == WBT_VALUE_FOLLOWING) &&
+                  border->m_value->type() != Item::INT_ITEM))
+        {
+          my_error(ER_WINDOW_FRAME_ILLEGAL, MYF(0), w->printable_name());
+          return true;
+        }
         else if (fr.m_unit == WFU_RANGE &&
                  (o_item= w->m_order_by_items[0]->get_item())->result_type()
                  == STRING_RESULT &&
