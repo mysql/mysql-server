@@ -24,7 +24,7 @@
 #include "sha1.h"
 
 #if defined(HAVE_YASSL)
-#include "sha.hpp"
+#include <sha.hpp>
 
 /**
   Compute SHA1 message digest using YaSSL.

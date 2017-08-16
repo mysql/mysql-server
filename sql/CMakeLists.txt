@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/extra/regex
-  ${SSL_INCLUDE_DIRS}
 )
 
 SET(CONF_SOURCES

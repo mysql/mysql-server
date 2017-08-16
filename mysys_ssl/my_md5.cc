@@ -25,7 +25,7 @@
 #if defined(HAVE_YASSL)
 #include "my_config.h"
 
-#include "md5.hpp"
+#include <md5.hpp>
 
 static void my_md5_hash(char *digest, const char *buf, int len)
 {

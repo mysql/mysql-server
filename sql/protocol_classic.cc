@@ -210,6 +210,7 @@
 
 #include "sql/protocol_classic.h"
 
+#include <openssl/ssl.h>
 #include <string.h>
 #include <algorithm>
 #include <limits>
@@ -228,7 +229,6 @@
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysqld_error.h"
-#include "openssl/ssl.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/field.h"
 #include "sql/histograms/value_map.h"

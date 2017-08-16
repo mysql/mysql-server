@@ -36,7 +36,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include/                   # my_compiler.h
   ${CMAKE_BINARY_DIR}/include/                   # config.h
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
-  ${SSL_INCLUDE_DIRS}                            # SSL include dirs
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
   ${CMAKE_CURRENT_SOURCE_DIR}/include/
   ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/

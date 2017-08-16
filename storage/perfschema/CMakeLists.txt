@@ -14,9 +14,8 @@
 # along with this program; if not, write to the Free Software Foundation,
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
-                    ${SSL_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
+                    ${CMAKE_SOURCE_DIR}/extra/regex)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
