@@ -643,6 +643,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
@@ -673,6 +674,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np
   CHECK_C_SOURCE_COMPILES("
   #include <pthread.h>
+
   int main(int ac, char **av)
   {
     const char *thread_name= 0;

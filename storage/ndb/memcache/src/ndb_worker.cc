@@ -19,7 +19,7 @@
  */
 
 /* configure defines */
-#include <my_config.h>
+#include "my_config.h"
 
 /* System headers */
 #include <unistd.h>

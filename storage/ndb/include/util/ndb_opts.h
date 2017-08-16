@@ -20,8 +20,8 @@
 
 #include <ndb_global.h>
 
-#include <my_sys.h> /* loglevel needed by my_getopt.h */
-#include <my_getopt.h>
+#include "my_sys.h" /* loglevel needed by my_getopt.h */
+#include "my_getopt.h"
 
 #ifdef __cplusplus
 extern "C" {

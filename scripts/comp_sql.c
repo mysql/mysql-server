@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../include/my_compiler.h"
+#include "my_compiler.h"
 /*
   This is an internal tool used during the build process only,
   - do not make a library just for this,

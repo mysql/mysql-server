@@ -164,10 +164,6 @@ ENDIF()
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
 INCLUDE_DIRECTORIES(
-  # MySQL Server includes
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_BINARY_DIR}/include
-
   # NDB includes
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include/util

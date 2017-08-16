@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_sys.h>               // my_sleep.h
+#include "my_sys.h"               // my_sleep.h
 #include <mysql/plugin.h>
 #include <ndbapi/NdbApi.hpp>
 

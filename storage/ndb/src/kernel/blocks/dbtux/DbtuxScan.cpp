@@ -17,7 +17,7 @@
 
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 
 #define JAM_FILE_ID 371
 

@@ -18,8 +18,8 @@
 #include <process.h>
 #endif
 #include <BaseString.hpp>
-#include <m_string.h>
-#include <my_sys.h>
+#include "m_string.h"
+#include "my_sys.h"
 #include <mysql/service_my_snprintf.h>
 #include <ndb_daemon.h>
 #include <portlib/NdbHost.h>

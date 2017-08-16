@@ -99,7 +99,7 @@
 #ifdef _AIX
 #undef _H_STRINGS
 #endif
-#include <m_string.h>
+#include "m_string.h"
 
 #ifndef NDB_REMOVE_BZERO
 /*
@@ -119,7 +119,7 @@
 #endif
 #endif
 
-#include <m_ctype.h>
+#include "m_ctype.h"
 #include <ctype.h>
 
 #ifdef HAVE_STDARG_H

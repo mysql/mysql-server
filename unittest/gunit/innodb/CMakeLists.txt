@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
 )
 

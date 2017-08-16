@@ -20,6 +20,7 @@
 
 /* readline for batch mode */
 
+#include "my_inttypes.h"
 #include "my_io.h"
 
 typedef struct st_line_buffer

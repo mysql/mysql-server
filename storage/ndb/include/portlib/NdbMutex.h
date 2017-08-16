@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #define NDB_MUTEX_H
 
 #include <ndb_global.h>
-#include <thr_mutex.h>
+#include "thr_mutex.h"
 
 #ifdef	__cplusplus
 extern "C" {

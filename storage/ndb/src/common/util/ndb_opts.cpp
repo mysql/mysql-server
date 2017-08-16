@@ -19,7 +19,7 @@
 #include <ndb_opts.h>
 
 #include <ndb_version.h>
-#include <my_default.h>
+#include "my_default.h"
 
 static void default_ndb_opt_short(void)
 {

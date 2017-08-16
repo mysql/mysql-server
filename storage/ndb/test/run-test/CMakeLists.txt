@@ -14,7 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
- ${CMAKE_SOURCE_DIR}/include
  ${CMAKE_SOURCE_DIR}/storage/ndb/include
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger
