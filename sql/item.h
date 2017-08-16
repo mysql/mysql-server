@@ -1832,13 +1832,13 @@ public:
   virtual uint datetime_precision();
   /**
     Returns true if item is constant, regardless of query evaluation state.
-    Default is that an expression is constant if it:
+    An expression is constant if it:
     - refers no tables.
     - refers no subqueries that refers any tables.
     - refers no non-deterministic functions.
     - refers no statement parameters.
   */
-  virtual bool const_item() const
+  bool const_item() const
   {
     return used_tables() == 0;
   }
@@ -4613,10 +4613,6 @@ public:
   Field *get_tmp_table_field() override
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd) override;
-  bool const_item() const override
-  {
-    return (*ref)->const_item() && (used_tables() == 0);
-  }
   table_map used_tables() const override
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
@@ -4937,7 +4933,7 @@ public:
                          SELECT_LEX *removed_select) override;
   table_map used_tables() const override
   {
-    return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
+    return (*ref)->used_tables() == 0 ? 0 : OUTER_REF_TABLE_BIT;
   }
   table_map not_null_tables() const override { return 0; }
 

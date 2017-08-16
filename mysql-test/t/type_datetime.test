@@ -644,6 +644,7 @@ DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
 UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
   WHERE `col_int_nokey` > `col_int_nokey`
         AND TIMESTAMP('18:16:35.025453') IS  NULL;
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
 --error ER_TRUNCATED_WRONG_VALUE
 UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
   `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));

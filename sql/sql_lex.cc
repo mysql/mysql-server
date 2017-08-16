@@ -4326,6 +4326,27 @@ bool LEX::table_or_sp_used()
 }
 
 
+/**
+  Locate an assignment to a user variable with a given name, within statement.
+
+  @param name Name of variable to search for
+
+  @returns true if variable is assigned to, false otherwise.
+*/
+
+bool LEX::locate_var_assignment(const Name_string &name)
+{
+  List_iterator<Item_func_set_user_var> li(set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+  {
+    if (var->name.eq(name))
+      return true;
+  }
+  return false;
+}
+
+
 void
 SELECT_LEX::fix_prepare_information_for_order(THD *thd,
                                               SQL_I_List<ORDER> *list,

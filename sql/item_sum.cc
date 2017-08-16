@@ -739,7 +739,6 @@ void Item_sum::update_used_tables()
       add_accum_properties(args[i]);
     }
 
-    used_tables_cache&= PSEUDO_TABLE_BITS;
     /*
       If the function is aggregated into its local context, it can
       be calculated only after evaluating the full join, thus it
@@ -753,8 +752,14 @@ void Item_sum::update_used_tables()
     */
     used_tables_cache|=
       aggr_select == base_select || m_is_window_function ?
-          base_select->all_tables_map() :
+        base_select->all_tables_map() :
         OUTER_REF_TABLE_BIT;
+    /*
+      Aggregate functions are not allowed to be const, but they may
+      be const-for-execution.
+    */
+    if (used_tables_cache == 0)
+      used_tables_cache= INNER_TABLE_BIT;
   }
 }
 

@@ -906,6 +906,7 @@ UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
 WHERE `col_int_nokey` > `col_int_nokey`
         AND TIMESTAMP('18:16:35.025453') IS  NULL;
 ERROR 22007: Incorrect datetime value: '18:16:35.025453'
+INSERT INTO t VALUES('x', CURRENT_TIME(), 0, CURRENT_TIMESTAMP());
 UPDATE test.t SET `col_datetime_key` = `col_datetime_key` WHERE
 `col_datetime_key` <=> FROM_UNIXTIME(1151860736,CONCAT_WS(':','%D','%v'));
 ERROR 22007: Incorrect datetime value: '2nd:26' for column 'col_datetime_key' at row 1

@@ -581,7 +581,6 @@ public:
     used_tables_cache= 0; 
     forced_const= true;
   }
-  bool const_item() const override { return forced_const; }
   void print(String *str, enum_query_type query_type) override;
   void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -2082,14 +2081,7 @@ public:
   bool add() override { DBUG_ASSERT(false); return false; }
 
   bool fix_fields(THD *thd, Item **items) override;
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   bool framing() const override { return false; }
 };
 
@@ -2360,15 +2352,6 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
 
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
-
   bool two_pass() const override
   {
     return true; /* FIXME poss. optimization: m_is_lead; */
@@ -2436,14 +2419,7 @@ public:
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
   bool add() override { DBUG_ASSERT(false); return false; }
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
 
@@ -2508,14 +2484,7 @@ public:
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
   bool add() override { DBUG_ASSERT(false); return false; }
-  bool const_item() const override
-  {
-    /*
-      Lest it doesn't get copied, cf. create_tmp_table check using const_item:
-      "We don't have to store this"...
-    */
-    return false;
-  }
+
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
 

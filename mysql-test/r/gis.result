@@ -2240,7 +2240,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)
@@ -2274,7 +2274,7 @@ EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,idx2	idx2	34	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,(@`poly1`))
+Note	1003	/* select#1 */ select st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where st_within(`test`.`t1`.`p`,<cache>((@`poly1`)))
 SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
 ST_AsText(p)
 POINT(30 30)

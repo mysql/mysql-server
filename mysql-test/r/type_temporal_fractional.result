@@ -16932,8 +16932,6 @@ Warning	1292	Truncated incorrect time value: '0000-00-00'
 Warning	1292	Truncated incorrect time value: '2002-11-24'
 Warning	1292	Truncated incorrect time value: '0000-00-00'
 Warning	1292	Truncated incorrect time value: '2002-11-24'
-Warning	1292	Truncated incorrect time value: '0000-00-00'
-Warning	1292	Truncated incorrect time value: '2002-11-24'
 DROP VIEW v1;
 DROP TABLE t1;
 #

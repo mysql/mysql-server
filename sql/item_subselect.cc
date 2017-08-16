@@ -89,8 +89,7 @@ class Json_wrapper;
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(false), traced_before(false),
   substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
-  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
-  changed(false)
+  used_tables_cache(0), have_to_be_excluded(false), changed(false)
 {
   set_subquery();
   reset();
@@ -105,8 +104,7 @@ Item_subselect::Item_subselect():
 Item_subselect::Item_subselect(const POS &pos):
   super(pos), value_assigned(false), traced_before(false),
   substitution(NULL), in_cond_of_tab(NO_PLAN_IDX), engine(NULL), old_engine(NULL),
-  used_tables_cache(0), have_to_be_excluded(false), const_item_cache(true),
-  changed(false)
+  used_tables_cache(0), have_to_be_excluded(false), changed(false)
 {
   set_subquery();
   reset();
@@ -662,14 +660,12 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
   else
     goto err;
 
-  const_item_cache= used_tables_cache == 0;
-
   if ((uncacheable= engine->uncacheable()))
   {
-    const_item_cache= false;
     if (uncacheable & UNCACHEABLE_RAND)
       used_tables_cache|= RAND_TABLE_BIT;
   }
+
   /*
     If this subquery references window functions, per the SQL standard they
     are aggregated in the subquery's query block, and never outside of it, so:
@@ -990,12 +986,9 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
 
 void Item_subselect::update_used_tables()
 {
+  // did all used tables become const?
   if (!engine->uncacheable())
-  {
-    // did all used tables become static?
-    if (!(used_tables_cache & ~engine->upper_select_const_tables()))
-      const_item_cache= true;
-  }
+    used_tables_cache&= ~engine->upper_select_const_tables();
 }
 
 
@@ -1275,7 +1268,6 @@ Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
     of Items belonged to subquery, which will be not repeated
   */
   used_tables_cache= parent->used_tables();
-  const_item_cache= parent->const_item();
 
   DBUG_VOID_RETURN;
 }
@@ -2208,6 +2200,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
   // Transformation will make the subquery a dependent one.
   if (!left_expr->const_item())
     select->uncacheable|= UNCACHEABLE_DEPENDENT;
+
   in2exists_info->added_to_where= false;
 
   if (select->having_cond() || select->with_sum_func ||

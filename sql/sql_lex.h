@@ -3565,6 +3565,8 @@ public:
   */
   List<Item_param>    param_list;
 
+  bool locate_var_assignment(const Name_string &name);
+
   void insert_values_map(Field *f1, Field *f2)
   {
     if (!insert_update_values_map)
