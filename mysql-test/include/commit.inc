@@ -719,7 +719,7 @@ call p_verify_status_increment(2, 0, 1, 0);
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
 --disable_warnings
-call p_verify_status_increment(3, 0, 3, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);
@@ -878,13 +878,13 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
- --replace_regex /10/<commit_count>/
-  call p_verify_status_increment(10, 4, 4, 4);
+ --replace_regex /8/<commit_count>/
+  call p_verify_status_increment(8, 4, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /11/<commit_count>/
-  call p_verify_status_increment(11, 4, 4, 4);
+  --replace_regex /9/<commit_count>/
+  call p_verify_status_increment(9, 4, 4, 4);
 }
 alter table t3 add column (b int);
 

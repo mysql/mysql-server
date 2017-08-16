@@ -73,7 +73,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 2,
                 "column_type_utf8": "int(11)",
                 "elements": [],
@@ -106,7 +106,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 2,
                 "column_type_utf8": "int(11)",
                 "elements": [],
@@ -139,7 +139,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "blob",
                 "elements": [],
@@ -172,7 +172,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "text",
                 "elements": [],
@@ -205,7 +205,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -238,7 +238,7 @@ a	b	c	d
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
@@ -265,7 +265,7 @@ a	b	c	d
                 "ordinal_position": 1,
                 "comment": "",
                 "options": "flags=0;",
-                "se_private_data": "id=X;root=Y;trx_id=Z",
+                "se_private_data": "id=A;root=B;space_id=C,table_id=D,trx_id=E",
                 "type": 1,
                 "algorithm": 2,
                 "is_algorithm_explicit": false,
@@ -338,7 +338,7 @@ a	b	c	d
             {
                 "ordinal_position": 1,
                 "filename": "./test/t1.ibd",
-                "se_private_data": ""
+                "se_private_data": "id=X"
             }
         ]
     }

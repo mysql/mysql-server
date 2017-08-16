@@ -49,8 +49,12 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 call mtr.add_suppression("Slave worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 call mtr.add_suppression("Table 't_2' already exists");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("Cannot open datafile for read-onl");
+call mtr.add_suppression("The error means the system cannot");
 --disable_query_log
 call mtr.add_suppression("You need to use --log-bin to make.* work");
+call mtr.add_suppression("Could not find a valid tablespace file for");
 --enable_query_log
 
 --source include/rpl_connection_master.inc

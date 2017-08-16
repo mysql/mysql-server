@@ -350,9 +350,6 @@ enum	fts_status {
 
 	ADDED_TABLE_SYNCED = 8,		/*!< TRUE if the ADDED table record is
 					sync-ed after crash recovery */
-
-	TABLE_DICT_LOCKED = 16		/*!< Set if the table has
-					dict_sys->mutex */
 };
 
 typedef	enum fts_status	fts_status_t;
@@ -435,9 +432,7 @@ extern char*		fts_internal_tbl_name2;
 
 #define	fts_que_graph_free(graph)			\
 do {							\
-	mutex_enter(&dict_sys->mutex);			\
 	que_graph_free(graph);				\
-	mutex_exit(&dict_sys->mutex);			\
 } while (0)
 
 /******************************************************************//**
@@ -532,20 +527,38 @@ fts_trx_free(
 /*=========*/
 	fts_trx_t*	fts_trx);		/*!< in, own: FTS trx */
 
-/******************************************************************//**
-Creates the common ancillary tables needed for supporting an FTS index
-on the given table. row_mysql_lock_data_dictionary must have been
-called before this.
-@return DB_SUCCESS or error code */
+/** Check if common tables already exist
+@param[in]	table	table with fts index
+@return true on success, false on failure */
+bool
+fts_check_common_tables_exist(
+	const dict_table_t*	table);
+
+/** Creates the common auxiliary tables needed for supporting an FTS index
+on the given table. row_mysql_lock_data_dictionary must have been called
+before this.
+The following tables are created.
+CREATE TABLE $FTS_PREFIX_DELETED
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_DELETED_CACHE
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_BEING_DELETED
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_BEING_DELETED_CACHE
+	(doc_id BIGINT UNSIGNED, UNIQUE CLUSTERED INDEX on doc_id)
+CREATE TABLE $FTS_PREFIX_CONFIG
+	(key CHAR(50), value CHAR(200), UNIQUE CLUSTERED INDEX on key)
+@param[in,out]	trx			transaction
+@param[in]	table			table with FTS index
+@param[in]	name			table name normalized
+@param[in]	skip_doc_id_index	Skip index on doc id
+@return DB_SUCCESS if succeed */
 dberr_t
 fts_create_common_tables(
-/*=====================*/
-	trx_t*		trx,			/*!< in: transaction handle */
-	const dict_table_t*
-			table,			/*!< in: table with one FTS
-						index */
-	const char*	name,			/*!< in: table name */
-	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
+	trx_t*			trx,
+	const dict_table_t*	table,
+	const char*		name,
+	bool			skip_doc_id_index)
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Creates the column specific ancillary tables needed for supporting an
@@ -796,6 +809,15 @@ fts_drop_index_tables(
 	dict_index_t*		index,
 	aux_name_vec_t*		aux_vec);
 
+/** Empty all common talbes.
+@param[in,out]	trx	transaction
+@param[in]	table	dict table
+@return	DB_SUCCESS or error code. */
+dberr_t
+fts_empty_common_tables(
+	trx_t*		trx,
+	dict_table_t*	table);
+
 /******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
 acknowledgement from the consumer of the message. */
@@ -866,13 +888,6 @@ fts_savepoint_rollback_last_stmt(
 /*=============================*/
 	trx_t*		trx);			/*!< in: transaction */
 
-/***********************************************************************//**
-Drop all orphaned FTS auxiliary tables, those that don't have a parent
-table or FTS index defined on them. */
-void
-fts_drop_orphaned_tables(void);
-/*==========================*/
-
 /* Get parent table name if it's a fts aux table
 @param[in]	aux_table_name	aux table name
 @param[in]	aux_table_len	aux table length
@@ -895,16 +910,6 @@ fts_sync_table(
 	bool		unlock_cache,
 	bool		wait,
 	bool		has_dict);
-
-/****************************************************************//**
-Free the query graph but check whether dict_sys->mutex is already
-held */
-void
-fts_que_graph_free_check_lock(
-/*==========================*/
-	fts_table_t*		fts_table,	/*!< in: FTS table */
-	const fts_index_cache_t*index_cache,	/*!< in: FTS index cache */
-	que_t*			graph);		/*!< in: query graph */
 
 /****************************************************************//**
 Create an FTS index cache. */
@@ -967,6 +972,15 @@ innobase_mysql_fts_get_token(
 	const byte*	end,			/*!< in: one character past
 						end of text */
 	fts_string_t*	token);			/*!< out: token's text */
+
+/** Drop dd table & tablespace for fts aux table
+@param[in]	name		table name
+@param[in]	file_per_table	flag whether use file per table
+@return true on success, false on failure. */
+bool
+innobase_fts_drop_dd_table(
+	const char*	name,
+	bool		file_per_table);
 
 /*************************************************************//**
 Get token char size by charset

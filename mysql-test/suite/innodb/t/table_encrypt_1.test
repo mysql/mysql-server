@@ -15,9 +15,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=./test/t1.ibd");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log
 
 # Create a table with encryption, should fail since keyring is not

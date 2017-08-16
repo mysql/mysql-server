@@ -3278,21 +3278,25 @@ row_import_read_meta_data(
 
 /**
 Read the contents of the @<tablename@>.cfg file.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	thd		session
+@param[in,out]	cfg		contents of the .cfg file
 @return DB_SUCCESS or error code. */
 static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_cfg(
-/*================*/
-	dict_table_t*	table,	/*!< in: table */
-	THD*		thd,	/*!< in: session */
-	row_import&	cfg)	/*!< out: contents of the .cfg file */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	THD*		thd,
+	row_import&	cfg)
 {
 	dberr_t		err;
 	char		name[OS_FILE_MAX_PATH];
 
 	cfg.m_table = table;
 
-	srv_get_meta_data_filename(table, name, sizeof(name));
+	dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
 	FILE*	file = fopen(name, "rb");
 
@@ -3489,239 +3493,17 @@ row_import_read_cfp(
 	return(err);
 }
 
-/*****************************************************************//**
-Update the <space, root page> of a table's indexes from the values
-in the data dictionary.
-@return DB_SUCCESS or error code */
-dberr_t
-row_import_update_index_root(
-/*=========================*/
-	trx_t*			trx,		/*!< in/out: transaction that
-						covers the update */
-	const dict_table_t*	table,		/*!< in: Table for which we want
-						to set the root page_no */
-	bool			reset,		/*!< in: if true then set to
-						FIL_NUL */
-	bool			dict_locked)	/*!< in: Set to true if the
-						caller already owns the
-						dict_sys_t:: mutex. */
-
-{
-	const dict_index_t*	index;
-	que_t*			graph = 0;
-	dberr_t			err = DB_SUCCESS;
-
-	static const char	sql[] = {
-		"PROCEDURE UPDATE_INDEX_ROOT() IS\n"
-		"BEGIN\n"
-		"UPDATE SYS_INDEXES\n"
-		"SET SPACE = :space,\n"
-		"    PAGE_NO = :page,\n"
-		"    TYPE = :type\n"
-		"WHERE TABLE_ID = :table_id AND ID = :index_id;\n"
-		"END;\n"};
-
-	if (!dict_locked) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	for (index = table->first_index();
-	     index != 0;
-	     index = index->next()) {
-
-		pars_info_t*	info;
-		ib_uint32_t	page;
-		ib_uint32_t	space;
-		ib_uint32_t	type;
-		space_index_t	index_id;
-		table_id_t	table_id;
-
-		info = (graph != 0) ? graph->info : pars_info_create();
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&type),
-			index->type);
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&page),
-			reset ? FIL_NULL : index->page);
-
-		mach_write_to_4(
-			reinterpret_cast<byte*>(&space),
-			reset ? FIL_NULL : index->space);
-
-		mach_write_to_8(
-			reinterpret_cast<byte*>(&index_id),
-			index->id);
-
-		mach_write_to_8(
-			reinterpret_cast<byte*>(&table_id),
-			table->id);
-
-		/* If we set the corrupt bit during the IMPORT phase then
-		we need to update the system tables. */
-		pars_info_bind_int4_literal(info, "type", &type);
-		pars_info_bind_int4_literal(info, "space", &space);
-		pars_info_bind_int4_literal(info, "page", &page);
-		pars_info_bind_ull_literal(info, "index_id", &index_id);
-		pars_info_bind_ull_literal(info, "table_id", &table_id);
-
-		if (graph == 0) {
-			graph = pars_sql(info, sql);
-			ut_a(graph);
-			graph->trx = trx;
-		}
-
-		que_thr_t*	thr;
-
-		graph->fork_type = QUE_FORK_MYSQL_INTERFACE;
-
-		ut_a(thr = que_fork_start_command(graph));
-
-		que_run_threads(thr);
-
-		DBUG_EXECUTE_IF("ib_import_internal_error",
-				trx->error_state = DB_ERROR;);
-
-		err = trx->error_state;
-
-		if (err != DB_SUCCESS) {
-			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				ER_INTERNAL_ERROR,
-				"While updating the <space, root page"
-				" number> of index %s - %s",
-				index->name(), ut_strerr(err));
-
-			break;
-		}
-	}
-
-	que_graph_free(graph);
-
-	if (!dict_locked) {
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	return(err);
-}
-
-/** Callback arg for row_import_set_discarded. */
-struct discard_t {
-	ib_uint32_t	flags2;			/*!< Value read from column */
-	bool		state;			/*!< New state of the flag */
-	ulint		n_recs;			/*!< Number of recs processed */
-};
-
-/******************************************************************//**
-Fetch callback that sets or unsets the DISCARDED tablespace flag in
-SYS_TABLES. The flags is stored in MIX_LEN column.
-@return FALSE if all OK */
-static
-ibool
-row_import_set_discarded(
-/*=====================*/
-	void*		row,			/*!< in: sel_node_t* */
-	void*		user_arg)		/*!< in: bool set/unset flag */
-{
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-	discard_t*	discard = static_cast<discard_t*>(user_arg);
-	dfield_t*	dfield = que_node_get_val(node->select_list);
-	dtype_t*	type = dfield_get_type(dfield);
-	ulint		len = dfield_get_len(dfield);
-
-	ut_a(dtype_get_mtype(type) == DATA_INT);
-	ut_a(len == sizeof(ib_uint32_t));
-
-	ulint	flags2 = mach_read_from_4(
-		static_cast<byte*>(dfield_get_data(dfield)));
-
-	if (discard->state) {
-		flags2 |= DICT_TF2_DISCARDED;
-	} else {
-		flags2 &= ~DICT_TF2_DISCARDED;
-	}
-
-	mach_write_to_4(reinterpret_cast<byte*>(&discard->flags2), flags2);
-
-	++discard->n_recs;
-
-	/* There should be at most one matching record. */
-	ut_a(discard->n_recs == 1);
-
-	return(FALSE);
-}
-
-/*****************************************************************//**
-Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
-@return DB_SUCCESS or error code. */
-dberr_t
-row_import_update_discarded_flag(
-/*=============================*/
-	trx_t*		trx,		/*!< in/out: transaction that
-					covers the update */
-	table_id_t	table_id,	/*!< in: Table for which we want
-					to set the root table->flags2 */
-	bool		discarded,	/*!< in: set MIX_LEN column bit
-					to discarded, if true */
-	bool		dict_locked)	/*!< in: set to true if the
-					caller already owns the
-					dict_sys_t:: mutex. */
-
-{
-	pars_info_t*		info;
-	discard_t		discard;
-
-	static const char	sql[] =
-		"PROCEDURE UPDATE_DISCARDED_FLAG() IS\n"
-		"DECLARE FUNCTION my_func;\n"
-		"DECLARE CURSOR c IS\n"
-		" SELECT MIX_LEN"
-		" FROM SYS_TABLES"
-		" WHERE ID = :table_id FOR UPDATE;"
-		"\n"
-		"BEGIN\n"
-		"OPEN c;\n"
-		"WHILE 1 = 1 LOOP\n"
-		"  FETCH c INTO my_func();\n"
-		"  IF c % NOTFOUND THEN\n"
-		"    EXIT;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"UPDATE SYS_TABLES"
-		" SET MIX_LEN = :flags2"
-		" WHERE ID = :table_id;\n"
-		"CLOSE c;\n"
-		"END;\n";
-
-	discard.n_recs = 0;
-	discard.state = discarded;
-	discard.flags2 = ULINT32_UNDEFINED;
-
-	info = pars_info_create();
-
-	pars_info_add_ull_literal(info, "table_id", table_id);
-	pars_info_bind_int4_literal(info, "flags2", &discard.flags2);
-
-	pars_info_bind_function(
-		info, "my_func", row_import_set_discarded, &discard);
-
-	dberr_t	err = que_eval_sql(info, sql, !dict_locked, trx);
-
-	ut_a(discard.n_recs == 1);
-	ut_a(discard.flags2 != ULINT32_UNDEFINED);
-
-	return(err);
-}
-
-/*****************************************************************//**
-Imports a tablespace. The space id in the .ibd file must match the space id
+/** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
+@param[in]	table		table
+@param[in]	table_def	dd table
+@param[in]	prebuilt	prebuilt struct in MySQL
 @return error code or DB_SUCCESS */
 dberr_t
 row_import_for_mysql(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
+	dict_table_t*	table,
+	dd::Table*	table_def,
+	row_prebuilt_t*	prebuilt)
 {
 	dberr_t		err;
 	trx_t*		trx;
@@ -3750,11 +3532,6 @@ row_import_for_mysql(
 
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
-
-	/* Ensure that the table will be dropped by trx_rollback_active()
-	in case of a crash. */
-
-	trx->table_id = table->id;
 
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
@@ -3791,7 +3568,7 @@ row_import_for_mysql(
 
 	memset(&cfg, 0x0, sizeof(cfg));
 
-	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
+	err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
 	/* Check if the table column definitions match the contents
 	of the config file. */
@@ -3946,7 +3723,7 @@ row_import_for_mysql(
 	/* If the table is stored in a remote tablespace, we need to
 	determine that filepath from the link file and system tables.
 	Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
-	dict_get_and_save_data_dir_path(table, true);
+	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		ut_a(table->data_dir_path);
@@ -3981,7 +3758,7 @@ row_import_for_mysql(
 
 	err = fil_ibd_open(
 		true, FIL_TYPE_IMPORT, table->space,
-		fsp_flags, table->name.m_name, filepath);
+		fsp_flags, table->name.m_name, filepath, true);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -4176,12 +3953,13 @@ row_import_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Update the root pages of the table's indexes. */
-	err = row_import_update_index_root(trx, table, false, true);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
+	DBUG_EXECUTE_IF("ib_import_internal_error",
+			trx->error_state = DB_ERROR;
+			err = DB_ERROR;
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_INTERNAL_ERROR,
+				"While importing table %s", table->name.m_name);
+			return(row_import_error(prebuilt, trx, err)););
 
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;

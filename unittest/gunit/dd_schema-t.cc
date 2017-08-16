@@ -107,6 +107,7 @@ protected:
   {
     Update_dictionary_tables_ctx *ctx=
       new (std::nothrow) Update_dictionary_tables_ctx(thd());
+    EXPECT_TRUE(thd()->variables.option_bits & OPTION_DD_UPDATE_CONTEXT);
 
     // Add schema table to transaction context.
     ctx->otx.register_tables<Schema>();

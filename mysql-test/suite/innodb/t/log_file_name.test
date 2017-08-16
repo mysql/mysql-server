@@ -156,10 +156,10 @@ SELECT * FROM t3;
 SHOW TABLES;
 DROP TABLE t2,t3;
 
+# The orphan file from fault 0 would also be removed by the following statment
 --error ER_TABLESPACE_EXISTS
 CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
---echo # Remove the orphan file from fault 0.
---remove_file $MYSQLD_DATADIR/test/t0.ibd
+
 CREATE TABLE t0(a INT PRIMARY KEY) ENGINE=InnoDB;
 DROP TABLE t0;
 
@@ -272,23 +272,5 @@ DROP TABLE u1,u2,u3,u6;
 --list_files $MYSQLD_DATADIR/test
 
 SHOW TABLES;
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-WHERE NAME NOT LIKE 'SYS_%' AND NAME NOT LIKE 'mysql/%';
-
---disable_query_log
-# The following are for the orphan file t0.ibd:
-call mtr.add_suppression("InnoDB: Operating system error number [0-9]* in a file operation");
-call mtr.add_suppression("InnoDB: Error number [0-9]* means 'File exists'");
-call mtr.add_suppression("InnoDB: Cannot create file '.*t0.ibd'");
-call mtr.add_suppression("InnoDB: The file '.*t0\.ibd' already exists");
-# The following are for the --innodb-force-recovery=1 with broken u* tables:
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("InnoDB: .*you must create directories");
-call mtr.add_suppression("InnoDB: Cannot open datafile for read-only: '.*u[1-6]\.ibd'");
-call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for `test/u[1-5]`");
-call mtr.add_suppression("InnoDB: Tablespace open failed for .test.\..u[1-5]., ignored");
-call mtr.add_suppression("InnoDB: Ignoring tablespace `test/u[1-6]` because it could not be opened.");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
---enable_query_log
-
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE NAME NOT LIKE 'SYS_%' AND NAME NOT LIKE 'sys/%' AND NAME NOT LIKE 'mysql/%';

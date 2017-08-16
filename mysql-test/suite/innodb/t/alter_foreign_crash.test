@@ -28,5 +28,6 @@ disconnect con1;
 show tables;
 alter table parent row_format=dynamic;
 
+drop table child;
 drop table parent;
 drop database bug;

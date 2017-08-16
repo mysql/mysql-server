@@ -99,6 +99,11 @@ SET(DD_SOURCES
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/events.cc
+  dd/impl/system_views/innodb_datafiles.cc
+  dd/impl/system_views/innodb_foreign.cc
+  dd/impl/system_views/innodb_foreign_cols.cc
+  dd/impl/system_views/innodb_fields.cc
+  dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
   dd/impl/system_views/routines.cc

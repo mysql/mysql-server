@@ -255,7 +255,7 @@ MetadataRecover::getMetadata(
 			static_cast<PersistentTableMetadata*>(
 				ut_zalloc_nokey(sizeof *metadata));
 
-		metadata = new (mem) PersistentTableMetadata(id);
+		metadata = new (mem) PersistentTableMetadata(id, 0);
 
 		m_tables.insert(std::make_pair(id, metadata));
 	} else {
@@ -270,6 +270,7 @@ MetadataRecover::getMetadata(
 /** Parse a dynamic metadata redo log of a table and store
 the metadata locally
 @param[in]	id	table id
+@param[in]	version	table dynamic metadata version
 @param[in]	ptr	redo log start
 @param[in]	end	end of redo log
 @retval ptr to next redo log record, nullptr if this log record
@@ -277,6 +278,7 @@ was truncated */
 byte*
 MetadataRecover::parseMetadataLog(
 	table_id_t	id,
+	uint64_t	version,
 	byte*		ptr,
 	byte*		end)
 {
@@ -293,12 +295,15 @@ MetadataRecover::parseMetadataLog(
 	Persister*		persister = dict_persist->persisters->get(
 		type);
 	PersistentTableMetadata*metadata = getMetadata(id);
+
 	bool			corrupt;
 	ulint			consumed = persister->read(
 		*metadata, ptr, end - ptr, &corrupt);
 
 	if (corrupt) {
 		recv_sys->found_corrupt_log = true;
+	} else if (consumed != 0) {
+		metadata->set_version(version);
 	}
 
 	if (consumed == 0) {
@@ -323,7 +328,7 @@ MetadataRecover::apply()
 		PersistentTableMetadata*metadata = iter->second;
 		dict_table_t*		table;
 
-		table = dd_table_open_on_id(table_id, NULL, NULL, false);
+		table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
 
 		/* If the table is nullptr, it might be already dropped */
 		if (table == nullptr) {
@@ -372,6 +377,40 @@ MetadataRecover::apply()
 
 		dd_table_close(table, NULL, NULL, false);
 	}
+}
+
+/** Store the collected persistent dynamic metadata to
+mysql.innodb_dynamic_metadata */
+void
+MetadataRecover::store()
+{
+	ut_ad(dict_sys->dynamic_metadata != nullptr);
+	ut_ad(dict_persist->table_buffer != nullptr);
+
+	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
+
+	if (empty()) {
+		return;
+	}
+
+	mutex_enter(&dict_persist->mutex);
+
+	for (auto meta : m_tables) {
+		table_id_t		table_id = meta.first;
+		PersistentTableMetadata*metadata = meta.second;
+		byte			buffer[REC_MAX_DATA_SIZE];
+		ulint			size;
+
+		size = dict_persist->persisters->write(*metadata, buffer);
+
+		dberr_t	error = table_buffer->replace(
+			table_id, metadata->get_version(), buffer, size);
+		if (error != DB_SUCCESS) {
+			ut_ad(0);
+		}
+	}
+
+	mutex_exit(&dict_persist->mutex);
 }
 
 /** Creates the recovery system. */
@@ -2771,16 +2810,17 @@ recv_parse_log_rec(
 	case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
 
 		table_id_t	id;
+		uint64		version;
 
 		*page_no = FIL_NULL;
 		*space_id = SPACE_UNKNOWN;
 
 		new_ptr = mlog_parse_initial_dict_log_record(
-			ptr, end_ptr, type, &id);
+			ptr, end_ptr, type, &id, &version);
 
 		if (new_ptr != nullptr) {
 			new_ptr = recv_sys->metadata_recover->parseMetadataLog(
-				id, new_ptr, end_ptr);
+				id, version, new_ptr, end_ptr);
 		}
 
 		return(new_ptr == nullptr ? 0 : new_ptr - ptr);

@@ -49,20 +49,22 @@ ib_trx_lock_table_with_retry(
 
 	return(lock_table_for_trx(table, trx, mode));
 }
-/****************************************************************//**
-Handles user errors and lock waits detected by the database engine.
+/* Handles user errors and lock waits detected by the database engine.
+@param[out]	new_err	possible new error encountered in lock wait, or if no
+new error, the value of trx->error_state at the entry of this function
+@param[in]	trx	transaction
+@param[in]	thr	query thread
+@param[in]	savept	savepoint or NULL
+@param[in]	is_sdi	true if table is SDI
 @return TRUE if it was a lock wait and we should continue running
-the query thread */
+the query thread. */
 ibool
 ib_handle_errors(
-/*=============*/
-	dberr_t*	new_err,/*!< out: possible new error encountered in
-				lock wait, or if no new error, the value
-				of trx->error_state at the entry of this
-				function */
-	trx_t*		trx,    /*!< in: transaction */
-	que_thr_t*	thr,    /*!< in: query thread */
-	trx_savept_t*	savept) /*!< in: savepoint or NULL */
+	dberr_t*	new_err,
+	trx_t*		trx,
+	que_thr_t*	thr,
+	trx_savept_t*	savept,
+	bool		is_sdi)
 {
 	dberr_t		err;
 handle_new_error:
@@ -74,7 +76,9 @@ handle_new_error:
 
 	switch (err) {
 	case DB_LOCK_WAIT_TIMEOUT:
-		trx_rollback_for_mysql(trx);
+		if (!is_sdi) {
+			trx_rollback_for_mysql(trx);
+		}
 		break;
 		/* fall through */
 	case DB_DUPLICATE_KEY:
@@ -109,7 +113,7 @@ handle_new_error:
 	case DB_LOCK_TABLE_FULL:
 		/* Roll back the whole transaction; this resolution was added
 		to version 3.23.43 */
-
+		ut_ad(!is_sdi);
 		trx_rollback_for_mysql(trx);
 		break;
 

@@ -319,6 +319,19 @@ public:
 
 
   /**
+    Reset the shared map. Locks and deletes all objects present,
+    but keeps the element pool and the capacity setting.
+
+    @param       thd      Thread context.
+
+    @retval      true     Failure, e.g. timeout from metadata lock acquisition.
+    @retval      false    Otherwise.
+  */
+
+  bool reset(THD *thd);
+
+
+  /**
     Set capacity of the shared map.
   */
 

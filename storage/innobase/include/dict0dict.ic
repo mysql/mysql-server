@@ -1217,6 +1217,39 @@ dict_table_allow_eviction(
 	}
 }
 
+/** Move this table to non-LRU list for DDL operations if it's
+currently not there. This also prevents later opening table via DD objects,
+when the table name in InnoDB doesn't match with DD object.
+@param[in,out]	table	Table to put in non-LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_acquire(
+	dict_table_t*	table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (table->can_be_evicted) {
+		ut_ad(!table->ddl_not_evictable);
+		dict_table_prevent_eviction(table);
+		table->ddl_not_evictable = true;
+	}
+}
+
+/** Move this table to LRU list after DDL operations if it was moved
+to non-LRU list
+@param[in,out]	table	Table to put in LRU list */
+UNIV_INLINE
+void
+dict_table_ddl_release(
+	dict_table_t*	table)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+	if (table->ddl_not_evictable) {
+		ut_ad(!table->can_be_evicted);
+		dict_table_allow_eviction(table);
+		table->ddl_not_evictable = false;
+	}
+}
+
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
 @return true if the tablespace has been discarded. */

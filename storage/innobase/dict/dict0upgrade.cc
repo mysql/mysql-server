@@ -35,8 +35,8 @@ from DICT_HDR during upgrade because unlike bootstrap case,
 the ids are moved after user table creation.  Since we
 want to create dictionary tables with fixed ids, we use
 in-memory counter for upgrade */
-uint	dd_upgrade_indexes_num = INNODB_SYS_INDEX_ID_MAX;
-uint	dd_upgrade_tables_num = INNODB_SYS_TABLE_ID_MAX;
+uint	dd_upgrade_indexes_num = 1;
+uint	dd_upgrade_tables_num = 1;
 
 /** Initialize an implicit tablespace name.
 @param[in,out]	dd_space	tablespace metadata
@@ -46,7 +46,7 @@ static void dd_upgrade_set_tablespace_name(dd::Tablespace* dd_space,
   ut_ad(space != SPACE_UNKNOWN);
 
   std::ostringstream	tablespace_name;
-  tablespace_name << dict_sys_t::file_per_table_name << "." << space;
+  tablespace_name << dict_sys_t::s_file_per_table_name << "." << space;
 
   dd_space->set_name(tablespace_name.str().c_str());
 }
@@ -110,7 +110,8 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     char db_buf[MAX_FULL_NAME_LEN + 1];
     char tbl_buf[MAX_FULL_NAME_LEN + 1];
 
-    dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf, NULL);
+    dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf,
+		      nullptr, nullptr);
 
     fk_obj->referenced_table_schema_name(db_buf);
     fk_obj->referenced_table_name(tbl_buf);
@@ -171,7 +172,8 @@ static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
 
   if (dict_table_is_file_per_table(ib_table)) {
     std::ostringstream	tablespace_name;
-    tablespace_name << dict_sys_t::file_per_table_name << "." << ib_table->space;
+    tablespace_name << dict_sys_t::s_file_per_table_name
+                    << "." << ib_table->space;
     strncpy(name, tablespace_name.str().c_str(), MAX_FULL_NAME_LEN);
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
@@ -605,7 +607,9 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t* index,
   dd::Properties& p = dd_index->se_private_data();
 
   p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+  p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID], index->space);
   p.set_uint64(dd_index_key_strings[DD_INDEX_ID], index->id);
+  p.set_uint32(dd_index_key_strings[DD_TABLE_ID], index->table->id);
   p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
 
   if (has_auto_inc) {
@@ -683,7 +687,7 @@ static bool dd_upgrade_partitions(THD* thd, const char* norm_name,
     dd::Object_id dd_space_id;
 
     if (part_table->space == SYSTEM_TABLE_SPACE) {
-      dd_space_id = dict_sys_t::dd_sys_space_id;
+      dd_space_id = dict_sys_t::s_dd_sys_space_id;
       /* Tables in system tablespace cannot be discarded. */
       ut_ad(!dict_table_is_discarded(part_table));
     } else {
@@ -832,7 +836,7 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
 
   dd::Object_id dd_space_id;
   if (ib_table->space == SYSTEM_TABLE_SPACE) {
-    dd_space_id = dict_sys_t::dd_sys_space_id;
+    dd_space_id = dict_sys_t::s_dd_sys_space_id;
     /* Tables in system tablespace cannot be discarded. */
     ut_ad(!dict_table_is_discarded(ib_table));
   } else {
@@ -944,7 +948,12 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
   }
 
   if (dict_table_has_fts_index(ib_table)) {
-    fts_upgrade_aux_tables(ib_table);
+    dberr_t err = fts_upgrade_aux_tables(ib_table);
+
+    if (err != DB_SUCCESS) {
+      dict_table_close(ib_table, false, false);
+      return (true);
+    }
   }
 
   dd_upgrade_table_fk(ib_table, dd_table);

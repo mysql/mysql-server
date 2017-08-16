@@ -228,7 +228,6 @@ dml_reads	disabled
 dml_inserts	disabled
 dml_deletes	disabled
 dml_updates	disabled
-ddl_background_drop_indexes	disabled
 ddl_background_drop_tables	disabled
 ddl_online_create_index	disabled
 ddl_pending_alter_table	disabled

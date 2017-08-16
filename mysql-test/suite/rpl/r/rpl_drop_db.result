@@ -23,14 +23,12 @@ CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
 DROP DATABASE test1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 USE test1;
-include/assert.inc [Table t4 is not dropped]
+include/assert.inc [Tables in test1 database are not dropped]
+CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
 DROP DATABASE test1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-SHOW TABLES;
-Tables_in_test1
-t4
-include/assert.inc [db_test1_long_table_name tables are dropped]
-include/assert.inc [Table t4 is not dropped]
+include/assert.inc [MyISAM table t5 is dropped]
+include/assert.inc [InnoDB tables in test1 database are not dropped]
 USE test2;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES (1234);

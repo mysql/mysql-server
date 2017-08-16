@@ -898,9 +898,9 @@ try_again:
 	dictionary. Open the table internally. Also acquire shared MDL
 	of SDI tables. Concurrent DROP TABLE/TABLESPACE would acquire
 	exclusive MDL on SDI tables */
+	ut_ad(!dict_table_is_system(table_id));
 
-	if (dict_table_is_system(table_id)
-	    || dict_table_is_sdi(table_id)
+	if (dict_table_is_sdi(table_id)
 	    || srv_upgrade_old_undo_found) {
 		if (dict_table_is_sdi(table_id)) {
 
@@ -913,7 +913,7 @@ try_again:
 			}
 
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl, false);
+				table_id, thd, &node->mdl, false, true);
 
 			if (node->table == nullptr) {
 				/* Tablespace containing SDI table
@@ -922,19 +922,25 @@ try_again:
 				node->mdl = nullptr;
 			}
 
-		} else {
-			/* TODO: WL#9535: Remove this and
-			dict_table_is_system() in if condition*/
-			node->table = dict_table_open_on_id(
-				table_id, FALSE, DICT_TABLE_OP_NORMAL);
 		}
 	} else {
 		for (;;) {
 			const auto no_mdl = nullptr;
 			node->mdl = no_mdl;
 
+			mutex_enter(&dict_sys->mutex);
 			node->table = dd_table_open_on_id(
-				table_id, thd, &node->mdl, false);
+				table_id, thd, &node->mdl, true, true);
+
+			if (node->table && node->table->is_temporary()) {
+				/* Temp table does not do purge */
+				ut_ad(node->mdl == nullptr);
+				dd_table_close(node->table, nullptr, nullptr , true);
+				mutex_exit(&dict_sys->mutex);
+				goto err_exit;
+			}
+
+			mutex_exit(&dict_sys->mutex);
 
 			if (node->table != nullptr) {
 				if (node->table->is_fts_aux()) {
@@ -947,7 +953,8 @@ try_again:
 					node->parent_mdl = nullptr;
 					node->parent = dd_table_open_on_id(
 						parent_id, thd,
-						&node->parent_mdl, false);
+						&node->parent_mdl,
+						false, true);
 
 					if (node->parent == nullptr) {
 						goto err_exit;
@@ -957,7 +964,7 @@ try_again:
 					node->mdl = nullptr;
 					node->table = dd_table_open_on_id(
 						table_id, thd,
-						&node->mdl, false);
+						&node->mdl, false, true);
 
 				}
 				break;
@@ -983,17 +990,9 @@ try_again:
 		/* Need server fully up for virtual column computation */
 		if (!mysqld_server_started) {
 
-			if (dict_table_is_system(node->table->id)
-			    || dict_table_is_sdi(node->table->id)) {
+			if (dict_table_is_sdi(node->table->id)) {
 
-				if (dict_table_is_sdi(node->table->id)) {
-					dd_table_close(node->table, thd, &node->mdl, false);
-				} else {
-					/* TODO: WL#9535: Remove this and
-					dict_table_is_system() in if condition*/
-
-					dict_table_close(node->table, FALSE, FALSE);
-				}
+				dd_table_close(node->table, thd, &node->mdl, false);
 				node->table = nullptr;
 
 			} else  {
@@ -1027,16 +1026,8 @@ try_again:
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)) {
-
-			if (dict_table_is_sdi(node->table->id)) {
-				dd_table_close(node->table, thd, &node->mdl, false);
-			} else {
-				/* TODO: WL#9535: Remove this and
-				dict_table_is_system() in if condition*/
-				dict_table_close(node->table, FALSE, FALSE);
-			}
+		if (dict_table_is_sdi(node->table->id)) {
+			dd_table_close(node->table, thd, &node->mdl, false);
 			node->table = NULL;
 		} else  {
 			bool	is_aux = node->table->is_fts_aux();
@@ -1061,15 +1052,12 @@ try_again:
 		we do not have an index to call it with. */
 close_exit:
 		/* Purge requires no changes to indexes: we may return */
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)
+		if (dict_table_is_sdi(node->table->id)
 		    || srv_upgrade_old_undo_found) {
 
 			if (dict_table_is_sdi(node->table->id)) {
 				dd_table_close(node->table, thd, &node->mdl, false);
 			} else {
-				/* TODO: WL#9535: Remove this and
-				dict_table_is_system() in if condition*/
 				dict_table_close(node->table, FALSE, FALSE);
 			}
 			node->table = NULL;
@@ -1174,16 +1162,8 @@ row_purge_record_func(
                         node->mysql_table = nullptr;
                 }
 
-		if (dict_table_is_system(node->table->id)
-		    || dict_table_is_sdi(node->table->id)) {
-
-			if (dict_table_is_sdi(node->table->id)) {
-				dd_table_close(node->table, thd, &node->mdl, false);
-			} else {
-				/* TODO: WL#9535: Remove this and
-				dict_table_is_system() in if condition*/
-				dict_table_close(node->table, FALSE, FALSE);
-			}
+		if (dict_table_is_sdi(node->table->id)) {
+			dd_table_close(node->table, thd, &node->mdl, false);
 			node->table = NULL;
 		} else  {
 			bool	is_aux = node->table->is_fts_aux();

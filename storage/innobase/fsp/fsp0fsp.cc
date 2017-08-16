@@ -263,8 +263,8 @@ bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
 	/* Starting with v8, undo space_ids have a unique range. */
-	if (space_id >= dict_sys_t::min_undo_space_id
-	    && space_id <= dict_sys_t::max_undo_space_id) {
+	if (space_id >= dict_sys_t::s_min_undo_space_id
+	    && space_id <= dict_sys_t::s_max_undo_space_id) {
 		return(true);
 	}
 

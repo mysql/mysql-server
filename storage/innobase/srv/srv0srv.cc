@@ -334,8 +334,10 @@ ulong	srv_force_recovery_crash;
 #endif /* UNIV_DEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
-
 bool	srv_print_all_deadlocks = FALSE;
+
+/** Print all DDL logs to mysqld stderr */
+bool	srv_print_ddl_logs = false;
 
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
 bool	srv_cmp_per_index_enabled = FALSE;

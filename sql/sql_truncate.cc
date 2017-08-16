@@ -211,7 +211,8 @@ enum truncate_result
 {
   TRUNCATE_OK=0,
   TRUNCATE_FAILED_BUT_BINLOG,
-  TRUNCATE_FAILED_SKIP_BINLOG
+  TRUNCATE_FAILED_SKIP_BINLOG,
+  TRUNCATE_FAILED_OPEN
 };
 
 
@@ -228,8 +229,10 @@ enum truncate_result
                         binlogging as in case of non transactional tables
                         partial truncation is possible.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence donot
-                        binlong the statement.
+  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
+                        binlog the statement.
+  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
+                        the statement.
 */
 
 static truncate_result handler_truncate_base(THD *thd,
@@ -269,7 +272,7 @@ static truncate_result handler_truncate_base(THD *thd,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, flags))
-    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
 
   /* Whether to truncate regardless of foreign keys. */
   if (! (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
@@ -317,8 +320,10 @@ static truncate_result handler_truncate_base(THD *thd,
                         binlogging as in case of non transactional tables
                         partial truncation is possible.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence donot
-                        binlong the statement.
+  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
+                        binlog the statement.
+  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
+                        the statement.
 */
 
 static truncate_result handler_truncate_temporary(THD *thd,
@@ -333,7 +338,7 @@ static truncate_result handler_truncate_temporary(THD *thd,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, 0))
-    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
 
   int error=
     table_ref->table->file->ha_truncate(table_ref->table->s->tmp_table_def);
@@ -658,23 +663,31 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       /*
         All effects of a TRUNCATE TABLE operation are committed even if
         truncation fails in the case of non transactional tables. Thus, the
-        query must be written to the binary log. The only exception is a
-        unimplemented truncate method.
+        query must be written to the binary log for such tables.
+        The exceptions are failure to open table or unimplemented truncate
+        method.
       */
       if (error == TRUNCATE_OK || error == TRUNCATE_FAILED_BUT_BINLOG)
       {
         binlog_stmt= true;
         binlog_is_trans= table_ref->table->file->has_transactions();
-        /*
-          Call to handler_truncate() might have updated table definition
-          in the data-dictionary, let us remove TABLE_SHARE from the TDC.
-        */
-        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
       else
       {
         binlog_stmt= false;
         binlog_is_trans= false; // Safety.
+
+      }
+
+      /*
+        Call to handler_truncate() might have updated table definition
+        in the data-dictionary, let us remove TABLE_SHARE from the TDC.
+        This needs to be done even in case of failure so InnoDB SE
+        properly invalidates its internal cache.
+      */
+      if (error != TRUNCATE_FAILED_OPEN)
+      {
+        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
       }
     }
   }

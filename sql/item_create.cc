@@ -1715,6 +1715,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "GET_DD_COLUMN_PRIVILEGES", SQL_FN_INTERNAL(Item_func_get_dd_column_privileges, 3) },
   { "GET_DD_INDEX_SUB_PART_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5) },
   { "GET_DD_CREATE_OPTIONS", SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2) },
+  { "GET_DD_TABLESPACE_PRIVATE_DATA", SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2) },
+  { "GET_DD_INDEX_PRIVATE_DATA", SQL_FN_INTERNAL(Item_func_get_dd_index_private_data, 2) },
   { "INTERNAL_DD_CHAR_LENGTH", SQL_FN_INTERNAL(Item_func_internal_dd_char_length, 4) },
   { "CAN_ACCESS_DATABASE", SQL_FN_INTERNAL(Item_func_can_access_database, 1) },
   { "CAN_ACCESS_TABLE", SQL_FN_INTERNAL(Item_func_can_access_table, 2) },

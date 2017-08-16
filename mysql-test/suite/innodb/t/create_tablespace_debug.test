@@ -110,5 +110,4 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*s_def.ibd: 'delete' returned OS error [0-9]*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Attempted to open a previously opened tablespace. Previous tablespace innodb_general_[0-9]* at filepath: .*s1.ibd uses space ID: [0-9]*. Cannot open filepath: .*s1.ibd which uses the same space ID.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 --enable_query_log

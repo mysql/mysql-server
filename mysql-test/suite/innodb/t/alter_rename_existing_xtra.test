@@ -67,7 +67,7 @@ SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (a SERIAL, b CHAR(20)) ENGINE=InnoDB;
 INSERT INTO t1(b) VALUES('one'), ('two'), ('three');
 SHOW CREATE TABLE t1;
-SELECT name, space=0 FROM information_schema.innodb_sys_tables WHERE name = 'test/t1';
+SELECT name, space=0 FROM information_schema.innodb_tables WHERE name = 'test/t1';
 
 --echo #
 --echo # Try to move t1 from the system tablespace to a file-per-table

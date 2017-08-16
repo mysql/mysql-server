@@ -1481,7 +1481,8 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @param[in]  sdi         SDI to write into the tablespace
   @param[in]  sdi_len     length of SDI BLOB returned
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
                           const dd::Table *table,
@@ -1493,7 +1494,8 @@ typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
   @param[in]  tablespace  tablespace object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @retval     false       success
-  @retval     true        failure
+  @retval     true        failure, my_error() should be called
+                          by SE
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
                              const dd::Table *table,
@@ -1615,6 +1617,15 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
 
 typedef void (*dict_cache_reset_t)(const char* schema_name,
                                    const char* table_name);
+
+
+/**
+  Invalidate all table and tablespace entries in the local dictionary cache.
+
+  Needed for recovery during server restart.
+ */
+
+typedef void (*dict_cache_reset_tables_and_tablespaces_t)();
 
 
 /** Mode for data dictionary recovery. */
@@ -1813,6 +1824,16 @@ typedef void (*post_ddl_t)(THD *thd);
 
 
 /**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note Particularly SEs supporting atomic DDL can use this call
+        to perform post-DDL actions for DDL statements which were
+        committed or rolled back during recovery stage.
+*/
+typedef void (*post_recover_t)(void);
+
+
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
   "global" level (unlike handler class that works on a per-table basis).
@@ -1887,6 +1908,8 @@ struct handlerton
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
   dict_cache_reset_t dict_cache_reset;
+  dict_cache_reset_tables_and_tablespaces_t
+    dict_cache_reset_tables_and_tablespaces;
   dict_recover_t dict_recover;
 
   /** Global handler flags. */
@@ -1949,6 +1972,7 @@ struct handlerton
   get_index_column_cardinality_t get_index_column_cardinality;
 
   post_ddl_t post_ddl;
+  post_recover_t post_recover;
 
   /** Clone data transfer interfaces */
   Clone_interface_t clone_interface;
@@ -4862,7 +4886,9 @@ public:
          Engines that support atomic DDL only prepare for the commit during this step
          but do not finalize it. Real commit happens later when the whole statement is
          committed. Also in some situations statement might be rolled back after call
-         to commit_inplace_alter_table() for such storage engines.
+         to commit_inplace_alter_table() for such storage engines. In the latter
+         special case SE might require call to handlerton::dict_cache_reset() in
+         order to invalidate its internal table definition cache after rollback.
       b) If we have failed to upgrade lock or any errors have occured during the
          handler functions calls (including commit), we call
          handler::ha_commit_inplace_alter_table()
@@ -5077,7 +5103,9 @@ protected:
     prepare for the commit but do not finalize it. Real commit should happen
     later when the whole statement is committed. Also in some situations
     statement might be rolled back after call to commit_inplace_alter_table()
-    for such storage engines.
+    for such storage engines. In the latter special case SE might require call
+    to handlerton::dict_cache_reset() in order to invalidate its internal
+    table definition cache after rollback.
 
     @note Storage engines are responsible for reporting any errors by
     calling my_error()/print_error()
@@ -5911,6 +5939,16 @@ int ha_prepare(THD *thd);
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 int ha_recover(const memroot_unordered_set<my_xid> *commit_list);
+
+
+/**
+  Perform SE-specific cleanup after recovery of transactions.
+
+  @note SE supporting atomic DDL can use this method to perform
+        post-DDL actions for DDL statements which were committed
+        or rolled back during recovery stage.
+*/
+void ha_post_recover();
 
 /*
  transactions: interface to low-level handlerton functions. These are

@@ -32,7 +32,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to re
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 -- enable_query_log
 

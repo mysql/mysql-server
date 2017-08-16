@@ -240,8 +240,8 @@ while ($c)
 # (The output below strips TEMP_INDEX_PREFIX from the name.)
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
 
 # Release con1.
@@ -257,8 +257,8 @@ reap;
 # cache with index->online_status = ONLINE_INDEX_ABORTED_DROPPED.
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
 
 # ddl_background_drop_indexes = 1 here, because the incomplete index c2e still
@@ -318,8 +318,8 @@ connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 
 # Check that the index was created.
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
 
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
@@ -333,8 +333,8 @@ SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
 
 # InnoDB should have cleaned up the index c3p5 from the data dictionary,
 # but not yet from the dictionary cache.
-SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
-INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
 eval $innodb_metrics_select;
 SET GLOBAL innodb_monitor_reset = module_ddl;

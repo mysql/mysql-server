@@ -8,6 +8,9 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 call mtr.add_suppression("Slave worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 call mtr.add_suppression("Table 't_2' already exists");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("Cannot open datafile for read-onl");
+call mtr.add_suppression("The error means the system cannot");
 [connection master]
 CREATE DATABASE master_db;
 USE master_db;
@@ -190,7 +193,7 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 8 out of 13; current query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = 'ts_0'';
+Loop: 8 out of 13; current query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
 [connection slave]
 *** Query: 'CREATE TABLESPACE ts_0 ADD DATAFILE 'ts_0.ibd''. Crash right before the query gets committed. ***
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";
@@ -200,7 +203,7 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 9 out of 13; current query: 'DROP TABLESPACE ts_0'; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = 'ts_0'';
+Loop: 9 out of 13; current query: 'DROP TABLESPACE ts_0'; pre-binlog check: ''; pre-commit check: 'SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = 'ts_0'';
 [connection slave]
 *** Query: 'DROP TABLESPACE ts_0'. Crash right before the query gets committed. ***
 SET @@GLOBAL.debug="+d,slave_crash_after_commit";

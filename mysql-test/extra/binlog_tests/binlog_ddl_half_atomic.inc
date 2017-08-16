@@ -20,7 +20,7 @@
 # CREATE TABLE, (not CREATE..SELECT)
 --let $ddl_query=CREATE TABLE $table (a int auto_increment primary key)
 
-#--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.tables WHERE table_name = '$table'
+--let $pre_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.tables WHERE table_name = '$table'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
@@ -42,7 +42,7 @@
 
 # RENAME
 --let $ddl_query=RENAME TABLE $table_renamed TO $table /* Name restored */
-#--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table_renamed'
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table_renamed'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
@@ -54,9 +54,7 @@
 #
 --let $ddl_query=TRUNCATE TABLE $table
 #
-# todo_WL7016 or its substitute to activate ($do_pre_binlog:=1)
-# the $pre_binlog_crash_check
-#--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM $table
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM $table
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM $table
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
@@ -66,29 +64,25 @@
 --let $do_pre_binlog=0
 --let $ts=ts_0
 --let $ddl_query=CREATE TABLESPACE $ts ADD DATAFILE 'ts_0.ibd'
---let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
---let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 # The following feature is just not implemented expect for NDB, e.g:
 #--error ER_CHECK_NOT_IMPLEMENTED
 #--let $ddl_query=ALTER TABLESPACE $ts ADD DATAFILE 'ts_1.ibd'
 # Otherwise the after crash checks would be:
-#--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
-#--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+#--let $pre_binlog_crash_check= SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+#--let $post_binlog_crash_check=   SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
 #  --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 --let $ddl_query=DROP TABLESPACE $ts
---let $pre_binlog_crash_check= SELECT COUNT(*) = 1 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
---let $post_binlog_crash_check=   SELECT COUNT(*) = 0 FROM information_schema.INNODB_SYS_TABLESPACES WHERE name = '$ts'
+--let $pre_binlog_crash_check= SELECT COUNT(*) = 1 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
+--let $post_binlog_crash_check=   SELECT COUNT(*) = 0 FROM information_schema.INNODB_TABLESPACES WHERE name = '$ts'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 #
 # CREATE,ALTER,DROP DB
-#
-
-#
-# TODO: The pre_binlog_crash_check are to activated by WL9536 et al.
 #
 
 --let $db=db_0
@@ -96,17 +90,17 @@
 --let $collate_new=utf8_general_ci
 
 --let $ddl_query=CREATE DATABASE $db DEFAULT COLLATE $collate_old
-#--let $pre_binlog_crash_check= SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
+--let $pre_binlog_crash_check= SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
 --let $post_binlog_crash_check=   SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 --let $ddl_query=ALTER DATABASE $db DEFAULT COLLATE $collate_new
-#--let $pre_binlog_crash_check= SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db' and default_collation_name = '$collate_old'
+--let $pre_binlog_crash_check= SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db' and default_collation_name = '$collate_old'
 --let $post_binlog_crash_check=   SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db' and default_collation_name = '$collate_new'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
 --let $ddl_query=DROP DATABASE $db
-#--let $pre_binlog_crash_check= SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
+--let $pre_binlog_crash_check= SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
 --let $post_binlog_crash_check=   SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = '$db'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
@@ -116,6 +110,6 @@
 
 # DROP TABLE
 --let $ddl_query=DROP TABLE $table
-#--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table'
+--let $pre_binlog_crash_check=SELECT count(*) = 1 FROM information_schema.tables WHERE table_name = '$table'
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.tables WHERE table_name = '$table'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc

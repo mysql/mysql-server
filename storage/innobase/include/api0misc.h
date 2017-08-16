@@ -58,21 +58,22 @@ struct ib_sdi_vector {
 	dd::sdi_vector_t*	sdi_vector;
 };
 
-/********************************************************************
-Handles user errors and lock waits detected by the database engine.
+/* Handles user errors and lock waits detected by the database engine.
+@param[out]	new_err	possible new error encountered in lock wait, or if no
+new error, the value of trx->error_state at the entry of this function
+@param[in]	trx	transaction
+@param[in]	thr	query thread
+@param[in]	savept	savepoint or NULL
+@param[in]	is_sdi	true if table is SDI
 @return TRUE if it was a lock wait and we should continue running
-the query thread */
+the query thread. */
 ibool
 ib_handle_errors(
-/*=============*/
-	dberr_t*	new_err,	/*!< out: possible new error
-					encountered in lock wait, or if
-					no new error, the value of
-					trx->error_state at the entry of this
-					function */
-	trx_t*		trx,		/*!< in: transaction */
-	que_thr_t*	thr,		/*!< in: query thread */
-	trx_savept_t*	savept);	/*!< in: savepoint or NULL */
+	dberr_t*	new_err,
+	trx_t*		trx,
+	que_thr_t*	thr,
+	trx_savept_t*	savept,
+	bool		is_sdi);
 
 /*************************************************************************
 Sets a lock on a table.

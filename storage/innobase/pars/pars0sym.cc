@@ -72,8 +72,6 @@ sym_tab_free_private(
 	func_node_t*	func;
 	THD*		thd = current_thd;
 
-	ut_ad(mutex_own(&dict_sys->mutex));
-
 	for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list);
 	     sym != NULL;
 	     sym = UT_LIST_GET_NEXT(sym_list, sym)) {
@@ -83,11 +81,11 @@ sym_tab_free_private(
 		if (sym->token_type == SYM_TABLE_REF_COUNTED) {
 
 			if (sym->mdl != nullptr) {
-				dd_table_close(sym->table, thd, &sym->mdl, true);
+				dd_table_close(
+					sym->table, thd, &sym->mdl, false);
 			} else {
-				/* TODO: NewDD: Remove with WL#9535. This is only
-				for the InnoDB SYS TABLES */
-				dd_table_close(sym->table, nullptr, nullptr, true);
+				dd_table_close(
+					sym->table, nullptr, nullptr, false);
 			}
 
 			sym->table = NULL;

@@ -1023,9 +1023,7 @@ fts_table_fetch_doc_ids(
 
 	error = fts_eval_sql(trx, graph);
 
-	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
-	mutex_exit(&dict_sys->mutex);
 
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);
@@ -2542,7 +2540,8 @@ fts_optimize_table_bk(
 		MDL_ticket*	mdl = nullptr;
 		THD*		thd = current_thd;
 
-		table = dd_table_open_on_id(slot->table_id, thd, &mdl, false);
+		table = dd_table_open_on_id(slot->table_id, thd, &mdl,
+					    false, true);
 
 		if (table != nullptr) {
 			fts_t*	fts = table->fts;
@@ -3102,7 +3101,7 @@ fts_optimize_sync_table(
 	MDL_ticket*	mdl = nullptr;
 	THD*		thd = current_thd;
 
-	table = dd_table_open_on_id(table_id, thd, &mdl, false);
+	table = dd_table_open_on_id(table_id, thd, &mdl, false, true);
 
 	if (table) {
 		if (dict_table_has_fts_index(table) && table->fts->cache) {

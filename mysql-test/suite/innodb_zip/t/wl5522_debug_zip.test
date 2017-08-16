@@ -719,7 +719,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files.");

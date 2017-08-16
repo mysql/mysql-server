@@ -2970,8 +2970,7 @@ buf_page_set_file_page_was_freed(
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
-		/* bpage->file_page_was_freed can already hold
-		when this code is invoked from dict_drop_index_tree() */
+
 		bpage->file_page_was_freed = TRUE;
 		mutex_exit(block_mutex);
 	}

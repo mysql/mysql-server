@@ -158,8 +158,8 @@ namespace undo {
 	@return true if it is in the reserved undo space ID range. */
 	inline bool is_reserved(space_id_t space_id)
 	{
-		return(space_id >= dict_sys_t::min_undo_space_id
-		       && space_id <= dict_sys_t::max_undo_space_id);
+		return(space_id >= dict_sys_t::s_min_undo_space_id
+		       && space_id <= dict_sys_t::s_max_undo_space_id);
 	}
 
 	/** Convert an undo space number (from 1 to 127) into an undo space_id.
@@ -171,7 +171,7 @@ namespace undo {
 		ut_ad(space_num <= FSP_MAX_UNDO_TABLESPACES);
 
 		return(static_cast<space_id_t>(
-				dict_sys_t::log_space_first_id - space_num));
+				dict_sys_t::s_log_space_first_id - space_num));
 	}
 
 	/** Convert an undo space ID into an undo space number.
@@ -186,7 +186,7 @@ namespace undo {
 			return(space_id);
 		}
 
-		return(dict_sys_t::log_space_first_id - space_id);
+		return(dict_sys_t::s_log_space_first_id - space_id);
 	}
 
 	/** An undo::Tablespace object is used to easily convert between
@@ -507,7 +507,7 @@ namespace undo {
 	newly initialized, were being truncated and the system crashed, or
 	they were an old format at startup and were replaced when they were
 	opened. Old format undo tablespaces do not have space_ids between
-	dict_sys_t::max_undo_space_id and dict_sys_t::max_undo_space_id
+	dict_sys_t::s_min_undo_space_id and dict_sys_t::s_max_undo_space_id
 	and they do not contain an RSEG_ARRAY page. */
 	extern Space_Ids	s_under_construction;
 

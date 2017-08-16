@@ -353,28 +353,29 @@ CREATE TABLE base_5_a (fk INT, FOREIGN KEY (fk) REFERENCES base_4_a(pk)) ENGINE 
 --error ER_ROW_IS_REFERENCED
 DROP TABLES base_1_n, base_2_n, base_3_a, base_4_a;
 
---echo # In AUTOMATIC mode the above statement should be split into three:
---echo # two statements for each of MyISAM tables and single statement
---echo # dropping base_3_a. Note that this will change once InnoDB really
---echo # supports atomic DDL.
---let $gtid_step_count= 3
+--echo # In AUTOMATIC mode the above statement should be split into
+--echo # two statements for each of MyISAM tables.
+--echo # There should be no statement for dropping base_3_a as its
+--echo # removal is rolled back.
+--let $gtid_step_count= 2.
 --source include/gtid_step_assert.inc
 
---echo # base_4_a should still be there on master
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
 SHOW CREATE TABLE base_4_a;
 
 --source include/rpl_sync.inc
 
 --connection slave
 
---echo # base_4_a should still be there on slave
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
 SHOW CREATE TABLE base_4_a;
 
 --connection master
 
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
-CREATE TABLE base_3_a (a INT) ENGINE = InnoDB;
 
 --source include/rpl_sync.inc
 
@@ -398,26 +399,28 @@ if ($gtid_mode_on)
 if (!$gtid_mode_on)
 {
 --echo # Without GTID assigned the above statement should be split into
---echo # three as in AUTOMATIC mode.
---let $gtid_step_count= 3
+--echo # two as in AUTOMATIC mode.
+--let $gtid_step_count= 2
 --source include/gtid_step_assert.inc
 }
 
---echo # base_4_a should still be there on master
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
 SHOW CREATE TABLE base_4_a;
 
 --source include/rpl_sync.inc
 
 --connection slave
 
---echo # base_4_a should still be there on slave
+--echo # base_3_a and base_4_a should still be there on master
+SHOW CREATE TABLE base_3_a;
 SHOW CREATE TABLE base_4_a;
 
 --connection master
 
 --echo ---- Clean up ----
 
-DROP TABLE base_5_a, base_4_a;
+DROP TABLE base_5_a, base_4_a, base_3_a;
 
 --source include/rpl_sync.inc
 

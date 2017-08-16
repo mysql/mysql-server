@@ -51,11 +51,6 @@ Data dictionary interface */
 class THD;
 class MDL_ticket;
 
-/** WL#9535 TODO: Change this in 9535, and maybe remove this once
-WL#6049 and InnoDB FK worklogs */
-/** Max table id for DD table */
-static constexpr uint	INNODB_DD_TABLE_ID_MAX = 70;
-
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
@@ -87,8 +82,23 @@ enum dd_space_keys {
 	DD_SPACE__LAST
 };
 
+/** enum that defines system table IDs. */
+enum dd_system_id_t {
+	DD_TABLESPACES = 4,
+	DD_DATAFILES = 5,
+	DD_TABLES = 10,
+	DD_COLUMNS = 13,
+	DD_INDEXES = 14,
+	DD_FOREIGN = 17,
+	DD_FOREIGN_COLS = 18,
+	DD_PARTITIONS = 19,
+
+	/* This must be last item. Defines the number of system tables. */
+	DD_LAST_ID
+};
+
 /** InnoDB implicit tablespace name or prefix, which should be same to
-dict_sys_t::file_per_table_name */
+dict_sys_t::s_file_per_table_name */
 static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 
 /** InnoDB private key strings for dd::Tablespace.
@@ -111,6 +121,10 @@ const char* const dd_table_key_strings[DD_TABLE__LAST] = {
 enum dd_index_keys {
 	/** Index identifier */
 	DD_INDEX_ID,
+	/** Space id */
+	DD_INDEX_SPACE_ID,
+	/** Table id */
+	DD_TABLE_ID,
 	/** Root page number */
 	DD_INDEX_ROOT,
 	/** Creating transaction ID */
@@ -123,6 +137,8 @@ enum dd_index_keys {
 @see dd_index_keys */
 const char* const dd_index_key_strings[DD_INDEX__LAST] = {
 	"id",
+	"space_id",
+	"table_id",
 	"root",
 	"trx_id"
 };
@@ -146,7 +162,8 @@ struct innodb_dd_table_t {
 	const uint	n_indexes;
 };
 
-/** The hard-coded data dictionary tables */
+/** The hard-coded data dictionary tables. The number of tables should be
+consistent with dict_sys_t::s_num_hard_coded_tables */
 const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("dd_properties", 1),
 	INNODB_DD_TABLE("character_sets", 3),
@@ -178,6 +195,7 @@ const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("triggers", 6),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
+	INNODB_DD_TABLE("innodb_ddl_log", 2),
 	INNODB_DD_TABLE("innodb_dynamic_metadata", 1)
 };
 
@@ -275,6 +293,22 @@ dd_set_autoinc(
 	dd::Properties&	se_private_data,
 	uint64		autoinc);
 
+/** Get the version attribute.
+@param[in]	dd_table	dd::Table
+@return	table dynamic metadata version if exists, otherwise 0 */
+inline
+uint64_t
+dd_get_version(
+	const dd::Table*	dd_table);
+
+/** Copy the AUTO_INCREMENT and version attribute if exist.
+@param[in]	src	dd::Table::se_private_data to copy from
+@param[out]	dest	dd::Table::se_private_data to copy to */
+void
+dd_copy_autoinc(
+	const dd::Properties&	src,
+	dd::Properties&		dest);
+
 /** Copy the engine-private parts of a table definition
 when the change does not affect InnoDB. Keep the already set
 AUTOINC counter related information if exist
@@ -288,6 +322,7 @@ dd_copy_private(
 	const Table&	old_table);
 
 /** Write metadata of a table to dd::Table
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_space_id	Tablespace id, which server allocates
 @param[in,out]	dd_table	dd::Table
 @param[in]	table		InnoDB table object */
@@ -357,6 +392,13 @@ dd_mdl_release(
 	THD*		thd,
 	MDL_ticket**	mdl);
 
+/** Check if current undo needs a MDL or not
+@param[in]	thd	current thd
+@return	true if MDL is necessary, otherwise false */
+bool
+dd_mdl_for_undo(
+	const THD*	thd);
+
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
 @param[in]	dd_table	Global DD table
@@ -377,6 +419,195 @@ dd_table_load_fk_from_dd(
 @param[in,out]	se_private_data	dd::Table::se_private_data
 @param[in]	autoinc		the auto-increment value */
 void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
+
+/** Scan a new dd system table, like mysql.tables...
+@param[in]	thd		thd
+@param[in,out]	mdl		mdl lock
+@param[in,out]	pcur		persistent cursor
+@param[in]	mtr		the mini-transaction
+@param[in]	system_id	which dd system table to open
+@param[in,out]	table		dict_table_t obj of dd system table
+@retval the first rec of the dd system table */
+const rec_t*
+dd_startscan_system(
+	THD*		thd,
+	MDL_ticket**	mdl,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr,
+	dd_system_id_t	system_id,
+	dict_table_t**	table);
+
+/** Process one mysql.tables record and get the dict_table_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.tables record
+@param[in,out]	table		dict_table_t to fill
+@param[in]	dd_tables	dict_table_t obj of dd system table
+@param[in]	mdl		mdl on the table
+@param[in]	mtr		the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_tables_rec_and_mtr_commit(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
+	mtr_t*		mtr);
+/** Process one mysql.table_partitions record and get the dict_table_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.table_partitions record
+@param[in,out]	table		dict_table_t to fill
+@param[in]	dd_tables	dict_table_t obj of dd partition table
+@param[in]	mdl		mdl on the table
+@param[in]	mtr		the mini-transaction
+@retval error message, or NULL on success */
+const char*
+dd_process_dd_partitions_rec_and_mtr_commit(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	dict_table_t**	table,
+	dict_table_t*	dd_tables,
+	MDL_ticket**	mdl,
+	mtr_t*		mtr);
+/** Process one mysql.columns record and get info to dict_col_t
+@param[in,out]	heap		temp memory heap
+@param[in]	rec		mysql.columns record
+@param[in,out]	col		dict_col_t to fill
+@param[in,out]	table_id	table id
+@param[in,out]	col_name	column name
+@param[in,out]	nth_v_col	nth v column
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in,out]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	dict_col_t*		col,
+	table_id_t*		table_id,
+	char**			col_name,
+	ulint*			nth_v_col,
+	const dict_table_t*	dd_columns,
+	mtr_t*			mtr);
+
+/** Process one mysql.columns record for virtual columns
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.columns record
+@param[in,out]	table_id	table id
+@param[in,out]	pos		position
+@param[in,out]	base_pos	base column position
+@param[in,out]	n_row		number of rows
+@param[in]	dd_columns	dict_table_t obj of mysql.columns
+@param[in]	mtr		the mini-transaction
+@retval true if virtual info is filled */
+bool
+dd_process_dd_virtual_columns_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	table_id_t*		table_id,
+	ulint**			pos,
+	ulint**			base_pos,
+	ulint*			n_row,
+	dict_table_t*		dd_columns,
+	mtr_t*			mtr);
+
+/** Get next record of new DD system tables
+@param[in,out]	pcur		persistent cursor
+@param[in]		mtr			the mini-transaction
+@retval next record */
+const rec_t*
+dd_getnext_system_rec(
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr);
+
+/** Process one mysql.indexes record and get the dict_index_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	index		dict_index_t to fill
+@param[in]	mdl		mdl on index->table
+@param[in,out]	parent		parent table if it's fts aux table.
+@param[in,out]	parent_mdl	mdl on parent if it's fts aux table.
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@param[in]	mtr		the mini-transaction
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec(
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	const dict_index_t**	index,
+	MDL_ticket**		mdl,
+	dict_table_t**		parent,
+	MDL_ticket**		parent_mdl,
+	dict_table_t*		dd_indexes,
+	mtr_t*			mtr);
+/** Process one mysql.indexes record and get brief info to dict_index_t
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.indexes record
+@param[in,out]	index_id	index id
+@param[in,out]	space_id	space id
+@param[in]	dd_indexes	dict_table_t obj of mysql.indexes
+@retval true if index is filled */
+bool
+dd_process_dd_indexes_rec_simple(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	space_index_t*	index_id,
+	space_id_t*	space_id,
+	dict_table_t*	dd_indexes);
+/** Process one mysql.tablespaces record and get info
+@param[in]	heap		temp memory heap
+@param[in,out]	rec		mysql.tablespaces record
+@param[in,out]	space_id	space id
+@param[in,out]	name		space name
+@param[in,out]	flags		space flags
+@param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
+@retval true if index is filled */
+bool
+dd_process_dd_tablespaces_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	space_id_t*	space_id,
+	char**		name,
+	uint*		flags,
+	dict_table_t*	dd_spaces);
+/** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
+was used. Try to read it from the fil_system first, then from new dd.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	table		Table object
+@param[in]	dd_table	DD table object
+@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_data_dir_path(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own);
+
+/** Make sure the tablespace name is saved in dict_table_t if the table
+uses a general tablespace.
+Try to read it from the fil_system_t first, then from DD.
+@param[in]	table		Table object
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_space_name(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own);
+
+/** Get the meta-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[in]	dd_table	DD table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+dd_get_meta_data_filename(
+	dict_table_t*	table,
+	dd::Table*	dd_table,
+	char*		filename,
+	ulint		max_len);
 
 /** Load foreign key constraint for the table. Note, it could also open
 the foreign table, if this table is referenced by the foreign table
@@ -447,9 +678,11 @@ dd_table_open_on_dd_obj(
 	THD*				thd);
 
 /** Open a persistent InnoDB table based on table id.
-@param[in]	table_id	table identifier
-@param[in,out]	thd		current MySQL connection (for mdl)
-@param[in,out]	mdl		metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	table_id		table identifier
+@param[in,out]	thd			current MySQL connection (for mdl)
+@param[in,out]	mdl			metadata lock (*mdl set if table_id was found); mdl=NULL if we are resurrecting table IX locks in recovery
+@param[in]	dict_locked		dict_sys mutex is held
+@param[in]	check_corruption	check if the table is corrupted or not.
 @return table
 @retval NULL if the table does not exist or cannot be opened */
 dict_table_t*
@@ -457,7 +690,8 @@ dd_table_open_on_id(
 	table_id_t	table_id,
 	THD*		thd,
 	MDL_ticket**	mdl,
-	bool		dict_locked);
+	bool		dict_locked,
+	bool		check_corruption);
 
 /** Close an internal InnoDB table handle.
 @param[in,out]	table	InnoDB table handle
@@ -520,6 +754,7 @@ dd_table_open_on_name_in_mem(
 	ibool		dict_locked);
 
 /** Open or load a table definition based on a Global DD object.
+@tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
 @param[in]	table		MySQL table definition
 @param[in]	norm_name	Table Name
@@ -563,6 +798,7 @@ dd_tablespace_update_filename(
 @param[in]	space		InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
 @param[in]	filename	filename of this tablespace
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd_space_id
 @retval	false	on success
 @retval	true	on failure */
@@ -574,6 +810,7 @@ create_dd_tablespace(
 	space_id_t			space_id,
 	ulint				flags,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id);
 
 /** Create metadata for implicit tablespace
@@ -581,6 +818,7 @@ create_dd_tablespace(
 @param[in,out]	thd		THD
 @param[in]	space		InnoDB tablespace ID
 @param[in]	filename	tablespace filename
+@param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd tablespace id
 @retval	false	on success
 @retval	true	on failure */
@@ -590,7 +828,20 @@ dd_create_implicit_tablespace(
 	THD*				thd,
 	space_id_t			space,
 	const char*			filename,
+	bool				discarded,
 	dd::Object_id&			dd_space_id);
+
+/** Drop a tablespace
+@param[in,out]	dd_client	data dictionary client
+@param[in,out]	thd		THD object
+@param[in]	dd_space_id	dd tablespace id
+@retval	false	On success
+@retval	true	On failure */
+bool
+dd_drop_tablespace(
+	dd::cache::Dictionary_client*	dd_client,
+	THD*				thd,
+	dd::Object_id			dd_space_id);
 
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
@@ -604,7 +855,8 @@ thd_to_innodb_session(
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
-@param[in,out]	dd_ptn_name	partition name to be filled if not NULL
+@param[in,out]	dd_part_name	partition name to be filled if not nullptr
+@param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -613,7 +865,8 @@ dd_parse_tbl_name(
 	const char*	tbl_name,
 	char*		dd_db_name,
 	char*		dd_tbl_name,
-	char*		dd_ptn_name);
+	char*		dd_part_name,
+	char*		dd_sub_name);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
@@ -684,7 +937,6 @@ const char*
 get_row_format_name(
 	enum row_type row_format);
 
-#ifdef UNIV_DEBUG
 
 /** Get the file name of a tablespace.
 @param[in]	dd_space	Tablespace metadata
@@ -698,11 +950,8 @@ dd_tablespace_get_filename(const dd::Tablespace* dd_space)
 	return((*dd_space->files().begin())->filename().c_str());
 }
 
-#endif /* UNIV_DEBUG */
-
-/** WL#9536 TODO: Define this function in debug mode only.
-And just assert it on opening tables, instead of setting it as corrupted */
 /** Check if the InnoDB table is consistent with dd::Table
+@tparam		Table		dd::Table or dd::Partition
 @param[in]	table			InnoDB table
 @param[in]	dd_table		dd::Table or dd::Partition
 @return	true	if match
@@ -752,6 +1001,29 @@ bool
 dd_rename_fts_table(
 	const dict_table_t*	table,
 	const char*		old_name);
+
+/** Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@param[in]	name			foreign key table name
+@param[in]	database_name		table db name
+@param[in]	database_name_len	db name length
+@param[in]	table_name		table db name
+@param[in]	table_name_len		table name length
+@param[in,out]	table			table object or NULL
+@param[in,out]	mdl			mdl on table
+@param[in,out]	heap			heap memory
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+char*
+dd_get_referenced_table(
+	const char*	name,
+	const char*	database_name,
+	ulint		database_name_len,
+	const char*	table_name,
+	ulint		table_name_len,
+	dict_table_t**	table,
+	MDL_ticket**	mdl,
+	mem_heap_t*	heap);
 
 /** Set Discard attribute in se_private_data of tablespace
 @param[in,out]	dd_space	dd::Tablespace object

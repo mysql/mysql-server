@@ -1120,7 +1120,7 @@ opt_clust_access(
 		/* We optimize here only queries to InnoDB's internal system
 		tables, and they should not contain column prefix indexes. */
 
-		if (dict_is_sys_table(index->table->id)
+		if (dict_is_old_sys_table(index->table->id)
 		    && (index->get_field(pos)->prefix_len != 0
 		    || clust_index->get_field(i)->prefix_len != 0)) {
 			ib::error() << "Error in pars0opt.cc: table "

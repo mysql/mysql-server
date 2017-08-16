@@ -4919,6 +4919,135 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
 }
 
 /**
+  @brief
+    This function prepares string representing se_private_data for tablespace.
+    This is required for IS implementation which uses views on DD tablespace.
+
+    Syntax:
+      string get_dd_tablespace_private_data(dd.tablespace.se_private_data)
+
+    The arguments accept values from se_private_data from 'tablespace'
+    DD table.
+
+ */
+String *Item_func_get_dd_tablespace_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_tablespace_private_data::val_str");
+
+  // Read tablespaces.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "flags") == 0)
+    {
+      if (p->exists("flags"))
+      {
+        p->get_uint32("flags", &opt_value);
+        ptr = longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
+  @brief
+    This function prepares string representing se_private_data for index.
+    This is required for IS implementation which uses views on DD indexes.
+
+    Syntax:
+      string get_dd_index_private_data(dd.indexes.se_private_data)
+
+    The arguments accept values from se_private_data from 'indexes'
+    DD table.
+
+ */
+String *Item_func_get_dd_index_private_data::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_dd_index_private_data::val_str");
+
+  // Read indexes.se_private_data
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+  if ((option_ptr = args[0]->val_str(&option)) != nullptr)
+  {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p
+      (dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+    // Read used_flags
+    uint opt_value = 0;
+    char option_buff[350], *ptr;
+    ptr = option_buff;
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "id") == 0)
+    {
+      if (p->exists("id"))
+      {
+        p->get_uint32("id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "root") == 0)
+    {
+      if (p->exists("root"))
+      {
+        p->get_uint32("root", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (strcmp(args[1]->val_str(&option)->ptr(), "trx_id") == 0)
+    {
+      if (p->exists("trx_id"))
+      {
+        p->get_uint32("trx_id", &opt_value);
+        ptr=longlong10_to_str(opt_value, ptr, 10);
+      }
+    }
+
+    if (ptr == option_buff)
+      oss << "";
+    else
+      oss << option_buff;
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
   Get collation by name, send error to client on failure.
   @param name     Collation name
   @param name_cs  Character set of the name string

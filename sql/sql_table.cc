@@ -1259,16 +1259,21 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  std::set<handlerton*> post_ddl_htons;
-  Prealloced_array<TABLE_LIST*, 1> dropped_atomic(PSI_INSTRUMENT_ME);
-  bool not_used;
+  {
+    // This Auto_releaser needs to go out of scope before we start releasing
+    // metadata locks below. Otherwise we end up having acquired objects for
+    // which we no longer have any locks held.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  /* mark for close and remove all cached entries */
-  thd->push_internal_handler(&err_handler);
-  error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
-                                 false, &not_used, &post_ddl_htons,
-                                 &dropped_atomic);
-  thd->pop_internal_handler();
+    std::set<handlerton*> post_ddl_htons;
+    bool not_used;
+
+    /* mark for close and remove all cached entries */
+    thd->push_internal_handler(&err_handler);
+    error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
+                                   false, &not_used, &post_ddl_htons);
+    thd->pop_internal_handler();
+  }
 
   if (!drop_temporary)
   {
@@ -2243,9 +2248,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     Such situation should not be possible for SEs supporting atomic DDL,
     but we still play safe even in this case and allow table removal.
   */
-#ifdef ASSERT_TO_BE_ENABLED_ONCE_WL7016_IS_READY
-   DBUG_ASSERT(!atomic || (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE));
-#endif
+  DBUG_ASSERT(!atomic || (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE));
 
   if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && drop_ctx.if_exists)
   {
@@ -2295,15 +2298,9 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     return true;
   bool result= dd::drop_table(thd, table->db, table->table_name, *table_def);
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!atomic || drop_ctx.drop_database)
-    result= trans_intermediate_ddl_commit(thd, result) ||
-            update_referencing_views_metadata(thd, table, true, nullptr);
-#else
   if (!atomic)
     result= trans_intermediate_ddl_commit(thd, result);
   result|= update_referencing_views_metadata(thd, table, !atomic, nullptr);
-#endif
 
   return result;
 }
@@ -2325,10 +2322,6 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   @param[out] post_ddl_htons     Set of handlertons for tables in SEs supporting
                                  atomic DDL for which post-DDL hook needs to
                                  be called after statement commit or rollback.
-  @param[out] dropped_atomic     List of tables in SEs supporting atomic DDL
-                                 which we have managed to drop. This parameter
-                                 is a workaround used by DROP DATABASE until
-                                 WL#7016 is implemented.
 
   @retval  False - ok
   @retval  True  - error
@@ -2351,11 +2344,7 @@ drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                              bool drop_temporary, bool drop_database,
                              bool *dropped_non_atomic_flag,
-                             std::set<handlerton*> *post_ddl_htons
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-                             , Prealloced_array<TABLE_LIST*, 1> *dropped_atomic
-#endif
-                             )
+                             std::set<handlerton*> *post_ddl_htons)
 {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   Drop_tables_ctx drop_ctx(if_exists, drop_temporary, drop_database);
@@ -2584,64 +2573,13 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                           table, true /* atomic */,
                           post_ddl_htons))
       {
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-        if (thd->transaction_rollback_request)
-          goto err_with_rollback;
-
-        if (!drop_ctx.drop_database &&
-            (dropped_atomic->size() != 0 ||
-             (drop_ctx.has_gtid_many_table_groups() &&
-              drop_ctx.has_dropped_non_atomic())))
-        {
-          Drop_tables_query_builder built_query(thd, false /* no TEMPORARY */,
-                                                drop_ctx.if_exists,
-                                                /* stmt or trx cache. */
-                                                dropped_atomic->size() != 0,
-                                                false /* db exists */);
-          if (drop_ctx.has_gtid_many_table_groups() &&
-              drop_ctx.has_dropped_non_atomic())
-            built_query.add_array(drop_ctx.dropped_non_atomic);
-          built_query.add_array(*dropped_atomic);
-          built_query.write_bin_log();
-        }
-
-        if (drop_ctx.drop_database)
-        {
-          Disable_gtid_state_update_guard disabler(thd);
-          (void) trans_commit_stmt(thd);
-          (void) trans_commit_implicit(thd);
-        }
-        else
-        {
-          // We need to turn off updating of slave info here
-          // without conflicting with GTID update.
-          {
-            Disable_slave_info_update_guard disabler(thd);
-
-            (void) trans_commit_stmt(thd);
-            (void) trans_commit_implicit(thd);
-          }
-
-          for (TABLE_LIST *table : *dropped_atomic)
-            (void)update_referencing_views_metadata(thd, table, true, nullptr);
-        }
-        DBUG_RETURN(true);
-#else
         goto err_with_rollback;
-#endif
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      dropped_atomic->push_back(table);
-#endif
     }
 
     DBUG_EXECUTE_IF("rm_table_no_locks_abort_after_atomic_tables",
                     {
                       my_error(ER_UNKNOWN_ERROR, MYF(0));
-                      /* WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY */
-                      (void) trans_commit_stmt(thd);
-                      (void) trans_commit_implicit(thd);
-                      /* WORKAROUND_ENDS */
                       goto err_with_rollback;
                     });
 
@@ -2708,10 +2646,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
         So do nothing here in all three cases described above.
       */
-#ifndef WORKAROUND_TO_BE_REMOVED_ONCE_WL7016_IS_READY
-      Disable_gtid_state_update_guard disabler(thd);
-      error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-#endif
     }
     else if (!drop_ctx.has_gtid_many_table_groups())
     {
@@ -2764,14 +2698,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
         thd->is_commit_in_middle_of_statement= false;
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-      if (!error)
-      {
-        for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
-          if (update_referencing_views_metadata(thd, table, true, nullptr))
-            goto err_with_rollback;
-      }
-#endif
     }
     else
     {
@@ -2836,14 +2762,6 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_with_rollback;
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    for (TABLE_LIST *table : drop_ctx.base_atomic_tables)
-    {
-      if (update_referencing_views_metadata(thd, table, true, nullptr))
-        goto err_with_rollback;
-    }
-#endif
   }
 
   /*
@@ -6275,11 +6193,7 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     // Update view metadata.
-    if (!result
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-        && !is_trans
-#endif
-        )
+    if (!result)
     {
       Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -6297,12 +6211,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     */
     if (!result && !thd->is_plugin_fake_ddl())
       result= trans_commit_stmt(thd) || trans_commit_implicit(thd);
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    if (!result && is_trans)
-      result= update_referencing_views_metadata(thd, create_table, true,
-                                                nullptr);
-#endif
 
     if (result && !thd->is_plugin_fake_ddl())
     {
@@ -6737,11 +6645,7 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       caller the above call to trans_intermediate_ddl_commit() will roll
       back the transaction on failure and thus revert change to SE.
     */
-    if (true
-#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-        && !(flags & NO_DD_COMMIT)
-#endif
-       )
+    if (!(flags & NO_DD_COMMIT))
       (void) file->ha_rename_table(to_base, from_base, to_table_def,
                                    const_cast<dd::Table*>(from_table_def));
     destroy(file);
@@ -7059,10 +6963,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
       Update view metadata. Use nested block to ensure that TDC
       invalidation happens before commit.
     */
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    if (!is_trans)
-#endif
     {
       Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -7076,12 +6976,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err;
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    if (is_trans &&
-        update_referencing_views_metadata(thd, table, true, nullptr))
-      goto err;
-#endif
 
     if (post_ddl_ht)
       post_ddl_ht->post_ddl(thd);
@@ -8555,6 +8449,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
+  bool rollback_needs_dict_cache_reset= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -8816,6 +8711,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     table_list->table= table= NULL;
     reopen_tables= true;
     close_temporary_table(thd, altered_table, true, false);
+    rollback_needs_dict_cache_reset= true;
 
     /*
       Replace table definition in the data-dictionary.
@@ -8848,6 +8744,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       goto cleanup2;
     table_def= nullptr;
 
+    DEBUG_SYNC_C("alter_table_after_dd_client_drop");
     /*
       Rename pre-existing foreign keys back to their original names.
       Since foreign key names have to be unique per schema, they cannot
@@ -8954,9 +8851,6 @@ static bool mysql_inplace_alter_table(THD *thd,
                     (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)))
     goto cleanup2;
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-#endif
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -8993,17 +8887,6 @@ static bool mysql_inplace_alter_table(THD *thd,
     */
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto cleanup2;
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    if (alter_ctx->is_table_renamed() ?
-        update_referencing_views_metadata(thd, table_list,
-                                         alter_ctx->new_db,
-                                         alter_ctx->new_name,
-                                         true, nullptr):
-        update_referencing_views_metadata(thd, table_list,
-                                         true, nullptr))
-      goto cleanup2;
-#endif
 
     /* Call SE DDL post-commit hook. */
     if (db_type->post_ddl)
@@ -9061,6 +8944,17 @@ cleanup2:
       db_type->post_ddl)
     db_type->post_ddl(thd);
 
+
+  /*
+    InnoDB requires additional SE dictionary cache invalidation if we rollback
+    after successfull call to handler::ha_commit_inplace_alter_table().
+  */
+  if (rollback_needs_dict_cache_reset)
+  {
+    if (db_type->dict_cache_reset != nullptr)
+      db_type->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
+  }
+
   /*
     Re-opening of table needs to be done after rolling back the failed
     statement/transaction and clearing THD::transaction_rollback_request
@@ -9076,13 +8970,7 @@ cleanup2:
     /* QQ; do something about metadata locks ? */
   }
 
-  if (
-#ifdef WORKAROUND_NEEDS_WL7141_TREE
-      !(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)
-#else
-      true
-#endif
-     )
+  if (!(db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
     const dd::Table *table_def= nullptr;
     if (!thd->dd_client()->acquire(alter_ctx->new_db,
@@ -10617,11 +10505,7 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
                           alter_ctx->is_table_renamed()));
 
     // Update referencing views metadata.
-    if (!error
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-        && !atomic_ddl
-#endif
-        )
+    if (!error)
     {
       Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -10645,16 +10529,6 @@ simple_rename_or_index_change(THD *thd, const dd::Schema &new_schema,
     */
     if (!error && atomic_ddl)
       error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
-
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-    if (!error && atomic_ddl)
-    {
-      error= update_referencing_views_metadata(thd, table_list,
-                                               alter_ctx->new_db,
-                                               alter_ctx->new_alias,
-                                               true, nullptr);
-    }
-#endif
 
     if (!error)
       my_ok(thd);
@@ -11947,13 +11821,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-      else
-      {
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP);
-      }
-#endif
       goto err_with_mdl;
       /* purecov: end */
     }
@@ -11968,13 +11835,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP);
       }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-      else
-      {
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP);
-      }
-#endif
       goto err_with_mdl;
       /* purecov: end */
     }
@@ -11996,21 +11856,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                             alter_ctx.tmp_name, FN_IS_TMP);
     }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-    else
-    {
-      /*
-        We should not try to remove new version of the table if
-        THD::transaction_rollback_request is set and we can't rollback the
-        transaction before removal, as it will wipe-out information which is
-        needed by InnoDB. To keep things simple we just ignore the problem
-        for now and let the inconsistency to creep in.
-      */
-      if (! thd->transaction_rollback_request)
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP);
-    }
-#endif
     goto err_with_mdl;
   }
 
@@ -12045,27 +11890,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                 *schema, alter_ctx.db, alter_ctx.alias,
                                 FN_FROM_IS_TMP | NO_FK_CHECKS));
     }
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
-    else
-    {
-      /*
-        We should not try to restore status quo ante if
-        THD::transaction_rollback_request is set and we can't rollback the
-        transaction before, as it will wipe-out information which is needed
-        by InnoDB. To keep things simple we just ignore the problem for now
-        and let the inconsistency to creep in.
-      */
-      if (! thd->transaction_rollback_request)
-      {
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP);
-        (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                  *schema, alter_ctx.db, alter_ctx.alias,
-                                  FN_FROM_IS_TMP | NO_FK_CHECKS);
-      }
-    }
-#endif
-
     goto err_with_mdl;
   }
 
@@ -12179,11 +12003,7 @@ end_inplace_noop:
                     atomic_replace))
     goto err_with_mdl;
 
-  if (!is_noop
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-      && !atomic_replace
-#endif
-      )
+  if (!is_noop)
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
@@ -12205,15 +12025,6 @@ end_inplace_noop:
       (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
 
-#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL9536
-  if (!is_noop && atomic_replace)
-  {
-    if (update_referencing_views_metadata(thd, table_list,
-                                          new_db, new_name,
-                                          true, nullptr))
-      goto err_with_mdl;
-  }
-#endif
   if ((new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
       new_db_type->post_ddl)
     new_db_type->post_ddl(thd);
@@ -12300,20 +12111,6 @@ err_new_table_cleanup:
     }
     else
     {
-#ifndef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
-      /*
-        We should not try to remove new version of the table if
-        THD::transaction_rollback_request is set and we can't rollback the
-        transaction before removal, as it will wipe-out information which is
-        needed by InnoDB. To keep things simple we just ignore the problem
-        for now and let the inconsistency to creep in.
-      */
-      if (! thd->transaction_rollback_request && ! no_ha_table)
-        // Remove from both DD and SE.
-        (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                              alter_ctx.tmp_name, FN_IS_TMP);
-
-#endif
       trans_rollback_stmt(thd);
       /*
         Full rollback in case we have THD::transaction_rollback_request

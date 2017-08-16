@@ -70,6 +70,7 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
 --error ER_CREATE_FILEGROUP_FAILED
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
@@ -988,7 +989,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* i
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Invalid use of ':' in");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist in the InnoDB data dictionary");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist.");
 --enable_query_log
 --echo #
 --echo # Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE

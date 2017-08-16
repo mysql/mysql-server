@@ -160,6 +160,9 @@ public:
   // Reset the shared cache. Optionally keep the core DD table meta data.
   static void reset(bool keep_dd_entities);
 
+  // Reset the table and tablespace partitions.
+  static bool reset_tables_and_tablespaces(THD *thd);
+
 
   /**
     Check if an element with the given key is available.
