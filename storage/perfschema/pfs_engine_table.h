@@ -25,9 +25,9 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs.h"
 #include "sql/auth/auth_common.h" /* struct ACL_* */
 #include "sql/key.h"
+#include "storage/perfschema/pfs.h"
 
 class PFS_engine_key;
 class PFS_engine_index;
@@ -40,7 +40,7 @@ typedef struct st_thr_lock THR_LOCK;
   Performance schema tables (declarations).
 */
 
-#include "pfs_instr_class.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 class Field;
 struct PFS_engine_table_share;

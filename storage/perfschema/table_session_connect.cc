@@ -18,13 +18,13 @@
   TABLE SESSION_CONNECT (abstract).
 */
 
-#include "table_session_connect.h"
+#include "storage/perfschema/table_session_connect.h"
 
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_buffer_container.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
 
 bool
 PFS_index_session_connect::match(PFS_thread *pfs)

@@ -16,7 +16,7 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 	/* Read last row with the same key as the previous read. */
 

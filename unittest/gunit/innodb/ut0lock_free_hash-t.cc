@@ -66,15 +66,15 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include <thread>
 
 #include "my_thread_local.h" /* Needed to access thread local variables */
-#include "os0thread-create.h" /* os_thread_*() */
-#include "os0thread.h" /* os_thread_*() */
-#include "srv0conc.h" /* srv_max_n_threads */
-#include "sync0debug.h" /* sync_check_init(), sync_check_close() */
-#include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
-#include "univ.i"
-#include "ut0dbg.h" /* ut_chrono_t */
-#include "ut0lock_free_hash.h"
-#include "ut0mutex.h" /* SysMutex, mutex_enter() */
+#include "storage/innobase/include/os0thread-create.h" /* os_thread_*() */
+#include "storage/innobase/include/os0thread.h" /* os_thread_*() */
+#include "storage/innobase/include/srv0conc.h" /* srv_max_n_threads */
+#include "storage/innobase/include/sync0debug.h" /* sync_check_init(), sync_check_close() */
+#include "storage/innobase/include/sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0dbg.h" /* ut_chrono_t */
+#include "storage/innobase/include/ut0lock_free_hash.h"
+#include "storage/innobase/include/ut0mutex.h" /* SysMutex, mutex_enter() */
 
 /* Thread local counter variable for random backoff for spinlocks */
 extern thread_local ulint ut_rnd_ulint_counter;

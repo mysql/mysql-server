@@ -15,19 +15,19 @@
 
 #include <memory.h>
 #include <mysql/psi/psi_file.h>
-#include <pfs_buffer_container.h>
-#include <pfs_global.h>
-#include <pfs_instr.h>
-#include <pfs_instr_class.h>
-#include <pfs_server.h>
 #include <string.h>
 
 #include "m_ctype.h"
 #include "my_io.h"
 #include "my_thread.h"
-#include "stub_pfs_defaults.h"
-#include "stub_pfs_plugin_table.h"
-#include "stub_print_error.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_server.h"
+#include "storage/perfschema/unittest/stub_pfs_defaults.h"
+#include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "storage/perfschema/unittest/stub_print_error.h"
 #include "unittest/mytap/tap.h"
 
 /* test helpers, to simulate the setup */

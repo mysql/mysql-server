@@ -19,7 +19,6 @@
 #include "my_config.h"
 
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "lf.h"
@@ -28,11 +27,11 @@
 #include "my_inttypes.h"
 #include "mysql_com.h" /* NAME_LEN */
 #include "mysqld_error.h"
-#include "pfs_column_types.h"
-#include "pfs_global.h"
-#include "pfs_lock.h"
-#include "pfs_stat.h"
 #include "prealloced_array.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_stat.h"
 
 struct TABLE_SHARE;
 

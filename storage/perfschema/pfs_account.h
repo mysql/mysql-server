@@ -23,15 +23,14 @@
 */
 
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "lf.h"
 #include "my_inttypes.h"
 #include "mysql_com.h" /* USERNAME_LENGTH */
-#include "pfs_con_slice.h"
-#include "pfs_global.h"
-#include "pfs_lock.h"
+#include "storage/perfschema/pfs_con_slice.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
 
 struct PFS_global_param;
 struct PFS_user;

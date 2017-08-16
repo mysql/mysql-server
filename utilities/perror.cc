@@ -26,9 +26,9 @@
 #include "my_sys.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define PERROR_VERSION "2.11"
-#include "../storage/ndb/include/mgmapi/mgmapi_error.h"
-#include "../storage/ndb/src/kernel/error/ndbd_exit_codes.c"
-#include "../storage/ndb/src/ndbapi/ndberror.c"
+#include "storage/ndb/include/mgmapi/mgmapi_error.h"
+#include "storage/ndb/src/kernel/error/ndbd_exit_codes.c"
+#include "storage/ndb/src/ndbapi/ndberror.c"
 #endif
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */

@@ -22,14 +22,14 @@
 
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "pfs_account.h"
-#include "pfs_buffer_container.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_global.h"
-#include "pfs_host.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_user.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_user.h"
 
 uint max_server_errors;
 uint pfs_to_server_error_map[PFS_MAX_SERVER_ERRORS];

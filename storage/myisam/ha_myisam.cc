@@ -32,9 +32,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
-#include "myisamdef.h"
 #include "myisampack.h"
-#include "rt_index.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/key.h"                            // key_copy
@@ -44,6 +42,8 @@
 #include "sql/sql_plugin.h"
 #include "sql/sql_table.h"                      // tablename_to_filename
 #include "sql/system_variables.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
 
 using std::min;
 using std::max;

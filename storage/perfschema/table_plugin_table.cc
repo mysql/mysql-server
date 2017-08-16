@@ -18,8 +18,9 @@
   plugins/components tables (implementation).
 */
 
-#include "table_plugin_table.h"
-#include "pfs_plugin_table.h"
+#include "storage/perfschema/table_plugin_table.h"
+
+#include "storage/perfschema/pfs_plugin_table.h"
 
 int
 PFS_plugin_table_index::init(PSI_table_handle *plugin_table,

@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <fts0tokenize.h>
 #include <stddef.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/innobase/include/fts0tokenize.h"
 
 /* We are following InnoDB coding guidelines. */
 

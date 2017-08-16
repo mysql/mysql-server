@@ -15,6 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef SQL_HA_NDBCLUSTER_INCLUDED
+#define SQL_HA_NDBCLUSTER_INCLUDED
+
 /*
   This file defines the NDB Cluster handler: the interface between MySQL and
   NDB Cluster
@@ -29,14 +32,13 @@
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
 
-#include <kernel/ndb_limits.h>
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/ndbapi_limits.h>
-
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_table_map.h"
 #include "sql/partitioning/partition_handler.h"
 #include "sql/table.h"
+#include "storage/ndb/include/kernel/ndb_limits.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -764,3 +766,5 @@ extern int ndb_setup_complete;
 
 
 int ndb_to_mysql_error(const NdbError *ndberr);
+
+#endif

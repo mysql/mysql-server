@@ -19,7 +19,6 @@
 
 #include <mysql/plugin.h>
 
-#include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
@@ -27,6 +26,7 @@
 #include "sql/ndb_tdc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
+#include "storage/ndb/src/ndbapi/NdbInfo.hpp"
 
 static MYSQL_THDVAR_UINT(
   max_rows,                          /* name */

@@ -27,16 +27,16 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "pfs.h"
-#include "pfs_account.h"
-#include "pfs_buffer_container.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_global.h"
-#include "pfs_host.h"
-#include "pfs_instr_class.h"
-#include "pfs_stat.h"
-#include "pfs_user.h"
 #include "sql/mysqld.h" // get_thd_status_var
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_user.h"
 
 ulong nested_statement_lost = 0;
 

@@ -19,9 +19,9 @@
 #define NDB_CONFLICT_TRANS_H
 
 
-#include "ndbapi/NdbApi.hpp"
-#include "util/HashMap2.hpp"
-#include "util/LinkedStack.hpp"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/util/HashMap2.hpp"
+#include "storage/ndb/include/util/LinkedStack.hpp"
 
 /*
    This file defines structures for detecting dependencies between

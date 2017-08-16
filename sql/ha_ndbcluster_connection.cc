@@ -19,17 +19,17 @@
 
 #include <mysql/psi/mysql_thread.h>
 
-#include "kernel/ndb_limits.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "ndbapi/NdbApi.hpp"
-#include "portlib/NdbTick.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/mysqld.h"     // server_id, connection_events_loop_aborted
 #include "sql/rpl_slave.h"  // report_port
 #include "sql/sql_class.h"
-#include "util/BaseString.hpp"
-#include "util/Vector.hpp"
+#include "storage/ndb/include/kernel/ndb_limits.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/portlib/NdbTick.h"
+#include "storage/ndb/include/util/BaseString.hpp"
+#include "storage/ndb/include/util/Vector.hpp"
 #ifndef _WIN32
 #include <netdb.h>          // getservbyname
 #endif

@@ -33,11 +33,11 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_tree.h"
-#include "myisam_sys.h"
-#include "myisamdef.h"
 #include "mysys_err.h"
 #include "print_version.h"
-#include "queues.h"
+#include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/queues.h"
 #include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #if SIZEOF_LONG_LONG > 4
@@ -3234,4 +3234,4 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
 
 #endif
 
-#include "mi_extrafunc.h"
+#include "storage/myisam/mi_extrafunc.h"

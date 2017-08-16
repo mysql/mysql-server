@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "my_dbug.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 ha_rows myrg_records(MYRG_INFO *info)
 {

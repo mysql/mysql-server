@@ -20,10 +20,10 @@
 #include <signal.h>
 #include <sys/types.h>
 
-#include "heapdef.h"		/* Because of hp_find_block */
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "storage/heap/heapdef.h"		/* Because of hp_find_block */
 
 #define MAX_RECORDS 100000
 #define MAX_KEYS 4

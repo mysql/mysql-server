@@ -18,9 +18,8 @@
 #ifndef NDB_TABLE_GUARD_H
 #define NDB_TABLE_GUARD_H
 
-#include <ndbapi/NdbDictionary.hpp>
-
 #include "my_dbug.h"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 class Ndb_table_guard
 {

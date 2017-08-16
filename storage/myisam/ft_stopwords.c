@@ -18,11 +18,11 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
-#include "ftdefs.h"
 #include "my_compare.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "storage/myisam/ftdefs.h"
 
 
 static CHARSET_INFO *ft_stopword_cs= NULL;

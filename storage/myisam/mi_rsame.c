@@ -17,7 +17,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 	/*
 	** Find current row with read on position or read on key

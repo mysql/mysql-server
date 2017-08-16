@@ -25,8 +25,8 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "pfs_digest.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

@@ -14,14 +14,14 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <pfs_buffer_container.h>
-#include <pfs_global.h>
-#include <pfs_instr.h>
-#include <pfs_instr_class.h>
-#include <pfs_stat.h>
 
 #include "my_thread.h"
-#include "stub_pfs_plugin_table.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "unittest/mytap/tap.h"
 
 static void test_no_instruments()

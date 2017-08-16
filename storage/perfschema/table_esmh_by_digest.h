@@ -22,8 +22,8 @@
   Table EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST (declarations).
 */
 
-#include "table_helper.h"
-#include "pfs_digest.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

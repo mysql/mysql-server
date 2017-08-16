@@ -21,7 +21,7 @@
 #include "storage/perfschema/pfs_builtin_memory.h"
 
 #include "my_dbug.h"
-#include "pfs_global.h"
+#include "storage/perfschema/pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;
 PFS_builtin_memory_class builtin_memory_rwlock;

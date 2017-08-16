@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/storage/perfschema
 )
 
 SET(MYSQL_SERVER_COMPONENT_SOURCES

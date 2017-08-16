@@ -20,7 +20,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 /*
   Assign pages of the index file for a table to a key cache

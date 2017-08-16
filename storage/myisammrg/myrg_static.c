@@ -19,7 +19,7 @@
 */
 
 #ifndef stdin
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 #endif
 #include "my_macros.h"
 #include "my_psi_config.h"

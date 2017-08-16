@@ -23,8 +23,8 @@
 
 #include <sys/types.h>
 
-#include "pfs_program.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

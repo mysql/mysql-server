@@ -16,7 +16,9 @@
 */
 
 #include "my_dbug.h"
+#include "sql/ha_ndbcluster.h"
 #include "sql/sql_bitmap.h"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 class NdbTransaction;
 class NdbQueryBuilder;

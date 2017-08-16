@@ -26,13 +26,13 @@
 #include "my_dbug.h"
 #include "my_md5.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_statements.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
-#include "table_helper.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_statements.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;
 

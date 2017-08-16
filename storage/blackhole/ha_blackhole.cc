@@ -15,7 +15,7 @@
 
 
 #define MYSQL_SERVER 1
-#include "ha_blackhole.h"
+#include "storage/blackhole/ha_blackhole.h"
 
 #include "map_helpers.h"
 #include "my_dbug.h"

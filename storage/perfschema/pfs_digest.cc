@@ -29,14 +29,14 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
 #include "sql/sql_get_diagnostics.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_signal.h"
 #include "sql_string.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/table_helper.h"
 
 size_t digest_max = 0;
 ulong digest_lost = 0;

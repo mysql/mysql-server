@@ -21,7 +21,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 #ifdef	_WIN32
 #include <sys/stat.h>
 #endif

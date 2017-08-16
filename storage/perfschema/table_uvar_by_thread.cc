@@ -22,16 +22,16 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_visitor.h"
 #include "sql/item_func.h"
 #include "sql/mysqld_thd_manager.h"
 /* Iteration on THD from the sql layer. */
 #include "sql/sql_class.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 class Find_thd_user_var : public Find_THD_Impl
 {

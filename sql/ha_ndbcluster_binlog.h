@@ -18,7 +18,12 @@
 #include <memory>
 
 #include "map_helpers.h"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "sql/handler.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_share.h"
 
+class Ndb_cluster_connection;
 
 // Typedefs for long names
 typedef NdbDictionary::Object NDBOBJ;

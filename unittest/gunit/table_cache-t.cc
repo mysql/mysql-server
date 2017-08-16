@@ -16,11 +16,11 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "ha_example.h"
 #include "lex_string.h"
 #include "my_inttypes.h"
 #include "sql/mysqld_thd_manager.h"
 #include "sql/table_cache.h"
+#include "storage/example/ha_example.h"
 #include "unittest/gunit/test_utils.h"
 
 /*

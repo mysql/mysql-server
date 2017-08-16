@@ -19,7 +19,6 @@
 
 #include "m_string.h"
 #include "my_sys.h"
-#include "ndbapi/NdbEventOperation.hpp"
 #include "sql/field.h"
 #include "sql/ha_ndbcluster_tables.h"
 #include "sql/ndb_conflict.h"
@@ -28,6 +27,7 @@
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_table_map.h"
 #include "sql/table.h"
+#include "storage/ndb/include/ndbapi/NdbEventOperation.hpp"
 
 extern Ndb* g_ndb;
 

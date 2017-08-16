@@ -34,8 +34,8 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "myisam_sys.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 
 /* Enough for comparing if number is zero */
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};

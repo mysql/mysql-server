@@ -16,12 +16,12 @@
 #include <sys/types.h>
 #include <zlib.h>
 
-#include "azlib.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "sql/handler.h"
 #include "sql_string.h"
+#include "storage/archive/azlib.h"
 
 /**
   @file storage/archive/ha_archive.h

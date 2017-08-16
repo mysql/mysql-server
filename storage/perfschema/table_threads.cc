@@ -24,11 +24,11 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "sql/field.h"
 #include "sql/sql_parse.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_threads::m_table_lock;
 

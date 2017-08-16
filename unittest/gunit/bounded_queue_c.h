@@ -18,10 +18,10 @@
 
 #include <string.h>
 
-#include "../storage/myisam/queues.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "storage/myisam/queues.h"
 #include "unittest/gunit/test_utils.h"
 
 /**

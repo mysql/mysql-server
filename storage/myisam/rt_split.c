@@ -18,10 +18,10 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
-#include "rt_index.h"
-#include "rt_key.h"
-#include "rt_mbr.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
+#include "storage/myisam/rt_key.h"
+#include "storage/myisam/rt_mbr.h"
 
 /* Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we: */
 #ifdef HAVE_IEEEFP_H

@@ -24,7 +24,7 @@ TempTable Cell declaration. */
 #include "m_ctype.h"               /* CHARSET_INFO, my_charpos() */
 #include "my_murmur3.h"            /* murmur3_32() */
 #include "sql/field.h"             /* Field */
-#include "temptable/indexed_column.h" /* temptable::Indexed_column */
+#include "storage/temptable/include/temptable/indexed_column.h" /* temptable::Indexed_column */
 
 namespace temptable {
 

@@ -368,8 +368,6 @@
 
 #include "my_config.h"
 
-#include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
-#include "../storage/perfschema/pfs_services.h"
 #include "binlog_event.h"
 #include "control_events.h"
 #include "errmsg.h"                     // init_client_errs
@@ -516,12 +514,14 @@
 #include "sql/xa.h"
 #include "sql_common.h"                 // mysql_client_plugin_init
 #include "sql_string.h"
+#include "storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
+#include "storage/perfschema/pfs_services.h"
 #include "thr_lock.h"
 #include "thr_mutex.h"
 #include "violite.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#include "../storage/perfschema/pfs_server.h"
+#include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _WIN32

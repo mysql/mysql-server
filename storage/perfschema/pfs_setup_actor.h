@@ -24,9 +24,9 @@
 #include <sys/types.h>
 
 #include "lf.h"
-#include "pfs_global.h"
-#include "pfs_lock.h"
 #include "sql_string.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
 
 struct PFS_global_param;
 struct PFS_thread;

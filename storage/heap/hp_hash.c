@@ -18,12 +18,12 @@
 #include <math.h>
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "storage/heap/heapdef.h"
 
 
 

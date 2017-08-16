@@ -26,7 +26,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "fulltext.h"
 #include "m_ctype.h"
 #include "my_bit.h"
 #include "my_compiler.h"
@@ -36,8 +35,9 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "myisam_sys.h"
 #include "print_version.h"
+#include "storage/myisam/fulltext.h"
+#include "storage/myisam/myisam_sys.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #ifdef HAVE_SYS_MMAN_H
@@ -1791,4 +1791,4 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   DBUG_VOID_RETURN;
 }
 
-#include "mi_extrafunc.h"
+#include "storage/myisam/mi_extrafunc.h"

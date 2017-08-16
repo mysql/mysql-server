@@ -28,8 +28,8 @@
 #include "my_list.h"
 #include "my_macros.h"
 #include "myisam.h"
-#include "../storage/myisam/queues.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "storage/myisam/queues.h"
 #include "typelib.h"
 
 C_MODE_START

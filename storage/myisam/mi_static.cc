@@ -19,7 +19,7 @@
 */
 
 #ifndef MY_GLOBAL_INCLUDED
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 #endif
 #include <sys/types.h>
 

@@ -28,8 +28,8 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_tree.h"
-#include "myisamdef.h"
 #include "print_version.h"
+#include "storage/myisam/myisamdef.h"
 #include "welcome_copyright_notice.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -866,4 +866,4 @@ static bool cmp_filename(struct file_info *file_info, char * name)
   return strcmp(file_info->name,name) ? 1 : 0;
 }
 
-#include "mi_extrafunc.h"
+#include "storage/myisam/mi_extrafunc.h"

@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 
 int myrg_rnext_same(MYRG_INFO *info, uchar *buf)

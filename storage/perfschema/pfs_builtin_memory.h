@@ -18,8 +18,8 @@
 
 #include <sys/types.h>
 
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_builtin_memory.h

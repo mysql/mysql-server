@@ -21,10 +21,10 @@
 #include <gtest/gtest.h>
 #include <string.h>
 
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0crc32.h"
+#include "storage/innobase/include/ut0dbg.h"
 #include "unittest/gunit/benchmark.h"
-#include "univ.i"
-#include "ut0crc32.h"
-#include "ut0dbg.h"
 
 namespace innodb_ut0crc32_unittest {
 

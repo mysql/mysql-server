@@ -17,9 +17,9 @@
 
 #include <sys/types.h>
 
-#include "heapdef.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "storage/heap/heapdef.h"
 
 static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 			 ulong blength, bool print_status);

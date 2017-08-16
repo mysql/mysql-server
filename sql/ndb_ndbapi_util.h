@@ -20,9 +20,9 @@
 
 #include <stddef.h>
 
-#include "ndbapi/NdbBlob.hpp"
-#include "ndbapi/NdbDictionary.hpp"
-#include "ndbapi/NdbRecAttr.hpp"
+#include "storage/ndb/include/ndbapi/NdbBlob.hpp"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/include/ndbapi/NdbRecAttr.hpp"
 
 union NdbValue
 {

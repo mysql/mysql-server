@@ -26,12 +26,12 @@
 
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/table_helper.h"
 
 class Master_info;
 

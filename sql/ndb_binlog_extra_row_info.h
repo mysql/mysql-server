@@ -19,9 +19,9 @@
 #define NDB_BINLOG_EXTRA_ROW_INFO_H
 
 #include "my_byteorder.h"
-#include "ndb_types.h"
 #include "rows_event.h"
 #include "sql/rpl_constants.h"
+#include "storage/ndb/include/ndb_types.h"
 
 /*
    Helper for reading/writing Binlog extra row info

@@ -15,7 +15,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/column.cc
 TempTable Column implementation. */
 
-#include "temptable/column.h" /* temptable::Column */
+#include "storage/temptable/include/temptable/column.h" /* temptable::Column */
 
 #include "my_dbug.h"       /* DBUG_ASSERT() */
 #include "sql/field.h"     /* Field */

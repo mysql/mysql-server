@@ -17,11 +17,10 @@
 
 #include "sql/ndb_table_map.h"
 
-#include <ndbapi/NdbApi.hpp>
-
 #include "my_dbug.h"
 #include "sql/field.h"
 #include "sql/table.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 Ndb_table_map::Ndb_table_map(struct TABLE * mysqlTable,
                              const NdbDictionary::Table * ndbTable) :

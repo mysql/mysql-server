@@ -23,8 +23,8 @@
 
 #include <sys/types.h>
 
-#include "pfs_engine_table.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/table_helper.h"
 
 struct PFS_setup_actor;
 

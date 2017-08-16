@@ -16,9 +16,9 @@
 #include "storage/perfschema/pfs_con_slice.h"
 
 #include "my_thread.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_stat.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_stat.h"
 
 /**
   @file storage/perfschema/pfs_con_slice.cc

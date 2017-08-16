@@ -22,11 +22,11 @@
 
 #include <stddef.h>
 
-#include "pfs.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_setup_object.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_setup_object.h"
 
 void
 install_default_setup(PSI_thread_bootstrap *thread_boot)

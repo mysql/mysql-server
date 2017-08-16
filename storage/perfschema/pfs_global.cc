@@ -26,7 +26,7 @@
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

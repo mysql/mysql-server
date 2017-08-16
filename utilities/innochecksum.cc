@@ -52,20 +52,20 @@
 /* Only parts of these files are included from the InnoDB codebase.
 The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
-#include "buf0checksum.h"
-#include "fil0types.h"
-#include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
+#include "storage/innobase/include/buf0checksum.h"
+#include "storage/innobase/include/fil0types.h"
+#include "storage/innobase/include/fsp0fsp.h"			/* fsp_flags_get_page_size() &
 
 					   fsp_flags_get_zip_size() */
-#include "fut0lst.h"			/* FLST_NODE_SIZE */
-#include "mach0data.h"			/* mach_read_from_4() */
-#include "os0file.h"
-#include "page0page.h"			/* PAGE_* */
-#include "page0size.h"			/* page_size_t */
-#include "page0zip.h"
-#include "trx0undo.h"			/* TRX_UNDO_* */
-#include "univ.i"			/* include all of this */
-#include "ut0crc32.h"			/* ut_crc32_init() */
+#include "storage/innobase/include/fut0lst.h"			/* FLST_NODE_SIZE */
+#include "storage/innobase/include/mach0data.h"			/* mach_read_from_4() */
+#include "storage/innobase/include/os0file.h"
+#include "storage/innobase/include/page0page.h"			/* PAGE_* */
+#include "storage/innobase/include/page0size.h"			/* page_size_t */
+#include "storage/innobase/include/page0zip.h"
+#include "storage/innobase/include/trx0undo.h"			/* TRX_UNDO_* */
+#include "storage/innobase/include/univ.i"			/* include all of this */
+#include "storage/innobase/include/ut0crc32.h"			/* ut_crc32_init() */
 
 /* Global variables */
 static bool			verbose;

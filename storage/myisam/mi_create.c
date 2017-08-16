@@ -20,14 +20,14 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "ftdefs.h"
 #include "my_bit.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "sp_defs.h"
+#include "storage/myisam/ftdefs.h"
+#include "storage/myisam/sp_defs.h"
 
 #ifdef _WIN32
 #include <fcntl.h>

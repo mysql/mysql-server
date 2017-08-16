@@ -29,13 +29,14 @@
 #endif
 
 #include "my_config.h"
+
 #include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
-#include "myisam_sys.h"
 #include "mysys_err.h"
+#include "storage/myisam/myisam_sys.h"
 
 
 	/*

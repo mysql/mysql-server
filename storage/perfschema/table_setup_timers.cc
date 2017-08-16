@@ -25,9 +25,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
-#include "pfs_column_values.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_timer.h"
 
 #define COUNT_SETUP_TIMERS 5
 

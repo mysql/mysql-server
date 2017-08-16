@@ -16,7 +16,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "myisamdef.h"
+#include "storage/myisam/myisamdef.h"
 
 	/* Read last row with the same key as the previous read. */
 

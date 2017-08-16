@@ -19,7 +19,7 @@
 
 #include <fcntl.h>
 
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 int myrg_lock_database(MYRG_INFO *info, int lock_type)
 {

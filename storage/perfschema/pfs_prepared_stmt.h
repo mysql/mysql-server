@@ -25,8 +25,8 @@
 
 #include "include/mysql/psi/mysql_ps.h"
 #include "my_inttypes.h"
-#include "pfs_program.h"
-#include "pfs_stat.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_stat.h"
 
 #define PS_NAME_LENGTH NAME_LEN
 

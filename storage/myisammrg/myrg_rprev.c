@@ -17,7 +17,7 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 	/*
 	   Read previous row with the same key as previous read

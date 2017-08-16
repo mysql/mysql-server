@@ -28,14 +28,14 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_digest.h"
-#include "pfs_engine_table.h"
-#include "pfs_events.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_stat.h"
-#include "pfs_timer.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_timer.h"
 
 /*
   Write MD5 hash value in a string to be used

@@ -23,11 +23,11 @@
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "temptable/allocator.h"
+#include "storage/temptable/include/temptable/allocator.h"
 #include "unittest/gunit/test_utils.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#include "../storage/perfschema/pfs_server.h"
+#include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 

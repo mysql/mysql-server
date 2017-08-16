@@ -22,9 +22,9 @@
   Cursor CURSOR_BY_HOST (declarations).
 */
 
-#include "pfs_engine_table.h"
-#include "pfs_host.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/table_helper.h"
 
 /**
   @addtogroup performance_schema_tables

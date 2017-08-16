@@ -27,19 +27,10 @@
 #include <memory>
 #include <string>
 
-#include "../storage/ndb/include/util/SparseBitmask.hpp"
-#include "../storage/ndb/src/common/util/parse_mask.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "m_ctype.h"
 #include "mf_wcomp.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
-#include "ndb_global.h"
-#include "ndb_version.h"
-#include "ndbapi/NdbApi.hpp"
-#include "ndbapi/NdbIndexStat.hpp"
-#include "ndbapi/NdbInterpretedCode.hpp"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"     // ER_THD
@@ -71,6 +62,15 @@
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
 #include "sql/partition_info.h"
+#include "storage/ndb/include/ndb_global.h"
+#include "storage/ndb/include/ndb_version.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbIndexStat.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/include/util/SparseBitmask.hpp"
+#include "storage/ndb/src/common/util/parse_mask.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 #include "template_utils.h"
 
 #ifndef DBUG_OFF

@@ -24,14 +24,14 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_object.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_object.h"
 
 THR_LOCK table_setup_instruments::m_table_lock;
 

@@ -22,9 +22,9 @@
 
 #include <sys/types.h>
 
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
-#include "pfs_instr.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_instr.h"
 
 /**
   @addtogroup performance_schema_tables

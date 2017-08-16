@@ -18,8 +18,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "ftdefs.h"
 #include "my_inttypes.h"
+#include "storage/myisam/ftdefs.h"
 
 ulong ft_min_word_len= 4;
 ulong ft_max_word_len= HA_FT_MAXCHARLEN;

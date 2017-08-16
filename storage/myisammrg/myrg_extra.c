@@ -23,7 +23,7 @@
 #include <sys/types.h>
 
 #include "my_dbug.h"
-#include "myrg_def.h"
+#include "storage/myisammrg/myrg_def.h"
 
 int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
 	       void *extra_arg)

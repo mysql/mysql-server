@@ -23,22 +23,21 @@
 */
 
 
-#include <ndb_version.h>
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/NdbInterpretedCode.hpp>
+#include "sql/ha_ndbcluster_push.h"
 
-#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
-#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
+#include "my_dbug.h"
 #include "sql/abstract_query_plan.h"
+#include "sql/current_thd.h"
 #include "sql/ha_ndbcluster.h"
 #include "sql/ha_ndbcluster_binlog.h"
 #include "sql/ha_ndbcluster_cond.h"
-#include "sql/ha_ndbcluster_push.h"
-#include "sql/sql_class.h"
-#include "my_dbug.h"
-#include "sql/current_thd.h"
-
 #include "sql/ndb_thd.h"
+#include "sql/sql_class.h"
+#include "storage/ndb/include/ndb_version.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
 /*
   Explain why an operation could not be pushed

@@ -51,7 +51,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "ftdefs.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -61,11 +60,12 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "myisam_sys.h"
+#include "storage/myisam/ftdefs.h"
+#include "storage/myisam/myisam_sys.h"
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-#include "rt_index.h"
+#include "storage/myisam/rt_index.h"
 
 	/* Functions defined in this file */
 

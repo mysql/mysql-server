@@ -29,17 +29,17 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_column_values.h"
-#include "pfs_events_waits.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_program.h"
-#include "pfs_setup_object.h"
-#include "pfs_timer.h"
 #include "sql/mysqld.h" // lower_case_table_names
 #include "sql/table.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/pfs_timer.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers

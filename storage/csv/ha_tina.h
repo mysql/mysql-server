@@ -21,7 +21,7 @@
 #include "my_io.h"
 #include "sql/handler.h"
 #include "sql_string.h"
-#include "transparent_file.h"
+#include "storage/csv/transparent_file.h"
 
 #define DEFAULT_CHAIN_LENGTH 512
 /*

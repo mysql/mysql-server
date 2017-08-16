@@ -20,7 +20,7 @@
 
 #include "my_compiler.h"
 #include "mysqld_error.h"
-#include "pfs_stat.h"
+#include "storage/perfschema/pfs_stat.h"
 
 struct System_status_var;
 

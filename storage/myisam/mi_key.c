@@ -22,8 +22,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "myisamdef.h"
-#include "sp_defs.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/sp_defs.h"
 
 #define FIX_LENGTH(cs, pos, length, char_length)                            \
             do {                                                            \

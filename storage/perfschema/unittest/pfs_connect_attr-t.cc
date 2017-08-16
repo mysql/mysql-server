@@ -14,15 +14,15 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include <memory.h>
-#include <pfs_global.h>
-#include <pfs_instr.h>
-#include <pfs_instr_class.h>
-#include <pfs_server.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "my_thread.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_server.h"
 #include "unittest/mytap/tap.h"
 
 /* test helpers, to inspect data */

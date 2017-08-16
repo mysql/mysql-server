@@ -27,11 +27,11 @@ TempTable public handler API implementation. */
 #include "sql/handler.h"
 #include "sql/mysqld.h" /* temptable_max_ram */
 #include "sql/table.h"
-#include "temptable/handler.h"
-#include "temptable/row.h"
-#include "temptable/storage.h" /* temptable::Storage */
-#include "temptable/table.h"
-#include "temptable/test.h"
+#include "storage/temptable/include/temptable/handler.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
+#include "storage/temptable/include/temptable/table.h"
+#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
 

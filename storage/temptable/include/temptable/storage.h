@@ -21,9 +21,9 @@ TempTable Storage. */
 #include <cstddef> /* size_t */
 #include <utility> /* std::move() */
 
-#include "temptable/allocator.h" /* temptable::Allocator */
-#include "temptable/constants.h" /* temptable::STORAGE_PAGE_SIZE */
 #include "my_dbug.h"          /* DBUG_ASSERT() */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::STORAGE_PAGE_SIZE */
 
 namespace temptable {
 

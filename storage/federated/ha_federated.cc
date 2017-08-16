@@ -371,7 +371,7 @@
 
 
 #define MYSQL_SERVER 1
-#include "ha_federated.h"
+#include "storage/federated/ha_federated.h"
 
 #include <mysql/plugin.h>
 #include <stdlib.h>
