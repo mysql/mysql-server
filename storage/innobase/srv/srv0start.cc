@@ -2904,6 +2904,7 @@ srv_start_threads(
 
 	if (srv_read_only_mode) {
 		purge_sys->state = PURGE_STATE_DISABLED;
+		trx_rollback_or_clean_is_active = false;
 		return;
 	}
 
