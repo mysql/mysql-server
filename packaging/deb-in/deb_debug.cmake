@@ -143,6 +143,11 @@ usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
+usr/lib/mysql/plugin/debug/component_test_status_var_service.so
+usr/lib/mysql/plugin/debug/component_test_status_var_service_int.so
+usr/lib/mysql/plugin/debug/component_test_status_var_service_reg_only.so
+usr/lib/mysql/plugin/debug/component_test_status_var_service_str.so
+usr/lib/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_same.so
