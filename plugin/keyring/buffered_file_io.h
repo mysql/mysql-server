@@ -19,16 +19,16 @@
 #include <mysql/plugin.h>
 #include <stddef.h>
 
-#include "buffer.h"
-#include "checker/checker_factory.h"
-#include "digest.h"
-#include "file_io.h"
-#include "hash_to_buffer_serializer.h"
-#include "i_keyring_io.h"
-#include "keyring_memory.h"
-#include "logger.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/keyring/buffer.h"
+#include "plugin/keyring/checker/checker_factory.h"
+#include "plugin/keyring/common/i_keyring_io.h"
+#include "plugin/keyring/common/keyring_memory.h"
+#include "plugin/keyring/common/logger.h"
+#include "plugin/keyring/digest.h"
+#include "plugin/keyring/file_io.h"
+#include "plugin/keyring/hash_to_buffer_serializer.h"
 
 namespace keyring {
 

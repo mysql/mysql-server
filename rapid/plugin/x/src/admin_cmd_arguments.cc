@@ -17,14 +17,14 @@
  * 02110-1301  USA
  */
 
-#include "admin_cmd_arguments.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
 
 #include <algorithm>
 #include <limits>
 
-#include "ngs/mysqlx/getter_any.h"
-#include "xpl_error.h"
-#include "xpl_regex.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
 

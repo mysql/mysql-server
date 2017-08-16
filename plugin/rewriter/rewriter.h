@@ -23,7 +23,7 @@
 
 #include "map_helpers.h"
 #include "my_inttypes.h"
-#include "rule.h"
+#include "plugin/rewriter/rule.h"
 
 /**
   @file rewriter.h

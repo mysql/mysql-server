@@ -14,6 +14,8 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "plugin/rewriter/rule.h"
+
 #include "my_config.h"
 
 #include <stddef.h>
@@ -22,9 +24,8 @@
 
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "query_builder.h"
-#include "rule.h"
-#include "services.h"
+#include "plugin/rewriter/query_builder.h"
+#include "plugin/rewriter/services.h"
 
 using std::string;
 using std::vector;

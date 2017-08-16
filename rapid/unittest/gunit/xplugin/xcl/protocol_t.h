@@ -15,26 +15,26 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <array>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "client/xprotocol_impl.h"
 #include "errmsg.h"
-#include "mock/factory.h"
-#include "mock/connection.h"
-#include "mock/connection_state.h"
-#include "mock/message_handler.h"
-#include "mock/query_result.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "client/xssl_config.h"
-#include "client/xconnection_config.h"
-#include "message_helpers.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xprotocol_impl.h"
+#include "plugin/x/client/xssl_config.h"
+#include "unittest/gunit/xplugin/xcl/message_helpers.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
+#include "unittest/gunit/xplugin/xcl/mock/factory.h"
+#include "unittest/gunit/xplugin/xcl/mock/message_handler.h"
+#include "unittest/gunit/xplugin/xcl/mock/query_result.h"
 
 
 namespace xcl {

@@ -17,7 +17,8 @@
 #define MYSQL_I_KEY_H
 
 #include <string>
-#include "keyring_memory.h"
+
+#include "plugin/keyring/common/keyring_memory.h"
 
 namespace keyring {
 

@@ -16,13 +16,12 @@
 #ifndef GCS_OPERATIONS_INCLUDE
 #define GCS_OPERATIONS_INCLUDE
 
-#include <mysql/gcs/gcs_interface.h>
 #include <mysql/group_replication_priv.h>
-
-#include "gcs_logger.h"
-#include "gcs_plugin_messages.h"
-
 #include <string>
+
+#include "plugin/group_replication/include/gcs_logger.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 
 /**

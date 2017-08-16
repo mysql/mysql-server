@@ -20,11 +20,11 @@
 
 #include <string>
 
-#include "mysqlxclient/xsession.h"
-#include "processor/block_processor.h"
-#include "processor/commands/expected_error.h"
-#include "processor/execution_context.h"
-#include "script_stack.h"
+#include "plugin/x/client/mysqlxclient/xsession.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/commands/expected_error.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/script_stack.h"
 
 
 class Send_message_block_processor : public Block_processor {

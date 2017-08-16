@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "session_holder.h"
+#include "plugin/x/tests/driver/connector/session_holder.h"
 
 
 Session_holder::Session_holder(std::unique_ptr<xcl::XSession> session,

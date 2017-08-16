@@ -13,19 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-
-#include <sstream>
 #include <iostream>
 #include <map>
+#include <sstream>
 
-#include "mysql/gcs/xplatform/byteorder.h"
-#include "mysql/gcs/gcs_logging_system.h"
-
-#include "gcs_internal_message.h"
-#include "gcs_message_stages.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
 /*
   There will be a compile warning on os << type_code if no explicit type cast.

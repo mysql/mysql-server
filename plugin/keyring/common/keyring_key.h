@@ -18,9 +18,9 @@
 
 #include <memory>
 
-#include "i_keyring_key.h"
-#include "keyring_memory.h"
 #include "my_inttypes.h"
+#include "plugin/keyring/common/i_keyring_key.h"
+#include "plugin/keyring/common/keyring_memory.h"
 
 namespace keyring {
 

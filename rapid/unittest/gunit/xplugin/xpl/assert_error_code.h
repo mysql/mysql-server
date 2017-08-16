@@ -19,8 +19,8 @@
 
 #include <gtest/gtest.h>
 
-#include "ngs/error_code.h"
-#include "mysqlx_error.h"
+#include "plugin/x/generated/mysqlx_error.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
 
 namespace xpl {
 namespace test {

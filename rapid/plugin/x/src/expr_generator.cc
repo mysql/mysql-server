@@ -17,18 +17,18 @@
  * 02110-1301  USA
  */
 
-#include "expr_generator.h"
+#include "plugin/x/src/expr_generator.h"
 
 #include <algorithm>
 #include <string>
 #include <utility>
 
-#include "json_utils.h"
-#include "mysql_function_names.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/to_string.h"
-#include "xpl_error.h"
-#include "xpl_regex.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/json_utils.h"
+#include "plugin/x/src/mysql_function_names.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
 

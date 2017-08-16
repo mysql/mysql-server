@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/semisync/semisync_master_ack_receiver.h"
+
 #include "my_config.h"
 
 #include <errno.h>
@@ -21,9 +23,9 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
-#include "semisync_master.h"
-#include "semisync_master_ack_receiver.h"
-#include "semisync_master_socket_listener.h"
+#include "plugin/semisync/semisync.h"
+#include "plugin/semisync/semisync_master.h"
+#include "plugin/semisync/semisync_master_socket_listener.h"
 
 extern ReplSemiSyncMaster repl_semisync;
 

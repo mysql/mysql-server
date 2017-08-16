@@ -21,7 +21,8 @@
 #define _NGS_ACCOUNT_VERIFICATION_INTERFACE_H_
 
 #include <string>
-#include "ngs/memory.h"
+
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace ngs {
 

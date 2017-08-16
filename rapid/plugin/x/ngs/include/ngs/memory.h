@@ -20,11 +20,11 @@
 #ifndef _NGS_MEMORY_H_
 #define _NGS_MEMORY_H_
 
-#include "ngs_common/smart_ptr.h"
-#include "ngs_common/bind.h"
-#include "my_compiler.h"
-
 #include <mysql/plugin.h>
+
+#include "my_compiler.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs
 {

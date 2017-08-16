@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -17,12 +17,12 @@
  * 02110-1301  USA
  */
 
-#include "ngs_common/connection_vio.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
 
-#include "ngs/mysqlx/getter_any.h"
-#include "ngs/mysqlx/setter_any.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 namespace ngs
 {

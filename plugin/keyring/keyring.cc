@@ -18,12 +18,12 @@
 #include <mysql/plugin_keyring.h>
 #include <memory>
 
-#include "buffered_file_io.h"
-#include "keyring.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "plugin/keyring/buffered_file_io.h"
+#include "plugin/keyring/common/keyring.h"
 
 #ifdef _WIN32
 #define MYSQL_DEFAULT_KEYRINGFILE MYSQL_KEYRINGDIR"\\keyring"

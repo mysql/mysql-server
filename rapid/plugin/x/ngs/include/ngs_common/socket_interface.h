@@ -21,7 +21,7 @@
 #ifndef NGS_SOCKET_INTERFACE_H_
 #define NGS_SOCKET_INTERFACE_H_
 
-#include "ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "violite.h"
 
 

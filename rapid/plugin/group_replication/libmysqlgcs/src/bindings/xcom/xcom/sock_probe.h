@@ -16,13 +16,13 @@
 #ifndef SOCK_PROBE_H
 #define SOCK_PROBE_H
 
-#include "xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "xcom_os_layer.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 
 struct sock_probe;
 typedef struct sock_probe sock_probe;

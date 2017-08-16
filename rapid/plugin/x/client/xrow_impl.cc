@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "xrow_impl.h"
+#include "plugin/x/client/xrow_impl.h"
 
 #include <cassert>
 #include <utility>

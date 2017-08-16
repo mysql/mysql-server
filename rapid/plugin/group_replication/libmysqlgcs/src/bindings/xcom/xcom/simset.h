@@ -24,7 +24,7 @@ extern "C" {
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 struct linkage;
 typedef struct linkage linkage;

@@ -13,16 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/connection_control/connection_control.h"
+
 #include <mysql/plugin_audit.h>         /* mysql_event_connection */
 #include <stddef.h>
 
-#include "connection_control.h"
-#include "connection_control_coordinator.h" /* g_connection_event_coordinator */
-#include "connection_delay_api.h"       /* connection_delay apis */
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_version.h"
+#include "plugin/connection_control/connection_control_coordinator.h" /* g_connection_event_coordinator */
+#include "plugin/connection_control/connection_delay_api.h" /* connection_delay apis */
 
 namespace connection_control
 {

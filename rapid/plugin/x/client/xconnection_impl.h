@@ -27,9 +27,9 @@
 #include <violite.h>
 #include <memory>
 
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xerror.h"
-#include "xcontext.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/xcontext.h"
 
 
 struct sockaddr_un;

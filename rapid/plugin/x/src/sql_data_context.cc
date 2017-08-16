@@ -18,19 +18,19 @@
  * 02110-1301  USA
  */
 
-#include "sql_data_context.h"
+#include "plugin/x/src/sql_data_context.h"
 
 #include <algorithm>
 
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
-#include "mysql_variables.h"
-#include "notices.h"
-#include "query_string_builder.h"
-#include "sql_user_require.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_resultset.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 

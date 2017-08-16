@@ -16,7 +16,7 @@
 #ifndef NODE_ADDRESS_H
 #define NODE_ADDRESS_H
 
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {

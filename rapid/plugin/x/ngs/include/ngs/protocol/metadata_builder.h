@@ -24,9 +24,9 @@
 #include <string>
 
 #include "m_ctype.h"
-#include "message_builder.h"
 #include "my_inttypes.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace ngs
 {

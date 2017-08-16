@@ -16,13 +16,13 @@
 #ifndef SERVER_STRUCT_H
 #define SERVER_STRUCT_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_limits.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "task.h"
-#include "xcom_common.h"
-#include "xcom_limits.h"
 
 struct srv_buf {
   u_int start;

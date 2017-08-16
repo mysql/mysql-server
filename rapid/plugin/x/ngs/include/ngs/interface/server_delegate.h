@@ -20,7 +20,7 @@
 #ifndef _NGS_SERVER_DELEGATE_H_
 #define _NGS_SERVER_DELEGATE_H_
 
-#include "ngs_common/smart_ptr.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs
 {

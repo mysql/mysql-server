@@ -16,9 +16,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "task_debug.h"
-#include "xcom_profile.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 bit_set *new_bit_set(uint32_t bits) {
   bit_set *bs = malloc(sizeof(*bs));

@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
-#include "plugin_log.h"
-#include "plugin_psi.h"
-#include "plugin_constants.h"
 #include <mysql/group_replication_priv.h>
+
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 using std::string;
 

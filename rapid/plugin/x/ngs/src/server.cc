@@ -17,22 +17,21 @@
  * 02110-1301  USA
  */
 
-#include "ngs/server.h"
+#include "plugin/x/ngs/include/ngs/server.h"
 
 #include <time.h>
 
-#include "mysqlx_version.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/interface/connection_acceptor_interface.h"
-#include "ngs/interface/server_task_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/scheduler.h"
-#include "ngs/server_acceptors.h"
-#include "ngs/server_client_timeout.h"
-#include "ngs_common/connection_vio.h"
-#include "xpl_log.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/connection_acceptor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/server_acceptors.h"
+#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/src/xpl_log.h"
 
 
 using namespace ngs;

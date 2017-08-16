@@ -17,16 +17,16 @@
  * 02110-1301  USA
  */
 
-#include "notices.h"
+#include "plugin/x/src/notices.h"
 
 #include <vector>
 
-#include "ngs_common/bind.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/interface/sql_session_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "xpl_resultset.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 

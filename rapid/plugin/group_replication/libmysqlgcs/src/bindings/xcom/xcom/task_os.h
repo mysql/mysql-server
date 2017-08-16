@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 #ifdef _WIN32
 

@@ -24,14 +24,14 @@
 #include <string>
 #include <utility>
 
-#include "connector/session_holder.h"
-#include "formatters/console.h"
 #include "errmsg.h"
-#include "mysqlxclient/xconnection.h"
-#include "mysqlxclient/xmessage.h"
-#include "mysqlxclient/xprotocol.h"
-#include "mysqlxclient/xsession.h"
-#include "processor/variable_container.h"
+#include "plugin/x/client/mysqlxclient/xconnection.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xsession.h"
+#include "plugin/x/tests/driver/connector/session_holder.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/variable_container.h"
 
 
 using Message_ptr = std::unique_ptr<xcl::XProtocol::Message>;

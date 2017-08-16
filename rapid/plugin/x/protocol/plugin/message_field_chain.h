@@ -18,14 +18,14 @@
 #ifndef X_PROTOCOL_PLUGIN_MESSSAGE_CHAIN_H
 #define X_PROTOCOL_PLUGIN_MESSSAGE_CHAIN_H
 
-#include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
+#include <google/protobuf/descriptor.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <memory>
-#include <string>
 #include <set>
+#include <string>
 
-#include "chain_file_output.h"
+#include "plugin/x/protocol/plugin/chain_file_output.h"
 
 class Message_field_chain {
  public:

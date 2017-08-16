@@ -17,10 +17,11 @@
  * 02110-1301  USA
  */
 
-#include "auth_plain.h"
-#include "native_plain_verification.h"
-#include "sha256_plain_verification.h"
-#include "sha2_plain_verification.h"
+#include "plugin/x/src/auth_plain.h"
+
+#include "plugin/x/src/native_plain_verification.h"
+#include "plugin/x/src/sha256_plain_verification.h"
+#include "plugin/x/src/sha2_plain_verification.h"
 
 namespace xpl {
 

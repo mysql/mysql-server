@@ -22,9 +22,9 @@
 
 #include <vector>
 
-#include "expect/expect.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expect/expect.h"
 
 
 namespace xpl {

@@ -22,8 +22,8 @@
 
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "ngs/memory.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace ngs
 {

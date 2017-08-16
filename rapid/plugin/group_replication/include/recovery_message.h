@@ -20,8 +20,8 @@
 #include <string>
 #include <vector>
 
-#include "gcs_plugin_messages.h"
 #include "my_inttypes.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
 
 class Recovery_message : public Plugin_gcs_message
 {

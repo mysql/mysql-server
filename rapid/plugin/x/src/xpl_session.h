@@ -22,13 +22,13 @@
 
 #include <string>
 #include <vector>
-#include "ngs/client_session.h"
 
-#include "sql_data_context.h"
-#include "expect/expect_stack.h"
-#include "crud_cmd_handler.h"
-#include "xpl_session_status_variables.h"
-#include "xpl_global_status_variables.h"
+#include "plugin/x/ngs/include/ngs/client_session.h"
+#include "plugin/x/src/crud_cmd_handler.h"
+#include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_session_status_variables.h"
 
 namespace xpl
 {

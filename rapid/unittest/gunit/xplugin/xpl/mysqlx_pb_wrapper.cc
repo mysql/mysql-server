@@ -13,11 +13,11 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "mysqlx_pb_wrapper.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 #include <utility>
 
-#include "ngs_common/to_string.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
 
 namespace xpl {
 namespace test {

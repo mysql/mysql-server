@@ -17,7 +17,7 @@
 #define READ_MODE_HANDLER_INCLUDE
 
 #include "my_inttypes.h"
-#include "sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 
 /**

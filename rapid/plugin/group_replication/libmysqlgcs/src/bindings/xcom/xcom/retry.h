@@ -16,6 +16,9 @@
 #ifndef RETRY_H
 #define RETRY_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

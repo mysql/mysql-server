@@ -20,8 +20,8 @@
 #ifndef _XPL_DISPATCHER_H_
 #define _XPL_DISPATCHER_H_
 
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace xpl {
 

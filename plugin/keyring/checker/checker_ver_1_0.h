@@ -16,9 +16,9 @@
 #ifndef MYSQL_CHECKER_VER_1_0_H
 #define MYSQL_CHECKER_VER_1_0_H
 
-#include "checker.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/keyring/checker/checker.h"
 
 namespace keyring {
 

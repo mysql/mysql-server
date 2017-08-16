@@ -16,7 +16,7 @@
 #ifndef MYSQL_I_SERIALIZED_OBJECT_H
 #define MYSQL_I_SERIALIZED_OBJECT_H
 
-#include "i_keyring_key.h"
+#include "plugin/keyring/common/i_keyring_key.h"
 
 namespace keyring
 {

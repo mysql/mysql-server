@@ -22,8 +22,8 @@
 
 #include <string>
 
-#include "message_builder.h"
 #include "my_inttypes.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 namespace ngs
 {

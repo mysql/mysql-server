@@ -16,28 +16,27 @@
 #ifndef GCS_XCOM_GROUP_MEMBER_INFORMATION_INCLUDED
 #define GCS_XCOM_GROUP_MEMBER_INFORMATION_INCLUDED
 
-#include <string>
 #include <stdint.h>
+#include <string>
 
-#include "xcom_vp.h"
-#include "xcom_common.h"
-#include "node_list.h"
-#include "node_set.h"
-#include "task.h"
-#include "server_struct.h"
-#include "xcom_detector.h"
-#include "site_struct.h"
-#include "site_def.h"
-#include "xcom_transport.h"
-#include "xcom_base.h"
-#include "task_net.h"
-#include "node_connection.h"
-#include "node_no.h"
-
-#include "mysql/gcs/gcs_types.h"
-#include "mysql/gcs/gcs_view.h"
-#include "mysql/gcs/gcs_member_identifier.h"
-#include "xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 /**
   Stores connection information associated with a node.

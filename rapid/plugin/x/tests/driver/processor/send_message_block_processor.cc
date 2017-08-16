@@ -15,15 +15,16 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "send_message_block_processor.h"
+#include "plugin/x/tests/driver/processor/send_message_block_processor.h"
+
+#include "my_config.h"
 
 #include <iostream>
 #include <sstream>
 #include <utility>
 
-#include "common/utils_string_parsing.h"
-#include "connector/mysqlx_all_msgs.h"
-#include "my_config.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
 
 namespace {

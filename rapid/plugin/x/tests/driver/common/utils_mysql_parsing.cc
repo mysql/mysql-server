@@ -17,10 +17,9 @@
  * 02110-1301  USA
  */
 //--------------------------------------------------------------------------------------------------
-#include "utils_string_parsing.h"
-#include "common/utils_mysql_parsing.h"
+#include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
 
-#include "common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
 namespace shcore {
 namespace mysql {

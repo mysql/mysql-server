@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef MYSQL_CHECKER_FACTORY_H
 #define MYSQL_CHECKER_FACTORY_H
 
-#include "checker.h"
+#include "plugin/keyring/checker/checker.h"
 
 namespace keyring {
 

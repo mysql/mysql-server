@@ -18,7 +18,7 @@
 #ifndef INSERT_STATEMENT_BUILDER_H_
 #define INSERT_STATEMENT_BUILDER_H_
 
-#include "statement_builder.h"
+#include "plugin/x/src/statement_builder.h"
 
 namespace xpl {
 

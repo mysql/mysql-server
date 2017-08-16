@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 typedef struct
 {

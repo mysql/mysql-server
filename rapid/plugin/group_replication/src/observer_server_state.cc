@@ -15,8 +15,8 @@
 
 #include <stddef.h>
 
-#include "delayed_plugin_initialization.h"
-#include "observer_server_state.h"
+#include "plugin/group_replication/include/delayed_plugin_initialization.h"
+#include "plugin/group_replication/include/observer_server_state.h"
 
 using std::string;
 

@@ -17,7 +17,8 @@
  * 02110-1301  USA
  */
 
-#include "sha256_plain_verification.h"
+#include "plugin/x/src/sha256_plain_verification.h"
+
 #include "crypt_genhash_impl.h"
 
 namespace xpl {

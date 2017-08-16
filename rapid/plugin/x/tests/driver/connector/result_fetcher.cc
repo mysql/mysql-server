@@ -15,13 +15,13 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "result_fetcher.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
 
 #include <set>
 #include <vector>
 
-#include "mysqlxclient/xrow.h"
-#include "ngs_common/protocol_const.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_const.h"
 
 
 namespace {

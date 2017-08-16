@@ -13,16 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
-
-#include "mysql/gcs/gcs_message.h"
-#include "mysql/gcs/gcs_logging_system.h"
-#include "mysql/gcs/xplatform/byteorder.h"
-#include "mysql/gcs/xplatform/my_xp_util.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "my_compiler.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
 
 /**
   Gcs_message_data implementation

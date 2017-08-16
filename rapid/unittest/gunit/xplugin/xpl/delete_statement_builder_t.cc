@@ -15,11 +15,11 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "delete_statement_builder.h"
-#include "expr_generator.h"
-#include "ngs_common/protocol_protobuf.h"
-
 #include <gtest/gtest.h>
+
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/delete_statement_builder.h"
+#include "plugin/x/src/expr_generator.h"
 
 namespace xpl {
 namespace test {

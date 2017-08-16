@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "macro.h"
+#include "plugin/x/tests/driver/processor/commands/macro.h"
 
 #include <algorithm>
 #include <list>
@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 
-#include "common/utils_string_parsing.h"
-#include "processor/execution_context.h"
-#include "processor/stream_processor.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 
 
 std::string Macro::get_expanded_macro_body(

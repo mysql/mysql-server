@@ -22,6 +22,8 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_thread.h"
+#include "plugin/semisync/semisync.h"
+#include "plugin/semisync/semisync_master.h"
 #include "sql/sql_class.h"
 
 struct Slave

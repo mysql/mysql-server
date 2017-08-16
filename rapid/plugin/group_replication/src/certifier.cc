@@ -18,13 +18,13 @@
 #include <time.h>
 #include <map>
 
-#include "certifier.h"
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "observer_trans.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "sql_service_command.h"
+#include "plugin/group_replication/include/certifier.h"
+#include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
 const std::string Certifier::GTID_EXTRACTED_NAME= "gtid_extracted";
 

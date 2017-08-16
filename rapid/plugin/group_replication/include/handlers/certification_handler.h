@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 #ifndef CERTIFICATION_HANDLER_INCLUDE
 #define CERTIFICATION_HANDLER_INCLUDE
 
-#include <string>
-#include "certifier.h"
 #include <mysql/group_replication_priv.h>
+#include <string>
+
+#include "plugin/group_replication/include/certifier.h"
 
 class Certification_handler : public Event_handler
 {

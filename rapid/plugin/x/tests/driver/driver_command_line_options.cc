@@ -15,13 +15,13 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "driver_command_line_options.h"
+#include "plugin/x/tests/driver/driver_command_line_options.h"
 
 #include <iostream>
 
-#include "processor/commands/command.h"
-#include "mysqlx_version.h"
-#include "ngs_common/to_string.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

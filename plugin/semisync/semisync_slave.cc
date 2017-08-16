@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 
-#include "semisync_slave.h"
+#include "plugin/semisync/semisync_slave.h"
 
 #include <assert.h>
 #include <sys/types.h>

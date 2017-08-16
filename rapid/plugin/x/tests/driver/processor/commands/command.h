@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 
-#include "connector/result_fetcher.h"
-#include "ngs_common/chrono.h"
-#include "processor/execution_context.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 
 class Command {

@@ -21,8 +21,8 @@
 #define XPL_LISTENER_FACTORY_INTERFACE_H_
 
 #include "my_inttypes.h"
-#include "ngs/interface/listener_factory_interface.h"
-#include "ngs_common/operations_factory_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
 
 
 namespace xpl {

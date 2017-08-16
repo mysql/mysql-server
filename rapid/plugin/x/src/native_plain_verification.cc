@@ -17,7 +17,8 @@
  * 02110-1301  USA
  */
 
-#include "native_plain_verification.h"
+#include "plugin/x/src/native_plain_verification.h"
+
 #include "mysql_com.h"
 #include "sha1.h"  // for SHA1_HASH_SIZE
 

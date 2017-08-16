@@ -16,12 +16,12 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
-#include "mysql/gcs/xplatform/my_xp_mutex.h"
-#include "mysql/gcs/xplatform/my_xp_util.h"
-
-#include <time.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <time.h>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
 
 #ifdef _WIN32
 typedef CONDITION_VARIABLE native_cond_t;

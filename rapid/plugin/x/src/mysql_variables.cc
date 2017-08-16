@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "mysql_variables.h"
+#include "plugin/x/src/mysql_variables.h"
 
 #include <mysql/plugin.h>
 

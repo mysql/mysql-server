@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 #include <stddef.h>
 

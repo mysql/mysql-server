@@ -28,7 +28,7 @@ extern "C" {
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "xcom_vp_platform.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp_platform.h"
 
 enum xcom_proto {
 	x_unknown_proto = 0,

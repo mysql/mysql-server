@@ -13,12 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+
 #include <assert.h>
 #include <stddef.h>
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_notification.h"
 #include "my_compiler.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 Finalize_notification::Finalize_notification(
   Gcs_xcom_engine *gcs_engine, xcom_finalize_functor *functor)

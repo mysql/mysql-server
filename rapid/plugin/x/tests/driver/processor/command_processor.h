@@ -18,9 +18,9 @@
 #ifndef X_TESTS_DRIVER_PROCESSOR_COMMAND_PROCESSOR_H_
 #define X_TESTS_DRIVER_PROCESSOR_COMMAND_PROCESSOR_H_
 
-#include "processor/block_processor.h"
-#include "processor/commands/command.h"
-#include "processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 
 class Command_processor : public Block_processor {

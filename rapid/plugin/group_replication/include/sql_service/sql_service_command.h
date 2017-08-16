@@ -19,8 +19,8 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "sql_service_interface.h"
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/plugin_utils.h"
+#include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 
 #define GR_PLUGIN_SESSION_THREAD_TIMEOUT 10
 

@@ -26,7 +26,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "rewriter_plugin.h"
+#include "plugin/rewriter/rewriter_plugin.h"
 
 extern "C" {
 

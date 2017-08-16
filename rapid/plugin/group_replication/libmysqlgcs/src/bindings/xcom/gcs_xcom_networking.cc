@@ -21,14 +21,14 @@
 #include <netdb.h>
 #endif
 
-#include "mysql/gcs/gcs_group_identifier.h"
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_utils.h"
-#include "sock_probe.h"
-#include "gcs_xcom_networking.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_group_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 
 #if defined(_WIN32)
-#include "sock_probe_win32.c"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.c"
 
 /* Return the sockaddr of interface #count. */
 static sockaddr get_if_addr(sock_probe *s, int count, int *error)
@@ -49,7 +49,7 @@ static std::string get_if_name(sock_probe *s, int count, int *error)
 }
 
 #else
-#include "sock_probe_ix.c"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.c"
 
 /* These functions are only used on Unixes. To avoid warnings of
    unused functions when building XCom we put them here only. */

@@ -20,8 +20,8 @@
 #ifndef NGS_SERVER_INTERFACE_H_
 #define NGS_SERVER_INTERFACE_H_
 
-#include "authentication_interface.h"
-#include "ngs_common/smart_ptr.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 
 namespace ngs {

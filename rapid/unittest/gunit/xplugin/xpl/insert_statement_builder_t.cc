@@ -16,8 +16,9 @@
  */
 
 #include <gtest/gtest.h>
-#include "insert_statement_builder.h"
-#include "mysqlx_pb_wrapper.h"
+
+#include "plugin/x/src/insert_statement_builder.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {

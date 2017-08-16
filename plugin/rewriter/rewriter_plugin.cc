@@ -14,6 +14,8 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "plugin/rewriter/rewriter_plugin.h"
+
 #include "my_config.h"
 
 #include <mysql/plugin_audit.h>
@@ -29,10 +31,9 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "rewriter.h"
-#include "rewriter_plugin.h"
-#include "rule.h" // Rewrite_result
-#include "services.h"
+#include "plugin/rewriter/rewriter.h"
+#include "plugin/rewriter/rule.h" // Rewrite_result
+#include "plugin/rewriter/services.h"
 #include "template_utils.h"
 
 using std::string;

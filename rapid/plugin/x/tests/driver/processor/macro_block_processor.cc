@@ -15,11 +15,11 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/macro_block_processor.h"
 
 #include <list>
 
-#include "common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
 
 
 Block_processor::Result Macro_block_processor::feed(std::istream &input,

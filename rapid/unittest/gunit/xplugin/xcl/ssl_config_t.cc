@@ -16,9 +16,10 @@
  */
 
 #include <gtest/gtest.h>
-#include <string>
 #include <memory>
-#include "client/xssl_config.h"
+#include <string>
+
+#include "plugin/x/client/xssl_config.h"
 
 
 namespace xcl {

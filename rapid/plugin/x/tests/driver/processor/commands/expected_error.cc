@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "expected_error.h"
+#include "plugin/x/tests/driver/processor/commands/expected_error.h"
 
 #include <algorithm>
 #include <iterator>

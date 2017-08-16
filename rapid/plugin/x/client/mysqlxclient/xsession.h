@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 namespace xcl {

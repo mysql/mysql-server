@@ -15,7 +15,7 @@
 
 #ifndef SEMISYNC_MASTER_SOCKET_LISTENER
 #define SEMISYNC_MASTER_SOCKET_LISTENER
-#include "semisync_master_ack_receiver.h"
+#include "plugin/semisync/semisync_master_ack_receiver.h"
 
 #ifdef HAVE_POLL
 #include <poll.h>

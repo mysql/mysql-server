@@ -15,7 +15,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "sql_block_processor.h"
+#include "plugin/x/tests/driver/processor/sql_block_processor.h"
 
 #include <iostream>
 #include <memory>
@@ -23,8 +23,8 @@
 #include <utility>
 #include <vector>
 
-#include "common/utils_mysql_parsing.h"
-#include "connector/result_fetcher.h"
+#include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
 
 
 Block_processor::Result Sql_block_processor::feed(std::istream &input,

@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <mysql/service_my_snprintf.h>
 
-#include "mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
 
 namespace xpl {
 

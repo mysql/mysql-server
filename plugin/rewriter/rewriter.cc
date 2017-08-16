@@ -14,6 +14,8 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     02110-1301  USA */
 
+#include "plugin/rewriter/rewriter.h"
+
 #include "my_config.h"
 
 #include <mysql/service_parser.h>
@@ -23,12 +25,11 @@
 #include <string>
 
 #include "m_string.h" // Needed because debug_sync.h is not self-sufficient.
-#include "messages.h"
 #include "my_dbug.h"
 #include "nullable.h"
-#include "persisted_rule.h"
-#include "rewriter.h"
-#include "rule.h"
+#include "plugin/rewriter/messages.h"
+#include "plugin/rewriter/persisted_rule.h"
+#include "plugin/rewriter/rule.h"
 #include "sql/debug_sync.h"
 #include "template_utils.h"
 

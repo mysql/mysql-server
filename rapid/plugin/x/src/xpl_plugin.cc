@@ -23,12 +23,12 @@
 #include <limits>
 
 #include "my_inttypes.h"
-#include "mysqlx_version.h"
-#include "xpl_log.h"
-#include "xpl_performance_schema.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
-#include "xpl_system_variables.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
+#include "plugin/x/src/xpl_system_variables.h"
 
 #define BYTE(X)  (X)
 #define KBYTE(X) ((X) * 1024)

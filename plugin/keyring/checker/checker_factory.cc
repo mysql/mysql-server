@@ -13,12 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "checker_factory.h"
+#include "plugin/keyring/checker/checker_factory.h"
 
 #include <stddef.h>
 
-#include "checker_ver_1_0.h"
-#include "checker_ver_2_0.h"
+#include "plugin/keyring/checker/checker_ver_1_0.h"
+#include "plugin/keyring/checker/checker_ver_2_0.h"
 
 namespace keyring {
 

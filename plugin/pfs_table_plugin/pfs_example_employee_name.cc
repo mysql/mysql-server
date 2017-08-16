@@ -13,7 +13,7 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "pfs_example_employee_name.h"
+#include "plugin/pfs_table_plugin/pfs_example_employee_name.h"
 
 PFS_engine_table_share_proxy ename_st_share;
 mysql_mutex_t LOCK_ename_records_array;

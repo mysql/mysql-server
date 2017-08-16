@@ -17,10 +17,11 @@
  * 02110-1301  USA
  */
 
+#include "plugin/x/src/expect/expect_stack.h"
+
 #include <string>
 
-#include "expect/expect_stack.h"
-#include "xpl_error.h"
+#include "plugin/x/src/xpl_error.h"
 
 
 namespace xpl {

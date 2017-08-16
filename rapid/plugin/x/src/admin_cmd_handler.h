@@ -21,15 +21,14 @@
 #define X_SRC_ADMIN_CMD_HANDLER_H_
 
 #include <google/protobuf/repeated_field.h>
-
 #include <map>
 #include <string>
 #include <vector>
 
-#include "ngs/protocol_fwd.h"
-#include "ngs/error_code.h"
-#include "ngs/interface/sql_session_interface.h"
-#include "ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 
 namespace xpl {
 class Session;

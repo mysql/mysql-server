@@ -16,13 +16,13 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <keys_container.h>
 #include <mysql/plugin_keyring.h>
 #include <fstream>
 
-#include "buffered_file_io.h"
-#include "i_serialized_object.h"
 #include "my_inttypes.h"
+#include "plugin/keyring/buffered_file_io.h"
+#include "plugin/keyring/common/i_serialized_object.h"
+#include "plugin/keyring/common/keys_container.h"
 #include "unittest/gunit/keyring/buffered_file_io_10.h"
 #include "unittest/gunit/keyring/mock_logger.h"
 

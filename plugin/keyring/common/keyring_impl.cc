@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sstream>
 #include <stddef.h>
 #include <memory>
+#include <sstream>
 
-#include "keyring.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "plugin/keyring/common/keyring.h"
 
 namespace keyring
 {

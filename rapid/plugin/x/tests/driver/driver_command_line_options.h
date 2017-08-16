@@ -22,11 +22,11 @@
 #include <string>
 #include <vector>
 
-#include "common/command_line_options.h"
-#include "formatters/console.h"
-#include "mysqlx_version.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/tests/driver/common/command_line_options.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 #include "print_version.h"
-#include "processor/execution_context.h"
 #include "welcome_copyright_notice.h"
 
 

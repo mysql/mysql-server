@@ -22,10 +22,10 @@
 
 #include <string>
 
-#include "ngs/error_code.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 
 namespace ngs {
 

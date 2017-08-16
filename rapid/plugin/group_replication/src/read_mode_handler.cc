@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "read_mode_handler.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
 
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "plugin_utils.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 
 long enable_super_read_only_mode(Sql_service_command_interface *command_interface)

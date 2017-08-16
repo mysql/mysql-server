@@ -26,7 +26,6 @@ INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_INCLUDE_DIRS}
 )
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/rapid/plugin/group_replication/include)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/rapid/plugin/group_replication/libmysqlgcs/include)
 

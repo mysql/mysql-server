@@ -15,11 +15,11 @@
 
 #include <gtest/gtest.h>
 
-#include "native_plain_verification.h"
-#include "native_verification.h"
+#include "plugin/x/src/native_plain_verification.h"
+#include "plugin/x/src/native_verification.h"
+#include "plugin/x/src/sha256_plain_verification.h"
+#include "plugin/x/src/sha2_plain_verification.h"
 #include "sha1.h"  // for SHA1_HASH_SIZE
-#include "sha256_plain_verification.h"
-#include "sha2_plain_verification.h"
 
 namespace xpl {
 

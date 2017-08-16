@@ -15,21 +15,21 @@
 #ifndef GCS_LOG_SYSTEM_INCLUDED
 #define	GCS_LOG_SYSTEM_INCLUDED
 
+#include <errno.h>
 #include <stddef.h>
+#include <string.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include <errno.h>
-#include <string.h>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
-#include "xplatform/my_xp_thread.h"
-#include "gcs_psi.h"
-#include "gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
 
 
 #ifndef XCOM_STANDALONE

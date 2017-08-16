@@ -102,7 +102,7 @@ LEX_CSTRING event_names[][6] = {
 static volatile int number_of_calls;
 
 #define AUDIT_NULL_VAR(x) static volatile int number_of_calls_ ## x;
-#include "audit_null_variables.h"
+#include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
 
@@ -118,7 +118,7 @@ static struct st_mysql_show_var simple_status[] =
 
 #define AUDIT_NULL_VAR(x) { "Audit_null_" #x, (char*)&number_of_calls_ ## x, \
                             SHOW_INT, SHOW_SCOPE_GLOBAL },
-#include "audit_null_variables.h"
+#include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
 

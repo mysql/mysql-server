@@ -23,8 +23,8 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_stage.h"
-#include "semisync_master.h"
-#include "semisync_master_ack_receiver.h"
+#include "plugin/semisync/semisync_master.h"
+#include "plugin/semisync/semisync_master_ack_receiver.h"
 #include "sql/current_thd.h"
 #include "sql/sql_class.h"                      // THD
 #include "typelib.h"

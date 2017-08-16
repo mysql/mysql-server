@@ -17,11 +17,11 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "expect/expect.h"
-#include "expect/expect_stack.h"
-#include "ngs/error_code.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "xpl_error.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expect/expect.h"
+#include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/xpl_error.h"
 
 
 static const int EXPECT_NO_ERROR = 1;

@@ -22,10 +22,10 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_rdtsc.h"
-#include "ngs/log.h"
-#include "ngs/memory.h"
-#include "ngs/scheduler.h"
-#include "ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 
 using namespace ngs;

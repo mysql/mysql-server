@@ -18,10 +18,10 @@
 
 #include <memory>
 
-#include "keyring_memory.h"
-#include "keys_container.h"
 #include "my_rnd.h"
 #include "mysql/plugin.h"
+#include "plugin/keyring/common/keyring_memory.h"
+#include "plugin/keyring/common/keys_container.h"
 #include "sql/mysqld.h"
 
 using keyring::IKeys_container;

@@ -20,6 +20,10 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
+#include "plugin/x/client/xconnection_impl.h"
+
+#include "my_config.h"
+
 #include <errno.h>
 #include <cassert>
 #include <limits>
@@ -27,13 +31,10 @@
 #include <string>
 
 #include "errmsg.h"
-#include "my_config.h"
-#include "mysqlx_error.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xssl_config.h"
+#include "plugin/x/generated/mysqlx_error.h"
 #include "scope_guard.h"
-#include "xconnection_config.h"
-#include "xconnection_impl.h"
-
-#include "xssl_config.h"
 
 #ifndef WIN32
 #include <netdb.h>

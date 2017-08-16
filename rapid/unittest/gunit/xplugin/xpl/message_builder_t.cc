@@ -18,12 +18,12 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "ngs/protocol/message_builder.h"
-#include "ngs/protocol/metadata_builder.h"
-#include "ngs/protocol/notice_builder.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "protobuf_message.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 namespace xpl
 {

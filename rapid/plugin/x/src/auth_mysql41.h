@@ -22,8 +22,8 @@
 
 // mysql_native_password (MySQL 4.1) authentication
 
-#include "account_verification_handler.h"
-#include "ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/src/account_verification_handler.h"
 
 
 namespace xpl {

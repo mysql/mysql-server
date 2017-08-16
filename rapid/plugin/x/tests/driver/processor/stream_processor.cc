@@ -15,18 +15,17 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "processor/stream_processor.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 
 #include <memory>
 
-#include "processor/command_processor.h"
-#include "processor/command_multiline_processor.h"
-#include "processor/comment_processor.h"
-#include "processor/indigestion_processor.h"
-#include "processor/dump_message_block_processor.h"
-#include "processor/macro_block_processor.h"
-#include "processor/sql_block_processor.h"
-
+#include "plugin/x/tests/driver/processor/command_multiline_processor.h"
+#include "plugin/x/tests/driver/processor/command_processor.h"
+#include "plugin/x/tests/driver/processor/comment_processor.h"
+#include "plugin/x/tests/driver/processor/dump_message_block_processor.h"
+#include "plugin/x/tests/driver/processor/indigestion_processor.h"
+#include "plugin/x/tests/driver/processor/macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/sql_block_processor.h"
 
 std::vector<Block_processor_ptr> create_macro_block_processors(
     Execution_context *context) {

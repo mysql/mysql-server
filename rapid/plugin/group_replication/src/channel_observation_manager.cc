@@ -13,11 +13,11 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "channel_observation_manager.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
 
 #include "my_dbug.h"
-#include "observer_server_channels.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/observer_server_channels.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 
 Channel_state_observer::~Channel_state_observer() {}

@@ -16,8 +16,8 @@
 #ifndef MYSQL_I_KEYS_CONTAINER_H
 #define MYSQL_I_KEYS_CONTAINER_H
 
-#include "i_keyring_key.h"
-#include "i_keyring_io.h"
+#include "plugin/keyring/common/i_keyring_io.h"
+#include "plugin/keyring/common/i_keyring_key.h"
 
 namespace keyring {
 

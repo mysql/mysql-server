@@ -17,19 +17,19 @@
  * 02110-1301  USA
  */
 
-#include "streaming_command_delegate.h"
+#include "plugin/x/src/streaming_command_delegate.h"
 
 #include <stddef.h>
-#include "ngs/interface/protocol_encoder_interface.h"
 #include <iostream>
 #include <string>
 
 #include "decimal.h"
 #include "my_dbug.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_const.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_const.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/xpl_log.h"
 
 using namespace xpl;
 

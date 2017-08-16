@@ -13,15 +13,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "pipeline_stats.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
 
 #include <time.h>
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "plugin_server_include.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 /*
   The QUOTA based flow control tries to calculate how many

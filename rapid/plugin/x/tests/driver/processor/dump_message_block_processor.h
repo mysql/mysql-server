@@ -21,7 +21,7 @@
 #include <map>
 #include <string>
 
-#include "processor/send_message_block_processor.h"
+#include "plugin/x/tests/driver/processor/send_message_block_processor.h"
 
 
 class Dump_message_block_processor : public Send_message_block_processor {

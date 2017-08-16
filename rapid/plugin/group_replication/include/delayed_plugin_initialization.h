@@ -16,7 +16,7 @@
 #ifndef DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 #define DELAYED_PLUGIN_INITIALIZATION_INCLUDE
 
-#include "read_mode_handler.h"
+#include "plugin/group_replication/include/read_mode_handler.h"
 
 class Delayed_initialization_thread
 {

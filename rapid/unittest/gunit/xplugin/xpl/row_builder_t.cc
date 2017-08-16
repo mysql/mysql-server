@@ -22,14 +22,14 @@
 #include <string>
 
 #include "decimal.h"
-#include "mysqlxclient/xdatetime.h"
-#include "mysqlxclient/xdecimal.h"
-#include "mysqlxclient/xrow.h"
-#include "ngs/protocol/buffer.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "protobuf_message.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 
 namespace xpl {

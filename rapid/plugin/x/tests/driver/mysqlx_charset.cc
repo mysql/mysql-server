@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "mysqlx_charset.h"
+#include "plugin/x/tests/driver/mysqlx_charset.h"
 
 
 namespace xcl {

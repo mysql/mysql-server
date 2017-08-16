@@ -16,9 +16,10 @@
 #ifndef MY_XP_UTIL_INCLUDED
 #define MY_XP_UTIL_INCLUDED
 
-#include "mysql/gcs/mysql_gcs.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/mysql_gcs.h"
 
 #ifdef _WIN32
+#include <winsock2.h>  // Must come before <windows.h>.
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -34,15 +35,15 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <time.h>
 #endif
-#include <iostream>
 #include <errno.h>
 #include <stdint.h>
 #include <cassert>
+#include <iostream>
 
 #define INT_MAX32     0x7FFFFFFFL
 #define MY_MIN(a, b)  ((a) < (b) ? (a) : (b))

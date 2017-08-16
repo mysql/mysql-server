@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "handlers/certification_handler.h"
+#include "plugin/group_replication/include/handlers/certification_handler.h"
 
-#include "handlers/pipeline_handlers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "plugin.h"
-#include "plugin_log.h"
+#include "plugin/group_replication/include/handlers/pipeline_handlers.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
 
 using std::string;
 const int GTID_WAIT_TIMEOUT= 30; //30 seconds

@@ -20,16 +20,14 @@
 #ifndef _QUERY_STRING_BUILDER_H_
 #define _QUERY_STRING_BUILDER_H_
 
-#include <string.h>
 #include <stdint.h>
-
-#include <ngs/thread.h>
-#include <ngs/memory.h>
-
-#include <query_formatter.h>
-
+#include <string.h>
 #include <mutex>
 #include <string>
+
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/query_formatter.h"
 
 struct charset_info_st;
 

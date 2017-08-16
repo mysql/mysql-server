@@ -20,9 +20,9 @@
 #ifndef _NGS_CLIENT_INTERFACE_H_
 #define _NGS_CLIENT_INTERFACE_H_
 
-#include "ngs_common/chrono.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 namespace ngs
 {

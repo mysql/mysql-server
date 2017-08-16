@@ -22,14 +22,13 @@
 #define _NGS_CONNECTION_VIO_H_
 
 
-#include "ngs/memory.h"
-#include "ngs/thread.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/ngs/include/ngs_common/options.h"
+#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs_common/types.h"
 #include "violite.h"
-
-#include "ngs_common/types.h"
-#include "ngs_common/options.h"
-#include "ngs_common/connection_type.h"
-#include "ngs_common/socket_interface.h"
 
 #ifdef WIN32
 #define SHUT_RD   SD_RECEIVE

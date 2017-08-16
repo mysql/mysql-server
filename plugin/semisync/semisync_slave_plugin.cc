@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "semisync_slave.h"
+#include "plugin/semisync/semisync_slave.h"
 
 ReplSemiSyncSlave repl_semisync;
 

@@ -23,8 +23,8 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "persisted_rule.h"
-#include "services.h"
+#include "plugin/rewriter/persisted_rule.h"
+#include "plugin/rewriter/services.h"
 
 
 /// The results of an attempt to rewrite a query parse tree.

@@ -16,10 +16,10 @@
 #ifndef GCS_LOGGING_INCLUDED
 #define	GCS_LOGGING_INCLUDED
 
-#include <string>
 #include <atomic>
+#include <string>
 
-#include "gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 /**
   @interface Common_interface

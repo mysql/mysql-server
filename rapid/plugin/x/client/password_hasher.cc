@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "password_hasher.h"
+#include "plugin/x/client/password_hasher.h"
 
 #include <sys/types.h>
 #include <cstdint>
@@ -34,7 +34,7 @@
 
 #include <my_dbug.h>
 
-#include "mysql41_hash.h"
+#include "plugin/x/client/mysql41_hash.h"
 
 #define PVERSION41_CHAR '*'
 #define SCRAMBLE_LENGTH 20

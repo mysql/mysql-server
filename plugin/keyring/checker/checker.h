@@ -17,11 +17,11 @@
 #define MYSQL_CHECKER_H
 
 
-#include "digest.h"
-#include "keyring_memory.h"
-#include "logger.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/keyring/common/keyring_memory.h"
+#include "plugin/keyring/common/logger.h"
+#include "plugin/keyring/digest.h"
 
 namespace keyring {
 

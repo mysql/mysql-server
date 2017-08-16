@@ -14,22 +14,22 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <errno.h>
-#include <cassert>
-#include <string>
-#include <sstream>
 #include <algorithm>
+#include <cassert>
+#include <sstream>
+#include <string>
 
 #ifndef XCOM_STANDALONE
-#include <my_sys.h>
-#include <my_dir.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <my_dir.h>
+#include <my_sys.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 #endif /* XCOM_STANDALONE */
 
-#include "mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 void *consumer_function(void *ptr);
 

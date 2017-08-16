@@ -20,10 +20,11 @@
 #ifndef NGS_SOCKET_EVENTS_INTERFACE_H_
 #define NGS_SOCKET_EVENTS_INTERFACE_H_
 
-#include <vector>
 #include <list>
-#include <ngs/thread.h>
-#include "ngs_common/socket_interface.h"
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
 
 namespace ngs {

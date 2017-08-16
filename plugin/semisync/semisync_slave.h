@@ -19,7 +19,7 @@
 #define SEMISYNC_SLAVE_H
 
 #include "my_inttypes.h"
-#include "semisync.h"
+#include "plugin/semisync/semisync.h"
 
 /**
    The extension class for the slave of semi-synchronous replication

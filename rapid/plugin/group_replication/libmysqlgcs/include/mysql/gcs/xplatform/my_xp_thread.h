@@ -19,6 +19,8 @@
 #ifndef XCOM_STANDALONE
 
 #include <my_sys.h>
+
+#include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
 
 typedef my_thread_t        native_thread_t;
@@ -30,7 +32,7 @@ typedef my_start_routine   native_start_routine;
 #define NATIVE_THREAD_CREATE_JOINABLE MY_THREAD_CREATE_JOINABLE
 #endif
 
-#include "mysql/gcs/xplatform/my_xp_cond.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 
 /**
   @class My_xp_thread

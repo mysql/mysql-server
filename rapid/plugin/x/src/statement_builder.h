@@ -21,11 +21,11 @@
 #include <algorithm>
 #include <string>
 
-#include "expr_generator.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/error_code.h"
-#include "ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/expr_generator.h"
 
 namespace xpl {
 

@@ -17,8 +17,9 @@
  * 02110-1301  USA
  */
 
-#include "sql_user_require.h"
-#include "ngs_common/options.h"
+#include "plugin/x/src/sql_user_require.h"
+
+#include "plugin/x/ngs/include/ngs_common/options.h"
 
 using namespace xpl;
 

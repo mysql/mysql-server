@@ -14,8 +14,9 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "observer_server_actions.h"
-#include "observer_trans.h"
+#include "plugin/group_replication/include/observer_server_actions.h"
+
+#include "plugin/group_replication/include/observer_trans.h"
 
 int group_replication_reset_master_logs(Binlog_transmit_param*)
 {

@@ -13,25 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "gcs_xcom_state_exchange.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 
 #include <assert.h>
 #include <time.h>
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_communication_interface.h"
-#include "synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 
 #ifdef _WIN32
 #include<iterator>
 #endif
 
-#include "mysql/gcs/xplatform/byteorder.h"
-
-#include "gcs_xcom_state_exchange.h"
-#include "gcs_xcom_communication_interface.h"
-
-#include "synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 
 Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,

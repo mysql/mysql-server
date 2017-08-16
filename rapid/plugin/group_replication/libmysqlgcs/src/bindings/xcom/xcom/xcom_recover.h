@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-#include "task_arg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_arg.h"
 
 int xcom_booted();
 void xcom_recover_init();

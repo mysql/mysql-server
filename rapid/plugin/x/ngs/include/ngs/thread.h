@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -23,15 +23,17 @@
 #ifdef NGS_STANDALONE
 # include <pthread.h>
 #else
-# include <my_thread.h>
-# include <thr_mutex.h>
-# include <thr_cond.h>
 # include <mutex_lock.h>
-# include "xpl_performance_schema.h"
+# include <my_thread.h>
+# include <thr_cond.h>
+# include <thr_mutex.h>
+
+# include "plugin/x/src/xpl_performance_schema.h"
 #endif
 
 #include <deque>
-#include "ngs_common/bind.h"
+
+#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 namespace ngs
 {

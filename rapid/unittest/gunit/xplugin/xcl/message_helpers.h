@@ -18,13 +18,13 @@
 #ifndef XPLUGIN_XCL_MESSAGE_HELPERS_H_
 #define XPLUGIN_XCL_MESSAGE_HELPERS_H_
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <type_traits>
+#include <gtest/gtest.h>
 #include <string>
+#include <type_traits>
 
-#include "mysqlxclient/xmessage.h"
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 namespace xcl {

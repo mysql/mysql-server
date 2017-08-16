@@ -21,16 +21,16 @@
 #define _NGS_CLIENT_H_
 
 #include "my_inttypes.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/capabilities/configurator.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/memory.h"
-#include "ngs/protocol/message.h"
-#include "ngs/protocol_decoder.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs_common/atomic.h"
-#include "ngs_common/chrono.h"
-#include "ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol_decoder.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs_common/atomic.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 #ifndef WIN32
 #include <netinet/in.h>

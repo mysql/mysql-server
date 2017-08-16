@@ -23,8 +23,8 @@
 #include <stdexcept>
 #include <string>
 
-#include "query_string_builder.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {
 

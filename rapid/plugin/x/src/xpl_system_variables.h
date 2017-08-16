@@ -18,10 +18,11 @@
 #ifndef XPL_SYSTEM_VARIABLES_H
 #define XPL_SYSTEM_VARIABLES_H
 
-#include "xpl_log.h"
-#include "ngs_common/bind.h"
-#include <vector>
 #include <algorithm>
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/xpl_log.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet

@@ -15,10 +15,10 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "processor/command_processor.h"
+#include "plugin/x/tests/driver/processor/command_processor.h"
 
-#include "processor/commands/command.h"
-#include "processor/execution_context.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 
 Block_processor::Result Command_processor::feed(

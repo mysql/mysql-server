@@ -16,7 +16,7 @@
 #ifndef GCS_LOGGER_INCLUDED
 #define GCS_LOGGER_INCLUDED
 
-#include <mysql/gcs/gcs_logging.h>
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
 
 /**
   Group Replication implementation of @interface Logger_interface

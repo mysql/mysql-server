@@ -16,9 +16,9 @@
 #ifndef SYNODE_NO_H
 #define SYNODE_NO_H
 
-#include "xcom_common.h"
-
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp.h.gen"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 #ifdef __cplusplus
 extern "C" {

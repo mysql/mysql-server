@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -20,12 +20,11 @@
 #ifndef _CAP_HANDLES_EXPIRED_PASSWORDS_H_
 #define _CAP_HANDLES_EXPIRED_PASSWORDS_H_
 
-#include "ngs/capabilities/handler.h"
-#include "ngs/mysqlx/getter_any.h"
-#include "ngs/mysqlx/setter_any.h"
-
-#include "xpl_client.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl
 {

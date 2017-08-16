@@ -17,8 +17,9 @@
 * 02110-1301  USA
 */
 
-#include "xpl_performance_schema.h"
-#include "ngs/memory.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 
 #ifdef HAVE_PSI_INTERFACE

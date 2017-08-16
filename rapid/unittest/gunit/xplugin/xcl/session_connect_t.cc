@@ -16,11 +16,11 @@
  */
 
 #include "errmsg.h"
-#include "session_t.h"
-#include "message_helpers.h"
 #include "my_inttypes.h"
-#include "mysqlx_error.h"
-#include "mysqlx_version.h"
+#include "plugin/x/generated/mysqlx_error.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "unittest/gunit/xplugin/xcl/message_helpers.h"
+#include "unittest/gunit/xplugin/xcl/session_t.h"
 
 
 namespace xcl {

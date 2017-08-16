@@ -20,9 +20,9 @@
 #ifndef _NGS_SESSION_INTERFACE_H_
 #define _NGS_SESSION_INTERFACE_H_
 
-#include "authentication_interface.h"
-#include "protocol_encoder_interface.h"
-#include "sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 
 namespace ngs
 {

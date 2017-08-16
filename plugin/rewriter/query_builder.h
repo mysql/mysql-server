@@ -15,12 +15,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_config.h"
+
 #include <string>
 #include <vector>
 
-#include "my_config.h"
-#include "rule.h"
-#include "services.h"
+#include "plugin/rewriter/rule.h"
+#include "plugin/rewriter/services.h"
 
 
 /**

@@ -17,7 +17,7 @@
  * 02110-1301  USA
  */
 
-#include "admin_cmd_index.h"
+#include "plugin/x/src/admin_cmd_index.h"
 
 #include <algorithm>
 #include <array>
@@ -26,12 +26,12 @@
 #include <map>
 #include <utility>
 
-#include "query_string_builder.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_session.h"
 #include "sha1.h"
-#include "sql_data_result.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_session.h"
 
 namespace xpl {
 

@@ -16,13 +16,13 @@
 #ifndef PIPELINE_HANDLERS_INCLUDED
 #define	PIPELINE_HANDLERS_INCLUDED
 
-#include <mysql/gcs/gcs_communication_interface.h>
-#include <mysql/gcs/gcs_control_interface.h>
 #include <mysql/group_replication_priv.h>
 
-#include "member_info.h"
 #include "my_dbug.h"
-#include "pipeline_interfaces.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/pipeline_interfaces.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
 /*
   @enum Event modifier

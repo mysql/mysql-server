@@ -22,8 +22,8 @@
 #define _NGS_CAPABILITIE_READONLY_H_
 
 
-#include "ngs/capabilities/handler.h"
-#include "ngs/mysqlx/setter_any.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 
 
 namespace ngs

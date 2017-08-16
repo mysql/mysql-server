@@ -18,12 +18,11 @@
 #include <string>
 #include <vector>
 
-#include "gcs_event_handlers.h"
 #include "my_dbug.h"
-#include "plugin.h"
-#include "pipeline_stats.h"
-#include "plugin.h"
-#include "single_primary_message.h"
+#include "plugin/group_replication/include/gcs_event_handlers.h"
+#include "plugin/group_replication/include/pipeline_stats.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/single_primary_message.h"
 
 using std::vector;
 

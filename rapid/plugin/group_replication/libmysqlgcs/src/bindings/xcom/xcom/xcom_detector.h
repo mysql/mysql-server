@@ -16,7 +16,7 @@
 #ifndef XCOM_DETECTOR_H
 #define XCOM_DETECTOR_H
 
-#include "xcom_limits.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_limits.h"
 
 #ifdef __cplusplus
 extern "C" {

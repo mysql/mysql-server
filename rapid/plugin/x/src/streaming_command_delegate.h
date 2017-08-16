@@ -22,9 +22,9 @@
 
 #include <sys/types.h>
 
-#include "ngs/protocol/message.h"
 #include "my_inttypes.h"
-#include "ngs/command_delegate.h"
+#include "plugin/x/ngs/include/ngs/command_delegate.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 
 namespace ngs
 {

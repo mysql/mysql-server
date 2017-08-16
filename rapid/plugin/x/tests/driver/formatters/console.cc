@@ -15,13 +15,13 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "formatters/console.h"
+#include "plugin/x/tests/driver/formatters/console.h"
 
 #include <algorithm>
 #include <iostream>
 #include <set>
 
-#include "formatters/message_formatter.h"
+#include "plugin/x/tests/driver/formatters/message_formatter.h"
 
 
 const Console::Color Console::k_red("\033[1;31m");

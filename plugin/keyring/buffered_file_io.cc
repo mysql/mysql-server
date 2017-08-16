@@ -13,13 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "plugin/keyring/buffered_file_io.h"
+
 #include <fcntl.h>
 #include <mysql/psi/mysql_file.h>
 #include <stdio.h>
 #include <algorithm>
 #include <memory>
 
-#include "buffered_file_io.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 

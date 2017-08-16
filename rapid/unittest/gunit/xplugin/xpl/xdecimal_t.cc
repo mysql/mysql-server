@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <mysql/service_my_snprintf.h>
 
-#include "mysqlxclient/xdecimal.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
 
 
 namespace xpl {

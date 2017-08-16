@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "mysqlxclient/xprotocol.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
 
 
 namespace formatter {

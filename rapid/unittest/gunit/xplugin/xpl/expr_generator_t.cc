@@ -16,8 +16,8 @@
 #include <gtest/gtest.h>
 #include <cstddef>
 
-#include "expr_generator.h"
-#include "mysqlx_pb_wrapper.h"
+#include "plugin/x/src/expr_generator.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {

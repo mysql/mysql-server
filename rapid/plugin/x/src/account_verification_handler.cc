@@ -17,13 +17,13 @@
  * 02110-1301  USA
  */
 
-#include "account_verification_handler.h"
+#include "plugin/x/src/account_verification_handler.h"
 
-#include "ngs/interface/sql_session_interface.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_client.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 

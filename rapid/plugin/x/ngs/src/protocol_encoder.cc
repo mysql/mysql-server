@@ -20,18 +20,17 @@
 #include <errno.h>
 #include <sys/types.h>
 
+#include "my_io.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 // "ngs_common/protocol_protobuf.h" has to come before boost includes, because of build
 // issue in Solaris (unqualified map used, which clashes with some other map defined
 // in Solaris headers)
-#include "ngs_common/protocol_protobuf.h"
-
-#include "my_io.h"
-#include "ngs/log.h"
-#include "ngs/protocol/buffer.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
 

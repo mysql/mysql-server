@@ -17,24 +17,24 @@
  * 02110-1301  USA
  */
 
-#include "xpl_client.h"
+#include "plugin/x/src/xpl_client.h"
 
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "cap_handles_expired_passwords.h"
 // needed for ip_to_hostname(), should probably be turned into a service
 #include "my_inttypes.h"
-#include "mysql_show_variable_wrapper.h"
-#include "mysql_variables.h"
-#include "mysqlx_version.h"
-#include "ngs/capabilities/configurator.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/thread.h"
-#include "ngs_common/string_formatter.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
 #include "sql/hostname.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
 
 namespace xpl {
 

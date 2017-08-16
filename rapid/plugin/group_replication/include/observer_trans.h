@@ -16,9 +16,9 @@
 #ifndef OBSERVER_TRANS
 #define OBSERVER_TRANS
 
-#include <mysql/gcs/gcs_communication_interface.h>
-#include "gcs_plugin_messages.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 
 /**
   Initialize transactions observer structures.

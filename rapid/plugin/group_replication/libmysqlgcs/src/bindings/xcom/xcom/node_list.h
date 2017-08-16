@@ -16,6 +16,8 @@
 #ifndef NODE_LIST_H
 #define NODE_LIST_H
 
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
