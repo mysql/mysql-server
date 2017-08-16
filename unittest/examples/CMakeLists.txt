@@ -14,7 +14,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/extra/zlib
-                    ${CMAKE_SOURCE_DIR}/extra/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 # We omit core-t here, since it will always fail.

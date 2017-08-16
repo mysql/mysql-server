@@ -41,6 +41,7 @@
 #include <cmath> // std::isinf
 
 #include "client/client_priv.h"
+#include "extra/regex/my_regex.h" /* Our own version of regex */
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"   // wild_compare
@@ -52,7 +53,6 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
 #include "sql_common.h"

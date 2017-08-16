@@ -23,12 +23,12 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "extra/regex/my_regex.h" // my_regex_t
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_regex.h"        // my_regex_t
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"

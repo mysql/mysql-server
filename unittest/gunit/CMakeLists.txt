@@ -233,7 +233,6 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/storage/example
   ${CMAKE_SOURCE_DIR}/storage/temptable/include
 )

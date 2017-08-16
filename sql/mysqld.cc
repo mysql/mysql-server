@@ -373,6 +373,7 @@
 #include "binlog_event.h"
 #include "control_events.h"
 #include "errmsg.h"                     // init_client_errs
+#include "extra/regex/my_regex.h"
 #include "ft_global.h"
 #include "keycache.h"                   // KEY_CACHE
 #include "m_string.h"
@@ -384,7 +385,6 @@
 #include "my_dir.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
-#include "my_regex.h"
 #include "my_shm_defaults.h"            // IWYU pragma: keep
 #include "my_stacktrace.h"              // my_set_exception_pointers
 #include "my_thread_local.h"
