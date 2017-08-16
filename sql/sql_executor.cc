@@ -982,6 +982,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
       Note for MyISAM tmp tables: if uniques is true keys won't be
       created.
     */
+    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
     if (table->s->keys)
     {
       description= "continuously_update_group_row";
@@ -990,6 +991,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, uint phase,
   }
   else if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
   {
+    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
     description= "write_group_row_when_complete";
     DBUG_PRINT("info",("Using end_write_group"));
     op->set_write_func(end_write_group);

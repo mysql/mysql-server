@@ -748,8 +748,7 @@ JOIN::optimize()
   */
 
   if (rollup.state != ROLLUP::STATE_NONE &&     // (1)
-      (select_distinct
-      /* the fix for bug#26497353 will enable this: || has_windows*/))
+      (select_distinct || has_windows))
     need_tmp_before_win= true;
 
   if (!plan_is_const())                         // (2)
