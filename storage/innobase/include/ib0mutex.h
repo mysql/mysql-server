@@ -265,7 +265,7 @@ struct TTASFutexMutex {
 		them up. Reset the lock state to unlocked so that waiting
 		threads can test for success. */
 
-		os_rmb;
+		os_wmb;
 
 		if (state() == MUTEX_STATE_WAITERS) {
 
