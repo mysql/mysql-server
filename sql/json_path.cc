@@ -23,6 +23,9 @@
 
 #include "sql/json_path.h"
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/encodings.h>
+#include <rapidjson/memorystream.h>   // rapidjson::MemoryStream
 #include <stddef.h>
 #include <algorithm>                            // any_of
 #include <memory>                               // unique_ptr
@@ -32,8 +35,6 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "rapidjson/encodings.h"
-#include "rapidjson/memorystream.h"   // rapidjson::MemoryStream
 #include "sql/json_dom.h"
 #include "sql/psi_memory_key.h"       // key_memory_JSON
 #include "sql/sql_const.h"            // STRING_BUFFER_USUAL_SIZE

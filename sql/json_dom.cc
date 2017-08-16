@@ -18,6 +18,11 @@
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/error/en.h>
+#include <rapidjson/error/error.h>
+#include <rapidjson/memorystream.h>
+#include <rapidjson/reader.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -32,16 +37,11 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_rapidjson_size_t.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
-#include "rapidjson/error/en.h"
-#include "rapidjson/error/error.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/reader.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
