@@ -28,8 +28,6 @@
 #include "my_sharedlib.h"
 #include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
 
-#include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
-
 namespace keyring {
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
