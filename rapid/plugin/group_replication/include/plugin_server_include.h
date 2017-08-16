@@ -23,10 +23,9 @@
 #include "config.h"
 #endif
 
-#include <my_stacktrace.h>
-#include <my_sys.h>
-#include <my_thread.h>
-
+#include "my_stacktrace.h"
+#include "my_sys.h"
+#include "my_thread.h"
 /*
   We should have a different access to these definitions.
 */

@@ -23,12 +23,11 @@
 #ifdef NGS_STANDALONE
 # include <pthread.h>
 #else
-# include <mutex_lock.h>
-# include <my_thread.h>
-# include <thr_cond.h>
-# include <thr_mutex.h>
-
+# include "mutex_lock.h"
+# include "my_thread.h"
 # include "plugin/x/src/xpl_performance_schema.h"
+# include "thr_cond.h"
+# include "thr_mutex.h"
 #endif
 
 #include <deque>

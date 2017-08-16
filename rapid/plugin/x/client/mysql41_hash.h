@@ -20,10 +20,11 @@
 #ifndef X_CLIENT_MYSQL41_HASH_H_
 #define X_CLIENT_MYSQL41_HASH_H_
 
+#include "my_config.h"
+
 #include <cstdint>
 
-#include <my_compiler.h>
-#include <my_config.h>
+#include "my_compiler.h"
 
 
 #define MYSQL41_HASH_SIZE 20 /* Hash size in bytes */

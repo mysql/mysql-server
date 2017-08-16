@@ -32,8 +32,7 @@
 #include <openssl/sha.h>
 #endif
 
-#include <my_dbug.h>
-
+#include "my_dbug.h"
 #include "plugin/x/client/mysql41_hash.h"
 
 #define PVERSION41_CHAR '*'

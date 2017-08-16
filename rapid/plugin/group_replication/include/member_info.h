@@ -25,13 +25,14 @@
   Since this file is used on unit tests includes must set here and
   not through plugin_server_include.h.
 */
-#include <my_sys.h>
+
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/member_version.h"
 #include "plugin/group_replication/include/services/notification/notification.h"

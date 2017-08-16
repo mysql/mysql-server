@@ -18,10 +18,9 @@
 
 #ifndef XCOM_STANDALONE
 
-#include <my_sys.h>
-
 #include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
+#include "my_sys.h"
 
 typedef my_thread_t        native_thread_t;
 typedef my_thread_handle   native_thread_handle;

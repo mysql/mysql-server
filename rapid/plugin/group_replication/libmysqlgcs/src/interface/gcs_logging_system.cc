@@ -21,12 +21,13 @@
 
 #ifndef XCOM_STANDALONE
 #include <fcntl.h>
-#include <my_dir.h>
-#include <my_sys.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+
+#include "my_dir.h"
+#include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"

@@ -33,7 +33,7 @@
 
 
 #ifndef XCOM_STANDALONE
-#include <my_sys.h>
+#include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 
 #define GCS_MAX_LOG_BUFFER 512
