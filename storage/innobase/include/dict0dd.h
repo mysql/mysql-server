@@ -82,7 +82,7 @@ enum dd_space_keys {
 	DD_SPACE__LAST
 };
 
-/** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
+/** enum that defines system table IDs. */
 enum dd_system_id_t {
 	DD_TABLESPACES = 4,
 	DD_DATAFILES = 5,
@@ -470,14 +470,14 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	MDL_ticket**	mdl,
 	mtr_t*		mtr);
 /** Process one mysql.columns record and get info to dict_col_t
-@param[in]	heap		temp memory heap
-@param[in,out]	rec		mysql.columns record
+@param[in,out]	heap		temp memory heap
+@param[in]	rec		mysql.columns record
 @param[in,out]	col		dict_col_t to fill
 @param[in,out]	table_id	table id
 @param[in,out]	col_name	column name
 @param[in,out]	nth_v_col	nth v column
 @param[in]	dd_columns	dict_table_t obj of mysql.columns
-@param[in]	mtr		the mini-transaction
+@param[in,out]	mtr		the mini-transaction
 @retval true if index is filled */
 bool
 dd_process_dd_columns_rec(
@@ -487,7 +487,7 @@ dd_process_dd_columns_rec(
 	table_id_t*		table_id,
 	char**			col_name,
 	ulint*			nth_v_col,
-	dict_table_t*		dd_columns,
+	const dict_table_t*	dd_columns,
 	mtr_t*			mtr);
 
 /** Process one mysql.columns record for virtual columns
@@ -571,7 +571,7 @@ dd_process_dd_tablespaces_rec(
 	uint*		flags,
 	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
-was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
+was used. Try to read it from the fil_system first, then from new dd.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	table		Table object
 @param[in]	dd_table	DD table object
@@ -579,6 +579,19 @@ was used. Try to read it from the fil_system first, then from SYS_DATAFILES.
 template<typename Table>
 void
 dd_get_and_save_data_dir_path(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own);
+
+/** Make sure the tablespace name is saved in dict_table_t if the table
+uses a general tablespace.
+Try to read it from the fil_system_t first, then from DD.
+@param[in]	table		Table object
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_space_name(
 	dict_table_t*	table,
 	const Table*	dd_table,
 	bool		dict_mutex_own);

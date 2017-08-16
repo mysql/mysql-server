@@ -3388,6 +3388,144 @@ dd_load_tablespace(
 	}
 }
 
+/** Get the space name from mysql.tablespaces for a given space_id.
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	heap		heap for store file name.
+@param[in]	table		dict table
+@param[in]	dd_table	dd table obj
+@return First filepath (caller must invoke ut_free() on it)
+@retval NULL if no mysql.tablespace_datafilesentry was found. */
+template<typename Table>
+char*
+dd_space_get_name(
+	mem_heap_t*	heap,
+	dict_table_t*	table,
+	Table*		dd_table)
+{
+	char*		space_name = nullptr;
+	dd::Tablespace*	dd_space = nullptr;
+	THD*		thd = current_thd;
+	MDL_ticket*     mdl = nullptr;
+	dd::Object_id   dd_space_id;
+
+	ut_ad(!srv_is_being_shutdown);
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+
+	if (dd_table == nullptr) {
+		char		db_buf[MAX_DATABASE_NAME_LEN + 1];
+		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
+		const dd::Table*	table_def = nullptr;
+
+		if (!dd_parse_tbl_name(
+				table->name.m_name, db_buf,
+				tbl_buf, nullptr, nullptr)
+		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
+			return(nullptr);
+		}
+
+		if (client->acquire(db_buf, tbl_buf, &table_def)
+			|| table_def == nullptr) {
+			dd_mdl_release(thd, &mdl);
+			return(nullptr);
+		}
+
+		dd_space_id = dd_first_index(table_def)->tablespace_id();
+
+		dd_mdl_release(thd, &mdl);
+	} else {
+		dd_space_id = dd_first_index(dd_table)->tablespace_id();
+	}
+
+	if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+		dd_space_id, &dd_space)) {
+		ut_a(false);
+	}
+
+	ut_a(dd_space != nullptr);
+
+	space_name = mem_heap_strdup(heap, dd_space->name().c_str());
+
+	return(space_name);
+}
+
+/** Make sure the tablespace name is saved in dict_table_t if the table
+uses a general tablespace.
+Try to read it from the fil_system_t first, then from DD.
+@param[in]	table		Table object
+@param[in]	dd_table	Global DD table or partition object
+@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+template<typename Table>
+void
+dd_get_and_save_space_name(
+	dict_table_t*	table,
+	const Table*	dd_table,
+	bool		dict_mutex_own)
+{
+	/* Do this only for general tablespaces. */
+	if (!DICT_TF_HAS_SHARED_SPACE(table->flags)) {
+		return;
+	}
+
+	bool	use_cache = true;
+	if (table->tablespace != NULL) {
+
+		if (srv_sys_tablespaces_open
+		    && dict_table_has_temp_general_tablespace_name(
+			    table->tablespace)) {
+			/* We previous saved the temporary name,
+			get the real one now. */
+			use_cache = false;
+		} else {
+			/* Keep and use this name */
+			return;
+		}
+	}
+
+	if (use_cache) {
+		fil_space_t* space = fil_space_acquire_silent(table->space);
+
+		if (space != NULL) {
+			/* Use this name unless it is a temporary general
+			tablespace name and we can now replace it. */
+			if (!srv_sys_tablespaces_open
+			    || !dict_table_has_temp_general_tablespace_name(
+				    space->name)) {
+
+				/* Use this tablespace name */
+				table->tablespace = mem_heap_strdup(
+					table->heap, space->name);
+
+				fil_space_release(space);
+				return;
+			}
+			fil_space_release(space);
+		}
+	}
+
+	/* Read it from the dictionary. */
+	if (srv_sys_tablespaces_open) {
+		if (dict_mutex_own) {
+			dict_mutex_exit_for_mysql();
+		}
+
+		table->tablespace = dd_space_get_name(
+			table->heap, table, dd_table);
+
+		if (dict_mutex_own) {
+			dict_mutex_enter_for_mysql();
+		}
+	}
+}
+
+template void dd_get_and_save_space_name<dd::Table>(
+	dict_table_t*, const dd::Table*, bool);
+
+template void dd_get_and_save_space_name<dd::Partition>(
+	dict_table_t*, const dd::Partition*, bool);
+
 /** Open or load a table definition based on a Global DD object.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
@@ -3546,6 +3684,10 @@ dd_open_table_one(
 		index->id = id;
 		index->trx_id = trx_id;
 		index = index->next();
+	}
+
+	if (!implicit) {
+		dd_get_and_save_space_name(m_table, dd_table, false);
 	}
 
 	mutex_enter(&dict_sys->mutex);
@@ -4067,14 +4209,14 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 }
 
 /** Process one mysql.columns record and get info to dict_col_t
-@param[in]	heap		temp memory heap
-@param[in,out]	rec		mysql.columns record
+@param[in,out]	heap		temp memory heap
+@param[in]	rec		mysql.columns record
 @param[in,out]	col		dict_col_t to fill
 @param[in,out]	table_id	table id
 @param[in,out]	col_name	column name
 @param[in,out]	nth_v_col	nth v column
 @param[in]	dd_columns	dict_table_t obj of mysql.columns
-@param[in]	mtr		the mini-transaction
+@param[in,out]	mtr		the mini-transaction
 @retval true if column is filled */
 bool
 dd_process_dd_columns_rec(
@@ -4084,7 +4226,7 @@ dd_process_dd_columns_rec(
 	table_id_t*		table_id,
 	char**			col_name,
 	ulint*			nth_v_col,
-	dict_table_t*		dd_columns,
+	const dict_table_t*	dd_columns,
 	mtr_t*			mtr)
 {
 	ulint		len;
@@ -4098,7 +4240,7 @@ dd_process_dd_columns_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	/* Get the hidden attibute, and skip if it's a hidden column. */
+	/* Get the hidden attribute, and skip if it's a hidden column. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
 	is_hidden = mach_read_from_1(field) & 0x01;
 	if (is_hidden) {
@@ -4204,7 +4346,7 @@ dd_process_dd_virtual_columns_rec(
 	ulint*	offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	/* Get the is_virtual attibute, and skip if it's not a virtual column. */
+	/* Get the is_virtual attribute, and skip if it's not a virtual column. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 21, &len);
 	is_virtual = mach_read_from_1(field) & 0x01;
 	if (!is_virtual) {
@@ -4212,7 +4354,7 @@ dd_process_dd_virtual_columns_rec(
 		return(false);
 	}
 
-	/* Get the hidden attibute, and skip if it's a hidden column. */
+	/* Get the hidden attribute, and skip if it's a hidden column. */
 	field = (const byte*)rec_get_nth_field(rec, offsets, 25, &len);
 	is_hidden = mach_read_from_1(field) & 0x01;
 	if (is_hidden) {
