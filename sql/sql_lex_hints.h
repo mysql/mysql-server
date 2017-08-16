@@ -36,11 +36,11 @@
 #include "sql/sql_alloc.h"
 #include "sql/sql_class.h"
 #include "sql/sql_digest_stream.h"
+#include "sql/sql_hints.yy.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_lex_hash.h"
 #include "sql/table.h"
 #include "sql_chars.h"
-#include "sql_hints.yy.h"
 
 class PT_hint_list;
 

@@ -104,6 +104,7 @@ setup_actors	0	performance_schema	PRIMARY	HASH
 setup_consumers	0	performance_schema	PRIMARY	HASH	
 setup_instruments	0	performance_schema	PRIMARY	HASH	
 setup_objects	0	performance_schema	OBJECT	HASH	
+setup_threads	0	performance_schema	PRIMARY	HASH	
 setup_timers	0	performance_schema	PRIMARY	HASH	
 socket_instances	1	performance_schema	IP	HASH	
 socket_instances	0	performance_schema	PRIMARY	HASH	
@@ -311,6 +312,7 @@ setup_instruments	0	performance_schema	PRIMARY	1	NAME	NULL
 setup_objects	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL	
 setup_objects	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
 setup_objects	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	
+setup_threads	0	performance_schema	PRIMARY	1	NAME	NULL	
 setup_timers	0	performance_schema	PRIMARY	1	NAME	NULL	
 socket_instances	1	performance_schema	IP	1	IP	NULL	
 socket_instances	1	performance_schema	IP	2	PORT	NULL	

@@ -94,7 +94,7 @@ static PSI_mutex_key key_LOCK_thread_cache;
 
 static PSI_mutex_info all_per_thread_mutexes[]=
 {
-  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_COND_thread_cache;
@@ -102,8 +102,8 @@ static PSI_cond_key key_COND_flush_thread_cache;
 
 static PSI_cond_info all_per_thread_conds[]=
 {
-  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
-  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
+  { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

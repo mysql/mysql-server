@@ -428,14 +428,14 @@ static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slav
 
 static PSI_thread_info all_slave_threads[]=
 {
-  { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_io, "slave_io", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_slave_memory[]=
 {
-  { &key_memory_rli_mts_coor, "Relay_log_info::mts_coor", 0}
+  { &key_memory_rli_mts_coor, "Relay_log_info::mts_coor", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_slave_psi_keys(void)

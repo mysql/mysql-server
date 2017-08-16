@@ -1062,32 +1062,34 @@ Events::deinit()
 PSI_mutex_key key_LOCK_event_queue,
               key_event_scheduler_LOCK_scheduler_state;
 
+/* clang-format off */
 static PSI_mutex_info all_events_mutexes[]=
 {
-  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL, 0},
-  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
 PSI_cond_key key_event_scheduler_COND_state, key_COND_queue_state;
 
 static PSI_cond_info all_events_conds[]=
 {
-  { &key_event_scheduler_COND_state, "Event_scheduler::COND_state", PSI_FLAG_GLOBAL},
-  { &key_COND_queue_state, "COND_queue_state", PSI_FLAG_GLOBAL},
+  { &key_event_scheduler_COND_state, "Event_scheduler::COND_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_COND_queue_state, "COND_queue_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 
 static PSI_thread_info all_events_threads[]=
 {
-  { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_GLOBAL},
-  { &key_thread_event_worker, "event_worker", 0}
+  { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_event_worker, "event_worker", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_INTERFACE */
 
-PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
-PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
-PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
+PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0, PSI_DOCUMENT_ME};
 
 PSI_memory_key key_memory_event_basic_root;
 
@@ -1101,7 +1103,7 @@ PSI_stage_info *all_events_stages[]=
 
 static PSI_memory_info all_events_memory[]=
 {
-  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_GLOBAL}
+  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_events_psi_keys(void)

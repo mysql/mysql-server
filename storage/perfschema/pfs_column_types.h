@@ -327,4 +327,15 @@ enum enum_transaction_mode
 /** Integer, number of values of @sa enum_transaction_mode. */
 #define COUNT_TRANS_MODE (LAST_TRANS_MODE - FIRST_TRANS_MODE + 1)
 
+/* Flags exposed in setup_instruments.properties */
+#define INSTR_PROPERTIES_SET_SINGLETON (1 << 0)
+#define INSTR_PROPERTIES_SET_PROGRESS (1 << 1)
+#define INSTR_PROPERTIES_SET_USER (1 << 2)
+#define INSTR_PROPERTIES_SET_GLOBAL_STAT (1 << 3)
+#define INSTR_PROPERTIES_SET_MUTABLE (1 << 4)
+
+/* Flags exposed in setup_threads.properties */
+#define THREAD_PROPERTIES_SET_SINGLETON (1 << 0)
+#define THREAD_PROPERTIES_SET_USER (1 << 1)
+
 #endif

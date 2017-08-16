@@ -523,7 +523,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789",
-      PSI_RWLOCK_FLAG_SX}
+      PSI_FLAG_RWLOCK_SX}
   };
 
   rwlock_service->register_rwlock("Y", bad_rwlock_2_sx, 1);
@@ -554,7 +554,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "12345678",
-      PSI_RWLOCK_FLAG_SX}
+      PSI_FLAG_RWLOCK_SX}
   };
 
   rwlock_service->register_rwlock("YY", bad_rwlock_3_sx, 1);

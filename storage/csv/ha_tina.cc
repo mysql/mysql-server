@@ -111,8 +111,8 @@ static PSI_mutex_key csv_key_mutex_tina, csv_key_mutex_TINA_SHARE_mutex;
 
 static PSI_mutex_info all_tina_mutexes[]=
 {
-  { &csv_key_mutex_tina, "tina", PSI_FLAG_GLOBAL, 0},
-  { &csv_key_mutex_TINA_SHARE_mutex, "TINA_SHARE::mutex", 0, 0}
+  { &csv_key_mutex_tina, "tina", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &csv_key_mutex_TINA_SHARE_mutex, "TINA_SHARE::mutex", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_file_key csv_key_file_metadata, csv_key_file_data,
@@ -120,18 +120,18 @@ static PSI_file_key csv_key_file_metadata, csv_key_file_data,
 
 static PSI_file_info all_tina_files[]=
 {
-  { &csv_key_file_metadata, "metadata", 0},
-  { &csv_key_file_data, "data", 0},
-  { &csv_key_file_update, "update", 0}
+  { &csv_key_file_metadata, "metadata", 0, 0, PSI_DOCUMENT_ME},
+  { &csv_key_file_data, "data", 0, 0, PSI_DOCUMENT_ME},
+  { &csv_key_file_update, "update", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_tina_memory[]=
 {
-  { &csv_key_memory_tina_share, "TINA_SHARE", PSI_FLAG_GLOBAL},
-  { &csv_key_memory_blobroot, "blobroot", 0},
-  { &csv_key_memory_tina_set, "tina_set", 0},
-  { &csv_key_memory_row, "row", 0},
-  { &csv_key_memory_Transparent_file, "Transparent_file", 0}
+  { &csv_key_memory_tina_share, "TINA_SHARE", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  { &csv_key_memory_blobroot, "blobroot", 0, 0, PSI_DOCUMENT_ME},
+  { &csv_key_memory_tina_set, "tina_set", 0, 0, PSI_DOCUMENT_ME},
+  { &csv_key_memory_row, "row", 0, 0, PSI_DOCUMENT_ME},
+  { &csv_key_memory_Transparent_file, "Transparent_file", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_tina_psi_keys(void)

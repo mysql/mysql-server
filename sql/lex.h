@@ -26,9 +26,9 @@
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
 #else
-#include <sql_yacc.h>
 
-#include "sql_hints.yy.h"
+#include "sql/sql_hints.yy.h"
+#include "sql/sql_yacc.h"
 
 #define SYM_OR_NULL(A) A
 #endif

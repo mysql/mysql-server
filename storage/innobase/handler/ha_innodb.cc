@@ -479,10 +479,10 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
-# define PSI_KEY(n) {&(n##_key.m_value), #n, 0}
-# define PSI_MUTEX_KEY(n, P1, P2) {&(n##_key.m_value), #n, P1, P2}
+# define PSI_KEY(n, flag, volatility, doc) {&(n##_key.m_value), #n, flag, volatility, doc}
+# define PSI_MUTEX_KEY(n, flag, volatility, doc) {&(n##_key.m_value), #n, flag, volatility, doc}
 /* All RWLOCK used in Innodb are SX-locks */
-# define PSI_RWLOCK_KEY(n) {&n##_key.m_value, #n, PSI_RWLOCK_FLAG_SX}
+# define PSI_RWLOCK_KEY(n, volatility, doc) {&n##_key.m_value, #n, PSI_FLAG_RWLOCK_SX, volatility, doc}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -491,12 +491,12 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	PSI_MUTEX_KEY(commit_cond_mutex, 0, 0),
-	PSI_MUTEX_KEY(innobase_share_mutex, 0, 0)
+	PSI_MUTEX_KEY(commit_cond_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(innobase_share_mutex, 0, 0, PSI_DOCUMENT_ME)
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
-	PSI_KEY(commit_cond)
+	PSI_KEY(commit_cond, 0, 0, PSI_DOCUMENT_ME)
 };
 
 # ifdef UNIV_PFS_MUTEX
@@ -504,90 +504,89 @@ static PSI_cond_info	all_innodb_conds[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
-	PSI_MUTEX_KEY(autoinc_mutex, 0, 0),
-	PSI_MUTEX_KEY(autoinc_persisted_mutex, 0, 0),
+	PSI_MUTEX_KEY(autoinc_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(autoinc_persisted_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_MUTEX_KEY(buffer_block_mutex, 0, 0),
+	PSI_MUTEX_KEY(buffer_block_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-	PSI_MUTEX_KEY(buf_pool_flush_state_mutex, 0, 0),
-	PSI_MUTEX_KEY(buf_pool_LRU_list_mutex, 0, 0),
-	PSI_MUTEX_KEY(buf_pool_free_list_mutex, 0, 0),
-	PSI_MUTEX_KEY(buf_pool_zip_free_mutex, 0, 0),
-	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
-	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
-	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
-	PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0),
-	PSI_MUTEX_KEY(clone_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(clone_task_mutex, 0, 0),
-	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
-	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
-	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(parser_mutex, 0, 0),
-	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0),
-	PSI_MUTEX_KEY(fil_system_mutex, 0, 0),
-	PSI_MUTEX_KEY(file_open_mutex, 0, 0),
-	PSI_MUTEX_KEY(flush_list_mutex, 0, 0),
-	PSI_MUTEX_KEY(fts_bg_threads_mutex, 0, 0),
-	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
-	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0),
-	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0),
-	PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0),
-	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0),
-	PSI_MUTEX_KEY(hash_table_mutex, 0, 0),
-	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0),
-	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
-	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
-	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0),
-	PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0),
-	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
-	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0),
-	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
-	PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0),
-	PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0),
-	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
-	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0),
-	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
-	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
-	PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0),
-	PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_flush_state_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(buf_pool_LRU_list_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(buf_pool_free_list_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(buf_pool_zip_free_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(clone_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(clone_task_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fil_system_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(file_open_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(flush_list_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fts_bg_threads_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(hash_table_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(log_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(page_sys_arch_oper_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(temp_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(undo_space_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_sys_rseg_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  ifdef UNIV_DEBUG
-	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0),
+	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  endif /* UNIV_DEBUG */
-	PSI_MUTEX_KEY(rw_lock_list_mutex, 0, 0),
-	PSI_MUTEX_KEY(rw_lock_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_dict_tmpfile_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_innodb_monitor_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_misc_tmpfile_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_monitor_file_mutex, 0, 0),
+	PSI_MUTEX_KEY(rw_lock_list_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(rw_lock_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_dict_tmpfile_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_innodb_monitor_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_misc_tmpfile_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_monitor_file_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  ifdef UNIV_DEBUG
-	PSI_MUTEX_KEY(sync_thread_mutex, 0, 0),
+	PSI_MUTEX_KEY(sync_thread_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  endif /* UNIV_DEBUG */
-	PSI_MUTEX_KEY(buf_dblwr_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_undo_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_pool_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(lock_mutex, 0, 0),
-	PSI_MUTEX_KEY(lock_wait_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_mutex, 0, 0),
-	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_undo_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(lock_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(lock_wait_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	PSI_MUTEX_KEY(event_mutex, 0, 0),
-	PSI_MUTEX_KEY(event_manager_mutex, 0, 0),
+	PSI_MUTEX_KEY(event_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(event_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0),
-	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0),
-	PSI_MUTEX_KEY(rtr_path_mutex, 0, 0),
-	PSI_MUTEX_KEY(rtr_ssn_mutex, 0, 0),
-	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0),
-	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0),
-	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0),
-	PSI_MUTEX_KEY(sync_array_mutex, 0, 0),
-	PSI_MUTEX_KEY(thread_mutex, 0, 0),
-	PSI_MUTEX_KEY(row_drop_list_mutex, 0, 0)
+	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(rtr_path_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(rtr_ssn_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(sync_array_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(thread_mutex, 0, 0, PSI_DOCUMENT_ME),
+	PSI_MUTEX_KEY(row_drop_list_mutex, 0, 0, PSI_DOCUMENT_ME)
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -596,27 +595,27 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
-	PSI_RWLOCK_KEY(btr_search_latch),
+	PSI_RWLOCK_KEY(btr_search_latch, 0, PSI_DOCUMENT_ME),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_RWLOCK_KEY(buf_block_lock),
+	PSI_RWLOCK_KEY(buf_block_lock, 0, PSI_DOCUMENT_ME),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_DEBUG
-	PSI_RWLOCK_KEY(buf_block_debug_latch),
+	PSI_RWLOCK_KEY(buf_block_debug_latch, 0, PSI_DOCUMENT_ME),
 #  endif /* UNIV_DEBUG */
-	PSI_RWLOCK_KEY(dict_operation_lock),
-	PSI_RWLOCK_KEY(dict_persist_checkpoint),
-	PSI_RWLOCK_KEY(fil_space_latch),
-	PSI_RWLOCK_KEY(checkpoint_lock),
-	PSI_RWLOCK_KEY(undo_spaces_lock),
-	PSI_RWLOCK_KEY(rsegs_lock),
-	PSI_RWLOCK_KEY(fts_cache_rw_lock),
-	PSI_RWLOCK_KEY(fts_cache_init_rw_lock),
-	PSI_RWLOCK_KEY(trx_i_s_cache_lock),
-	PSI_RWLOCK_KEY(trx_purge_latch),
-	PSI_RWLOCK_KEY(index_tree_rw_lock),
-	PSI_RWLOCK_KEY(index_online_log),
-	PSI_RWLOCK_KEY(dict_table_stats),
-	PSI_RWLOCK_KEY(hash_table_locks),
+	PSI_RWLOCK_KEY(dict_operation_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(dict_persist_checkpoint, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(fil_space_latch, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(checkpoint_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(undo_spaces_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(rsegs_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(fts_cache_rw_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(fts_cache_init_rw_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(trx_i_s_cache_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(trx_purge_latch, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(index_tree_rw_lock, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(index_online_log, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(dict_table_stats, 0, PSI_DOCUMENT_ME),
+	PSI_RWLOCK_KEY(hash_table_locks, 0, PSI_DOCUMENT_ME),
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -625,28 +624,28 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
-	PSI_KEY(archiver_thread),
-	PSI_KEY(buf_dump_thread),
-	PSI_KEY(dict_stats_thread),
-	PSI_KEY(io_handler_thread),
-	PSI_KEY(io_ibuf_thread),
-	PSI_KEY(io_log_thread),
-	PSI_KEY(io_read_thread),
-	PSI_KEY(io_write_thread),
-	PSI_KEY(buf_resize_thread),
-	PSI_KEY(recv_writer_thread),
-	PSI_KEY(srv_error_monitor_thread),
-	PSI_KEY(srv_lock_timeout_thread),
-	PSI_KEY(srv_master_thread),
-	PSI_KEY(srv_monitor_thread),
-	PSI_KEY(srv_purge_thread),
-	PSI_KEY(srv_worker_thread),
-	PSI_KEY(trx_recovery_rollback_thread),
-	PSI_KEY(page_flush_thread),
-	PSI_KEY(page_flush_coordinator_thread),
-	PSI_KEY(fts_optimize_thread),
-	PSI_KEY(fts_parallel_merge_thread),
-	PSI_KEY(fts_parallel_tokenization_thread)
+	PSI_KEY(archiver_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(buf_dump_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(dict_stats_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(io_handler_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(io_ibuf_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(io_log_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(io_read_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(recv_writer_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_error_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_lock_timeout_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_master_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_purge_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(srv_worker_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(trx_recovery_rollback_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(page_flush_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(page_flush_coordinator_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -654,12 +653,12 @@ static PSI_thread_info	all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
-	PSI_KEY(innodb_tablespace_open_file),
-	PSI_KEY(innodb_data_file),
-	PSI_KEY(innodb_log_file),
-	PSI_KEY(innodb_temp_file),
-	PSI_KEY(innodb_arch_file),
-	PSI_KEY(innodb_clone_file)
+	PSI_KEY(innodb_tablespace_open_file, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(innodb_data_file, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(innodb_log_file, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(innodb_temp_file, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(innodb_arch_file, 0, 0, PSI_DOCUMENT_ME),
+	PSI_KEY(innodb_clone_file, 0, 0, PSI_DOCUMENT_ME)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */

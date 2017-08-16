@@ -560,19 +560,19 @@ SELECT ADDTIME(NTH_VALUE(time'18:00:00', 1) OVER (ORDER BY NULL), '01:00:00');
 ADDTIME(NTH_VALUE(time'18:00:00', 1) OVER (ORDER BY NULL), '01:00:00')
 19:00:00
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL -1 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL NULL HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL -1 HOUR PRECEDING AND INTERVAL 2 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL -2 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL '-2:2' HOUR_MINUTE PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL 1 HOUR PRECEDING AND INTERVAL NULL HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL NULL HOUR PRECEDING AND INTERVAL 1 HOUR PRECEDING) FROM t_time;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 Dynamic ? parameter checking
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? PRECEDING and ? PRECEDING) FROM t1";
 SET @p1= 1;
@@ -626,37 +626,37 @@ PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN ? FOLLOWING
 SET @p1= -1;
 SET @p2= 2;
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 EXECUTE p USING @p1, @p2;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS ? PRECEDING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND ? FOLLOWING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE INTERVAL ? HOUR PRECEDING) FROM t_time";
 SET @p1= -1;
 EXECUTE p USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR PRECEDING) FROM t_time";
 SET @p2= 2;
 EXECUTE p USING @p1, @p2;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SET @p1= NULL;
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE p FROM "SELECT t, FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR_MINUTE PRECEDING) FROM t_time";
 SET @p1= '-2:2';
 EXECUTE p USING @p2, @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative or NULL
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 SET @p1= '2:2';
 EXECUTE p USING @p2, @p1;
 t	FIRST_VALUE(t) OVER (ORDER BY t RANGE BETWEEN INTERVAL ? HOUR PRECEDING AND INTERVAL ? HOUR_MINUTE PRECEDING)
@@ -8542,8 +8542,8 @@ DROP TABLE t;
 CREATE TABLE t (
 b VARCHAR(20) DEFAULT NULL,
 d INT DEFAULT NULL);
-insert into t values(1,-1);
-insert into t values(1,-1);
+INSERT INTO t VALUES(1,-1);
+INSERT INTO t VALUES(1,-1);
 SELECT b,d,LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
 UNBOUNDED FOLLOWING) FROM t;
 b	d	LAST_VALUE(b) OVER(ORDER BY d RANGE BETWEEN 1 FOLLOWING AND
@@ -8552,3 +8552,35 @@ UNBOUNDED FOLLOWING)
 1	-1	NULL
 DROP TABLE t;
 # End of test for Bug#26496645
+#
+# Bug#26411055: WINDOW FRAME ACCEPTS NON-INTEGER ARG FOR ROWS
+#
+CREATE TABLE t(w INT);
+INSERT INTO t VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+SELECT w, SUM(w) OVER (ROWS BETWEEN 3 PRECEDING AND 3.4 FOLLOWING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
+SET @p1= 2;
+EXECUTE stmt USING @p1;
+w	SUM(w) OVER (ROWS ? PRECEDING)
+1	1
+2	3
+3	6
+4	9
+5	12
+6	15
+7	18
+8	21
+9	24
+SET @p1= 2.3;
+EXECUTE stmt USING @p1;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+DROP PREPARE stmt;
+DROP TABLE t;
+# End of test for Bug#26411055

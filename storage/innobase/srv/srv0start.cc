@@ -79,6 +79,8 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "ut0mem.h"
 #ifndef UNIV_HOTBACKUP
+# include <zlib.h>
+
 # include "arch0arch.h"
 # include "btr0pcur.h"
 # include "btr0sea.h"
@@ -107,7 +109,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "usr0sess.h"
 # include "ut0crc32.h"
 # include "ut0new.h"
-# include "zlib.h"
 
 #ifdef HAVE_LZO1X
 #include <lzo/lzo1x.h>

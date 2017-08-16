@@ -347,8 +347,23 @@ create_mutex(PFS_mutex_class *klass, const void *identity)
 {
   PFS_mutex *pfs;
   pfs_dirty_state dirty_state;
+  unsigned int partition;
 
-  pfs = global_mutex_container.allocate(&dirty_state, klass->m_volatility);
+  /*
+    There are 9 volatility defined in psi.h,
+    but since most are still unused,
+    mapping this to only 2 PFS_MUTEX_PARTITIONS.
+  */
+  if (klass->m_volatility >= PSI_VOLATILITY_SESSION)
+  {
+    partition = 1;
+  }
+  else
+  {
+    partition = 0;
+  }
+
+  pfs = global_mutex_container.allocate(&dirty_state, partition);
   if (pfs != NULL)
   {
     pfs->m_identity = identity;
@@ -602,8 +617,8 @@ create_thread(PFS_thread_class *klass,
     pfs->m_event_id = 1;
     pfs->m_stmt_lock.set_allocated();
     pfs->m_session_lock.set_allocated();
-    pfs->set_enabled(true);
-    pfs->set_history(true);
+    pfs->set_enabled(klass->m_enabled);
+    pfs->set_history(klass->m_history);
     pfs->m_class = klass;
     pfs->m_events_waits_current = &pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
     pfs->m_waits_history_full = false;

@@ -21,17 +21,14 @@
 
 #include <limits.h>
 
-#include "lex_token.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
+#include "sql/lex_token.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
+#include "sql/sql_yacc.h"
 #include "sql/system_variables.h"
-/*
-  Generated sources:
-*/
-#include "sql_yacc.h"
 
 class PT_hint_list;
 

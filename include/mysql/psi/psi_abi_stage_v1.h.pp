@@ -40,7 +40,8 @@ struct PSI_stage_info_v1
 {
   PSI_stage_key m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  const char *m_documentation;
 };
 typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
 typedef void (*register_stage_v1_t)(const char *category,

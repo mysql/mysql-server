@@ -40,14 +40,15 @@ extern "C" {
 
 #define PSI_INSTRUMENT_ME 0
 
+#define PSI_DOCUMENT_ME ""
+
 #define PSI_NOT_INSTRUMENTED 0
 
 /**
-  Global flag.
-  This flag indicate that an instrumentation point is a global variable,
-  or a singleton.
+  Singleton flag.
+  This flag indicate that an instrumentation point is a singleton.
 */
-#define PSI_FLAG_GLOBAL (1 << 0)
+#define PSI_FLAG_SINGLETON (1 << 0)
 
 /**
   Mutable flag.
@@ -56,6 +57,11 @@ extern "C" {
 */
 #define PSI_FLAG_MUTABLE (1 << 1)
 
+/**
+  Per Thread flag.
+  This flag indicates the instrumented object is per thread.
+  Reserved for future use.
+*/
 #define PSI_FLAG_THREAD (1 << 2)
 
 /**
@@ -64,6 +70,12 @@ extern "C" {
   It indicates the instrumentation provides progress data.
 */
 #define PSI_FLAG_STAGE_PROGRESS (1 << 3)
+
+/**
+  Shared Exclusive flag.
+  Indicates that rwlock support the shared exclusive state.
+*/
+#define PSI_FLAG_RWLOCK_SX (1 << 4)
 
 /**
   Transferable flag.
@@ -80,12 +92,20 @@ extern "C" {
 */
 #define PSI_FLAG_USER (1 << 6)
 
+/**
+  Global stat only flag.
+  This flag indicates statistics for the instrument
+  are aggregated globally only.
+  No per thread / account / user / host aggregations
+  are available.
+*/
+#define PSI_FLAG_ONLY_GLOBAL_STAT (1 << 7)
 
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2
 #define PSI_VOLATILITY_DDL 3
-#define PSI_VOLATILITY_ACCOUNT 4
+#define PSI_VOLATILITY_CACHE 4
 #define PSI_VOLATILITY_SESSION 5
 #define PSI_VOLATILITY_TRANSACTION 6
 #define PSI_VOLATILITY_QUERY 7

@@ -2792,19 +2792,31 @@ bool THD::send_result_metadata(List<Item> *list, uint flags)
   if (m_protocol->start_result_metadata(list->elements, flags,
           variables.character_set_results))
     goto err;
-
-  while ((item= it++))
+  switch (variables.resultset_metadata)
   {
-    Send_field field;
-    item->make_field(&field);
-    m_protocol->start_row();
-    if (m_protocol->send_field_metadata(&field,
-            item->charset_for_protocol()))
-      goto err;
-    if (flags & Protocol::SEND_DEFAULTS)
-      item->send(m_protocol, &tmp);
-    if (m_protocol->end_row())
-      DBUG_RETURN(true);
+    case RESULTSET_METADATA_FULL:
+      /* Sent metadata. */
+      while ((item= it++))
+      {
+        Send_field field;
+        item->make_field(&field);
+        m_protocol->start_row();
+        if (m_protocol->send_field_metadata(&field, item->charset_for_protocol()))
+          goto err;
+        if (flags & Protocol::SEND_DEFAULTS)
+          item->send(m_protocol, &tmp);
+        if (m_protocol->end_row())
+          DBUG_RETURN(true);
+      }
+      break;
+
+    case RESULTSET_METADATA_NONE:
+      /* Skip metadata. */
+      break;
+
+    default:
+      /* Unknown @@resultset_metadata value. */
+      DBUG_RETURN(1);
   }
 
   DBUG_RETURN(m_protocol->end_result_metadata());

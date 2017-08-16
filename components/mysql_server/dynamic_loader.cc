@@ -1359,7 +1359,7 @@ mysql_rwlock_t mysql_dynamic_loader_imp::LOCK_dynamic_loader;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_dynamic_loader_rwlocks[]=
 {
-  { &key_rwlock_LOCK_dynamic_loader, "LOCK_dynamic_loader", PSI_FLAG_GLOBAL }
+  { &key_rwlock_LOCK_dynamic_loader, "LOCK_dynamic_loader", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 

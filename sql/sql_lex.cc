@@ -52,9 +52,9 @@
 #include "sql/sql_show.h"              // append_identifier
 #include "sql/sql_table.h"             // primary_key_name
 #include "sql/sql_tmp_table.h"
+#include "sql/sql_yacc.h"
 #include "sql/system_variables.h"
 #include "sql/window.h"
-#include "sql_yacc.h"
 #include "template_utils.h"
 
 extern int HINT_PARSER_parse(THD *thd,

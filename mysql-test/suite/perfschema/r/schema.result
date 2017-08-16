@@ -90,6 +90,7 @@ setup_actors
 setup_consumers
 setup_instruments
 setup_objects
+setup_threads
 setup_timers
 socket_instances
 socket_summary_by_event_name
@@ -1226,7 +1227,10 @@ Table	Create Table
 setup_instruments	CREATE TABLE `setup_instruments` (
   `NAME` varchar(128) NOT NULL,
   `ENABLED` enum('YES','NO') NOT NULL,
-  `TIMED` enum('YES','NO') NOT NULL,
+  `TIMED` enum('YES','NO') DEFAULT NULL,
+  `PROPERTIES` set('singleton','progress','user','global_statistics','mutable') NOT NULL,
+  `VOLATILITY` int(11) NOT NULL,
+  `DOCUMENTATION` longtext,
   PRIMARY KEY (`NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table setup_objects;

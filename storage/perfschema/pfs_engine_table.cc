@@ -114,6 +114,7 @@
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
 #include "table_setup_objects.h"
+#include "table_setup_threads.h"
 #include "table_setup_timers.h"
 #include "table_socket_instances.h"
 #include "table_socket_summary_by_event_name.h"
@@ -578,6 +579,7 @@ static PFS_engine_table_share *all_shares[] = {
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
+  &table_setup_threads::m_share,
   &table_setup_timers::m_share,
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
@@ -671,6 +673,32 @@ static PFS_engine_table_share *all_shares[] = {
   &table_user_defined_functions::m_share,
 
   NULL};
+
+static PSI_mutex_key key_LOCK_pfs_share_list;
+static PSI_mutex_info info_LOCK_pfs_share_list = {
+  &key_LOCK_pfs_share_list,
+  "LOCK_pfs_share_list",
+  PSI_VOLATILITY_PERMANENT,
+  PSI_FLAG_SINGLETON,
+  /* Doc */
+  "Components can provide their own performance_schema tables. "
+     "This lock protects the list of such tables definitions."
+};
+
+void
+PFS_dynamic_table_shares::init_mutex()
+{
+  /* This is called once at startup, ok to register here. */
+  /* FIXME: Category "performance_schema" leads to a name too long. */
+  mysql_mutex_register("pfs", &info_LOCK_pfs_share_list, 1);
+  mysql_mutex_init(key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
+}
+
+void
+PFS_dynamic_table_shares::destroy_mutex()
+{
+  mysql_mutex_destroy(&LOCK_pfs_share_list);
+}
 
 PFS_dynamic_table_shares pfs_external_table_shares;
 

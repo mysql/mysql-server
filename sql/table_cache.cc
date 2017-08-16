@@ -35,7 +35,7 @@ Table_cache_manager table_cache_manager;
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key Table_cache::m_lock_key;
 PSI_mutex_info Table_cache::m_mutex_keys[]= {
-  { &m_lock_key, "LOCK_table_cache", 0, 0}
+  { &m_lock_key, "LOCK_table_cache", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif
 

@@ -352,6 +352,20 @@ void set_field_enum(Field *f, ulonglong value);
 ulonglong get_field_enum(Field *f);
 
 /**
+  Helper, assign a value to a @c set field.
+  @param f the field to set
+  @param value the value to assign
+*/
+void set_field_set(Field *f, ulonglong value);
+
+/**
+  Helper, read a value from a @c set field.
+  @param f the field to read
+  @return the field value
+*/
+ulonglong get_field_set(Field *f);
+
+/**
   Helper, assign a value to a @c date field.
   @param f the field to set
   @param value the value to assign
@@ -456,15 +470,16 @@ struct PFS_instrument_view_constants
   static const uint VIEW_METADATA = 8;
   static const uint LAST_VIEW = 8;
 
-  static const uint VIEW_THREAD = 9;
-  static const uint VIEW_STAGE = 10;
-  static const uint VIEW_STATEMENT = 11;
-  static const uint VIEW_TRANSACTION = 12;
-  static const uint VIEW_BUILTIN_MEMORY = 13;
-  static const uint VIEW_MEMORY = 14;
-  static const uint VIEW_ERROR = 15;
+  /* THREAD are displayed in table setup_threads instead of setup_instruments. */
 
-  static const uint LAST_INSTRUMENT = 15;
+  static const uint VIEW_STAGE = 9;
+  static const uint VIEW_STATEMENT = 10;
+  static const uint VIEW_TRANSACTION = 11;
+  static const uint VIEW_BUILTIN_MEMORY = 12;
+  static const uint VIEW_MEMORY = 13;
+  static const uint VIEW_ERROR = 14;
+
+  static const uint LAST_INSTRUMENT = 14;
 };
 
 /** Name space, internal views used within object summaries. */

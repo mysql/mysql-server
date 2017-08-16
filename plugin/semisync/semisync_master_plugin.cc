@@ -526,7 +526,7 @@ PSI_thread_key key_ss_thread_Ack_receiver_thread;
 
 static PSI_thread_info all_semisync_threads[]=
 {
-  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_GLOBAL}
+  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_INTERFACE */
 

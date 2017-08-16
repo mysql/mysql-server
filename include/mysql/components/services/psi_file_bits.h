@@ -115,9 +115,13 @@ struct PSI_file_info_v1
   const char *m_name;
   /**
     The flags of the file instrument to register.
-    @sa PSI_FLAG_GLOBAL
+    @sa PSI_FLAG_SINGLETON
   */
-  int m_flags;
+  uint m_flags;
+  /** Volatility index. */
+  int m_volatility;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_file_info_v1 PSI_file_info_v1;
 

@@ -33,6 +33,7 @@ Created June 2005 by Marko Makela
 #endif
 
 #include <sys/types.h>
+#include <zlib.h>
 
 #include "buf0buf.h"
 #include "buf0checksum.h"
@@ -47,7 +48,6 @@ Created June 2005 by Marko Makela
 #include "trx0types.h"
 #include "univ.i"
 #include "ut0crc32.h"
-#include "zlib.h"
 
 /* Compression level to be used by zlib. Settable by user. */
 extern uint	page_zip_level;

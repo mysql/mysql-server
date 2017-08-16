@@ -79,7 +79,7 @@ void init_scheduler_psi_keys()
 }
 
 PSI_statement_info Event_queue_element_for_exec::psi_info=
-{ 0, "event", 0};
+{ 0, "event", 0, PSI_DOCUMENT_ME};
 #endif
 
 
