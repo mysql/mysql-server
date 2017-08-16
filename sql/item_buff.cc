@@ -171,6 +171,10 @@ bool Cached_item_json::cmp()
   return true;
 }
 
+void Cached_item_json::copy_to_Item_cache(Item_cache *i_c)
+{
+  down_cast<Item_cache_json*>(i_c)->store_value(item, m_value);
+}
 
 bool Cached_item_real::cmp(void)
 {

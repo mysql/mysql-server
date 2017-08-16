@@ -10187,6 +10187,18 @@ bool Item_cache_json::cache_value()
   return value_cached;
 }
 
+void Item_cache_json::store_value(Item *expr, Json_wrapper *wr)
+{
+  value_cached= TRUE;
+  if ((null_value= expr->null_value))
+    m_value= nullptr;
+  else
+  {
+    *m_value = *wr;
+    // the row buffer might change, so need own copy
+    m_value->to_dom(current_thd);
+  }
+}
 
 /**
   Copy the cached JSON value into a wrapper.

@@ -5422,6 +5422,7 @@ public:
   explicit Cached_item_json(Item *item);
   ~Cached_item_json();
   bool cmp() override;
+  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 
@@ -6037,6 +6038,7 @@ public:
   Item_cache_json();
   ~Item_cache_json();
   bool cache_value() override;
+  void store_value(Item *expr, Json_wrapper *wr);
   bool val_json(Json_wrapper *wr) override;
   longlong val_int() override;
   String *val_str(String *str) override;

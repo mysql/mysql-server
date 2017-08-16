@@ -8331,6 +8331,21 @@ KEY `col_int_key` (`col_int_key`),
 KEY `col_date_key` (`col_date_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 INSERT INTO `B` VALUES (1,229,'a','2003-05-12 00:00:00','x','2002-07-16 00:00:00','p','satefqsdks','can\'t','0000-00-00','atefqsdksj','tefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvt','my',92,NULL),(2,159,'efqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnoz','0000-00-00 00:00:00','fqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxnd','2007-04-08 09:43:38','her','qsdksjijcs','sdksjijcsz','2006-03-26','VXECY','why','JNAFV',70,'0000-00-00'),(3,42,'dksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaij','2009-02-12 04:14:15','back','2000-07-26 07:47:30','r','go','ksjijcszxw','0000-00-00','s','o','sjijcszxwb',200,'0000-00-00'),(4,146,'jijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurs','0000-00-00 00:00:00','EXVCL','0000-00-00 00:00:00','DFVNQ','ijcszxwbjj','NMTOX','2004-12-17','p','jcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurspr','i',104,'2002-03-06'),(5,235,'i','0000-00-00 00:00:00','he\'s','2000-01-06 20:32:48','cszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyci','YGVHA','EFEOY','2000-01-18','szxwbjjvvk','oh','not',239,'2001-07-22');
+#
+# Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
+#
+SET @savmode=@@SESSION.SQL_MODE;
+SET SQL_MODE='';
+CREATE TABLE t(a JSON NOT NULL);
+INSERT INTO t VALUES();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+SELECT PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW) FROM t;
+PERCENT_RANK() OVER (ORDER BY a RANGE CURRENT ROW)
+0
+SET SESSION SQL_MODE=@savmode;
+DROP TABLE t;
+# End of test for Bug#26496733
 ALTER TABLE A ADD COLUMN col_varchar_10_latin1_gckey VARCHAR(20) GENERATED ALWAYS AS (CONCAT(col_varchar_10_latin1_key,'x')) VIRTUAL;
 ALTER TABLE B ADD COLUMN col_int_gckey INT GENERATED ALWAYS AS (col_int_key + col_int_key) VIRTUAL;
 ALTER TABLE B ADD COLUMN col_varchar_255_utf8_gckey TEXT GENERATED ALWAYS AS (CONCAT(col_varchar_255_utf8_key,'x')) VIRTUAL;

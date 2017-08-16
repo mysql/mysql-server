@@ -204,13 +204,11 @@ static Item_cache *make_result_item(Item *value)
       break;
     case STRING_RESULT:
       if (value->is_temporal())
-      {
         result= new Item_cache_datetime(value->data_type());
-      }
+      else if (value->data_type() == MYSQL_TYPE_JSON)
+        result= new Item_cache_json();
       else
-      {
         result= new Item_cache_str(value);
-      }
       break;
     default:
       DBUG_ASSERT(false);
