@@ -1712,6 +1712,10 @@ static void close_connections(void)
     set_kill_conn.set_dump_thread_flag();
     thd_manager->do_for_all_thd(&set_kill_conn);
   }
+
+  // Disable the event scheduler
+  Events::stop();
+
   if (thd_manager->get_thd_count() > 0)
     sleep(2);         // Give threads time to die
 
