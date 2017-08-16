@@ -452,11 +452,8 @@ sub main {
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
-
     $opt_parallel= $sys_info->num_cpus();
-    for my $limit (2000, 1500, 1000, 500){
-      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
-    }
+
     if(defined $ENV{MTR_MAX_PARALLEL}) {
       my $max_par= $ENV{MTR_MAX_PARALLEL};
       $opt_parallel= $max_par if ($opt_parallel > $max_par);
@@ -1543,11 +1540,6 @@ sub command_line_setup {
     }
   }
 
-  if (IS_WINDOWS and $opt_mem) {
-    mtr_report("--mem not supported on Windows, ignored");
-    $opt_mem= undef;
-  }
-
   if ($opt_port_base ne "auto")
   {
     if (my $rem= $opt_port_base % 10)
@@ -1558,30 +1550,56 @@ sub command_line_setup {
     $opt_build_thread= $opt_port_base / 10 - 1000;
   }
 
-  # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
-  # --------------------------------------------------------------------------
   if ($opt_mem)
   {
     mtr_error("Can't use --mem and --vardir at the same time ")
       if $opt_vardir;
+
     mtr_error("Can't use --mem and --tmpdir at the same time ")
       if $opt_tmpdir;
 
-    # Search through list of locations that are known
-    # to be "fast disks" to find a suitable location
-    my @tmpfs_locations= ("/dev/shm", "/run/shm", "/tmp");
-
-    # Value set for env variable MTR_MEM=[DIR] is looked as first location.
-    unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
-
-    foreach my $fs (@tmpfs_locations)
+    # Disable '--mem' option on Windows
+    if (IS_WINDOWS)
     {
-      if (-d $fs and ! -l $fs)
+      mtr_report("Turning off '--mem' option since it is not supported ".
+                 "on Windows.");
+      $opt_mem= undef;
+    }
+    # Disable '--mem' option on MacOS
+    elsif (IS_MAC)
+    {
+      mtr_report("Turning off '--mem' option since it is not supported ".
+                 "on MacOS.");
+      $opt_mem= undef;
+    }
+    else
+    {
+      # Search through the list of locations that are known
+      # to be "fast disks" to find a suitable location.
+      my @tmpfs_locations= ("/dev/shm", "/run/shm", "/tmp");
+
+      # Value set for env variable MTR_MEM=[DIR] is looked as first location.
+      unshift(@tmpfs_locations, $ENV{'MTR_MEM'}) if defined $ENV{'MTR_MEM'};
+
+      foreach my $fs (@tmpfs_locations)
       {
-	my $template= "var_${opt_build_thread}_XXXX";
-	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
-	last;
+        if (-d $fs and ! -l $fs)
+        {
+          my $template= "var_${opt_build_thread}_XXXX";
+          $opt_mem= tempdir($template, DIR => $fs, CLEANUP => 0);
+          last;
+        }
+      }
+
+      # Check if opt_mem is set to any of the built-in list of tmpfs
+      # locations (/dev/shm, /run/shm, /tmp).
+      if ($opt_mem eq 1)
+      {
+        mtr_report("Couldn't find any of the built-in list of tmpfs ".
+                   "locations(/dev/shm, /run/shm, /tmp), turning off ".
+                   "'--mem' option.");
+        $opt_mem= undef;
       }
     }
   }

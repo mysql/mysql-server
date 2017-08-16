@@ -99,13 +99,13 @@ ALTER USER IF EXISTS u6 IDENTIFIED WITH  'sha256_password',
 u_failed1, r6, r7, u9 WITH MAX_USER_CONNECTIONS 7;
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# $server_log has to be processed by include/search_pattern_in_file.inc which
+# $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
 let SEARCH_FILE= $server_log;
 --echo # Search warnings in the server log
 --let SEARCH_PATTERN= Following users were specified in CREATE USER
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo # DROP USER IF EXISTS statement test
 DROP USER IF EXISTS u7, u8, u_failed;

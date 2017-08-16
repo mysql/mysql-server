@@ -35,11 +35,11 @@ let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-console 
 
 --echo # Matching the server logs for corrupted redo logs
 let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: Hex dump starting .* bytes before and ending .* bytes after the corrupted record;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --remove_file $SEARCH_FILE
 --force-rmdir $newdir

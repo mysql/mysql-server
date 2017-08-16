@@ -262,7 +262,6 @@ public:
     const NdbRecord* m_rec;
     const NdbRecord* m_keyrec;
     uint m_rowsize;
-    const CHARSET_INFO* m_cs;
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;

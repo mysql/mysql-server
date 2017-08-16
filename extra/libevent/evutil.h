@@ -177,6 +177,7 @@ ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 #ifdef HAVE_GETTIMEOFDAY
 #define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
 #else
+struct timezone;
 int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
 

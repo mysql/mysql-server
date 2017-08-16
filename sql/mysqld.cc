@@ -691,6 +691,8 @@ static PSI_mutex_key key_LOCK_uuid_generator;
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
 static PSI_mutex_key key_LOCK_mandatory_roles;
+static PSI_mutex_key key_LOCK_password_history;
+static PSI_mutex_key key_LOCK_password_reuse_interval;
 static PSI_mutex_key key_LOCK_sql_rand;
 static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
@@ -794,7 +796,6 @@ bool opt_using_transactions;
 ulong opt_tc_log_size;
 std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state= SERVER_BOOTING;
-ulong log_warnings;
 char *opt_log_error_filter_rules;
 char *opt_log_error_services;
 bool  opt_log_syslog_enable;
@@ -864,6 +865,8 @@ uint default_password_lifetime= 0;
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
+mysql_mutex_t LOCK_password_history;
+mysql_mutex_t LOCK_password_reuse_interval;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint    opt_debug_sync_timeout= 0;
@@ -2089,6 +2092,8 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_server_started);
   mysql_mutex_destroy(&LOCK_reset_gtid_table);
   mysql_mutex_destroy(&LOCK_compress_gtid_table);
+  mysql_mutex_destroy(&LOCK_password_history);
+  mysql_mutex_destroy(&LOCK_password_reuse_interval);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3438,8 +3443,6 @@ int init_common_variables()
   }
   set_server_version();
 
-  log_warnings= log_error_verbosity - 1; // backward compatibility
-
   LogErr(INFORMATION_LEVEL, ER_STARTING_AS,
          my_progname, server_version, (ulong) getpid());
 
@@ -3794,6 +3797,10 @@ static int init_thread_environment()
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_mandatory_roles,
                    &LOCK_mandatory_roles, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_password_history,
+                   &LOCK_password_history, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_password_reuse_interval,
+                   &LOCK_password_reuse_interval, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_cond_init(key_COND_manager, &COND_manager);
@@ -8151,16 +8158,6 @@ mysqld_get_one_option(int optid,
   case 'V':
     print_server_version();
     exit(MYSQLD_SUCCESS_EXIT);
-  case 'W':
-    push_deprecated_warn(NULL, "--log_warnings/-W", "'--log_error_verbosity'");
-    if (!argument)
-      log_error_verbosity++;
-    else if (argument == disabled_my_option)
-     log_error_verbosity= 1L;
-    else
-      log_error_verbosity= 1 + atoi(argument);
-    log_error_verbosity= min(3UL, log_error_verbosity);
-    break;
   case 'T':
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;
@@ -9515,7 +9512,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0},
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL, 0},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_GLOBAL, 0}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_logger;

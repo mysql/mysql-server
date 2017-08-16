@@ -381,6 +381,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --verbose=1
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t7.csv'
 into table t7ver
+character set binary
 lines terminated by '\r\n';
 --enable_query_log
 
@@ -470,6 +471,7 @@ create table t8ver like t8;
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t8.csv'
 into table t8ver
+character set binary
 lines terminated by '\n';
 --enable_query_log
 

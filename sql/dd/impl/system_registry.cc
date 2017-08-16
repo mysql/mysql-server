@@ -25,7 +25,7 @@
 #include "dd/impl/system_views/innodb_foreign.h"     // Innodb_foreign
 #include "dd/impl/system_views/innodb_foreign_cols.h"// Innodb_foreign_cols
 #include "dd/impl/system_views/innodb_fields.h"      // Innodb_fields
-#include "dd/impl/system_views/innodb_tablespace_brief.h"   // Innodb_tablespace_brief
+#include "dd/impl/system_views/innodb_tablespaces_brief.h"   // Innodb_tablespace_brief
 #include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
 #include "dd/impl/system_views/parameters.h"         // Parameters
 #include "dd/impl/system_views/routines.h"           // Routines
@@ -173,7 +173,7 @@ void System_views::init()
   register_view<dd::system_views::Innodb_foreign>(is);
   register_view<dd::system_views::Innodb_foreign_cols>(is);
   register_view<dd::system_views::Innodb_fields>(is);
-  register_view<dd::system_views::Innodb_tablespace_brief>(is);
+  register_view<dd::system_views::Innodb_tablespaces_brief>(is);
   register_view<dd::system_views::Key_column_usage>(is);
   register_view<dd::system_views::Parameters>(is);
   register_view<dd::system_views::Routines>(is);

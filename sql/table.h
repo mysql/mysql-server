@@ -62,6 +62,7 @@
 #include "thr_lock.h"
 #include "thr_malloc.h"
 #include "typelib.h"
+#include <auth/auth_common.h>
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -2172,6 +2173,12 @@ typedef struct st_lex_alter {
   uint16 expire_after_days;
   bool update_account_locked_column;
   bool account_locked;
+  uint32 password_history_length;
+  bool use_default_password_history;
+  bool update_password_history;
+  uint32 password_reuse_interval;
+  bool use_default_password_reuse_interval;
+  bool update_password_reuse_interval;
 
   void cleanup()
   {
@@ -2181,7 +2188,14 @@ typedef struct st_lex_alter {
     expire_after_days= 0;
     update_account_locked_column= false;
     account_locked= false;
+    use_default_password_history= true;
+    update_password_history= false;
+    use_default_password_reuse_interval= true;
+    update_password_reuse_interval= false;
+    password_history_length= 0;
+    password_reuse_interval= 0;
   }
+
 } LEX_ALTER;
 
 typedef struct	st_lex_user {

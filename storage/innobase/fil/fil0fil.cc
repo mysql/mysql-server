@@ -4471,10 +4471,10 @@ Fil_path::make(
 	std::string	path(path_in);
 
 	/* If the name is a relative path like './', do not prepend "./". */
-	if (!Fil_path::is_absolute_path(path.c_str())
-	    && !name.empty()
-	    && *name.begin() == '.'
-	    && is_separator(*(name.begin() + 1))) {
+	if (!is_absolute_path(name.c_str())
+	    && name.length() >= 2
+	    && name.at(0) == '.'
+	    && (name.at(1) == '.' || is_separator(name.at(1)))) {
 
 		path.clear();
 	}
@@ -4531,7 +4531,7 @@ Fil_path::make(
 
 	normalize(filepath);
 
-	return(static_cast<char*>(mem_strdup(filepath.c_str())));
+	return(mem_strdup(filepath.c_str()));
 }
 
 /** Write redo log for renaming a file.
@@ -5217,7 +5217,7 @@ The fil_node_t::handle will not be left open.
 				If file-per-table, it is the table name in
 				the databasename/tablename format
 @param[in]	path_in		expected filepath, usually read from dictionary
-@param[in	strict		whether to report error when open ibd failed
+@param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -9824,8 +9824,6 @@ Fil_system::prepare_open_for_business(bool read_only_mode)
 	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* The transaction should not be active yet, start it */
-
-	ut_ad(!trx_is_started(trx));
 
 	trx->isolation_level = trx_t::READ_UNCOMMITTED;
 

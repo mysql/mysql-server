@@ -148,6 +148,28 @@ public:
    to rename the user or not.
   */
   bool is_role;
+
+  /**
+    The number of old passwords to check when setting a new password
+  */
+  uint32 password_history_length;
+
+  /**
+    Ignore @ref password_history_length,
+    use the global default @ref global_password_history
+  */
+  bool use_default_password_history;
+
+  /**
+    The number of days that would have to pass before a password can be reused.
+  */
+  uint32 password_reuse_interval;
+  /**
+    Ignore @ref password_reuse_interval,
+    use the global default @ref global_password_reuse_interval
+  */
+  bool use_default_password_reuse_interval;
+
   ACL_USER *copy(MEM_ROOT *root);
 };
 

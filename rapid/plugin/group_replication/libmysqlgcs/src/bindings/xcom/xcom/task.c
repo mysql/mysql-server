@@ -137,7 +137,7 @@ static void task_queue_init(task_queue *q) { q->curn = 0; }
 static void task_queue_debug(task_queue *q) {
   int i;
   GET_GOUT;
-    if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+    if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
       return;
   STRLIT("task_queue_debug ");
   for (i = 1; i <= q->curn; i++) {
@@ -581,7 +581,7 @@ static void iotasks_init(iotasks *iot) {
 static void poll_debug() MY_ATTRIBUTE((unused));
 static void poll_debug() {
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
 #if 0
 	NDBG(FD_SETSIZE, d);
@@ -1183,7 +1183,7 @@ static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
 static void print_sockaddr(struct sockaddr *a) {
   u_int i;
   GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(X_XCOM_DEBUG_TRACE))
+  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
     return;
   NDBG(a->sa_family, u);
   NDBG(a->sa_family, d);

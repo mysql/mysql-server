@@ -1710,7 +1710,7 @@ update_hidden:
     hash_key->user_defined_key_parts= 1;
     hash_key->set_rec_per_key_array(NULL, NULL);
     hash_key->algorithm= table->file->get_default_index_algorithm();
-    keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
+    hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     if (distinct)
       hash_key->name= (char*) "<hash_distinct_key>";
     else

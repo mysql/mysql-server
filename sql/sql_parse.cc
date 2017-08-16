@@ -2818,6 +2818,10 @@ mysql_execute_command(THD *thd, bool first_level)
     thd->query_plan.set_query_plan(lex->sql_command, lex,
                                    !thd->stmt_arena->is_conventional());
 
+  /* Update system variables specified in SET_VAR hints. */
+  if (lex->opt_hints_global && lex->opt_hints_global->sys_var_hint)
+    lex->opt_hints_global->sys_var_hint->update_vars(thd);
+
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_STATUS:
@@ -4580,6 +4584,10 @@ error:
   res= TRUE;
 
 finish:
+  /* Restore system variables which were changed by SET_VAR hint. */
+  if (lex->opt_hints_global && lex->opt_hints_global->sys_var_hint)
+    lex->opt_hints_global->sys_var_hint->restore_vars(thd);
+
   THD_STAGE_INFO(thd, stage_query_end);
 
   // Cleanup EXPLAIN info

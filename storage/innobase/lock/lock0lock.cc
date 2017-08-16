@@ -1555,6 +1555,7 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
+	ut_ad(!lock->trx->is_recovered);
 
 	bool	wait = m_mode & LOCK_WAIT;
 

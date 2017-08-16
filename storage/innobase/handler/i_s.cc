@@ -5987,17 +5987,18 @@ static ST_FIELD_INFO	innodb_tables_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/**********************************************************************//**
-Populate information_schema.innodb_tables table with information
+/** Populate information_schema.innodb_tables table with information
 from INNODB_TABLES.
+@param[in]	thd		thread
+@param[in]	table		table obj
+@param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
 i_s_dict_fill_innodb_tables(
-/*=====================*/
-	THD*		thd,		/*!< in: thread */
-	dict_table_t*	table,		/*!< in: table */
-	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+	THD*		thd,
+	dict_table_t*	table,
+	TABLE*		table_to_fill)
 {
 	Field**			fields;
 	ulint			compact = DICT_TF_GET_COMPACT(table->flags);
@@ -6052,17 +6053,17 @@ i_s_dict_fill_innodb_tables(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Function to go through each record in INNODB_TABLES table, and fill the
+/** Function to go through each record in INNODB_TABLES table, and fill the
 information_schema.innodb_tables table with related table information
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
 @return 0 on success */
 static
 int
 i_s_innodb_tables_fill_table(
-/*======================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (not used) */
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -6156,14 +6157,13 @@ i_s_innodb_tables_fill_table(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_tables
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_tables
+@param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
 innodb_tables_init(
-/*===================*/
-	void*	p)	/*!< in/out: table schema object */
+	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
@@ -6389,18 +6389,18 @@ i_s_dict_fill_innodb_tablestats(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Function to go through each record in INNODB_TABLES table, and fill the
+/** Function to go through each record in INNODB_TABLES table, and fill the
 information_schema.innodb_tablestats table with table statistics
 related information
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
 @return 0 on success */
 static
 int
 i_s_innodb_tables_fill_table_stats(
-/*============================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (not used) */
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -6473,14 +6473,13 @@ i_s_innodb_tables_fill_table_stats(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_tablestats
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_tablestats
+@param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
 innodb_tablestats_init(
-/*=======================*/
-	void*	p)	/*!< in/out: table schema object */
+	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
@@ -6630,18 +6629,18 @@ static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/**********************************************************************//**
-Function to populate the information_schema.innodb_indexes table with
+/** Function to populate the information_schema.innodb_indexes table with
 collected index information
+@param[in]	thd		thread
+@param[in]	index		dict_index_t obj
+@param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
 i_s_dict_fill_innodb_indexes(
-/*======================*/
-	THD*			thd,		/*!< in: thread */
-	const dict_index_t*	index,		/*!< in: populated dict_index_t
-						struct with index info */
-	TABLE*			table_to_fill)	/*!< in/out: fill this table */
+	THD*			thd,
+	const dict_index_t*	index,
+	TABLE*			table_to_fill)
 {
 	Field**		fields;
 
@@ -6675,17 +6674,17 @@ i_s_dict_fill_innodb_indexes(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Function to go through each record in INNODB_INDEXES table, and fill the
+/** Function to go through each record in INNODB_INDEXES table, and fill the
 information_schema.innodb_indexes table with related index information
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
 @return 0 on success */
 static
 int
 i_s_innodb_indexes_fill_table(
-/*=======================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (not used) */
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -6753,14 +6752,14 @@ i_s_innodb_indexes_fill_table(
 
 	DBUG_RETURN(0);
 }
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_indexes
+
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_indexes
+@param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
 innodb_indexes_init(
-/*====================*/
-	void*	p)	/*!< in/out: table schema object */
+	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
@@ -6892,22 +6891,24 @@ static ST_FIELD_INFO	innodb_columns_fields_info[] =
 	END_OF_ST_FIELD_INFO
 };
 
-/**********************************************************************//**
-Function to populate the information_schema.innodb_columns with
+/** Function to populate the information_schema.innodb_columns with
 related column information
+@param[in]	thd		thread
+@param[in]	table_id	table id
+@param[in]	col_name	column name
+@param[in]	column		dict_col_t obj
+@param[in]	nth_v_col	virtual column, its sequence number
+@param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
 i_s_dict_fill_innodb_columns(
-/*======================*/
-	THD*		thd,		/*!< in: thread */
-	table_id_t	table_id,	/*!< in: table ID */
-	const char*	col_name,	/*!< in: column name */
-	dict_col_t*	column,		/*!< in: dict_col_t struct holding
-					more column information */
-	ulint		nth_v_col,	/*!< in: virtual column, its
-					sequence number (nth virtual col) */
-	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+	THD*		thd,
+	table_id_t	table_id,
+	const char*	col_name,
+	dict_col_t*	column,
+	ulint		nth_v_col,
+	TABLE*		table_to_fill)
 {
 	Field**		fields;
 
@@ -6937,17 +6938,17 @@ i_s_dict_fill_innodb_columns(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Function to fill information_schema.innodb_columns with information
+/** Function to fill information_schema.innodb_columns with information
 collected by scanning INNODB_COLUMNS table.
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
 @return 0 on success */
 static
 int
 i_s_innodb_columns_fill_table(
-/*=======================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (not used) */
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -7007,14 +7008,13 @@ i_s_innodb_columns_fill_table(
 
 	DBUG_RETURN(0);
 }
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.innodb_columns
+/** Bind the dynamic table INFORMATION_SCHEMA.innodb_columns
+@param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
 innodb_columns_init(
-/*====================*/
-	void*	p)	/*!< in/out: table schema object */
+	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
@@ -7403,19 +7403,22 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 
 };
 
-/**********************************************************************//**
-Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
+/** Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
 collected by scanning INNODB_TABLESPACESS table.
+@param[in]	thd		thread
+@param[in]	space		space ID
+@param[in]	name		tablespace name
+@param[in]	flags		tablespace flags
+@param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
 int
 i_s_dict_fill_innodb_tablespaces(
-/*==========================*/
-	THD*		thd,		/*!< in: thread */
-	space_id_t	space,		/*!< in: space ID */
-	const char*	name,		/*!< in: tablespace name */
-	ulint		flags,		/*!< in: tablespace flags */
-	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+	THD*		thd,
+	space_id_t	space,
+	const char*	name,
+	ulint		flags,
+	TABLE*		table_to_fill)
 {
 
 	Field**		fields;
@@ -7538,18 +7541,18 @@ i_s_dict_fill_innodb_tablespaces(
 	DBUG_RETURN(0);
 }
 
-/*******************************************************************//**
-Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES table.
+/** Function to populate INFORMATION_SCHEMA.INNODB_TABLESPACES table.
 Loop through each record in INNODB_TABLESPACES, and extract the column
 information and fill the INFORMATION_SCHEMA.INNODB_TABLESPACES table.
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
 @return 0 on success */
 static
 int
 i_s_innodb_tablespaces_fill_table(
-/*===========================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (not used) */
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		)
 {
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -7605,14 +7608,13 @@ i_s_innodb_tablespaces_fill_table(
 
 	DBUG_RETURN(0);
 }
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_TABLESPACES
+@param[in,out]	p	table schema object
 @return 0 on success */
 static
 int
 innodb_tablespaces_init(
-/*========================*/
-	void*	p)	/*!< in/out: table schema object */
+	void*	p)
 {
 	ST_SCHEMA_TABLE*	schema;
 
@@ -7962,7 +7964,7 @@ static
 int
 i_s_fill_innodb_cached_indexes_row(
 	THD*		thd,
-	ulint		space_id,
+	space_id_t	space_id,
 	ulint		index_id,
 	TABLE*		table_to_fill)
 {
@@ -8002,8 +8004,8 @@ i_s_innodb_cached_indexes_fill_table(
 {
 	MDL_ticket*		mdl = nullptr;
 	dict_table_t*		dd_indexes;
-	uint32			space_id;
-	uint32			index_id;
+	space_id_t		space_id;
+	space_index_t		index_id;
 
 	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
 

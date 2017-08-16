@@ -726,8 +726,11 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
         report_level= ERROR_LEVEL;
         thd->is_slave_error= 1;
       }
-      /* In case of ignored errors report warnings only if log_warnings > 1. */
-      else if (log_warnings > 1)
+      /*
+        In case of ignored errors report warnings only if
+        log_error_verbosity > 2.
+      */
+      else if (log_error_verbosity > 2)
         report_level= WARNING_LEVEL;
 
       if (field->has_charset() &&
@@ -905,8 +908,11 @@ err:
       report_level= ERROR_LEVEL;
       thd->is_slave_error= 1;
     }
-    /* In case of ignored errors report warnings only if log_warnings > 1. */
-    else if (log_warnings > 1)
+    /*
+      In case of ignored errors report warnings only if
+      log_error_verbosity > 2.
+    */
+    else if (log_error_verbosity > 2)
       report_level= WARNING_LEVEL;
 
     if (report_level != INFORMATION_LEVEL)

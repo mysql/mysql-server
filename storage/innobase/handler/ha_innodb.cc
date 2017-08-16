@@ -3942,16 +3942,29 @@ innobase_dict_recover(
 
 		srv_dict_recover_on_restart();
 
-		err = fil_open_for_business(srv_read_only_mode);
-
-		if (err != DB_SUCCESS) {
-			return(true);
-		}
 	}
+
+	trx_rollback_or_clean_is_active = true;
 
 	srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
 
-	return(false);
+	/* We have to wait for rollback of any DD transactions. */
+
+	auto	start_time = ut_time();
+
+	while (trx_rollback_or_clean_is_active) {
+
+		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+
+			ib::info() << "Waiting for rollback of transactions";
+
+			start_time = ut_time();
+		}
+
+		os_thread_sleep(10000000);
+	}
+
+	return(fil_open_for_business(srv_read_only_mode) != DB_SUCCESS);
 }
 
 /** DDL crash recovery: process the records recovered from "log_ddl" table */
@@ -4031,7 +4044,8 @@ static bool innobase_is_supported_system_table(
 		"user",
 		"role_edges",
 		"default_roles",
-		"global_grants"};
+		"global_grants",
+                "password_history"};
 
 	static const char*const*const end = tables + UT_ARR_SIZE(tables);
 

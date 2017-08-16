@@ -182,7 +182,7 @@ explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	btn	btn	44	const,const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where ((`test`.`t1`.`btn` = 'a') and (`test`.`t1`.`new_col` = 'a'))
+Note	1003	/* select#1 */ select `test`.`t1`.`btn` AS `btn`,`test`.`t1`.`new_col` AS `new_col` from `test`.`t1` where ((`test`.`t1`.`new_col` = 'a') and (`test`.`t1`.`btn` = 'a'))
 drop table t1;
 CREATE TABLE t1 (
 a int default NULL,

@@ -401,7 +401,7 @@ set timestamp=1, timestamp=default;
 set tmp_table_size=100;
 set transaction_isolation="READ-COMMITTED";
 set wait_timeout=100;
-set global log_warnings=1;
+set global log_error_verbosity=2;
 set sort_buffer_size=default;
 
 #restore the variable, since it introduces a degree of unpredictability
@@ -504,30 +504,6 @@ SELECT @@global.session.key_buffer_size;
 --error ER_PARSE_ERROR
 SELECT @@global.local.key_buffer_size;
 
-# BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
-set @tstlw = @@log_warnings;
-# To ignore MAX_JOIN_SIZE as the no. of rows returned by SELECT in global_variables 
-# exceed the set value of max_join_size=100.
-SET SQL_BIG_SELECTS=1;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = 0;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = 42;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
-set global log_warnings = @tstlw;
-show global variables like 'log_warnings';
---disable_warnings
-select * from performance_schema.global_variables where variable_name like 'log_warnings';
---enable_warnings
 
 #
 # BUG#4788 show create table provides incorrect statement
@@ -773,6 +749,7 @@ select @@version, @@version_comment, @@version_compile_machine,
 # Bug #1039: make tmpdir and datadir available as @@variables (also included
 # basedir)
 #
+SET SQL_BIG_SELECTS=1;
 # Don't actually output, since it depends on the system
 --replace_column 1 # 2 # 3 #
 select @@basedir, @@datadir, @@tmpdir;
@@ -807,6 +784,7 @@ show variables like 'ssl%';
 --replace_column 2 #
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 --enable_warnings
+SET SQL_BIG_SELECTS=0;
 
 #
 # Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES

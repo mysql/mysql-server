@@ -85,15 +85,15 @@
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
-    { C_STRING_WITH_LEN("Host") },            
+    { C_STRING_WITH_LEN("Host") },
     { C_STRING_WITH_LEN("char(60)") },
     {NULL, 0}
-  }, 
+  },
   {
-    { C_STRING_WITH_LEN("Db") },            
+    { C_STRING_WITH_LEN("Db") },
     { C_STRING_WITH_LEN("char(64)") },
     {NULL, 0}
-  }, 
+  },
   {
     { C_STRING_WITH_LEN("User") },
     { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
@@ -432,6 +432,16 @@ TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
     { C_STRING_WITH_LEN("Drop_role_priv") },
     { C_STRING_WITH_LEN("enum('N','Y')") },
     { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Password_reuse_history") },
+    { C_STRING_WITH_LEN("smallint(5)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("Password_reuse_time") },
+    { C_STRING_WITH_LEN("smallint(5)") },
+    { NULL, 0 }
   }
 };
 
@@ -656,37 +666,68 @@ TABLE_FIELD_TYPE mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUN
   }
 };
 
+static const
+TABLE_FIELD_TYPE mysql_password_history_table_fields[MYSQL_PASSWORD_HISTORY_FIELD_COUNT] ={
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("Password_timestamp") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("Password") },
+    { C_STRING_WITH_LEN("text") },
+    { NULL, 0 }
+  }
+};
 
-const TABLE_FIELD_DEF
-  mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
+static const TABLE_FIELD_TYPE mysql_dynamic_priv_table_fields[MYSQL_DYNAMIC_PRIV_FIELD_COUNT]=
+{
+  {
+    { C_STRING_WITH_LEN("USER") },
+    { C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("HOST") },
+    { C_STRING_WITH_LEN("char(60)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("PRIV") },
+    { C_STRING_WITH_LEN("char(32)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("WITH_GRANT_OPTION") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { NULL, 0 }
+  }
+};
 
-const TABLE_FIELD_DEF
-  mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
-const TABLE_FIELD_DEF
-  mysql_proxies_priv_table_def= {MYSQL_PROXIES_PRIV_FIELD_COUNT,
-                                 mysql_proxies_priv_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_procs_priv_table_def= {MYSQL_PROCS_PRIV_FIELD_COUNT,
-                               mysql_procs_priv_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_columns_priv_table_def= {MYSQL_COLUMNS_PRIV_FIELD_COUNT,
-                                 mysql_columns_priv_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
-                                mysql_tables_priv_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_role_edges_table_def= {MYSQL_ROLE_EDGES_FIELD_COUNT,
-                               mysql_role_edges_table_fields};
-
-const TABLE_FIELD_DEF
-  mysql_default_roles_table_def= {MYSQL_DEFAULT_ROLES_FIELD_COUNT,
-                                  mysql_default_roles_table_fields};
-
+/** keep in sync with @ref ACL_TABLES */
+const TABLE_FIELD_DEF Acl_table_intact::mysql_acl_table_defs[]= {
+  { MYSQL_USER_FIELD_COUNT, mysql_user_table_fields },
+  { MYSQL_DB_FIELD_COUNT, mysql_db_table_fields },
+  { MYSQL_TABLES_PRIV_FIELD_COUNT, mysql_tables_priv_table_fields },
+  { MYSQL_COLUMNS_PRIV_FIELD_COUNT, mysql_columns_priv_table_fields },
+  { MYSQL_PROCS_PRIV_FIELD_COUNT, mysql_procs_priv_table_fields },
+  { MYSQL_PROXIES_PRIV_FIELD_COUNT, mysql_proxies_priv_table_fields },
+  { MYSQL_ROLE_EDGES_FIELD_COUNT, mysql_role_edges_table_fields },
+  { MYSQL_DEFAULT_ROLES_FIELD_COUNT, mysql_default_roles_table_fields },
+  { MYSQL_DYNAMIC_PRIV_FIELD_COUNT, mysql_dynamic_priv_table_fields },
+  { MYSQL_PASSWORD_HISTORY_FIELD_COUNT, mysql_password_history_table_fields }
+};
 
 /**
   A helper function to commit statement transaction and close
@@ -1195,7 +1236,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
 
-  if (table_intact.check(thd, table, &mysql_user_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_USER))
     goto end;
 
   if (!table->key_info)
@@ -1342,7 +1383,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     /* GRANT will be used only to specify access rights for existing user */
     if ((thd->lex->sql_command == SQLCOM_GRANT) &&
-        (what_to_replace & ~(DEFAULT_AUTH_ATTR | ACCESS_RIGHTS_ATTR)))
+        (what_to_replace & ~(DEFAULT_AUTH_ATTR | ACCESS_RIGHTS_ATTR | DIFFERENT_PLUGIN_ATTR)))
     {
       push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
                      "Using GRANT statement to modify existing user's "
@@ -1509,6 +1550,48 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
   }
 
+  if (combo->alter_status.update_password_history)
+  {
+    /* ALTER USER .. PASSWORD HISTORY */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY)
+    {
+      Field *fld_history= table->field[MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY];
+      if (combo->alter_status.use_default_password_history)
+        fld_history->set_null();
+      else
+      {
+        fld_history->store(combo->alter_status.password_history_length);
+        fld_history->set_notnull();
+      }
+    }
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_reuse_history", "mysql.user");
+      DBUG_RETURN(-1);
+    }
+  }
+
+  if (combo->alter_status.update_password_reuse_interval)
+  {
+    /* ALTER USER .. PASSWORD REUSE INTERVAL */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_REUSE_TIME)
+    {
+      Field *fld= table->field[MYSQL_USER_FIELD_PASSWORD_REUSE_TIME];
+      if (combo->alter_status.use_default_password_reuse_interval)
+        fld->set_null();
+      else
+      {
+        fld->store(combo->alter_status.password_reuse_interval);
+        fld->set_notnull();
+      }
+    }
+    else
+    {
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_reuse_time", "mysql.user");
+      DBUG_RETURN(-1);
+    }
+  }
+
   if (what_to_replace & ACCOUNT_LOCK_ATTR)
   {
     if (!old_row_exists ||
@@ -1663,7 +1746,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     DBUG_RETURN(-1);
   }
 
-  if (table_intact.check(thd, table, &mysql_db_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_DB))
     DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
@@ -1825,7 +1908,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     DBUG_RETURN(-1);
   }
 
-  if (table_intact.check(thd, table, &mysql_proxies_priv_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV))
     DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
@@ -2003,7 +2086,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t,
   Acl_table_intact table_intact(thd);
   DBUG_ENTER("replace_column_table");
 
-  if (table_intact.check(thd, table, &mysql_columns_priv_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV))
     DBUG_RETURN(-1);
 
   if (!table->key_info)
@@ -2324,7 +2407,7 @@ int replace_table_table
   Acl_table_intact table_intact(thd);
   DBUG_ENTER("replace_table_table");
 
-  if (table_intact.check(thd, table, &mysql_tables_priv_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_TABLES_PRIV))
     DBUG_RETURN(-1);
 
   get_grantor(thd, grantor);
@@ -2515,7 +2598,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     DBUG_RETURN(-1);
   }
 
-  if (table_intact.check(thd, table, &mysql_procs_priv_table_def))
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROCS_PRIV))
     DBUG_RETURN(-1);
 
   get_grantor(thd, grantor);
@@ -2651,6 +2734,91 @@ table_error:
 
 
 /**
+  Prepare an array of all of the grant tables for opening
+
+  Prepare references to all of the grant tables in the order of the
+  @ref ACL_TABLES enum.
+
+  Set the tables to be one after another.
+
+  @param[in,out]  tables                Array of ACL_TABLES::LAST_ENTRY
+                                        table list elements
+                                        which will be used for opening tables.
+  @param          lock_type             Lock type to use
+  @param          mdl_type              MDL lock type to use
+*/
+void
+grant_tables_setup_for_open(TABLE_LIST *tables,
+                            thr_lock_type lock_type,
+                            enum_mdl_type mdl_type)
+{
+  /*
+    For a TABLE_LIST element that is inited with a lock type TL_WRITE
+    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
+
+  tables->init_one_table(C_STRING_WITH_LEN("mysql"),
+                         C_STRING_WITH_LEN("user"), "user",
+                         lock_type, mdl_type);
+
+  (tables + ACL_TABLES::TABLE_DB)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("db"), "db",
+                               lock_type, mdl_type);
+
+  (tables + ACL_TABLES::TABLE_TABLES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("tables_priv"),
+                               "tables_priv",
+                               lock_type, mdl_type);
+
+  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("columns_priv"),
+                               "columns_priv",
+                               lock_type, mdl_type);
+
+  (tables + ACL_TABLES::TABLE_PROCS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("procs_priv"),
+                               "procs_priv",
+                               lock_type, mdl_type);
+
+  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("proxies_priv"),
+                               "proxies_priv",
+                               lock_type, mdl_type);
+  (tables + ACL_TABLES::TABLE_ROLE_EDGES)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("role_edges"),
+                               "role_edges",
+                               lock_type, mdl_type);
+  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("default_roles"),
+                               "default_roles",
+                               lock_type, mdl_type);
+  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("global_grants"),
+                               "global_grants",
+                               lock_type, mdl_type);
+  (tables + ACL_TABLES::TABLE_PASSWORD_HISTORY)->init_one_table(C_STRING_WITH_LEN("mysql"),
+                               C_STRING_WITH_LEN("password_history"),
+                               "password_history",
+                               lock_type, mdl_type);
+  if (lock_type <= TL_READ_NO_INSERT)
+  {
+    /* tables new to 8.0 are optional when reading as mysql_upgrade must work */
+    tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+    tables[ACL_TABLES::TABLE_ROLE_EDGES].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+    tables[ACL_TABLES::TABLE_DEFAULT_ROLES].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+    tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  }
+
+  for (int idx= 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx)
+  {
+    (tables + idx)->next_local= (tables + idx)->next_global= tables + idx + 1;
+    (tables + idx)->open_type= OT_BASE_ONLY;
+  }
+}
+
+/**
   Open the grant tables.
 
   @param          thd                   The current thread.
@@ -2678,55 +2846,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
 
   *transactional_tables= false;
 
-  /*
-    For a TABLE_LIST element that is inited with a lock type TL_WRITE
-    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
-    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
-    from SE level.
-  */
-
-  tables->init_one_table(C_STRING_WITH_LEN("mysql"),
-                         C_STRING_WITH_LEN("user"), "user",
-                         TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  (tables + ACL_TABLES::TABLE_DB)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("db"), "db",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  (tables + ACL_TABLES::TABLE_TABLES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("tables_priv"),
-                               "tables_priv",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("columns_priv"),
-                               "columns_priv",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  (tables + ACL_TABLES::TABLE_PROCS_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("procs_priv"),
-                               "procs_priv",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("proxies_priv"),
-                               "proxies_priv",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-  (tables + ACL_TABLES::TABLE_ROLE_EDGES)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("role_edges"),
-                               "role_edges",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("default_roles"),
-                               "default_roles",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                               C_STRING_WITH_LEN("global_grants"),
-                               "global_grants",
-                               TL_WRITE, MDL_SHARED_NO_READ_WRITE);
-
-  for( int idx= 0; idx < ACL_TABLES::LAST_ENTRY - 1; ++idx)
-    (tables + idx)->next_local= (tables + idx)->next_global= tables + idx + 1;
+  grant_tables_setup_for_open(tables);
 
   /*
     GRANT and REVOKE are applied the slave in/exclusion rules as they are
@@ -2738,29 +2858,15 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
       The tables must be marked "updating" so that tables_ok() takes them into
       account in tests.
     */
-    tables[ACL_TABLES::TABLE_USER].updating=
-      tables[ACL_TABLES::TABLE_DB].updating=
-      tables[ACL_TABLES::TABLE_TABLES_PRIV].updating=
-      tables[ACL_TABLES::TABLE_COLUMNS_PRIV].updating=
-      tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
-      tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
-      tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
-      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating= 
-      tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].updating= 1;
-    
+    for (auto i= 0; i < ACL_TABLES::LAST_ENTRY; i++)
+      tables[i].updating= true;
+
     if (!(thd->sp_runtime_ctx ||
           thd->rli_slave->rpl_filter->tables_ok(0, tables)))
       DBUG_RETURN(1);
 
-    tables[ACL_TABLES::TABLE_USER].updating=
-      tables[ACL_TABLES::TABLE_DB].updating=
-      tables[ACL_TABLES::TABLE_TABLES_PRIV].updating=
-      tables[ACL_TABLES::TABLE_COLUMNS_PRIV].updating=
-      tables[ACL_TABLES::TABLE_PROCS_PRIV].updating=
-      tables[ACL_TABLES::TABLE_PROXIES_PRIV].updating=
-      tables[ACL_TABLES::TABLE_ROLE_EDGES].updating=
-      tables[ACL_TABLES::TABLE_DEFAULT_ROLES].updating=
-      tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].updating= 0;
+    for (auto i=0; i < ACL_TABLES::LAST_ENTRY; i++)
+      tables[i].updating= false;
   }
 
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))

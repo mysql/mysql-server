@@ -1566,7 +1566,7 @@ row_ins_check_foreign_constraint(
 
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
-	if (table->id <= INNODB_DD_TABLE_ID_MAX) {
+	if (table->id <= dict_sys_t::INNODB_DD_TABLE_ID_MAX) {
 		DBUG_RETURN(DB_SUCCESS);
 	}
 
@@ -1955,7 +1955,7 @@ row_ins_check_foreign_constraints(
 	trx_t*		trx;
 
 	/* Temporarily skip the FK check for DD tables */
-	if (table->id < INNODB_DD_TABLE_ID_MAX) {
+	if (table->id < dict_sys_t::INNODB_DD_TABLE_ID_MAX) {
 		return(DB_SUCCESS);
 	}
 

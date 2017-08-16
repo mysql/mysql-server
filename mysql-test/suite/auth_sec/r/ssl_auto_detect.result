@@ -7,7 +7,9 @@ call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # They should be picked up automatically by server.
 # Restart completed.
 # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+Pattern "Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them." found
 # Search for : CA certificate is self signed.;
+Pattern "CA certificate .* is self signed." found
 # Try to establish SSL connection : This must succeed.
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
@@ -43,7 +45,9 @@ have_ssl	DISABLED
 #
 # Restart completed.
 # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+Pattern "Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them." found
 # Search for : CA certificate is self signed.;
+Pattern "CA certificate .* is self signed." found
 # Try creating SSL connection
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER

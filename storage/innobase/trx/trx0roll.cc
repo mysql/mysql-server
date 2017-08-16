@@ -819,11 +819,11 @@ void
 trx_recovery_rollback_thread()
 {
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(false, true, true,
-				 trx_recovery_rollback_thread_key.m_value);
+	THD*	thd = create_thd(
+		false, true, true, trx_recovery_rollback_thread_key.m_value);
 #else
 	THD*	thd = create_thd(false, true, true, 0);
-#endif
+#endif /* UNIV_PFS_THREAD */
 
 	my_thread_init();
 

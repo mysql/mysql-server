@@ -225,7 +225,7 @@ INSERT INTO t1 VALUES (1);
 # Check that error present in error log
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
 --let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Check that transaction is not committed
 --let $assert_cond= COUNT(*) = 0 FROM t1;
@@ -262,7 +262,7 @@ INSERT INTO t1 VALUES (2);
 # Check that error present in error log
 --let SEARCH_FILE = $MYSQLTEST_VARDIR/tmp/binlog_error_action.err
 --let SEARCH_PATTERN = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Cleanup
 DROP TABLE t1;

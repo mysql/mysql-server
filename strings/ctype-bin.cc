@@ -527,6 +527,7 @@ skip:
 MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 {
   my_coll_init_8bit_bin,
+  nullptr,
   my_strnncoll_8bit_bin,
   my_strnncollsp_8bit_bin,
   my_strnxfrm_8bit_bin_pad_space,
@@ -542,7 +543,8 @@ MY_COLLATION_HANDLER my_collation_8bit_bin_handler =
 
 static MY_COLLATION_HANDLER my_collation_binary_handler =
 {
-  NULL,			/* init */
+  nullptr,			/* init */
+  nullptr,
   my_strnncoll_binary,
   my_strnncollsp_binary,
   my_strnxfrm_8bit_bin_no_pad,

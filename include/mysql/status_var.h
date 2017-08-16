@@ -26,14 +26,23 @@ enum enum_mysql_show_type
   SHOW_LONG,       ///< shown as _unsigned_ long
   SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
   SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
-#ifdef MYSQL_SERVER
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
   /*
     This include defines server-only values of the enum.
     Using them in plugins is not supported.
   */
-  #include "sql_plugin_enum.h"
-#endif
+  SHOW_KEY_CACHE_LONG,
+  SHOW_KEY_CACHE_LONGLONG,
+  SHOW_LONG_STATUS,
+  SHOW_DOUBLE_STATUS,
+  SHOW_HAVE,
+  SHOW_MY_BOOL,
+  SHOW_HA_ROWS,
+  SHOW_SYS,
+  SHOW_LONG_NOFLUSH,
+  SHOW_LONGLONG_STATUS,
+  SHOW_LEX_STRING,
+  SHOW_SIGNED_LONG
 };
 
 /**
@@ -43,13 +52,10 @@ enum enum_mysql_show_type
 enum enum_mysql_show_scope
 {
   SHOW_SCOPE_UNDEF,
-  SHOW_SCOPE_GLOBAL
-#ifdef MYSQL_SERVER
+  SHOW_SCOPE_GLOBAL,
   /* Server-only values. Not supported in plugins. */
-  ,
   SHOW_SCOPE_SESSION,
   SHOW_SCOPE_ALL
-#endif
 };
 
 /**

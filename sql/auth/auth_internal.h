@@ -174,6 +174,10 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                           const char *db, const char *routine_name,
                           bool is_proc, ulong rights, bool revoke_grant);
 int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
+void grant_tables_setup_for_open(TABLE_LIST *tables,
+                                 thr_lock_type lock_type= TL_WRITE,
+                                 enum_mdl_type mdl_type= MDL_SHARED_NO_READ_WRITE);
+
 int replace_roles_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                              const LEX_USER *role,
                              bool with_grant_arg,
@@ -332,7 +336,9 @@ bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
                                       bool is_privileged_user,
-                                      bool is_role);
+                                      bool is_role,
+                                      TABLE_LIST *history_table,
+                                      bool *history_check_done);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<const Role_id, Grant_privilege,
                                 role_id_hash >

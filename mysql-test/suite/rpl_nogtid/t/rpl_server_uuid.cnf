@@ -6,7 +6,7 @@
 # instances when MTR runs rpl tests with parallel 4 or more.
 
 [mysqld.1]
-log-warnings=2
+log-error-verbosity=3
 
 [mysqld.2]
 

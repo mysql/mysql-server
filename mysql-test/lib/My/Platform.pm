@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,35 +21,57 @@ use File::Basename;
 use File::Path;
 
 use base qw(Exporter);
-our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
+our @EXPORT= qw(IS_CYGWIN IS_MAC IS_WINDOWS IS_WIN32PERL
 		native_path posix_path mixed_path
                 check_socket_path_length process_alive);
 
-BEGIN {
-  if ($^O eq "cygwin") {
+BEGIN
+{
+  if ($^O eq "cygwin")
+  {
     # Make sure cygpath works
-    if ((system("cygpath > /dev/null 2>&1") >> 8) != 1){
+    if ((system("cygpath > /dev/null 2>&1") >> 8) != 1)
+    {
       die "Could not execute 'cygpath': $!";
     }
     eval 'sub IS_CYGWIN { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_CYGWIN { 0 }';
   }
-  if ($^O eq "MSWin32") {
+
+  if ($^O eq "MSWin32")
+  {
     eval 'sub IS_WIN32PERL { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_WIN32PERL { 0 }';
   }
 }
 
-BEGIN {
-  if (IS_CYGWIN or IS_WIN32PERL) {
+BEGIN
+{
+  if (IS_CYGWIN or IS_WIN32PERL)
+  {
     eval 'sub IS_WINDOWS { 1 }';
   }
-  else {
+  else
+  {
     eval 'sub IS_WINDOWS { 0 }';
+  }
+}
+
+BEGIN
+{
+  if ($^O eq "darwin")
+  {
+    eval 'sub IS_MAC { 1 }';
+  }
+  else
+  {
+    eval 'sub IS_MAC { 0 }';
   }
 }
 

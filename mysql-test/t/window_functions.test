@@ -1633,6 +1633,18 @@ SELECT * FROM t HAVING 1 = rank() OVER (ORDER BY a);
 --error ER_WINDOW_INVALID_WINDOW_FUNC_USE
 SELECT 1 FROM t HAVING 1=(SELECT 1 FROM (SELECT 1) foo) AND COUNT(a) OVER ();
 
+--echo #
+--echo # Bug#26502118: WINDOW FUNCTIONS: CRASH AND LARGE MEMORY ALLOCATION,
+--echo #               FIRST_VALUE, BLOBS
+--echo #
+--echo # This was really missing error detection
+--echo #
+CREATE TABLE tb(a LONGBLOB NOT NULL);
+INSERT INTO tb VALUES ('1'), ('2'), ('3'), ('4'), ('5');
+--error ER_WINDOW_INVALID_WINDOW_FUNC_USE
+SELECT (SELECT 1 FROM tb WHERE (SELECT 1 FROM tb WHERE FIRST_VALUE(a) OVER()));
+DROP TABLE tb;
+
 --echo Windows should only be allowed in order by of a simple table query
 --error ER_AGGREGATE_ORDER_FOR_UNION
 (select a from t) union (select a from t) order by (row_number() over ());

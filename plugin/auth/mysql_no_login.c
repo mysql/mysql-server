@@ -71,7 +71,8 @@ static struct st_mysql_auth mysql_no_login_handler=
   generate_auth_string_hash,
   validate_auth_string_hash,
   set_salt,
-  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE,
+  NULL
 };
 
 mysql_declare_plugin(mysql_no_login)

@@ -7288,12 +7288,6 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
       if (c_ongoing_take_over_cnt == 0)
       {
         jam();
-        g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
-                            "on last transaction completion.",
-                            instance(),
-                            Uint32(localGcpPtr.p->gcpId >> 32),
-                            Uint32(localGcpPtr.p->gcpId));
-        
         gcpTcfinished(signal, localGcpPtr.p->gcpId);
         unlinkGcp(localGcpPtr);
       }
@@ -10118,17 +10112,33 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
     GcpRecordPtr tmpGcpPointer;
     tmpGcpPointer.i = cfirstgcp;
     ptrCheckGuard(tmpGcpPointer, cgcpFilesize, gcpRecord);
-    if (tmpGcpPointer.p->gcpNomoretransRec &&
-        tmpGcpPointer.p->firstApiConnect == RNIL)
+    if (tmpGcpPointer.p->gcpNomoretransRec)
     {
-      jam();
-      g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
-                          "on node failure takeover completion.",
-                          instance(),
-                          Uint32(tmpGcpPointer.p->gcpId >> 32),
-                          Uint32(tmpGcpPointer.p->gcpId));
-      gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
-      unlinkGcp(tmpGcpPointer);
+      if (tmpGcpPointer.p->firstApiConnect == RNIL)
+      {
+        jam();
+        g_eventLogger->info("DBTC %u: Completing GCP %u/%u "
+                            "on node failure takeover completion.",
+                            instance(),
+                            Uint32(tmpGcpPointer.p->gcpId >> 32),
+                            Uint32(tmpGcpPointer.p->gcpId));
+        gcpTcfinished(signal, tmpGcpPointer.p->gcpId);
+        unlinkGcp(tmpGcpPointer);
+      }
+      else
+      {
+        jam();
+        /**
+         * GCP completion underway, but not all transactions
+         * completed.  Completion will be normal.
+         * Log now for symmetry in NF handling logging
+         */
+        g_eventLogger->info("DBTC %u: GCP completion %u/%u waiting "
+                            "for all included transactions to complete.",
+                            instance(),
+                            Uint32(tmpGcpPointer.p->gcpId >> 32),
+                            Uint32(tmpGcpPointer.p->gcpId));
+      }
     }
   }
 }//Dbtc::execTAKE_OVERTCCONF()
@@ -12047,7 +12057,25 @@ void Dbtc::execTCGETOPSIZEREQ(Signal* signal)
   BlockReference Tusersblkref = signal->theData[1];/* DBDIH BLOCK REFERENCE */
   signal->theData[0] = Tuserpointer;
   signal->theData[1] = coperationsize;
-  sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
+  if (refToNode(Tusersblkref) == getOwnNodeId())
+  {
+    /**
+     * The message goes to the DBTC proxy before being processed by
+     * DBDIH.
+     */
+    sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
+  }
+  else
+  {
+    /**
+     * No proxy used, so this is the only DBTC instance.
+     * Thus we go directly to the DBDIH to ensure that we have
+     * completed the LCP locally before allowing a new one to
+     * start.
+     */
+    signal->theData[2] = Tusersblkref;
+    sendSignal(DBDIH_REF, GSN_CHECK_LCP_IDLE_ORD, signal, 3, JBB);
+  }
 }//Dbtc::execTCGETOPSIZEREQ()
 
 void Dbtc::execTC_CLOPSIZEREQ(Signal* signal) 
