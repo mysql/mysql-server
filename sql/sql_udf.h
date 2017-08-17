@@ -136,7 +136,10 @@ class udf_handler :public Sql_alloc
 };
 
 
-void udf_init(void),udf_deinit(void);
+void udf_init_globals();
+void udf_read_functions_table();
+void udf_unload_udfs();
+void udf_deinit_globals();
 udf_func *find_udf(const char *name, size_t len=0,bool mark_used=0);
 void free_udf(udf_func *udf);
 bool mysql_create_function(THD *thd, udf_func *udf);

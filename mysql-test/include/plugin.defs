@@ -55,6 +55,7 @@ rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
 rewriter           			plugin_output_directory REWRITER
 mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  			plugin_output_directory TESTUDFSERVICES
+test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
 group_replication  			plugin_output_directory GROUP_REPLICATION
 locking_service    			plugin_output_directory LOCKING_SERVICE
 version_token      			plugin_output_directory VERSION_TOKEN

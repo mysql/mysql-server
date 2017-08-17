@@ -1973,7 +1973,7 @@ static void clean_up(bool print_message)
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
-    udf_deinit();
+    udf_unload_udfs();
   table_def_start_shutdown();
   plugin_shutdown();
   gtid_server_cleanup(); // after plugin_shutdown
@@ -2065,6 +2065,7 @@ static void clean_up(bool print_message)
 
   persisted_variables_cache.cleanup();
 
+  udf_deinit_globals();
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -4588,6 +4589,13 @@ static int init_server_components()
   }
 
   /*
+    We need to initialize the UDF globals early before reading the proc table
+    and before the server component initialization to allow other components
+    to register their UDFs at init time and de-register them at deinit time.
+  */
+  udf_init_globals();
+
+  /*
     Set tc_log to point to TC_LOG_DUMMY early in order to allow plugin_init()
     to commit attachable transaction after reading from mysql.plugin table.
     If necessary tc_log will be adjusted to point to correct TC_LOG instance
@@ -5796,7 +5804,7 @@ int mysqld_main(int argc, char **argv)
 
   if (!opt_noacl)
   {
-    udf_init();
+    udf_read_functions_table();
   }
 
   init_status_vars();
