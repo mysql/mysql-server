@@ -2014,7 +2014,7 @@ static void clean_up(bool print_message)
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(INFORMATION_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(INFORMATION_LEVEL, ER_SHUTDOWN_COMPLETE, my_progname).force_print();
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -3438,7 +3438,7 @@ int init_common_variables()
   set_server_version();
 
   LogErr(INFORMATION_LEVEL, ER_STARTING_AS,
-         my_progname, server_version, (ulong) getpid());
+         my_progname, server_version, (ulong) getpid()).force_print();
 
   if (opt_help && !opt_verbose)
     unireg_abort(MYSQLD_SUCCESS_EXIT);
@@ -4924,7 +4924,7 @@ extern "C" void *handle_shutdown(void *arg)
   PeekMessage(&msg, NULL, 1, 65534,PM_NOREMOVE);
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
-    LogErr(INFORMATION_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+    LogErr(INFORMATION_LEVEL, ER_NORMAL_SHUTDOWN, my_progname).force_print();
     set_connection_events_loop_aborted(true);
     close_connections();
     my_thread_end();
@@ -5894,7 +5894,7 @@ int mysqld_main(int argc, char **argv)
 #  else
                     (char*) "",
 #  endif
-                    mysqld_port, MYSQL_COMPILATION_COMMENT);
+                    mysqld_port, MYSQL_COMPILATION_COMMENT).force_print();
 
 #if defined(_WIN32)
   Service.SetRunning();
