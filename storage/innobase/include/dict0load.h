@@ -34,6 +34,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "btr0types.h"
 #include "ut0new.h"
+#include "fil0fil.h"
 
 #include <deque>
 
@@ -209,6 +210,21 @@ dict_load_tablespace(
 /** Load all tablespaces during upgrade */
 void
 dict_load_tablespaces_for_upgrade();
+
+/* Comparator for missing_spaces. */
+struct space_compare {
+
+	bool operator() (const fil_space_t* lhs, const fil_space_t* rhs) const {
+		return(lhs->id < rhs->id);
+	}
+};
+
+/* This is set of tablespaces that are not found in SYS_TABLESPACES.
+InnoDB tablespaces before 5.6 are not registered in SYS_TABLESPACES.
+So we maintain a std::set, which is later used to register the
+tablespaces to dictionary table mysql.tablespaces */
+using missing_sys_tblsp_t = std::set<fil_space_t*, space_compare>;
+extern missing_sys_tblsp_t	missing_spaces;
 
 #include "dict0load.ic"
 

@@ -1353,11 +1353,13 @@ dict_table_is_file_per_table(
 
 	/* If the table is file-per-table and it is not redundant, then
 	it should have the flags2 bit for DICT_TF2_USE_FILE_PER_TABLE. */
+	/* flags2 is also not set for tables before 5.5 */
 	ut_ad(!is_file_per_table
 	      || !DICT_TF_GET_COMPACT(table->flags)
-	      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE));
+	      || (table->flags2 == 0
+		  || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE)));
 
-	return(is_file_per_table );
+	return(is_file_per_table);
 }
 
 /**********************************************************************//**
