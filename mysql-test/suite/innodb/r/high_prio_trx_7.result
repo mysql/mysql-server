@@ -1,3 +1,4 @@
+# restart
 # Scenario:1
 #  T1= ({W(B)}, HIGH_PRIORITY)
 #  T2= ( Try to take table level lock )
