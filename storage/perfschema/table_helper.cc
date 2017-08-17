@@ -23,7 +23,6 @@
 
 #include "my_config.h"
 
-#include "field.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -41,6 +40,7 @@
 #include "pfs_setup_object.h"
 #include "pfs_user.h"
 #include "pfs_variable.h"
+#include "sql/field.h"
 
 /* TINYINT TYPE */
 void
@@ -331,6 +331,22 @@ get_field_enum(Field *f)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
+  return f2->val_int();
+}
+
+/* SET TYPE */
+void
+set_field_set(Field *f, ulonglong value)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
+  f2->store_type(value);
+}
+ulonglong
+get_field_set(Field *f)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
+  Field_set *f2 = (Field_set *)f;
   return f2->val_int();
 }
 
@@ -1985,10 +2001,6 @@ PFS_key_event_name::match_view(uint view)
   case PFS_instrument_view_constants::VIEW_METADATA:
     return do_match_prefix(
       false, metadata_lock_class_name.str, metadata_lock_class_name.length);
-
-  case PFS_instrument_view_constants::VIEW_THREAD:
-    return do_match_prefix(
-      false, thread_instrument_prefix.str, thread_instrument_prefix.length);
 
   case PFS_instrument_view_constants::VIEW_STAGE:
     return do_match_prefix(

@@ -12,8 +12,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
-#include <auth/dynamic_privilege_table.h>
-#include <auth/sql_security_ctx.h>
+#include "sql/auth/dynamic_privileges_impl.h"
+
 #include <ctype.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
@@ -24,14 +24,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <unordered_map>
 #include <utility>
 
-#include "auth/sql_auth_cache.h"
-#include "current_thd.h"
-#include "dynamic_privileges_impl.h"
 #include "m_string.h"
 #include "mysql/components/service.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/psi/psi_base.h"
-#include "sql_thd_internal_api.h"  // create_thd
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/sql_thd_internal_api.h" // create_thd
 
 class THD;
 

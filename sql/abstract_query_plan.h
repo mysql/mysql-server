@@ -20,9 +20,9 @@
 
 #include <sys/types.h>
 
-#include "item_cmpfunc.h"   // Item_equal_iterator
 #include "my_dbug.h"
-#include "sql_alloc.h"
+#include "sql/item_cmpfunc.h" // Item_equal_iterator
+#include "sql/sql_alloc.h"
 
 class Item;
 class Item_field;

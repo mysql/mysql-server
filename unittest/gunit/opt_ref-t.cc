@@ -22,8 +22,8 @@
 
 #include "fake_table.h"
 #include "mock_field_long.h"
-#include "parse_tree_helpers.h"
-#include "sql_optimizer.cc"
+#include "sql/parse_tree_helpers.h"
+#include "sql/sql_optimizer.cc"
 #include "test_utils.h"
 
 

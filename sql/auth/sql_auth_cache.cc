@@ -13,26 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_auth_cache.h"
+#include "sql/auth/sql_auth_cache.h"
 
 #include <boost/graph/properties.hpp>
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "auth_acls.h"
-#include "auth_common.h"        // ACL_internal_schema_access
-#include "auth_internal.h"      // auth_plugin_is_built_in
-#include "current_thd.h"        // current_thd
-#include "debug_sync.h"
-#include "dynamic_privilege_table.h"
-#include "error_handler.h"      // Internal_error_handler
-#include "field.h"              // Field
-#include "handler.h"
-#include "item_func.h"          // mqh_used
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"           // LEX_CSTRING
-#include "mdl.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -45,34 +33,46 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"             // my_localhost
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"     // key_memory_acl_mem
-#include "records.h"            // READ_RECORD
-#include "role_tables.h"
-#include "set_var.h"
-#include "sql_authentication.h" // sha256_password_plugin_name
-#include "sql_base.h"           // open_and_lock_tables
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"         // my_plugin_lock_by_name
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // ACL_internal_schema_access
+#include "sql/auth/auth_internal.h" // auth_plugin_is_built_in
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/role_tables.h"
+#include "sql/auth/sql_authentication.h" // sha256_password_plugin_name
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"    // current_thd
+#include "sql/debug_sync.h"
+#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/field.h"          // Field
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_func.h"      // mqh_used
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"         // my_localhost
+#include "sql/psi_memory_key.h" // key_memory_acl_mem
+#include "sql/records.h"        // READ_RECORD
+#include "sql/set_var.h"
+#include "sql/sql_base.h"       // open_and_lock_tables
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"     // my_plugin_lock_by_name
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_thd_internal_api.h" // create_thd
+#include "sql/sql_time.h"       // str_to_time_with_warn
+#include "sql/system_variables.h"
+#include "sql/table.h"          // TABLE
+#include "sql/thr_malloc.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_thd_internal_api.h"  // create_thd
-#include "sql_time.h"           // str_to_time_with_warn
-#include "sql_user_table.h"
-#include "system_variables.h"
-#include "table.h"              // TABLE
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "value_map.h"
-#include "xa.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -88,7 +88,7 @@ using std::unique_ptr;
 
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[]=
-{ {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_GLOBAL, 0} };
+{ {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME} };
 Acl_cache *g_acl_cache= NULL;
 Acl_cache *get_global_acl_cache() { return g_acl_cache; }
 ulong get_global_acl_cache_size() { return g_acl_cache->size(); }
@@ -1459,7 +1459,7 @@ validate_user_plugin_records()
         }
       }
       if (acl_user->plugin.str == sha256_password_plugin_name.str &&
-          rsa_auth_status() && !ssl_acceptor_fd)
+          sha256_rsa_auth_status() && !ssl_acceptor_fd)
       {
 #if !defined(HAVE_YASSL)
         const char *missing= "but neither SSL nor RSA keys are";
@@ -1473,10 +1473,34 @@ validate_user_plugin_records()
                static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), missing);
       }
+      if (acl_user->plugin.str == caching_sha2_password_plugin_name.str &&
+          caching_sha2_rsa_auth_status() && !ssl_acceptor_fd)
+      {
+        const char *missing= "but neither SSL nor RSA keys are";
+
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
+               caching_sha2_password_plugin_name.str,
+               acl_user->user,
+               static_cast<int>(acl_user->host.get_host_len()),
+               acl_user->host.get_host(), missing);
+      }
     }
   }
   unlock_plugin_data();
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Audit notification for flush
+
+  @param [in] thd Handle to THD
+*/
+
+void notify_flush_event(THD *thd)
+{
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_FLUSH),
+                     0, NULL, NULL, NULL, false, NULL, NULL);
 }
 
 
@@ -1598,6 +1622,7 @@ bool acl_init(bool dont_read_acl_tables)
   */
   return_val|= acl_reload(thd);
   roles_init(thd);
+  notify_flush_event(thd);
   thd->release_resources();
   delete thd;
 
@@ -1894,11 +1919,13 @@ static bool acl_load(THD *thd, TABLE_LIST *tables)
                             native_password_plugin_name.str) == 0)
             user.plugin= native_password_plugin_name;
 #if defined(HAVE_OPENSSL)
-          else
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              sha256_password_plugin_name.str) == 0)
+          else if(my_strcasecmp(system_charset_info, tmpstr,
+                                sha256_password_plugin_name.str) == 0)
               user.plugin= sha256_password_plugin_name;
 #endif
+          else if(my_strcasecmp(system_charset_info, tmpstr,
+                                caching_sha2_password_plugin_name.str) == 0)
+            user.plugin= caching_sha2_password_plugin_name;
           else
             {
               user.plugin.str= tmpstr;

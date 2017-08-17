@@ -22,7 +22,7 @@
 #include <atomic>
 #include <list>
 
-#include "control_events.h"     // binary_log::Uuid
+#include "libbinlogevents/include/control_events.h"     // binary_log::Uuid
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t

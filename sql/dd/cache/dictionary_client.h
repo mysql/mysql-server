@@ -21,11 +21,11 @@
 #include <string>
 #include <vector>
 
-#include "dd/object_id.h"
-#include "dd/string_type.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "object_registry.h"                  // Object_registry
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
 
 class THD;
 

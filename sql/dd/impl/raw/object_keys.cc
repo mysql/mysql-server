@@ -13,21 +13,21 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/raw/object_keys.h"
 
 #include <new>
 #include <sstream>
 
-#include "dd/impl/raw/raw_key.h"       // dd::Raw_key
-#include "dd/impl/raw/raw_table.h"     // dd::Raw_table
-#include "dd/string_type.h"            // dd::String_type
-#include "field.h"                     // Field
-#include "key.h"                       // KEY
 #include "m_ctype.h"
 #include "my_base.h"                   // HA_WHOLE_KEY
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
-#include "table.h"                     // TABLE
+#include "sql/dd/impl/raw/raw_key.h"   // dd::Raw_key
+#include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
+#include "sql/dd/string_type.h"        // dd::String_type
+#include "sql/field.h"                 // Field
+#include "sql/key.h"                   // KEY
+#include "sql/table.h"                 // TABLE
 
 namespace dd {
 

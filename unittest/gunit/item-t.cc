@@ -20,19 +20,19 @@
 #include <sys/types.h>
 
 #include "fake_table.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_create.h"
-#include "item_strfunc.h"
-#include "item_timefunc.h"
 #include "lex_string.h"
 #include "mock_field_timestamp.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
-#include "sql_class.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_create.h"
+#include "sql/item_strfunc.h"
+#include "sql/item_timefunc.h"
+#include "sql/sql_class.h"
+#include "sql/tztime.h"
 #include "test_utils.h"
-#include "tztime.h"
 
 namespace item_unittest {
 

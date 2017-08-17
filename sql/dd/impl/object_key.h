@@ -17,7 +17,7 @@
 #define DD__OBJECT_KEY_INCLUDED
 
 
-#include "dd/string_type.h"                    // dd::String_type
+#include "sql/dd/string_type.h"                // dd::String_type
 
 namespace dd {
 

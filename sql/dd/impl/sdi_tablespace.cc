@@ -15,25 +15,24 @@
 
 #include <algorithm>
 
-#include "sql_class.h"                   // THD
-#include "handler.h"                     // sdi_set
-#include "mdl.h"                         // MDL_key::TABLESPACE
 #include "my_dbug.h"                     // DBUG_PRINT
 #include "my_inttypes.h"                 // uint32
-
-#include "dd/collection.h"               // dd::Collection
-#include "dd/dd_tablespace.h"            // dd::get_tablespace_name
-#include "dd/impl/sdi.h"                 // dd::serialize
-#include "dd/impl/sdi_utils.h"           // sdi_utils::checked_return
-#include "dd/properties.h"               // dd::Properties
-#include "dd/string_type.h"              // dd::String_type
-#include "dd/cache/dictionary_client.h"  // dd::Dictionary_client
-#include "dd/types/index.h"              // dd::Index
-#include "dd/types/partition.h"          // dd::Partition
-#include "dd/types/partition_index.h"    // dd::Partition_index
-#include "dd/types/schema.h"             // dd::Schema
-#include "dd/types/table.h"              // dd::Table
-#include "dd/types/tablespace.h"         // dd::Tablespace
+#include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/dd_tablespace.h"        // dd::get_tablespace_name
+#include "sql/dd/impl/sdi.h"             // dd::serialize
+#include "sql/dd/impl/sdi_utils.h"       // sdi_utils::checked_return
+#include "sql/dd/properties.h"           // dd::Properties
+#include "sql/dd/string_type.h"          // dd::String_type
+#include "sql/dd/types/index.h"          // dd::Index
+#include "sql/dd/types/partition.h"      // dd::Partition
+#include "sql/dd/types/partition_index.h" // dd::Partition_index
+#include "sql/dd/types/schema.h"         // dd::Schema
+#include "sql/dd/types/table.h"          // dd::Table
+#include "sql/dd/types/tablespace.h"     // dd::Tablespace
+#include "sql/handler.h"                 // sdi_set
+#include "sql/mdl.h"                     // MDL_key::TABLESPACE
+#include "sql/sql_class.h"               // THD
 
 
 /**

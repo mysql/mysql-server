@@ -15,7 +15,7 @@
 
 /* Basic functions needed by many modules */
 
-#include "sql_base.h"
+#include "sql/sql_base.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -27,31 +27,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_table_access
-#include "binlog.h"                   // mysql_bin_log
-#include "check_stack.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"
-#include "dd/dd_table.h"              // dd::table_exists
-#include "dd/dd_tablespace.h"         // dd::fill_table_and_parts_tablespace_name
-#include "dd/types/abstract_table.h"
-#include "dd/types/table.h"           // dd::Table
-#include "dd/types/view.h"
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "error_handler.h"            // Internal_error_handler
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"             // Item_func_eq
-#include "item_func.h"
-#include "item_subselect.h"
-#include "key.h"
-#include "lock.h"                     // mysql_lock_remove
-#include "log.h"
-#include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -86,48 +61,73 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // slave_open_temp_tables
 #include "mysqld_error.h"
-#include "partition_info.h"           // partition_info
-#include "psi_memory_key.h"           // key_memory_TABLE
-#include "query_options.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"              // RUN_HOOK
-#include "rpl_rli.h"                  //Relay_log_information
-#include "session_tracker.h"
-#include "sp.h"                       // Sroutine_hash_entry
-#include "sp_cache.h"                 // sp_cache_version
-#include "sp_head.h"                  // sp_head
-#include "sql_audit.h"                // mysql_audit_table_access_notify
-#include "sql_class.h"                // THD
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_error.h"                // Sql_condition
-#include "sql_handler.h"              // mysql_ha_flush_tables
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                // is_update_query
-#include "sql_prepare.h"              // Reprepare_observer
-#include "sql_security_ctx.h"
-#include "sql_select.h"               // reset_statement_timer
-#include "sql_servers.h"
-#include "sql_show.h"                 // append_identifier
-#include "sql_sort.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/check_stack.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"
+#include "sql/dd/dd_table.h"          // dd::table_exists
+#include "sql/dd/dd_tablespace.h"     // dd::fill_table_and_parts_tablespace_name
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/table.h"       // dd::Table
+#include "sql/dd/types/view.h"
+#include "sql/dd_table_share.h"       // open_table_def
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/error_handler.h"        // Internal_error_handler
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"         // Item_func_eq
+#include "sql/item_func.h"
+#include "sql/item_subselect.h"
+#include "sql/key.h"
+#include "sql/lock.h"                 // mysql_lock_remove
+#include "sql/log.h"
+#include "sql/log_event.h"            // Query_log_event
+#include "sql/mysqld.h"               // slave_open_temp_tables
+#include "sql/partition_info.h"       // partition_info
+#include "sql/psi_memory_key.h"       // key_memory_TABLE
+#include "sql/query_options.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"          // RUN_HOOK
+#include "sql/rpl_rli.h"              //Relay_log_information
+#include "sql/session_tracker.h"
+#include "sql/sp.h"                   // Sroutine_hash_entry
+#include "sql/sp_cache.h"             // sp_cache_version
+#include "sql/sp_head.h"              // sp_head
+#include "sql/sql_audit.h"            // mysql_audit_table_access_notify
+#include "sql/sql_class.h"            // THD
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"            // Sql_condition
+#include "sql/sql_handler.h"          // mysql_ha_flush_tables
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"            // is_update_query
+#include "sql/sql_prepare.h"          // Reprepare_observer
+#include "sql/sql_select.h"           // reset_statement_timer
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"             // append_identifier
+#include "sql/sql_sort.h"
+#include "sql/sql_table.h"            // build_table_filename
+#include "sql/sql_update.h"           // records_are_comparable
+#include "sql/sql_view.h"             // mysql_make_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                // TABLE_LIST
+#include "sql/table_cache.h"          // table_cache_manager
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_rollback_stmt
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_table.h"                // build_table_filename
-#include "sql_update.h"               // records_are_comparable
-#include "sql_view.h"                 // mysql_make_view
-#include "system_variables.h"
-#include "table.h"                    // TABLE_LIST
-#include "table_cache.h"              // table_cache_manager
 #include "table_id.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "template_utils.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "transaction.h"              // trans_rollback_stmt
-#include "transaction_info.h"
-#include "xa.h"
 
 namespace dd {
 class Schema;
@@ -272,10 +272,10 @@ mysql_cond_t COND_open;
 static PSI_mutex_key key_LOCK_open;
 static PSI_cond_key key_COND_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
-  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_open, "LOCK_open", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 static PSI_cond_info all_tdc_conds[]= {
-  { &key_COND_open, "COND_open", 0 }
+  { &key_COND_open, "COND_open", 0, 0, PSI_DOCUMENT_ME }
 };
 
 /**

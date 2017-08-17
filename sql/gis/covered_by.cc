@@ -17,18 +17,17 @@
 ///
 /// This file implements the covered_by functor and mbr_covered_by function.
 
-#include "covered_by_functor.h"
-#include "relops.h"
-
 #include <boost/geometry.hpp>
 
 #include "box.h"
 #include "box_traits.h"
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "covered_by_functor.h"
 #include "geometries.h"
 #include "geometries_traits.h"
 #include "mbr_utils.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "relops.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 
 namespace bg = boost::geometry;
 

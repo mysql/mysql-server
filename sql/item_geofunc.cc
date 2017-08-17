@@ -20,7 +20,7 @@
   @brief
   This file defines all spatial functions
 */
-#include "item_geofunc.h"
+#include "sql/item_geofunc.h"
 
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/area.hpp>
@@ -45,33 +45,33 @@
 #include <utility>
 
 #include "binlog_config.h"
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/spatial_reference_system.h"
-#include "derror.h"       // ER_THD
-#include "gis/distance.h"
-#include "gis/geometries.h"
-#include "gis/srid.h"
-#include "gis/wkb_parser.h"
-#include "gis_bg_traits.h"
-#include "gstream.h"      // Gis_read_stream
-#include "item_geofunc_internal.h"
-#include "json_dom.h"     // Json_wrapper
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
-#include "options_parser.h"
-#include "psi_memory_key.h"
-#include "sql_class.h"    // THD
-#include "sql_error.h"
-#include "sql_exception_handler.h"
-#include "sql_lex.h"
-#include "srs_fetcher.h"
-#include "system_variables.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/derror.h"   // ER_THD
+#include "sql/gis/distance.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
+#include "sql/gis_bg_traits.h"
+#include "sql/gstream.h"  // Gis_read_stream
+#include "sql/item_geofunc_internal.h"
+#include "sql/json_dom.h" // Json_wrapper
+#include "sql/options_parser.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/sql_lex.h"
+#include "sql/srs_fetcher.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class PT_item_list;
 struct TABLE;

@@ -13,27 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_mi.h"
+#include "sql/rpl_mi.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
 
-#include "dynamic_ids.h"        // Server_ids
-#include "log.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql_version.h"
-#include "mysqld.h"             // sync_masterinfo_period
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "rpl_info_handler.h"
-#include "rpl_msr.h"            // channel_map
-#include "rpl_slave.h"          // master_retry_count
-#include "sql_class.h"
+#include "sql/dynamic_ids.h"    // Server_ids
+#include "sql/log.h"
+#include "sql/mysqld.h"         // sync_masterinfo_period
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_msr.h"        // channel_map
+#include "sql/rpl_slave.h"      // master_retry_count
+#include "sql/sql_class.h"
 
 
 enum {

@@ -983,6 +983,9 @@ fsp_header_rotate_encryption(
 	ut_ad(mtr);
 	ut_ad(space->encryption_type != Encryption::NONE);
 
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
+
 	/* Fill encryption info. */
 	if (!Encryption::fill_encryption_info(space->encryption_key,
 					      space->encryption_iv,

@@ -25,13 +25,13 @@
 #include <iterator>
 #include <new>
 
-#include "equi_height_bucket.h"
-#include "json_dom.h"       // Json_*
-#include "memroot_allocator.h"
 #include "my_base.h"        // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/histograms/equi_height_bucket.h"
 #include "sql/histograms/value_map.h"      // Value_map
+#include "sql/json_dom.h"   // Json_*
+#include "sql/memroot_allocator.h"
 #include "sql_string.h"
 
 namespace histograms {

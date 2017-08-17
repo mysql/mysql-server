@@ -22,18 +22,6 @@
 #include <string>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_table_access
-#include "binlog.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"  // dd::enum_table_type
-#include "dd/types/table.h"
-#include "dd/types/trigger.h"
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -44,24 +32,36 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql_com.h"
-#include "mysqld.h"                   // trust_function_creators
 #include "mysqld_error.h"
-#include "sp_cache.h"                 // sp_invalidate_cache()
-#include "sp_head.h"                  // sp_name
-#include "sql_base.h"                 // find_temporary_table()
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_handler.h"              // mysql_ha_rm_tables()
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_table_access
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h" // dd::enum_table_type
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/trigger.h"
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/key.h"
+#include "sql/mysqld.h"               // trust_function_creators
+#include "sql/sp_cache.h"             // sp_invalidate_cache()
+#include "sql/sp_head.h"              // sp_name
+#include "sql/sql_base.h"             // find_temporary_table()
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_handler.h"          // mysql_ha_rm_tables()
+#include "sql/sql_lex.h"
+#include "sql/sql_table.h"            // build_table_filename()
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "sql/transaction.h"          // trans_commit_stmt, trans_commit
 #include "sql_string.h"
-#include "sql_table.h"                // build_table_filename()
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "table.h"
-#include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "thr_lock.h"
-#include "transaction.h"              // trans_commit_stmt, trans_commit
 
 namespace dd {
 class Schema;

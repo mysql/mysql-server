@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,31 +25,31 @@
 #include "base_mock_field.h"
 #include "fake_table.h"
 
-#include "dd/types/charset.h"
-#include "dd/types/collation.h"
-#include "dd/types/column.h"
-#include "dd/types/column_statistics.h"
-#include "dd/types/column_type_element.h"
-#include "dd/types/foreign_key.h"
-#include "dd/types/foreign_key_element.h"
-#include "dd/types/index.h"
-#include "dd/types/index_element.h"
-#include "dd/types/partition.h"
-#include "dd/types/partition_value.h"
-#include "dd/types/partition_index.h"
+#include "sql/dd/types/charset.h"
+#include "sql/dd/types/collation.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/column_statistics.h"
+#include "sql/dd/types/column_type_element.h"
+#include "sql/dd/types/foreign_key.h"
+#include "sql/dd/types/foreign_key_element.h"
+#include "sql/dd/types/index.h"
+#include "sql/dd/types/index_element.h"
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_value.h"
+#include "sql/dd/types/partition_index.h"
 
-#include "dd/types/schema.h"
-#include "dd/types/table.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"
-#include "dd/types/view.h"
-#include "dd/types/view_table.h"
-#include "dd/types/event.h"
-#include "dd/types/procedure.h"
-#include "dd/types/parameter.h"
-#include "dd/types/trigger.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"
+#include "sql/dd/types/tablespace.h"
+#include "sql/dd/types/tablespace_file.h"
+#include "sql/dd/types/view.h"
+#include "sql/dd/types/view_table.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/procedure.h"
+#include "sql/dd/types/parameter.h"
+#include "sql/dd/types/trigger.h"
 
-#include "histograms/histogram.h"
+#include "sql/histograms/histogram.h"
 
 class Json_wrapper;
 

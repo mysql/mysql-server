@@ -13,19 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_trx_boundary_parser.h"
+#include "sql/rpl_trx_boundary_parser.h"
 
 #include <string.h>
 #include <sys/types.h>
 
 #include "binlog_event.h"
-#include "log.h"
-#include "log_event.h"     // Log_event
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysqld_error.h"
+#include "sql/log.h"
+#include "sql/log_event.h" // Log_event
 
 
 #ifndef DBUG_OFF

@@ -2154,6 +2154,48 @@ dict_table_remove_from_cache(
 	dict_table_remove_from_cache_low(table, FALSE);
 }
 
+/** Try to invalidate an entry from the dict cache, for a partitioned table,
+if any table found.
+@param[in]	name	Table name */
+void
+dict_partitioned_table_remove_from_cache(
+	const char*	name)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	uint16_t	name_len = strlen(name);
+
+	for (uint32_t i = 0; i < hash_get_n_cells(dict_sys->table_id_hash);
+	     ++i) {
+
+		dict_table_t*	table;
+
+		table = static_cast<dict_table_t*>(
+			HASH_GET_FIRST(dict_sys->table_hash, i));
+
+		while (table != nullptr) {
+			dict_table_t*	prev_table = table;
+
+			table = static_cast<dict_table_t*>(
+				HASH_GET_NEXT(name_hash, prev_table));
+			ut_ad(prev_table->magic_n == DICT_TABLE_MAGIC_N);
+
+			if (prev_table->is_dd_table) {
+				continue;
+			}
+
+			if ((strncmp(name, prev_table->name.m_name, name_len)
+			     == 0)
+			    && (strncmp(prev_table->name.m_name + name_len,
+					part_sep, strlen(part_sep)) == 0)) {
+
+				btr_drop_ahi_for_table(prev_table);
+				dict_table_remove_from_cache(prev_table);
+			}
+		}
+	}
+}
+
 #ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
 @param[in,out]	table		table object
@@ -7949,8 +7991,13 @@ dd_sdi_acquire_exclusive_mdl(
 	snprintf(tbl_buf, sizeof(tbl_buf),
 		 "SDI_" SPACE_ID_PF, space_id);
 
+	/* Submit a higher than default lock wait timeout */
+	unsigned long int lock_wait_timeout = thd_lock_wait_timeout(thd);
+	if (lock_wait_timeout < 100000) {
+		lock_wait_timeout += 100000;
+	}
 	if (dd::acquire_exclusive_table_mdl(
-		thd, db_buf, tbl_buf, false, sdi_mdl)) {
+		thd, db_buf, tbl_buf, lock_wait_timeout, sdi_mdl)) {
 		/* MDL failure can happen with lower timeout
 		values chosen by user */
 		return(DB_LOCK_WAIT_TIMEOUT);

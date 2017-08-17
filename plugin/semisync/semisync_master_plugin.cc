@@ -18,7 +18,6 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "current_thd.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -26,7 +25,8 @@
 #include "mysql/psi/mysql_stage.h"
 #include "semisync_master.h"
 #include "semisync_master_ack_receiver.h"
-#include "sql_class.h"                          // THD
+#include "sql/current_thd.h"
+#include "sql/sql_class.h"                      // THD
 #include "typelib.h"
 
 ReplSemiSyncMaster repl_semisync;
@@ -526,7 +526,7 @@ PSI_thread_key key_ss_thread_Ack_receiver_thread;
 
 static PSI_thread_info all_semisync_threads[]=
 {
-  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_GLOBAL}
+  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_INTERFACE */
 

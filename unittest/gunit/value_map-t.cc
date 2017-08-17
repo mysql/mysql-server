@@ -15,20 +15,20 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
 
+#include <gtest/gtest.h>
 #include <climits>
 #include <cstring>                    // std::memcmp
 #include <iterator>                   // std::next
 #include <random>
 
-#include "field.h"                    // my_charset_numeric
 #include "my_alloc.h"                 // MEM_ROOT
-#include "my_decimal.h"               // my_decimal
 #include "mysql_time.h"               // MYSQL_TIME
-#include "sql_string.h"               // String
-#include "sql_time.h"                 // my_time_compare
+#include "sql/field.h"                // my_charset_numeric
 #include "sql/histograms/value_map.h" // Value_map
+#include "sql/my_decimal.h"           // my_decimal
+#include "sql/sql_time.h"             // my_time_compare
+#include "sql_string.h"               // String
 
 namespace value_map_unittest {
 

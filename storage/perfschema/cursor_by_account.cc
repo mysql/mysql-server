@@ -23,8 +23,8 @@
 
 #include <stddef.h>
 
-#include "current_thd.h"
 #include "pfs_buffer_container.h"
+#include "sql/current_thd.h"
 
 ha_rows
 cursor_by_account::get_row_count(void)

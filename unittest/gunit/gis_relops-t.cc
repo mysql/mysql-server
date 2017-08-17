@@ -15,18 +15,18 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 */
 
-#include <memory>  // unique_ptr
+#include "my_config.h"
 
 #include <gtest/gtest.h>
+#include <memory>  // unique_ptr
 
-#include "dd/dd.h"
-#include "dd/impl/types/spatial_reference_system_impl.h"
-#include "dd/properties.h"
-#include "dd/types/spatial_reference_system.h"
-#include "gis/geometries.h"
-#include "gis/geometries_cs.h"
-#include "gis/relops.h"
-#include "my_config.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/impl/types/spatial_reference_system_impl.h"
+#include "sql/dd/properties.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/relops.h"
 
 namespace gis_relops_unittest {
 

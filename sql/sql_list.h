@@ -24,8 +24,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sharedlib.h"
-#include "sql_alloc.h"         // Sql_alloc
-#include "thr_malloc.h"
+#include "sql/sql_alloc.h"     // Sql_alloc
+#include "sql/thr_malloc.h"
 
 
 /**

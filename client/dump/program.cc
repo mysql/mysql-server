@@ -15,21 +15,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/program.h"
+
 #include <errno.h>
 #include <chrono>
 #include <functional>
 
-#include "i_chain_maker.h"
-#include "i_connection_provider.h"
-#include "i_crawler.h"
-#include "i_progress_watcher.h"
-#include "mysql_crawler.h"
-#include "mysqldump_tool_chain_maker.h"
-#include "program.h"
-#include "simple_id_generator.h"
-#include "single_transaction_connection_provider.h"
-#include "standard_progress_watcher.h"
-#include "thread_specific_connection_provider.h"
+#include "client/dump/i_chain_maker.h"
+#include "client/dump/i_connection_provider.h"
+#include "client/dump/i_crawler.h"
+#include "client/dump/i_progress_watcher.h"
+#include "client/dump/mysql_crawler.h"
+#include "client/dump/mysqldump_tool_chain_maker.h"
+#include "client/dump/simple_id_generator.h"
+#include "client/dump/single_transaction_connection_provider.h"
+#include "client/dump/standard_progress_watcher.h"
+#include "client/dump/thread_specific_connection_provider.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

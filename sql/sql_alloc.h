@@ -18,7 +18,7 @@
 #include <new>
 
 #include "my_sys.h"         // TRASH
-#include "thr_malloc.h"     // alloc_root
+#include "sql/thr_malloc.h" // alloc_root
 
 /**
   MySQL standard memory allocator class. You have to inherit the class

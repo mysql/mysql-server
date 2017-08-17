@@ -14,11 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include <current_thd.h>                /* current_thd */
-#include <item_cmpfunc.h>
 #include <m_ctype.h>                    /* my_charset_bin */
 #include <mysql/psi/mysql_thread.h>
-#include <sql_class.h>                  /* THD, Security context */
 #include <time.h>
 
 #include "connection_control.h"
@@ -27,6 +24,9 @@
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "security_context_wrapper.h"
+#include "sql/current_thd.h"            /* current_thd */
+#include "sql/item_cmpfunc.h"
+#include "sql/sql_class.h"              /* THD, Security context */
 
 
 
@@ -537,7 +537,7 @@ namespace connection_control
     /** PSI_stage_info for thd_enter_cond/thd_exit_cond */
     PSI_stage_info old_stage;
     PSI_stage_info stage_waiting_in_connection_control_plugin=
-    {0, "Waiting in connection_control plugin", 0};
+    {0, "Waiting in connection_control plugin", 0, PSI_DOCUMENT_ME};
 
     /** Initialize mutex required for mysql_cond_timedwait */
     mysql_mutex_t connection_delay_mutex;
@@ -545,7 +545,7 @@ namespace connection_control
     PSI_mutex_key key_connection_delay_mutex;
     PSI_mutex_info connection_delay_mutex_info[]=
     {
-      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_GLOBAL, 0}
+      {&key_connection_delay_mutex, "connection_delay_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
     };
     int count_mutex= array_elements(connection_delay_mutex_info);
     mysql_mutex_register(category, connection_delay_mutex_info, count_mutex);
@@ -557,7 +557,7 @@ namespace connection_control
     PSI_cond_key key_connection_delay_wait;
     PSI_cond_info connection_delay_wait_info[]=
     {
-      {&key_connection_delay_wait, "connection_delay_wait_condition", 0}
+      {&key_connection_delay_wait, "connection_delay_wait_condition", 0, 0, PSI_DOCUMENT_ME}
     };
     int count_cond= array_elements(connection_delay_wait_info);
     mysql_cond_register(category, connection_delay_wait_info, count_cond);

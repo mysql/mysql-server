@@ -128,6 +128,10 @@ enum mysql_enum_shutdown_level {
   KILL_QUERY= 254,
   KILL_CONNECTION= 255
 };
+enum enum_resultset_metadata {
+  RESULTSET_METADATA_NONE= 0,
+  RESULTSET_METADATA_FULL= 1
+};
 enum enum_cursor_type
 {
   CURSOR_TYPE_NO_CURSOR= 0,
@@ -235,6 +239,9 @@ bool check_scramble(const unsigned char *reply, const char *message,
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
+bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
+                              const char *src, size_t src_size,
+                              const char *rnd, size_t rnd_size);
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 bool my_thread_init(void);
@@ -373,7 +380,9 @@ enum mysql_option
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
   MYSQL_OPT_SSL_MODE,
-  MYSQL_OPT_RETRY_COUNT
+  MYSQL_OPT_RETRY_COUNT,
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
+  MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -461,6 +470,7 @@ typedef struct st_mysql
   unsigned int warning_count;
   struct st_mysql_options options;
   enum mysql_status status;
+  enum enum_resultset_metadata resultset_metadata;
   bool free_me;
   bool reconnect;
   char scramble[20 +1];
@@ -487,6 +497,7 @@ typedef struct st_mysql_res {
   unsigned int field_count, current_field;
   bool eof;
   bool unbuffered_fetch_cancelled;
+  enum enum_resultset_metadata metadata;
   void *extension;
 } MYSQL_RES;
 typedef struct st_mysql_rpl {
@@ -514,6 +525,7 @@ MYSQL_FIELD * mysql_fetch_field_direct(MYSQL_RES *res,
 MYSQL_FIELD * mysql_fetch_fields(MYSQL_RES *res);
 MYSQL_ROW_OFFSET mysql_row_tell(MYSQL_RES *res);
 MYSQL_FIELD_OFFSET mysql_field_tell(MYSQL_RES *res);
+enum enum_resultset_metadata mysql_result_metadata(MYSQL_RES *result);
 unsigned int mysql_field_count(MYSQL *mysql);
 my_ulonglong mysql_affected_rows(MYSQL *mysql);
 my_ulonglong mysql_insert_id(MYSQL *mysql);

@@ -22,18 +22,9 @@
 #include <vector>
 
 #include "binary_log_types.h"
-#include "dd/properties.h"
-#include "enum_query_type.h" // enum_query_type
-#include "handler.h"       // row_type
-#include "json_diff.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
-#include "mdl.h"           // MDL_wait_for_subgraph
-#include "mem_root_array.h"
-#include "memroot_allocator.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -47,22 +38,31 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/udf_registration_types.h"
-#include "opt_costmodel.h" // Cost_model_table
-#include "record_buffer.h" // Record_buffer
-#include "sql_alloc.h"
-#include "sql_bitmap.h"    // Bitmap
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_plist.h"
-#include "sql_plugin_ref.h"
-#include "sql_sort.h"      // Filesort_info
+#include "sql/auth/auth_common.h"
+#include "sql/dd/properties.h"
+#include "sql/enum_query_type.h" // enum_query_type
+#include "sql/handler.h"   // row_type
+#include "sql/json_diff.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/mdl.h"       // MDL_wait_for_subgraph
+#include "sql/mem_root_array.h"
+#include "sql/memroot_allocator.h"
+#include "sql/opt_costmodel.h" // Cost_model_table
+#include "sql/record_buffer.h" // Record_buffer
+#include "sql/sql_alloc.h"
+#include "sql/sql_bitmap.h" // Bitmap
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_sort.h"  // Filesort_info
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "table_id.h"      // Table_id
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "typelib.h"
-#include <auth/auth_common.h>
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
@@ -323,8 +323,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
    @details The privilege checking process is divided into phases depending on
    the level of the privilege to be checked and the type of object to be
    accessed. Due to the mentioned scattering of privilege checking
-   functionality, it is necessary to keep track of the state of the
-   process. This information is stored in privilege and want_privilege.
+   functionality, it is necessary to keep track of the state of the process.
 
    A GRANT_INFO also serves as a cache of the privilege hash tables. Relevant
    members are grant_table and version.
@@ -367,15 +366,6 @@ struct GRANT_INFO
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
   ulong privilege;
-#ifndef DBUG_OFF
-  /**
-     @brief the set of privileges that the current user needs to fulfil in
-     order to carry out the requested operation. Used in debug build to
-     ensure individual column privileges are assigned consistently.
-     @todo remove this member in 8.0.
-   */
-  ulong want_privilege;
-#endif
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
 };
@@ -2657,9 +2647,6 @@ struct TABLE_LIST
 
   /// Clean up the query expression for a materialized derived table
   bool cleanup_derived();
-
-  /// Set wanted privilege for subsequent column privilege checking
-  void set_want_privilege(ulong want_privilege);
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);

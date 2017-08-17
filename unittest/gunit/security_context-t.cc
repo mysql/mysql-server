@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,12 +14,12 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #include "my_config.h"
-#include "m_string.h"
+
 #include <gtest/gtest.h>
 
+#include "m_string.h"
+#include "sql/sql_class.h"
 #include "test_utils.h"
-
-#include "sql_class.h"
 
 namespace security_context_unittest
 {

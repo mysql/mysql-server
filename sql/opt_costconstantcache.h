@@ -22,7 +22,7 @@
 #include "my_dbug.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "opt_costconstants.h"           // Cost_model_constants
+#include "sql/opt_costconstants.h"       // Cost_model_constants
 
 
 /**

@@ -17,24 +17,24 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
-#include "enum_query_type.h"
-#include "handler.h"
-#include "item.h"
-#include "mem_root_array.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_lex.h"
-#include "sql_parse.h"
-#include "sql_string.h"
-#include "table.h"
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_parse.h"
+#include "sql/table.h"
 /*
   Some Window-related symbols must be known to sql_lex.h which is a frequently
   included header.
   To avoid that any change to window.h causes a recompilation of the whole
   Server, those symbols go into this header:
 */
-#include "window_lex.h"
+#include "sql/window_lex.h"
+#include "sql_string.h"
 
 #ifdef WF_DEBUG
 #include <unordered_map>
@@ -43,8 +43,8 @@
 #include <sys/types.h>
 #include <cstring>                              // std::memcpy
 
-#include "sql_error.h"
-#include "sql_list.h"
+#include "sql/sql_error.h"
+#include "sql/sql_list.h"
 
 class Item_func;
 class Item_string;

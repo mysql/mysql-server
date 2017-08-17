@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sp_head.h"
+#include "sql/sp_head.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,19 +28,8 @@
 #include <memory>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"       // *_ACL
-#include "binlog.h"
-#include "check_stack.h"
-#include "dd/dd.h"             // get_dictionary
-#include "dd/dictionary.h"     // is_dd_table_access_allowed
-#include "derror.h"            // ER_THD
-#include "discrete_interval.h"
-#include "item.h"
-#include "log_event.h"         // append_query_string, Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -52,32 +41,43 @@
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
-#include "mysqld.h"            // atomic_global_query_id
-#include "opt_trace.h"         // opt_trace_disable_etc
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "session_tracker.h"
-#include "sp.h"
-#include "sp_instr.h"
-#include "sp_pcontext.h"
-#include "sp_rcontext.h"
-#include "sql_base.h"          // close_thread_tables
-#include "sql_const.h"
-#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "sql_digest_stream.h"
-#include "sql_error.h"
-#include "sql_parse.h"         // cleanup_items
-#include "sql_profile.h"
-#include "sql_show.h"          // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // *_ACL
+#include "sql/binlog.h"
+#include "sql/check_stack.h"
+#include "sql/dd/dd.h"         // get_dictionary
+#include "sql/dd/dictionary.h" // is_dd_table_access_allowed
+#include "sql/derror.h"        // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/item.h"
+#include "sql/log_event.h"     // append_query_string, Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"        // atomic_global_query_id
+#include "sql/opt_trace.h"     // opt_trace_disable_etc
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/session_tracker.h"
+#include "sql/sp.h"
+#include "sql/sp_instr.h"
+#include "sql/sp_pcontext.h"
+#include "sql/sp_rcontext.h"
+#include "sql/sql_base.h"      // close_thread_tables
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"        // mysql_opt_change_db, mysql_change_db
+#include "sql/sql_digest_stream.h"
+#include "sql/sql_error.h"
+#include "sql/sql_parse.h"     // cleanup_items
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"      // append_identifier
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"   // trans_commit_stmt
+#include "sql/trigger_def.h"
 #include "sql_string.h"
 #include "template_utils.h"    // pointer_cast
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"       // trans_commit_stmt
-#include "trigger_def.h"
 
 /**
   @page stored_programs Stored Programs

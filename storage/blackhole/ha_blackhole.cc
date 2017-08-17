@@ -21,7 +21,7 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+#include "sql/sql_class.h"                      // THD, SYSTEM_THREAD_SLAVE_*
 #include "template_utils.h"
 
 using std::string;
@@ -338,12 +338,12 @@ static PSI_mutex_key bh_key_mutex_blackhole;
 
 static PSI_mutex_info all_blackhole_mutexes[]=
 {
-  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL, 0}
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_blackhole_memory[]=
 {
-  { &bh_key_memory_blackhole_share, "blackhole_share", 0}
+  { &bh_key_memory_blackhole_share, "blackhole_share", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_blackhole_psi_keys()

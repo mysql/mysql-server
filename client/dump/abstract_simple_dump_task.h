@@ -20,7 +20,7 @@
 
 #include <atomic>
 
-#include "i_dump_task.h"
+#include "client/dump/i_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

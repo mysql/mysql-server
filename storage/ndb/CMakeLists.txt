@@ -182,7 +182,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
 
   # Util library includes
-  ${ZLIB_INCLUDE_DIR}
   ${EDITLINE_INCLUDE_DIR})
 
 # The root of storage/ndb/

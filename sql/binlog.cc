@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "check_stack.h"
 #include "config.h"
 #include "lex_string.h"
 #include "map_helpers.h"
@@ -31,6 +30,7 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "mysql/components/services/log_shared.h"
+#include "sql/check_stack.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -42,18 +42,8 @@
 
 #include "binary_log_types.h"
 #include "control_events.h"
-#include "current_thd.h"
-#include "debug_sync.h"                     // DEBUG_SYNC
 #include "debug_vars.h"
-#include "derror.h"                         // ER_THD
-#include "discrete_interval.h"
 #include "dur_prop.h"
-#include "field.h"
-#include "handler.h"
-#include "item_func.h"                      // user_var_entry
-#include "key.h"
-#include "log.h"
-#include "log_event.h"                      // Rows_log_event
 #include "m_ctype.h"
 #include "mf_wcomp.h"                       // wild_one, wild_many
 #include "my_base.h"
@@ -69,43 +59,53 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
-#include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
 #include "rows_event.h"
-#include "rpl_filter.h"
-#include "rpl_gtid.h"
-#include "rpl_handler.h"                    // RUN_HOOK
-#include "rpl_mi.h"                         // Master_info
-#include "rpl_record.h"
-#include "rpl_rli.h"                        // Relay_log_info
-#include "rpl_rli_pdb.h"                    // Slave_worker
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "rpl_transaction_ctx.h"
-#include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
-#include "rpl_utility.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"                      // THD
-#include "sql_const.h"
-#include "sql_data_change.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                      // sqlcom_can_generate_row_events
-#include "sql_servers.h"
-#include "sql_show.h"                       // append_identifier
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                 // DEBUG_SYNC
+#include "sql/derror.h"                     // ER_THD
+#include "sql/discrete_interval.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item_func.h"                  // user_var_entry
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                  // Rows_log_event
+#include "sql/mysqld.h"                     // sync_binlog_period ...
+#include "sql/mysqld_thd_manager.h"         // Global_THD_manager
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"                // RUN_HOOK
+#include "sql/rpl_mi.h"                     // Master_info
+#include "sql/rpl_record.h"
+#include "sql/rpl_rli.h"                    // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                // Slave_worker
+#include "sql/rpl_slave.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/rpl_transaction_ctx.h"
+#include "sql/rpl_trx_boundary_parser.h"    // Transaction_boundary_parser
+#include "sql/rpl_utility.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_const.h"
+#include "sql/sql_data_change.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                  // sqlcom_can_generate_row_events
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"                   // append_identifier
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "statement_events.h"
-#include "system_variables.h"
-#include "table.h"
 #include "table_id.h"
 #include "thr_lock.h"
-#include "transaction_info.h"
-#include "xa.h"
 
 class Item;
 

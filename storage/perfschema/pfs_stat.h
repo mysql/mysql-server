@@ -21,7 +21,7 @@
 #include "my_dbug.h"
 #include "pfs_error.h"
 #include "pfs_global.h"
-#include "sql_const.h"
+#include "sql/sql_const.h"
 /* memcpy */
 #include "string.h"
 

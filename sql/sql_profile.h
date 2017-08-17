@@ -25,8 +25,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "psi_memory_key.h"
-#include "table.h"
+#include "sql/psi_memory_key.h"
+#include "sql/table.h"
 
 class Item;
 class THD;

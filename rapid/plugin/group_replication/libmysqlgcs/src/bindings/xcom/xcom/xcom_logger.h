@@ -53,13 +53,13 @@ to both GCS and XCOM but we don't prefix it with XCOM to avoid big names.
 #define GCS_XCOM_DEBUG_INFORMATION
 typedef enum
 {
-   XCOM_DEBUG_NONE   = 0x00000000,
+   GCS_DEBUG_NONE    = 0x00000000,
    GCS_DEBUG_BASIC   = 0x00000001,
    GCS_DEBUG_TRACE   = 0x00000002,
    XCOM_DEBUG_BASIC  = 0x00000004,
    XCOM_DEBUG_TRACE  = 0x00000008,
-   GCS_INVALID_DEBUG = 0x80000000,
-   XCOM_DEBUG_ALL    = ~XCOM_DEBUG_NONE
+   GCS_INVALID_DEBUG = ~(0x7FFFFFFF),
+   GCS_DEBUG_ALL     = ~(GCS_DEBUG_NONE)
 } gcs_xcom_debug_option_t;
 
 static const char* const gcs_xcom_debug_strings[]=

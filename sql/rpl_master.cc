@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "rpl_master.h"
+#include "sql/rpl_master.h"
 
 #include <fcntl.h>
 #include <string.h>
@@ -23,15 +23,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"                        // check_global_access
 #include "binary_log_types.h"
-#include "binlog.h"                             // mysql_bin_log
-#include "current_thd.h"
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "item.h"
-#include "item_func.h"                          // user_var_entry
-#include "log.h"                                // log_*()
 #include "m_ctype.h"
 #include "m_string.h"                           // strmake
 #include "map_helpers.h"
@@ -50,21 +42,29 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"                             // server_id
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h"                 // Global_THD_manager
-#include "protocol.h"
-#include "protocol_classic.h"
-#include "psi_memory_key.h"
-#include "rpl_binlog_sender.h"                  // Binlog_sender
-#include "rpl_filter.h"                         // binlog_filter
-#include "rpl_group_replication.h"              // is_group_replication_running
-#include "rpl_gtid.h"
-#include "rpl_handler.h"                        // RUN_HOOK
-#include "sql_class.h"                          // THD
-#include "sql_list.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"               // check_global_access
+#include "sql/binlog.h"                         // mysql_bin_log
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                     // DEBUG_SYNC
+#include "sql/item.h"
+#include "sql/item_func.h"                      // user_var_entry
+#include "sql/log.h"                            // log_*()
+#include "sql/mysqld.h"                         // server_id
+#include "sql/mysqld_thd_manager.h"             // Global_THD_manager
+#include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_binlog_sender.h"              // Binlog_sender
+#include "sql/rpl_filter.h"                     // binlog_filter
+#include "sql/rpl_group_replication.h"          // is_group_replication_running
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_handler.h"                    // RUN_HOOK
+#include "sql/sql_class.h"                      // THD
+#include "sql/sql_list.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 #include "thr_mutex.h"
 #include "typelib.h"
 
@@ -103,7 +103,7 @@ static PSI_mutex_key key_LOCK_slave_list;
 
 static PSI_mutex_info all_slave_list_mutexes[]=
 {
-  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_all_slave_list_mutexes(void)

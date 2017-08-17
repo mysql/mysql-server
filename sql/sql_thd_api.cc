@@ -20,10 +20,6 @@
 #include <algorithm>
 #include <atomic>
 
-#include "connection_handler_manager.h"
-#include "current_thd.h"                // current_thd
-#include "handler.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -40,26 +36,30 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     // key_thread_one_connection
-#include "protocol_classic.h"
-#include "query_options.h"
-#include "rpl_rli.h"                    // is_mts_worker
-#include "rpl_slave_commit_order_manager.h"
-#include "sql_alter.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/conn_handler/connection_handler_manager.h"
+#include "sql/current_thd.h"            // current_thd
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"                 // key_thread_one_connection
+#include "sql/protocol_classic.h"
+#include "sql/query_options.h"
+#include "sql/rpl_rli.h"                // is_mts_worker
+#include "sql/rpl_slave_commit_order_manager.h"
+#include "sql/sql_alter.h"
                                         // commit_order_manager_check_deadlock
-#include "sql_callback.h"               // MYSQL_CALLBACK
-#include "sql_class.h"                  // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_plugin.h"                 // plugin_unlock
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/sql_callback.h"           // MYSQL_CALLBACK
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"             // plugin_unlock
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_thd_internal_api.h"
+#include "sql/system_variables.h"
+#include "sql/transaction_info.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_thd_internal_api.h"
-#include "system_variables.h"
-#include "transaction_info.h"
 #include "violite.h"
-#include "xa.h"
 
 using std::min;
 

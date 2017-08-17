@@ -21,12 +21,8 @@
 #include <time.h>
 #include <memory>
 
-#include "debug_sync.h"
 #include "lex_string.h"
-#include "log.h"
-#include "log_event.h"                      // Query_log_event
 #include "m_string.h"
-#include "mdl.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -37,17 +33,21 @@
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysqld.h"                         // stage_worker_....
 #include "mysqld_error.h"
-#include "query_options.h"
-#include "rpl_filter.h"
-#include "rpl_rli.h"                        // Relay_log_info
-#include "rpl_rli_pdb.h"                    // db_worker_hash_entry
-#include "rpl_slave.h"
-#include "rpl_slave_commit_order_manager.h" // Commit_order_manager
-#include "sql_class.h"                      // THD
-#include "system_variables.h"
-#include "table.h"
+#include "sql/debug_sync.h"
+#include "sql/log.h"
+#include "sql/log_event.h"                  // Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // stage_worker_....
+#include "sql/query_options.h"
+#include "sql/rpl_filter.h"
+#include "sql/rpl_rli.h"                    // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                // db_worker_hash_entry
+#include "sql/rpl_slave.h"
+#include "sql/rpl_slave_commit_order_manager.h" // Commit_order_manager
+#include "sql/sql_class.h"                  // THD
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 
 /**

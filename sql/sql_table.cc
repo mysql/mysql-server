@@ -17,7 +17,7 @@
 
 /* drop and alter of tables */
 
-#include "sql_table.h"
+#include "sql/sql_table.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -28,48 +28,11 @@
 #include <memory>
 #include <string>
 
-#include "auth_acls.h"
-#include "auth_common.h"              // check_fk_parent_table_access
 #include "binary_log_types.h"
-#include "binlog.h"                   // mysql_bin_log
 #include "binlog_event.h"
-#include "dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
-#include "dd/collection.h"
-#include "dd/dd.h"                        // dd::get_dictionary
-#include "dd/dd_schema.h"                 // dd::schema_exists
-#include "dd/dd_table.h"                  // dd::drop_table, dd::update_keys...
-#include "dd/dictionary.h"                // dd::Dictionary
-#include "dd/properties.h"                // dd::Properties
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"
-#include "dd/types/foreign_key.h"         // dd::Foreign_key
-#include "dd/types/foreign_key_element.h" // dd::Foreign_key_element
-#include "dd/types/index.h"               // dd::Index
-#include "dd/types/index_element.h"       // dd::Index_element
-#include "dd/types/schema.h"
-#include "dd/types/table.h"               // dd::Table
-#include "dd/types/trigger.h"
-#include "dd_sql_view.h"              // update_referencing_views_metadata
-#include "dd_table_share.h"           // open_table_def
-#include "debug_sync.h"               // DEBUG_SYNC
-#include "derror.h"                   // ER_THD
-#include "error_handler.h"            // Drop_table_error_handler
-#include "field.h"
-#include "filesort.h"                 // Filesort
-#include "handler.h"
-#include "item.h"
-#include "item_timefunc.h"            // Item_func_now_local
-#include "key.h"                      // KEY
-#include "key_spec.h"                 // Key_part_spec
 #include "lex_string.h"
-#include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
-#include "log.h"
-#include "log_event.h"                // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"                 // my_stpncpy
-#include "mdl.h"
-#include "mem_root_array.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_check_opt.h"             // T_EXTEND
@@ -92,50 +55,87 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"                   // lower_case_table_names
 #include "mysqld_error.h"             // ER_*
-#include "partition_element.h"
-#include "partition_info.h"           // partition_info
-#include "partitioning/partition_handler.h" // Partition_handler
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "psi_memory_key.h"           // key_memory_gdl
-#include "query_options.h"
-#include "records.h"                  // READ_RECORD
-#include "rpl_gtid.h"
-#include "rpl_rli.h"                  // rli_slave etc
-#include "session_tracker.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"     // check_fk_parent_table_access
+#include "sql/binlog.h"               // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/collection.h"
+#include "sql/dd/dd.h"                    // dd::get_dictionary
+#include "sql/dd/dd_schema.h"             // dd::schema_exists
+#include "sql/dd/dd_table.h"              // dd::drop_table, dd::update_keys...
+#include "sql/dd/dictionary.h"            // dd::Dictionary
+#include "sql/dd/properties.h"            // dd::Properties
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"
+#include "sql/dd/types/foreign_key.h"     // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
+#include "sql/dd/types/index.h"           // dd::Index
+#include "sql/dd/types/index_element.h"   // dd::Index_element
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/table.h"           // dd::Table
+#include "sql/dd/types/trigger.h"
+#include "sql/dd_sql_view.h"          // update_referencing_views_metadata
+#include "sql/dd_table_share.h"       // open_table_def
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
+#include "sql/error_handler.h"        // Drop_table_error_handler
+#include "sql/field.h"
+#include "sql/filesort.h"             // Filesort
+#include "sql/handler.h"
 #include "sql/histograms/histogram.h"
-#include "sql_alter.h"
-#include "sql_base.h"                 // lock_table_names
-#include "sql_class.h"                // THD
-#include "sql_const.h"
-#include "sql_db.h"                   // get_default_db_collation
-#include "sql_error.h"
-#include "sql_executor.h"             // QEP_TAB_standalone
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                // test_if_data_home_dir
-#include "sql_partition.h"
-#include "sql_plugin_ref.h"
-#include "sql_resolver.h"             // setup_order
-#include "sql_show.h"
-#include "sql_sort.h"
+#include "sql/item.h"
+#include "sql/item_timefunc.h"        // Item_func_now_local
+#include "sql/key.h"                  // KEY
+#include "sql/key_spec.h"             // Key_part_spec
+#include "sql/lock.h"                 // mysql_lock_remove, lock_tablespace_names
+#include "sql/log.h"
+#include "sql/log_event.h"            // Query_log_event
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"               // lower_case_table_names
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"       // partition_info
+#include "sql/partitioning/partition_handler.h" // Partition_handler
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"       // key_memory_gdl
+#include "sql/query_options.h"
+#include "sql/records.h"              // READ_RECORD
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_rli.h"              // rli_slave etc
+#include "sql/session_tracker.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"             // lock_table_names
+#include "sql/sql_class.h"            // THD
+#include "sql/sql_const.h"
+#include "sql/sql_db.h"               // get_default_db_collation
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"         // QEP_TAB_standalone
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"            // test_if_data_home_dir
+#include "sql/sql_partition.h"
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_resolver.h"         // setup_order
+#include "sql/sql_show.h"
+#include "sql/sql_sort.h"
+#include "sql/sql_tablespace.h"       // validate_tablespace_name
+#include "sql/sql_time.h"             // make_truncated_value_warning
+#include "sql/sql_trigger.h"          // change_trigger_table_name
+#include "sql/strfunc.h"              // find_type2
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"          // trans_commit_stmt
+#include "sql/transaction_info.h"
+#include "sql/trigger.h"
+#include "sql/xa.h"
 #include "sql_string.h"
-#include "sql_tablespace.h"           // validate_tablespace_name
-#include "sql_time.h"                 // make_truncated_value_warning
-#include "sql_trigger.h"              // change_trigger_table_name
-#include "strfunc.h"                  // find_type2
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"              // trans_commit_stmt
-#include "transaction_info.h"
-#include "trigger.h"
 #include "typelib.h"
-#include "xa.h"
 
 namespace dd {
 class View;
@@ -8449,6 +8449,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
+  bool rollback_needs_dict_cache_reset= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
@@ -8710,6 +8711,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     table_list->table= table= NULL;
     reopen_tables= true;
     close_temporary_table(thd, altered_table, true, false);
+    rollback_needs_dict_cache_reset= true;
 
     /*
       Replace table definition in the data-dictionary.
@@ -8942,6 +8944,17 @@ cleanup2:
       db_type->post_ddl)
     db_type->post_ddl(thd);
 
+
+  /*
+    InnoDB requires additional SE dictionary cache invalidation if we rollback
+    after successfull call to handler::ha_commit_inplace_alter_table().
+  */
+  if (rollback_needs_dict_cache_reset)
+  {
+    if (db_type->dict_cache_reset != nullptr)
+      db_type->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
+  }
+
   /*
     Re-opening of table needs to be done after rolling back the failed
     statement/transaction and clearing THD::transaction_rollback_request
@@ -8952,12 +8965,6 @@ cleanup2:
     /* Close the only table instance which might be still around. */
     if (table)
       close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
-    else
-    {
-      handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-      if (ddse->dict_cache_reset != nullptr)
-        ddse->dict_cache_reset(alter_ctx->db, alter_ctx->table_name);
-    }
     if (thd->locked_tables_list.reopen_tables(thd))
       thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
     /* QQ; do something about metadata locks ? */

@@ -15,12 +15,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/object_queue.h"
+
 #include <stddef.h>
 #include <chrono>
 #include <functional>
 #include <thread>
-
-#include "object_queue.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

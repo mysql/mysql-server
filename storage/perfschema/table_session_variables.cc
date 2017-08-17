@@ -23,16 +23,16 @@
 #include <stddef.h>
 #include <new>
 
-#include "current_thd.h"
-#include "field.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "mysqld.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
 #include "pfs_global.h"
 #include "pfs_instr_class.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/field.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
 
 bool
 PFS_index_session_variables::match(const System_variable *pfs)

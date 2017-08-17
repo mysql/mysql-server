@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,9 @@
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
 
-#include "lex.h"
-#include "lex_symbol.h"
-#include "sql_yacc.h"
+#include "sql/lex.h"
+#include "sql/lex_symbol.h"
+#include "sql/sql_yacc.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /*

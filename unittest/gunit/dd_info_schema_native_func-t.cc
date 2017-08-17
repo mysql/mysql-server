@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,12 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
-#include "test_utils.h"
 
-#include "item_func.h"
-#include "item_timefunc.h"
-#include "parse_tree_helpers.h"
+#include <gtest/gtest.h>
+
+#include "sql/item_func.h"
+#include "sql/item_timefunc.h"
+#include "sql/parse_tree_helpers.h"
+#include "test_utils.h"
 
 namespace dd_info_schema_native_func {
 using my_testing::Server_initializer;

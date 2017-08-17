@@ -3,7 +3,7 @@
 --source include/mysql_upgrade_preparation.inc
 
 CREATE USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user ORDER BY user;
+SELECT user FROM mysql.user ORDER BY user;
 --exec $MYSQL -ukristofer -psecret --default_auth=sha256_password -e "select user(), current_user()"
 --exec $MYSQL -ukristofer -psecret --default_auth=mysql_native_password -e "select user(), current_user()"
 --exec $MYSQL -ukristofer -psecret --default_auth=sha256_password --server_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"

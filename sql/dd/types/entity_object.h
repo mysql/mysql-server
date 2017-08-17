@@ -17,9 +17,9 @@
 #define DD__ENTITY_OBJECT_INCLUDED
 
 
-#include "dd/object_id.h"             // dd::Object_id
-#include "dd/string_type.h"           // dd::String_type
-#include "dd/types/weak_object.h"     // dd::Weak_object
+#include "sql/dd/object_id.h"         // dd::Object_id
+#include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/dd/types/weak_object.h" // dd::Weak_object
 
 namespace dd {
   namespace cache {

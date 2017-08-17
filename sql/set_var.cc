@@ -15,21 +15,13 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
-#include "set_var.h"
+#include "sql/set_var.h"
 
 #include <string.h>
 #include <sys/types.h>
 #include <cstdlib>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"         // SUPER_ACL
-#include "derror.h"              // ER_THD
-#include "enum_query_type.h"
-#include "item.h"
-#include "item_func.h"
-#include "key.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -41,26 +33,34 @@
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "mysqld.h"              // system_charset_info
 #include "mysqld_error.h"
-#include "persisted_variable.h"
-#include "protocol_classic.h"
-#include "session_tracker.h"
-#include "sql_audit.h"           // mysql_audit
-#include "sql_base.h"            // lock_tables
-#include "sql_class.h"           // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"           // is_supported_parser_charset
-#include "sql_security_ctx.h"
-#include "sql_select.h"          // free_underlaid_joins
-#include "sql_show.h"            // append_identifier
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // SUPER_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/derror.h"          // ER_THD
+#include "sql/enum_query_type.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"          // system_charset_info
+#include "sql/persisted_variable.h"
+#include "sql/protocol_classic.h"
+#include "sql/session_tracker.h"
+#include "sql/sql_audit.h"       // mysql_audit
+#include "sql/sql_base.h"        // lock_tables
+#include "sql/sql_class.h"       // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"       // is_supported_parser_charset
+#include "sql/sql_select.h"      // free_underlaid_joins
+#include "sql/sql_show.h"        // append_identifier
+#include "sql/sql_table.h"
+#include "sql/sys_vars_shared.h" // PolyLock_mutex
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"
-#include "sys_vars_shared.h"     // PolyLock_mutex
-#include "system_variables.h"
-#include "table.h"
 
 using std::string;
 

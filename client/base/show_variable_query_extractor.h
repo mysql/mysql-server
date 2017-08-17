@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "base/mysql_query_runner.h"
+#include "client/base/mysql_query_runner.h"
 #include "my_inttypes.h"
 #include "mysql.h"
 

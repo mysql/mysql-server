@@ -13,14 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/impl/tables/parameter_type_elements.h"
+#include "sql/dd/impl/tables/parameter_type_elements.h"
 
 #include <new>
 
-#include "dd/impl/raw/object_keys.h"  // Parent_id_range_key
-#include "dd/impl/types/object_table_definition_impl.h"
 #include "my_dbug.h"
-#include "sql_const.h"                // MAX_INTERVAL_VALUE_LENGTH
+#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
+#include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/sql_const.h"            // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 namespace tables {

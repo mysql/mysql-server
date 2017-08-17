@@ -9103,7 +9103,7 @@ ERROR 42000: Result consisted of more than one row
 set @initialized_21602361 = '$';
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
-ERROR 42000: Invalid JSON path expression. The error is around character position 1.
+ERROR 42000: Result consisted of more than one row
 set @error_value_21602361 = '$[';
 select json_length('{}',@error_value_21602361)
 from t group by b into @error_value_21602361;

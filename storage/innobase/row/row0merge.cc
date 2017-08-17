@@ -3832,6 +3832,11 @@ row_merge_create_index(
 		DBUG_RETURN(NULL);
 	}
 
+	if (dict_index_is_spatial(index)) {
+		index->fill_srid_value(
+			index_def->srid, index_def->srid_is_valid);
+	}
+
 	/* Adjust field name for newly added virtual columns. */
 	for (i = 0; i < n_fields; i++) {
 		index_field_t*	ifield = &index_def->fields[i];

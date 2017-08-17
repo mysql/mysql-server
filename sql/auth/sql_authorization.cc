@@ -51,26 +51,10 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "dd/dd_table.h"                // dd::table_exists
-#include "debug_sync.h"
-#include "derror.h"                     /* ER_THD */
-#include "dynamic_privilege_table.h"
-#include "error_handler.h"              /* error_handler */
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"                   /* Key_spec */
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
-#include "mdl.h"
 #include "mf_wcomp.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -87,30 +71,46 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                     /* lower_case_table_names */
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "protocol.h"
-#include "role_tables.h"
-#include "sp.h"                         /* sp_exist_routines */
-#include "sql_alter.h"
-#include "sql_auth_cache.h"
-#include "sql_base.h"                   /* open_and_lock_tables */
-#include "sql_class.h"                  /* THD */
-#include "sql_connect.h"
-#include "sql_db.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* get_current_user */
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"                   /* append_identifier */
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/role_tables.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/dd/dd_table.h"            // dd::table_exists
+#include "sql/debug_sync.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/error_handler.h"          /* error_handler */
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"               /* Key_spec */
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                 /* lower_case_table_names */
+#include "sql/protocol.h"
+#include "sql/sp.h"                     /* sp_exist_routines */
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"               /* open_and_lock_tables */
+#include "sql/sql_class.h"              /* THD */
+#include "sql/sql_connect.h"
+#include "sql/sql_db.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              /* get_current_user */
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"               /* append_identifier */
+#include "sql/sql_view.h"               /* VIEW_ANY_ACL */
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_user_table.h"
-#include "sql_view.h"                   /* VIEW_ANY_ACL */
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
@@ -2503,6 +2503,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool is_privileged_user= false;
   bool result= false;
   int ret= 0;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_table_grant");
 
@@ -2590,7 +2591,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         }
       }
       ulong missing_privilege= rights & ~table_list->grant.privilege;
-      DBUG_ASSERT(missing_privilege == table_list->grant.want_privilege);
       if (missing_privilege)
       {
         char command[128];
@@ -2664,6 +2664,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       result= true;
       continue;
     }
+
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
 
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
@@ -2781,6 +2785,22 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   result= log_and_commit_acl_ddl(thd, transactional_tables);
 
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   if (!result) /* success */
     my_ok(thd);
 
@@ -2820,6 +2840,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool is_privileged_user= false;
   bool result= false;
   int ret;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_routine_grant");
 
@@ -2886,6 +2907,10 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= true;
       continue;
     }
+
+    ACL_USER *this_user= find_acl_user(Str->host.str, Str->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(tmp_Str);
 
     /* Create user if needed */
     if ((error= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table, Str,
@@ -2964,6 +2989,23 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   result= log_and_commit_acl_ddl(thd, transactional_tables, NULL, result,
                                  write_to_binlog, write_to_binlog);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    for (LEX_USER * one_user : existing_users)
+    {
+      LEX_USER * existing_user;
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   get_global_acl_cache()->increase_version();
   DBUG_RETURN(result);
 }
@@ -3219,6 +3261,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool error= false;
   int ret;
   TABLE *dynpriv_table;
+  std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_grant");
   if (!initialized)
@@ -3293,6 +3336,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       */
       rights= 0;
     }
+
+    ACL_USER *this_user= find_acl_user(user->host.str, user->user.str, true);
+    if (this_user && (what_to_set & PLUGIN_ATTR))
+      existing_users.insert(target_user);
 
     if ((ret= replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                  user, (!db ? rights : 0), revoke_grant,
@@ -3439,6 +3486,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   error= log_and_commit_acl_ddl(thd, transactional_tables);
 
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * existing_user;
+    for (LEX_USER * one_user : existing_users)
+    {
+      if ((existing_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           existing_user->user.str,
+                           existing_user->host.str,
+                           existing_user->plugin.str,
+                           is_role_id(existing_user),
+                           NULL, NULL);
+    }
+  }
+
   if (!error)
     my_ok(thd);
 
@@ -3525,9 +3588,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
            Depend on the controls in the P_S table itself.
         */
         t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
         continue;
       case ACL_INTERNAL_ACCESS_DENIED:
         goto err;
@@ -3543,26 +3603,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
 
     if (!(~t_ref->grant.privilege & want_access) ||
         t_ref->is_derived() || t_ref->schema_table)
-    {
-      /*
-        It is subquery in the FROM clause. VIEW set t_ref->derived after
-        table opening, but this function always called before table opening.
-      */
-      if (!t_ref->referencing_view)
-      {
-        /*
-          If it's a temporary table created for a subquery in the FROM
-          clause, or an INFORMATION_SCHEMA table, drop the request for
-          a privilege.
-        */
-
-// TODO Why would we make a difference between debug and non-debug here?
-#ifndef DBUG_OFF
-        t_ref->grant.want_privilege= 0;
-#endif
-      }
       continue;
-    }
 
     if (is_temporary_table(t_ref))
     {
@@ -3573,9 +3614,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         if user has CREATE_TMP_ACL.
       */
       t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
-      t_ref->grant.want_privilege= 0;
-#endif
       continue;
     }
 
@@ -3608,7 +3646,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (any_combination_will_do)
         continue;
       t_ref->grant.privilege= aggr.table_access;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
       if (!(~t_ref->grant.privilege & want_access))
       {
         DBUG_PRINT("info",("Access not denied because of column acls for %s.%s."
@@ -3654,7 +3691,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       t_ref->grant.grant_table= grant_table; // Remember for column test
       t_ref->grant.version= grant_version;
       t_ref->grant.privilege|= grant_table->privs;
-      t_ref->set_want_privilege(want_access & COL_ACLS);
 
       DBUG_PRINT("info",("t_ref->grant.privilege = %lu",
                          t_ref->grant.privilege));
@@ -3715,12 +3751,6 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   DBUG_ENTER("check_grant_column");
   DBUG_PRINT("enter", ("table: %s  want_privilege: %lu",
                        table_name, want_privilege));
-
-  /*
-    Make sure that the privilege request is aligned with the overall privileges
-    granted to and requested for the table.
-  */
-  DBUG_ASSERT(!(want_privilege & ~(grant->want_privilege | grant->privilege)));
 
   // Adjust wanted privileges based on privileges granted to table:
   want_privilege&= ~grant->privilege;

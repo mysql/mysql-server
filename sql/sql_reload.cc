@@ -18,35 +18,35 @@
 #include <stddef.h>
 #include <atomic>
 
-#include "auth_common.h" // acl_reload, grant_reload
-#include "binlog.h"
-#include "connection_handler_impl.h"
-#include "current_thd.h" // my_thread_set_THR_THD
-#include "debug_sync.h"
-#include "handler.h"
-#include "hostname.h"    // hostname_cache_refresh
 #include "lex_string.h"
-#include "log.h"         // query_logger
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
-#include "mysqld.h"      // select_errors
 #include "mysqld_error.h"
-#include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
-#include "query_options.h"
-#include "rpl_master.h"  // reset_master
-#include "rpl_slave.h"   // reset_slave
-#include "sql_base.h"    // close_cached_tables
-#include "sql_class.h"   // THD
-#include "sql_connect.h" // reset_mqh
-#include "sql_const.h"
-#include "sql_servers.h" // servers_reload
-#include "system_variables.h"
-#include "table.h"
+#include "sql/auth/auth_common.h" // acl_reload, grant_reload
+#include "sql/binlog.h"
+#include "sql/conn_handler/connection_handler_impl.h"
+#include "sql/current_thd.h" // my_thread_set_THR_THD
+#include "sql/debug_sync.h"
+#include "sql/handler.h"
+#include "sql/hostname.h" // hostname_cache_refresh
+#include "sql/log.h"     // query_logger
+#include "sql/mdl.h"
+#include "sql/mysqld.h"  // select_errors
+#include "sql/opt_costconstantcache.h" // reload_optimizer_cost_constants
+#include "sql/query_options.h"
+#include "sql/rpl_master.h" // reset_master
+#include "sql/rpl_slave.h" // reset_slave
+#include "sql/sql_base.h" // close_cached_tables
+#include "sql/sql_class.h" // THD
+#include "sql/sql_connect.h" // reset_mqh
+#include "sql/sql_const.h"
+#include "sql/sql_servers.h" // servers_reload
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 /**
   Reload/resets privileges and the different caches.
@@ -98,6 +98,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
+      notify_flush_event(thd);
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;

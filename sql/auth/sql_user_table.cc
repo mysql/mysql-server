@@ -30,22 +30,11 @@
 #include <unordered_map>
 #include <utility>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "auth_internal.h"
 #include "binary_log_types.h"
-#include "binlog.h"                     /* mysql_bin_log.is_open() */
-#include "field.h"
-#include "handler.h"
-#include "item_func.h"                  /* mqh_used */
-#include "key.h"                        /* key_copy, key_cmp_if_same */
 #include "lex_string.h"
-                                        /* key_restore */
-#include "log.h"                        /* log_*() */
 #include "m_ctype.h"
 #include "m_string.h"                   /* C_STRING_WITH_LEN */
 #include "map_helpers.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -54,32 +43,43 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"
 #include "mysqld_error.h"
-#include "rpl_filter.h"                 /* rpl_filter */
-#include "rpl_rli.h"                    /* class Relay_log_info */
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_base.h"                   /* close_thread_tables */
-#include "sql_class.h"
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_authentication.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"                 /* mysql_bin_log.is_open() */
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_func.h"              /* mqh_used */
+#include "sql/key.h"                    /* key_copy, key_cmp_if_same */
+                                        /* key_restore */
+#include "sql/log.h"                    /* log_*() */
+#include "sql/mdl.h"
+#include "sql/mysqld.h"
+#include "sql/rpl_filter.h"             /* rpl_filter */
+#include "sql/rpl_rli.h"                /* class Relay_log_info */
+#include "sql/sql_base.h"               /* close_thread_tables */
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
                                         /* trans_commit_implicit */
-#include "sql_parse.h"                  /* stmt_causes_implicit_commit */
-#include "sql_security_ctx.h"
+#include "sql/sql_parse.h"              /* stmt_causes_implicit_commit */
+#include "sql/sql_table.h"              /* write_bin_log */
+#include "sql/sql_update.h"             /* compare_records */
+#include "sql/system_variables.h"
+#include "sql/table.h"                  /* TABLE_FIELD_TYPE */
+#include "sql/transaction.h"            /* trans_commit_stmt */
+#include "sql/tztime.h"
 #include "sql_string.h"
-#include "sql_table.h"                  /* write_bin_log */
-#include "sql_update.h"                 /* compare_records */
-#include "system_variables.h"
-#include "table.h"                      /* TABLE_FIELD_TYPE */
 #include "thr_lock.h"
-#include "transaction.h"                /* trans_commit_stmt */
 #include "typelib.h"
-#include "tztime.h"
-#include "value_map.h"
 #include "violite.h"
 
 static const

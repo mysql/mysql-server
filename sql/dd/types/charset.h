@@ -16,8 +16,8 @@
 #ifndef DD__CHARSET_INCLUDED
 #define DD__CHARSET_INCLUDED
 
-#include "dd/types/entity_object.h"    // dd::Entity_object
 #include "my_inttypes.h"
+#include "sql/dd/types/entity_object.h" // dd::Entity_object
 
 namespace dd {
 

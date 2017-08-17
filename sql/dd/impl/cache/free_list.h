@@ -18,8 +18,8 @@
 
 #include <vector>                         // vector
 
-#include "malloc_allocator.h"             // Malloc_allocator.
 #include "my_dbug.h"
+#include "sql/malloc_allocator.h"         // Malloc_allocator.
 
 namespace dd {
 namespace cache {

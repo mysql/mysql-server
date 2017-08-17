@@ -18,12 +18,12 @@
 #include <memory>
 #include <string>
 
-#include "error_handler.h"
-#include "json_binary.h"
-#include "json_dom.h"
-#include "sql_string.h"
 #include "my_inttypes.h"
-#include "sql_time.h"
+#include "sql/error_handler.h"
+#include "sql/json_binary.h"
+#include "sql/json_dom.h"
+#include "sql/sql_time.h"
+#include "sql_string.h"
 #include "test_utils.h"
 
 namespace json_binary_unittest {

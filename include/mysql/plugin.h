@@ -22,9 +22,10 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h>
+
 #include "mysql_version.h" /* MYSQL_VERSION_ID */
 #ifdef __cplusplus
-#include "sql_plugin.h"  // plugin_thdvar_safe_update
+#include "sql/sql_plugin.h" // plugin_thdvar_safe_update
 #endif
 #endif
 

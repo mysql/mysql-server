@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,11 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+
 #include "parsertest.h"
+#include "sql/sql_lex.h"
 #include "test_utils.h"
 #include "thr_lock.h"
-#include "sql_lex.h"
 
 namespace insert_delayed_unittest {
 

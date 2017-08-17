@@ -24,11 +24,7 @@
 
 #include "binary_log_types.h"
 #include "decimal.h"
-#include "enum_query_type.h"
-#include "field.h"
 #include "ft_global.h"
-#include "handler.h"
-#include "item.h"       // Item_result_field
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -36,7 +32,6 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h" // string2my_decimal
 #include "my_inttypes.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -47,15 +42,20 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"    // enum_var_type
-#include "sql_const.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"   // Item_result_field
+#include "sql/my_decimal.h" // string2my_decimal
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h" // enum_var_type
+#include "sql/sql_const.h"
+#include "sql/sql_udf.h" // udf_handler
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "sql_udf.h"    // udf_handler
-#include "system_variables.h"
-#include "table.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_wrapper;
 class PT_item_list;
@@ -77,8 +77,6 @@ class Item_func :public Item_result_field
   typedef Item_result_field super;
 protected:
   Item **args, *tmp_arg[2];
-  /// Value used in calculation of result of const_item()
-  bool const_item_cache;
   /*
     Allowed numbers of columns in result (usually 1, which means scalar value)
     0 means get this number from first argument
@@ -261,7 +259,6 @@ public:
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
-  bool const_item() const override { return const_item_cache; }
   inline Item **arguments() const
   { DBUG_ASSERT(argument_count() > 0); return args; }
   /**
@@ -1276,7 +1273,6 @@ public:
   bool itemize(Parse_context *pc, Item **res) override;
   double val_real() override;
   const char *func_name() const override { return "rand"; }
-  bool const_item() const override { return false; }
   /**
     This function is non-deterministic and hence depends on the
     'RAND' pseudo-table.
@@ -1388,7 +1384,11 @@ public:
 
 /* 
   Objects of this class are used for ROLLUP queries to wrap up 
-  each constant item referred to in GROUP BY list. 
+  each constant item referred to in GROUP BY list.
+
+  Before grouping the wrapped item could be considered constant, but after
+  grouping it is not, as rollup adds NULL values, which can affect later
+  phases like DISTINCT or windowing.
 */
 
 class Item_func_rollup_const final : public Item_func
@@ -1412,7 +1412,14 @@ public:
     return (null_value= args[0]->get_time(ltime));
   }
   const char *func_name() const override { return "rollup_const"; }
-  bool const_item() const override { return false; }
+  table_map used_tables() const override
+  {
+    /*
+      If underlying item is non-constant, return its used_tables value.
+      Otherwise ensure it is non-constant by returning RAND_TABLE_BIT.
+    */
+    return args[0]->used_tables() ? args[0]->used_tables() : RAND_TABLE_BIT;
+  }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override
   {
@@ -1825,7 +1832,6 @@ public:
   Item_func_sleep(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
-  bool const_item() const override { return false; }
   const char *func_name() const override { return "sleep"; }
   /**
     This function is non-deterministic and hence depends on the
@@ -1858,7 +1864,6 @@ public:
     DBUG_ASSERT(fixed == 0);
     bool res= udf.fix_fields(thd, this, arg_count, args);
     used_tables_cache= udf.used_tables_cache;
-    const_item_cache= udf.const_item_cache;
     fixed= true;
     return res;
   }
@@ -1905,11 +1910,7 @@ public:
     */  
     if ((used_tables_cache & ~PSEUDO_TABLE_BITS) && 
         !(used_tables_cache & RAND_TABLE_BIT))
-    {
       Item_func::update_used_tables();
-      if (!const_item_cache && !used_tables_cache)
-        used_tables_cache= RAND_TABLE_BIT;
-    }
   }
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
@@ -2912,6 +2913,8 @@ public:
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *str) override;
   bool resolve_type(THD *) override;
+  void update_used_tables() override
+  {} // Keep existing used tables
   void print(String *str, enum_query_type query_type) override;
   enum Item_result result_type() const override;
   /*
@@ -2919,9 +2922,6 @@ public:
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
   const char *func_name() const override { return "get_user_var"; }
-  bool const_item() const override;
-  table_map used_tables() const override
-  { return const_item() ? 0 : RAND_TABLE_BIT; }
   bool eq(const Item *item, bool binary_cmp) const override;
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
@@ -3039,7 +3039,6 @@ public:
   enum Functype functype() const override { return GSYSVAR_FUNC; }
   bool resolve_type(THD *) override;
   void print(String *str, enum_query_type query_type) override;
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   enum Item_result result_type() const override;
   double val_real() override;
@@ -3445,8 +3444,6 @@ public:
     i.e. @c init_result_field().
   */
   table_map get_initial_pseudo_tables() const override;
-  bool const_item() const override
-  { return used_tables() == 0; }
   void update_used_tables() override;
   void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select)
   override;

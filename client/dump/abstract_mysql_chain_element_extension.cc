@@ -15,13 +15,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/abstract_mysql_chain_element_extension.h"
+
 #include <boost/algorithm/string.hpp>
 #include <boost/bind.hpp>
 #include <stddef.h>
 #include <functional>
 #include <sstream>
-
-#include "abstract_mysql_chain_element_extension.h"
 
 using namespace Mysql::Tools::Dump;
 

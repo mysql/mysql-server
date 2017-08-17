@@ -21,7 +21,7 @@
   Init and dummy functions for interface with unireg
 */
 
-#include "init.h"
+#include "sql/init.h"
 
 #include "my_config.h"
 
@@ -35,7 +35,7 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_time.h"                   // my_init_time
-#include "mysqld.h"                    // connection_events_loop_aborted(), ...
+#include "sql/mysqld.h"                // connection_events_loop_aborted(), ...
 
 #ifdef _WIN32
 #include <process.h> // getpid

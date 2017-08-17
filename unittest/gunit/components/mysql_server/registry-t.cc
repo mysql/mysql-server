@@ -22,20 +22,19 @@
 #include <stddef.h>
 
 typedef int mysql_mutex_t; // mock to load persistent_dynamic_loader imp header
-#include <mysql/components/services/component_sys_var_service.h>
-#include <component_sys_var_service.h>
-#include <mysql/components/services/persistent_dynamic_loader.h>
-#include <auth/dynamic_privileges_impl.h>
-#include <udf_registration_imp.h>
-#include <persistent_dynamic_loader.h>
-#include <component_sys_var_service.h>
 #include <component_status_var_service.h>
+#include <component_sys_var_service.h>
+#include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/persistent_dynamic_loader.h>
+#include <persistent_dynamic_loader.h>
 #include <scope_guard.h>
 #include <server_component.h>
 
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/udf_registration_imp.h"
 
 extern mysql_component_t COMPONENT_REF(mysql_server);
 

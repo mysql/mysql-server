@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,16 @@
 // First include (the generated) my_config.h, to get correct platform defines,
 // then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 
 #include "mock_create_field.h"
-#include "test_utils.h"
 #include "mock_field_timestamp.h"
-#include "item.h"
-#include "sql_class.h"
-#include "rpl_handler.h"                        // delegates_init()
-#include "sql_table.h"
+#include "sql/item.h"
+#include "sql/rpl_handler.h"                    // delegates_init()
+#include "sql/sql_class.h"
+#include "sql/sql_table.h"
+#include "test_utils.h"
 
 
 namespace sql_table_unittest {

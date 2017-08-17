@@ -17,9 +17,9 @@
 #define _sql_component_h
 
 #include "lex_string.h"
-#include "mem_root_array.h"
 #include "my_sqlcommand.h"
-#include "sql_cmd.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_cmd.h"
 
 class THD;
 

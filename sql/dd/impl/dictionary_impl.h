@@ -20,10 +20,10 @@
 #include <sys/types.h>
 #include <string>
 
-#include "dd/dictionary.h"           // dd::Dictionary
-#include "dd/object_id.h"            // dd::Object_id
-#include "dd/string_type.h"          // dd::String_type
 #include "lex_string.h"
+#include "sql/dd/dictionary.h"       // dd::Dictionary
+#include "sql/dd/object_id.h"        // dd::Object_id
+#include "sql/dd/string_type.h"      // dd::String_type
 #include "sql/table.h"               // MYSQL_SCHEMA_NAME
 
 class THD;

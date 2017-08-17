@@ -8637,6 +8637,7 @@ select_option:
           }
         | SQL_NO_CACHE_SYM
           {
+            push_deprecated_warn_no_replacement(YYTHD, "SQL_NO_CACHE");
             /* Ignored since MySQL 8.0. */
             $$.query_spec_options= 0;
           }

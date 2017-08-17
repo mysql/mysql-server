@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysqld_thd_manager.h"
+#include "sql/mysqld_thd_manager.h"
 
 #include "my_config.h"
 
@@ -39,7 +39,7 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/thread_pool_priv.h"  // inc_thread_created
-#include "sql_class.h"               // THD
+#include "sql/sql_class.h"           // THD
 #include "thr_mutex.h"
 
 
@@ -113,18 +113,20 @@ static PSI_mutex_key key_LOCK_thd_list;
 static PSI_mutex_key key_LOCK_thd_remove;
 static PSI_mutex_key key_LOCK_thread_ids;
 
+/* clang-format off */
 static PSI_mutex_info all_thd_manager_mutexes[]=
 {
-  { &key_LOCK_thd_list, "LOCK_thd_list", 0, 0},
-  { &key_LOCK_thd_remove, "LOCK_thd_remove", 0, 0},
-  { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_thd_list, "LOCK_thd_list", 0, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_thd_remove, "LOCK_thd_remove", 0, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
 static PSI_cond_key key_COND_thd_list;
 
 static PSI_cond_info all_thd_manager_conds[]=
 {
-  { &key_COND_thd_list, "COND_thd_list", 0 }
+  { &key_COND_thd_list, "COND_thd_list", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif // HAVE_PSI_INTERFACE
 

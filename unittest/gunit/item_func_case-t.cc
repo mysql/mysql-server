@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "item_cmpfunc.h"
+#include "sql/item_cmpfunc.h"
 #include "test_utils.h"
 
 namespace item_func_case_unittest {

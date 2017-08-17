@@ -27,8 +27,8 @@
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "rpl_gtid.h"
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_gtid.h"
 
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)

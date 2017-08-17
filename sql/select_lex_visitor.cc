@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 */
 
-#include "select_lex_visitor.h"
+#include "sql/select_lex_visitor.h"
 
 /// Gcc demands an implementation for a virtual destructor.
 Select_lex_visitor::~Select_lex_visitor() {}

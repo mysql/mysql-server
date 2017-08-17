@@ -13,3 +13,6 @@
 
 --let $USER_AUTH_PLUGIN= 'sha256_password'
 --source  ../include/connection_ssl.inc
+
+--let $USER_AUTH_PLUGIN= 'caching_sha2_password'
+--source ../include/connection_ssl.inc

@@ -21,18 +21,18 @@
 
 #include <string.h>
 
-#include "dd/properties.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"                    // MYSQL_ERRMSG_SIZE
 #include "mysqld_error.h"                 // ER_PARSE_ERROR
-#include "sql_alloc.h"                    // Sql_alloc
-#include "table.h"                        // TABLE
-#include "table_trigger_field_support.h"  // Table_trigger_field_support
-#include "thr_malloc.h"
-#include "trigger_def.h"                  // enum_trigger_action_time_type
+#include "sql/dd/properties.h"
+#include "sql/sql_alloc.h"                // Sql_alloc
+#include "sql/table.h"                    // TABLE
+#include "sql/table_trigger_field_support.h" // Table_trigger_field_support
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"              // enum_trigger_action_time_type
 
 class Field;
 class Query_tables_list;

@@ -20,15 +20,15 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/impl/types/weak_object_impl.h"
-#include "dd/object_id.h"
-#include "dd/sdi_fwd.h"
-#include "dd/string_type.h"
-#include "dd/types/entity_object_table.h"     // dd::Entity_object_table
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/schema.h"                  // dd:Schema
 #include "my_inttypes.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/sdi_fwd.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/schema.h"              // dd:Schema
 
 class THD;
 

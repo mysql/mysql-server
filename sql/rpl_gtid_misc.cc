@@ -31,23 +31,23 @@
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "rpl_gtid.h"
+#include "sql/rpl_gtid.h"
 #include "typelib.h"
 
 #ifdef MYSQL_SERVER
 #include <storage/perfschema/pfs_instr_class.h> // gtid_monitoring_getsystime
 
-#include "binlog.h"
-#include "current_thd.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"     // ER_*
-#include "rpl_msr.h"
-#include "sql_class.h"        // THD
-#include "sql_error.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/rpl_msr.h"
+#include "sql/sql_class.h"    // THD
+#include "sql/sql_error.h"
 #endif // ifdef MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 

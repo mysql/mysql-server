@@ -16,26 +16,26 @@
 #include "unittest/gunit/test_utils.h"
 
 #include <gtest/gtest.h>
+#include <atomic>
 #include <new>
 #include <ostream>
-#include <atomic>
 
-#include "dd/impl/dictionary_impl.h"            // dd::Dictionary_impl
 #include "gtest/gtest-message.h"
-#include "log.h"                                // query_logger
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"                            // DBUG_ASSERT
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "mysqld.h"                             // set_remaining_args
-#include "opt_costconstantcache.h"              // optimizer cost constant cache
-#include "rpl_handler.h"                        // delegates_init()
-#include "set_var.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "xa.h"
+#include "sql/dd/impl/dictionary_impl.h"        // dd::Dictionary_impl
+#include "sql/log.h"                            // query_logger
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                         // set_remaining_args
+#include "sql/opt_costconstantcache.h"          // optimizer cost constant cache
+#include "sql/rpl_handler.h"                    // delegates_init()
+#include "sql/set_var.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/xa.h"
 
 
 namespace my_testing {

@@ -21,7 +21,7 @@
   This file defines all compare functions
 */
 
-#include "item_cmpfunc.h"
+#include "sql/item_cmpfunc.h"
 
 #include <limits.h>
 #include <math.h>
@@ -29,16 +29,7 @@
 #include <functional>
 #include <type_traits>
 
-#include "aggregate_check.h"    // Distinct_check
-#include "check_stack.h"
-#include "current_thd.h"        // current_thd
 #include "decimal.h"
-#include "field.h"
-#include "item_json_func.h"     // json_value, get_json_atom_wrapper
-#include "item_subselect.h"     // Item_subselect
-#include "item_sum.h"           // Item_sum_hybrid
-#include "json_dom.h"           // Json_scalar_holder
-#include "key.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mf_wcomp.h"           // wild_one, wild_many
@@ -48,25 +39,34 @@
 #include "my_sqlcommand.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld.h"             // log_10
 #include "mysqld_error.h"
-#include "opt_trace.h"          // Opt_trace_object
-#include "parse_tree_helpers.h" // PT_item_list
-#include "set_var.h"
-#include "sql_array.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"          // THD
-#include "sql_error.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"      // JOIN
-#include "sql_select.h"
-#include "sql_servers.h"
-#include "sql_time.h"           // str_to_datetime
-#include "system_variables.h"
-#include "thr_malloc.h"
-#include "value_map.h"
+#include "sql/aggregate_check.h" // Distinct_check
+#include "sql/check_stack.h"
+#include "sql/current_thd.h"    // current_thd
+#include "sql/field.h"
+#include "sql/histograms/value_map.h"
+#include "sql/item_json_func.h" // json_value, get_json_atom_wrapper
+#include "sql/item_subselect.h" // Item_subselect
+#include "sql/item_sum.h"       // Item_sum_hybrid
+#include "sql/json_dom.h"       // Json_scalar_holder
+#include "sql/key.h"
+#include "sql/mysqld.h"         // log_10
+#include "sql/opt_trace.h"      // Opt_trace_object
+#include "sql/parse_tree_helpers.h" // PT_item_list
+#include "sql/set_var.h"
+#include "sql/sql_array.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_error.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_select.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_time.h"       // str_to_datetime
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
 
 using std::min;
 using std::max;
@@ -924,8 +924,6 @@ bool Arg_comparator::get_date_from_const(Item *date_arg,
 {
   THD *thd= current_thd;
   /*
-    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-    for the current thread but it still may change during the execution.
     Don't use cache while in the context analysis mode only (i.e. for 
     EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
     cases and can cause problems. For example evaluating subqueries can 
@@ -934,8 +932,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg,
   */
   if (!thd->lex->is_ps_or_view_context_analysis() &&
       str_arg->may_evaluate_const(thd) &&
-      (str_arg->type() != Item::FUNC_ITEM ||
-      ((Item_func*) str_arg)->functype() != Item_func::GUSERVAR_FUNC))
+      str_arg->type() != Item::FUNC_ITEM)
   {
     ulonglong value;
     if (str_arg->data_type() == MYSQL_TYPE_TIME)
@@ -1084,14 +1081,9 @@ get_time_value(THD *, Item ***item_arg, Item **cache_arg,
   value= item->val_time_temporal();
   *is_null= item->null_value;
 
-  /*
-    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-    for the current thread but it still may change during the execution.
-  */
   if (item->const_item() && cache_arg &&
       item->type() != Item::CACHE_ITEM &&
-      (item->type() != Item::FUNC_ITEM ||
-       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+      item->type() != Item::FUNC_ITEM)
   {
     Item_cache_datetime *cache= new Item_cache_datetime(item->data_type());
     /* Mark the cache as non-const to prevent re-caching. */
@@ -1398,14 +1390,10 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       "SQL modes" in the manual), so we're done here.
     */
   }
-  /*
-    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-    for the current thread but it still may change during the execution.
-  */
+
   if (item->const_item() && cache_arg &&
       item->type() != Item::CACHE_ITEM &&
-      (item->type() != Item::FUNC_ITEM ||
-       ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
+      item->type() != Item::FUNC_ITEM)
   {
     Item_cache_datetime *cache= new Item_cache_datetime(MYSQL_TYPE_DATETIME);
     /* Mark the cache as non-const to prevent re-caching. */
@@ -2155,7 +2143,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item**)
   }
   not_null_tables_cache= args[0]->not_null_tables();
   add_accum_properties(args[0]);
-  if ((const_item_cache= args[0]->const_item()))
+  if (const_item())
     cache->store(args[0]);
   return 0;
 }
@@ -2193,7 +2181,6 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
     */
     not_null_tables_cache&= ~args[0]->not_null_tables();
   }
-  const_item_cache&= args[1]->const_item();
   fixed= 1;
   return FALSE;
 }
@@ -2204,7 +2191,6 @@ void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
-  const_item_cache= true;
 
   /*
     No need to call fix_after_pullout() on args[0] (ie left expression),
@@ -2216,7 +2202,6 @@ void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
 
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
-  const_item_cache&= args[1]->const_item();
 }
 
 
@@ -2757,7 +2742,7 @@ bool Item_func_interval::resolve_type(THD *)
   used_tables_cache|= row->used_tables();
   not_null_tables_cache= row->not_null_tables();
   add_accum_properties(row);
-  const_item_cache&= row->const_item();
+
   return false;
 }
 
@@ -5679,7 +5664,6 @@ Item_cond::fix_fields(THD *thd, Item**)
 
   uchar buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache= 0;
-  const_item_cache= true;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
     not_null_tables_cache= 0;
@@ -5722,7 +5706,6 @@ Item_cond::fix_fields(THD *thd, Item**)
 	(item= *li.ref())->check_cols(1))
       return TRUE; /* purecov: inspected */
     used_tables_cache|= item->used_tables();
-    const_item_cache&=  item->const_item();
 
     if (functype() == COND_AND_FUNC && abort_on_null)
       not_null_tables_cache|= item->not_null_tables();
@@ -5747,7 +5730,6 @@ void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
   Item *item;
 
   used_tables_cache= get_initial_pseudo_tables();
-  const_item_cache= true;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
     not_null_tables_cache= 0;
@@ -5758,7 +5740,6 @@ void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
   {
     item->fix_after_pullout(parent_select, removed_select);
     used_tables_cache|= item->used_tables();
-    const_item_cache&= item->const_item();
     if (functype() == COND_AND_FUNC && abort_on_null)
       not_null_tables_cache|= item->not_null_tables();
     else
@@ -5937,14 +5918,12 @@ void Item_cond::update_used_tables()
   Item *item;
 
   used_tables_cache= 0;
-  const_item_cache= true;
   m_accum_properties= 0;
 
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
-    const_item_cache&= item->const_item();
     add_accum_properties(item);
   }
 }
@@ -6104,7 +6083,6 @@ void Item_func_isnull::update_used_tables()
   if (!args[0]->maybe_null)
   {
     used_tables_cache= 0;
-    const_item_cache= true;
     cached_value= (longlong) 0;
   }
   else
@@ -6114,10 +6092,8 @@ void Item_func_isnull::update_used_tables()
 
     used_tables_cache= args[0]->used_tables();
 
-    const_item_cache= used_tables_cache == 0;
-
     // If const, remember if value is always NULL or never NULL
-    if (const_item_cache)
+    if (const_item())
       cached_value= (longlong) args[0]->is_null();
   }
 }
@@ -6153,7 +6129,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (const_item_cache)
+  if (const_item())
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -6536,7 +6512,6 @@ Item_func_regex::fix_fields(THD *thd, Item**)
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
 			  args[1]->not_null_tables());
-  const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->may_evaluate_const(thd))
   {
     int comp_res= regcomp(TRUE);
@@ -6831,7 +6806,6 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
   : Item_bool_func(), const_item(0), eval_item(0), cond_false(0),
     compare_as_dates(FALSE)
 {
-  const_item_cache= false;
   fields.push_back(f1);
   fields.push_back(f2);
 }
@@ -6839,7 +6813,6 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
 Item_equal::Item_equal(Item *c, Item_field *f)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
-  const_item_cache= false;
   fields.push_back(f);
   const_item= c;
   compare_as_dates= f->is_temporal_with_date();
@@ -6849,7 +6822,6 @@ Item_equal::Item_equal(Item *c, Item_field *f)
 Item_equal::Item_equal(Item_equal *item_equal)
   : Item_bool_func(), eval_item(0), cond_false(0)
 {
-  const_item_cache= false;
   List_iterator_fast<Item_field> li(item_equal->fields);
   Item_field *item;
   while ((item= li++))
@@ -6882,7 +6854,8 @@ bool Item_equal::compare_const(THD *thd, Item *c)
   if (thd->is_error())
     return true;
   if (cond_false)
-    const_item_cache= true;
+    used_tables_cache= 0;
+
   return false;
 }
 
@@ -6981,6 +6954,9 @@ bool Item_equal::merge(THD *thd, Item_equal *item)
       return true;
   }
   cond_false|= item->cond_false;
+  if (cond_false)
+    used_tables_cache= 0;
+
   return false;
 } 
 
@@ -7057,7 +7033,6 @@ bool Item_equal::fix_fields(THD *thd, Item**)
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
-  const_item_cache= false;
   while ((item= li++))
   {
     used_tables_cache|= item->used_tables();
@@ -7181,7 +7156,7 @@ void Item_equal::update_used_tables()
   List_iterator_fast<Item_field> li(fields);
   Item *item;
   not_null_tables_cache= used_tables_cache= 0;
-  if ((const_item_cache= cond_false))
+  if (cond_false)
     return;
   m_accum_properties= 0;
   while ((item=li++))
@@ -7189,10 +7164,7 @@ void Item_equal::update_used_tables()
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     not_null_tables_cache|= item->not_null_tables();
-    /* see commentary at Item_equal::update_const() */
-    const_item_cache&= item->const_item() && !item->is_outer_field();
     add_accum_properties(item);
-
   }
 }
 
@@ -7309,6 +7281,33 @@ longlong Item_func_trig_cond::val_int()
   return *trig_var ? args[0]->val_int() : 1;
 }
 
+void Item_func_trig_cond::get_table_range(TABLE_LIST **first_table,
+                                          TABLE_LIST **last_table)
+{
+  *first_table= NULL;
+  *last_table= NULL;
+  if (m_join == NULL)
+    return;
+
+  // There may be a JOIN_TAB or a QEP_TAB.
+  plan_idx last_inner;
+  if (m_join->qep_tab)
+  {
+    QEP_TAB *qep_tab= &m_join->qep_tab[m_idx];
+    *first_table= qep_tab->table_ref;
+    last_inner= qep_tab->last_inner();
+    *last_table= m_join->qep_tab[last_inner].table_ref;
+  }
+  else
+  {
+    JOIN_TAB *join_tab= m_join->best_ref[m_idx];
+    *first_table= join_tab->table_ref;
+    last_inner= join_tab->last_inner();
+    *last_table= m_join->best_ref[last_inner]->table_ref;
+  }
+}
+
+
 void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
@@ -7336,33 +7335,15 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
   }
   if (m_join != NULL)
   {
-    /*
-      Item printing is done at various stages of optimization, so there can
-      be a JOIN_TAB or a QEP_TAB.
-    */
-    TABLE *table, *last_inner_table;
-    plan_idx last_inner;
-    if (m_join->qep_tab)
-    {
-      QEP_TAB *qep_tab= &m_join->qep_tab[m_idx];
-      table= qep_tab->table();
-      last_inner= qep_tab->last_inner();
-      last_inner_table= m_join->qep_tab[last_inner].table();
-    }
-    else
-    {
-      JOIN_TAB *join_tab= m_join->best_ref[m_idx];
-      table= join_tab->table();
-      last_inner= join_tab->last_inner();
-      last_inner_table= m_join->best_ref[last_inner]->table();
-    }
+    TABLE_LIST *first_table, *last_table;
+    get_table_range(&first_table, &last_table);
     str->append("(");
-    str->append(table->alias);
-    if (last_inner != m_idx)
+    str->append(first_table->table->alias);
+    if (first_table != last_table)
     {
       /* case of t1 LEFT JOIN (t2,t3,...): print range of inner tables */
       str->append("..");
-      str->append(last_inner_table->alias);
+      str->append(last_table->table->alias);
     }
     str->append(")");
   }

@@ -44,7 +44,8 @@ struct PSI_statement_info_v1
 {
   PSI_statement_key m_key;
   const char *m_name;
-  int m_flags;
+  uint m_flags;
+  const char *m_documentation;
 };
 typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_statement_locker_state_v1

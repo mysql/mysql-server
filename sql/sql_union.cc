@@ -27,47 +27,47 @@
   UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com>
 */
 
-#include "sql_union.h"
+#include "sql/sql_union.h"
 
 #include "my_config.h"
 
 #include <string.h>
 #include <sys/types.h>
 
-#include "auth_acls.h"
-#include "current_thd.h"
-#include "debug_sync.h"                         // DEBUG_SYNC
-#include "error_handler.h"                      // Strict_error_handler
-#include "field.h"
-#include "filesort.h"                           // filesort_free_buffers
-#include "handler.h"
-#include "item.h"
-#include "item_subselect.h"
-#include "mem_root_array.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "opt_explain.h"                        // explain_no_table
-#include "opt_explain_format.h"
-#include "opt_trace_context.h"
-#include "parse_tree_node_base.h"
-#include "query_options.h"
-#include "set_var.h"
-#include "sql_base.h"                           // fill_record
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_optimizer.h"                      // JOIN
-#include "sql_parse.h"
-#include "sql_select.h"
-#include "sql_tmp_table.h"                      // tmp tables
+#include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"                     // DEBUG_SYNC
+#include "sql/error_handler.h"                  // Strict_error_handler
+#include "sql/field.h"
+#include "sql/filesort.h"                       // filesort_free_buffers
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_subselect.h"
+#include "sql/mem_root_array.h"
+#include "sql/opt_explain.h"                    // explain_no_table
+#include "sql/opt_explain_format.h"
+#include "sql/opt_trace_context.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/query_options.h"
+#include "sql/set_var.h"
+#include "sql/sql_base.h"                       // fill_record
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_optimizer.h"                  // JOIN
+#include "sql/sql_parse.h"
+#include "sql/sql_select.h"
+#include "sql/sql_tmp_table.h"                  // tmp tables
+#include "sql/thr_malloc.h"
+#include "sql/window.h"                         // Window
 #include "template_utils.h"
-#include "thr_malloc.h"
-#include "window.h"                             // Window
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {

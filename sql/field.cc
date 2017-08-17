@@ -21,35 +21,34 @@
   This file implements classes defined in field.h.
 */
 
-#include "field.h"
+#include "sql/field.h"
 
 #include <errno.h>
-
 #include <algorithm>
 #include <cmath>                         // isnan
 #include <memory>                        // unique_ptr
 
-#include "current_thd.h"
 #include "decimal.h"
-#include "derror.h"                      // ER_THD
-#include "filesort.h"                    // change_double_for_sort
-#include "item_json_func.h"              // ensure_utf8mb4
-#include "item_timefunc.h"               // Item_func_now_local
-#include "json_binary.h"                 // json_binary::serialize
-#include "json_dom.h"                    // Json_dom, Json_wrapper
-#include "log_event.h"                   // class Table_map_log_event
 #include "my_dbug.h"
-#include "mysqld.h"                      // log_10
-#include "rpl_rli.h"                     // Relay_log_info
-#include "rpl_slave.h"                   // rpl_master_has_bug
-#include "spatial.h"                     // Geometry
-#include "sql_base.h"                    // is_equal
-#include "sql_class.h"                   // THD
-#include "sql_join_buffer.h"             // CACHE_FIELD
-#include "sql_time.h"                    // str_to_datetime_with_warn
-#include "strfunc.h"                     // find_type2
+#include "sql/current_thd.h"
+#include "sql/derror.h"                  // ER_THD
+#include "sql/filesort.h"                // change_double_for_sort
+#include "sql/item_json_func.h"          // ensure_utf8mb4
+#include "sql/item_timefunc.h"           // Item_func_now_local
+#include "sql/json_binary.h"             // json_binary::serialize
+#include "sql/json_dom.h"                // Json_dom, Json_wrapper
+#include "sql/log_event.h"               // class Table_map_log_event
+#include "sql/mysqld.h"                  // log_10
+#include "sql/rpl_rli.h"                 // Relay_log_info
+#include "sql/rpl_slave.h"               // rpl_master_has_bug
+#include "sql/spatial.h"                 // Geometry
+#include "sql/sql_base.h"                // is_equal
+#include "sql/sql_class.h"               // THD
+#include "sql/sql_join_buffer.h"         // CACHE_FIELD
+#include "sql/sql_time.h"                // str_to_datetime_with_warn
+#include "sql/strfunc.h"                 // find_type2
+#include "sql/tztime.h"                  // Time_zone
 #include "template_utils.h"              // pointer_cast
-#include "tztime.h"                      // Time_zone
 
 using std::max;
 using std::min;

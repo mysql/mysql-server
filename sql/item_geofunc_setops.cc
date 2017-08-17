@@ -31,14 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "derror.h"                            // ER_THD
-#include "gis/srid.h"
-#include "inplace_vector.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_geofunc.h"
-#include "item_geofunc_internal.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -47,11 +39,19 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
-#include "spatial.h"
-#include "sql_error.h"
-#include "sql_exception_handler.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"                        // ER_THD
+#include "sql/gis/srid.h"
+#include "sql/inplace_vector.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_geofunc.h"
+#include "sql/item_geofunc_internal.h"
+#include "sql/spatial.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/srs_fetcher.h"
 #include "sql_string.h"
-#include "srs_fetcher.h"
 #include "template_utils.h"
 
 template <typename Geom_types> class BG_setop_wrapper;

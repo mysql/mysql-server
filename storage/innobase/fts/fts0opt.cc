@@ -25,30 +25,28 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 
 ***********************************************************************/
 
-#include "ha_prototypes.h"
-#include "current_thd.h"
-
 #include <math.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
+#include <zlib.h>
 
+#include "current_thd.h"
 #include "dict0dd.h"
 #include "fts0fts.h"
 #include "fts0opt.h"
 #include "fts0priv.h"
 #include "fts0types.h"
+#include "ha_prototypes.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "que0types.h"
 #include "row0sel.h"
+#include "sql_thd_internal_api.h"
 #include "srv0start.h"
 #include "ut0list.h"
 #include "ut0wqueue.h"
-#include "zlib.h"
-#include "os0thread-create.h"
-#include "sql_thd_internal_api.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;

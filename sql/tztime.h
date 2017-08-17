@@ -28,7 +28,7 @@ typedef long my_time_t;
 #endif
 
 #include "mysql_time.h"     // MYSQL_TIME
-#include "sql_alloc.h"      // Sql_alloc
+#include "sql/sql_alloc.h"  // Sql_alloc
 
 class String;
 class THD;

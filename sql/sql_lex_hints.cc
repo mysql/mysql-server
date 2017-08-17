@@ -17,21 +17,18 @@
 
 /* A lexical scanner for optimizer hints pseudo-commentary syntax */
 
-#include "sql_lex_hints.h"
+#include "sql/sql_lex_hints.h"
 
 #include <limits.h>
 
-#include "derror.h"
-#include "lex_token.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "sql_error.h"
-/*
-  Generated sources:
-*/
-#include "sql_yacc.h"
-#include "system_variables.h"
+#include "sql/derror.h"
+#include "sql/lex_token.h"
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_yacc.h"
+#include "sql/system_variables.h"
 
 class PT_hint_list;
 

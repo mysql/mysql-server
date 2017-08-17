@@ -24,7 +24,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h" // my_free
-#include "sql_array.h"                 // Bounds_checked_array
+#include "sql/sql_array.h"             // Bounds_checked_array
 
 class Cost_model_table;
 class Sort_param;

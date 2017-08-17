@@ -19,7 +19,8 @@
 #define ABSTRACT_ENUM_OPTION_INCLUDED
 
 #include <string>
-#include "abstract_option.h"
+
+#include "client/base/abstract_option.h"
 
 namespace Mysql{
 namespace Tools{

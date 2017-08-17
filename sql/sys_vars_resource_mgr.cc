@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sys_vars_resource_mgr.h"
+#include "sql/sys_vars_resource_mgr.h"
 
 #include <unordered_map>
 #include <utility>
@@ -22,7 +22,7 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 #include "template_utils.h"
 
 /**

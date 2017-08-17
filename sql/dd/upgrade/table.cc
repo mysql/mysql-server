@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/upgrade/table.h"
+#include "sql/dd/upgrade/table.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -29,24 +29,8 @@
 #include <algorithm>
 #include <string>
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                     // Schema_MDL_locker
-#include "dd/dd_table.h"                      // create_dd_user_table
-#include "dd/dd_trigger.h"                    // dd::create_trigger
-#include "dd/dd_view.h"                       // create_view
-#include "dd/dictionary.h"
-#include "dd/impl/bootstrapper.h"             // execute_query
-#include "dd/properties.h"
-#include "dd/string_type.h"
-#include "dd/upgrade/global.h"
-#include "field.h"
-#include "handler.h"                          // legacy_db_type
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"                             // Tablespace_hash_set
-#include "log.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -59,32 +43,48 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                           // mysql_real_data_home
 #include "mysqld_error.h"                     // ER_*
-#include "parse_file.h"                       // File_option
-#include "partition_element.h"
-#include "partition_info.h"                   // partition_info
-#include "psi_memory_key.h"                   // key_memory_TABLE
-#include "sp_head.h"                          // sp_head
-#include "sql_alter.h"
-#include "sql_base.h"                         // open_tables
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_lex.h"                          // new_empty_query_block
-#include "sql_list.h"
-#include "sql_parse.h"                        // check_string_char_length
-#include "sql_show.h"                         // view_store_options
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"                 // Schema_MDL_locker
+#include "sql/dd/dd_table.h"                  // create_dd_user_table
+#include "sql/dd/dd_trigger.h"                // dd::create_trigger
+#include "sql/dd/dd_view.h"                   // create_view
+#include "sql/dd/dictionary.h"
+#include "sql/dd/impl/bootstrapper.h"         // execute_query
+#include "sql/dd/properties.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/upgrade/global.h"
+#include "sql/field.h"
+#include "sql/handler.h"                      // legacy_db_type
+#include "sql/key.h"
+#include "sql/lock.h"                         // Tablespace_hash_set
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                       // mysql_real_data_home
+#include "sql/parse_file.h"                   // File_option
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"               // partition_info
+#include "sql/psi_memory_key.h"               // key_memory_TABLE
+#include "sql/sp_head.h"                      // sp_head
+#include "sql/sql_alter.h"
+#include "sql/sql_base.h"                     // open_tables
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"                      // new_empty_query_block
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"                    // check_string_char_length
+#include "sql/sql_show.h"                     // view_store_options
+#include "sql/sql_table.h"                    // build_tablename
+#include "sql/sql_view.h"                     // mysql_create_view
+#include "sql/system_variables.h"
+#include "sql/table.h"                        // Table_check_intact
+#include "sql/table_trigger_dispatcher.h"     // Table_trigger_dispatcher
+#include "sql/thr_malloc.h"
+#include "sql/transaction.h"                  // trans_commit
+#include "sql/trigger.h"                      // Trigger
+#include "sql/trigger_def.h"
 #include "sql_string.h"
-#include "sql_table.h"                        // build_tablename
-#include "sql_view.h"                         // mysql_create_view
-#include "system_variables.h"
-#include "table.h"                            // Table_check_intact
-#include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "thr_lock.h"
-#include "thr_malloc.h"
-#include "transaction.h"                      // trans_commit
-#include "trigger.h"                          // Trigger
-#include "trigger_def.h"
 
 class Sroutine_hash_entry;
 namespace dd {

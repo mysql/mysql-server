@@ -42,18 +42,18 @@
 #include "mysql/service_my_snprintf.h" // my_snprintf
 #include "mysql/service_mysql_alloc.h"
 #include "prealloced_array.h"
-#include "rpl_gtid.h"
-#include "sql_const.h"
-#include "thr_malloc.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 
 #ifdef MYSQL_SERVER
-#include "log.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"              // ER_*
+#include "sql/log.h"
 #endif
 
 #ifndef MYSQL_SERVER
-#include "mysqlbinlog.h"
+#include "client/mysqlbinlog.h"
 #endif
 
 extern "C" {

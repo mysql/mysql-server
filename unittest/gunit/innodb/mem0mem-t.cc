@@ -21,8 +21,8 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "handler.h"
 #include "mem0mem.h"
+#include "sql/handler.h"
 #include "srv0conc.h"
 #include "srv0srv.h"
 #include "univ.i"

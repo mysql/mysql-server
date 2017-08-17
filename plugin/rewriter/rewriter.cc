@@ -23,13 +23,13 @@
 #include <memory>
 #include <string>
 
-#include "debug_sync.h"
 #include "messages.h"
 #include "my_dbug.h"
 #include "nullable.h"
 #include "persisted_rule.h"
 #include "rewriter.h"
 #include "rule.h"
+#include "sql/debug_sync.h"
 #include "template_utils.h"
 
 using std::string;

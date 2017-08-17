@@ -16,7 +16,7 @@
 #ifndef DD__SYSTEM_VIEW_DEFINITION_INCLUDED
 #define DD__SYSTEM_VIEW_DEFINITION_INCLUDED
 
-#include "dd/string_type.h"                    // dd::String_type
+#include "sql/dd/string_type.h"                // dd::String_type
 
 namespace dd {
 namespace system_views {

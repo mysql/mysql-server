@@ -24,7 +24,7 @@
   @{
 */
 
-#include "sql_planner.h"
+#include "sql/sql_planner.h"
 
 #include "my_config.h"
 
@@ -34,13 +34,6 @@
 #include <algorithm>
 #include <atomic>
 
-#include "enum_query_type.h"
-#include "field.h"
-#include "handler.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "key.h"
-#include "merge_sort.h"         // merge_sort
 #include "my_base.h"            // key_part_map
 #include "my_bit.h"             // my_count_bits
 #include "my_bitmap.h"
@@ -48,25 +41,32 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "mysql/udf_registration_types.h"
-#include "opt_costmodel.h"
-#include "opt_hints.h"          // hint_table_state
-#include "opt_range.h"          // QUICK_SELECT_I
-#include "opt_trace.h"          // Opt_trace_object
-#include "opt_trace_context.h"
-#include "query_options.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"          // THD
-#include "sql_const.h"
-#include "sql_executor.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"      // JOIN
-#include "sql_select.h"         // JOIN_TAB
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/key.h"
+#include "sql/merge_sort.h"     // merge_sort
+#include "sql/opt_costmodel.h"
+#include "sql/opt_hints.h"      // hint_table_state
+#include "sql/opt_range.h"      // QUICK_SELECT_I
+#include "sql/opt_trace.h"      // Opt_trace_object
+#include "sql/opt_trace_context.h"
+#include "sql/query_options.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"      // THD
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_select.h"     // JOIN_TAB
+#include "sql/sql_test.h"       // print_plan
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_test.h"           // print_plan
-#include "system_variables.h"
-#include "table.h"
 
 using std::max;
 using std::min;

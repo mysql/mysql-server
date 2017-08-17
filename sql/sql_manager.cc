@@ -25,7 +25,6 @@
 #include <errno.h>
 #include <time.h>
 
-#include "log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -38,9 +37,10 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"            // flush_time
 #include "mysqld_error.h"
-#include "sql_base.h"          // tdc_flush_unused_tables
+#include "sql/log.h"
+#include "sql/mysqld.h"        // flush_time
+#include "sql/sql_base.h"      // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;
 static bool abort_manager;

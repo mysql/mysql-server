@@ -18,7 +18,7 @@
 
 #include "auth_plain.h"
 #include "mock/session.h"
-#include "sql_user_require.h"
+#include "rapid/plugin/x/src/sql_user_require.h"
 
 namespace xpl {
 

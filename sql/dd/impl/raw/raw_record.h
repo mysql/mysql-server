@@ -26,8 +26,8 @@
 #endif
 #include <sys/types.h>
 
-#include "dd/object_id.h"      // dd::Object_id
-#include "dd/string_type.h"    // dd::String_type
+#include "sql/dd/object_id.h"  // dd::Object_id
+#include "sql/dd/string_type.h" // dd::String_type
 
 class Json_wrapper;
 class Field;

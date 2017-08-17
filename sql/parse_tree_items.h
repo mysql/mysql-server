@@ -20,14 +20,6 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
-#include "field.h"
-#include "item.h"
-#include "item_create.h"        // Create_func
-#include "item_func.h"
-#include "item_strfunc.h"
-#include "item_subselect.h"
-#include "item_sum.h"           // Item_sum_count
-#include "item_timefunc.h"      // Item_func_now_local
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -38,22 +30,30 @@
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_helpers.h" // Parse_tree_item
-#include "parse_tree_node_base.h"
-#include "protocol.h"
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sp_head.h"            // sp_head
-#include "sql_class.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"          // negate_expression
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_create.h"    // Create_func
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"       // Item_sum_count
+#include "sql/item_timefunc.h"  // Item_func_now_local
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h" // Parse_tree_item
+#include "sql/parse_tree_node_base.h"
+#include "sql/protocol.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"        // sp_head
+#include "sql/sql_class.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"      // negate_expression
+#include "sql/sql_udf.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "sql_udf.h"
-#include "system_variables.h"
 
 class PT_subquery;
 class PT_window;

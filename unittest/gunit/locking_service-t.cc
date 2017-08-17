@@ -17,11 +17,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "locking_service.h"
-#include "mdl.h"
 #include "my_inttypes.h"
 #include "mysqld_error.h"
-#include "sql_base.h"
+#include "sql/locking_service.h"
+#include "sql/mdl.h"
+#include "sql/sql_base.h"
 #include "test_utils.h"
 #include "thread_utils.h"
 

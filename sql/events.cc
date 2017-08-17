@@ -13,7 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "events.h"
+#include "sql/events.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -24,25 +24,9 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"           // EVENT_ACL
-#include "dd/cache/dictionary_client.h"
-#include "dd/dd_schema.h"               // dd::Schema_MDL_locker
-#include "dd/string_type.h"
-#include "dd/types/event.h"
-#include "dd/types/schema.h"
-#include "event_data_objects.h"    // Event_queue_element
-#include "event_db_repository.h"   // Event_db_repository
-#include "event_parse_data.h"      // Event_parse_data
-#include "event_queue.h"           // Event_queue
-#include "event_scheduler.h"       // Event_scheduler
-#include "item.h"
 #include "lex_string.h"
-#include "lock.h"                  // lock_object_name
-#include "log.h"
 #include "m_ctype.h"               // CHARSET_INFO
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -58,24 +42,40 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                // LOCK_global_system_variables
 #include "mysqld_error.h"          // ER_*
-#include "protocol.h"
-#include "psi_memory_key.h"
-#include "session_tracker.h"
-#include "set_var.h"
-#include "sp_head.h"               // Stored_program_creation_ctx
-#include "sql_class.h"             // THD
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_show.h"              // append_definer
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"  // EVENT_ACL
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd_schema.h"           // dd::Schema_MDL_locker
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/event.h"
+#include "sql/dd/types/schema.h"
+#include "sql/event_data_objects.h" // Event_queue_element
+#include "sql/event_db_repository.h" // Event_db_repository
+#include "sql/event_parse_data.h"  // Event_parse_data
+#include "sql/event_queue.h"       // Event_queue
+#include "sql/event_scheduler.h"   // Event_scheduler
+#include "sql/item.h"
+#include "sql/lock.h"              // lock_object_name
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/mysqld.h"            // LOCK_global_system_variables
+#include "sql/protocol.h"
+#include "sql/psi_memory_key.h"
+#include "sql/session_tracker.h"
+#include "sql/set_var.h"
+#include "sql/sp_head.h"           // Stored_program_creation_ctx
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_show.h"          // append_definer
+#include "sql/sql_table.h"         // write_bin_log
+#include "sql/system_variables.h"
+#include "sql/transaction.h"
+#include "sql/tztime.h"            // Time_zone
 #include "sql_string.h"            // String
-#include "sql_table.h"             // write_bin_log
-#include "system_variables.h"
-#include "transaction.h"
-#include "tztime.h"                // Time_zone
 
 
 /**
@@ -1062,32 +1062,34 @@ Events::deinit()
 PSI_mutex_key key_LOCK_event_queue,
               key_event_scheduler_LOCK_scheduler_state;
 
+/* clang-format off */
 static PSI_mutex_info all_events_mutexes[]=
 {
-  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL, 0},
-  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL, 0}
+  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
+/* clang-format on */
 
 PSI_cond_key key_event_scheduler_COND_state, key_COND_queue_state;
 
 static PSI_cond_info all_events_conds[]=
 {
-  { &key_event_scheduler_COND_state, "Event_scheduler::COND_state", PSI_FLAG_GLOBAL},
-  { &key_COND_queue_state, "COND_queue_state", PSI_FLAG_GLOBAL},
+  { &key_event_scheduler_COND_state, "Event_scheduler::COND_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_COND_queue_state, "COND_queue_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 
 static PSI_thread_info all_events_threads[]=
 {
-  { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_GLOBAL},
-  { &key_thread_event_worker, "event_worker", 0}
+  { &key_thread_event_scheduler, "event_scheduler", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_event_worker, "event_worker", 0, 0, PSI_DOCUMENT_ME}
 };
 #endif /* HAVE_PSI_INTERFACE */
 
-PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0};
-PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0};
-PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0};
+PSI_stage_info stage_waiting_on_empty_queue= { 0, "Waiting on empty queue", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_next_activation= { 0, "Waiting for next activation", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_scheduler_to_stop= { 0, "Waiting for the scheduler to stop", 0, PSI_DOCUMENT_ME};
 
 PSI_memory_key key_memory_event_basic_root;
 
@@ -1101,7 +1103,7 @@ PSI_stage_info *all_events_stages[]=
 
 static PSI_memory_info all_events_memory[]=
 {
-  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_GLOBAL}
+  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_events_psi_keys(void)

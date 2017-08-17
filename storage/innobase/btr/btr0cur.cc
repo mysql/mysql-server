@@ -50,6 +50,8 @@ Created 10/16/1994 Heikki Tuuri
 #include "my_inttypes.h"
 #include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
+#include <zlib.h>
+
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "buf0lru.h"
@@ -70,7 +72,6 @@ Created 10/16/1994 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
-#include "zlib.h"
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
 enum btr_op_t {

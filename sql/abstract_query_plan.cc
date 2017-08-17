@@ -19,19 +19,19 @@
 
 #include <stddef.h>
 
-#include "handler.h"
-#include "item.h"
-#include "key.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "opt_range.h"        // QUICK_SELECT_I
-#include "sql_const.h"
-#include "sql_executor.h"     // QEP_TAB
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"    // JOIN
-#include "table.h"
-#include "thr_malloc.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/opt_range.h"    // QUICK_SELECT_I
+#include "sql/sql_const.h"
+#include "sql/sql_executor.h" // QEP_TAB
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 namespace AQP
 {

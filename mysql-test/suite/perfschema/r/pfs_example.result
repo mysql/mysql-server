@@ -6,27 +6,27 @@ component_urn
 file://component_pfs_example
 select * from performance_schema.setup_instruments
 where NAME like "%/pfs_example/%";
-NAME	ENABLED	TIMED
-wait/synch/mutex/pfs_example/X	YES	YES
-wait/synch/mutex/pfs_example/Y	YES	YES
-wait/synch/mutex/pfs_example/Z	YES	YES
-wait/synch/mutex/pfs_example/T	YES	YES
-wait/synch/rwlock/pfs_example/X	YES	YES
-wait/synch/rwlock/pfs_example/Y	YES	YES
-wait/synch/rwlock/pfs_example/Z	YES	YES
-wait/synch/rwlock/pfs_example/T	YES	YES
-wait/synch/sxlock/pfs_example/S1	YES	YES
-wait/synch/sxlock/pfs_example/S2	YES	YES
-wait/synch/cond/pfs_example/X	YES	YES
-wait/synch/cond/pfs_example/Y	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
+wait/synch/rwlock/pfs_example/X	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/Y	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/Z	YES	YES		0	NULL
+wait/synch/rwlock/pfs_example/T	YES	YES		0	NULL
+wait/synch/sxlock/pfs_example/S1	YES	YES		0	NULL
+wait/synch/sxlock/pfs_example/S2	YES	YES		0	NULL
+wait/synch/cond/pfs_example/X	YES	YES		0	NULL
+wait/synch/cond/pfs_example/Y	YES	YES		0	NULL
 select NAME, LOCKED_BY_THREAD_ID is not NULL
 from performance_schema.mutex_instances
 where NAME like "wait/synch/mutex/pfs_example/%";
 NAME	LOCKED_BY_THREAD_ID is not NULL
 wait/synch/mutex/pfs_example/X	0
-wait/synch/mutex/pfs_example/Y	0
 wait/synch/mutex/pfs_example/Z	0
 wait/synch/mutex/pfs_example/T	0
+wait/synch/mutex/pfs_example/Y	0
 select NAME, WRITE_LOCKED_BY_THREAD_ID is not NULL, READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances
 where NAME like "wait/synch/%/pfs_example/%";
@@ -48,11 +48,11 @@ select component_urn from mysql.component;
 component_urn
 select * from performance_schema.setup_instruments
 where NAME like "wait/synch/mutex/pfs_example/%";
-NAME	ENABLED	TIMED
-wait/synch/mutex/pfs_example/X	YES	YES
-wait/synch/mutex/pfs_example/Y	YES	YES
-wait/synch/mutex/pfs_example/Z	YES	YES
-wait/synch/mutex/pfs_example/T	YES	YES
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+wait/synch/mutex/pfs_example/X	YES	YES	singleton	1	Example doc, permanent mutex, singleton.
+wait/synch/mutex/pfs_example/Y	YES	YES		7	Example doc, very volatile mutexes.
+wait/synch/mutex/pfs_example/Z	YES	YES	singleton	2	Another example.
+wait/synch/mutex/pfs_example/T	YES	YES		3	And more.
 select *
 from performance_schema.mutex_instances
 where NAME like "%/pfs_example/%";

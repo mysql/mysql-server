@@ -28,8 +28,8 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0mem_h
 
 #include "univ.i"
-#include "dd/object_id.h"
-#include "dd/types/column.h"
+#include "sql/dd/object_id.h"
+#include "sql/dd/types/column.h"
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -53,7 +53,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0new.h"
 #include "dict/mem.h"
 
-#include "sql_const.h"  /* MAX_KEY_LENGTH */
+#include "sql/sql_const.h"  /* MAX_KEY_LENGTH */
 
 #include <set>
 #include <vector>

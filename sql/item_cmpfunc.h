@@ -23,16 +23,9 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "handler.h"
-#include "item.h"
-#include "item_func.h"       // Item_int_func
-#include "item_row.h"        // Item_row
-#include "mem_root_array.h"  // Mem_root_array
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_regex.h"        // my_regex_t
@@ -41,14 +34,21 @@
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
-#include "sql_const.h"
-#include "sql_list.h"
+#include "sql/enum_query_type.h"
+#include "sql/handler.h"
+#include "sql/item.h"
+#include "sql/item_func.h"   // Item_int_func
+#include "sql/item_row.h"    // Item_row
+#include "sql/mem_root_array.h" // Mem_root_array
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "table.h"
 #include "template_utils.h"  // down_cast
-#include "thr_malloc.h"
 
 class Arg_comparator;
 class Field;
@@ -661,10 +661,37 @@ public:
   enum Functype functype() const override { return TRIG_COND_FUNC; };
   /// '@<if@>', to distinguish from the if() SQL function
   const char *func_name() const override { return "<if>"; };
-  bool const_item() const override { return false; }
+  /// Get range of inner tables spanned by associated outer join operation
+  void get_table_range(TABLE_LIST **first_table, TABLE_LIST **last_table);
+  bool fix_fields(THD *thd, Item **ref) override
+  {
+    if (Item_bool_func::fix_fields(thd, ref))
+      return true;
+    add_trig_func_tables();
+    return false;
+  }
+  void add_trig_func_tables()
+  {
+    if (trig_type == IS_NOT_NULL_COMPL || trig_type == FOUND_MATCH)
+    {
+      DBUG_ASSERT(m_join != nullptr);
+      // Make this function dependent on the range of inner tables
+      TABLE_LIST *first_table, *last_table;
+      get_table_range(&first_table, &last_table);
+      used_tables_cache|= last_table->map() |
+                          ((last_table->map() - 1) & ~(first_table->map() - 1));
+    }
+    else if (trig_type == OUTER_FIELD_IS_NOT_NULL)
+    {
+      used_tables_cache|= OUTER_REF_TABLE_BIT;
+    }
+  }
+  void update_used_tables() override
+  {
+    Item_bool_func::update_used_tables();
+    add_trig_func_tables();
+  }
   bool *get_trig_var() { return trig_var; }
-  /* The following is needed for ICP: */
-  table_map used_tables() const override { return args[0]->used_tables(); }
   void print(String *str, enum_query_type query_type) override;
 };
 
@@ -1975,8 +2002,7 @@ protected:
 public:
   /* Item_cond() is only used to create top level items */
   Item_cond(): Item_bool_func(), abort_on_null(1)
-  { const_item_cache= false; }
-
+  {}
   Item_cond(Item *i1,Item *i2)
     :Item_bool_func(), abort_on_null(0)
   {
@@ -2121,7 +2147,7 @@ class Item_equal final : public Item_bool_func
 public:
   inline Item_equal()
     : Item_bool_func(), const_item(0), eval_item(0), cond_false(0)
-  { const_item_cache= false;}
+  {}
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);

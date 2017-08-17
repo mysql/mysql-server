@@ -343,7 +343,7 @@ enum MACAlgorithm {
 
 
 // Certificate file Type
-enum CertType { Cert = 0, PrivateKey, CA };
+enum CertType { Cert = 0, PrivateKey, CA, PublicKey };
 
 
 // all Cipher Suites from pages 41/42

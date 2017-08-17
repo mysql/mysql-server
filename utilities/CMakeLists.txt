@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
-${ZLIB_INCLUDE_DIR}
 ${LZ4_INCLUDE_DIR})
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -158,7 +157,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/storage/innobase/
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
-    ${CMAKE_SOURCE_DIR}/sql
   )
 
   # We use the InnoDB code directly in case the code changes.

@@ -46,7 +46,7 @@ static xcom_global_view_receiver xcom_receive_global_view;
 xcom_logger xcom_log = NULL;
 xcom_debugger xcom_debug = NULL;
 xcom_debugger_check xcom_debug_check = NULL;
-int64_t xcom_debug_options = XCOM_DEBUG_NONE;
+int64_t xcom_debug_options = GCS_DEBUG_NONE;
 
 void set_xcom_data_receiver(xcom_data_receiver x) { xcom_receive_data = x; }
 

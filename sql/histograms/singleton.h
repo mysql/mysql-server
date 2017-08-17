@@ -68,17 +68,17 @@
 #include <string>             // std::string
 #include <utility>            // std::pair
 
-#include "histogram.h"        // Histogram, Histogram_comparator,
-#include "memroot_allocator.h"
 #include "my_base.h"          // ha_rows
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "sql/histograms/histogram.h" // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map.h"        // Value_map
+#include "sql/memroot_allocator.h"
+#include "sql/my_decimal.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "template_utils.h"
-#include "thr_malloc.h"
 
 class Json_array;
 class Json_object;

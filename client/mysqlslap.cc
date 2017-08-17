@@ -80,6 +80,7 @@ TODO:
 
 #include "my_config.h"
 
+#include <caching_sha2_passwordopt-vars.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <my_dir.h>
@@ -98,7 +99,7 @@ TODO:
 #include <time.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_inttypes.h"
@@ -370,6 +371,7 @@ int main(int argc, char **argv)
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
                   (char*) &opt_enable_cleartext_plugin);
+  set_get_server_public_key_option(&mysql);
   if (!opt_only_print) 
   {
     if (!(mysql_real_connect(&mysql, host, user, opt_password,
@@ -712,6 +714,7 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#include <caching_sha2_passwordopt-longopts.h>
 #include <sslopt-longopts.h>
 
   {"user", 'u', "User for login if not current user.", &user,

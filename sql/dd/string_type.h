@@ -22,7 +22,7 @@
 #include <string>
 #include <system_error>
 
-#include "stateless_allocator.h"        // Stateless_allocator
+#include "sql/stateless_allocator.h"    // Stateless_allocator
 
 namespace dd {
 /**

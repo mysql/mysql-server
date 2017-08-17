@@ -18,14 +18,14 @@
 #include <stdarg.h>
 #include <sys/types.h>
 
-#include "derror.h"                     /* ER_DEFAULT */
-#include "log.h"                        /* error_log_printf */
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "table.h"
+#include "sql/derror.h"                 /* ER_DEFAULT */
+#include "sql/log.h"                    /* error_log_printf */
+#include "sql/table.h"
 
 class THD;
 

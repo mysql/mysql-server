@@ -20,13 +20,13 @@
 #include <utility>
 
 #ifdef MYSQL_SERVER
-#include "table.h"       // TABLE
+#include "sql/table.h"   // TABLE
 #endif
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 
 #ifndef MYSQL_SERVER
 #define MAYBE_TABLE_NAME(T) ("")

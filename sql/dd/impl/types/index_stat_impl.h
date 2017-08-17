@@ -20,14 +20,14 @@
 #include <new>
 #include <string>
 
-#include "dd/impl/raw/raw_record.h"
-#include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
-#include "dd/object_id.h"
-#include "dd/string_type.h"
-#include "dd/types/entity_object_table.h"
-#include "dd/types/index_stat.h"              // dd::Index_stats
-#include "dd/types/object_type.h"             // dd::Object_type
 #include "my_inttypes.h"
+#include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/object_id.h"
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/entity_object_table.h"
+#include "sql/dd/types/index_stat.h"          // dd::Index_stats
+#include "sql/dd/types/object_type.h"         // dd::Object_type
 
 namespace dd {
 

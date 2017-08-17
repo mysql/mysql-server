@@ -26,11 +26,11 @@
 #include <sstream>
 #include <string>
 
-#include "column_statistic.h"
-#include "mysql_function.h"
-#include "privilege.h"
-#include "stored_procedure.h"
-#include "view.h"
+#include "client/dump/column_statistic.h"
+#include "client/dump/mysql_function.h"
+#include "client/dump/privilege.h"
+#include "client/dump/stored_procedure.h"
+#include "client/dump/view.h"
 
 using namespace Mysql::Tools::Dump;
 

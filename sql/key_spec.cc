@@ -13,22 +13,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "key_spec.h"
+#include "sql/key_spec.h"
 
 #include <stddef.h>
 #include <algorithm>
 
-#include "dd/dd.h"         // dd::get_dictionary
-#include "dd/dictionary.h" // dd::Dictionary::check_dd...
-#include "derror.h"      // ER_THD
-#include "field.h"       // Create_field
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql_class.h"   // THD
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/dd.h"     // dd::get_dictionary
+#include "sql/dd/dictionary.h" // dd::Dictionary::check_dd...
+#include "sql/derror.h"  // ER_THD
+#include "sql/field.h"   // Create_field
+#include "sql/sql_class.h" // THD
 
 KEY_CREATE_INFO default_key_create_info;
 

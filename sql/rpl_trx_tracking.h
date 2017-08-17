@@ -22,7 +22,7 @@
 
 #include "my_dbug.h"
 #include "mysql/udf_registration_types.h"
-#include "sql_class.h"
+#include "sql/sql_class.h"
 
 class THD;
 

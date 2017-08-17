@@ -13,18 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "rpl_info_table.h"
+#include "sql/rpl_info_table.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "dynamic_ids.h"            // Server_ids
-#include "field.h"
-#include "handler.h"
-#include "key.h"
-#include "log.h"
-#include "log_event.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -36,14 +30,20 @@
 #include "mysql/thread_type.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "query_options.h"
-#include "rpl_info_table_access.h"  // Rpl_info_table_access
-#include "rpl_info_values.h"        // Rpl_info_values
-#include "sql_class.h"              // THD
+#include "sql/dynamic_ids.h"        // Server_ids
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/log.h"
+#include "sql/log_event.h"
+#include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
+#include "sql/rpl_info_table_access.h" // Rpl_info_table_access
+#include "sql/rpl_info_values.h"    // Rpl_info_values
+#include "sql/sql_class.h"          // THD
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "thr_lock.h"
 
 

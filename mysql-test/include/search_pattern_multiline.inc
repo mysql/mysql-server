@@ -50,20 +50,24 @@
 #    let SEARCH_PATTERN= \[ERROR\] Aborting;
 #    --source include/search_pattern_multiline.inc
 #
-# Created: 2011-11-11 mleich
-# Modified: 2014-04-26 hvadodar
-# Modified: 2017-07-03 sribr
-#
+# Created:  2011-11-11 mleich
 
 perl;
     use strict;
     my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
+    my $inverse_search=        $ENV{'INVERSE_SEARCH'} || 0;
+    my $file_content=          "";
+    my $found=                  0;
     open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
 
     my $scalar_content= join("", <FILE>);
-    if ( not $scalar_content =~ m{$search_pattern} ) {
+    if ( ($inverse_search == 0) && (not $scalar_content =~ m{$search_pattern}) ) {
            die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$scalar_content<-\n");
+    }
+
+    if ( ($inverse_search == 1) && ($scalar_content =~ m{$search_pattern}) ) {
+           die("# ERROR: The file '$search_file' contains the prohibited pattern $search_pattern\n->$file_content<-\n");
     }
     close(FILE);
 EOF

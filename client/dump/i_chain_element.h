@@ -18,7 +18,7 @@
 #ifndef I_CHAIN_ELEMENT_INCLUDED
 #define I_CHAIN_ELEMENT_INCLUDED
 
-#include "i_progress_reporter.h"
+#include "client/dump/i_progress_reporter.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

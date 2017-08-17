@@ -23,34 +23,34 @@
   @{
 */
 
-#include "sql_join_buffer.h"
+#include "sql/sql_join_buffer.h"
 
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
 
 #include "binary_log_types.h"
-#include "field.h"
-#include "item.h"
-#include "key.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_table_map.h"
-#include "opt_trace.h"      // Opt_trace_object
-#include "psi_memory_key.h" // key_memory_JOIN_CACHE
-#include "records.h"
-#include "sql_bitmap.h"
-#include "sql_class.h"
-#include "sql_const.h"
-#include "sql_opt_exec_shared.h"
-#include "sql_optimizer.h"  // JOIN
-#include "sql_select.h"
-#include "system_variables.h"
-#include "table.h"
-#include "thr_malloc.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/opt_trace.h"  // Opt_trace_object
+#include "sql/psi_memory_key.h" // key_memory_JOIN_CACHE
+#include "sql/records.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"
+#include "sql/sql_opt_exec_shared.h"
+#include "sql/sql_optimizer.h" // JOIN
+#include "sql/sql_select.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/thr_malloc.h"
 
 using std::max;
 using std::min;

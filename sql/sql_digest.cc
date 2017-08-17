@@ -19,7 +19,6 @@
 
 #include "sql/sql_digest.h"
 
-#include "item_create.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -29,14 +28,14 @@
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql_digest_stream.h"      // sql_digest_state
-#include "sql_lex.h"                // LEX_YYSTYPE
+#include "sql/item_create.h"
+#include "sql/sql_digest_stream.h"  // sql_digest_state
+#include "sql/sql_lex.h"            // LEX_YYSTYPE
+#include "sql/sql_yacc.h"           // Generated code.
 #include "sql_string.h"             // String
-/* Generated code */
-#include "sql_yacc.h"
 
 #define LEX_TOKEN_WITH_DEFINITION
-#include "lex_token.h"
+#include "sql/lex_token.h"
 
 /* Name pollution from sql/sql_lex.h */
 #ifdef LEX_YYSTYPE

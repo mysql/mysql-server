@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 
 #include "my_compiler.h"
-#include "dd/string_type.h"                    // dd::String_type
+#include "sql/dd/string_type.h"                // dd::String_type
 
 class THD;
 class MDL_ticket;
@@ -298,6 +298,26 @@ bool acquire_exclusive_table_mdl(THD *thd,
                                  const char *schema_name,
                                  const char *table_name,
                                  bool no_wait,
+                                 MDL_ticket **out_mdl_ticket)
+  MY_ATTRIBUTE((warn_unused_result));
+
+
+/**
+  Acquire exclusive metadata lock on the given table name with
+  TRANSACTIONAL duration.
+
+  @param[in]  thd               THD to which lock belongs to.
+  @param[in]  schema_name       Schema name
+  @param[in]  table_name        Table name
+  @param[in]  lock_wait_timeout Time to wait.
+  @param[out] out_mdl_ticket    A pointer to MDL_ticket upon successful lock
+                                attempt.
+*/
+
+bool acquire_exclusive_table_mdl(THD *thd,
+                                 const char *schema_name,
+                                 const char *table_name,
+                                 unsigned long int lock_wait_timeout,
                                  MDL_ticket **out_mdl_ticket)
   MY_ATTRIBUTE((warn_unused_result));
 

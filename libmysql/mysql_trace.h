@@ -44,8 +44,9 @@ C_MODE_START
 #else
 
 #include <mysql/plugin_trace.h>
-#include <sql_common.h>                         /* for MYSQL_EXTENSION() */
 #include <stdarg.h>
+
+#include "sql_common.h"                         /* for MYSQL_EXTENSION() */
 
 
 /**

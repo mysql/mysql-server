@@ -18,7 +18,7 @@
 #ifndef ABSTRACT_PLAIN_SQL_OBJECT_INCLUDED
 #define ABSTRACT_PLAIN_SQL_OBJECT_INCLUDED
 
-#include "abstract_data_object.h"
+#include "client/dump/abstract_data_object.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

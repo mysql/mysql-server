@@ -29,6 +29,7 @@ password_history
 password_history
 password_reuse_interval
 password_reuse_interval
+resultset_metadata
 tls_version
 tls_version
 windowing_use_high_precision

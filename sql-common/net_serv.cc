@@ -46,7 +46,7 @@ using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
-#include "psi_memory_key.h"
+#include "sql/psi_memory_key.h"
 #else
 #define key_memory_NET_buff 0
 #define key_memory_NET_compress_packet 0

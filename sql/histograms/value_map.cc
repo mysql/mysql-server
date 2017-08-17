@@ -24,15 +24,15 @@
 #include <new>
 #include <string>           // std::string
 
-#include "histogram.h"
 #include "my_dbug.h"
-#include "my_decimal.h"     // my_decimal_cmp
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"     // MYSQL_TIME
-#include "psi_memory_key.h" // key_memory_histograms
+#include "sql/histograms/histogram.h"
+#include "sql/my_decimal.h" // my_decimal_cmp
+#include "sql/psi_memory_key.h" // key_memory_histograms
 #include "sql_string.h"     // String
 #include "template_utils.h" // down_cast
 

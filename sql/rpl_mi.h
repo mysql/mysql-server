@@ -20,9 +20,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog.h"
 #include "binlog_event.h"            // enum_binlog_checksum_alg
-#include "log_event.h"               // Format_description_log_event
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -32,11 +30,13 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "rpl_gtid.h"                // Gtid
-#include "rpl_info.h"                // Rpl_info
-#include "rpl_rli.h"                 // rli->get_log_lock()
-#include "rpl_trx_boundary_parser.h" // Transaction_boundary_parser
-#include "sql_const.h"
+#include "sql/binlog.h"
+#include "sql/log_event.h"           // Format_description_log_event
+#include "sql/rpl_gtid.h"            // Gtid
+#include "sql/rpl_info.h"            // Rpl_info
+#include "sql/rpl_rli.h"             // rli->get_log_lock()
+#include "sql/rpl_trx_boundary_parser.h" // Transaction_boundary_parser
+#include "sql/sql_const.h"
 
 class Relay_log_info;
 class Rpl_info_handler;

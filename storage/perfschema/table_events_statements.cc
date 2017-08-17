@@ -31,7 +31,7 @@
 #include "pfs_instr.h"
 #include "pfs_instr_class.h"
 #include "pfs_timer.h"
-#include "sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
+#include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
 #include "table_helper.h"
 
 THR_LOCK table_events_statements_current::m_table_lock;

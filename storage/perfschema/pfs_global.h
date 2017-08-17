@@ -21,11 +21,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "current_thd.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/sql_class.h"
 
 /**
   @file storage/perfschema/pfs_global.h

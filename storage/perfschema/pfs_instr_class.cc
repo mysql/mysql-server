@@ -21,7 +21,6 @@
 #include "storage/perfschema/pfs_instr_class.h"
 
 #include <string.h>
-
 #include <atomic>
 
 #include "lex_string.h"
@@ -30,7 +29,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysqld.h"  // lower_case_table_names
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_column_values.h"
@@ -40,7 +38,8 @@
 #include "pfs_program.h"
 #include "pfs_setup_object.h"
 #include "pfs_timer.h"
-#include "table.h"
+#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/table.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers
@@ -66,6 +65,8 @@ static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
                              int flags,
+                             int volatility,
+                             const char *documentation,
                              PFS_class_type class_type);
 
 /**
@@ -177,7 +178,8 @@ enum_timer_name *class_timers[] = {
   &idle_timer,        /* PFS_CLASS_IDLE */
   &wait_timer,        /* PFS_CLASS_METADATA */
   &wait_timer,        /* PFS_CLASS_MEMORY */
-  &wait_timer         /* PFS_CLASS_ERROR */
+  &wait_timer,        /* PFS_CLASS_ERROR */
+  &wait_timer         /* PFS_CLASS_THREAD */
 };
 
 /**
@@ -245,6 +247,8 @@ register_global_classes()
                    table_io_class_name.str,
                    (uint)table_io_class_name.length,
                    0,
+                   0,
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_TABLE_IO);
   global_table_io_class.m_event_name_index = GLOBAL_TABLE_IO_EVENT_INDEX;
   configure_instr_class(&global_table_io_class);
@@ -254,6 +258,8 @@ register_global_classes()
                    table_lock_class_name.str,
                    (uint)table_lock_class_name.length,
                    0,
+                   0,
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_TABLE_LOCK);
   global_table_lock_class.m_event_name_index = GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
@@ -262,7 +268,9 @@ register_global_classes()
   init_instr_class(&global_idle_class,
                    idle_class_name.str,
                    (uint)idle_class_name.length,
-                   0,
+                   PSI_FLAG_USER,
+                   0, /* no volatility */
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_IDLE);
   global_idle_class.m_event_name_index = GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
@@ -272,6 +280,8 @@ register_global_classes()
                    metadata_lock_class_name.str,
                    (uint)metadata_lock_class_name.length,
                    0,
+                   0,
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_METADATA);
   global_metadata_class.m_event_name_index = GLOBAL_METADATA_EVENT_INDEX;
   configure_instr_class(&global_metadata_class);
@@ -281,6 +291,8 @@ register_global_classes()
                    error_class_name.str,
                    (uint)error_class_name.length,
                    0,
+                   0,
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_ERROR);
   global_error_class.m_event_name_index = GLOBAL_ERROR_INDEX;
   global_error_class.m_enabled = true; /* Enabled by default */
@@ -294,6 +306,8 @@ register_global_classes()
                    transaction_instrument_prefix.str,
                    (uint)transaction_instrument_prefix.length,
                    0,
+                   0,
+                   PSI_DOCUMENT_ME,
                    PFS_CLASS_TRANSACTION);
   global_transaction_class.m_event_name_index = GLOBAL_TRANSACTION_INDEX;
   configure_instr_class(&global_transaction_class);
@@ -370,12 +384,24 @@ init_sync_class(uint mutex_class_sizing,
 void
 cleanup_sync_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<mutex_class_max; i++)
+  {
+    my_free(mutex_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_mutex_class,
                  mutex_class_max,
                  sizeof(PFS_mutex_class),
                  mutex_class_array);
   mutex_class_array = NULL;
   mutex_class_dirty_count = mutex_class_allocated_count = mutex_class_max = 0;
+
+  for (i=0; i<rwlock_class_max; i++)
+  {
+    my_free(rwlock_class_array[i].m_documentation);
+  }
 
   PFS_FREE_ARRAY(&builtin_memory_rwlock_class,
                  rwlock_class_max,
@@ -384,6 +410,11 @@ cleanup_sync_class(void)
   rwlock_class_array = NULL;
   rwlock_class_dirty_count = rwlock_class_allocated_count = rwlock_class_max =
     0;
+
+  for (i=0; i<cond_class_max; i++)
+  {
+    my_free(cond_class_array[i].m_documentation);
+  }
 
   PFS_FREE_ARRAY(&builtin_memory_cond_class,
                  cond_class_max,
@@ -430,6 +461,13 @@ init_thread_class(uint thread_class_sizing)
 void
 cleanup_thread_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<thread_class_max; i++)
+  {
+    my_free(thread_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_thread_class,
                  thread_class_max,
                  sizeof(PFS_thread_class),
@@ -875,6 +913,13 @@ init_file_class(uint file_class_sizing)
 void
 cleanup_file_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<file_class_max; i++)
+  {
+    my_free(file_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_file_class,
                  file_class_max,
                  sizeof(PFS_file_class),
@@ -921,6 +966,13 @@ init_stage_class(uint stage_class_sizing)
 void
 cleanup_stage_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<stage_class_max; i++)
+  {
+    my_free(stage_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_stage_class,
                  stage_class_max,
                  sizeof(PFS_stage_class),
@@ -967,6 +1019,13 @@ init_statement_class(uint statement_class_sizing)
 void
 cleanup_statement_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<statement_class_max; i++)
+  {
+    my_free(statement_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_statement_class,
                  statement_class_max,
                  sizeof(PFS_statement_class),
@@ -1013,6 +1072,13 @@ init_socket_class(uint socket_class_sizing)
 void
 cleanup_socket_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<socket_class_max; i++)
+  {
+    my_free(socket_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_socket_class,
                  socket_class_max,
                  sizeof(PFS_socket_class),
@@ -1059,6 +1125,13 @@ init_memory_class(uint memory_class_sizing)
 void
 cleanup_memory_class(void)
 {
+  unsigned int i;
+
+  for (i=0; i<memory_class_max; i++)
+  {
+    my_free(memory_class_array[i].m_documentation);
+  }
+
   PFS_FREE_ARRAY(&builtin_memory_memory_class,
                  memory_class_max,
                  sizeof(PFS_memory_class),
@@ -1073,6 +1146,8 @@ init_instr_class(PFS_instr_class *klass,
                  const char *name,
                  uint name_length,
                  int flags,
+                 int volatility,
+                 const char *documentation,
                  PFS_class_type class_type)
 {
   DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
@@ -1080,10 +1155,21 @@ init_instr_class(PFS_instr_class *klass,
   strncpy(klass->m_name, name, name_length);
   klass->m_name_length = name_length;
   klass->m_flags = flags;
+  klass->m_volatility = volatility;
   klass->m_enabled = true;
   klass->m_timed = true;
   klass->m_type = class_type;
   klass->m_timer = class_timers[class_type];
+
+  klass->m_documentation = NULL;
+  if (documentation != NULL)
+  {
+    /* PSI_DOCUMENT_ME is an empty string. */
+    if (documentation[0] != '\0')
+    {
+      klass->m_documentation = my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
+    }
+  }
 }
 
 /**
@@ -1192,26 +1278,20 @@ register_mutex_class(const char *name, uint name_length, PSI_mutex_info *info)
         in INSTALL PLUGIN.
     */
     entry = &mutex_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MUTEX);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_MUTEX);
     entry->m_mutex_stat.reset();
     entry->m_event_name_index = mutex_class_start + index;
     entry->m_singleton = NULL;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
-    /*
-      There are 9 volatility defined in psi.h,
-      but since most are still unused,
-      mapping this to only 2 PFS_MUTEX_PARTITIONS.
-    */
-    if (info->m_volatility >= PSI_VOLATILITY_SESSION)
-    {
-      entry->m_volatility = 1;
-    }
-    else
-    {
-      entry->m_volatility = 0;
-    }
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON);
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
@@ -1275,12 +1355,21 @@ register_rwlock_class(const char *name, uint name_length, PSI_rwlock_info *info)
   if (index < rwlock_class_max)
   {
     entry = &rwlock_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_RWLOCK);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_RWLOCK);
     entry->m_rwlock_stat.reset();
     entry->m_event_name_index = rwlock_class_start + index;
     entry->m_singleton = NULL;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
+
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_RWLOCK_SX);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     ++rwlock_class_allocated_count;
@@ -1316,11 +1405,20 @@ register_cond_class(const char *name, uint name_length, PSI_cond_info *info)
   if (index < cond_class_max)
   {
     entry = &cond_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_COND);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_COND);
     entry->m_event_name_index = cond_class_start + index;
     entry->m_singleton = NULL;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
+
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     ++cond_class_allocated_count;
@@ -1422,12 +1520,20 @@ register_thread_class(const char *name, uint name_length, PSI_thread_info *info)
   if (index < thread_class_max)
   {
     entry = &thread_class_array[index];
-    DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
-    strncpy(entry->m_name, name, name_length);
-    entry->m_name_length = name_length;
-    entry->m_enabled = true;
-    DBUG_ASSERT(info != NULL);
-    entry->m_flags = info->m_flags;
+
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_THREAD);
+    entry->m_singleton = NULL;
+    entry->m_history = true;
+
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER);
+
+    configure_instr_class(entry);
     ++thread_class_allocated_count;
     return (index + 1);
   }
@@ -1479,11 +1585,20 @@ register_file_class(const char *name, uint name_length, PSI_file_info *info)
   if (index < file_class_max)
   {
     entry = &file_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_FILE);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_FILE);
     entry->m_event_name_index = file_class_start + index;
     entry->m_singleton = NULL;
     entry->m_enabled = true; /* enabled by default */
     entry->m_timed = true;
+
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     ++file_class_allocated_count;
@@ -1524,11 +1639,19 @@ register_stage_class(const char *name,
   if (index < stage_class_max)
   {
     entry = &stage_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_STAGE);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     0, /* stages have no volatility */
+                     info->m_documentation,
+                     PFS_CLASS_STAGE);
     entry->m_prefix_length = prefix_length;
     entry->m_event_name_index = index;
 
-    if (info->m_flags & PSI_FLAG_STAGE_PROGRESS)
+    entry->enforce_valid_flags(PSI_FLAG_STAGE_PROGRESS);
+
+    if (entry->is_progress())
     {
       /* Stages with progress information are enabled and timed by default */
       entry->m_enabled = true;
@@ -1579,11 +1702,19 @@ register_statement_class(const char *name,
   if (index < statement_class_max)
   {
     entry = &statement_class_array[index];
-    init_instr_class(
-      entry, name, name_length, info->m_flags, PFS_CLASS_STATEMENT);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     0, /* statements have no volatility */
+                     info->m_documentation,
+                     PFS_CLASS_STATEMENT);
     entry->m_event_name_index = index;
     entry->m_enabled = true; /* enabled by default */
     entry->m_timed = true;
+
+    entry->enforce_valid_flags(PSI_FLAG_MUTABLE);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     ++statement_class_allocated_count;
@@ -1673,11 +1804,20 @@ register_socket_class(const char *name, uint name_length, PSI_socket_info *info)
   if (index < socket_class_max)
   {
     entry = &socket_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_SOCKET);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_SOCKET);
     entry->m_event_name_index = socket_class_start + index;
     entry->m_singleton = NULL;
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
+
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     ++socket_class_allocated_count;
@@ -1731,8 +1871,17 @@ register_memory_class(const char *name, uint name_length, PSI_memory_info *info)
   if (index < memory_class_max)
   {
     entry = &memory_class_array[index];
-    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MEMORY);
+    init_instr_class(entry,
+                     name,
+                     name_length,
+                     info->m_flags,
+                     info->m_volatility,
+                     info->m_documentation,
+                     PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
+
+    entry->enforce_valid_flags(PSI_FLAG_ONLY_GLOBAL_STAT);
+
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
     entry->m_timed = false; /* Immutable */

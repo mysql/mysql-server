@@ -22,18 +22,18 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
-#include "enum_query_type.h"
-#include "item.h"   // Item_result_field
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "parse_tree_node_base.h"
-#include "sql_alloc.h"
+#include "sql/enum_query_type.h"
+#include "sql/item.h" // Item_result_field
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/sql_alloc.h"
 
 class Comp_creator;
 class Field;
@@ -115,8 +115,6 @@ protected:
   enum_parsing_context parsing_place;
   /* work with 'substitution' */
   bool have_to_be_excluded;
-  /* cache of constant state */
-  bool const_item_cache;
 
 public:
   /* subquery is transformed */
@@ -181,7 +179,6 @@ public:
   bool resolve_type(THD *) override;
   table_map used_tables() const override { return used_tables_cache; }
   table_map not_null_tables() const override { return 0; }
-  bool const_item() const override { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
   void print(String *str, enum_query_type query_type) override;

@@ -37,30 +37,9 @@
 #include <set>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"     // SELECT_ACL
-#include "binlog.h"          // mysql_bin_log
-#include "dd/cache/dictionary_client.h" // Dictionary_client
-#include "dd/dd.h"                      // dd::get_dictionary()
-#include "dd/dd_schema.h"               // dd::create_schema
-#include "dd/dictionary.h"              // dd::Dictionary
-#include "dd/string_type.h"
-#include "dd/types/abstract_table.h"
-#include "dd/types/schema.h"
-#include "dd/upgrade/upgrade.h"         // dd::upgrade::in_progress
-#include "debug_sync.h"      // DEBUG_SYNC
-#include "derror.h"          // ER_THD
-#include "error_handler.h"   // Drop_table_error_handler
-#include "events.h"          // Events
-#include "handler.h"
-#include "key.h"
 #include "lex_string.h"
-#include "lock.h"            // lock_schema_name
-#include "log.h"             // log_*()
-#include "log_event.h"       // Query_log_event
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -74,25 +53,46 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
-#include "mysqld.h"          // key_file_misc
 #include "mysqld_error.h"
 #include "mysys_err.h"       // EE_*
 #include "prealloced_array.h"
-#include "psi_memory_key.h"  // key_memory_THD_db
-#include "rpl_gtid.h"
-#include "session_tracker.h"
-#include "sp.h"              // lock_db_routines
-#include "sql_base.h"        // lock_table_names
-#include "sql_class.h"       // THD
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_handler.h"     // mysql_ha_rm_tables
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // SELECT_ACL
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"      // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h" // Dictionary_client
+#include "sql/dd/dd.h"                  // dd::get_dictionary()
+#include "sql/dd/dd_schema.h"           // dd::create_schema
+#include "sql/dd/dictionary.h"          // dd::Dictionary
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/schema.h"
+#include "sql/dd/upgrade/upgrade.h"     // dd::upgrade::in_progress
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/derror.h"      // ER_THD
+#include "sql/error_handler.h" // Drop_table_error_handler
+#include "sql/events.h"      // Events
+#include "sql/handler.h"
+#include "sql/key.h"
+#include "sql/lock.h"        // lock_schema_name
+#include "sql/log.h"         // log_*()
+#include "sql/log_event.h"   // Query_log_event
+#include "sql/mdl.h"
+#include "sql/mysqld.h"      // key_file_misc
+#include "sql/psi_memory_key.h" // key_memory_THD_db
+#include "sql/rpl_gtid.h"
+#include "sql/session_tracker.h"
+#include "sql/sp.h"          // lock_db_routines
+#include "sql/sql_base.h"    // lock_table_names
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_handler.h" // mysql_ha_rm_tables
+#include "sql/sql_table.h"   // build_table_filename
+#include "sql/system_variables.h"
+#include "sql/table.h"       // TABLE_LIST
+#include "sql/transaction.h" // trans_rollback_stmt
 #include "sql_string.h"
-#include "sql_table.h"       // build_table_filename
-#include "system_variables.h"
-#include "table.h"           // TABLE_LIST
-#include "transaction.h"     // trans_rollback_stmt
 #include "typelib.h"
 
 static const size_t MAX_DROP_TABLE_Q_LEN= 1024;

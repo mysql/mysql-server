@@ -516,3 +516,30 @@ SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)
 SET @c =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 GROUP BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 SET @d =(SELECT 1 NOT IN (SELECT 1 FROM t1 as t1 ORDER BY 1 LIKE (SELECT 1 FROM t1 as t2)) AS col);
 DROP TABLE t1; 
+
+--echo Bug#25727892: Refactor Item::const_item() as a non-virtual function
+
+--echo Coverage for cached and non-cached user variables
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES (1,1), (1,2), (2,1);
+
+let $query1=SELECT a FROM t1 WHERE a = @x;
+let $query2=SELECT a FROM t1 WHERE a = @x AND (@x:= @x);
+let $query3=SELECT a FROM t1 WHERE a = @x INTO @x;
+
+eval explain $query1;
+eval explain $query2;
+eval explain $query3;
+
+SET @x= 1;
+
+eval $query1;
+eval $query2;
+--error ER_TOO_MANY_ROWS
+eval $query3;
+
+SET @x= 2;
+eval $query3;
+
+DROP TABLE t1;

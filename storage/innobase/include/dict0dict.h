@@ -28,7 +28,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
-#include "dd/object_id.h"
+#include "sql/dd/object_id.h"
 #include "data0data.h"
 #include "data0type.h"
 #include "dict0mem.h"
@@ -340,6 +340,13 @@ void
 dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table);	/*!< in, own: table */
+
+/** Try to invalidate an entry from the dict cache, for a partitioned table,
+if any table found.
+@param[in]	name	Table name */
+void
+dict_partitioned_table_remove_from_cache(
+	const char*	name);
 
 #ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose

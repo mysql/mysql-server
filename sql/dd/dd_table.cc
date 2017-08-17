@@ -19,67 +19,67 @@
 #include <algorithm>
 #include <memory>                             // unique_ptr
 
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/dd.h"                            // dd::get_dictionary
-#include "dd/dictionary.h"                    // dd::Dictionary
-// TODO: Avoid exposing dd/impl headers in public files.
-#include "dd/impl/dictionary_impl.h"          // default_catalog_name
-#include "dd/impl/system_registry.h"          // dd::System_tables
-#include "dd/impl/utils.h"                    // dd::escape
-#include "dd/performance_schema/init.h"       // performance_schema::
-                                              //   set_PS_version_for_table
-#include "dd/properties.h"                    // dd::Properties
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"                  // dd::Column
-#include "dd/types/column_type_element.h"     // dd::Column_type_element
-#include "dd/types/foreign_key.h"             // dd::Foreign_key
-#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
-#include "dd/types/index.h"                   // dd::Index
-#include "dd/types/index_element.h"           // dd::Index_element
-#include "dd/types/object_table.h"            // dd::Object_table
-#include "dd/types/partition.h"               // dd::Partition
-#include "dd/types/partition_value.h"         // dd::Partition_value
-#include "dd/types/schema.h"                  // dd::Schema
-#include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
-#include "dd_table_share.h"                   // is_suitable_for_primary_key
-#include "debug_sync.h"                       // DEBUG_SYNC
-#include "default_values.h"                   // max_pack_length
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "key.h"
-#include "key_spec.h"
 #include "lex_string.h"
-#include "log.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "mdl.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld.h"                           // lower_case_table_names
 #include "mysqld_error.h"
-#include "partition_element.h"
-#include "partition_info.h"                   // partition_info
-#include "psi_memory_key.h"                   // key_memory_frm
-#include "sql_class.h"                        // THD
-#include "sql_const.h"
-#include "sql_list.h"
-#include "sql_parse.h"
-#include "sql_partition.h"                    // expr_to_string
-#include "sql_plugin_ref.h"
+#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                        // dd::get_dictionary
+#include "sql/dd/dictionary.h"                // dd::Dictionary
+// TODO: Avoid exposing dd/impl headers in public files.
+#include "sql/dd/impl/dictionary_impl.h"      // default_catalog_name
+#include "sql/dd/impl/system_registry.h"      // dd::System_tables
+#include "sql/dd/impl/utils.h"                // dd::escape
+#include "sql/dd/performance_schema/init.h"   // performance_schema::
+                                              //   set_PS_version_for_table
+#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"              // dd::Column
+#include "sql/dd/types/column_type_element.h" // dd::Column_type_element
+#include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
+#include "sql/dd/types/foreign_key_element.h" // dd::Foreign_key_element
+#include "sql/dd/types/index.h"               // dd::Index
+#include "sql/dd/types/index_element.h"       // dd::Index_element
+#include "sql/dd/types/object_table.h"        // dd::Object_table
+#include "sql/dd/types/partition.h"           // dd::Partition
+#include "sql/dd/types/partition_value.h"     // dd::Partition_value
+#include "sql/dd/types/schema.h"              // dd::Schema
+#include "sql/dd/types/table.h"               // dd::Table
+#include "sql/dd/types/tablespace.h"          // dd::Tablespace
+#include "sql/dd_table_share.h"               // is_suitable_for_primary_key
+#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/default_values.h"               // max_pack_length
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/key_spec.h"
+#include "sql/log.h"
+#include "sql/mdl.h"
+#include "sql/my_decimal.h"
+#include "sql/mysqld.h"                       // lower_case_table_names
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"               // partition_info
+#include "sql/psi_memory_key.h"               // key_memory_frm
+#include "sql/sql_class.h"                    // THD
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"
+#include "sql/sql_partition.h"                // expr_to_string
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_table.h"                    // primary_key_name
+#include "sql/strfunc.h"                      // lex_cstring_handle
+#include "sql/table.h"
 #include "sql_string.h"
-#include "sql_table.h"                        // primary_key_name
-#include "strfunc.h"                          // lex_cstring_handle
-#include "table.h"
 #include "typelib.h"
 
 namespace dd {

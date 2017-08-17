@@ -18,7 +18,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/components/logging
   ${CMAKE_SOURCE_DIR}/components/mysql_server
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${ZLIB_INCLUDE_DIR}
 )
 
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)

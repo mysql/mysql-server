@@ -379,10 +379,10 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "sql_error.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_error.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "table.h"
 #include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -390,11 +390,11 @@
 #include <set>
 #include <string>
 
-#include "current_thd.h"
-#include "derror.h"
-#include "log.h"
 #include "mysql/psi/mysql_memory.h"
-#include "sql_class.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"
+#include "sql/log.h"
+#include "sql/sql_class.h"
 
 using std::max;
 using std::min;
@@ -518,20 +518,20 @@ static PSI_mutex_key key_debug_sync_globals_ds_mutex;
 
 static PSI_mutex_info all_debug_sync_mutexes[]=
 {
-  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL, 0}
+  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_debug_sync_globals_ds_cond;
 
 static PSI_cond_info all_debug_sync_conds[]=
 {
-  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_GLOBAL}
+  { &key_debug_sync_globals_ds_cond, "DEBUG_SYNC::cond", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_debug_sync_memory[]=
 {
-  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0},
-  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0}
+  { &key_debug_THD_debug_sync_control, "THD::debug_sync_control", 0, 0, PSI_DOCUMENT_ME},
+  { &key_debug_sync_action, "debug_sync_control::debug_sync_action", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static void init_debug_sync_psi_keys(void)

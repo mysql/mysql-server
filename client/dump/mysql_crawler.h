@@ -20,22 +20,22 @@
 
 #include <functional>
 
-#include "abstract_crawler.h"
-#include "abstract_dump_task.h"
-#include "abstract_mysql_chain_element_extension.h"
-#include "base/abstract_program.h"
-#include "base/message_data.h"
-#include "database.h"
-#include "database_end_dump_task.h"
-#include "database_start_dump_task.h"
-#include "dump_end_dump_task.h"
-#include "dump_start_dump_task.h"
-#include "i_connection_provider.h"
+#include "client/base/abstract_program.h"
+#include "client/base/message_data.h"
+#include "client/dump/abstract_crawler.h"
+#include "client/dump/abstract_dump_task.h"
+#include "client/dump/abstract_mysql_chain_element_extension.h"
+#include "client/dump/database.h"
+#include "client/dump/database_end_dump_task.h"
+#include "client/dump/database_start_dump_task.h"
+#include "client/dump/dump_end_dump_task.h"
+#include "client/dump/dump_start_dump_task.h"
+#include "client/dump/i_connection_provider.h"
+#include "client/dump/mysql_chain_element_options.h"
+#include "client/dump/simple_id_generator.h"
+#include "client/dump/table.h"
+#include "client/dump/tables_definition_ready_dump_task.h"
 #include "my_inttypes.h"
-#include "mysql_chain_element_options.h"
-#include "simple_id_generator.h"
-#include "table.h"
-#include "tables_definition_ready_dump_task.h"
 
 namespace Mysql{
 namespace Tools{

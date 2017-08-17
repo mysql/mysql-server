@@ -14,14 +14,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "item.h"
+#include "sql/item.h"
 
 #include "my_config.h"
 
 #include "my_macros.h"
-#include "sql_parse.h"
-#include "system_variables.h"
-#include "value_map.h"
+#include "sql/histograms/value_map.h"
+#include "sql/sql_parse.h"
+#include "sql/system_variables.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -30,43 +30,43 @@
 #include <cmath>
 #include <utility>
 
-#include "aggregate_check.h" // Distinct_check
-#include "auth_acls.h"
-#include "auth_common.h"     // get_column_grant
-#include "current_thd.h"
 #include "decimal.h"
-#include "derror.h"          // ER_THD
-#include "error_handler.h"   // Internal_error_handler
-#include "item_cmpfunc.h"    // COND_EQUAL
-#include "item_create.h"     // create_temporal_literal
-#include "item_func.h"       // item_func_sleep_init
-#include "item_json_func.h"  // json_value
-#include "item_row.h"
-#include "item_strfunc.h"    // Item_func_conv_charset
-#include "item_subselect.h"
-#include "item_sum.h"        // Item_sum
-#include "json_dom.h"        // Json_wrapper
-#include "key.h"
-#include "log_event.h"       // append_query_string
 #include "my_dbug.h"
 #include "mysql.h"           // IS_NUM
 #include "mysql/service_my_snprintf.h"
 #include "mysql_time.h"
-#include "mysqld.h"          // lower_case_table_names files_charset_info
-#include "protocol.h"
-#include "select_lex_visitor.h"
-#include "sp.h"              // sp_map_item_type
-#include "sp_rcontext.h"     // sp_rcontext
-#include "sql_base.h"        // view_ref_found
-#include "sql_class.h"       // THD
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_security_ctx.h"
-#include "sql_servers.h"
-#include "sql_show.h"        // append_identifier
-#include "sql_time.h"        // Date_time_format
-#include "sql_view.h"        // VIEW_ANY_ACL
+#include "sql/aggregate_check.h" // Distinct_check
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h" // get_column_grant
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"      // ER_THD
+#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/item_cmpfunc.h" // COND_EQUAL
+#include "sql/item_create.h" // create_temporal_literal
+#include "sql/item_func.h"   // item_func_sleep_init
+#include "sql/item_json_func.h" // json_value
+#include "sql/item_row.h"
+#include "sql/item_strfunc.h" // Item_func_conv_charset
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"    // Item_sum
+#include "sql/json_dom.h"    // Json_wrapper
+#include "sql/key.h"
+#include "sql/log_event.h"   // append_query_string
+#include "sql/mysqld.h"      // lower_case_table_names files_charset_info
+#include "sql/protocol.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sp.h"          // sp_map_item_type
+#include "sql/sp_rcontext.h" // sp_rcontext
+#include "sql/sql_base.h"    // view_ref_found
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
+#include "sql/sql_show.h"    // append_identifier
+#include "sql/sql_time.h"    // Date_time_format
+#include "sql/sql_view.h"    // VIEW_ANY_ACL
 #include "template_utils.h"
 
 using std::min;
@@ -3295,7 +3295,6 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
                Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                pointer_cast<uchar *>(&ut));
     subq_predicate->used_tables_cache|= ut.used_tables;
-    subq_predicate->const_item_cache&= this->const_item();
   }
 }
 
@@ -5296,7 +5295,6 @@ void mark_select_range_as_dependent(THD *thd,
     Item_subselect *prev_subselect_item=
       previous_select->master_unit()->item;
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= false;
   }
   {
     Item_subselect *prev_subselect_item=
@@ -5317,7 +5315,7 @@ void mark_select_range_as_dependent(THD *thd,
     else
       prev_subselect_item->used_tables_cache|=
         found_field->table->pos_in_table_list->map();
-    prev_subselect_item->const_item_cache= false;
+
     mark_as_dependent(thd, last_select, current_sel, resolved_item,
                       dependent);
   }
@@ -5677,7 +5675,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         {
           prev_subselect_item->used_tables_cache|=
             (*from_field)->table->pos_in_table_list->map();
-          prev_subselect_item->const_item_cache= false;
           set_field(*from_field);
 
           if (!last_checked_context->select_lex->having_fix_field &&
@@ -5730,8 +5727,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
                       Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                       pointer_cast<uchar *>(&ut));
           prev_subselect_item->used_tables_cache|= ut.used_tables;
-          prev_subselect_item->const_item_cache&=
-            (*reference)->const_item();
 
           if (select->group_list.elements && place == CTX_HAVING)
           {
@@ -5760,11 +5755,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
 
-          mark_as_dependent(thd, last_checked_context->select_lex,
-                            context->select_lex, this,
-                            ((ref_type == REF_ITEM || ref_type == FIELD_ITEM) ?
-                             (Item_ident*) (*reference) :
-                             0));
+          if ((*reference)->used_tables() != 0)
+            mark_as_dependent(thd, last_checked_context->select_lex,
+                              context->select_lex, this,
+                              ref_type == REF_ITEM || ref_type == FIELD_ITEM ?
+                                down_cast<Item_ident *>(*reference) : NULL);
           /*
             A reference to a view field had been found and we
             substituted it instead of this Item (find_field_in_tables
@@ -5791,7 +5786,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         */
         DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
         prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
-        prev_subselect_item->const_item_cache&= (*ref)->const_item();
         break;
       }
     }
@@ -5802,7 +5796,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
       case it does not matter which used tables bits we set)
     */
     prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    prev_subselect_item->const_item_cache= false;
   }
 
   DBUG_ASSERT(ref != 0);
@@ -5871,9 +5864,10 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     if (rf->fix_fields(thd, reference) || rf->check_cols(1))
       return -1;
 
-    mark_as_dependent(thd, last_checked_context->select_lex,
-                      context->select_lex, this,
-                      rf);
+    if (rf->used_tables() != 0)
+      mark_as_dependent(thd, last_checked_context->select_lex,
+                        context->select_lex, this,
+                        rf);
     return 0;
   }
   else
@@ -7772,17 +7766,7 @@ bool Item::cache_const_expr_analyzer(uchar **arg)
         !(basic_const_item() || item->basic_const_item() ||
           item->type() == Item::FIELD_ITEM ||
           item->type() == SUBSELECT_ITEM ||
-          item->type() == CACHE_ITEM ||
-           /*
-             Do not cache GET_USER_VAR() function as its const_item() may
-             return TRUE for the current thread but it still may change
-             during the execution.
-             Do not cache TRIG_COND_FUNC as it must be evaluated in join
-             processing.
-           */
-          (item->type() == Item::FUNC_ITEM &&
-           (((Item_func*)item)->functype() == Item_func::GUSERVAR_FUNC ||
-            ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC))))
+          item->type() == CACHE_ITEM))
       /*
         Note that we use cache_item as a flag (NULL vs non-NULL), but we
         are storing the pointer so that we can assert that we cache the
@@ -8281,7 +8265,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           {
             DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
             prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
-            prev_subselect_item->const_item_cache&= (*ref)->const_item();
             break;
           }
           /*
@@ -8326,8 +8309,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             Item::Type refer_type= (*reference)->type();
             prev_subselect_item->used_tables_cache|=
               (*reference)->used_tables();
-            prev_subselect_item->const_item_cache&=
-              (*reference)->const_item();
             DBUG_ASSERT((*reference)->type() == REF_ITEM);
             mark_as_dependent(thd, last_checked_context->select_lex,
                               context->select_lex, this,
@@ -8364,7 +8345,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             }
             prev_subselect_item->used_tables_cache|=
               from_field->table->pos_in_table_list->map();
-            prev_subselect_item->const_item_cache= false;
             break;
           }
         }
@@ -8372,7 +8352,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
         /* Reference is not found => depend on outer (or just error). */
         prev_subselect_item->used_tables_cache|= OUTER_REF_TABLE_BIT;
-        prev_subselect_item->const_item_cache= false;
 
         outer_context= outer_context->outer_context;
       } while (outer_context);
@@ -9491,9 +9470,6 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **)
 
     if (table_grants)
     {
-#ifndef DBUG_OFF
-      table_grants->want_privilege= want_privilege;
-#endif
       if (check_grant_column(thd, table_grants,
                              triggers->get_subject_table()->s->db.str,
                              triggers->get_subject_table()->s->table_name.str,
@@ -10190,6 +10166,18 @@ bool Item_cache_json::cache_value()
   return value_cached;
 }
 
+void Item_cache_json::store_value(Item *expr, Json_wrapper *wr)
+{
+  value_cached= TRUE;
+  if ((null_value= expr->null_value))
+    m_value= nullptr;
+  else
+  {
+    *m_value = *wr;
+    // the row buffer might change, so need own copy
+    m_value->to_dom(current_thd);
+  }
+}
 
 /**
   Copy the cached JSON value into a wrapper.

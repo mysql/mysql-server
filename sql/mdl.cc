@@ -14,14 +14,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-#include "mdl.h"
+#include "sql/mdl.h"
 
 #include <time.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
 
-#include "debug_sync.h"
 #include "lf.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -44,7 +43,8 @@
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "thr_malloc.h"
+#include "sql/debug_sync.h"
+#include "sql/thr_malloc.h"
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -55,7 +55,7 @@ static PSI_mutex_key key_MDL_wait_LOCK_wait_status;
 
 static PSI_mutex_info all_mdl_mutexes[]=
 {
-  { &key_MDL_wait_LOCK_wait_status, "MDL_wait::LOCK_wait_status", 0, 0}
+  { &key_MDL_wait_LOCK_wait_status, "MDL_wait::LOCK_wait_status", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_rwlock_key key_MDL_lock_rwlock;
@@ -63,20 +63,20 @@ static PSI_rwlock_key key_MDL_context_LOCK_waiting_for;
 
 static PSI_rwlock_info all_mdl_rwlocks[]=
 {
-  { &key_MDL_lock_rwlock, "MDL_lock::rwlock", 0},
-  { &key_MDL_context_LOCK_waiting_for, "MDL_context::LOCK_waiting_for", 0}
+  { &key_MDL_lock_rwlock, "MDL_lock::rwlock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_MDL_context_LOCK_waiting_for, "MDL_context::LOCK_waiting_for", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_cond_key key_MDL_wait_COND_wait_status;
 
 static PSI_cond_info all_mdl_conds[]=
 {
-  { &key_MDL_wait_COND_wait_status, "MDL_context::COND_wait_status", 0}
+  { &key_MDL_wait_COND_wait_status, "MDL_context::COND_wait_status", 0, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_mdl_memory[]=
 {
-  { &key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0}
+  { &key_memory_MDL_context_acquire_locks, "MDL_context::acquire_locks", 0, 0, PSI_DOCUMENT_ME}
 };
 
 /**
@@ -111,20 +111,20 @@ static void init_mdl_psi_keys(void)
 
 PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
 {
-  {0, "Waiting for global read lock", 0},
-  {0, "Waiting for tablespace metadata lock", 0},
-  {0, "Waiting for schema metadata lock", 0},
-  {0, "Waiting for table metadata lock", 0},
-  {0, "Waiting for stored function metadata lock", 0},
-  {0, "Waiting for stored procedure metadata lock", 0},
-  {0, "Waiting for trigger metadata lock", 0},
-  {0, "Waiting for event metadata lock", 0},
-  {0, "Waiting for commit lock", 0},
-  {0, "User lock", 0}, /* Be compatible with old status. */
-  {0, "Waiting for locking service lock", 0},
-  {0, "Waiting for spatial reference system lock", 0},
-  {0, "Waiting for acl cache lock", 0},
-  {0, "Waiting for column statistics lock", 0}
+  {0, "Waiting for global read lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for tablespace metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for schema metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for table metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for stored function metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for stored procedure metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for trigger metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for event metadata lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for commit lock", 0, PSI_DOCUMENT_ME},
+  {0, "User lock", 0, PSI_DOCUMENT_ME}, /* Be compatible with old status. */
+  {0, "Waiting for locking service lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for spatial reference system lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for acl cache lock", 0, PSI_DOCUMENT_ME},
+  {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME}
 };
 
 #ifdef HAVE_PSI_INTERFACE

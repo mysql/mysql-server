@@ -85,6 +85,7 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
+select * from performance_schema.setup_threads;
 select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;

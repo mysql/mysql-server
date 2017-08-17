@@ -17,19 +17,17 @@
 ///
 /// This file implements the crosses functor and function.
 
-#include "crosses_functor.h"
-#include "relops.h"
-
+#include <boost/geometry.hpp>
 #include <memory>  // std::unique_ptr
 
-#include <boost/geometry.hpp>
-
-#include "dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "crosses_functor.h"
 #include "disjoint_functor.h"
 #include "gc_utils.h"
 #include "geometries.h"
 #include "geometries_traits.h"
-#include "sql_exception_handler.h"  // handle_gis_exception
+#include "relops.h"
+#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
+#include "sql/sql_exception_handler.h" // handle_gis_exception
 #include "within_functor.h"
 
 namespace bg = boost::geometry;

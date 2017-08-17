@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "tables_definition_ready_dump_task.h"
+#include "client/dump/tables_definition_ready_dump_task.h"
 
 #include <stddef.h>
 

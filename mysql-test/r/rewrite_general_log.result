@@ -14,12 +14,12 @@ set names default,@dummy='c';
 CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
-CREATE USER test_user1 IDENTIFIED BY 'azundris1';
+CREATE USER test_user1 IDENTIFIED WITH mysql_native_password BY 'azundris1';
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1;
 GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
-CREATE USER test_user3@localhost IDENTIFIED BY 'meow' REQUIRE SSL;
+CREATE USER test_user3@localhost IDENTIFIED WITH mysql_native_password BY 'meow' REQUIRE SSL;
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost;
 ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
       REQUIRE X509 WITH
@@ -33,9 +33,9 @@ Warning	1287	Using GRANT statement to modify existing user's properties other th
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
 DROP TABLE     t1;
-CREATE USER test_user2 IDENTIFIED BY 'azundris2';
+CREATE USER test_user2 IDENTIFIED WITH mysql_native_password BY 'azundris2';
 CHANGE MASTER TO MASTER_PASSWORD='azundris3';
-CREATE USER 'test_user4'@'localhost';
+CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
 SET GLOBAL general_log=       'OFF';
 DROP USER 'test_user4'@'localhost';

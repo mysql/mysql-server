@@ -18,7 +18,6 @@
 #include <stddef.h>
 #include <atomic>
 
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -26,12 +25,13 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld.h"           // key_gtid_ensure_index_mutex
 #include "mysqld_error.h"     // ER_*
 #include "prealloced_array.h"
-#include "psi_memory_key.h"
-#include "rpl_gtid.h"
-#include "sql_class.h"        // THD
+#include "sql/mdl.h"
+#include "sql/mysqld.h"       // key_gtid_ensure_index_mutex
+#include "sql/psi_memory_key.h"
+#include "sql/rpl_gtid.h"
+#include "sql/sql_class.h"    // THD
 
 
 Mutex_cond_array::Mutex_cond_array(Checkable_rwlock *_global_lock)

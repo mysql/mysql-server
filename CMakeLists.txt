@@ -640,17 +640,17 @@ ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
 
 INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/extra/regex
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
-  ${CMAKE_SOURCE_DIR}/sql/histograms
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
 ENDIF()
 # Add bundled yassl/taocrypt or system openssl or custom openssl
 MYSQL_CHECK_SSL()

@@ -14,32 +14,31 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <my_sys.h>                         // my_error
-#include "component_status_var_service.h"
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
-
 #include <stddef.h>
 #include <new>
 #include <stdexcept>                        // std::exception subclasses
 
+#include "component_status_var_service.h"
+#include "component_sys_var_service.h"
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
-#include "log.h"
-#include "log_builtins_imp.h"
 #include "log_builtins_filter_imp.h"
+#include "log_builtins_imp.h"
 #include "my_inttypes.h"
+#include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
-#include "mysql_string_service.h"
 #include "registry.h"
 #include "server_component.h"
-#include "auth/dynamic_privileges_impl.h"
-#include "udf_registration_imp.h"
-#include "component_sys_var_service.h"
+#include "sql/auth/dynamic_privileges_impl.h"
+#include "sql/log.h"
+#include "sql/udf_registration_imp.h"
 
 /* Implementation located in the mysql_server component. */
 extern SERVICE_TYPE(mysql_cond_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_cond_v1);

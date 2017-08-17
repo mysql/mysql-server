@@ -4,14 +4,6 @@
 Checking the password authentication using the mysql_native_password plugin at the client and mysql_native_password plugin at the server side
 ===========================================================================================================================================
 
-select @@Global.old_passwords;
-@@Global.old_passwords
-0
-0 Expected
-select @@session.old_passwords;
-@@session.old_passwords
-0
-0 Expected
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';
@@ -98,14 +90,6 @@ Checking the password authentication using the mysql_native_password plugin at t
 ============================================================================================================================================
 
 # Restart server with default-authentication-plugin=sha256_password;
-select @@Global.old_passwords;
-@@Global.old_passwords
-2
-2 Expected
-select @@session.old_passwords;
-@@session.old_passwords
-0
-0 Expected
 CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_native_password';
 CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_native_password';
 select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_native_password';

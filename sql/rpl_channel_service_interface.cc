@@ -20,10 +20,6 @@
 #include <map>
 #include <utility>
 
-#include "binlog.h"
-#include "current_thd.h"
-#include "log.h"
-#include "log_event.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -36,22 +32,26 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "mysqld.h"          // opt_mts_slave_parallel_workers
 #include "mysqld_error.h"
-#include "mysqld_thd_manager.h" // Global_THD_manager
-#include "rpl_gtid.h"
-#include "rpl_info_factory.h"
-#include "rpl_info_handler.h"
-#include "rpl_mi.h"
-#include "rpl_msr.h"         /* Multisource replication */
-#include "rpl_mts_submode.h"
-#include "rpl_rli.h"
-#include "rpl_rli_pdb.h"
-#include "rpl_slave.h"
-#include "rpl_trx_boundary_parser.h"
-#include "sql_class.h"
-#include "sql_lex.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog.h"
+#include "sql/current_thd.h"
+#include "sql/log.h"
+#include "sql/log_event.h"
+#include "sql/mysqld.h"      // opt_mts_slave_parallel_workers
+#include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_info_factory.h"
+#include "sql/rpl_info_handler.h"
+#include "sql/rpl_mi.h"
+#include "sql/rpl_msr.h"     /* Multisource replication */
+#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_rli.h"
+#include "sql/rpl_rli_pdb.h"
+#include "sql/rpl_slave.h"
+#include "sql/rpl_trx_boundary_parser.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 
 int initialize_channel_service_interface()
 {

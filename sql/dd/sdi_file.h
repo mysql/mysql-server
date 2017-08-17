@@ -19,10 +19,10 @@
 #include <stddef.h>
 #include <utility>
 
-#include "dd/impl/sdi.h"        // dd::Sdi_type
-#include "dd/object_id.h"       // dd::Object_id
-#include "dd/string_type.h"     // dd::String_type
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql/dd/impl/sdi.h"    // dd::Sdi_type
+#include "sql/dd/object_id.h"   // dd::Object_id
+#include "sql/dd/string_type.h" // dd::String_type
 
 class THD;
 struct handlerton;

@@ -21,11 +21,11 @@
 #include <atomic>
 #include <functional>
 
-#include "abstract_chain_element.h"
-#include "base/abstract_program.h"
-#include "i_chain_maker.h"
-#include "i_crawler.h"
-#include "i_dump_task.h"
+#include "client/base/abstract_program.h"
+#include "client/dump/abstract_chain_element.h"
+#include "client/dump/i_chain_maker.h"
+#include "client/dump/i_crawler.h"
+#include "client/dump/i_dump_task.h"
 #include "my_inttypes.h"
 
 namespace Mysql{

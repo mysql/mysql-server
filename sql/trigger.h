@@ -21,19 +21,19 @@
 
 #include <string.h>
 
-#include "dd/properties.h"
+#include "sql/dd/properties.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
 
-#include "key.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql_alloc.h"                // Sql_alloc
-#include "table.h"                    // GRANT_INFO
-#include "thr_malloc.h"
-#include "trigger_def.h"              // enum_trigger_event_type
+#include "sql/key.h"
+#include "sql/sql_alloc.h"            // Sql_alloc
+#include "sql/table.h"                // GRANT_INFO
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"          // enum_trigger_event_type
 
 class Query_tables_list;
 class String;

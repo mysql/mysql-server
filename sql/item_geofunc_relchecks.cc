@@ -25,31 +25,31 @@
 #include <utility>
 #include <vector>
 
-#include "current_thd.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/types/spatial_reference_system.h"
-#include "derror.h"                            // ER_THD
-#include "gis/geometries.h"
-#include "gis/relops.h"
-#include "gis/srid.h"
-#include "gis/wkb_parser.h"
-#include "item.h"
-#include "item_cmpfunc.h"
-#include "item_func.h"
-#include "item_geofunc.h"
-#include "item_geofunc_internal.h"
-#include "item_geofunc_relchecks_bgwrap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "spatial.h"
-#include "sql_class.h"  // THD
-#include "sql_error.h"
-#include "sql_exception_handler.h"
+#include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
+#include "sql/derror.h"                        // ER_THD
+#include "sql/gis/geometries.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/srid.h"
+#include "sql/gis/wkb_parser.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/item_func.h"
+#include "sql/item_geofunc.h"
+#include "sql/item_geofunc_internal.h"
+#include "sql/item_geofunc_relchecks_bgwrap.h"
+#include "sql/spatial.h"
+#include "sql/sql_class.h" // THD
+#include "sql/sql_error.h"
+#include "sql/sql_exception_handler.h"
+#include "sql/srs_fetcher.h"
 #include "sql_string.h"
-#include "srs_fetcher.h"
 
 namespace boost {
 namespace geometry {

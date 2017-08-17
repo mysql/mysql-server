@@ -13,7 +13,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <sql_string.h>
 #include <string.h>
 #include <sys/types.h>
 
@@ -28,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
+#include "sql_string.h"
 
 PSI_memory_key key_memory_string_service_iterator;
 

@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+#include "mysql.h"
+
 namespace Mysql{
 namespace Tools{
 namespace Check{
@@ -36,7 +38,7 @@ extern void mysql_check(MYSQL* connection, int what_to_do, bool opt_alldbs,
                 bool opt_auto_repair, bool ignore_errors,
                 bool opt_frm, bool opt_fix_table_names,
                 bool opt_fix_db_names, bool opt_upgrade,
-                bool opt_write_binlog, uint verbose,
+                bool opt_write_binlog, unsigned int verbose,
                 std::string opt_skip_database,
                 std::vector<std::string> arguments,
                 void (*dberror)(MYSQL *mysql, std::string when));

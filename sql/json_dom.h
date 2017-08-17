@@ -27,16 +27,16 @@
 #include <vector>
 
 #include "binary_log_types.h"   // enum_field_types
-#include "json_binary.h"        // json_binary::Value
-#include "malloc_allocator.h"   // Malloc_allocator
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_decimal.h"         // my_decimal
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"         // MYSQL_TIME
 #include "prealloced_array.h"   // Prealloced_array
-#include "sql_alloc.h"          // Sql_alloc
+#include "sql/json_binary.h"    // json_binary::Value
+#include "sql/malloc_allocator.h" // Malloc_allocator
+#include "sql/my_decimal.h"     // my_decimal
+#include "sql/sql_alloc.h"      // Sql_alloc
 
 class Field_json;
 class Json_array;

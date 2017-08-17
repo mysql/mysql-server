@@ -30,12 +30,12 @@
 #include "my_sys.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_statement.h"
-#include "sql_alloc.h"
-#include "sql_class.h"   // Query_arena
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_servers.h"
+#include "sql/sql_alloc.h"
+#include "sql/sql_class.h" // Query_arena
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_servers.h"
 #include "sql_string.h"
 
 class Item;

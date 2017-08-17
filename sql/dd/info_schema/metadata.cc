@@ -23,7 +23,7 @@
 
 */
 
-#include "dd/info_schema/metadata.h"
+#include "sql/dd/info_schema/metadata.h"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -33,39 +33,39 @@
 #include <vector>
 
 #include "binary_log_types.h"
-#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
-#include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
-#include "dd/dd_table.h"                    // dd::get_sql_type_by_field_info
-#include "dd/impl/bootstrapper.h"           // dd::Column
-#include "dd/impl/dictionary_impl.h"        // dd::Dictionary_impl
-#include "dd/impl/system_registry.h"        // dd::System_views
-#include "dd/properties.h"                  // dd::Properties
-#include "dd/types/abstract_table.h"
-#include "dd/types/column.h"                // dd::Column
-#include "dd/types/schema.h"
-#include "dd/types/system_view.h"
-#include "dd/types/system_view_definition.h"// dd::System_view_definition
-#include "dd/types/view.h"
-#include "handler.h"
-#include "item_create.h"
 #include "lex_string.h"
-#include "log.h"                            // sql_print_warning()
 #include "m_string.h"
-#include "mdl.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
-#include "mysqld.h"                         // opt_readonly
-#include "sql_class.h"                      // THD
-#include "sql_plugin.h"                     // plugin_foreach
-#include "sql_plugin_ref.h"
-#include "sql_profile.h"
-#include "sql_show.h"
-#include "system_variables.h"
-#include "table.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
+#include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "sql/dd/dd_table.h"                // dd::get_sql_type_by_field_info
+#include "sql/dd/impl/bootstrapper.h"       // dd::Column
+#include "sql/dd/impl/dictionary_impl.h"    // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"    // dd::System_views
+#include "sql/dd/properties.h"              // dd::Properties
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/column.h"            // dd::Column
+#include "sql/dd/types/schema.h"
+#include "sql/dd/types/system_view.h"
+#include "sql/dd/types/system_view_definition.h"// dd::System_view_definition
+#include "sql/dd/types/view.h"
+#include "sql/handler.h"
+#include "sql/item_create.h"
+#include "sql/log.h"                        // sql_print_warning()
+#include "sql/mdl.h"
+#include "sql/mysqld.h"                     // opt_readonly
+#include "sql/sql_class.h"                  // THD
+#include "sql/sql_plugin.h"                 // plugin_foreach
+#include "sql/sql_plugin_ref.h"
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 
 namespace {
 

@@ -39,13 +39,14 @@ const byte field_ref_zero[FIELD_REF_SIZE] = {
         0, 0, 0, 0, 0,
 };
 
+#include <zlib.h>
+
 #include "btr0cur.h"
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "mtr0log.h"
 #include "page0page.h"
 #include "page0types.h"
-#include "zlib.h"
 #ifndef UNIV_HOTBACKUP
 # include "btr0sea.h"
 # include "buf0buf.h"

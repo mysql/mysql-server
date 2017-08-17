@@ -20,11 +20,11 @@
 
 #include <string>
 
-#include "composite_options_provider.h"
-#include "debug_options.h"
-#include "help_options.h"
-#include "i_options_provider.h"
-#include "message_data.h"
+#include "client/base/composite_options_provider.h"
+#include "client/base/debug_options.h"
+#include "client/base/help_options.h"
+#include "client/base/i_options_provider.h"
+#include "client/base/message_data.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 

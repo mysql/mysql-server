@@ -3999,11 +3999,10 @@ FROM (SELECT (1) alias1,
 (SELECT alias1) alias2
 FROM t1) X ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1276	Field or reference 'alias1' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select 1 AS `alias1`,(/* select#3 */ select `alias1`) AS `alias2` from dual
+Note	1249	Select 3 was reduced during optimization
+Note	1003	/* select#1 */ select 1 AS `alias1`,`alias1` AS `alias2` from dual
 SELECT *
 FROM (SELECT (1) alias1,
 (SELECT alias1) alias2
@@ -4028,11 +4027,10 @@ FROM (SELECT (1) alias1,
 (SELECT alias1) alias2
 FROM t1) X ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1276	Field or reference 'alias1' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select (/* select#3 */ select `alias1`) AS `alias2` from dual
+Note	1249	Select 3 was reduced during optimization
+Note	1003	/* select#1 */ select `alias1` AS `alias2` from dual
 SELECT alias2
 FROM (SELECT (1) alias1,
 (SELECT alias1) alias2

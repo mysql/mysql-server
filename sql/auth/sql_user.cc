@@ -21,13 +21,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "dynamic_privilege_table.h"
-#include "item.h"
-#include "key.h"
 #include "lex_string.h"
-#include "log_event.h"                  /* append_query_string */
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -47,33 +41,39 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "password.h"                   /* my_make_scrambled_password */
-#include "protocol.h"
-#include "sql_class.h"
-#include "sql_connect.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_lex.h"
-#include "sql_list.h"
-#include "sql_parse.h"                  /* check_access */
-#include "sql_plugin.h"                 /* lock_plugin_data etc. */
-#include "sql_plugin_ref.h"
-#include "sql_security_ctx.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/auth/dynamic_privilege_table.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/item.h"
+#include "sql/key.h"
+#include "sql/log_event.h"              /* append_query_string */
+#include "sql/protocol.h"
+#include "sql/sql_class.h"
+#include "sql/sql_connect.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_parse.h"              /* check_access */
+#include "sql/sql_plugin.h"             /* lock_plugin_data etc. */
+#include "sql/sql_plugin_ref.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql_string.h"
-#include "system_variables.h"
-#include "table.h"
 #include "violite.h"
                                         /* key_restore */
 
-#include "auth_internal.h"
-#include "current_thd.h"
-#include "derror.h"                     /* ER_THD */
-#include "log.h"
-#include "mysqld.h"
 #include "prealloced_array.h"
-#include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_user_table.h"
-#include <sys_vars_shared.h>
+#include "sql/auth/auth_internal.h"
+#include "sql/auth/sql_auth_cache.h"
+#include "sql/auth/sql_authentication.h"
+#include "sql/auth/sql_user_table.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"                 /* ER_THD */
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/sys_vars_shared.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -575,10 +575,10 @@ auth_verify_password_history(THD *thd,
           0 == (what_to_set & DIFFERENT_PLUGIN_ATTR) &&
           (auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
           auth->validate_authentication_string &&
-          !auth->validate_authentication_string(cred_val.c_ptr(),
+          !auth->validate_authentication_string(cred_val.c_ptr_safe(),
                                                (unsigned) cred_val.length()) &&
           auth->compare_password_with_hash &&
-          !auth->compare_password_with_hash(cred_val.ptr(),
+          !auth->compare_password_with_hash(cred_val.c_ptr_safe(),
                                             (unsigned long) cred_val.length(),
                                             cleartext,
                                             (unsigned long) cleartext_length,
@@ -1005,6 +1005,45 @@ bool set_and_validate_user_attributes(THD *thd,
       Str->plugin= default_auth_plugin_name;
   }
 
+  if (!user_exists &&
+      Str->uses_identified_by_password_clause)
+  {
+    bool found_plugin= false;
+    for (std::string one_plugin : builtin_auth_plugins)
+    {
+      LEX_CSTRING auth_plugin;
+      auth_plugin.str= one_plugin.c_str();
+      auth_plugin.length= one_plugin.length();
+      plugin= my_plugin_lock_by_name(0, auth_plugin,
+                                     MYSQL_AUTHENTICATION_PLUGIN);
+      if (!plugin)
+      {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin.str);
+        return 1;
+      }
+      st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
+      if (auth->validate_authentication_string((char*)Str->auth.str,
+                                               Str->auth.length))
+      {
+        plugin_unlock(0, plugin);
+        continue;
+      }
+
+      Str->plugin.str= auth_plugin.str;
+      Str->plugin.length= auth_plugin.length;
+      optimize_plugin_compare_by_pointer(&Str->plugin);
+      found_plugin= true;
+      plugin_unlock(0, plugin);
+      break;
+    }
+
+    if (!found_plugin)
+    {
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      return 1;
+    }
+  }
+
   optimize_plugin_compare_by_pointer(&Str->plugin);
   plugin= my_plugin_lock_by_name(0, Str->plugin,
                                  MYSQL_AUTHENTICATION_PLUGIN);
@@ -1219,6 +1258,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   bool transactional_tables;
   bool result= false;
+  std::string authentication_plugin;
+  bool is_role;
   int ret;
 
   DBUG_ENTER("change_password");
@@ -1264,6 +1305,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 
   DBUG_ASSERT(acl_user->plugin.length != 0);
+  is_role= acl_user->is_role;
 
   if (!(combo=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
     DBUG_RETURN(true);
@@ -1302,9 +1344,11 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false,
                                        &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
   {
+    authentication_plugin.assign(combo->plugin.str);
     result= 1;
     goto end;
   }
+  authentication_plugin.assign(combo->plugin.str);
   ret= replace_user_table(thd, table, combo, 0, false, true, what_to_set);
   if (ret)
   {
@@ -1326,6 +1370,11 @@ bool change_password(THD *thd, const char *host, const char *user,
 end:
   result= log_and_commit_acl_ddl(thd, transactional_tables, &users,
                                  false, !result, false);
+
+  mysql_audit_notify(thd,
+    AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+    thd->is_error(), user, host, authentication_plugin.c_str(),
+    is_role, NULL, NULL);
 
   DBUG_RETURN(result);
 }
@@ -2035,6 +2084,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool transactional_tables;
+  std::set<LEX_USER *> audit_users;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -2090,6 +2140,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       result= 1;
       continue;
     }
+
+    audit_users.insert(tmp_user_name);
+
     int ret= handle_grant_data(thd, tables, 1, user_name, NULL);
     if (ret <= 0)
     {
@@ -2138,6 +2191,22 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     result= populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
 
   result= log_and_commit_acl_ddl(thd, transactional_tables);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * audit_user;
+    for(LEX_USER * one_user : audit_users)
+    {
+      if ((audit_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP),
+                           thd->is_error(),
+                           audit_user->user.str,
+                           audit_user->host.str,
+                           audit_user->plugin.str,
+                           is_role_id(audit_user),
+                           NULL, NULL);
+    }
+  }
 
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(result);
@@ -2273,6 +2342,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
                         tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
                         tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
                         user_from, user_to);
+
   }
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -2285,6 +2355,28 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     result= populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
 
   result= log_and_commit_acl_ddl(thd, transactional_tables);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * user_from, *user_to;
+    List_iterator <LEX_USER> audit_user_list(list);
+    LEX_USER *audit_user_from, *audit_user_to;
+    while((audit_user_from= audit_user_list++))
+    {
+      audit_user_to= audit_user_list++;
+
+      if ((((user_from= get_current_user(thd, audit_user_from)) &&
+          ((user_to= get_current_user(thd, audit_user_to))))))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME),
+                           thd->is_error(),
+                           user_from->user.str,
+                           user_from->host.str,
+                           user_from->plugin.str,
+                           is_role_id(user_from),
+                           user_to->user.str,
+                           user_to->user.str);
+    }
+  }
 
   DBUG_RETURN(result);
 }
@@ -2316,6 +2408,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   std::set<LEX_USER *> extra_users;
   ACL_USER *self= NULL;
   bool password_expire_undo= false;
+  std::set<LEX_USER *> audit_users;
   Acl_table_intact table_intact(thd);
 
   DBUG_ENTER("mysql_alter_user");
@@ -2506,6 +2599,13 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       self= acl_user;
       password_expire_undo= !user_from->alter_status.update_password_expired_column;
     }
+
+    /*
+      If there is change related to authentication plugin,
+      we would like to notify interested audit plugins.
+    */
+    if (what_to_alter & PLUGIN_ATTR)
+      audit_users.insert(tmp_user_from);
   }
 
   clear_and_init_db_cache();             // Clear locked hostname cache
@@ -2522,6 +2622,23 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   }
 
   result= log_and_commit_acl_ddl(thd, transactional_tables, &extra_users);
+
+  {
+    /* Notify audit plugin. We will ignore the return value. */
+    LEX_USER * audit_user;
+    for(LEX_USER * one_user : audit_users)
+    {
+      if ((audit_user= get_current_user(thd, one_user)))
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
+                           thd->is_error(),
+                           audit_user->user.str,
+                           audit_user->host.str,
+                           audit_user->plugin.str,
+                           is_role_id(audit_user),
+                           NULL, NULL);
+    }
+  }
+
 
   DBUG_RETURN(result);
 }

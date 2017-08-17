@@ -21,11 +21,11 @@
 #include <memory>
 #include <vector>
 
-#include "malloc_allocator.h"
-#include "memroot_allocator.h"
 #include "my_inttypes.h"
-#include "psi_memory_key.h"
-#include "stateless_allocator.h"
+#include "sql/malloc_allocator.h"
+#include "sql/memroot_allocator.h"
+#include "sql/psi_memory_key.h"
+#include "sql/stateless_allocator.h"
 
 using std::vector;
 using std::list;

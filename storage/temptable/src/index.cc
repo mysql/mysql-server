@@ -17,6 +17,8 @@ TempTable Index implementation. */
 
 #include <utility> /* std::pair */
 
+#include "my_base.h"              /* HA_NOSAME */
+#include "sql/key.h"              /* KEY */
 #include "temptable/allocator.h"     /* temptable::allocator */
 #include "temptable/constants.h"     /* temptable::INDEX_DEFAULT_HASH_TABLE_BUCKETS */
 #include "temptable/containers.h"    /* temptable::*container */
@@ -24,8 +26,6 @@ TempTable Index implementation. */
 #include "temptable/index.h"         /* temptable::Index */
 #include "temptable/indexed_cells.h" /* temptable::Indexed_cells* */
 #include "temptable/result.h"        /* temptable::Result */
-#include "key.h"                  /* KEY */
-#include "my_base.h"              /* HA_NOSAME */
 
 namespace temptable {
 

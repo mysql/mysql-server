@@ -16,8 +16,8 @@
 #ifndef DD__SDI_TABLESPACE_INCLUDED
 #define DD__SDI_TABLESPACE_INCLUDED
 
-#include "dd/object_id.h"
-#include "dd/impl/sdi.h" // dd::Sdi_type
+#include "sql/dd/impl/sdi.h" // dd::Sdi_type
+#include "sql/dd/object_id.h"
 
 class THD;
 struct handlerton;

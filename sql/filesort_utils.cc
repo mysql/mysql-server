@@ -13,21 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "filesort_utils.h"
+#include "sql/filesort_utils.h"
 
 #include <string.h>
 #include <algorithm>
 #include <cmath>
 
-#include "cmp_varlen_keys.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_pointer_arithmetic.h"
 #include "mysql/udf_registration_types.h"
-#include "opt_costmodel.h"
-#include "sort_param.h"
-#include "sql_sort.h"
-#include "thr_malloc.h"
+#include "sql/cmp_varlen_keys.h"
+#include "sql/opt_costmodel.h"
+#include "sql/sort_param.h"
+#include "sql/sql_sort.h"
+#include "sql/thr_malloc.h"
 
 extern "C" {
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;

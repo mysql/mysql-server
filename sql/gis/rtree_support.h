@@ -18,6 +18,8 @@
 #ifndef RTREE_H_INCLUDED
 #define RTREE_H_INCLUDED
 
+#include <cstdint>
+
 /* In memory representation of a minimum bounding rectangle */
 typedef struct rtr_mbr
 {

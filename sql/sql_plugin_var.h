@@ -29,9 +29,9 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
-#include "set_var.h"
-#include "sql_servers.h"
-#include "thr_malloc.h"
+#include "sql/set_var.h"
+#include "sql/sql_servers.h"
+#include "sql/thr_malloc.h"
 #include "typelib.h"
 
 class Item;

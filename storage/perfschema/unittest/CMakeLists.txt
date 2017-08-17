@@ -16,7 +16,6 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/include/mysql
                     ${CMAKE_SOURCE_DIR}/extra/regex
-                    ${CMAKE_SOURCE_DIR}/sql
                     ${SSL_INCLUDE_DIRS}
                     ${CMAKE_SOURCE_DIR}/unittest/mytap
                     ${CMAKE_SOURCE_DIR}/storage/perfschema)

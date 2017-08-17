@@ -3195,7 +3195,7 @@ from t group by b into @uninitialized_21602361;
 
 # second time around the path is invalid
 set @initialized_21602361 = '$';
---error ER_INVALID_JSON_PATH
+--error ER_TOO_MANY_ROWS
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
 

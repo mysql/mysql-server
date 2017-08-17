@@ -17,45 +17,45 @@
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
-#include "sql_lex.h"
+#include "sql/sql_lex.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <algorithm>                   // find_if, iter_swap, reverse
 
-#include "current_thd.h"
-#include "key.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"             // MYSQL_VERSION_ID
-#include "mysqld.h"                    // table_alias_charset
 #include "mysqld_error.h"
-#include "parse_location.h"
-#include "parse_tree_nodes.h"          // PT_with_clause
 #include "prealloced_array.h"          // Prealloced_array
-#include "protocol.h"
-#include "select_lex_visitor.h"
-#include "sp_head.h"                   // sp_head
-#include "sql_class.h"                 // THD
-#include "sql_error.h"
-#include "sql_insert.h"                // Sql_cmd_insert_base
-#include "sql_lex_hash.h"
-#include "sql_lex_hints.h"
-#include "sql_optimizer.h"             // JOIN
-#include "sql_parse.h"                 // add_to_list
-#include "sql_plugin.h"                // plugin_unlock_list
-#include "sql_profile.h"
-#include "sql_security_ctx.h"
-#include "sql_show.h"                  // append_identifier
-#include "sql_table.h"                 // primary_key_name
-#include "sql_tmp_table.h"
-#include "sql_yacc.h"
-#include "system_variables.h"
+#include "sql/auth/sql_security_ctx.h"
+#include "sql/current_thd.h"
+#include "sql/key.h"
+#include "sql/mysqld.h"                // table_alias_charset
+#include "sql/parse_location.h"
+#include "sql/parse_tree_nodes.h"      // PT_with_clause
+#include "sql/protocol.h"
+#include "sql/select_lex_visitor.h"
+#include "sql/sp_head.h"               // sp_head
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_error.h"
+#include "sql/sql_insert.h"            // Sql_cmd_insert_base
+#include "sql/sql_lex_hash.h"
+#include "sql/sql_lex_hints.h"
+#include "sql/sql_optimizer.h"         // JOIN
+#include "sql/sql_parse.h"             // add_to_list
+#include "sql/sql_plugin.h"            // plugin_unlock_list
+#include "sql/sql_profile.h"
+#include "sql/sql_show.h"              // append_identifier
+#include "sql/sql_table.h"             // primary_key_name
+#include "sql/sql_tmp_table.h"
+#include "sql/sql_yacc.h"
+#include "sql/system_variables.h"
+#include "sql/window.h"
 #include "template_utils.h"
-#include "window.h"
 
 extern int HINT_PARSER_parse(THD *thd,
                              Hint_scanner *scanner,
@@ -4323,6 +4323,27 @@ bool LEX::table_or_sp_used()
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Locate an assignment to a user variable with a given name, within statement.
+
+  @param name Name of variable to search for
+
+  @returns true if variable is assigned to, false otherwise.
+*/
+
+bool LEX::locate_var_assignment(const Name_string &name)
+{
+  List_iterator<Item_func_set_user_var> li(set_var_list);
+  Item_func_set_user_var *var;
+  while ((var= li++))
+  {
+    if (var->name.eq(name))
+      return true;
+  }
+  return false;
 }
 
 

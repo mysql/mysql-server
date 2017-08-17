@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "sql_import.h"
+#include "sql/sql_import.h"
 
 #include <sys/types.h>
 #include <algorithm>
@@ -23,25 +23,25 @@
 #include <utility>
 #include <vector>
 
-#include "auth_acls.h"
-#include "auth_common.h"
-#include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client::Auto_releaser
-#include "dd/impl/sdi_utils.h"     // dd::sdi_utils::handle_errors
-#include "dd/sdi_api.h"            // dd::sdi::Import_target
-#include "dd/sdi_file.h"           // dd::sdi_file::expand_pattern
-#include "dd/string_type.h"        // dd::String_type
-#include "mdl.h"                   // MDL_request
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysqld.h"                // is_secure_file_path
 #include "prealloced_array.h"      // Prealloced_array
-#include "psi_memory_key.h"        // key_memory_DD_import
-#include "sql_class.h"             // THD
-#include "sql_error.h"
-#include "stateless_allocator.h"
-#include "system_variables.h"
-#include "transaction.h"           // trans_rollback_stmt
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/auth_common.h"
+#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client::Auto_releaser
+#include "sql/dd/impl/sdi_utils.h" // dd::sdi_utils::handle_errors
+#include "sql/dd/sdi_api.h"        // dd::sdi::Import_target
+#include "sql/dd/sdi_file.h"       // dd::sdi_file::expand_pattern
+#include "sql/dd/string_type.h"    // dd::String_type
+#include "sql/mdl.h"               // MDL_request
+#include "sql/mysqld.h"            // is_secure_file_path
+#include "sql/psi_memory_key.h"    // key_memory_DD_import
+#include "sql/sql_class.h"         // THD
+#include "sql/sql_error.h"
+#include "sql/stateless_allocator.h"
+#include "sql/system_variables.h"
+#include "sql/transaction.h"       // trans_rollback_stmt
 
 namespace {
 

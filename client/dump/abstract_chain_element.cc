@@ -15,10 +15,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "client/dump/abstract_chain_element.h"
+
 #include <atomic>
 #include <functional>
-
-#include "abstract_chain_element.h"
 
 using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;

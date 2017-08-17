@@ -21,12 +21,12 @@
 #include <sys/types.h>
 #include <functional>
 
-#include "abstract_data_object.h"
-#include "base/message_data.h"
-#include "i_chain_element.h"
-#include "i_connection_provider.h"
+#include "client/base/message_data.h"
+#include "client/dump/abstract_data_object.h"
+#include "client/dump/i_chain_element.h"
+#include "client/dump/i_connection_provider.h"
+#include "client/dump/mysql_chain_element_options.h"
 #include "my_inttypes.h"
-#include "mysql_chain_element_options.h"
 #include "nullable.h"
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"

@@ -31,10 +31,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <m_string.h>
 #include <my_getopt.h>
 #include <welcome_copyright_notice.h>
+#include <zlib.h>
 #include <iostream>
 #include <map>
 
 #include "btr0cur.h"
+#include "dict0sdi-decompress.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "lob0lob.h"
@@ -52,8 +54,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0crc32.h"
-#include "zlib.h"
-#include "dict0sdi-decompress.h"
 
 typedef enum {
 	SUCCESS = 0,

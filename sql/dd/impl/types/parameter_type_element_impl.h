@@ -19,10 +19,10 @@
 #include <sys/types.h>
 #include <new>
 
-#include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
-#include "dd/string_type.h"
-#include "dd/types/object_type.h"             // dd::Object_type
-#include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
+#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/string_type.h"
+#include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/dd/types/parameter_type_element.h" // dd::Parameter_type_element
 
 namespace dd {
 

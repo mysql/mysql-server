@@ -15,7 +15,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #ifndef DYNAMIC_PRIVILEGE_TABLE_H
 #define DYNAMIC_PRIVILEGE_TABLE_H
 
-#include <auth/auth_common.h>
 #include <m_string.h>
 #include <algorithm>
 #include <functional>
@@ -23,7 +22,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <unordered_map>
 #include <unordered_set>
 
-#include "key.h"
+#include "sql/auth/auth_common.h"
+#include "sql/key.h"
 
 class THD;
 struct TABLE;

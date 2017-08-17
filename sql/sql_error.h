@@ -28,11 +28,11 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
-#include "sql_alloc.h"
-#include "sql_list.h"
-#include "sql_plist.h" /* I_P_List */
+#include "sql/sql_alloc.h"
+#include "sql/sql_list.h"
+#include "sql/sql_plist.h" /* I_P_List */
+#include "sql/thr_malloc.h"
 #include "sql_string.h"                        /* String */
-#include "thr_malloc.h"
 
 class THD;
 class my_decimal;

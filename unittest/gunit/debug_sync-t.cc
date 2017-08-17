@@ -26,9 +26,9 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#include "debug_sync.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/debug_sync.h"
 #include "test_utils.h"
 #include "thread_utils.h"
 

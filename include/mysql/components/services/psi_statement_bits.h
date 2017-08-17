@@ -98,8 +98,13 @@ struct PSI_statement_info_v1
   PSI_statement_key m_key;
   /** The name of the statement instrument to register. */
   const char *m_name;
-  /** The flags of the statement instrument to register. */
-  int m_flags;
+  /**
+    The flags of the statement instrument to register.
+    @sa PSI_FLAG_MUTABLE
+  */
+  uint m_flags;
+  /** Documentation. */
+  const char *m_documentation;
 };
 typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 

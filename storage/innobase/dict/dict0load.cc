@@ -2081,7 +2081,7 @@ dict_load_indexes(
 			dict_mem_index_free(index);
 			error = DB_CORRUPTION;
 			goto func_exit;
-		} else if (dict_is_sys_table(table->id)
+		} else if (dict_is_old_sys_table(table->id)
 			   && (index->is_clustered()
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
@@ -2298,22 +2298,6 @@ dict_get_and_save_space_name(
 			fil_space_release(space);
 		}
 	}
-
-#if 0
-	/* Read it from the dictionary. */
-	if (srv_sys_tablespaces_open) {
-		if (!dict_mutex_own) {
-			dict_mutex_enter_for_mysql();
-		}
-
-		table->tablespace = dict_space_get_name(
-			table->space, table->heap);
-
-		if (!dict_mutex_own) {
-			dict_mutex_exit_for_mysql();
-		}
-	}
-#endif
 }
 
 /** Loads a table definition and also all its index definitions, and also

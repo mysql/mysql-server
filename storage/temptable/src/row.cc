@@ -18,15 +18,15 @@ TempTable Row implementation. */
 #include <cstring> /* memcpy() */
 #include <utility> /* std::move() */
 
-#include "field.h"            /* Field */
+#include "my_dbug.h"          /* DBUG_ASSERT */
+#include "sql/field.h"        /* Field */
+#include "sql/table.h"        /* TABLE */
 #include "temptable/allocator.h" /* temptable::Allocator */
 #include "temptable/cell.h"      /* temptable::Cell */
 #include "temptable/column.h"    /* temptable::Column, temptable::Columns */
 #include "temptable/misc.h"      /* temptable::buf_is_inside_another() */
 #include "temptable/result.h"    /* temptable::Result */
 #include "temptable/row.h"       /* temptable::Row */
-#include "my_dbug.h"          /* DBUG_ASSERT */
-#include "table.h"            /* TABLE */
 
 namespace temptable {
 

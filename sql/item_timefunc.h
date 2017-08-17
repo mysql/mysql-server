@@ -24,15 +24,8 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "derror.h"
-#include "enum_query_type.h"
-#include "field.h"
-#include "item.h"
-#include "item_func.h"
-#include "item_strfunc.h"  // Item_str_func
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
@@ -40,11 +33,18 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "parse_tree_node_base.h"
-#include "set_var.h"
-#include "sql_const.h"
+#include "sql/derror.h"
+#include "sql/enum_query_type.h"
+#include "sql/field.h"
+#include "sql/item.h"
+#include "sql/item_func.h"
+#include "sql/item_strfunc.h" // Item_str_func
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"
+#include "sql/set_var.h"
+#include "sql/sql_const.h"
+#include "sql/system_variables.h"
 #include "sql_string.h"
-#include "system_variables.h"
 
 class MY_LOCALE;
 class PT_item_list;
@@ -1039,7 +1039,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1093,7 +1092,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1147,7 +1145,6 @@ public:
   }
   bool check_partition_func_processor(uchar *) override { return false; }
   bool basic_const_item() const override { return true; }
-  bool const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
   void cleanup() override
@@ -1372,7 +1369,6 @@ class Item_func_sysdate_local final :public Item_datetime_func
 public:
   Item_func_sysdate_local(uint8 dec_arg) :
     Item_datetime_func() { decimals= dec_arg; }
-  bool const_item() const override { return false; }
   const char *func_name() const override { return "sysdate"; }
   bool resolve_type(THD *) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;

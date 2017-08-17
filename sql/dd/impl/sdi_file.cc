@@ -13,7 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "dd/sdi_file.h"
+#include "sql/dd/sdi_file.h"
 
 #include "my_config.h"
 
@@ -33,11 +33,6 @@
 #include <unistd.h>
 #endif
 
-#include "dd/impl/sdi.h"            // dd::Sdi_type
-#include "dd/impl/sdi_utils.h"      // dd::sdi_util::checked_return
-#include "dd/types/schema.h"        // dd::Schema
-#include "dd/types/table.h"         // dd::Table
-#include "key.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -47,11 +42,16 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h" // mysql_file_create
-#include "mysqld.h"               // is_secure_file_path
 #include "mysqld_error.h"
-#include "sql_class.h"
-#include "sql_const.h"            // CREATE_MODE
-#include "sql_table.h"            // build_table_filename
+#include "sql/dd/impl/sdi.h"        // dd::Sdi_type
+#include "sql/dd/impl/sdi_utils.h"  // dd::sdi_util::checked_return
+#include "sql/dd/types/schema.h"    // dd::Schema
+#include "sql/dd/types/table.h"     // dd::Table
+#include "sql/key.h"
+#include "sql/mysqld.h"           // is_secure_file_path
+#include "sql/sql_class.h"
+#include "sql/sql_const.h"        // CREATE_MODE
+#include "sql/sql_table.h"        // build_table_filename
 
 
 /**

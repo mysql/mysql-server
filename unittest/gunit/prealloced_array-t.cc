@@ -15,12 +15,13 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
+
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <memory>
 
 #include "prealloced_array.h"
-#include "sql_alloc.h"
+#include "sql/sql_alloc.h"
 
 namespace prealloced_array_unittest {
 

@@ -38,14 +38,13 @@
 #include <my_dir.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
-#include <sql_common.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <violite.h>
 #include <cmath> // std::isinf
 
-#include "client_priv.h"
+#include "client/client_priv.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -57,6 +56,7 @@
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
+#include "sql_common.h"
 #include "typelib.h"
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -188,10 +188,9 @@ static bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
-#if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
-#endif
 static bool can_handle_expired_passwords= TRUE;
+#include "caching_sha2_passwordopt-vars.h"
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -2727,8 +2726,14 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
 {
 
   DBUG_ENTER("eval_expr");
-  DBUG_PRINT("enter", ("p: '%s'", p));
-
+  if (p_end)
+  {
+    DBUG_PRINT("enter", ("p: '%.*s'", (int)(*p_end - p), p));
+  }
+  else
+  {
+    DBUG_PRINT("enter", ("p: '%s'", p));
+  }
   /* Skip to treat as pure string if no evaluation */
   if (! do_eval)
     goto NO_EVAL;
@@ -6554,13 +6559,13 @@ static void do_connect(struct st_command *command)
   if (ds_default_auth.length)
     mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
-#if !defined(HAVE_YASSL)
   /* Set server public_key */
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(&con_slot->mysql, MYSQL_SERVER_PUBLIC_KEY,
                   opt_server_public_key);
-#endif
-  
+
+  set_get_server_public_key_option(&con_slot->mysql);
+
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
@@ -7566,6 +7571,7 @@ static struct my_option my_long_options[] =
   {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.",
    &no_skip, &no_skip, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
   {"tail-lines", OPT_TAIL_LINES,
@@ -7610,12 +7616,10 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#if !defined(HAVE_YASSL) 
   {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
    "File path to the server public RSA key in PEM format.",
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 

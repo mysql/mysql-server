@@ -26,8 +26,7 @@
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-
-#include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
+#include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
 
 namespace keyring {
 

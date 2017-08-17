@@ -18,18 +18,18 @@
 
 #include <stdio.h>
 
-#include "dd/types/abstract_table.h"
-#include "dd/types/charset.h"               // Charset
-#include "dd/types/collation.h"             // Collation
-#include "dd/types/column_statistics.h"     // Column_statistics
-#include "dd/types/event.h"                 // Event
-#include "dd/types/routine.h"               // Routine
-#include "dd/types/schema.h"                // Schema
-#include "dd/types/spatial_reference_system.h" // Spatial_reference_system
-#include "dd/types/table.h"                 // IWYU pragma: keep
-#include "dd/types/tablespace.h"            // Tablespace
-#include "handler.h"                        // enum_tx_isolation
 #include "shared_multi_map.h"               // Shared_multi_map
+#include "sql/dd/types/abstract_table.h"
+#include "sql/dd/types/charset.h"           // Charset
+#include "sql/dd/types/collation.h"         // Collation
+#include "sql/dd/types/column_statistics.h" // Column_statistics
+#include "sql/dd/types/event.h"             // Event
+#include "sql/dd/types/routine.h"           // Routine
+#include "sql/dd/types/schema.h"            // Schema
+#include "sql/dd/types/spatial_reference_system.h" // Spatial_reference_system
+#include "sql/dd/types/table.h"             // IWYU pragma: keep
+#include "sql/dd/types/tablespace.h"        // Tablespace
+#include "sql/handler.h"                    // enum_tx_isolation
 
 class THD;
 

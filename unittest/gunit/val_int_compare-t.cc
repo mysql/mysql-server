@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <limits.h>
 
-#include "val_int_compare.h"
+#include "sql/val_int_compare.h"
 
 namespace val_int_compare_unittest {
 

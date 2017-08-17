@@ -25,9 +25,9 @@
 #include "my_sys.h"  // my_error()
 #include "mysqld_error.h"
 #include "ring_flip_visitor.h"
-#include "sql_error.h"
+#include "sql/sql_error.h"
+#include "sql/srs_fetcher.h"
 #include "sql_string.h"
-#include "srs_fetcher.h"
 #include "template_utils.h"  // pointer_cast
 
 namespace gis {

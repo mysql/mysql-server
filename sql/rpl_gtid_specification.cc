@@ -19,7 +19,7 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "rpl_gtid.h"
+#include "sql/rpl_gtid.h"
 
 
 //const int Gtid_specification::MAX_TEXT_LENGTH;

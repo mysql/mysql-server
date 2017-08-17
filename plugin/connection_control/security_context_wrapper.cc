@@ -15,11 +15,11 @@
 
 
 #include <mysql/service_security_context.h> /* Security context service */
-#include <sql_acl.h>                        /* SUPER_ACL */
-#include <sql_class.h>                      /* THD, Security context */
 
-#include "auth_acls.h"
 #include "security_context_wrapper.h"
+#include "sql/auth/auth_acls.h"
+#include "sql/auth/sql_acl.h"               /* SUPER_ACL */
+#include "sql/sql_class.h"                  /* THD, Security context */
 
 namespace connection_control
 {

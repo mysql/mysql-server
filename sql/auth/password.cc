@@ -45,11 +45,11 @@
            hash_stage2=sha1(hash_stage1)
            reply=xor(hash_stage1, sha1(public_seed,hash_stage2)
 
-           // this three steps are done in scramble() 
+           // this three steps are done in scramble()
 
            send(reply)
 
-     
+
   SERVER:  recv(reply)
            hash_stage1=xor(reply, sha1(public_seed,hash_stage2))
            candidate_hash2=sha1(hash_stage1)
@@ -131,7 +131,7 @@ static inline uint8 char_val(uint8 X)
 
 char *octet2hex(char *to, const char *str, uint len)
 {
-  const char *str_end= str + len; 
+  const char *str_end= str + len;
   for (; str != str_end; ++str)
   {
     *to++= _dig_vec_upper[((uchar) *str) >> 4];
@@ -150,7 +150,7 @@ char *octet2hex(char *to, const char *str, uint len)
     to        OUT buffer to place result; must be at least len/2 bytes
     str, len  IN  begin, length for character string; str and to may not
                   overlap; len % 2 == 0
-*/ 
+*/
 
 static void
 hex2octet(uint8 *to, const char *str, uint len)
@@ -185,12 +185,13 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
 }
 
 #if defined(HAVE_OPENSSL)
+C_MODE_START
 void my_make_scrambled_password(char *to, const char *password,
                                 size_t pass_len)
 {
 
   char salt[CRYPT_SALT_LENGTH + 1];
-  
+
   generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
   my_crypt_genhash(to,
                      CRYPT_MAX_PASSWORD_SIZE,
@@ -200,6 +201,7 @@ void my_make_scrambled_password(char *to, const char *password,
                      0);
 
 }
+C_MODE_END
 #endif
 /**
   Compute two stage SHA1 hash of the password :
@@ -224,6 +226,7 @@ void compute_two_stage_sha1_hash(const char *password, size_t pass_len,
   compute_sha1_hash(hash_stage2, (const char *) hash_stage1, SHA1_HASH_SIZE);
 }
 
+C_MODE_START
 
 /*
     MySQL 4.1.1 password hashing: SHA conversion (see RFC 2289, 3174) twice
@@ -250,7 +253,8 @@ void my_make_scrambled_password_sha1(char *to, const char *password,
   *to++= PVERSION41_CHAR;
   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
 }
-  
+
+C_MODE_END
 
 /*
   Wrapper around my_make_scrambled_password() to maintain client lib ABI
@@ -279,11 +283,11 @@ void make_scrambled_password(char *to, const char *password)
     server's greeting.
   SYNOPSIS
     scramble()
-    buf       OUT store scrambled string here. The buf must be at least 
-                  SHA1_HASH_SIZE bytes long. 
-    message   IN  random message, must be exactly SCRAMBLE_LENGTH long and 
+    buf       OUT store scrambled string here. The buf must be at least
+                  SHA1_HASH_SIZE bytes long.
+    message   IN  random message, must be exactly SCRAMBLE_LENGTH long and
                   NULL-terminated.
-    password  IN  users' password 
+    password  IN  users' password
 */
 
 void
@@ -313,7 +317,7 @@ scramble(char *to, const char *message, const char *password)
     check_scramble_sha1()
     scramble     clients' reply, presumably produced by scramble()
     message      original random string, previously sent to client
-                 (presumably second argument of scramble()), must be 
+                 (presumably second argument of scramble()), must be
                  exactly SCRAMBLE_LENGTH long and NULL-terminated.
     hash_stage2  hex2octet-decoded database entry
     All params are IN.
@@ -358,7 +362,7 @@ check_scramble(const uchar *scramble_arg, const char *message,
                   bytes long.
     password  IN  4.1.1 version value of user.password
 */
-    
+
 void get_salt_from_password(uint8 *hash_stage2, const char *password)
 {
   hex2octet(hash_stage2, password+1 /* skip '*' */, SHA1_HASH_SIZE * 2);
@@ -368,7 +372,7 @@ void get_salt_from_password(uint8 *hash_stage2, const char *password)
     Convert scrambled password from binary form to asciiz hex string.
   SYNOPSIS
     make_password_from_salt()
-    to    OUT store resulting string here, 2*SHA1_HASH_SIZE+2 bytes 
+    to    OUT store resulting string here, 2*SHA1_HASH_SIZE+2 bytes
     salt  IN  password in salt format
 */
 

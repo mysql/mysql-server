@@ -27,7 +27,7 @@
 #include "sock_probe.h"
 #include "gcs_xcom_networking.h"
 
-#ifdef WIN32
+#if defined(_WIN32)
 #include "sock_probe_win32.c"
 
 /* Return the sockaddr of interface #count. */

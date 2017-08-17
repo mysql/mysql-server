@@ -34,9 +34,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "dd/types/event.h"
-#include "field.h"
-#include "handler.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"          // strmake
@@ -64,27 +61,30 @@
 #include "mysql/service_my_snprintf.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "psi_memory_key.h"
-#include "sql_const.h"
-#include "sql_error.h"
-#include "sql_servers.h"
-#include "system_variables.h"
+#include "sql/dd/types/event.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/histograms/value_map.h"
+#include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_servers.h"
+#include "sql/system_variables.h"
+#include "sql/thr_malloc.h"
+#include "sql/tzfile.h"        // TZ_MAX_REV_RANGES
 #include "template_utils.h"
 #include "thr_lock.h"
-#include "thr_malloc.h"
 #include "thr_mutex.h"
-#include "tzfile.h"            // TZ_MAX_REV_RANGES
-#include "value_map.h"
 
 #if !defined(TZINFO2SQL)
-#include "debug_sync.h"        // DEBUG_SYNC
-#include "log.h"
-#include "mysqld.h"            // global_system_variables
-#include "sql_base.h"          // close_trans_system_tables
-#include "sql_class.h"         // THD
+#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/log.h"
+#include "sql/mysqld.h"        // global_system_variables
+#include "sql/sql_base.h"      // close_trans_system_tables
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_time.h"      // localtime_to_TIME
+#include "sql/table.h"         // TABLE_LIST
 #include "sql_string.h"        // String
-#include "sql_time.h"          // localtime_to_TIME
-#include "table.h"             // TABLE_LIST
 #endif
 
 #include <algorithm>
@@ -1590,12 +1590,12 @@ static PSI_mutex_key key_tz_LOCK;
 
 static PSI_mutex_info all_tz_mutexes[]=
 {
-  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL, 0}
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 
 static PSI_memory_info all_tz_memory[]=
 {
-  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_GLOBAL}
+  { &key_memory_tz_storage, "tz_storage", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 
 class Tz_names_entry;

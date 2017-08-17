@@ -16,9 +16,9 @@
 #ifndef DD__PARTITION_VALUE_INCLUDED
 #define DD__PARTITION_VALUE_INCLUDED
 
-#include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
-#include "dd/types/weak_object.h"      // dd::Weak_object
 #include "my_inttypes.h"
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 

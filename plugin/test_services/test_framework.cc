@@ -21,7 +21,7 @@
 #include "my_dbug.h"
 //#include <my_dir.h>
 #include "my_sys.h"                             // my_write, my_malloc
-#include "sql_plugin.h"                         // st_plugin_int
+#include "sql/sql_plugin.h"                     // st_plugin_int
 
 /*
   Initialize the test services at server start or plugin installation.

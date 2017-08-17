@@ -17,10 +17,10 @@
 
 #include <atomic>
 
-#include "dd/impl/cache/shared_multi_map.h"
 #include "my_dbug.h"
-#include "mysqld.h"
-#include "sql_class.h"                      // THD::is_error()
+#include "sql/dd/impl/cache/shared_multi_map.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"                  // THD::is_error()
 #include "storage_adapter.h"                // Storage_adapter
 
 namespace dd {
