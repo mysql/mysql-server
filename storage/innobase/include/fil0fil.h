@@ -37,7 +37,7 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 #include "ut0new.h"
 
-#include "dd/object_id.h"
+#include "sql/dd/object_id.h"
 
 #include <list>
 #include <vector>

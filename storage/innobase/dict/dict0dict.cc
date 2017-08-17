@@ -2187,7 +2187,8 @@ dict_partitioned_table_remove_from_cache(
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
 			    && (strncmp(prev_table->name.m_name + name_len,
-					part_sep, strlen(part_sep)) == 0)) {
+					PARTITION_SEPARATOR,
+					sizeof(PARTITION_SEPARATOR)) == 0)) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
