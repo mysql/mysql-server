@@ -604,11 +604,11 @@ Reports that a transaction id is insensible, i.e., in the future. */
 void
 lock_report_trx_id_insanity(
 /*========================*/
-	trx_id_t	trx_id,		/*!< in: trx id */
-	const rec_t*	rec,		/*!< in: user record */
-	dict_index_t*	index,		/*!< in: index */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
-	trx_id_t	max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
+	trx_id_t		trx_id,		/*!< in: trx id */
+	const rec_t*		rec,		/*!< in: user record */
+	const dict_index_t*	index,		/*!< in: index */
+	const ulint*		offsets,	/*!< in: rec_get_offsets(rec, index) */
+	trx_id_t		max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
 /*********************************************************************//**
 Prints info of locks for all transactions.
 @return FALSE if not able to obtain lock mutex and exits without
@@ -844,10 +844,10 @@ Checks that a transaction id is sensible, i.e., not in the future.
 bool
 lock_check_trx_id_sanity(
 /*=====================*/
-	trx_id_t	trx_id,		/*!< in: trx id */
-	const rec_t*	rec,		/*!< in: user record */
-	dict_index_t*	index,		/*!< in: index */
-	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
+	trx_id_t		trx_id,		/*!< in: trx id */
+	const rec_t*		rec,		/*!< in: user record */
+	const dict_index_t*	index,		/*!< in: index */
+	const ulint*		offsets)	/*!< in: rec_get_offsets(rec, index) */
 	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Check if the transaction holds an exclusive lock on a record.

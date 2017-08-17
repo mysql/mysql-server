@@ -1840,6 +1840,8 @@ PageConverter::adjust_cluster_record(
 {
 	dberr_t	err;
 
+	ut_ad(index->is_clustered());
+
 	if ((err = adjust_cluster_index_blob_ref(rec, offsets)) == DB_SUCCESS) {
 
 		/* Reset DB_TRX_ID and DB_ROLL_PTR.  Normally, these fields
@@ -1847,7 +1849,7 @@ PageConverter::adjust_cluster_record(
 		record. */
 
 		row_upd_rec_sys_fields(
-			rec, m_page_zip_ptr, m_cluster_index, m_offsets,
+			rec, m_page_zip_ptr, index, m_offsets,
 			m_trx, 0);
 	}
 
@@ -1863,7 +1865,8 @@ PageConverter::update_records(
 	buf_block_t*	block) UNIV_NOTHROW
 {
 	ibool	comp = dict_table_is_comp(m_cfg->m_table);
-	bool	clust_index = m_index->m_srv_index == m_cluster_index;
+	bool	clust_index = (m_index->m_srv_index == m_cluster_index)
+			       || dict_index_is_sdi(m_index->m_srv_index);
 
 	/* This will also position the cursor on the first user record. */
 
