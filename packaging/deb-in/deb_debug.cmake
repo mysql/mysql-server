@@ -148,6 +148,7 @@ usr/lib/mysql/plugin/debug/component_test_status_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_reg_only.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_str.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
+usr/lib/mysql/plugin/debug/component_test_system_variable_source.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_sys_var_service_same.so

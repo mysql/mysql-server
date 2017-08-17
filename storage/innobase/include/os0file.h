@@ -2161,6 +2161,12 @@ On Windows, we convert '/' to '\', else we convert '\' to '/'.
 @param[in,out] str A null-terminated directory and file path */
 void os_normalize_path(char*	str);
 
+/** Determine if O_DIRECT is supported.
+@retval	true	if O_DIRECT is supported.
+@retval	false	if O_DIRECT is not supported. */
+bool
+os_is_o_direct_supported();
+
 /* Determine if a path is an absolute path or not.
 @param[in]	OS directory or file path to evaluate
 @retval true if an absolute path

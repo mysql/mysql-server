@@ -327,6 +327,13 @@ create_log_file(
 		ib::error() << "Cannot set log file " << name << " to size "
 			<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 			<< " MB";
+		/* Delete incomplete file if OOM */
+		if (os_has_said_disk_full) {
+			ret = os_file_close(*file);
+			ut_a(ret);
+			os_file_delete(innodb_log_file_key, name);
+		}
+
 		return(DB_ERROR);
 	}
 

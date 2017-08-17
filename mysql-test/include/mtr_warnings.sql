@@ -163,6 +163,11 @@ INSERT INTO global_suppressions VALUES
  ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
  ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
  ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
+ /* 
+    innodb_dedicated_server warning which raised if innodb_buffer_pool_size,
+    innodb_log_file_size or innodb_flush_method is specified.
+ */
+ ("InnoDB: Option innodb_dedicated_server is ignored"),
 
  /*
    BUG#32080 - Excessive warnings on Solaris: setrlimit could not

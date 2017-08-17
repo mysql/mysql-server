@@ -448,6 +448,9 @@ ulonglong get_system_variable_hash_version(void);
 collation_unordered_map<std::string, sys_var *>
   *get_system_variable_hash(void);
 
+extern bool get_sysvar_source(const char *name, uint length,
+                              enum enum_variable_source* source);
+
 bool enumerate_sys_vars(Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
 void lock_plugin_mutex();

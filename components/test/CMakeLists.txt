@@ -94,3 +94,7 @@ MYSQL_ADD_COMPONENT(test_status_var_service_unreg_only
   test_status_var_service_unreg_only.cc
   TEST MODULE)
 
+MYSQL_ADD_COMPONENT(test_system_variable_source
+  test_system_variable_source.cc
+  TEST MODULE)
+

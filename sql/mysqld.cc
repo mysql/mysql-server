@@ -1471,6 +1471,7 @@ static void server_component_init()
   mysql_string_services_init();
   mysql_comp_status_var_services_init();
   mysql_comp_sys_var_services_init();
+  mysql_comp_system_variable_source_init();
 }
 
 /**

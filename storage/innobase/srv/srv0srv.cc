@@ -230,6 +230,8 @@ srv_printf_innodb_monitor() will request mutex acquisition
 with mutex_enter(), which will wait until it gets the mutex. */
 #define MUTEX_NOWAIT(mutex_skipped)	((mutex_skipped) < MAX_MUTEX_NOWAIT)
 
+/** Dedicated server setting */
+bool	srv_dedicated_server = true;
 /** Requested size in bytes */
 ulint	srv_buf_pool_size	= ULINT_MAX;
 /** Minimum pool size in bytes */

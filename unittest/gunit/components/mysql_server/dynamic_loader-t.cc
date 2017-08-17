@@ -15,6 +15,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <system_variable_source_imp.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
 #include <m_ctype.h>
@@ -148,6 +149,12 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
 
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
   (STATUS_VAR *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_system_variable_source_imp::get,
+  (const char*, unsigned int, enum enum_variable_source*))
 {
   return true;
 }
