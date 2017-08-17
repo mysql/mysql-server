@@ -26,9 +26,9 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
                                                     const char *linebuf) {
   if (m_macro) {
     if (strcmp(linebuf, "-->endmacro") == 0) {
-      m_macro->set_body(m_rawbuffer);
+      m_macro->set_macro_body(m_rawbuffer);
 
-      m_context->m_macros.add(m_macro);
+      m_context->m_macros.add_macro(m_macro);
       m_context->print_verbose("Macro ", m_macro->name(), " defined\n");
 
       m_macro.reset();
@@ -42,10 +42,22 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
   }
 
   // -->command
-  const char *cmd = "-->macro ";
-  if (strncmp(linebuf, cmd, strlen(cmd)) == 0) {
+  const char cmd_macro[]  = "-->macro ";
+  const char cmd_macrov[] = "-->macro_varg ";
+
+  const bool is_macrov = 0 == strncmp(
+      linebuf,
+      cmd_macrov,
+      strlen(cmd_macrov));
+  const bool is_macro = 0 == strncmp(
+      linebuf,
+      cmd_macro,
+      strlen(cmd_macro));
+
+  if (is_macrov || is_macro) {
     std::list<std::string> args;
-    std::string t(linebuf + strlen(cmd));
+    std::string t(strstr(linebuf, " ") + 1);
+
     aux::split(args, t, " \t", true);
 
     if (args.empty()) {
@@ -58,7 +70,7 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
     m_rawbuffer.clear();
     std::string name = args.front();
     args.pop_front();
-    m_macro.reset(new Macro(name, args));
+    m_macro.reset(new Macro(name, args, is_macrov));
 
     return Result::Feed_more;
   }

@@ -256,19 +256,6 @@ TEST_F(Update_statement_builder_test, add_document_operation_replace) {
   EXPECT_EQ("doc=JSON_REPLACE(doc,'$.first',1)", query.get());
 }
 
-TEST_F(Update_statement_builder_test, add_document_operation_merge) {
-  Update_statement_builder_impl::Operation_list operation;
-  *operation.Add() << source_first +
-                          "operation: ITEM_MERGE "
-                          "value {type: LITERAL literal {type: V_OCTETS "
-                          "v_octets {value: '{\\\"two\\\": 2.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation));
-  EXPECT_EQ(
-      "doc=JSON_MERGE(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
-      "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'))",
-      query.get());
-}
-
 TEST_F(Update_statement_builder_test, add_document_operation_array_insert) {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_index_first_0 + "operation: ARRAY_INSERT " +
@@ -321,23 +308,6 @@ TEST_F(Update_statement_builder_test,
   EXPECT_EQ("doc=JSON_SET(doc,'$.first',1,'$.second',2.2)", query.get());
 }
 
-TEST_F(Update_statement_builder_test, add_document_operation_merge_twice) {
-  Update_statement_builder_impl::Operation_list operation;
-  *operation.Add() << "source {} operation: ITEM_MERGE "
-                      "value {type: LITERAL literal {type: V_OCTETS v_octets "
-                      "{value: '{\\\"two\\\": 2.0}'}}}";
-  *operation.Add() << "source {} operation: ITEM_MERGE "
-                      "value {type: LITERAL literal {type: V_OCTETS v_octets "
-                      "{value: '{\\\"three\\\": 3.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation));
-  EXPECT_EQ(
-      "doc=JSON_MERGE(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
-      "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'),"
-      "IF(JSON_TYPE('{\\\"three\\\": 3.0}')='OBJECT',"
-      "JSON_REMOVE('{\\\"three\\\": 3.0}','$._id'),'_ERROR_'))",
-      query.get());
-}
-
 TEST_F(Update_statement_builder_test, add_document_operation_remove_set) {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << source_first + "operation: ITEM_REMOVE ";
@@ -366,20 +336,6 @@ TEST_F(Update_statement_builder_test, add_document_operation_set_remove_set) {
   EXPECT_EQ(
       "doc=JSON_SET(JSON_REMOVE("
       "JSON_SET(doc,'$.first',1),'$.second'),'$.third',-3)",
-      query.get());
-}
-
-TEST_F(Update_statement_builder_test, add_document_operation_set_merge) {
-  Update_statement_builder_impl::Operation_list operation;
-  *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
-  *operation.Add() << "source {} operation: ITEM_MERGE "
-                      "value {type: LITERAL literal {type: V_OCTETS v_octets "
-                      "{value: '{\\\"three\\\": 3.0}'}}}";
-  ASSERT_NO_THROW(builder.add_document_operation(operation));
-  EXPECT_EQ(
-      "doc=JSON_MERGE(JSON_SET(doc,'$.first',1),"
-      "IF(JSON_TYPE('{\\\"three\\\": 3.0}')='OBJECT',"
-      "JSON_REMOVE('{\\\"three\\\": 3.0}','$._id'),'_ERROR_'))",
       query.get());
 }
 
@@ -677,21 +633,6 @@ TEST_F(Update_statement_builder_test, add_table_operation_item_replace_twice) {
             query.get());
 }
 
-TEST_F(Update_statement_builder_test, add_table_operation_item_merge_one) {
-  Update_statement_builder_impl::Operation_list operation;
-  *operation.Add() << get_operation("xfield", "first", "ITEM_MERGE", value_1);
-  ASSERT_NO_THROW(builder.add_table_operation(operation));
-  EXPECT_EQ("`xfield`=JSON_MERGE(`xfield`,1)", query.get());
-}
-
-TEST_F(Update_statement_builder_test, add_table_operation_item_merge_twice) {
-  Update_statement_builder_impl::Operation_list operation;
-  *operation.Add() << get_operation("xfield", "first", "ITEM_MERGE", value_1);
-  *operation.Add() << get_operation("xfield", "second", "ITEM_MERGE", value_2);
-  ASSERT_NO_THROW(builder.add_table_operation(operation));
-  EXPECT_EQ("`xfield`=JSON_MERGE(`xfield`,1,'two')", query.get());
-}
-
 TEST_F(Update_statement_builder_test, add_table_operation_array_insert_one) {
   Update_statement_builder_impl::Operation_list operation;
   *operation.Add() << get_operation("xfield", "0", "ARRAY_INSERT", value_1);
@@ -736,6 +677,94 @@ TEST_F(Update_statement_builder_test,
   EXPECT_EQ("`xfield`=JSON_ARRAY_APPEND(`xfield`,'$.first',1,'$.second',2.2)",
             query.get());
 }
+
+class MergeParam {
+ public:
+  MergeParam(
+      const std::string &pb_merge_type,
+      const std::string &function)
+  : m_pb_merge_type(pb_merge_type),
+    m_function(function) {
+  }
+
+  const std::string m_pb_merge_type;
+  const std::string m_function;
+};
+
+class Update_statement_builder_op_merge_test:
+  public Update_statement_builder_test,
+  public ::testing::WithParamInterface<MergeParam> { };
+
+TEST_P(Update_statement_builder_op_merge_test, add_document_operation_merge_twice) {
+  Update_statement_builder_impl::Operation_list operation;
+  const std::string expected_string =
+      "doc=" + GetParam().m_function +"(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
+      "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'),"
+      "IF(JSON_TYPE('{\\\"three\\\": 3.0}')='OBJECT',"
+      "JSON_REMOVE('{\\\"three\\\": 3.0}','$._id'),'_ERROR_'))";
+
+  *operation.Add() << " source {} operation: " + GetParam().m_pb_merge_type +
+                      " value {type: LITERAL literal {type: V_OCTETS v_octets "
+                      " {value: '{\\\"two\\\": 2.0}'}}}";
+  *operation.Add() << " source {} operation: " + GetParam().m_pb_merge_type +
+                      " value {type: LITERAL literal {type: V_OCTETS v_octets "
+                      " {value: '{\\\"three\\\": 3.0}'}}}";
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
+  EXPECT_EQ(expected_string.c_str(), query.get());
+}
+
+TEST_P(Update_statement_builder_op_merge_test, add_document_operation_set_merge) {
+  Update_statement_builder_impl::Operation_list operation;
+  const std::string expected_string =
+      "doc=" + GetParam().m_function +"(JSON_SET(doc,'$.first',1),"
+      "IF(JSON_TYPE('{\\\"three\\\": 3.0}')='OBJECT',"
+      "JSON_REMOVE('{\\\"three\\\": 3.0}','$._id'),'_ERROR_'))";
+
+  *operation.Add() << source_first + "operation: ITEM_SET " + value_1;
+  *operation.Add() << " source {} operation: " + GetParam().m_pb_merge_type +
+                      " value {type: LITERAL literal {type: V_OCTETS v_octets "
+                      " {value: '{\\\"three\\\": 3.0}'}}}";
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
+  EXPECT_EQ(expected_string.c_str(), query.get());
+}
+
+TEST_P(Update_statement_builder_op_merge_test, add_document_operation_merge) {
+  Update_statement_builder_impl::Operation_list operation;
+  const std::string expected_string =
+      "doc=" + GetParam().m_function +"(doc,IF(JSON_TYPE('{\\\"two\\\": 2.0}')='OBJECT',"
+      "JSON_REMOVE('{\\\"two\\\": 2.0}','$._id'),'_ERROR_'))";
+
+  *operation.Add() << source_first +
+                          " operation: " + GetParam().m_pb_merge_type +
+                          " value {type: LITERAL literal {type: V_OCTETS "
+                          " v_octets {value: '{\\\"two\\\": 2.0}'}}}";
+  ASSERT_NO_THROW(builder.add_document_operation(operation));
+  EXPECT_EQ(expected_string.c_str(), query.get());
+}
+
+TEST_P(Update_statement_builder_op_merge_test, add_table_operation_item_merge_twice) {
+  Update_statement_builder_impl::Operation_list operation;
+  const std::string expected_string = "`xfield`=" + GetParam().m_function +"(`xfield`,1,'two')";
+
+  *operation.Add() << get_operation("xfield", "first", GetParam().m_pb_merge_type, value_1);
+  *operation.Add() << get_operation("xfield", "second", GetParam().m_pb_merge_type, value_2);
+  ASSERT_NO_THROW(builder.add_table_operation(operation));
+  EXPECT_EQ(expected_string.c_str(), query.get());
+}
+
+TEST_P(Update_statement_builder_op_merge_test, add_table_operation_item_merge_one) {
+  Update_statement_builder_impl::Operation_list operation;
+  const std::string expected_string = "`xfield`=" + GetParam().m_function +"(`xfield`,1)";
+
+  *operation.Add() << get_operation("xfield", "first", GetParam().m_pb_merge_type, value_1);
+  ASSERT_NO_THROW(builder.add_table_operation(operation));
+  EXPECT_EQ(expected_string.c_str(), query.get());
+}
+
+INSTANTIATE_TEST_CASE_P(AllMerge_functions,
+                        Update_statement_builder_op_merge_test,
+                        ::testing::Values(MergeParam("ITEM_MERGE", "JSON_MERGE_PRESERVE"),
+                                          MergeParam("MERGE_PATCH", "JSON_MERGE_PATCH")));
 
 }  // namespace test
 }  // namespace xpl

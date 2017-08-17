@@ -45,7 +45,7 @@ Mysqlx.Crud.Insert {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -109,7 +109,7 @@ Mysqlx.Crud.Find {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -158,7 +158,7 @@ Mysqlx.Crud.Find {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -229,7 +229,7 @@ Mysqlx.Crud.Find {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -264,7 +264,7 @@ Mysqlx.Crud.Update {
   }
 }
   
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql

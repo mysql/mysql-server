@@ -26,7 +26,9 @@
 #include "formatters/message_formatter.h"
 #include "json_to_any_handler.h"
 #include "processor/commands/mysqlxtest_error_names.h"
+#include "processor/comment_processor.h"
 #include "processor/macro_block_processor.h"
+#include "processor/indigestion_processor.h"
 #include "processor/stream_processor.h"
 
 
@@ -34,7 +36,7 @@ namespace {
 
 const char *const CMD_ARG_BE_QUIET = "be-quiet";
 const char CMD_ARG_SEPARATOR = '\t';
-const char *const CMD_PREFIX = "-->";
+const std::string CMD_PREFIX = "-->";
 
 std::string bindump_to_data(const std::string &bindump,
                             const Script_stack *stack,
@@ -93,25 +95,25 @@ class Backup_and_restore {
 ngs::chrono::time_point Command::m_start_measure;
 
 Command::Command() {
-  m_commands["title "] = &Command::cmd_title;
-  m_commands["echo "] = &Command::cmd_echo;
-  m_commands["recvtype "]  = &Command::cmd_recvtype;
+  m_commands["title"] = &Command::cmd_title;
+  m_commands["echo"] = &Command::cmd_echo;
+  m_commands["recvtype"] = &Command::cmd_recvtype;
   m_commands["recvok"]     = &Command::cmd_recvok;
-  m_commands["recverror "] = &Command::cmd_recverror;
+  m_commands["recverror"] = &Command::cmd_recverror;
   m_commands["recvresult"] = &Command::cmd_recvresult;
-  m_commands["recvtovar "] = &Command::cmd_recvtovar;
-  m_commands["recvuntil "] = &Command::cmd_recvuntil;
+  m_commands["recvtovar"] = &Command::cmd_recvtovar;
+  m_commands["recvuntil"] = &Command::cmd_recvuntil;
   m_commands["recvuntildisc"] = &Command::cmd_recv_all_until_disc;
   m_commands["enablessl"] = &Command::cmd_enablessl;
-  m_commands["sleep "] = &Command::cmd_sleep;
-  m_commands["login "] = &Command::cmd_login;
-  m_commands["stmtadmin "] = &Command::cmd_stmtadmin;
-  m_commands["stmtsql "] = &Command::cmd_stmtsql;
-  m_commands["loginerror "] = &Command::cmd_loginerror;
-  m_commands["repeat "] = &Command::cmd_repeat;
+  m_commands["sleep"] = &Command::cmd_sleep;
+  m_commands["login"] = &Command::cmd_login;
+  m_commands["stmtadmin"] = &Command::cmd_stmtadmin;
+  m_commands["stmtsql"] = &Command::cmd_stmtsql;
+  m_commands["loginerror"] = &Command::cmd_loginerror;
+  m_commands["repeat"] = &Command::cmd_repeat;
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
-  m_commands["system "] = &Command::cmd_system;
-  m_commands["peerdisc "] = &Command::cmd_peerdisc;
+  m_commands["system"] = &Command::cmd_system;
+  m_commands["peerdisc"] = &Command::cmd_peerdisc;
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
@@ -119,84 +121,100 @@ Command::Command() {
   m_commands["yeswarnings"] = &Command::cmd_yeswarnings;
   m_commands["fatalerrors"] = &Command::cmd_fatalerrors;
   m_commands["nofatalerrors"] = &Command::cmd_nofatalerrors;
-  m_commands["newsession "] = &Command::cmd_newsession;
-  m_commands["newsessionplain "] = &Command::cmd_newsessionplain;
-  m_commands["setsession "] = &Command::cmd_setsession;
-  m_commands["setsession"] =
-      &Command::cmd_setsession;  // for setsession with no args
+  m_commands["newsession"] = &Command::cmd_newsession;
+  m_commands["newsessionplain"] = &Command::cmd_newsessionplain;
+  m_commands["setsession"] = &Command::cmd_setsession;
   m_commands["closesession"] = &Command::cmd_closesession;
-  m_commands["expecterror "] = &Command::cmd_expecterror;
+  m_commands["expecterror"] = &Command::cmd_expecterror;
   m_commands["measure"] = &Command::cmd_measure;
-  m_commands["endmeasure "] = &Command::cmd_endmeasure;
+  m_commands["endmeasure"] = &Command::cmd_endmeasure;
   m_commands["quiet"] = &Command::cmd_quiet;
   m_commands["noquiet"] = &Command::cmd_noquiet;
-  m_commands["varfile "] = &Command::cmd_varfile;
-  m_commands["varlet "] = &Command::cmd_varlet;
-  m_commands["varinc "] = &Command::cmd_varinc;
-  m_commands["varsub "] = &Command::cmd_varsub;
-  m_commands["vargen "] = &Command::cmd_vargen;
-  m_commands["binsend "] = &Command::cmd_binsend;
-  m_commands["hexsend "] = &Command::cmd_hexsend;
-  m_commands["binsendoffset "] = &Command::cmd_binsendoffset;
-  m_commands["callmacro "] = &Command::cmd_callmacro;
-  m_commands["import "] = &Command::cmd_import;
-  m_commands["assert_eq "] = &Command::cmd_assert_eq;
-  m_commands["assert_gt "] = &Command::cmd_assert_gt;
-  m_commands["assert_ge "] = &Command::cmd_assert_ge;
+  m_commands["varfile"] = &Command::cmd_varfile;
+  m_commands["varlet"] = &Command::cmd_varlet;
+  m_commands["varinc"] = &Command::cmd_varinc;
+  m_commands["varsub"] = &Command::cmd_varsub;
+  m_commands["vargen"] = &Command::cmd_vargen;
+  m_commands["varescape"] = &Command::cmd_varescape;
+  m_commands["binsend"] = &Command::cmd_binsend;
+  m_commands["hexsend"] = &Command::cmd_hexsend;
+  m_commands["binsendoffset"] = &Command::cmd_binsendoffset;
+  m_commands["callmacro"] = &Command::cmd_callmacro;
+  m_commands["macro_delimiter_compress"] =
+      &Command::cmd_macro_delimiter_compress;
+  m_commands["import"] = &Command::cmd_import;
+  m_commands["assert_eq"] = &Command::cmd_assert_eq;
+  m_commands["assert_gt"] = &Command::cmd_assert_gt;
+  m_commands["assert_ge"] = &Command::cmd_assert_ge;
   m_commands["query_result"] = &Command::cmd_query;
   m_commands["noquery_result"] = &Command::cmd_noquery;
-  m_commands["wait_for "] = &Command::cmd_wait_for;
-  m_commands["received "] = &Command::cmd_received;
+  m_commands["wait_for"] = &Command::cmd_wait_for;
+  m_commands["received"] = &Command::cmd_received;
 }
 
-bool Command::is_command_syntax(const std::string &cmd) const {
-  return 0 == strncmp(cmd.c_str(), CMD_PREFIX, strlen(CMD_PREFIX));
+bool Command::is_command_registred(
+    const std::string &command_line,
+    std::string *out_command_name,
+    bool *out_is_single_line_command) const {
+  auto command_name_start = command_line.begin();
+  const bool has_prefix = 0 == strncmp(
+      command_line.c_str(),
+      CMD_PREFIX.c_str(),
+      CMD_PREFIX.length());
+
+  if (out_is_single_line_command)
+    *out_is_single_line_command = has_prefix;
+
+  if (has_prefix)
+    command_name_start += CMD_PREFIX.length();
+
+  const auto command_name_end = std::find_if(
+      command_line.begin(),
+      command_line.end(),
+      [](const char element) -> bool {
+        return element == ' ' || element == ';';
+      });
+
+  std::string command_name(
+        command_name_start,
+        command_name_end);
+
+  if (out_command_name)
+    *out_command_name = command_name;
+
+  return m_commands.count(command_name) > 0;
 }
 
 Command::Result Command::process(std::istream &input,
                                  Execution_context *context,
-                                 const std::string &command) {
-  if (!is_command_syntax(command)) return Result::Stop_with_failure;
+                                 const std::string &command_line) {
+  std::string out_command_name;
+  bool        out_has_prefix;
 
-  Command_map::iterator i =
-      std::find_if(m_commands.begin(), m_commands.end(),
-                   std::bind(&Command::match_command_name, this,
-                             std::placeholders::_1, command));
-
-  if (i == m_commands.end()) {
-    context->print_error("Unknown command ", command, '\n');
+  if (!is_command_registred(command_line,
+                            &out_command_name,
+                            &out_has_prefix)) {
+    context->print_error("Unknown command_line \"", command_line, "\"\n");
     return Result::Stop_with_failure;
   }
 
-  context->print_verbose("Execute ", command, "\n");
+  context->print_verbose("Execute ", command_line, "\n");
 
-  context->m_command_name = (*i).first;
+  context->m_command_name = out_command_name;
 
-  return (*this.*(*i).second)(
-      input, context,
-      command.c_str() + strlen(CMD_PREFIX) + (*i).first.length());
-}
+  const char * arguments = command_line.c_str() +
+      out_command_name.length();
 
-bool Command::match_command_name(const Command_map::value_type &command,
-                                 const std::string &instruction) {
-  if (strlen(CMD_PREFIX) + command.first.length() > instruction.length())
-    return false;
+  if (out_has_prefix)
+    arguments += CMD_PREFIX.length();
 
-  std::string::const_iterator i =
-      std::find(instruction.begin(), instruction.end(), ' ');
-  std::string command_name(instruction.begin() + strlen(CMD_PREFIX), i);
+  if (' ' == *arguments)
+    arguments++;
 
-  if (0 != command.first.compare(command_name)) {
-    if (instruction.end() != i) {
-      ++i;
-      return 0 == command.first.compare(std::string(
-                      instruction.begin() + strlen(CMD_PREFIX), i));
-    }
-
-    return false;
-  }
-
-  return true;
+  return (this->*m_commands[out_command_name])(
+      input,
+      context,
+      arguments);
 }
 
 Command::Result Command::cmd_echo(std::istream &input,
@@ -332,6 +350,11 @@ Command::Result Command::cmd_recverror(std::istream &input,
   Message_ptr msg(
       context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
+  if (args.empty()) {
+    context->print_error("'recverror' command, requires an integer argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   if (msg.get()) {
     bool failed = false;
     try {
@@ -364,6 +387,11 @@ Command::Result Command::cmd_recverror(std::istream &input,
 Command::Result Command::cmd_recvtovar(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'recvtovar' command, requires an argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string args_cmd = args;
   std::vector<std::string> args_array;
   aux::trim(args_cmd);
@@ -459,8 +487,12 @@ Command::Result Command::cmd_recvresult(std::istream &input,
 Command::Result Command::cmd_recvuntil(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  xcl::XProtocol::Server_message_type_id msgid;
+  if (args.empty()) {
+    context->print_error("'recvuntil' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
 
+  xcl::XProtocol::Server_message_type_id msgid;
   std::vector<std::string> argl;
 
   aux::split(argl, args, " ", true);
@@ -547,6 +579,11 @@ Command::Result Command::cmd_enablessl(std::istream &input,
 Command::Result Command::cmd_stmtsql(std::istream &input,
                                      Execution_context *context,
                                      const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'stmtsql' command, requires a string argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   Mysqlx::Sql::StmtExecute stmt;
 
   std::string command = args;
@@ -565,6 +602,11 @@ Command::Result Command::cmd_stmtsql(std::istream &input,
 Command::Result Command::cmd_stmtadmin(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'stmtadmin' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string tmp = args;
   context->m_variables->replace(&tmp);
   std::vector<std::string> params;
@@ -598,6 +640,11 @@ Command::Result Command::cmd_stmtadmin(std::istream &input,
 Command::Result Command::cmd_sleep(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'sleep' command, requires an integer argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string tmp = args;
   context->m_variables->replace(&tmp);
   const double delay_in_seconds = ngs::stod(tmp);
@@ -678,6 +725,11 @@ Command::Result Command::cmd_login(std::istream &input,
 Command::Result Command::cmd_repeat(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'repeat' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string variable_name = "";
   std::vector<std::string> argl;
 
@@ -787,6 +839,11 @@ Command::Result Command::cmd_loginerror(std::istream &input,
 Command::Result Command::cmd_system(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'system' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   // command used only at dev level
   // example of usage
   // -->system (sleep 3; echo "Killing"; ps aux | grep mysqld | egrep -v "gdb
@@ -906,7 +963,7 @@ Command::Result Command::cmd_recv(std::istream &input,
 
   aux::trim(args_copy);
 
-  if (args_copy == "quiet") {
+  if ("quiet" == args_copy) {
     quiet = true;
     args_copy = "";
   }
@@ -999,6 +1056,13 @@ Command::Result Command::cmd_newsession(std::istream &input,
 Command::Result Command::do_newsession(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args, bool plain) {
+  if (args.empty()) {
+    context->print_error(
+        "'newsession' command, requires at "
+        "last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string s = args;
   std::string user, pass, db, name;
 
@@ -1058,7 +1122,7 @@ Command::Result Command::cmd_closesession(std::istream &input,
                                           Execution_context *context,
                                           const std::string &args) {
   try {
-    if (args == " abort")
+    if (args == "abort")
       context->m_connection->abort_active();
     else
       context->m_connection->close_active();
@@ -1078,12 +1142,16 @@ Command::Result Command::cmd_closesession(std::istream &input,
 Command::Result Command::cmd_expecterror(std::istream &input,
                                          Execution_context *context,
                                          const std::string &args) {
-  try {
-    if (args.empty())
-      throw std::logic_error("expecterror requires an errno argument");
+  if (args.empty()) {
+    context->print_error("'expecterror' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
 
+  try {
     std::vector<std::string> argl;
+
     aux::split(argl, args, ",", true);
+
     for (std::vector<std::string>::const_iterator arg = argl.begin();
          arg != argl.end(); ++arg) {
       std::string value = *arg;
@@ -1165,6 +1233,11 @@ Command::Result Command::cmd_noquiet(std::istream &input,
 Command::Result Command::cmd_varsub(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'varsub' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   context->m_variables->push_unreplace(args);
   return Result::Continue;
 }
@@ -1172,7 +1245,13 @@ Command::Result Command::cmd_varsub(std::istream &input,
 Command::Result Command::cmd_varlet(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'varlet' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string::size_type p = args.find(' ');
+
   if (p == std::string::npos) {
     context->m_variables->set(args, "");
   } else {
@@ -1259,9 +1338,41 @@ Command::Result Command::cmd_varfile(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_varescape(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'varescape' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  if (!context->m_variables->is_present(args)) {
+    context->print_error(
+        "'varescape' command,",
+        "argument needs to be a variable.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::string variable_value = context->m_variables->get(args);
+
+  aux::replace_all(variable_value, "\"", "\\\"");
+  aux::replace_all(variable_value, "\n", "\\n");
+
+  context->m_variables->set(args, variable_value);
+
+  return Result::Continue;
+}
+
+
 Command::Result Command::cmd_binsend(std::istream &input,
                                      Execution_context *context,
                                      const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'binsend' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string args_copy = args;
   context->m_variables->replace(&args_copy);
   std::string data =
@@ -1322,6 +1433,11 @@ size_t Command::value_to_offset(const std::string &data,
 Command::Result Command::cmd_binsendoffset(std::istream &input,
                                            Execution_context *context,
                                            const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'binsendoffset' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string args_copy = args;
   context->m_variables->replace(&args_copy);
 
@@ -1357,16 +1473,55 @@ Command::Result Command::cmd_binsendoffset(std::istream &input,
 
   context->print("Sending ", end_bin, " bytes raw data...\n");
   data = data.substr(begin_bin, end_bin - begin_bin);
+
   context->m_connection->active_xconnection()->write(
-      reinterpret_cast<const uint8_t *>(data.c_str()), data.length());
+      reinterpret_cast<const uint8_t *>(data.c_str()),
+      data.length());
+
   return Result::Continue;
 }
 
 Command::Result Command::cmd_callmacro(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
-  if (context->m_macros.call(context, args)) return Result::Continue;
+  if (args.empty()) {
+    context->print_error("'callmacro' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  if (context->m_macros.call(context, args))
+    return Result::Continue;
+
   return Result::Stop_with_failure;
+}
+
+Command::Result Command::cmd_macro_delimiter_compress(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'macro_delimiter_compress' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::string copy_args = args;
+  aux::trim(copy_args);
+
+  std::map<std::string, bool> allowed_values{
+    {"true", true},
+    {"false", false},
+    {"0", false},
+    {"1", true}
+  };
+
+  if (0 == allowed_values.count(copy_args)) {
+    context->print_error("'macro_delimiter_compress' received unknown argument value '",copy_args,"'.\n");
+    return Result::Stop_with_failure;
+  }
+
+  context->m_macros.set_compress_option(allowed_values[copy_args]);
+
+  return Result::Continue;
 }
 
 Command::Result Command::cmd_assert_eq(std::istream &input,
@@ -1563,11 +1718,22 @@ bool Command::json_string_to_any(const std::string &json_string,
 Command::Result Command::cmd_import(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'import' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
   std::string varg(args);
   context->m_variables->replace(&varg);
   const std::string filename = context->m_options.m_import_path + varg;
 
   std::ifstream fs(filename.c_str());
+
+  // Lets access the file to make the "fs.flags" contain
+  // valid values.
+  fs.peek();
+
+  // After the "peek", good can be checked
   if (!fs.good()) {
     context->print_error(context->m_script_stack, "Could not open macro file ",
                          args, " (aka ", filename, ")\n");
@@ -1576,8 +1742,12 @@ Command::Result Command::cmd_import(std::istream &input,
 
   context->m_script_stack.push({0, args});
 
-  std::vector<Block_processor_ptr> processors;
-  processors.push_back(std::make_shared<Macro_block_processor>(context));
+  std::vector<Block_processor_ptr> processors {
+    std::make_shared<Macro_block_processor>(context),
+    std::make_shared<Comment_processor>(),
+    std::make_shared<Indigestion_processor>(context)
+  };
+
   bool r = process_client_input(fs, &processors, &context->m_script_stack,
                                 context->m_console) == 0;
   context->m_script_stack.pop();
@@ -1673,6 +1843,9 @@ void print_help_commands() {
   std::cout << "  Loads macros from the specified file. The file must be in "
                "the directory specified by --import option in command "
                "line.\n";
+  std::cout << "-->macro_delimiter_compress TRUE|FALSE|0|1\n";
+  std::cout << "  Enable/disable grouping of adjacent delimiters into\n";
+  std::cout << "  single one at \"callmacro\" command.\n";
   std::cout << "-->enablessl\n";
   std::cout << "  Enables ssl on current connection\n";
   std::cout << "<protomsg>\n";
@@ -1781,6 +1954,8 @@ void print_help_commands() {
   std::cout << "   Add a variable to the list of variables to replace for "
                "the next recv or sql command (value is replaced by the "
                "name)\n";
+  std::cout << "-->varescape <varname>\n";
+  std::cout << "   Escape end-line and backslash characters.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
   std::cout << "   Sends one or more binary message dumps to the server "
                "(generate those with --bindump)\n";

@@ -53,7 +53,8 @@ void xpl::Update_statement_builder::add_document_operation_item(
     throw ngs::Error_code(ER_X_BAD_COLUMN_TO_UPDATE,
                           "Invalid column name to update");
 
-  if (item.operation() != UpdateOperation::ITEM_MERGE) {
+  if (item.operation() != UpdateOperation::ITEM_MERGE &&
+      item.operation() != UpdateOperation::MERGE_PATCH) {
     if (item.source().document_path_size() == 0 ||
         (item.source().document_path(0).type() !=
              ::Mysqlx::Expr::DocumentPathItem::MEMBER &&
@@ -79,6 +80,7 @@ void xpl::Update_statement_builder::add_document_operation_item(
                          "Unexpected value argument for ITEM_REMOVE operation");
       break;
 
+    case UpdateOperation::MERGE_PATCH:
     case UpdateOperation::ITEM_MERGE: {
       Query_string_builder value;
       m_builder.m_gen.clone(&value).feed(item.value());
@@ -118,7 +120,7 @@ void xpl::Update_statement_builder::add_document_operation(
         break;
 
       case UpdateOperation::ITEM_MERGE:
-        m_builder.put("JSON_MERGE(");
+        m_builder.put("JSON_MERGE_PRESERVE(");
         break;
 
       case UpdateOperation::ARRAY_INSERT:
@@ -127,6 +129,10 @@ void xpl::Update_statement_builder::add_document_operation(
 
       case UpdateOperation::ARRAY_APPEND:
         m_builder.put("JSON_ARRAY_APPEND(");
+        break;
+
+      case UpdateOperation::MERGE_PATCH:
+        m_builder.put("JSON_MERGE_PATCH(");
         break;
 
       default:
@@ -221,7 +227,7 @@ void xpl::Update_statement_builder::add_table_operation_items(
 
     case UpdateOperation::ITEM_MERGE:
       m_builder.put_identifier(begin->source().name())
-          .put("=JSON_MERGE(")
+          .put("=JSON_MERGE_PRESERVE(")
           .put_identifier(begin->source().name())
           .put_each(begin, end, ngs::bind(&Update_statement_builder::add_value,
                                           this, ngs::placeholders::_1))
@@ -245,6 +251,15 @@ void xpl::Update_statement_builder::add_table_operation_items(
           .put_each(begin, end,
                     ngs::bind(&Update_statement_builder::add_member_with_value,
                               this, ngs::placeholders::_1))
+          .put(")");
+      break;
+
+    case UpdateOperation::MERGE_PATCH:
+      m_builder.put_identifier(begin->source().name())
+          .put("=JSON_MERGE_PATCH(")
+          .put_identifier(begin->source().name())
+          .put_each(begin, end, ngs::bind(&Update_statement_builder::add_value,
+                                          this, ngs::placeholders::_1))
           .put(")");
       break;
 

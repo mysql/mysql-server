@@ -15,24 +15,29 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#ifndef X_TESTS_DRIVER_PROCESSOR_SINGLE_COMMAND_PROCESSOR_H_
-#define X_TESTS_DRIVER_PROCESSOR_SINGLE_COMMAND_PROCESSOR_H_
+#ifndef X_TESTS_DRIVER_PROCESSOR_COMMENT_PROCESSOR_H_
+#define X_TESTS_DRIVER_PROCESSOR_COMMENT_PROCESSOR_H_
 
 #include "processor/block_processor.h"
-#include "processor/commands/command.h"
-#include "processor/execution_context.h"
 
 
-class Single_command_processor : public Block_processor {
+class Comment_processor : public Block_processor {
  public:
-  explicit Single_command_processor(Execution_context *context)
-      : m_context(context) {}
+  Result feed(std::istream &input, const char *linebuf) override {
+    while(*linebuf) {
+      if (*linebuf != ' ' &&
+          *linebuf != '\t')
+        break;
 
-  Result feed(std::istream &input, const char *linebuf) override;
+      ++linebuf;
+    }
 
- private:
-  Execution_context *m_context;
-  Command m_command;
+    if (linebuf[0] == '#' || linebuf[0] == 0) {  // # comment
+      return Result::Eaten_but_not_hungry;
+    }
+
+    return Result::Not_hungry;
+  }
 };
 
-#endif  // X_TESTS_DRIVER_PROCESSOR_SINGLE_COMMAND_PROCESSOR_H_
+#endif  // X_TESTS_DRIVER_PROCESSOR_COMMENT_PROCESSOR_H_

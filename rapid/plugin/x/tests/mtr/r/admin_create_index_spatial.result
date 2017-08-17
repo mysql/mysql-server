@@ -37,6 +37,9 @@ spatial1	0	PRIMARY	1	_id	A	null	null	null		BTREE			YES
 0 rows affected
 ############################
 
+re-create spatial index after drop and check case sensitiveness for geojson term
+================================================================================
+
 command ok
 
 Check default value of srid and options

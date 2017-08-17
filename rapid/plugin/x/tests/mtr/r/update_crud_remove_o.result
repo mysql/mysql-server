@@ -765,6 +765,7 @@ send Mysqlx.Crud.Update {
 }
 
 Got expected error: Invalid operator not an operator (code 5150)
+# Remove already removed item
 RUN select * from mysqlxcoll.maincoll
 doc	_id
 {"_id": "1"}	1
@@ -829,6 +830,7 @@ doc	_id
 {"_id": "4"}	4
 {"_id": "5"}	5
 0 rows affected
+# Can not remove immutable document member _id 
 send Mysqlx.Crud.Update {
   collection {
     name: "maincoll"

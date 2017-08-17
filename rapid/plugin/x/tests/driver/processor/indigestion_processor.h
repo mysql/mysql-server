@@ -15,29 +15,37 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "single_command_processor.h"
+#ifndef X_TESTS_DRIVER_PROCESSOR_INDIGESTION_PROCESSOR_H_
+#define X_TESTS_DRIVER_PROCESSOR_INDIGESTION_PROCESSOR_H_
 
-#include "processor/commands/command.h"
+#include "common/utils_string_parsing.h"
+#include "processor/block_processor.h"
 #include "processor/execution_context.h"
 
 
-Block_processor::Result Single_command_processor::feed(
-    std::istream &input,
-    const char *linebuf) {
-  if (m_command.is_command_syntax(linebuf)) {
-    {
-      Command::Result r =
-          m_command.process(input, m_context, linebuf);
-      if (Command::Result::Stop_with_failure == r)
-        return Result::Indigestion;
-      else if (Command::Result::Stop_with_success == r)
-        return Result::Everyone_not_hungry;
+class Indigestion_processor : public Block_processor {
+ public:
+  explicit Indigestion_processor(Execution_context *context)
+      : m_context(context) {}
+
+  Result feed(std::istream &input, const char *linebuf) override {
+    std::string line(linebuf);
+
+    aux::trim(line);
+
+    if (!line.empty()) {
+      m_context->print_error(
+          m_context->m_script_stack,
+          "Unknown command \"", linebuf, "\"\n");
+
+      return Result::Indigestion;
     }
 
-    return Result::Eaten_but_not_hungry;
-  } else if (linebuf[0] == '#' || linebuf[0] == 0) {  // # comment
-    return Result::Eaten_but_not_hungry;
+    return Result::Not_hungry;
   }
 
-  return Result::Not_hungry;
-}
+ private:
+  Execution_context *m_context;
+};
+
+#endif  // X_TESTS_DRIVER_PROCESSOR_INDIGESTION_PROCESSOR_H_

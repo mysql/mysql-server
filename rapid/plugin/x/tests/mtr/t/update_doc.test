@@ -228,7 +228,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 -->echo Doc: Update by ITEM_REPLACE non-existing member
 Mysqlx.Crud.Update {
@@ -276,7 +276,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
@@ -405,7 +405,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Doc: Update by ITEM_SET non-existing member
@@ -454,7 +454,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 
@@ -514,7 +514,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 # reset data
@@ -570,7 +570,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 # reset data
@@ -629,7 +629,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 # reset data
@@ -688,7 +688,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 # reset data
@@ -744,7 +744,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 # reset data
@@ -800,7 +800,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 # reset data
@@ -857,7 +857,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 # reset data
@@ -914,7 +914,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 # reset data
@@ -971,7 +971,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 
 
@@ -1031,7 +1031,7 @@ Mysqlx.Crud.Update {
   }
 }
 
--- Mysqlx.Error
+#-- Mysqlx.Error
 -->recv
 -->sql
 select * from xtest.xcoll;
@@ -1083,7 +1083,7 @@ Mysqlx.Crud.Update {
 
 -->echo this one should fail because of bogus param to Remove
 
--- Mysqlx.Sql.StmtExecuteOk
+#-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->echo Doc: Multiple chained operations

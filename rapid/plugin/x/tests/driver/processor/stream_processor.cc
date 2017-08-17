@@ -15,13 +15,16 @@
  * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include "stream_processor.h"
+#include "processor/stream_processor.h"
 
 #include <memory>
 
+#include "processor/command_processor.h"
+#include "processor/command_multiline_processor.h"
+#include "processor/comment_processor.h"
+#include "processor/indigestion_processor.h"
 #include "processor/dump_message_block_processor.h"
 #include "processor/macro_block_processor.h"
-#include "processor/single_command_processor.h"
 #include "processor/sql_block_processor.h"
 
 
@@ -31,8 +34,11 @@ std::vector<Block_processor_ptr> create_macro_block_processors(
 
   result.push_back(std::make_shared<Sql_block_processor>(context));
   result.push_back(std::make_shared<Dump_message_block_processor>(context));
-  result.push_back(std::make_shared<Single_command_processor>(context));
+  result.push_back(std::make_shared<Command_processor>(context));
+  result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
+  result.push_back(std::make_shared<Comment_processor>());
+  result.push_back(std::make_shared<Indigestion_processor>(context));
 
   return result;
 }
@@ -44,8 +50,11 @@ std::vector<Block_processor_ptr> create_block_processors(
   result.push_back(std::make_shared<Sql_block_processor>(context));
   result.push_back(std::make_shared<Macro_block_processor>(context));
   result.push_back(std::make_shared<Dump_message_block_processor>(context));
-  result.push_back(std::make_shared<Single_command_processor>(context));
+  result.push_back(std::make_shared<Command_processor>(context));
+  result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
+  result.push_back(std::make_shared<Comment_processor>());
+  result.push_back(std::make_shared<Indigestion_processor>(context));
 
   return result;
 }

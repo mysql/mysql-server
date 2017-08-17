@@ -15,7 +15,7 @@ CREATE TABLE test.counttest1 ( i INT );
 # Send xmessage in group and do -->recvresult
 --write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
 -->echo Send SELECT SLEEP (?)
---"Select with sleep.Make server wait for 5 sec so other messages can be queued"
+#-- Select with sleep.Make server wait for 5 sec so other messages can be queued
 Mysqlx.Sql.StmtExecute {
   stmt: " SELECT SLEEP (?) "
   args {
@@ -26,7 +26,7 @@ Mysqlx.Sql.StmtExecute {
       }
   }
 }
--- "Create table2"
+#-- Create table2
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
@@ -51,7 +51,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 
--- "Select"
+#-- Select
 -->echo send SELECT (100+?)
 Mysqlx.Sql.StmtExecute {
   stmt: "SELECT (100+?) "

@@ -101,6 +101,7 @@ MYSQL_ADD_EXECUTABLE(${unit_tests_EXE}
 ADD_DEPENDENCIES(${unit_tests_EXE}
   ${MYSQLX_CLIENT_LIB}
   ${MYSQLX_PROTOCOL_LIB}
+  xprotocol_tags
 )
 
 # New warning in Visual Studio 2008
