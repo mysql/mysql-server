@@ -328,7 +328,6 @@ static int use_buffered_read = 1;
 
 /* {{{ Forward declarations */
 long xcom_unique_long(void);
-unsigned long msg_count(app_data_ptr a);
 void get_host_name(char *a, char *name);
 
 static double wakeup_delay(double old);
@@ -457,13 +456,8 @@ static bool_t is_dead_site(uint32_t id) {
   return FALSE;
 }
 
-d_xdr_funcs(node_no) define_xdr_funcs(node_no)
+define_xdr_funcs(node_no)
 
-    extern void init_recovery_sema();
-extern void end_xcom_recovery();
-extern void end_recovery();
-extern void send_agent_info();
-extern void send_end_recover();
 
 extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
