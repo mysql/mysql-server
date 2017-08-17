@@ -52,7 +52,7 @@ show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
-Error	3582	Storage engine can't drop table 'test.t2'
+Error	3604	Storage engine can't drop table 'test.t2'
 SET SESSION debug=@save_debug;
 drop table t2;
 # mysqld gets timeout error 1008 on GET_TABINFOREQ for index create
@@ -158,7 +158,7 @@ show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
-Error	3582	Storage engine can't drop table 'test.t1'
+Error	3604	Storage engine can't drop table 'test.t1'
 SET SESSION debug=@save_debug;
 drop table t1;
 # mysqld gets timeout error 4008 on CREATE_INDX_REQ
@@ -216,7 +216,7 @@ Got one of the listed errors
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	4008	Unknown error 4008
+Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t2;
 drop table t1;
@@ -287,7 +287,7 @@ Warning	1215	Failed to list dependent objects for table 't1'
 Warning	1215	Ndb error: 4008 'Receive from NDB failed'
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
-Error	3582	Storage engine can't drop table 'test.t1'
+Error	3604	Storage engine can't drop table 'test.t1'
 SET SESSION debug=@save_debug;
 drop table t1;
 # mysqld gets timeout 4013 while opening index

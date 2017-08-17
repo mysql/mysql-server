@@ -18223,7 +18223,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
         res= ER_CANNOT_ADD_FOREIGN;
       }
       error= res;
-      my_error(error, MYF(0), 0);
+      table->file->print_error(error, MYF(0));
       goto abort;
     }
   }
