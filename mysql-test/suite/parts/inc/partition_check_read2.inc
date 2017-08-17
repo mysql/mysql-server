@@ -19,8 +19,8 @@ ANALYZE TABLE t1;
 -- enable_result_log
 -- enable_query_log
 
-## EXPLAIN PARTITIONS SELECT for one single row
-EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
+## EXPLAIN SELECT for one single row
+EXPLAIN SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 
 ## Check SELECT for one single row
 let $success= 1;

@@ -45,9 +45,9 @@ SELECT * FROM t1 WHERE b = 9223372036854775808;
 SELECT * FROM t1 WHERE b = 18446744073709551612;
 SELECT * FROM t1 WHERE b = 18446744073709551615;
 analyze table t1;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 9223372036854775808;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551612;
-EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b = 18446744073709551615;
+EXPLAIN SELECT * FROM t1 WHERE b = 9223372036854775808;
+EXPLAIN SELECT * FROM t1 WHERE b = 18446744073709551612;
+EXPLAIN SELECT * FROM t1 WHERE b = 18446744073709551615;
 DROP TABLE t1;
 
 #
@@ -98,16 +98,16 @@ select * from t1 where a > 3 and a <= 6;
 select * from t1 where a > 5;
 select * from t1 where a >= 1 and a <= 5;
 analyze table t1;
-explain partitions select * from t1 where a < 0;
-explain partitions select * from t1 where a is null or (a >= 5 and a <= 7); 
-explain partitions select * from t1 where a is null;
-explain partitions select * from t1 where a is not null;
-explain partitions select * from t1 where a >= 1 and a < 3;
-explain partitions select * from t1 where a >= 3 and a <= 5;
-explain partitions select * from t1 where a > 2 and a < 4;
-explain partitions select * from t1 where a > 3 and a <= 6;
-explain partitions select * from t1 where a > 5;
-explain partitions select * from t1 where a >= 1 and a <= 5;
+explain select * from t1 where a < 0;
+explain select * from t1 where a is null or (a >= 5 and a <= 7); 
+explain select * from t1 where a is null;
+explain select * from t1 where a is not null;
+explain select * from t1 where a >= 1 and a < 3;
+explain select * from t1 where a >= 3 and a <= 5;
+explain select * from t1 where a > 2 and a < 4;
+explain select * from t1 where a > 3 and a <= 6;
+explain select * from t1 where a > 5;
+explain select * from t1 where a >= 1 and a <= 5;
 
 drop table t1;
 

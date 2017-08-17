@@ -22,7 +22,7 @@ create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
 insert into t1 set UNIQ=123;
 analyze table t1;
-explain extended select * from t1 where UNIQ=0x38afba1d73e6a18a;
+explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
 drop table t1;
 
 #

@@ -42,11 +42,10 @@ aaa
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
+explain select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary)) AS `s` from `test`.`t1` where (`test`.`t1`.`st` like '%a%') order by `s`
 select nullif(u, 1) from t1;
 nullif(u, 1)
@@ -57,11 +56,10 @@ NULL
 NULL
 0
 0
-explain extended select nullif(u, 1) from t1;
+explain select nullif(u, 1) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select nullif(`test`.`t1`.`u`,1) AS `nullif(u, 1)` from `test`.`t1`
 drop table t1;
 select nullif(1,'test');

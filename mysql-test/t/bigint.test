@@ -361,7 +361,7 @@ while($n) {
   echo # $hex;
 
   --disable_result_log
-  eval EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
+  eval EXPLAIN SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
   --enable_result_log
   SHOW WARNINGS;
 }

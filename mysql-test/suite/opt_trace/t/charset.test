@@ -21,7 +21,7 @@ set names latin1;
 # them as characters using latin1, then encodes those characters in
 # utf8 in the trace; sends back the trace but re-encodes it in latin1
 # (as this is how we want it, see "set names latin1".
-explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1;
+explain select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1;
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 select @query, @trace;
 # The trace above is not valid JSON because the client asked to

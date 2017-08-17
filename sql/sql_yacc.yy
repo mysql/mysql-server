@@ -12256,18 +12256,6 @@ opt_extended_describe:
             if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
           }
-        | EXTENDED_SYM
-          {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
-            push_deprecated_warn_no_replacement(YYTHD, "EXTENDED");
-          }
-        | PARTITIONS_SYM
-          {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
-            push_deprecated_warn_no_replacement(YYTHD, "PARTITIONS");
-          }
         | FORMAT_SYM EQ ident_or_text
           {
             if (is_identifier($3, "JSON"))

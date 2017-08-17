@@ -304,7 +304,7 @@ id	stmt_text	status
 7	check table t1	not supported
 8	optimize table t1	supported
 9	repair table t1	supported
-10	describe extended select * from t1	supported
+10	describe extended select * from t1	syntax error
 11	help help	not supported
 12	show databases	supported
 13	show tables	supported

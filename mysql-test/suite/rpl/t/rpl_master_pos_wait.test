@@ -18,7 +18,7 @@ source include/rpl_restart_server.inc;
 # MASTER_POS_WAIT: Check if time-out is correctly handled.
 #
 select master_pos_wait('master-bin.999999',0,2);
-explain extended select master_pos_wait('master-bin.999999',0,2);
+explain select master_pos_wait('master-bin.999999',0,2);
 
 #
 # MASTER_POS_WAIT (BUG#651): Check if it hangs when slave is 

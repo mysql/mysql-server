@@ -40,11 +40,10 @@ version()>=_latin1"3.23.29"
 select charset(version());
 charset(version())
 utf8
-explain extended select database(), user();
+explain select database(), user();
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select database() AS `database()`,user() AS `user()`
 create table t1 (version char(60)) select database(), user(), version() as 'version';
 show create table t1;

@@ -19,7 +19,7 @@ insert into t1 values
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 insert into t1 select a+100 from t1;
@@ -27,7 +27,7 @@ insert into t1 select a+100 from t1;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 delete from t1 where a >= 100;
@@ -35,7 +35,7 @@ delete from t1 where a >= 100;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 begin;
@@ -45,7 +45,7 @@ commit;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 begin;
@@ -55,7 +55,7 @@ commit;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 begin;
@@ -65,7 +65,7 @@ rollback;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 begin;
@@ -75,7 +75,7 @@ rollback;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 --error ER_DUP_KEY
@@ -84,7 +84,7 @@ insert into t1 select a from t1;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 begin;
@@ -94,7 +94,7 @@ insert into t1 select a from t1;
 --echo
 --echo # expected result 0 roundtrips - read stats from share
 --source suite/ndb/include/ndb_init_execute_count.inc
-explain extended select * from t1 where a < 100;
+explain select * from t1 where a < 100;
 --source suite/ndb/include/ndb_execute_count.inc
 
 drop table t1;

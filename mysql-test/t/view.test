@@ -73,12 +73,12 @@ analyze table t1;
 
 # view with different algorithms (explain output differs)
 --replace_column 10 # 11 #
-explain extended select c from v1;
+explain select c from v1;
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
 select c from v2;
 --replace_column 10 # 11 #
-explain extended select c from v2;
+explain select c from v2;
 
 # try to use underlying table fields in VIEW creation process
 -- error ER_BAD_FIELD_ERROR
@@ -91,19 +91,19 @@ create view v3 (c) as select b+1 from v1;
 create view v3 (c) as select c+1 from v1;
 select c from v3;
 --replace_column 10 # 11 #
-explain extended select c from v3;
+explain select c from v3;
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
 --replace_column 10 # 11 #
-explain extended select c from v4;
+explain select c from v4;
 create view v5 (c) as select c+1 from v2;
 select c from v5;
 --replace_column 10 # 11 #
-explain extended select c from v5;
+explain select c from v5;
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
 --replace_column 10 # 11 #
-explain extended select c from v6;
+explain select c from v6;
 
 # show table/table status test
 show tables;
@@ -304,7 +304,7 @@ create view v1 (c) as select b from t1 where a<3;
 # simple select and explaint to be sure that it is MERGE
 select * from v1;
 --replace_column 10 # 11 #
-explain extended select * from v1;
+explain select * from v1;
 # update test
 update v1 set c=c+1;
 select * from t1;
@@ -1363,14 +1363,14 @@ analyze table t1,t2,t3;
 create view v3 (a,b) as select t1.a as a, t2.a as b from t1 left join t2 on (t1.a=t2.a);
 select * from t3 left join v3 on (t3.a = v3.a);
 --replace_column 10 # 11 #
-explain extended select * from t3 left join v3 on (t3.a = v3.a);
+explain select * from t3 left join v3 on (t3.a = v3.a);
 # view over views
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
 select * from t3 left join v4 on (t3.a = v4.a);
 --replace_column 10 # 11 #
-explain extended select * from t3 left join v4 on (t3.a = v4.a);
+explain select * from t3 left join v4 on (t3.a = v4.a);
 # PS with view over views
 --replace_column 10 # 11 #
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
@@ -3263,10 +3263,10 @@ select * from t1;
 create view v1 as select * from t1 order by f2;
 select * from v1;
 --replace_column 10 #
-explain extended select * from v1;
+explain select * from v1;
 select * from v1 order by f1;
 --replace_column 10 #
-explain extended select * from v1 order by f1;
+explain select * from v1 order by f1;
 drop view v1;
 drop table t1;
 

@@ -272,7 +272,7 @@ explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
-explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 select sql_big_result spid,sum(userid) from t1 group by spid desc;
 explain select sql_big_result score,count(*) from t1 group by score desc;
@@ -1247,10 +1247,10 @@ SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 
 ANALYZE TABLE t1;
 --echo # execution plan should not use temporary table:
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1773,11 +1773,11 @@ GROUP BY field1,
 ANALYZE TABLE t1;
 --echo # In GROUP BY, aliases are printed as aliases.
 
-eval EXPLAIN EXTENDED $query_with_alias_in_group_by;
+eval EXPLAIN $query_with_alias_in_group_by;
 
 --echo # In GROUP BY, expressions are printed as expressions.
 
-eval EXPLAIN EXTENDED $query_with_no_alias_in_group_by;
+eval EXPLAIN $query_with_no_alias_in_group_by;
 
 --echo # Aliased expression in GROUP BY in a view.
 
@@ -1821,13 +1821,13 @@ SET @@sql_mode = @old_sql_mode;
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(3),(4);
 ANALYZE TABLE t1,t2;
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS bar, (SELECT a FROM t2 WHERE a=t1.pk) AS baz
 FROM t1
 GROUP BY foo, col_int_key, baz ORDER BY pk, bar, (SELECT a FROM t2 WHERE a=t1.pk);
 
 # Printing the alias in GROUP/ORDER BY would introduce an ambiguity.
-EXPLAIN EXTENDED SELECT
+EXPLAIN SELECT
 pk AS foo, col_int_key AS foo, (SELECT a FROM t2 WHERE a=t1.pk) AS foo
 FROM t1
 GROUP BY pk, col_int_key, (SELECT a FROM t2 WHERE a=t1.pk)
@@ -1865,7 +1865,7 @@ CREATE TABLE t3 (
 
 CREATE VIEW view1 AS SELECT * FROM t1;
 ANALYZE TABLE t1,t2,t3;
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT
     alias1.col_datetime_key AS field1
 FROM (
@@ -1914,7 +1914,7 @@ field1
 ORDER BY field1
 ;
 ANALYZE TABLE t1,t2;
-EXPLAIN EXTENDED SELECT * FROM view1;
+EXPLAIN SELECT * FROM view1;
 
 DROP TABLE t1,t2;
 DROP VIEW view1;
@@ -1924,7 +1924,7 @@ DROP VIEW view1;
 CREATE TABLE t1 (col_varchar_nokey varchar(1) DEFAULT NULL);
 INSERT INTO t1 VALUES ('v'),('c');
 ANALYZE TABLE t1;
-EXPLAIN EXTENDED SELECT (SELECT 150) AS field5
+EXPLAIN SELECT (SELECT 150) AS field5
 FROM (SELECT * FROM t1) AS alias1
 GROUP BY field5;
 

@@ -1263,10 +1263,10 @@ select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 
 #
-# Bug#31630 debug assert with explain extended select ... from i_s
+# Bug#31630 debug assert with explain select ... from i_s
 #
 --disable_result_log
-explain extended select 1 from information_schema.tables;
+explain select 1 from information_schema.tables;
 --enable_result_log
 
 #

@@ -2318,7 +2318,7 @@ explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
 
-# Bug#58553 Queries with pushed conditions causes 'explain extended' to crash mysqld
+# Bug#58553 Queries with pushed conditions causes 'explain' to crash mysqld
 create table tx (
   a int not null,
   b int not null,
@@ -2329,10 +2329,10 @@ create table tx (
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
 --replace_column 10 # 11 #
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select straight_join *
 from tx
  join tx as t2 on t2.a = tx.a and t2.b = tx.b
@@ -2340,7 +2340,7 @@ from tx
  join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2348,10 +2348,10 @@ where t2.a = 4
 group by t2.c;
 
 --replace_column 10 # 11 #
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+explain select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
 --replace_column 10 # 11 #
-explain extended
+explain
 select t2.c, count(distinct t2.a)
 from tx
 join tx as t2 on tx.a = t2.c and tx.b = t2.d
@@ -2372,11 +2372,11 @@ insert into subq values (1,3), (3,6), (6,9), (9,1);
 
 # 'Explain extended' to verify that only 'subq.i=3' is pushed
 --replace_column 10 # 11 #
-explain extended 
+explain 
 select * from t where exists
   (select * from t as subq where subq.i=3 and t.i=3);
 --replace_column 10 # 11 #
-explain extended 
+explain 
   select * from t where exists
     (select * from subq where subq.i=3 and t.i=3);
 
@@ -2485,7 +2485,7 @@ insert into a values ('abcdefg');
 select * from a;                        
 
 --replace_column 10 # 11 #
-explain extended select * from a where a like 'abcdefg%'; 
+explain select * from a where a like 'abcdefg%'; 
 
 select * from a where a like 'abcdefg%'; 
 
