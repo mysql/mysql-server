@@ -14,8 +14,6 @@
 # along with this program; if not, write to the Free Software Foundation,
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/components/pfs_component)
-
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)
 
 SET(PFS_EXAMPLE_COMPONENT_POPULATION_SOURCE

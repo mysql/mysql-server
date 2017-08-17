@@ -18,9 +18,6 @@ MYSQL_ADD_PLUGIN(ftexample ./example/plugin_example.c
                 MODULE_ONLY MODULE_OUTPUT_NAME "mypluglib")
 
 # Ngram parser
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
-                    ${CMAKE_SOURCE_DIR}/storage/innobase/)
-
 MYSQL_ADD_PLUGIN(ngram_parser ./ngram_parser/plugin_ngram.cc
                  DEFAULT MODULE_OUTPUT_NAME "libpluginngram")
 
@@ -38,8 +35,7 @@ IF(WITH_DEBUG)
 ENDIF()
 
 IF(WITH_MECAB)
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
-                      ${MECAB_INCLUDE_DIR})
+  INCLUDE_DIRECTORIES(${MECAB_INCLUDE_DIR})
 
   MYSQL_ADD_PLUGIN(mecab_parser ./mecab_parser/plugin_mecab.cc
                    MODULE_ONLY MODULE_OUTPUT_NAME "libpluginmecab")

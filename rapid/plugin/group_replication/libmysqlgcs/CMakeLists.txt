@@ -33,15 +33,9 @@ INCLUDE(rpcgen.cmake)
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include/                   # my_compiler.h
-  ${CMAKE_BINARY_DIR}/include/                   # config.h
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/
-  ${CMAKE_CURRENT_BINARY_DIR}/xdr_gen/
-  ${CMAKE_CURRENT_BINARY_DIR}/include/
-  ${XCOM_WINDEPS_INCLUDE_DIRS})
+)
 
 ### SOURCES ###
 
