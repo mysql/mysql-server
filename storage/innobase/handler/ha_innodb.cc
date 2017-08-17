@@ -19897,7 +19897,7 @@ static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of undo tablespaces to use. ",
+  "Number of undo tablespaces to use. (deprecated)",
   NULL, NULL,
   0L,			/* Default seting */
   0L,			/* Minimum value */
