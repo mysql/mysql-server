@@ -1151,7 +1151,7 @@ cleanup_memory_class(void)
 {
   unsigned int i;
 
-  if (memory_class_array != NULL)
+  if (memory_class_array.load() != nullptr)
   {
     for (i=0; i<memory_class_max; i++)
     {
