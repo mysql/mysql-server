@@ -1112,12 +1112,12 @@ ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 #
 SHOW VARIABLES like 'back_log';
 Variable_name	Value
-back_log	80
+back_log	151
 SELECT @@session.back_log;
 ERROR HY000: Variable 'back_log' is a GLOBAL variable
 SELECT @@global.back_log;
 @@global.back_log
-80
+151
 SET @@session.back_log= 7;
 ERROR HY000: Variable 'back_log' is a read only variable
 SET @@global.back_log= 7;

@@ -3563,8 +3563,8 @@ int init_common_variables()
     host_cache_size= 2000;
 
   /* Fix back_log */
-  if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
-    back_log= 900;
+  if (back_log == 0 && (back_log= max_connections) > 65535)
+    back_log= 65535;
 
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
