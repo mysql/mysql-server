@@ -3385,16 +3385,6 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, UINT32_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
-static Sys_var_ulong Sys_multi_range_count(
-       "multi_range_count",
-       "Number of key ranges to request at once. "
-       "This variable has no effect, and is deprecated. "
-       "It will be removed in a future release.",
-       SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(""));
-
 static bool fix_thd_mem_root(sys_var* self, THD *thd, enum_var_type type)
 {
   if (!self->is_global_persist(type))

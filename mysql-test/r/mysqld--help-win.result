@@ -586,10 +586,6 @@ The following options may be given as the first argument:
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
- --multi-range-count=# 
- Number of key ranges to request at once. This variable
- has no effect, and is deprecated. It will be removed in a
- future release.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -1446,7 +1442,6 @@ memlock FALSE
 metadata-locks-cache-size 1024
 metadata-locks-hash-instances 8
 min-examined-row-limit 0
-multi-range-count 256
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
