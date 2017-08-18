@@ -331,12 +331,12 @@ public:
   { return Abstract_table_impl::options(); }
   virtual bool set_options_raw(const String_type &options_raw)
   { return Abstract_table_impl::set_options_raw(options_raw); }
-  virtual ulonglong created() const
-  { return Abstract_table_impl::created(); }
+  virtual ulonglong created(bool convert_time) const
+  { return Abstract_table_impl::created(convert_time); }
   virtual void set_created(ulonglong created)
   { Abstract_table_impl::set_created(created); }
-  virtual ulonglong last_altered() const
-  { return Abstract_table_impl::last_altered(); }
+  virtual ulonglong last_altered(bool convert_time) const
+  { return Abstract_table_impl::last_altered(convert_time); }
   virtual void set_last_altered(ulonglong last_altered)
   { Abstract_table_impl::set_last_altered(last_altered); }
   virtual Column *add_column()

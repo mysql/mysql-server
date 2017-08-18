@@ -36,6 +36,7 @@ class Event;
 class Function;
 class Procedure;
 class Void_key;
+class Time_zone;
 
 namespace tables {
   class Schemata;
@@ -85,14 +86,14 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const = 0;
+  virtual ulonglong created(bool convert_time) const = 0;
   virtual void set_created(ulonglong created) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const = 0;
+  virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
 public:

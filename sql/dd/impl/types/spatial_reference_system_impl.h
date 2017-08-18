@@ -34,6 +34,7 @@
 #include "sql/dd/types/weak_object.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/srs/srs.h"                  // gis::srs::Spatial_reference_...
+#include "sql/sql_time.h"                     // gmt_time_to_local_time
 
 class THD;
 
@@ -103,8 +104,8 @@ public:
   // created
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const override
-  { return m_created; }
+  virtual ulonglong created(bool convert_time) const override
+  { return convert_time ? gmt_time_to_local_time(m_created) : m_created; }
 
   virtual void set_created(ulonglong created) override
   { m_created= created; }
@@ -113,8 +114,11 @@ public:
   // last_altered
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const override
-  { return m_last_altered; }
+  virtual ulonglong last_altered(bool convert_time) const override
+  {
+    return convert_time ? gmt_time_to_local_time(m_last_altered) :
+                          m_last_altered;
+  }
 
   virtual void set_last_altered(ulonglong last_altered) override
   { m_last_altered= last_altered; }

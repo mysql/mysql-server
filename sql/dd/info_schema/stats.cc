@@ -91,16 +91,16 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
 
   if (file->stats.update_time)
   {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                (my_time_t) file->stats.update_time);
+    my_tz_OFFSET0->gmt_sec_to_TIME(&time,
+                                   static_cast<my_time_t>(file->stats.update_time));
     ulonglong ull_time= TIME_to_ulonglong_datetime(&time);
     ts_obj->set_update_time(ull_time);
   }
 
   if (file->stats.check_time)
   {
-    thd->variables.time_zone->gmt_sec_to_TIME(&time,
-                                (my_time_t) file->stats.check_time);
+    my_tz_OFFSET0->gmt_sec_to_TIME(&time,
+                                   static_cast<my_time_t>(file->stats.check_time));
     ulonglong ull_time= TIME_to_ulonglong_datetime(&time);
     ts_obj->set_check_time(ull_time);
   }

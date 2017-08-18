@@ -82,6 +82,7 @@
 #include "sql/sql_class.h"                   // THD
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
+#include "sql/tztime.h"                      // Time_zone, my_tz_OFFSET0
 #include "storage_adapter.h"                 // store(), drop(), ...
 
 namespace {
@@ -717,6 +718,39 @@ void Dictionary_client::Auto_releaser::dump() const
 }
 
 
+/**
+  Class to fetch dd::Objects with GMT time.
+
+  When dictionary object is fetched to create  dd::Objects, the timestamp
+  data should be according to GMT and independent of time_zone. Time_zone
+  data should be added to time column before using the data.
+
+  Any timestamp column in dictionary should implement the data retrieval
+  function to return GMT data to dictionary framework but consider time_zone
+  when returning data to server.
+*/
+
+
+class Timestamp_timezone_guard
+{
+public:
+  Timestamp_timezone_guard(THD *thd) : m_thd(thd)
+  {
+    m_tz= m_thd->variables.time_zone;
+    m_thd->variables.time_zone= my_tz_OFFSET0;
+  }
+
+  ~Timestamp_timezone_guard()
+  {
+    m_thd->variables.time_zone= m_tz;
+  }
+
+private:
+  ::Time_zone *m_tz;
+  THD *m_thd;
+};
+
+
 // Get a dictionary object.
 template <typename K, typename T>
 bool Dictionary_client::acquire(const K &key, const T **object,
@@ -727,6 +761,8 @@ bool Dictionary_client::acquire(const K &key, const T **object,
   DBUG_ASSERT(local_uncommitted);
   *object= NULL;
 
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   DBUG_EXECUTE_IF("fail_while_acquiring_dd_object",
   {
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
@@ -984,6 +1020,8 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1016,6 +1054,8 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T** object)
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1151,6 +1191,8 @@ bool Dictionary_client::acquire(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1191,6 +1233,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
 
   // We must be sure the object is released correctly if dynamic cast fails.
   Auto_releaser releaser(this);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
   const typename T::cache_partition_type *cached_object= NULL;
 
   bool local_committed= false;
@@ -1257,6 +1301,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1315,6 +1361,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   bool local_committed= false;
   bool local_uncommitted= false;
@@ -1378,6 +1426,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   bool local_committed= false;
@@ -1430,6 +1480,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
   // Create the name key for the object.
   typename T::name_key_type key;
   T::update_name_key(&key, schema->id(), object_name);
+  // Cache dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // Acquire the dictionary object.
   const typename T::cache_partition_type *cached_object= NULL;
@@ -2242,6 +2294,9 @@ bool Dictionary_client::store(T* object)
   DBUG_ASSERT(!element);
 #endif
 
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+
   // Make sure the object has an invalid object id.
   DBUG_ASSERT(object->id() == INVALID_OBJECT_ID);
 
@@ -2258,12 +2313,19 @@ bool Dictionary_client::store(T* object)
 // Store a new dictionary object.
 template <>
 bool Dictionary_client::store(Table_stat* object)
-{ return Storage_adapter::store<Table_stat>(m_thd, object); }
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Table_stat>(m_thd, object);
+}
 
 template <>
 bool Dictionary_client::store(Index_stat* object)
-{ return Storage_adapter::store<Index_stat>(m_thd, object); }
-
+{
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
+  return Storage_adapter::store<Index_stat>(m_thd, object);
+}
 
 // Update a persisted dictionary object, but keep the shared cache unchanged.
 template <typename T>
@@ -2283,6 +2345,9 @@ bool Dictionary_client::update(T* new_object)
     &element);
   DBUG_ASSERT(!element);
 #endif
+
+  // Store dictionary objects with UTC time
+  Timestamp_timezone_guard ts(m_thd);
 
   // new_object->id() may or may not be reflected in the uncommitted registry.
   const typename T::id_key_type id_key(new_object->id());

@@ -32,6 +32,7 @@
 #include "sql/dd/types/parameter.h"            // dd::Parameter
 #include "sql/dd/types/routine.h"              // dd::Routine
 #include "sql/dd/types/view.h"
+#include "sql/sql_time.h"                      // gmt_time_to_local_time
 
 namespace dd {
 class Open_dictionary_tables_ctx;
@@ -198,8 +199,8 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const
-  { return m_created; }
+  virtual ulonglong created(bool convert_time) const
+  { return convert_time ? gmt_time_to_local_time(m_created) : m_created; }
 
   virtual void set_created(ulonglong created)
   { m_created= created; }
@@ -208,8 +209,11 @@ public:
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const
-  { return m_last_altered; }
+  virtual ulonglong last_altered(bool convert_time) const
+  {
+    return convert_time ? gmt_time_to_local_time(m_last_altered) :
+                          m_last_altered;
+  }
 
   virtual void set_last_altered(ulonglong last_altered)
   { m_last_altered= last_altered; }

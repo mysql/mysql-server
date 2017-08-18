@@ -32,6 +32,9 @@
 #include "sql/dd/types/abstract_table.h"      // dd::Abstract_table
 #include "sql/dd/types/column.h"              // IWYU pragma: keep
 #include "sql/dd/types/object_type.h"         // dd::Object_type
+#include "sql/sql_time.h"                     // gmt_time_to_local_time
+
+class Time_zone;
 
 namespace dd {
 
@@ -109,8 +112,8 @@ public:
   // created.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong created() const
-  { return m_created; }
+  virtual ulonglong created(bool convert_time) const
+  { return convert_time ? gmt_time_to_local_time(m_created) : m_created; }
 
   virtual void set_created(ulonglong created)
   { m_created= created; }
@@ -119,8 +122,11 @@ public:
   // last altered.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong last_altered() const
-  { return m_last_altered; }
+  virtual ulonglong last_altered(bool convert_time) const
+  {
+    return convert_time ? gmt_time_to_local_time(m_last_altered) :
+                          m_last_altered;
+  }
 
   virtual void set_last_altered(ulonglong last_altered)
   { m_last_altered= last_altered; }

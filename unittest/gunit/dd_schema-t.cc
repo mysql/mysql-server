@@ -489,8 +489,8 @@ TEST_F(SchemaTest, GetSchema)
   // Catalog id not exposed in dd api yet
   EXPECT_TRUE(schema->name() == real_name);
   EXPECT_TRUE(schema->default_collation_id() == real_collation_id);
-  EXPECT_TRUE(schema->created() == real_created);
-  EXPECT_TRUE(schema->last_altered() == real_last_altered);
+  EXPECT_TRUE(schema->created(false) == real_created);
+  EXPECT_TRUE(schema->last_altered(false) == real_last_altered);
 
   // Commit transaction and cleanup.
   commit_transaction(ctx, schemata_table);

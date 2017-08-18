@@ -414,7 +414,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
                        return_type_str.c_str(), routine->definition().c_str(),
                        &sp_chistics, routine->definer_user().c_str(),
                        routine->definer_host().c_str(),
-                       routine->created(), routine->last_altered(),
+                       routine->created(true), routine->last_altered(true),
                        creation_ctx);
   DBUG_RETURN(ret);
 }

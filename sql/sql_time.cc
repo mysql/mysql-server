@@ -1877,7 +1877,7 @@ longlong longlong_from_datetime_packed(enum enum_field_types type,
   @param packed_value   Numeric packed temporal representation.
   @return               A double value in on of the following formats,
                         depending  on type:
-                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.                        
+                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
 */
 double double_from_datetime_packed(enum enum_field_types type,
                                    longlong packed_value)
@@ -1885,4 +1885,34 @@ double double_from_datetime_packed(enum enum_field_types type,
   longlong result= longlong_from_datetime_packed(type, packed_value);
   return result +
         ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
+}
+
+/**
+  This function gets GMT time and adds value of time_zone to get
+  the local time. This function is used when server wants a timestamp
+  value from dictionary system.
+
+  @param  gmt_time     GMT time value.
+*/
+
+ulonglong gmt_time_to_local_time(ulonglong gmt_time)
+{
+  MYSQL_TIME time;
+  bool not_used;
+
+  THD *thd= current_thd;
+  Time_zone *tz= thd->variables.time_zone;
+
+  // Convert longlong time to MYSQL_TIME format
+  my_longlong_to_datetime_with_warn(gmt_time, &time, MYF(0));
+
+  // Convert MYSQL_TIME to epoc second according to GMT time_zone.
+  my_time_t timestamp;
+  timestamp= my_tz_OFFSET0->TIME_to_gmt_sec(&time, &not_used);
+
+  // Convert epoc seconds to local time
+  tz->gmt_sec_to_TIME(&time, timestamp);
+
+  // Return ulonglong value from MYSQL_TIME
+  return TIME_to_ulonglong_datetime(&time);
 }

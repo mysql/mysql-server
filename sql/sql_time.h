@@ -37,6 +37,7 @@
 
 class THD;
 class my_decimal;
+class Time_zone;
 
 struct Date_time_format
 {
@@ -284,4 +285,13 @@ timestamp_type field_type_to_timestamp_type(enum enum_field_types type)
   default: return MYSQL_TIMESTAMP_NONE;
   }
 }
+
+/**
+  This function gets GMT time and adds value of time_zone to get
+  the local time. This function is used when server wants a timestamp
+  value from dictionary system.
+*/
+
+ulonglong gmt_time_to_local_time(ulonglong time);
+
 #endif /* SQL_TIME_INCLUDED */
