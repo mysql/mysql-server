@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,6 +154,7 @@ enum cargo_type {
 	disable_arbitrator = 17,
 	force_config_type = 18,
 	x_terminate_and_exit = 19,
+	set_cache_limit = 20,
 };
 typedef enum cargo_type cargo_type;
 
@@ -203,6 +204,7 @@ struct app_u {
 		checked_data data;
 		trans_data td;
 		node_set present;
+		uint64_t cache_limit;
 	} app_u_u;
 };
 typedef struct app_u app_u;
@@ -353,7 +355,7 @@ enum client_reply_code {
 };
 typedef enum client_reply_code client_reply_code;
 
-struct pax_msg {
+struct pax_msg_1_1 {
 	node_no to;
 	node_no from;
 	uint32_t group_id;
@@ -372,7 +374,34 @@ struct pax_msg {
 	bool_t force_delivery;
 	int32_t refcnt;
 };
-typedef struct pax_msg pax_msg;
+typedef struct pax_msg_1_1 pax_msg_1_1;
+
+struct pax_msg_1_2 {
+	node_no to;
+	node_no from;
+	uint32_t group_id;
+	synode_no max_synode;
+	start_t start_type;
+	ballot reply_to;
+	ballot proposal;
+	pax_op op;
+	synode_no synode;
+	pax_msg_type msg_type;
+	bit_set *receivers;
+	app_data *a;
+	snapshot *snap;
+	gcs_snapshot *gcs_snap;
+	client_reply_code cli_err;
+	bool_t force_delivery;
+	int32_t refcnt;
+	synode_no delivered_msg;
+};
+typedef struct pax_msg_1_2 pax_msg_1_2;
+#ifndef PAX_MSG_TYPEDEF
+#define PAX_MSG_TYPEDEF
+typedef pax_msg_1_2 pax_msg;
+extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
+#endif
 
 typedef char *file_name;
 
@@ -432,7 +461,8 @@ extern  bool_t xdr_config_ptr (XDR *, config_ptr*);
 extern  bool_t xdr_configs (XDR *, configs*);
 extern  bool_t xdr_gcs_snapshot (XDR *, gcs_snapshot*);
 extern  bool_t xdr_client_reply_code (XDR *, client_reply_code*);
-extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
+extern  bool_t xdr_pax_msg_1_1(XDR *, pax_msg_1_1*);
+extern  bool_t xdr_pax_msg_1_2(XDR *, pax_msg_1_2*);
 extern  bool_t xdr_file_name (XDR *, file_name*);
 extern  bool_t xdr_file_name_array (XDR *, file_name_array*);
 extern  bool_t xdr_file_copy_data (XDR *, file_copy_data*);
@@ -478,7 +508,8 @@ extern bool_t xdr_config_ptr ();
 extern bool_t xdr_configs ();
 extern bool_t xdr_gcs_snapshot ();
 extern bool_t xdr_client_reply_code ();
-extern bool_t xdr_pax_msg ();
+extern bool_t xdr_pax_msg_1_1();
+extern bool_t xdr_pax_msg_1_2();
 extern bool_t xdr_file_name ();
 extern bool_t xdr_file_name_array ();
 extern bool_t xdr_file_copy_data ();

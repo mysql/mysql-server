@@ -1,4 +1,4 @@
-%/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+%/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 %
 %   This program is free software; you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License as published by
@@ -120,7 +120,8 @@ enum cargo_type {
   enable_arbitrator,
   disable_arbitrator,
   force_config_type,
-  x_terminate_and_exit
+  x_terminate_and_exit,
+  set_cache_limit
 };
 
 typedef node_no node_no_array<NSERVERS>;
@@ -180,6 +181,8 @@ union app_u switch(cargo_type c_t){
    trans_data td;
  case view_msg:
    node_set present;
+ case set_cache_limit:
+   uint64_t cache_limit;
  default:
    void;
 };
@@ -311,7 +314,7 @@ enum client_reply_code {
      REQUEST_RETRY
 };
 
-struct pax_msg{
+struct pax_msg_1_1{
   node_no to;             /* To node */
   node_no from;           /* From node */
   uint32_t group_id; /* Unique ID shared by our group */
@@ -325,12 +328,41 @@ struct pax_msg{
   bit_set *receivers;
   /* synode_no unique_id;  */   /* Local, unique ID used to see which message was sent */
   app_data *a;      /* Payload */
-  snapshot *snap;  	/* Snapshot if op == snapshot_op */
+  snapshot *snap;	/* Snapshot if op == snapshot_op */
   gcs_snapshot *gcs_snap; /* gcs_snapshot if op == gcs_snapshot_op */
   client_reply_code cli_err;
   bool force_delivery; /* Deliver this message even if we do not have majority */
   int32_t refcnt;
  };
+
+
+struct pax_msg_1_2{
+  node_no to;             /* To node */
+  node_no from;           /* From node */
+  uint32_t group_id; /* Unique ID shared by our group */
+  synode_no max_synode; /* Gossip about the max real synode */
+  start_t start_type; /* Boot or recovery? */
+  ballot reply_to;    /* Reply to which ballot */
+  ballot proposal;    /* Proposal number */
+  pax_op op;          /* Opcode: prepare, propose, learn, etc */
+  synode_no synode;   /* The message number */
+  pax_msg_type msg_type; /* normal, noop, or multi_noop */
+  bit_set *receivers;
+  /* synode_no unique_id;  */   /* Local, unique ID used to see which message was sent */
+  app_data *a;      /* Payload */
+  snapshot *snap;	/* Snapshot if op == snapshot_op */
+  gcs_snapshot *gcs_snap; /* gcs_snapshot if op == gcs_snapshot_op */
+  client_reply_code cli_err;
+  bool force_delivery; /* Deliver this message even if we do not have majority */
+  int32_t refcnt;
+  synode_no delivered_msg; /* Gossip about the last delivered message */
+ };
+
+%#ifndef PAX_MSG_TYPEDEF
+%#define PAX_MSG_TYPEDEF
+%typedef pax_msg_1_2 pax_msg;
+%extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
+%#endif
 
 typedef string file_name<MAXFILENAME>;
 typedef file_name file_name_array<MAXFILENAMEARRAY>;
