@@ -7710,15 +7710,14 @@ i_s_files_table_fill(
 	     node != NULL;
 	     node = fil_node_next(node)) {
 		const char*	type = "TABLESPACE";
-		const char*	space_name;
+		const char*	space_name = NULL;
+		std::string	tablespace_name;
 		/** Buffer to build file-per-table tablespace names.
 		Even though a space_id is often stored in a ulint, it cannot
 		be larger than 1<<32-1, which is 10 numeric characters. */
-		char		file_per_table_name[
-			sizeof("innodb_file_per_table_1234567890")];
-		uintmax_t	avail_space;
-		page_no_t	extent_pages;
-		page_no_t	extend_pages;
+		uintmax_t		avail_space;
+		page_no_t		extent_pages;
+		page_no_t		extend_pages;
 
 		space = node->space;
 		fil_type_t	purpose = space()->purpose;
@@ -7748,21 +7747,7 @@ i_s_files_table_fill(
 			/* Their names will be like "test/t1" */
 			ut_ad(NULL != strchr(space()->name, '/'));
 
-			/* File-per-table tablespace names are generated
-			internally and certain non-file-system-allowed
-			characters are expanded which can make the space
-			name too long. In order to avoid that problem,
-			use a modified tablespace name.
-			Since we are not returning dbname and tablename,
-			the user must match the space_id to i_s_table.space
-			in order find the single table that is in it or the
-			schema it belongs to. */
-			snprintf(
-				file_per_table_name,
-				sizeof(file_per_table_name),
-				"innodb_file_per_table_" SPACE_ID_PF,
-				space()->id);
-			space_name = file_per_table_name;
+			space_name = space()->name;
 		} else {
 			/* Only file-per-table space names contain '/'.
 			This is not file-per-table . */

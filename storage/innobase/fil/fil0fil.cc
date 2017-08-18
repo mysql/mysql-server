@@ -4462,6 +4462,7 @@ The fil_node_t::handle will not be left open.
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	table_name	table name in case if need to construct file path
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
@@ -4472,6 +4473,7 @@ fil_ibd_open(
 	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
+	const char*	table_name,
 	const char*	path_in,
 	bool		strict)
 {
@@ -4486,10 +4488,11 @@ fil_ibd_open(
 	}
 
 	df.init(space_name, flags);
-	df.make_filepath(NULL, space_name, IBD);
 
 	if (path_in) {
 		df.set_filepath(path_in);
+	} else {
+		df.make_filepath(NULL, table_name, IBD);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */

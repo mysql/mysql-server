@@ -392,7 +392,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                         "column_opx": 5
                     }
                 ],
-                "tablespace_ref": "innodb_file_per_table.X"
+                "tablespace_ref": "test/t1"
             }
         ],
         "foreign_keys": [],
@@ -412,7 +412,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "innodb_file_per_table.X",
+        "name": "test/t1",
         "comment": "",
         "options": "",
         "se_private_data": "flags=X;id=Y;",

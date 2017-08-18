@@ -266,7 +266,8 @@ dd_table_open_on_dd_obj(
 		char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
-		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr);
+		dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr,
+				  nullptr);
 		ut_ad(innobase_strcasecmp(dd_table.name().c_str(), tbl_buf)
 		      == 0);
 	}
@@ -510,7 +511,7 @@ dd_check_corrupted(dict_table_t*& table)
 
 			dd_parse_tbl_name(
 				table->name.m_name, db_buf, tbl_buf,
-				nullptr, nullptr);
+				nullptr, nullptr, nullptr);
 			my_error(ER_TABLE_CORRUPT, MYF(0),
 				 db_buf, tbl_buf);
 		}
@@ -620,8 +621,10 @@ reopen:
 		for (;;) {
 			bool ret = dd_parse_tbl_name(
 				ib_table->name.m_name, db_buf, tbl_buf,
-				nullptr, nullptr);
+				nullptr, nullptr, nullptr);
+
 			memset(full_name, 0, MAX_FULL_NAME_LEN + 1);
+
 			strcpy(full_name, ib_table->name.m_name);
 
 			ut_ad(!ib_table->is_temporary());
@@ -766,11 +769,12 @@ dd_table_discard_tablespace(
 		dd::Object_id   dd_space_id =
 			(*table_def->indexes()->begin())->tablespace_id();
 
-		char    name[FN_REFLEN];
-		snprintf(name, sizeof name, "%s.%u",
-			 dict_sys_t::s_file_per_table_name, table->space);
+		std::string	space_name;
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+		dd_filename_to_spacename(table->name.m_name, &space_name);
+
+		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
+							 false)) {
 			ut_a(false);
 		}
 
@@ -837,7 +841,8 @@ dd_table_open_on_name(
 	}
 
 	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
-	if (!dd_parse_tbl_name(name, db_buf, tbl_buf, part_buf, sub_buf)) {
+	if (!dd_parse_tbl_name(name, db_buf, tbl_buf,
+			       part_buf, sub_buf, nullptr)) {
 		DBUG_RETURN(nullptr);
 	}
 
@@ -953,19 +958,17 @@ dd_table_close(
 	}
 }
 
-/** Update filename of dd::Tablespace
-@param[in]	dd_space_id	dd tablespace id
-@param[in]	new_path	new data file path
-@retval true if fail. */
 bool
-dd_tablespace_update_filename(
-	dd::Object_id		dd_space_id,
-	const char*		new_path)
+dd_rename_tablespace(
+	dd::Object_id	dd_space_id,
+	const char*	new_space_name,
+	const char*	new_path)
 {
 	dd::Tablespace*		dd_space = nullptr;
 	dd::Tablespace*		new_space = nullptr;
 	bool			ret = false;
 	THD*			thd = current_thd;
+	std::string		tablespace_name;
 
 	DBUG_ENTER("dd_tablespace_update_for_rename");
 #ifdef UNIV_DEBUG
@@ -973,7 +976,6 @@ dd_tablespace_update_filename(
 	ut_ad(!sync_check_iterate(check));
 #endif
 	ut_ad(!srv_is_being_shutdown);
-	ut_ad(new_path != nullptr);
 
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
 	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
@@ -987,9 +989,18 @@ dd_tablespace_update_filename(
 	}
 
 	ut_a(dd_space != nullptr);
-	/* Acquire mdl share lock */
+
 	if (dd::acquire_exclusive_tablespace_mdl(
 		    thd, dd_space->name().c_str(), false)) {
+		ut_ad(false);
+		DBUG_RETURN(true);
+	}
+
+	dd_filename_to_spacename(new_space_name,
+				 &tablespace_name);
+
+	if (dd::acquire_exclusive_tablespace_mdl(
+			thd, tablespace_name.c_str(), false)) {
 		ut_ad(false);
 		DBUG_RETURN(true);
 	}
@@ -1002,9 +1013,24 @@ dd_tablespace_update_filename(
 	}
 
 	ut_ad(new_space->files().size() == 1);
-	dd::Tablespace_file*	dd_file = const_cast<
-		dd::Tablespace_file*>(*(new_space->files().begin()));
-	dd_file->set_filename(new_path);
+
+	new_space->set_name(tablespace_name.c_str());
+
+	if (new_path != nullptr) {
+		dd::Tablespace_file*	dd_file = const_cast<
+			dd::Tablespace_file*>(*(new_space->files().begin()));
+		dd_file->set_filename(new_path);
+	} else {
+#ifdef UNIV_DEBUG
+		const dd::Properties& p = dd_space->se_private_data();
+		bool  is_discarded = false;
+		ut_ad(p.exists(dd_space_key_strings[DD_SPACE_DISCARD]));
+		p.get_bool(dd_space_key_strings[DD_SPACE_DISCARD],
+			   &is_discarded);
+		ut_ad(is_discarded);
+#endif /* UNIV_DEBUG */
+	}
+
 	bool fail = client->update(new_space);
 
 	if (fail) {
@@ -2476,6 +2502,57 @@ dd_fill_dict_table(
 	return(m_table);
 }
 
+/** Parse the tablespace name from filename charset to table name charset
+@param[in]      space_name      tablespace name
+@param[in,out]	tablespace_name	tablespace name which is in table name
+				charset. */
+void
+dd_filename_to_spacename(
+	const char*		space_name,
+	std::string*		tablespace_name)
+{
+	char			db_buf[NAME_LEN + 1];
+	char			tbl_buf[NAME_LEN + 1];
+	char			part_buf[NAME_LEN + 1];
+	char			sub_buf[NAME_LEN + 1];
+	char			orig_tablespace[NAME_LEN + 1];
+	bool			is_part_tmp = false;
+
+	db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
+
+	dd_parse_tbl_name(
+		space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_part_tmp);
+
+	if (db_buf[0] == '\0') {
+		filename_to_tablename((char*) space_name, orig_tablespace,
+				      (NAME_LEN + 1));
+		tablespace_name->append(orig_tablespace);
+		return;
+	}
+
+	tablespace_name->append(db_buf);
+	tablespace_name->append("/");
+	tablespace_name->append(tbl_buf);
+
+	if (part_buf[0] != '\0') {
+		tablespace_name->append(part_sep);
+		tablespace_name->append(part_buf);
+	}
+
+	if (sub_buf[0] != '\0') {
+		tablespace_name->append(sub_sep);
+		tablespace_name->append(sub_buf);
+	}
+
+	if (is_part_tmp) {
+		ut_ad(part_buf[0] != '\0');
+		tablespace_name->append("#tmp");
+	}
+
+	/* Name should not exceed schema/table#P#partition#SP#subpartition. */
+	ut_ad(tablespace_name->size() < MAX_SPACE_NAME_LEN);
+}
+
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -2539,7 +2616,9 @@ create_dd_tablespace(
 /** Create metadata for implicit tablespace
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
-@param[in]	space		InnoDB tablespace ID
+@param[in]	space_id	InnoDB tablespace ID
+@param[in]	tablespace_name	tablespace name to be set for the
+				newly created tablespace
 @param[in]	filename	tablespace filename
 @param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd tablespace id
@@ -2549,20 +2628,20 @@ bool
 dd_create_implicit_tablespace(
 	dd::cache::Dictionary_client*	dd_client,
 	THD*				thd,
-	space_id_t			space,
+	space_id_t			space_id,
+	const char*			tablespace_name,
 	const char*			filename,
 	bool				discarded,
 	dd::Object_id&			dd_space_id)
 {
-	char	space_name[11 + sizeof reserved_implicit_name];
-
-	snprintf(space_name, sizeof space_name, "%s.%u",
-		 dict_sys_t::s_file_per_table_name, space);
-
-	ulint flags = fil_space_get_flags(space);
+	fil_space_t*	space = fil_space_get(space_id);
+	ulint flags = space->flags;
+	std::string	space_name;
+	dd_filename_to_spacename(tablespace_name,
+				 &space_name);
 
 	bool fail = create_dd_tablespace(
-		dd_client, thd, space_name, space,
+		dd_client, thd, space_name.c_str(), space_id,
 		flags, filename, discarded, dd_space_id);
 
 	return(fail);
@@ -2614,43 +2693,6 @@ dd_drop_tablespace(
 	return(error);
 }
 
-/** Check if a tablespace is implicit.
-@param[in]	dd_space	tablespace metadata
-@param[in]	space_id	InnoDB tablespace ID
-@retval true	if the tablespace is implicit (file per table or partition)
-@retval false	if the tablespace is shared (predefined or user-created) */
-bool
-dd_tablespace_is_implicit(const dd::Tablespace* dd_space, space_id_t space_id)
-{
-	const char*	name = dd_space->name().c_str();
-	const char*	suffix = &name[sizeof reserved_implicit_name];
-	char*		end;
-
-	ut_d(uint32 id);
-	ut_ad(!dd_space->se_private_data().get_uint32(
-		      dd_space_key_strings[DD_SPACE_ID], &id));
-	ut_ad(id == space_id);
-
-	/* TODO: NewDD: WL#10436  NewDD: Implicit tablespace name
-	should be same as table name.
-	Once the tablespace name is same with the table name,
-	this becomes invalid */
-	if (strncmp(name,
-		    dict_sys_t::s_file_per_table_name, suffix - name - 1)) {
-		/* Not starting with innodb_file_per_table. */
-		return(false);
-	}
-
-	if (suffix[-1] != '.' || suffix[0] == '\0'
-	    || strtoul(suffix, &end, 10) != space_id
-	    || *end != '\0') {
-		ut_ad(!"invalid implicit tablespace name");
-		return(false);
-	}
-
-	return(true);
-}
-
 /** Determine if a tablespace is implicit.
 @param[in,out]	client		data dictionary client
 @param[in]	dd_space_id	dd tablespace id
@@ -2665,7 +2707,8 @@ dd_tablespace_is_implicit(
 	bool*				implicit,
 	dd::Tablespace**		dd_space)
 {
-	uint32			id = 0;
+	space_id_t		id = 0;
+	uint32			flags;
 
 	const bool	fail
 		= client->acquire_uncached_uncommitted<dd::Tablespace>(
@@ -2675,7 +2718,9 @@ dd_tablespace_is_implicit(
 			dd_space_key_strings[DD_SPACE_ID], &id);
 
 	if (!fail) {
-		*implicit = dd_tablespace_is_implicit(*dd_space, id);
+		(*dd_space)->se_private_data().get_uint32(
+			dd_space_key_strings[DD_SPACE_FLAGS], &flags);
+		*implicit = fsp_is_file_per_table(id, flags);
 	}
 
 	return(fail);
@@ -2937,7 +2982,8 @@ dd_table_check_for_child(
 		char    name_buf2[MAX_TABLE_NAME_LEN + 1];
 
 		dd_parse_tbl_name(m_table->name.m_name,
-				  name_buf1, name_buf2, nullptr, nullptr);
+				  name_buf1, name_buf2,
+				  nullptr, nullptr, nullptr);
 
 		if (client->fetch_fk_children_uncached(
 			name_buf1, name_buf2, &child_schema, &child_name)) {
@@ -3129,7 +3175,8 @@ dd_get_first_path(
 		const dd::Table*	table_def = nullptr;
 
 		if (!dd_parse_tbl_name(
-			table->name.m_name, db_buf, tbl_buf, NULL, NULL)
+				table->name.m_name, db_buf,
+				tbl_buf, nullptr, nullptr, nullptr)
 		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 			return(filepath);
 		}
@@ -3287,12 +3334,14 @@ dd_load_tablespace(
 		return;
 	}
 
-	/* A file-per-table table name is also the tablespace name.
-	A general tablespace name is not the same as the table name.
+	/* A general tablespace name is not the same as the table name.
 	Use the general tablespace name if it can be read from the
 	dictionary, if not use 'innodb_general_##. */
-	char*	shared_space_name = nullptr;
-	char*	space_name;
+	char*		shared_space_name = nullptr;
+	const char*	space_name;
+	std::string	tablespace_name;
+	const char*	tbl_name;
+
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		if (table->space == dict_sys_t::s_space_id) {
 			shared_space_name = mem_strdup(
@@ -3316,10 +3365,13 @@ dd_load_tablespace(
 				general_space_name,
 				static_cast<ulint>(table->space));
 		}
+
 		space_name = shared_space_name;
-	}
-	else {
-		space_name = table->name.m_name;
+		tbl_name = space_name;
+	} else {
+		tbl_name = table->name.m_name;
+		dd_filename_to_spacename(tbl_name, &tablespace_name);
+		space_name = tablespace_name.c_str();
 	}
 
 	/* The tablespace may already be open. */
@@ -3375,7 +3427,7 @@ dd_load_tablespace(
 
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
-		fsp_flags, space_name, filepath, true);
+		fsp_flags, space_name, tbl_name, filepath, true);
 
 	if (err != DB_SUCCESS) {
 		/* We failed to find a sensible tablespace file */
@@ -3421,7 +3473,7 @@ dd_space_get_name(
 
 		if (!dd_parse_tbl_name(
 				table->name.m_name, db_buf,
-				tbl_buf, nullptr, nullptr)
+				tbl_buf, nullptr, nullptr, nullptr)
 		    || dd_mdl_acquire(thd, &mdl, db_buf, tbl_buf)) {
 			return(nullptr);
 		}
@@ -3734,7 +3786,7 @@ dd_open_table_one(
 		char db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char tbl_buf[MAX_TABLE_NAME_LEN + 1];
 		dd_parse_tbl_name(m_table->name.m_name, db_buf, tbl_buf,
-				  nullptr, nullptr);
+				  nullptr, nullptr, nullptr);
 		m_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
 	}
@@ -3784,7 +3836,8 @@ dd_open_table_one_on_name(
 		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
 		if (!dd_parse_tbl_name(
-			name, db_buf, tbl_buf, nullptr, nullptr)) {
+			name, db_buf, tbl_buf,
+			nullptr, nullptr, nullptr)) {
 			goto func_exit;
 		}
 
@@ -4749,7 +4802,7 @@ dd_get_fts_tablespace_id(
 	char	table_name[MAX_TABLE_NAME_LEN + 1];
 
 	dd_parse_tbl_name(parent_table->name.m_name, db_name,
-				table_name, nullptr, nullptr);
+			  table_name, nullptr, nullptr, nullptr);
 
 	THD*	thd = current_thd;
 	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
@@ -4766,8 +4819,9 @@ dd_get_fts_tablespace_id(
 			fil_space_get_first_path(table->space);
 
 		ret = dd_create_implicit_tablespace(
-			client, thd, table->space, filename,
-			false, dd_space_id);
+			client, thd, table->space,
+			table->name.m_name,
+			filename, false, dd_space_id);
 
 		ut_free(filename);
 		if (ret) {
@@ -4876,7 +4930,8 @@ dd_create_fts_index_table(
 	char	db_name[MAX_DATABASE_NAME_LEN + 1];
 	char	table_name[MAX_TABLE_NAME_LEN + 1];
 
-	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name,
+			  nullptr, nullptr, nullptr);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -5021,7 +5076,8 @@ dd_create_fts_common_table(
 	char	db_name[MAX_DATABASE_NAME_LEN + 1];
 	char	table_name[MAX_TABLE_NAME_LEN + 1];
 
-	dd_parse_tbl_name(table->name.m_name, db_name, table_name, NULL, NULL);
+	dd_parse_tbl_name(table->name.m_name, db_name, table_name,
+			  nullptr, nullptr, nullptr);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -5157,7 +5213,8 @@ dd_drop_fts_table(
 	char	db_name[MAX_DATABASE_NAME_LEN + 1];
 	char	table_name[MAX_TABLE_NAME_LEN + 1];
 
-	dd_parse_tbl_name(name, db_name, table_name, NULL, NULL);
+	dd_parse_tbl_name(name, db_name, table_name, nullptr, nullptr,
+			  nullptr);
 
 	/* Create dd::Table object */
 	THD*	thd = current_thd;
@@ -5212,9 +5269,9 @@ dd_rename_fts_table(
 	char*	new_name = table->name.m_name;
 
 	dd_parse_tbl_name(new_name, new_db_name, new_table_name,
-			  nullptr, nullptr);
+			  nullptr, nullptr, nullptr);
 	dd_parse_tbl_name(old_name, old_db_name, old_table_name,
-			  nullptr, nullptr);
+			  nullptr, nullptr, nullptr);
 
 	ut_ad(strcmp(new_db_name, old_db_name) != 0);
 	ut_ad(strcmp(new_table_name, old_table_name) == 0);
@@ -5255,8 +5312,9 @@ dd_rename_fts_table(
 	if (dict_table_is_file_per_table(table)) {
 		char* new_path = fil_space_get_first_path(table->space);
 
-		if (dd_tablespace_update_filename(
-			    table->dd_space_id, new_path)) {
+		if (dd_rename_tablespace(table->dd_space_id,
+					 table->name.m_name,
+					 new_path)) {
 			ut_a(false);
 		}
 

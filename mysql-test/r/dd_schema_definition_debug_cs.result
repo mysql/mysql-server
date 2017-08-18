@@ -100,7 +100,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 18	3	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
 19	3	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
 20	4	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-21	4	name	2	MYSQL_TYPE_VARCHAR	0	0	0	765	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
+21	4	name	2	MYSQL_TYPE_VARCHAR	0	0	0	777	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 22	4	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 23	4	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
 24	4	comment	5	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
@@ -447,7 +447,7 @@ index_id	ordinal_position	column_id	length	order	hidden
 8	2	26	NULL	ASC	1
 8	3	27	NULL	ASC	1
 9	2	20	NULL	ASC	1
-9	1	21	765	ASC	0
+9	1	21	777	ASC	0
 10	1	28	8	ASC	0
 10	2	29	4	ASC	0
 10	5	30	NULL	ASC	1

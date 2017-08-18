@@ -414,8 +414,23 @@ public:
       It is responsibility of caller to ensure that db and object names
       are not longer than NAME_LEN. Still we play safe and try to avoid
       buffer overruns.
+
+      Implicit tablespace names in InnoDB may be longer than NAME_LEN.
+      We will lock based on the first NAME_LEN characters.
+
+      TODO: The patch acquires metadata locks on the NAME_LEN
+	    first bytest of the tablespace names. For long names,
+	    the consequence of locking on this prefix is
+	    that locking a single implicit tablespace might end up
+	    effectively lock all implicit tablespaces in the same
+	    schema. A possible fix is to lock on a prefix of length
+	    NAME_LEN * 2, since this is the real buffer size of
+	    the metadata lock key. Dependecies from the PFS
+	    implementation, possibly relying on the key format,
+	    must be investigated first, though.
     */
-    DBUG_ASSERT(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN);
+    DBUG_ASSERT(strlen(db) <= NAME_LEN && (mdl_namespace == TABLESPACE ||
+					   strlen(name) <= NAME_LEN));
     m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
                                           m_ptr - 1);
     m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,

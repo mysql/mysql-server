@@ -3020,12 +3020,12 @@ ha_innopart::set_dd_discard_attribute(
 		dd::cache::Dictionary_client::Auto_releaser	releaser(client);
 
 		dd::Object_id   dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
+		std::string	space_name;
 
-		char    name[FN_REFLEN];
-		snprintf(name, sizeof name, "%s.%u", dict_sys_t::s_file_per_table_name,
-			 table->space);
+		dd_filename_to_spacename(table->name.m_name, &space_name);
 
-		if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+		if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(),
+							 false)) {
 			ut_a(false);
 		}
 

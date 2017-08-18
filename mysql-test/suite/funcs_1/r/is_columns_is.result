@@ -86,7 +86,7 @@ def	information_schema	EVENTS	DATABASE_COLLATION	24	NULL	NO	varchar	64	192	NULL	
 def	information_schema	FILES	FILE_ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(4)			select		
 def	information_schema	FILES	FILE_NAME	2		YES	varchar	1333	4000	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(4000)			select		
 def	information_schema	FILES	FILE_TYPE	3		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
-def	information_schema	FILES	TABLESPACE_NAME	4		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
+def	information_schema	FILES	TABLESPACE_NAME	4		YES	varchar	86	259	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(259)			select		
 def	information_schema	FILES	TABLE_CATALOG	5		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	FILES	TABLE_SCHEMA	6		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
 def	information_schema	FILES	TABLE_NAME	7		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -391,6 +391,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 3.0000	varchar	utf8	utf8_general_ci
 3.0008	varchar	utf8	utf8_general_ci
 3.0029	varchar	utf8	utf8_general_ci
+3.0116	varchar	utf8	utf8_general_ci
 3.0118	varchar	utf8	utf8_general_ci
 3.0476	varchar	utf8	utf8_general_ci
 3.0769	varchar	utf8	utf8_general_ci
@@ -511,7 +512,7 @@ NULL	information_schema	EVENTS	ORIGINATOR	int	NULL	NULL	NULL	NULL	int(10) unsign
 NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
 3.0008	information_schema	FILES	FILE_NAME	varchar	1333	4000	utf8	utf8_general_ci	varchar(4000)
 3.3333	information_schema	FILES	FILE_TYPE	varchar	6	20	utf8	utf8_general_ci	varchar(20)
-3.0476	information_schema	FILES	TABLESPACE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
+3.0116	information_schema	FILES	TABLESPACE_NAME	varchar	86	259	utf8	utf8_general_ci	varchar(259)
 3.0476	information_schema	FILES	TABLE_CATALOG	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	FILES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	FILES	TABLE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)

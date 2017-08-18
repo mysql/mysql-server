@@ -940,6 +940,7 @@ The fil_node_t::handle will not be left open.
 @param[in]	flags		tablespace flags
 @param[in]	space_name	tablespace name of the datafile
 If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	table_name	table name in case need to build filename from it
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @return DB_SUCCESS or error code */
@@ -950,6 +951,7 @@ fil_ibd_open(
 	space_id_t	id,
 	ulint		flags,
 	const char*	space_name,
+	const char*	table_name,
 	const char*	path_in,
 	bool		strict)
 	MY_ATTRIBUTE((warn_unused_result));

@@ -71,6 +71,8 @@ extern const char*	sub_sep;
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
+@param[in,out]	is_temp_part	true if it is a temporary partition name which
+				ends with "#tmp".
 @return true if table name is parsed properly, false if the table name
 is invalid */
 inline
@@ -80,7 +82,8 @@ dd_parse_tbl_name(
 	char*		dd_db_name,
 	char*		dd_tbl_name,
 	char*		dd_part_name,
-	char*		dd_sub_name)
+	char*		dd_sub_name,
+	bool*		is_temp_part)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
@@ -132,7 +135,12 @@ dd_parse_tbl_name(
 	}
 
 	if (trailing_sharp != nullptr) {
+		ut_ad(strcmp(trailing_sharp, "#tmp") == 0);
 		*trailing_sharp = '\0';
+
+		if (is_temp_part != nullptr) {
+			*is_temp_part = true;
+		}
 	}
 
 	if (is_part && dd_part_name) {

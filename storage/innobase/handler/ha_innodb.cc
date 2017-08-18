@@ -3372,48 +3372,6 @@ innobase_dict_init(
 	List<const Plugin_table>*	tables,
 	List<const Plugin_tablespace>*	tablespaces);
 
-/** Get space name from a file name string
-@param[in,out]	filename	The file name to parse, in the format of
-				path/schema/table.ibd. the content would
-				be changed in this function
-@return	space name or nullptr if the filename is incomplete */
-static
-inline
-const char*
-filename_to_space_name(char* filename)
-{
-	ut_ad(strlen(filename) >= strlen("./a/b.ibd"));
-
-	const char*	space_name;
-	char*		mark;
-
-	/* Find seperator for schema name and table name */
-	mark = strrchr(filename, OS_PATH_SEPARATOR);
-	if (mark == nullptr) {
-		return(nullptr);
-	}
-
-	/* Find seperator for path and schema name */
-	*mark = '\0';
-	space_name = strrchr(filename, OS_PATH_SEPARATOR);
-	if (space_name == nullptr) {
-		return(nullptr);
-	}
-
-	++space_name;
-
-	/* Make it schema/table and skip final .ibd */
-	*mark = '/';
-	mark = strrchr(filename, '.');
-	if (mark == nullptr) {
-		return(nullptr);
-	}
-
-	*mark = '\0';
-
-	return(space_name);
-}
-
 /** Discover all InnoDB tablespaces.
 @param[in,out]	thd	thread handle
 @retval	true	on error
@@ -3493,17 +3451,6 @@ boot_tablespaces(THD* thd)
 		ut_ad(strlen(filename) < sizeof(buf));
 		strncpy(buf, filename, strlen(filename) + 1);
 
-		/* Currently, innodb_file_per_table space name is not the one
-		including schema/table, so get it from filename instead */
-		if (strncmp(t->name().c_str(), dict_sys_t::s_file_per_table_name,
-			    strlen(dict_sys_t::s_file_per_table_name)) == 0) {
-			space_name = filename_to_space_name(buf);
-			if (space_name == nullptr) {
-				fail = true;
-				break;
-			}
-		}
-
 		if (fsp_is_system_or_temp_tablespace(id)
 		    || fsp_is_undo_tablespace(id)
 		    || fil_space_for_table_exists_in_mem(
@@ -3511,9 +3458,11 @@ boot_tablespaces(THD* thd)
 			continue;
 		}
 
+		/* It's safe to pass space_name in tablename charset because
+		filename is already in filename charset. */
 		dberr_t	err = fil_ibd_open(
 			validate, purpose, id, flags, space_name,
-			filename, false);
+			nullptr, filename, false);
 		switch (err) {
 		case DB_SUCCESS:
 		case DB_CANNOT_OPEN_FILE:
@@ -3634,7 +3583,7 @@ innobase_dict_cache_reset_tables_and_tablespaces()
 		dict_table_t*	next_table = UT_LIST_GET_NEXT(table_LRU, table);
 
 		dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf,
-				  nullptr, nullptr);
+				  nullptr, nullptr, nullptr);
 
 		/* TODO: Remove follow if we have better way to identify
 		DD "system table" */
@@ -4762,6 +4711,7 @@ dd_open_hardcoded(space_id_t space_id, const char* filename)
 		fil_space_release(space);
 	} else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id,
 				mysql_flags, dict_sys_t::s_dd_space_name,
+				dict_sys_t::s_dd_space_name,
 				filename, true)
 		   == DB_SUCCESS) {
 		/* Set fil_space_t::size, which is 0 initially. */
@@ -6774,7 +6724,8 @@ reload:
 		char	db_buf[NAME_LEN + 1];
 		char	tbl_buf[NAME_LEN + 1];
 		dd_parse_tbl_name(
-			ib_table->name.m_name, db_buf, tbl_buf, NULL, NULL);
+			ib_table->name.m_name, db_buf, tbl_buf,
+			nullptr, nullptr, nullptr);
 		ib_table->is_dd_table = dd::get_dictionary()->is_dd_table_name(
 			db_buf, tbl_buf);
 	}
@@ -13095,8 +13046,9 @@ create_table_info_t::create_table_update_global_dd(
 		char* filename = fil_space_get_first_path(table->space);
 
 		if (dd_create_implicit_tablespace(
-			client, m_thd, table->space, filename,
-			false, dd_space_id)) {
+			client, m_thd, table->space,
+			table->name.m_name,
+			filename, false, dd_space_id)) {
 
 			ut_free(filename);
 			dict_table_close(table, FALSE, FALSE);
@@ -13522,15 +13474,14 @@ innobase_basic_ddl::rename_impl(
 	if (error == DB_SUCCESS && rename_file) {
 		char* new_path = fil_space_get_first_path(space);
 
+		dd::Object_id	dd_space_id =
+			dd_first_index(to_table)->tablespace_id();
+
+		if (dd_rename_tablespace(dd_space_id, norm_to, new_path)) {
+			error = DB_ERROR;
+		}
+
 		if (new_path != nullptr) {
-			dd::Object_id	dd_space_id =
-				dd_first_index(to_table)->tablespace_id();
-
-			if (dd_tablespace_update_filename(
-				dd_space_id, new_path)) {
-				error = DB_ERROR;
-			}
-
 			ut_free(new_path);
 		}
 	}

@@ -1446,6 +1446,7 @@ dict_check_sys_tablespaces(
 			space_id,
 			fsp_flags,
 			space_name,
+			space_name,
 			filepath,
 			true);
 
@@ -1593,6 +1594,8 @@ dict_check_sys_tables(
 		ulint		n_cols;
 		ulint		flags;
 		ulint		flags2;
+		std::string	tablespace_name;
+		const char*	tbl_name;
 
 		/* If a table record is not useable, ignore it and continue
 		on to the next record. Error messages were logged. */
@@ -1644,11 +1647,17 @@ dict_check_sys_tables(
 		discovered in the default location.*/
 		char*	space_name_from_dict = dict_space_get_name(space_id, NULL);
 		if (space_id == dict_sys_t::s_space_id) {
-			space_name = dict_sys_t::s_dd_space_name;
+			tbl_name = space_name = dict_sys_t::s_dd_space_name;
 		} else if (space_name_from_dict != NULL) {
-			space_name = space_name_from_dict;
+			tbl_name = space_name_from_dict;
+			dd_filename_to_spacename(tbl_name,
+						 &tablespace_name);
+			space_name = tablespace_name.c_str();
 		} else {
-			space_name = table_name.m_name;
+			tbl_name = table_name.m_name;
+			dd_filename_to_spacename(tbl_name,
+						 &tablespace_name);
+			space_name = tablespace_name.c_str();
 		}
 
 		/* Now that we have the proper name for this tablespace,
@@ -1682,6 +1691,7 @@ dict_check_sys_tables(
 			space_id,
 			fsp_flags,
 			space_name,
+			tbl_name,
 			filepath,
 			true);
 
@@ -2401,8 +2411,11 @@ dict_load_tablespace(
 	A general tablespace name is not the same as the table name.
 	Use the general tablespace name if it can be read from the
 	dictionary, if not use 'innodb_general_##. */
-	char*	shared_space_name = NULL;
-	char*	space_name;
+	char*		shared_space_name = NULL;
+	const char*	space_name;
+	std::string	tablespace_name;
+	const char*	tbl_name;
+
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
 		if (table->space == dict_sys_t::s_space_id) {
 			shared_space_name = mem_strdup(
@@ -2422,8 +2435,12 @@ dict_load_tablespace(
 				static_cast<ulint>(table->space));
 		}
 		space_name = shared_space_name;
+		tbl_name = shared_space_name;
 	} else {
-		space_name = table->name.m_name;
+		tbl_name = table->name.m_name;
+		dd_filename_to_spacename(tbl_name,
+					 &tablespace_name);
+		space_name = tablespace_name.c_str();
 	}
 
 	/* The tablespace may already be open. */
@@ -2479,7 +2496,7 @@ dict_load_tablespace(
 
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
-		fsp_flags, space_name, filepath, true);
+		fsp_flags, space_name, tbl_name, filepath, true);
 
 	if (err != DB_SUCCESS) {
 		/* We failed to find a sensible tablespace file */

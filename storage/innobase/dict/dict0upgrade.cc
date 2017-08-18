@@ -38,17 +38,6 @@ in-memory counter for upgrade */
 uint	dd_upgrade_indexes_num = 1;
 uint	dd_upgrade_tables_num = 1;
 
-/** Initialize an implicit tablespace name.
-@param[in]	space		internal space id */
-static std::string dd_upgrade_get_implicit(space_id_t space) {
-  ut_ad(space != SPACE_UNKNOWN);
-
-  std::ostringstream	tablespace_name;
-  tablespace_name << dict_sys_t::s_file_per_table_name << "." << space;
-
-  return(tablespace_name.str());
-}
-
 /** Fill foreign key information from InnoDB table to
 server table
 @param[in]	ib_table	InnoDB table object
@@ -109,7 +98,7 @@ static void dd_upgrade_table_fk(dict_table_t* ib_table, dd::Table* dd_table) {
     char tbl_buf[MAX_FULL_NAME_LEN + 1];
 
     dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf,
-		      nullptr, nullptr);
+		      nullptr, nullptr, nullptr);
 
     fk_obj->referenced_table_schema_name(db_buf);
     fk_obj->referenced_table_name(tbl_buf);
@@ -169,10 +158,9 @@ static dd::Tablespace* dd_upgrade_get_tablespace(THD* thd,
   ut_ad(ib_table->space != SYSTEM_TABLE_SPACE);
 
   if (dict_table_is_file_per_table(ib_table)) {
-    std::ostringstream	tablespace_name;
-    tablespace_name << dict_sys_t::s_file_per_table_name
-                    << "." << ib_table->space;
-    strncpy(name, tablespace_name.str().c_str(), MAX_FULL_NAME_LEN);
+    std::string tablespace_name;
+    dd_filename_to_spacename(ib_table->name.m_name, &tablespace_name);
+    strncpy(name, tablespace_name.c_str(), MAX_FULL_NAME_LEN);
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
     ut_ad(ib_table->tablespace != NULL);
@@ -1043,6 +1031,7 @@ int dd_upgrade_tablespace(THD* thd) {
     space_id_t space;
     const char* name;
     ulint flags;
+    std::string new_tablespace_name;
 
     /* Extract necessary information from a SYS_TABLESPACES row */
     err_msg = dict_process_sys_tablespaces(heap, rec, &space, &name, &flags);
@@ -1069,8 +1058,14 @@ int dd_upgrade_tablespace(THD* thd) {
 
       std::string file_per_name;
       if (is_file_per_table) {
-	file_per_name = dd_upgrade_get_implicit(space);
-        upgrade_space.name = file_per_name.c_str();
+	std::string orig_tablespace_name(tablespace_name);
+        if ((tablespace_name.compare("mysql/innodb_table_stats") == 0) ||
+          (tablespace_name.find("mysql/innodb_index_stats") == 0)) {
+	    orig_tablespace_name.append("_backup57");
+	}
+	dd_filename_to_spacename(orig_tablespace_name.c_str(),
+				 &new_tablespace_name);
+        upgrade_space.name = new_tablespace_name.c_str();
       } else {
         upgrade_space.name = name;
       }
@@ -1126,7 +1121,7 @@ int dd_upgrade_tablespace(THD* thd) {
     if (tablespace_name.find("FTS") != std::string::npos) {
       continue;
     }
-
+    std::string new_tablespace_name;
     std::unique_ptr<dd::Tablespace> dd_space(
         dd::create_object<dd::Tablespace>());
 
@@ -1134,10 +1129,9 @@ int dd_upgrade_tablespace(THD* thd) {
     upgrade_space.id = space->id;
     upgrade_space.flags = space->flags;
     dd_space->set_engine(innobase_hton_name);
-
-    std::string name;
-    name = dd_upgrade_get_implicit(space->id);
-    upgrade_space.name = name.c_str();
+    dd_filename_to_spacename(tablespace_name.c_str(),
+			     &new_tablespace_name);
+    upgrade_space.name = new_tablespace_name.c_str();
 
     Datafile df;
 

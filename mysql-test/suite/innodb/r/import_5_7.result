@@ -309,7 +309,7 @@ a	b	c	d
                         "column_opx": 3
                     }
                 ],
-                "tablespace_ref": "innodb_file_per_table.X"
+                "tablespace_ref": "test/t1"
             }
         ],
         "foreign_keys": [],
@@ -329,7 +329,7 @@ a	b	c	d
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "innodb_file_per_table.X",
+        "name": "test/t1",
         "comment": "",
         "options": "",
         "se_private_data": "flags=X;id=Y;",

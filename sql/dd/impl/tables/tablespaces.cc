@@ -41,9 +41,11 @@ Tablespaces::Tablespaces()
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
+  // We allow name lengths up to 259 bytes, which may be needed for InnoDB
+  // implicit tablespaces (schema + table + partition + subpartition).
   m_target_def.add_field(FIELD_NAME,
                          "FIELD_NAME",
-                         "name VARCHAR(255) NOT NULL COLLATE utf8_bin");
+                         "name VARCHAR(259) NOT NULL COLLATE utf8_bin");
   m_target_def.add_field(FIELD_OPTIONS,
                          "FIELD_OPTIONS",
                          "options MEDIUMTEXT");
