@@ -4719,11 +4719,12 @@ Fil_shard::space_rename(
 		if (write_ddl_log && log_ddl != nullptr) {
 
 			/* Write ddl log when space->stop_ios is true can
-			cause deadlock: a. buffer flush thread waits for
-			rename thread to set stop_ios to false; b. rename
-			thread waits for buffer flush thread to flush a
-			page and release page lock. The page is ready for
-			flush in double write buffer. */
+			cause deadlock:
+			a. buffer flush thread waits for rename thread to set
+		   	stop_ios to false;
+			b. rename thread waits for buffer flush thread to flush
+		   	a page and release page lock. The page is ready for
+		   	flush in double write buffer. */
 
 			ut_ad(!space->stop_ios);
 
@@ -4855,6 +4856,11 @@ Fil_shard::space_rename(
 
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 			skip_rename: success = false; );
+
+	ut_ad(file->name == old_file_name);
+
+	DBUG_INJECT_CRASH("ddl_crash_after_rename_tablespace",
+			  crash_injection_rename_tablespace_counter++);
 
 	ut_ad(file->name == old_file_name);
 

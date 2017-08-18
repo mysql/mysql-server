@@ -7582,7 +7582,8 @@ i_s_innodb_tablespaces_fill_table(
 		char*		name;
 		uint		flags;
 
-		/* Extract necessary information from a INNODB_TABLESPACES row */
+		/* Extract necessary information from a INNODB_TABLESPACES
+		row */
 		ret = dd_process_dd_tablespaces_rec(
 			heap, rec, &space, &name, &flags, dd_spaces);
 
@@ -7812,8 +7813,7 @@ i_s_files_table_fill(
 				break;
 			}
 
-			if (STORE_STRNG(
-				IS_FILES_TABLESPACE_NAME, space_name)) {
+			if (STORE_STRNG(IS_FILES_TABLESPACE_NAME, space_name)) {
 
 				break;
 			}

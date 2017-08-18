@@ -156,7 +156,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
 
 /** fil_space_t::flags for hard-coded tablespaces */
-ulint	predefined_flags;
+ulint		predefined_flags;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
@@ -3361,17 +3361,20 @@ public:
 	/** Validate the tablespaces against the DD.
 	@param[in]	tablespaces	Tablespace files read from the DD
 	@return DB_SUCCESS if all OK */
-	dberr_t validate(const Tablespaces& tablespaces);
+	dberr_t validate(const Tablespaces& tablespaces, size_t* moved_count)
+		MY_ATTRIBUTE((warn_unused_result));
 
 private:
 	/** Validate the tablespace filenames.
 	@param[in]	begin		Start of the slice
 	@param[in]	end		End of the slice
-	@param[in]	thread_id	Thread ID */
+	@param[in]	thread_id	Thread ID
+	@param[in]	moved_count	Number of files that were moved */
 	void check(
 		const Const_iter&	begin,
 		const Const_iter&	end,
-		size_t			thread_id);
+		size_t			thread_id,
+		size_t*			moved_count);
 
 	/** @return true if there were failures. */
 	bool failed() const
@@ -3411,19 +3414,20 @@ private:
 /** Validate the tablespace filenames.
 @param[in]	begin		Start of the slice
 @param[in]	end		End of the slice
-@param[in]	thread_id	Thread ID */
+@param[in]	thread_id	Thread ID
+@param[in]	moved_count	Number of files that were moved */
 void
 Validate_files::check(
 	const Const_iter&	begin,
 	const Const_iter&	end,
-	size_t			thread_id)
+	size_t			thread_id,
+	size_t*			moved_count)
 {
 	const auto	fpt_str = dict_sys_t::s_file_per_table_name;
 	const auto	sys_space_name = dict_sys_t::s_sys_space_name;
 	const auto	fpt_str_len = strlen(fpt_str);
 
 	size_t		count = 0;
-	size_t		moved = 0;
 	bool		print_msg = false;
 	auto		start_time = ut_time();
 	auto		heap = mem_heap_create(FN_REFLEN * 2 + 1);
@@ -3453,8 +3457,8 @@ Validate_files::check(
 				<< "Checked " << count << "/" << (end - begin)
 				<< " tablespaces";
 
-			if (moved > 0) {
-				msg << ", moved count " << moved;
+			if (*moved_count > 0) {
+				msg << ", moved count " << moved_count;
 			}
 
 			ib::info() << msg.str();
@@ -3564,9 +3568,10 @@ Validate_files::check(
 
 			case Fil_state::MOVED:
 
-				++moved;
+				++*moved_count;
 
-				if (moved > MOVED_FILES_PRINT_THRESHOLD) {
+				if (*moved_count
+				    > MOVED_FILES_PRINT_THRESHOLD) {
 
 					filename = new_path.c_str();
 
@@ -3585,7 +3590,8 @@ Validate_files::check(
 
 				filename = new_path.c_str();
 
-				if (moved == MOVED_FILES_PRINT_THRESHOLD) {
+				if (*moved_count
+				    == MOVED_FILES_PRINT_THRESHOLD) {
 
 					ib::info()
 						<< prefix
@@ -3662,7 +3668,7 @@ Validate_files::check(
 @param[in]	tablespaces	Tablespace files read from the DD
 @return DB_SUCCESS if all OK */
 dberr_t
-Validate_files::validate(const Tablespaces& tablespaces)
+Validate_files::validate(const Tablespaces& tablespaces, size_t* moved_count)
 {
 	m_n_threads = tablespaces.size() / 50000;
 
@@ -3673,14 +3679,16 @@ Validate_files::validate(const Tablespaces& tablespaces)
 	using std::placeholders::_1;
 	using std::placeholders::_2;
 	using std::placeholders::_3;
+	using std::placeholders::_4;
 
 	std::function<void(
 		const Validate_files::Const_iter&,
 		const Validate_files::Const_iter&,
-		size_t)> check = std::bind(
-			&Validate_files::check, this, _1, _2, _3);
+		size_t, size_t*)> check = std::bind(
+			&Validate_files::check, this, _1, _2, _3, _4);
 
-	par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check);
+	par_for(PFS_NOT_INSTRUMENTED,
+		tablespaces, m_n_threads, check, moved_count);
 
 	ib::info() << "Validated " << checked();
 
@@ -3694,12 +3702,13 @@ Validate_files::validate(const Tablespaces& tablespaces)
 }
 
 /** Discover all InnoDB tablespaces.
-@param[in,out]	thd	thread handle
+@param[in,out]	thd		thread handle
+@param[out]	moved_count	Number of files that have been moved
 @retval	true	on error
 @retval	false	on success */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
-boot_tablespaces(THD* thd)
+boot_tablespaces(THD* thd, size_t* moved_count)
 {
 	auto	dc = dd::get_dd_client(thd);
 
@@ -3736,7 +3745,7 @@ boot_tablespaces(THD* thd)
 
 	Validate_files	validator;
 
-	return(validator.validate(tablespaces) != DB_SUCCESS);
+	return(validator.validate(tablespaces, moved_count) != DB_SUCCESS);
 }
 
 /** Create metadata for a predefined tablespace at server initialization.
@@ -3876,6 +3885,7 @@ innobase_dict_recover(
 	uint				version)
 {
 	dberr_t		err;
+	size_t		moved_count = 0;
 	THD*		thd = current_thd;
 
 	switch (dict_recovery_mode) {
@@ -3924,7 +3934,7 @@ innobase_dict_recover(
 		break;
 	}
 	case DICT_RECOVERY_RESTART_SERVER:
-		if (boot_tablespaces(thd)) {
+		if (boot_tablespaces(thd, &moved_count)) {
 			return(true);
 		}
 
@@ -3953,7 +3963,7 @@ innobase_dict_recover(
 
 	auto	start_time = ut_time();
 
-	while (trx_rollback_or_clean_is_active) {
+	while (trx_rollback_or_clean_is_active && moved_count > 0) {
 
 		if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
 
@@ -13711,6 +13721,8 @@ innobase_basic_ddl::rename_impl(
 	}
 
 	ut_ad(error != DB_DUPLICATE_KEY);
+
+	ib::info() << "error: " << error;
 
 	return(convert_error_code_to_mysql(error, 0, NULL));
 }

@@ -15,6 +15,3 @@ innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too o
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
 innodb.skip_locked_nowait  : Bug#25886814 2017-04-13 Allen Failing sporadically on PB2
-innodb.table_compress      : Bug#22916982 2017-05-04 Satya To be fixed by new fix for Bug#22916982
-innodb.table_encrypt_debug: Bug#22916982  2017-06-07 Erlend To be fixed by WL#9538
-innodb.sys_tablestats	  : WL#9535, 2017-06-16 Satya

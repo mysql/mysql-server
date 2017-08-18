@@ -7738,20 +7738,17 @@ ha_innobase::commit_inplace_alter_table_impl(
 
 	if (!fail && new_clustered) {
 		for (inplace_alter_handler_ctx** pctx = ctx_array;
-		     *pctx;
-		     pctx++) {
-
+		     *pctx; pctx++) {
 			ha_innobase_inplace_ctx*	ctx
 				= static_cast<ha_innobase_inplace_ctx*>(*pctx);
 
 			DBUG_ASSERT(ctx->need_rebuild());
-
-                        /* Check for any possible problems for any
+			/* Check for any possible problems for any
 			file operations that will be performed in
 			commit_cache_rebuild(). */
-			error = fil_rename_precheck(
-				ctx->old_table, ctx->new_table, ctx->tmp_name);
-
+			error = fil_rename_precheck(ctx->old_table,
+						    ctx->new_table,
+						    ctx->tmp_name);
 			if (error != DB_SUCCESS) {
 				/* Out of memory or a problem will occur
 				when renaming files. */
@@ -7760,7 +7757,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 					error, ctx->old_table->name.m_name,
 					ctx->old_table->flags);
 			}
-
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -7771,7 +7767,6 @@ ha_innobase::commit_inplace_alter_table_impl(
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-
 		ut_ad(!trx->fts_trx);
 
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",

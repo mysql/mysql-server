@@ -3407,22 +3407,22 @@ dd_space_get_name(
 	dict_table_t*	table,
 	Table*		dd_table)
 {
-	char*		space_name = nullptr;
-	dd::Tablespace*	dd_space = nullptr;
-	THD*		thd = current_thd;
-	MDL_ticket*     mdl = nullptr;
 	dd::Object_id   dd_space_id;
+	THD*		thd = current_thd;
+	dd::Tablespace*	dd_space = nullptr;
 
 	ut_ad(!srv_is_being_shutdown);
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
-	dd::cache::Dictionary_client*	client = dd::get_dd_client(thd);
-	dd::cache::Dictionary_client::Auto_releaser	releaser(client);
+	dd::cache::Dictionary_client*   client = dd::get_dd_client(thd);
+	dd::cache::Dictionary_client::Auto_releaser     releaser(client);
 
 	if (dd_table == nullptr) {
 		char		db_buf[MAX_DATABASE_NAME_LEN + 1];
 		char		tbl_buf[MAX_TABLE_NAME_LEN + 1];
 		const dd::Table*	table_def = nullptr;
+
+		MDL_ticket*     mdl = nullptr;
 
 		if (!dd_parse_tbl_name(
 				table->name.m_name, db_buf,
@@ -3432,7 +3432,8 @@ dd_space_get_name(
 		}
 
 		if (client->acquire(db_buf, tbl_buf, &table_def)
-			|| table_def == nullptr) {
+		    || table_def == nullptr) {
+
 			dd_mdl_release(thd, &mdl);
 			return(nullptr);
 		}
@@ -3451,9 +3452,7 @@ dd_space_get_name(
 
 	ut_a(dd_space != nullptr);
 
-	space_name = mem_heap_strdup(heap, dd_space->name().c_str());
-
-	return(space_name);
+	return(mem_heap_strdup(heap, dd_space->name().c_str()));
 }
 
 /** Make sure the tablespace name is saved in dict_table_t if the table

@@ -6728,9 +6728,9 @@ fts_valid_stopword_table(
 
 		return(NULL);
 	} else {
-		dd_table_close(table, thd, &mdl, false);
-
 		const char*     col_name;
+
+		dd_table_close(table, thd, &mdl, false);
 
 		col_name = table->get_col_name(0);
 
