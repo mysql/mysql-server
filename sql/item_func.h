@@ -2585,8 +2585,9 @@ public:
 class Item_func_internal_tablespace_id : public Item_int_func
 {
 public:
-  Item_func_internal_tablespace_id(const POS &pos, Item *a, Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+  Item_func_internal_tablespace_id(const POS &pos, Item *a, Item *b,
+                                   Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
   longlong val_int() override;
   const char *func_name() const override { return "internal_tablespace_id"; }
@@ -2603,8 +2604,8 @@ class Item_func_internal_tablespace_free_extents : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_free_extents(const POS &pos, Item *a,
-                                             Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2625,8 +2626,8 @@ class Item_func_internal_tablespace_total_extents : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_total_extents(const POS &pos, Item *a,
-                                             Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2647,8 +2648,8 @@ class Item_func_internal_tablespace_extent_size : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_extent_size(const POS &pos, Item *a,
-                                            Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                            Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2669,8 +2670,8 @@ class Item_func_internal_tablespace_initial_size : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_initial_size(const POS &pos, Item *a,
-                                             Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2691,8 +2692,8 @@ class Item_func_internal_tablespace_maximum_size : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_maximum_size(const POS &pos, Item *a,
-                                             Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                             Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2713,8 +2714,8 @@ class Item_func_internal_tablespace_autoextend_size : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_autoextend_size(const POS &pos, Item *a,
-                                                Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                                Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;
@@ -2735,8 +2736,8 @@ class Item_func_internal_tablespace_data_free : public Item_int_func
 {
 public:
   Item_func_internal_tablespace_data_free(const POS &pos, Item *a,
-                                                Item *b, Item *c)
-    :Item_int_func(pos, a, b, c)
+                                                Item *b, Item *c, Item *d)
+    :Item_int_func(pos, a, b, c, d)
   {}
 
   longlong val_int() override;

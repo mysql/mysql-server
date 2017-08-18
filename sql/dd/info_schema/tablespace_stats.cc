@@ -212,6 +212,7 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
 bool Tablespace_statistics::read_stat(
        THD *thd,
        const String &tablespace_name_ptr,
+       const String &file_name_ptr,
        const char* ts_se_private_data)
 {
   DBUG_ENTER("Tablespace_statistics::read_stat");
@@ -231,7 +232,8 @@ bool Tablespace_statistics::read_stat(
   // Don't copy existing conditions from the old DA so we don't get them twice
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
-  error= read_stat_from_SE(thd, tablespace_name_ptr, ts_se_private_data);
+  error= read_stat_from_SE(thd, tablespace_name_ptr, file_name_ptr,
+                           ts_se_private_data);
   thd->pop_diagnostics_area();
 
   // Pass an error if any.
@@ -262,19 +264,20 @@ bool Tablespace_statistics::read_stat(
 bool Tablespace_statistics::read_stat_from_SE(
        THD *thd,
        const String &tablespace_name_ptr,
+       const String &file_name_ptr,
        const char* ts_se_private_data)
 {
   DBUG_ENTER("Tablespace_statistics::read_stat_from_SE");
 
   // Stop we have see and error already for this table.
-  if (check_error_for_key(tablespace_name_ptr))
+  if (check_error_for_key(tablespace_name_ptr, file_name_ptr))
     DBUG_RETURN(true);
 
   //
   // Get statistics from cache, if available
   //
 
-  if (is_stat_cached(tablespace_name_ptr))
+  if (is_stat_cached(tablespace_name_ptr, file_name_ptr))
     DBUG_RETURN(false);
 
   //
@@ -322,6 +325,7 @@ bool Tablespace_statistics::read_stat_from_SE(
 
     DBUG_ASSERT(hton->get_tablespace_statistics);
     error= hton->get_tablespace_statistics(tablespace_name_ptr.ptr(),
+                                           file_name_ptr.ptr(),
                                            *ts_se_private_data_obj.get(),
                                            &ha_tablespace_stat);
 
@@ -330,7 +334,7 @@ bool Tablespace_statistics::read_stat_from_SE(
   }
 
   // Cache statistics.
-  cache_stats(tablespace_name_ptr, ha_tablespace_stat);
+  cache_stats(tablespace_name_ptr, file_name_ptr, ha_tablespace_stat);
 
   if (thd->is_error())
   {

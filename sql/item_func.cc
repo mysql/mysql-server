@@ -9885,12 +9885,15 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
   // Reads arguments
   String tablespace_name;
   String *tablespace_name_ptr=args[0]->val_str(&tablespace_name);
+  String file_name;
+  String *file_name_ptr=args[1]->val_str(&file_name);
   String engine_name;
-  String *engine_name_ptr=args[1]->val_str(&engine_name);
+  String *engine_name_ptr=args[2]->val_str(&engine_name);
   String ts_se_private_data;
-  String *ts_se_private_data_ptr= args[2]->val_str(&ts_se_private_data);
+  String *ts_se_private_data_ptr= args[3]->val_str(&ts_se_private_data);
 
   if (tablespace_name_ptr == nullptr ||
+      file_name_ptr == nullptr ||
       my_strcasecmp(system_charset_info,
                     engine_name_ptr->c_ptr_safe(),
                     "InnoDB"))
@@ -9901,10 +9904,12 @@ void retrieve_tablespace_statistics(THD *thd, Item** args, bool *null_value)
 
   // Make sure we have safe string to access.
   tablespace_name_ptr->c_ptr_safe();
+  file_name_ptr->c_ptr_safe();
 
   // Read the statistic value from cache.
   if (thd->lex->m_IS_tablespace_stats.read_stat(thd,
                 *tablespace_name_ptr,
+                *file_name_ptr,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr)))
     *null_value= TRUE;

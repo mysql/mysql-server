@@ -1277,6 +1277,7 @@ innobase_get_index_column_cardinality(
 static
 bool
 innobase_get_tablespace_statistics(const char *tablespace_name,
+                                   const char *file_name,
                                    const dd::Properties &ts_se_private_data,
                                    ha_tablespace_statistics *stats);
 
@@ -16153,6 +16154,7 @@ innobase_get_index_column_cardinality(
 static
 bool
 innobase_get_tablespace_statistics(const char *tablespace_name,
+                                   const char *file_name,
                                    const dd::Properties &ts_se_private_data,
                                    ha_tablespace_statistics *stats)
 {
@@ -16216,10 +16218,49 @@ innobase_get_tablespace_statistics(const char *tablespace_name,
 
         /** Store initial size */
 
-        /** The following code must change when InnoDB supports
-        multiple datafiles per tablespace. */
-        ut_a(1 == UT_LIST_GET_LEN(space->chain));
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+        /** Pick correct file_node_t as per the file name */
+	fil_node_t*	node = nullptr;
+        if (UT_LIST_GET_LEN(space->chain) == 1)
+        {
+		node = UT_LIST_GET_FIRST(space->chain);
+        }
+        else /** In case a single tablespace has multiple data files */
+        {
+		char tmp_file_name[OS_FILE_MAX_PATH];
+		strcpy(tmp_file_name, file_name);
+		os_normalize_path(tmp_file_name);
+
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != nullptr;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+
+			/** Skip ./ .// .\\ path.
+                          Fix for Bug#26518545 might change below code.
+                          Mainly because the difference in DD not
+                          containing './' and node->name here containing
+                          './' might change after the fix.
+                        */
+			const char *file_name_ptr1= node->name;
+			const char *file_name_ptr2= tmp_file_name;
+			if (*file_name_ptr1 == '.') {
+				file_name_ptr1++;
+				while (*file_name_ptr1 == '/' ||
+				       *file_name_ptr1 == '\\')
+				     file_name_ptr1++;
+			}
+			if (*file_name_ptr2 == '.') {
+				file_name_ptr2++;
+				while (*file_name_ptr2 == '/' ||
+				       *file_name_ptr2 == '\\')
+				     file_name_ptr2++;
+			}
+
+			/** Compare the file name */
+			if (!strcmp(file_name_ptr1, file_name_ptr2))
+				break;
+		}
+	 }
+        ut_a(node);
         stats->m_initial_size= node->init_size * page_size.physical();
 
         /** Store maximum size */

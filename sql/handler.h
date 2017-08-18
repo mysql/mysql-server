@@ -1788,6 +1788,7 @@ typedef bool (*get_index_column_cardinality_t)(const char *db_name,
 */
 typedef bool (*get_tablespace_statistics_t)(
                 const char *tablespace_name,
+                const char *file_name,
                 const dd::Properties &ts_se_private_data,
                 ha_tablespace_statistics *stats);
 

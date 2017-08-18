@@ -1474,8 +1474,9 @@ public:
 class Item_func_internal_tablespace_type : public Item_str_func
 {
 public:
-  Item_func_internal_tablespace_type(const POS &pos, Item *a, Item *b, Item *c)
-    :Item_str_func(pos, a, b, c)
+  Item_func_internal_tablespace_type(const POS &pos, Item *a, Item *b,
+                                     Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
   {}
 
   bool resolve_type(THD *) override
@@ -1496,8 +1497,9 @@ public:
 class Item_func_internal_tablespace_status : public Item_str_func
 {
 public:
-  Item_func_internal_tablespace_status(const POS &pos, Item *a, Item *b, Item *c)
-    :Item_str_func(pos, a, b, c)
+  Item_func_internal_tablespace_status(const POS &pos, Item *a, Item *b,
+                                       Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
   {}
 
   bool resolve_type(THD *) override

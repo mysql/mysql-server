@@ -66,15 +66,17 @@ public:
   {}
 
   /**
-    Check if the stats are cached for given tablespace_name.
+    Check if the stats are cached for given tablespace_name and file_name.
 
     @param tablespace_name       - Tablespace name.
+    @param file_name             - File name.
 
     @return true if stats are cached, else false.
   */
-  bool is_stat_cached(const String &tablespace_name)
+  bool is_stat_cached(const String &tablespace_name,
+                      const String &file_name)
   {
-    return (m_key == form_key(tablespace_name));
+    return (m_key == form_key(tablespace_name, file_name));
   }
 
 
@@ -82,16 +84,18 @@ public:
     Store the statistics form the given handler
 
     @param tablespace_name  - Tablespace name.
+    @param file_name        - File name.
     @param stats            - ha_tablespace_statistics.
 
     @return void
   */
   void cache_stats(const String &tablespace_name,
+                   const String &file_name,
                    ha_tablespace_statistics &stats)
   {
     m_stats= stats;
     m_error.clear();
-    set_stat_cached(tablespace_name);
+    set_stat_cached(tablespace_name, file_name);
   }
 
 
@@ -101,16 +105,19 @@ public:
 
     @param thd                     - Current thread.
     @param tablespace_name_ptr     - Tablespace name of which we need stats.
+    @param file_name               - File name.
     @param ts_se_private_data      - Tablespace se private data.
 
     @return true if statistics were not fetched from SE, otherwise false.
   */
   bool read_stat(THD *thd,
                  const String &tablespace_name_ptr,
+                 const String &file_name_ptr,
                  const char* ts_se_private_data);
 
   bool read_stat_from_SE(THD *thd,
                          const String &tablespace_name_ptr,
+                         const String &file_name_ptr,
                          const char* ts_se_private_data);
 
   // Invalidate the cache.
@@ -146,37 +153,44 @@ private:
     Mark the cache as valid for a given table. This creates a key for the
     cache element. We store just a single table statistics in this cache.
 
-    @param tablespace_name          - Tablespace name.
+    @param tablespace_name    - Tablespace name.
+    @param file_name          - File name.
 
     @returns void.
   */
-  void set_stat_cached(const String &tablespace_name)
-  { m_key= form_key(tablespace_name); }
+  void set_stat_cached(const String &tablespace_name,
+                       const String &file_name)
+  { m_key= form_key(tablespace_name, file_name); }
 
 
   /**
     Build a key representating the table for which stats are cached.
 
     @param tablespace_name          - Tablespace name.
+    @param file_name                - File name.
 
     @returns String_type representing the key.
   */
-  String_type form_key(const String &tablespace_name)
+  String_type form_key(const String &tablespace_name,
+                       const String &file_name)
   {
-    return String_type(tablespace_name.ptr());
+    return String_type(tablespace_name.ptr()) +
+      String_type(file_name.ptr());
   }
 
   /**
     Check if we have seen a error.
 
-    @param tablespace_name  Tablespace name.
+    @param tablespace_name  - Tablespace name.
+    @param file_name        - File name.
 
     @returns true if there is error reported.
              false if not.
   */
-  inline bool check_error_for_key(const String &tablespace_name)
+  inline bool check_error_for_key(const String &tablespace_name,
+                                  const String &file_name)
   {
-    if (is_stat_cached(tablespace_name) && !m_error.empty())
+    if (is_stat_cached(tablespace_name, file_name) && !m_error.empty())
       return true;
 
     return false;
