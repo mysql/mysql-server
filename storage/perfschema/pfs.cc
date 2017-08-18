@@ -110,6 +110,8 @@
 #include "sql/sql_error.h"
 #include "thr_lock.h"
 
+using std::min;
+
 /*
   Exporting cmake compilation flags to doxygen,
   so they get documented.
@@ -3216,7 +3218,8 @@ pfs_set_thread_account_v1(const char *user,
   DBUG_ASSERT((uint)user_len <= sizeof(pfs->m_username));
   DBUG_ASSERT((host != NULL) || (host_len == 0));
   DBUG_ASSERT(host_len >= 0);
-  DBUG_ASSERT((uint)host_len <= sizeof(pfs->m_hostname));
+
+  host_len= min<size_t>(host_len, sizeof(pfs->m_hostname));
 
   if (unlikely(pfs == NULL))
   {
