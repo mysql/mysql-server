@@ -8584,3 +8584,16 @@ ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or 
 DROP PREPARE stmt;
 DROP TABLE t;
 # End of test for Bug#26411055
+#
+# Bug#26497247:WINDOW FUNCTIONS: CRASH IN DO_COPY_MAYBE_NULL
+#
+CREATE TABLE t(a INTEGER NOT NULL);
+INSERT INTO t VALUES ('1'), ('2'), ('3');
+SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
+LEAD(a,1) OVER()
+2
+3
+NULL
+NULL
+DROP TABLE t;
+#End of test for Bug#26497247

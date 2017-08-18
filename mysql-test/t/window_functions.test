@@ -3613,6 +3613,17 @@ DROP TABLE t;
 
 --echo # End of test for Bug#26411055
 
+--echo #
+--echo # Bug#26497247:WINDOW FUNCTIONS: CRASH IN DO_COPY_MAYBE_NULL
+--echo #
+
+CREATE TABLE t(a INTEGER NOT NULL);
+INSERT INTO t VALUES ('1'), ('2'), ('3');
+SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
+DROP TABLE t;
+
+--echo #End of test for Bug#26497247
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
