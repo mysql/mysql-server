@@ -8561,6 +8561,7 @@ ER_NEED_LOG_BIN
 ER_NEED_FILE_INSTEAD_OF_DIR
   eng "Path '%s' is a directory name, please specify a file name for %s option"
 
+# Unused since MySQL 8.0.3
 ER_LOG_BIN_BETTER_WITH_NAME
   eng "No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=%s' to avoid this problem."
 
@@ -10834,6 +10835,12 @@ ER_I_S_SKIPPED_TABLESPACE
 
 ER_TABLESPACE_ENGINE_MISMATCH
   eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
+
+ER_RPL_CANT_HAVE_SAME_BASENAME
+  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s') and %s (default '%s') options to ensure they do not conflict"
+
+ER_WARN_NO_SERVERID_SPECIFIED
+  eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
 
 #
 #  End of 8.0 error messages.

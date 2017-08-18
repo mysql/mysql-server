@@ -1564,7 +1564,7 @@ require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
-server-id 0
+server-id 1
 server-id-bits 32
 session-track-gtids OFF
 session-track-schema TRUE

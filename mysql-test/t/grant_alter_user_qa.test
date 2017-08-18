@@ -1064,7 +1064,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1248,7 +1248,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=ON --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=ON" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect
@@ -1523,7 +1523,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=OFF --log-bin" > $expect_file
+--exec echo "restart:--log-builtin-as-identified-by-password=OFF" > $expect_file
 
 # Turn on reconnect
 --enable_reconnect

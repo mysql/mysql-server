@@ -24,7 +24,7 @@ INSERT INTO t1 (u_id, u_str) VALUES (1, 'ã');
 DELETE FROM t1 WHERE u_id = 1 AND u_str = 'Ã';
 INSERT INTO t1 (u_id, u_str) VALUES (1, 'á');
 DROP TABLE t1;
-Processing binlog master-bin.000001
+Processing binlog binlog.000001
 FLUSH LOGS;
 include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7]
 SET @@GLOBAL.binlog_transaction_dependency_tracking = COMMIT_ORDER;

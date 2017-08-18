@@ -17,10 +17,10 @@ load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "kil
 ERROR 70100: Query execution was interrupted
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
-master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, `b`) ;file_id=#
-master-bin.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
+binlog.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t2` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, `b`) ;file_id=#
+binlog.000001	#	Query	#	#	COMMIT
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null AS Loaded;

@@ -1,2 +1,2 @@
---relay_log_info_repository=TABLE --log-bin
+--relay_log_info_repository=TABLE
 

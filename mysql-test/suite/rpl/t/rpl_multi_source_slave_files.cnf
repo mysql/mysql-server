@@ -10,8 +10,6 @@ log-slave-updates
 
 [mysqld.2]
 log-slave-updates
-log-bin
-log-slave-updates
 relay-log-purge=0
 relay-log-recovery=1
 sync_relay_log=10

@@ -1,17 +1,17 @@
 CREATE TABLE t1(a int);
-# restart: --log-error=LOG_FILE1 --log-error-verbosity=1 --log-bin --binlog-format=statement
+# restart: --log-error=LOG_FILE1 --log-error-verbosity=1 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-# restart: --log-error=LOG_FILE2 --log-error-verbosity=2 --log-bin --binlog-format=statement
+# restart: --log-error=LOG_FILE2 --log-error-verbosity=2 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-# restart: --log-error=LOG_FILE3 --log-error-verbosity=7 --log-bin --binlog-format=statement
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=7 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.

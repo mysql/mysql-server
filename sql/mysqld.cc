@@ -1029,6 +1029,8 @@ char server_uuid[UUID_LENGTH+1];
 const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
+char default_binlogfile_name[FN_REFLEN];
+char default_relaylogfile_name[FN_REFLEN];
 char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
@@ -3378,6 +3380,27 @@ int init_common_variables()
     strmake(default_logfile_name, glob_hostname,
       sizeof(default_logfile_name)-5);
 
+  /*
+    Binary log basename defaults to "binlog" name prefix
+    if no configuration and argument were provided to --log-bin and
+    --loose-log-bin, and no one of --(loose-)skip-log-bin and
+    --(loose-)disable-log-bin is set explicitly.
+  */
+  strmake(default_binlogfile_name, STRING_WITH_LEN("binlog"));
+  strmake(default_relaylogfile_name, STRING_WITH_LEN("relaylog"));
+
+  if (opt_initialize || opt_initialize_insecure)
+  {
+    /*
+      System tables initialization are not binary logged (regardless
+      --log-bin option).
+
+      Disable binary log while executing any user script sourced while
+      initializing system except if explicitly requested.
+    */
+    opt_bin_log= false;
+  }
+
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   my_stpcpy(fn_ext(pidfile_name),".pid");    // Add proper extension
 
@@ -4487,18 +4510,7 @@ static int init_server_components()
 
     char buf[FN_REFLEN];
     const char *ln;
-    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
-    if (!opt_bin_logname && !opt_binlog_index_name)
-    {
-      /*
-        User didn't give us info to name the binlog index file.
-        Picking `hostname`-bin.index like did in 4.x, causes replication to
-        fail if the hostname is changed later. So, we would like to instead
-        require a name. But as we don't want to break many existing setups, we
-        only give warning, not error.
-      */
-      LogErr(WARNING_LEVEL, ER_LOG_BIN_BETTER_WITH_NAME, ln);
-    }
+    ln= mysql_bin_log.generate_name(opt_bin_logname, "", buf);
     if (ln == buf)
     {
       my_free(opt_bin_logname);
@@ -4526,8 +4538,7 @@ static int init_server_components()
      */
     log_bin_basename=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_basename,
-                        opt_bin_logname, default_logfile_name,
-                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
+                        opt_bin_logname, default_binlogfile_name, "");
     log_bin_index=
       rpl_make_log_name(key_memory_MYSQL_BIN_LOG_index,
                         opt_binlog_index_name, log_bin_basename, ".index");
@@ -4549,8 +4560,7 @@ static int init_server_components()
    */
   relay_log_basename=
     rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
-                      opt_relay_logname, default_logfile_name,
-                      (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
+                      opt_relay_logname, default_relaylogfile_name, "");
 
   if (relay_log_basename != NULL)
     relay_log_index=
@@ -4561,6 +4571,18 @@ static int init_server_components()
   {
     LogErr(ERROR_LEVEL, ER_RPL_CANT_MAKE_PATHS,
            (int) FN_REFLEN, (int) FN_LEN);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (log_bin_basename != NULL && !strcmp(log_bin_basename, relay_log_basename))
+  {
+    /*
+      Reports an error and aborts, if the same base name is specified
+      for both binary and relay logs.
+    */
+    LogErr(ERROR_LEVEL, ER_RPL_CANT_HAVE_SAME_BASENAME, log_bin_basename,
+           "--log-bin", default_binlogfile_name,
+           "--relay-log", default_relaylogfile_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
@@ -5485,13 +5507,6 @@ int mysqld_main(int argc, char **argv)
   }
 #endif // !_WIN32
 
-  //If the binlog is enabled, one needs to provide a server-id
-  if (opt_bin_log && !(server_id_supplied) )
-  {
-    LogErr(ERROR_LEVEL, ER_BINLOG_NEEDS_SERVERID);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
   /*
    The subsequent calls may take a long time : e.g. innodb log read.
    Thus set the long running service control manager timeout
@@ -5512,6 +5527,9 @@ int mysqld_main(int argc, char **argv)
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  if (((opt_initialize || opt_initialize_insecure) && !server_id_supplied))
+    LogErr(WARNING_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);
 
   /*
     Add server_uuid to the sid_map.  This must be done after
@@ -7808,7 +7826,6 @@ static int mysql_init_variables()
   mysql_home[0]= pidfile_name[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_general_log= opt_slow_log= false;
-  opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
   opt_general_logname= opt_binlog_index_name= opt_slow_logname= NULL;
@@ -8172,6 +8189,15 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_BIN_LOG:
     opt_bin_log= (argument != disabled_my_option);
+    if (!opt_bin_log)
+    {
+      // Clear the binlog basename used by any previous --log-bin
+      if (opt_bin_logname)
+      {
+        my_free(opt_bin_logname);
+        opt_bin_logname= NULL;
+      }
+    }
     break;
   case (int)OPT_REPLICATE_IGNORE_DB:
   {
@@ -8381,7 +8407,6 @@ mysqld_get_one_option(int optid,
      2) There is a value present
     */
     server_id_supplied= (*argument != 0);
-
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names_used= 1;

@@ -40,10 +40,10 @@ reap;
 --echo # For a server without mdl locking for a trigger name
 --echo # the statement SHOW BINLOG EVENTS would returned
 --echo # output that look likes the following:
---echo # master-bin.000001    567    Query    1    755    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
---echo # master-bin.000001    820    Query    1    1008    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END
---echo # master-bin.000001    1008    Anonymous_Gtid    1    1073    SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
---echo # master-bin.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
+--echo # binlog.000001    567    Query    1    755    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+--echo # binlog.000001    820    Query    1    1008    use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t2 FOR EACH ROW BEGIN END
+--echo # binlog.000001    1008    Anonymous_Gtid    1    1073    SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+--echo # binlog.000001    1073    Query    1    1169    use `test`; DROP TRIGGER trigger_1
 --echo # That is, two statements CREATE TRIGGER trigger_t1 follows one
 --echo # after another then DROP TRIGGER.
 --source include/show_binlog_events.inc

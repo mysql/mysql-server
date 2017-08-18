@@ -20,6 +20,7 @@ innodb_rollback_segments = 20
 innodb_undo_tablespaces = 3
 innodb_log_files_in_group = 3
 innodb_log_file_size=20M
+loose-skip-log-bin
 EOF
 
 --exec echo "datadir = $bugdir/data" >> $bugdir/my.cnf

@@ -1440,9 +1440,19 @@ private:
 
 
  /**
-   sets the suffix required for relay log names
-   in multisource replication.
-   The extension is "-relay-bin-<channel_name>"
+   sets the suffix required for relay log names in multisource
+   replication. When --relay-log option is not provided, the
+   names of the relay log files are relaylog.0000x or
+   relaylog-CHANNEL.00000x in the case of MSR. However, if
+   that option is provided, then the names of the relay log
+   files are <relay-log-option>.0000x or
+   <relay-log-option>-CHANNEL.00000x in the case of MSR.
+
+   The function adds a channel suffix (according to the channel to
+   file name conventions and conversions) to the relay log file.
+
+   @todo: truncate the log file if length exceeds.
+
    @param[in, out]  buff       buffer to store the complete relay log file name
    @param[in]       buff_size  size of buffer buff
    @param[in]       base_name  the base name of the relay log file

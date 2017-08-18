@@ -1,5 +1,6 @@
 source include/have_memcached_plugin.inc;
 source include/not_valgrind.inc;
+source include/have_log_bin.inc;
 
 # Test of master with memcached access and a slave without memcached, 
 # both with binlog-format=mixed.

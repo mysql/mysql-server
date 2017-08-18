@@ -21,7 +21,7 @@
 RESET MASTER;
 
 --let $MYSQLD_DATADIR= `select @@datadir`
---let $binlog_file= $MYSQLD_DATADIR/master-bin.000001
+--let $binlog_file= $MYSQLD_DATADIR/binlog.000001
 
 --echo #
 --echo # Temporal types can be printed correctly

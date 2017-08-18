@@ -1222,8 +1222,8 @@ sub collect_one_test_case {
   {
     # Test does not need binlog, add --skip-binlog to
     # the options used when starting
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
+    # push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
   }
 
   if ( $tinfo->{'rpl_test'} or $tinfo->{'grp_rpl_test'} )

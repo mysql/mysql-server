@@ -87,15 +87,15 @@ create table foo (a int);
 
 # replay from binary log
 let $MYSQLD_DATADIR= `select @@datadir`;
-copy_file $MYSQLD_DATADIR/$binlog_file $MYSQLD_DATADIR/master-bin.saved35583;
+copy_file $MYSQLD_DATADIR/$binlog_file $MYSQLD_DATADIR/binlog.saved35583;
 # Reset GTIDs
 RESET MASTER;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved35583 | $MYSQL;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.saved35583 | $MYSQL;
 select * from foo;
 
 # clean up
 drop table foo;
--- remove_file $MYSQLD_DATADIR/master-bin.saved35583
+-- remove_file $MYSQLD_DATADIR/binlog.saved35583
 
 #################################################################
 # BUG#51226
@@ -158,10 +158,10 @@ insert into t1 values(1);
 -- eval DROP DATABASE $dbname
 FLUSH LOGS;
 -- let $MYSQLD_DATADIR= `select @@datadir`
-copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved51226;
+copy_file $MYSQLD_DATADIR/binlog.000001 $MYSQLD_DATADIR/binlog.saved51226;
 # Reset GTIDs
 RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
--- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
--- remove_file $MYSQLD_DATADIR/master-bin.saved51226
+-- exec $MYSQL_BINLOG $MYSQLD_DATADIR/binlog.saved51226 | $MYSQL
+-- remove_file $MYSQLD_DATADIR/binlog.saved51226

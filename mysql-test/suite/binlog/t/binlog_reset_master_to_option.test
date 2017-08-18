@@ -29,7 +29,7 @@ RESET MASTER TO 1234;
 
 # Check that old binary log is deleted
 --error 1
-file_exists $MYSQLD_DATADIR/master-bin.000001;
+file_exists $MYSQLD_DATADIR/binlog.000001;
 
 --let $binlog_number= 001234
 --source suite/binlog/include/binlog_reset_master_to_option.inc
@@ -114,4 +114,4 @@ RESET MASTER TO f1(3);
 DROP USER 'user1'@'localhost';
 DROP FUNCTION f1;
 RESET MASTER;
-file_exists $MYSQLD_DATADIR/master-bin.000001;
+file_exists $MYSQLD_DATADIR/binlog.000001;
