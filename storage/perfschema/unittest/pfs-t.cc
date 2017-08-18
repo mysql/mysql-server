@@ -25,6 +25,7 @@
 #include <tap.h>
 
 #include "my_io.h"
+#include "m_ctype.h"
 #include "stub_pfs_defaults.h"
 #include "stub_print_error.h"
 #include "stub_pfs_plugin_table.h"
@@ -2224,8 +2225,10 @@ static void test_leaks()
 
 static void do_all_tests()
 {
-  /* Using initialize_performance_schema(), no partial init needed. */
+  /* system charset needed by pfs_statements_digest */
+  system_charset_info = &my_charset_latin1;
 
+  /* Using initialize_performance_schema(), no partial init needed. */
   test_bootstrap();
   test_bad_registration();
   test_init_disabled();

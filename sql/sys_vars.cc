@@ -678,6 +678,17 @@ static Sys_var_long Sys_pfs_max_digest_length(
        DEFAULT(1024),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_digest_sample_age(
+       "performance_schema_max_digest_sample_age",
+       "The time in seconds after which a previous query sample is considered old."
+         " When the value is 0, queries are sampled once."
+         " When the value is greater than zero, queries are re sampled if the"
+         " last sample is more than performance_schema_max_digest_sample_age seconds old.",
+       GLOBAL_VAR(pfs_param.m_max_digest_sample_age),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(60),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_long Sys_pfs_connect_attrs_size(
        "performance_schema_session_connect_attrs_size",
        "Size of session attribute string buffer per thread."

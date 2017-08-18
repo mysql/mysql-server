@@ -298,14 +298,24 @@ set_field_varchar_utf8mb4(Field *f, const char *str, uint len)
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
-/* TEXT/BLOB TYPE */
+/* BLOB TYPE */
 void
-set_field_blob(Field *f, const char *val, uint len)
+set_field_blob(Field *f, const char *val, size_t len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2 = (Field_blob *)f;
   f2->store(val, len, &my_charset_utf8_bin);
 }
+
+/* TEXT TYPE */
+void
+set_field_text(Field *f, const char *val, size_t len, const CHARSET_INFO *cs)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2 = (Field_blob *)f;
+  f2->store(val, len, cs);
+}
+
 char *
 get_field_blob(Field *f, char *val, uint *len)
 {
@@ -455,6 +465,50 @@ get_field_year(Field *f)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
   Field_year *f2 = (Field_year *)f;
   return f2->val_int();
+}
+
+void
+format_sqltext(const char *source_sqltext,
+               size_t source_length,
+               const CHARSET_INFO *source_cs,
+               bool truncated,
+               String &sqltext)
+{
+  DBUG_ASSERT(source_cs != NULL);
+
+  sqltext.set_charset(source_cs);
+  sqltext.length(0);
+
+  if (source_length == 0)
+    return;
+
+  /* Adjust sqltext length to a valid number of bytes. */
+  int cs_error = 0;
+  size_t sqltext_length =
+    source_cs->cset->well_formed_len(source_cs,
+                                     source_sqltext,
+                                     source_sqltext + source_length,
+                                     source_length,
+                                     &cs_error);
+  if (sqltext_length > 0)
+  {
+    /* Copy the source text into the target, convert charset if necessary. */
+    sqltext.append(source_sqltext, sqltext_length, source_cs);
+
+    /* Append "..." if the string is truncated or not well-formed. */
+    if (truncated)
+    {
+      size_t chars = sqltext.numchars();
+      if (chars > 3)
+      {
+        chars -= 3;
+        size_t bytes_offset = sqltext.charpos(chars, 0);
+        sqltext.length(bytes_offset);
+        sqltext.append("...", 3);
+      }
+    }
+  }
+  return;
 }
 
 int

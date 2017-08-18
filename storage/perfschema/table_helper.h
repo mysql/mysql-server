@@ -326,8 +326,19 @@ void set_field_varchar_utf8mb4(Field *f, const char *str, uint len);
   @param val the value to assign
   @param len the length of the string to assign
 */
-void set_field_blob(Field *f, const char *val, uint len);
+void set_field_blob(Field *f, const char *val, size_t len);
 
+/**
+  Helper, assign a value to a text field.
+  @param f the field to set
+  @param val the value to assign
+  @param len the length of the string to assign
+  @param cs the charset of the string
+*/
+void set_field_text(Field *f,
+                    const char *val,
+                    size_t len,
+                    const CHARSET_INFO *cs);
 /**
   Helper, read a value from a @c blob field.
   @param f the field to read
@@ -453,6 +464,21 @@ void set_field_year(Field *f, ulong value);
   @return the field value
 */
 ulong get_field_year(Field *f);
+
+/**
+  Helper, format sql text for output.
+
+  @param source_sqltext  raw sqltext, possibly truncated
+  @param source_length  length of source_sqltext
+  @param source_cs  character set of source_sqltext
+  @param truncated true if source_sqltext was truncated
+  @param sqltext sqltext formatted for output
+ */
+void format_sqltext(const char *source_sqltext,
+                    size_t source_length,
+                    const CHARSET_INFO *source_cs,
+                    bool truncated,
+                    String &sqltext);
 
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants

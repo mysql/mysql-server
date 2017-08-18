@@ -6441,6 +6441,10 @@ pfs_get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_parent_sp_share = sp_share;
   state->m_parent_prepared_stmt = NULL;
 
+  state->m_query_sample = nullptr;
+  state->m_query_sample_length = 0;
+  state->m_query_sample_truncated = false;
+
   return reinterpret_cast<PSI_statement_locker *>(state);
 }
 
@@ -6546,6 +6550,10 @@ pfs_start_statement_v1(PSI_statement_locker *locker,
     }
     pfs->m_current_schema_name_length = db_len;
   }
+
+  state->m_query_sample = nullptr;
+  state->m_query_sample_length = 0;
+  state->m_query_sample_truncated = false;
 }
 
 void
@@ -6562,22 +6570,27 @@ pfs_set_statement_text_v1(PSI_statement_locker *locker,
     return;
   }
 
+  if (text_len > 0)
+  {
+    if (text_len > pfs_max_sqltext)
+    {
+      text_len = (uint)pfs_max_sqltext;
+      state->m_query_sample_truncated = true;
+    }
+    state->m_query_sample = text;
+  }
+  state->m_query_sample_length = text_len;
+
   if (state->m_flags & STATE_FLAG_EVENT)
   {
     PFS_events_statements *pfs =
       reinterpret_cast<PFS_events_statements *>(state->m_statement);
     DBUG_ASSERT(pfs != NULL);
-    if (text_len > pfs_max_sqltext)
-    {
-      text_len = (uint)pfs_max_sqltext;
-      pfs->m_sqltext_truncated = true;
-    }
-    if (text_len)
-    {
-      memcpy(pfs->m_sqltext, text, text_len);
-    }
+
     pfs->m_sqltext_length = text_len;
+    pfs->m_sqltext_truncated = state->m_query_sample_truncated;
     pfs->m_sqltext_cs_number = state->m_cs_number;
+    memcpy(pfs->m_sqltext, text, text_len);
   }
 
   return;
@@ -6906,12 +6919,19 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   if (digest_stat != NULL)
   {
+    bool new_max_wait = false;
+
     digest_stat->m_stat.mark_used();
 
     if (flags & STATE_FLAG_TIMED)
     {
       digest_stat->m_stat.aggregate_value(wait_time);
 
+      /* Update the digest sample if it's a new maximum. */
+      if (wait_time > digest_stat->get_sample_timer_wait())
+      {
+        new_max_wait = true;
+      }
       time_normalizer *normalizer = time_normalizer::get(wait_timer);
       ulong bucket_index = normalizer->bucket_index(wait_time);
 
@@ -6924,6 +6944,49 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     else
     {
       digest_stat->m_stat.aggregate_counted();
+    }
+
+    if (state->m_query_sample != nullptr)
+    {
+      /* Get a new query sample if:
+         - This is the first query sample, or
+         - The wait time is a new maximum, or
+         - The last query sample age exceeds the maximum age.
+      */
+      bool get_sample_query = (digest_stat->m_query_sample_length == 0);
+
+      if (!get_sample_query)
+      {
+        get_sample_query = new_max_wait;
+
+        if (!get_sample_query)
+        {
+          /* Check the query sample age. */
+          if (pfs_param.m_max_digest_sample_age > 0)
+          {
+            /* Comparison in micro seconds. */
+            get_sample_query = (digest_stat->get_sample_age() >
+                                pfs_param.m_max_digest_sample_age * 1000000);
+          }
+        }
+      }
+
+      /* Update the query sample. */
+      if (get_sample_query)
+      {
+        /* Get exclusive access otherwise abort. */
+        if (digest_stat->inc_sample_ref() == 0)
+        {
+          digest_stat->set_sample_timer_wait(wait_time);
+          memcpy(digest_stat->m_query_sample, state->m_query_sample,
+                 state->m_query_sample_length);
+          digest_stat->m_query_sample_length = state->m_query_sample_length;
+          digest_stat->m_query_sample_cs_number = state->m_cs_number;
+          digest_stat->m_query_sample_truncated = state->m_query_sample_truncated;
+          digest_stat->m_query_sample_seen = digest_stat->m_last_seen;
+        }
+        digest_stat->dec_sample_ref();
+      }
     }
 
     digest_stat->m_stat.m_lock_time += state->m_lock_time;
@@ -6956,6 +7019,9 @@ pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       global_statements_histogram.increment_bucket(bucket_index);
     }
   }
+
+  state->m_query_sample_length = 0;
+  state->m_query_sample = nullptr;
 
   if (pfs_program != NULL)
   {

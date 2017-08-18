@@ -794,6 +794,12 @@ The following options may be given as the first argument:
  --performance-schema-max-digest-length=# 
  Maximum length considered for digest text, when stored in
  performance_schema tables.
+ --performance-schema-max-digest-sample-age=# 
+ The time in seconds after which a previous query sample
+ is considered old. When the value is 0, queries are
+ sampled once. When the value is greater than zero,
+ queries are re sampled if the last sample is more than
+ performance_schema_max_digest_sample_age seconds old.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
@@ -1497,6 +1503,7 @@ performance-schema-instrument
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
+performance-schema-max-digest-sample-age 60
 performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1

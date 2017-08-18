@@ -264,6 +264,9 @@ struct PFS_global_param
   long m_max_digest_length;
   ulong m_max_sql_text_length;
 
+  /** Maximum age in seconds for a query sample. */
+  ulong m_max_digest_sample_age;
+
   /** Maximum number of error instrumented */
   ulong m_error_sizing;
 

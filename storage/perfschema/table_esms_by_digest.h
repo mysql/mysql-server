@@ -77,6 +77,13 @@ struct row_esms_by_digest
   ulonglong m_p99;
   /** Column QUANTILE_999. */
   ulonglong m_p999;
+
+  /** Column QUERY_SAMPLE_TEXT. */
+  String m_query_sample;
+  /** Column QUERY_SAMPLE_SEEN. */
+  ulonglong m_query_sample_seen;
+  /** Column QUERY_SAMPLE_TIMER_WAIT. */
+  ulonglong m_query_sample_timer_wait;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
