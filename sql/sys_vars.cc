@@ -2170,9 +2170,12 @@ static Sys_var_charptr Sys_log_error_filter_rules(
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
   int i;
-  if ((var->save_result.string_value.str != NULL) &&
-      ((i = log_builtins_error_stack(var->save_result.string_value.str,
-                                     true)) < 0))
+
+  if (var->save_result.string_value.str == nullptr)
+    return true;
+
+  if ((i = log_builtins_error_stack(var->save_result.string_value.str,
+                                    true)) < 0)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE_FOR_VAR,
@@ -2180,6 +2183,13 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
                         self->name.str,
                         &((char *) var->save_result.string_value.str)[-(i+1)]);
     return true;
+  }
+  else if (strlen(var->save_result.string_value.str) < 1)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WRONG_VALUE_FOR_VAR,
+                        "Setting an empty %s pipeline disables error logging!",
+                        self->name.str);
   }
 
   return false;
