@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -181,13 +181,13 @@ UNIV_INLINE
 void
 row_upd_rec_sys_fields(
 /*===================*/
-	rec_t*		rec,	/*!< in/out: record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const trx_t*	trx,	/*!< in: transaction */
-	roll_ptr_t	roll_ptr)/*!< in: roll ptr of the undo log record,
+	rec_t*			rec,	/*!< in/out: record */
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page whose
+					uncompressed part will be updated, or NULL */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	const trx_t*		trx,	/*!< in: transaction */
+	roll_ptr_t		roll_ptr)/*!< in: roll ptr of the undo log record,
 				 can be 0 during IMPORT */
 {
 	ut_ad(index->is_clustered());

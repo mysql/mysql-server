@@ -39,8 +39,6 @@ class Variable_container {
          sub != m_variables.end(); ++sub) {
       std::string tmp(sub->second);
 
-      aux::replace_all(tmp, "\"", "\\\"");
-      aux::replace_all(tmp, "\n", "\\n");
       aux::replace_all(*s, sub->first, tmp);
     }
   }

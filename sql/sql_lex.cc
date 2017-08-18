@@ -3498,6 +3498,7 @@ void LEX::clear_privileges()
   alter_password.cleanup();
   memset(&mqh, 0, sizeof(mqh));
   dynamic_privileges.empty();
+  default_roles= 0;
 }
 
 

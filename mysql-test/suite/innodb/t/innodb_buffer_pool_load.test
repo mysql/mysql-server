@@ -174,7 +174,7 @@ write_file $BOOTSTRAP_SQL;
 CREATE DATABASE test;
 EOF
 
-let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb-page-size=$start_page_size;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb-page-size=$start_page_size;
 
 # Run the bootstrap command
 --exec $NEW_CMD

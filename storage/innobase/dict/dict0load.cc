@@ -55,6 +55,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "fts0fts.h"
+#include "fil0fil.h"
 
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
@@ -87,6 +88,11 @@ dict_load_is_system_table(const char* name)
 	}
 	return(false);
 }
+/* This is set of tablespaces that are not found in SYS_TABLESPACES.
+InnoDB tablespaces before 5.6 are not registered in SYS_TABLESPACES.
+So we maintain a std::set, which is later used to register the
+tablespaces to dictionary table mysql.tablespaces */
+missing_sys_tblsp_t	missing_spaces;
 
 /** Loads a table definition and also all its index definitions.
 
@@ -1621,11 +1627,12 @@ dict_check_sys_tables(
 
 		/* If the table is not a predefined tablespace then it must
 		be in a file-per-table or shared tablespace.
-		Note that flags2 is not available for REDUNDANT tables,
+		Note that flags2 is not available for REDUNDANT tables and
+		tables which are upgraded from 5.5 & earlier,
 		so don't check those. */
 		ut_ad(DICT_TF_HAS_SHARED_SPACE(flags)
 		      || !DICT_TF_GET_COMPACT(flags)
-		      || flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+		      || (flags2 == 0 || flags2 & DICT_TF2_USE_FILE_PER_TABLE));
 
 		/* Look up the tablespace name in the data dictionary if this
 		is a shared tablespace.  For file-per-table, the table_name
@@ -1635,11 +1642,11 @@ dict_check_sys_tables(
 		location. If so, then dict_space_get_name() will return NULL,
 		the space name must be the table_name, and the filepath can be
 		discovered in the default location.*/
-		char*	shared_space_name = dict_space_get_name(space_id, NULL);
+		char*	space_name_from_dict = dict_space_get_name(space_id, NULL);
 		if (space_id == dict_sys_t::s_space_id) {
 			space_name = dict_sys_t::s_dd_space_name;
-		} else if (shared_space_name != NULL) {
-			space_name = shared_space_name;
+		} else if (space_name_from_dict != NULL) {
+			space_name = space_name_from_dict;
 		} else {
 			space_name = table_name.m_name;
 		}
@@ -1651,7 +1658,7 @@ dict_check_sys_tables(
 		if (fil_space_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
 			ut_free(table_name.m_name);
-			ut_free(shared_space_name);
+			ut_free(space_name_from_dict);
 			continue;
 		}
 
@@ -1682,6 +1689,22 @@ dict_check_sys_tables(
 			ib::warn() << "Ignoring tablespace "
 				<< id_name_t(space_name)
 				<< " because it could not be opened.";
+		} else {
+			/* This tablespace is not found in
+			SYS_TABLESPACES and we are able to
+			successfuly open it. Add it to std::set.
+			It will be later used for register tablespaces
+			to mysql.tablespaces */
+			if (space_name_from_dict == nullptr) {
+				fil_space_t* space = fil_space_get(space_id);
+				ut_ad(space != nullptr);
+#ifdef UNIV_DEBUG
+				auto var =
+#endif /* UNIV_DEBUG */
+				 missing_spaces.insert(space);
+				/* duplicate space_ids are not expected */
+				ut_ad(var.second == true);
+			}
 		}
 
 		if (!dict_sys_t::is_reserved(space_id)) {
@@ -1689,7 +1712,7 @@ dict_check_sys_tables(
 		}
 
 		ut_free(table_name.m_name);
-		ut_free(shared_space_name);
+		ut_free(space_name_from_dict);
 		ut_free(filepath);
 	}
 

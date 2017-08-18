@@ -222,6 +222,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_test_status_var_service_reg_only.so\
          component_test_status_var_service_str.so\
          component_test_status_var_service_unreg_only.so\
+         component_test_system_variable_source.so\
          daemon_example.ini ha_example.so libdaemon_example.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \

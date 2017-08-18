@@ -1649,6 +1649,18 @@ fil_tablespace_redo_rename(
 	ulint		parsed_bytes)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Parse and process an encryption redo record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	space_id	the tablespace ID
+@return log record end, nullptr if not a complete record */
+byte*
+fil_tablespace_redo_encryption(
+	byte*		ptr,
+	const byte*	end,
+	space_id_t	space_id)
+	MY_ATTRIBUTE((warn_unused_result));
+
 /** Read the tablespace id to path mapping from the file
 @param[in]	recovery	true if called from crash recovery */
 void

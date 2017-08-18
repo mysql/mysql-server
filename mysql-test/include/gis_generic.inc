@@ -97,11 +97,11 @@ SELECT fid, ST_Dimension(g) FROM gis_geometry ORDER by fid;
 SELECT fid, ST_GeometryType(g) FROM gis_geometry ORDER by fid;
 SELECT fid, ST_IsEmpty(g) FROM gis_geometry ORDER by fid;
 SELECT fid, ST_AsText(ST_Envelope(g)) FROM gis_geometry ORDER by fid;
-explain extended select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
+explain select ST_Dimension(g), ST_GeometryType(g), ST_IsEmpty(g), ST_AsText(ST_Envelope(g)) from gis_geometry;
 
 SELECT fid, ST_X(g) FROM gis_point ORDER by fid;
 SELECT fid, ST_Y(g) FROM gis_point ORDER by fid;
-explain extended select ST_X(g),ST_Y(g) FROM gis_point;
+explain select ST_X(g),ST_Y(g) FROM gis_point;
 
 SELECT fid, ST_AsText(ST_StartPoint(g)) FROM gis_line ORDER by fid;
 SELECT fid, ST_AsText(ST_EndPoint(g)) FROM gis_line ORDER by fid;
@@ -109,14 +109,14 @@ SELECT fid, ST_Length(g) FROM gis_line ORDER by fid;
 SELECT fid, ST_NumPoints(g) FROM gis_line ORDER by fid;
 SELECT fid, ST_AsText(ST_PointN(g, 2)) FROM gis_line ORDER by fid;
 SELECT fid, ST_IsClosed(g) FROM gis_line ORDER by fid;
-explain extended select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
+explain select ST_AsText(ST_StartPoint(g)),ST_AsText(ST_EndPoint(g)),ST_Length(g),ST_NumPoints(g),ST_AsText(ST_PointN(g, 2)),ST_IsClosed(g) FROM gis_line;
 
 SELECT fid, ST_AsText(ST_Centroid(g)) FROM gis_polygon ORDER by fid;
 SELECT fid, ST_Area(g) FROM gis_polygon ORDER by fid;
 SELECT fid, ST_AsText(ST_ExteriorRing(g)) FROM gis_polygon ORDER by fid;
 SELECT fid, ST_NumInteriorRings(g) FROM gis_polygon ORDER by fid;
 SELECT fid, ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon ORDER by fid;
-explain extended select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
+explain select ST_AsText(ST_Centroid(g)),ST_Area(g),ST_AsText(ST_ExteriorRing(g)),ST_NumInteriorRings(g),ST_AsText(ST_InteriorRingN(g, 1)) FROM gis_polygon;
 
 SELECT fid, ST_IsClosed(g) FROM gis_multi_line ORDER by fid;
 
@@ -127,21 +127,21 @@ SELECT fid, ST_NumGeometries(g) from gis_multi_point ORDER by fid;
 SELECT fid, ST_NumGeometries(g) from gis_multi_line ORDER by fid;
 SELECT fid, ST_NumGeometries(g) from gis_multi_polygon ORDER by fid;
 SELECT fid, ST_NumGeometries(g) from gis_geometrycollection ORDER by fid;
-explain extended SELECT fid, ST_NumGeometries(g) from gis_multi_point;
+explain SELECT fid, ST_NumGeometries(g) from gis_multi_point;
 
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point ORDER by fid;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_line ORDER by fid;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_polygon ORDER by fid;
 SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_geometrycollection ORDER by fid;
 SELECT fid, ST_AsText(ST_GeometryN(g, 1)) from gis_geometrycollection ORDER by fid;
-explain extended SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
+explain SELECT fid, ST_AsText(ST_GeometryN(g, 2)) from gis_multi_point;
 
 SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
-explain extended SELECT g1.fid as first, g2.fid as second,
+explain SELECT g1.fid as first, g2.fid as second,
 MBRWithin(g1.g, g2.g) as w, MBRContains(g1.g, g2.g) as c, MBROverlaps(g1.g, g2.g) as o,
 MBREquals(g1.g, g2.g) as e, MBRDisjoint(g1.g, g2.g) as d, ST_Touches(g1.g, g2.g) as t,
 MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r

@@ -79,11 +79,10 @@ NULL	NULL	NULL	NULL
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
@@ -158,20 +157,18 @@ select @@VERSION=version();
 select last_insert_id(345);
 last_insert_id(345)
 345
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select @@IDENTITY AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,@@identity AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 set global concurrent_insert=2;
@@ -523,9 +520,6 @@ Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
-Warnings:
-Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections
@@ -1115,12 +1109,12 @@ ERROR HY000: Variable 'ft_stopword_file' is a read only variable
 #
 SHOW VARIABLES like 'back_log';
 Variable_name	Value
-back_log	80
+back_log	151
 SELECT @@session.back_log;
 ERROR HY000: Variable 'back_log' is a GLOBAL variable
 SELECT @@global.back_log;
 @@global.back_log
-80
+151
 SET @@session.back_log= 7;
 ERROR HY000: Variable 'back_log' is a read only variable
 SET @@global.back_log= 7;

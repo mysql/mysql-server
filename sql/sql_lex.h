@@ -3526,6 +3526,7 @@ public:
   List<LEX_USER>      users_list;
   List<LEX_COLUMN>    columns;
   List<LEX_CSTRING>   dynamic_privileges;
+  List<LEX_USER>      *default_roles;
 
   ulonglong           bulk_insert_row_cnt;
 

@@ -362,4 +362,6 @@ void create_role_vertex(ACL_USER *role_acl_user);
 void activate_all_granted_and_mandatory_roles(const ACL_USER *acl_user,
                                               Security_context *sctx);
 extern std::vector<std::string> builtin_auth_plugins; 
+bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
+                                  const List_of_auth_id_refs &new_auth_ids);
 #endif /* AUTH_INTERNAL_INCLUDED */

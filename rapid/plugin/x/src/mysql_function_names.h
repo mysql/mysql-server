@@ -32,11 +32,6 @@ struct Is_less {
   }
 };
 
-template <typename T, unsigned size>
-inline const T *get_array_end(T (&array)[size]) {
-  return array + size;
-}
-
 inline std::string to_upper(const std::string &value) {
   std::string source;
   source.resize(value.size());
@@ -44,6 +39,7 @@ inline std::string to_upper(const std::string &value) {
   return source;
 }
 
+bool does_return_json_mysql_function(const std::string &name);
 bool is_native_mysql_function(const std::string &name);
 
 }  // namespace xpl

@@ -283,6 +283,8 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern bool	srv_load_corrupted;
 
+/** Dedicated server setting */
+extern bool	srv_dedicated_server;
 /** Requested size in bytes */
 extern ulint		srv_buf_pool_size;
 /** Minimum pool size in bytes */

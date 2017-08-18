@@ -77,17 +77,7 @@ const char *const native_mysql_functions[] = {
     "ISSIMPLE",                          "IS_FREE_LOCK",
     "IS_IPV4",                           "IS_IPV4_COMPAT",
     "IS_IPV4_MAPPED",                    "IS_IPV6",
-    "IS_USED_LOCK",                      "JSON_ARRAY",
-    "JSON_ARRAY_APPEND",                 "JSON_ARRAY_INSERT",
-    "JSON_CONTAINS",                     "JSON_CONTAINS_PATH",
-    "JSON_DEPTH",                        "JSON_EXTRACT",
-    "JSON_INSERT",                       "JSON_KEYS",
-    "JSON_LENGTH",                       "JSON_MERGE",
-    "JSON_OBJECT",                       "JSON_QUOTE",
-    "JSON_REMOVE",                       "JSON_REPLACE",
-    "JSON_SEARCH",                       "JSON_SET",
-    "JSON_TYPE",                         "JSON_UNQUOTE",
-    "JSON_VALID",                        "LAST_DAY",
+    "IS_USED_LOCK",                      "LAST_DAY",
     "LAST_INSERT_ID",                    "LCASE",
     "LEAST",                             "LENGTH",
     "LIKE_RANGE_MAX",                    "LIKE_RANGE_MIN",
@@ -191,8 +181,36 @@ const char *const native_mysql_functions[] = {
     "WEEKOFYEAR",                        "WITHIN",
     "X",                                 "Y",
     "YEARWEEK"};
-const char *const *native_mysql_functions_end =
-    get_array_end(native_mysql_functions);
+
+
+static const char *const mysql_functions_that_operate_on_json[] = {
+    "JSON_CONTAINS",
+    "JSON_CONTAINS_PATH",
+    "JSON_DEPTH",
+    "JSON_LENGTH",
+    "JSON_TYPE",
+    "JSON_UNQUOTE",
+    "JSON_VALID"
+};
+
+
+const char *const mysql_functions_that_return_json[] = {
+    "JSON_ARRAY",
+    "JSON_ARRAY_APPEND",
+    "JSON_ARRAY_INSERT",
+    "JSON_EXTRACT",
+    "JSON_INSERT",
+    "JSON_KEYS",
+    "JSON_MERGE",
+    "JSON_MERGE_PATCH",
+    "JSON_MERGE_PRESERVE",
+    "JSON_OBJECT",
+    "JSON_QUOTE",
+    "JSON_REMOVE",
+    "JSON_REPLACE",
+    "JSON_SEARCH",
+    "JSON_SET"
+};
 
 // taken from lex.h (SYM_FN)
 // keep in ASC order
@@ -204,8 +222,6 @@ const char *const special_mysql_functions[] = {
     "STDDEV",    "STDDEV_POP", "STDDEV_SAMP",  "SUBDATE",      "SUBSTR",
     "SUBSTRING", "SUM",        "SYSDATE",      "SYSTEM_USER",  "TRIM",
     "VARIANCE",  "VAR_POP",    "VAR_SAMP"};
-const char *const *special_mysql_functions_end =
-    get_array_end(special_mysql_functions);
 
 // taken from sql_yacc.yy
 // keep in ASC order
@@ -226,19 +242,31 @@ const char *const other_mysql_functions[] = {
     "TRIM_LEADING",      "TRUNCATE",           "USER",           "USING",
     "UTC_DATE",          "UTC_TIME",           "UTC_TIMESTAMP",  "WEEK",
     "WEIGHT_STRING",     "YEAR"};
-const char *const *other_mysql_functions_end =
-    get_array_end(other_mysql_functions);
+
+template <typename Container, typename Value>
+bool contains(const Container &container, const Value &value) {
+  return std::binary_search(
+            std::begin(container),
+            std::end(container),
+            value.c_str(),
+            Is_less());
+}
 }  // namespace
 
+bool does_return_json_mysql_function(const std::string &name) {
+  const std::string source = to_upper(name);
+
+  return contains(mysql_functions_that_return_json, source);
+}
+
 bool is_native_mysql_function(const std::string &name) {
-  std::string source = to_upper(name);
-  return std::binary_search(native_mysql_functions, native_mysql_functions_end,
-                            source.c_str(), Is_less()) ||
-         std::binary_search(special_mysql_functions,
-                            special_mysql_functions_end, source.c_str(),
-                            Is_less()) ||
-         std::binary_search(other_mysql_functions, other_mysql_functions_end,
-                            source.c_str(), Is_less());
+  const std::string source = to_upper(name);
+
+  return contains(mysql_functions_that_return_json, source) ||
+      contains(mysql_functions_that_operate_on_json, source) ||
+      contains(native_mysql_functions, source) ||
+      contains(special_mysql_functions, source) ||
+      contains(other_mysql_functions, source);
 }
 
 }  // namespace xpl

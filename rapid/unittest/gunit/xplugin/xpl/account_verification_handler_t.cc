@@ -24,6 +24,7 @@
 #include "rapid/plugin/x/src/sql_user_require.h"
 #include "xpl_resultset.h"
 
+
 namespace xpl {
 
 #define ER_SUCCESS 0

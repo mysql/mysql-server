@@ -386,9 +386,12 @@ cleanup_sync_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<mutex_class_max; i++)
+  if (mutex_class_array != NULL)
   {
-    my_free(mutex_class_array[i].m_documentation);
+    for (i=0; i<mutex_class_max; i++)
+    {
+      my_free(mutex_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_mutex_class,
@@ -398,9 +401,12 @@ cleanup_sync_class(void)
   mutex_class_array = NULL;
   mutex_class_dirty_count = mutex_class_allocated_count = mutex_class_max = 0;
 
-  for (i=0; i<rwlock_class_max; i++)
+  if (rwlock_class_array != NULL)
   {
-    my_free(rwlock_class_array[i].m_documentation);
+    for (i=0; i<rwlock_class_max; i++)
+    {
+      my_free(rwlock_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_rwlock_class,
@@ -411,9 +417,12 @@ cleanup_sync_class(void)
   rwlock_class_dirty_count = rwlock_class_allocated_count = rwlock_class_max =
     0;
 
-  for (i=0; i<cond_class_max; i++)
+  if (cond_class_array != NULL)
   {
-    my_free(cond_class_array[i].m_documentation);
+    for (i=0; i<cond_class_max; i++)
+    {
+      my_free(cond_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_cond_class,
@@ -463,9 +472,12 @@ cleanup_thread_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<thread_class_max; i++)
+  if (thread_class_array != NULL)
   {
-    my_free(thread_class_array[i].m_documentation);
+    for (i=0; i<thread_class_max; i++)
+    {
+      my_free(thread_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_thread_class,
@@ -915,9 +927,12 @@ cleanup_file_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<file_class_max; i++)
+  if (file_class_array != NULL)
   {
-    my_free(file_class_array[i].m_documentation);
+    for (i=0; i<file_class_max; i++)
+    {
+      my_free(file_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_file_class,
@@ -968,9 +983,12 @@ cleanup_stage_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<stage_class_max; i++)
+  if (stage_class_array != NULL)
   {
-    my_free(stage_class_array[i].m_documentation);
+    for (i=0; i<stage_class_max; i++)
+    {
+      my_free(stage_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_stage_class,
@@ -1021,9 +1039,12 @@ cleanup_statement_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<statement_class_max; i++)
+  if (statement_class_array != NULL)
   {
-    my_free(statement_class_array[i].m_documentation);
+    for (i=0; i<statement_class_max; i++)
+    {
+      my_free(statement_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_statement_class,
@@ -1074,9 +1095,12 @@ cleanup_socket_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<socket_class_max; i++)
+  if (socket_class_array != NULL)
   {
-    my_free(socket_class_array[i].m_documentation);
+    for (i=0; i<socket_class_max; i++)
+    {
+      my_free(socket_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_socket_class,
@@ -1127,9 +1151,12 @@ cleanup_memory_class(void)
 {
   unsigned int i;
 
-  for (i=0; i<memory_class_max; i++)
+  if (memory_class_array.load() != nullptr)
   {
-    my_free(memory_class_array[i].m_documentation);
+    for (i=0; i<memory_class_max; i++)
+    {
+      my_free(memory_class_array[i].m_documentation);
+    }
   }
 
   PFS_FREE_ARRAY(&builtin_memory_memory_class,

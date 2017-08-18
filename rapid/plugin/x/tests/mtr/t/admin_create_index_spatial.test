@@ -55,7 +55,7 @@ Mysqlx.Crud.Insert {
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
 -->callmacro Show	spatial1
-->title =re-create spatial index after drop and check case sensitiveness for geojson term
+-->title =re-create spatial index after drop and check case sensitiveness for geojson term
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial1", "type":"spatial", "name":"one", "unique":false, "constraint":{"member":"$.first", "type":"GEOJSON", "required":true}}
 -->recvresult
 -->title =Check default value of srid and options
@@ -203,7 +203,6 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
---remove_file $MYSQL_TMP_DIR/mysqlxtest_macro_dir.tmp.inc
 
 ## Postamble
 DROP SCHEMA IF EXISTS xtest;

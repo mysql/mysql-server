@@ -44,11 +44,10 @@ inet_aton("")
 NULL
 Warnings:
 Warning	1411	Incorrect string value: '''' for function inet_aton
-explain extended select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
+explain select inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select inet_aton('122.256') AS `inet_aton("122.256")`,inet_aton('122.226.') AS `inet_aton("122.226.")`,inet_aton('') AS `inet_aton("")`
 select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_utf8'')));
 length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))

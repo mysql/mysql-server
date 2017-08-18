@@ -1020,11 +1020,10 @@ a	HEX(BIT_AND(b))	HEX(BIT_OR(b))	HEX(BIT_XOR(b))
 1	FFFFFFFFFFFF	000000000000	000000000000
 2	012345678901	012345678901	012345678901
 3	ABCDEF	ABCDEF	ABCDEF
-EXPLAIN EXTENDED SELECT SQL_BIG_RESULT a, HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
+EXPLAIN SELECT SQL_BIG_RESULT a, HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`a` AS `a`,hex(bit_and(`test`.`t1`.`b`)) AS `HEX(BIT_AND(b))`,hex(bit_or(`test`.`t1`.`b`)) AS `HEX(BIT_OR(b))`,hex(bit_xor(`test`.`t1`.`b`)) AS `HEX(BIT_XOR(b))` from `test`.`t1` group by `test`.`t1`.`a`
 INSERT INTO t1 VALUES (2,0x11347290158), (3, 0x149032);
 SELECT a, HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;

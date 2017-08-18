@@ -62,7 +62,7 @@ SELECT CONCAT(b,c), CONCAT(b,c) = '0101' FROM t1;
 
 analyze table t1;
 --replace_column 10 x
-EXPLAIN EXTENDED SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
+EXPLAIN SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 SELECT b,c FROM t1 WHERE b = 1 AND CONCAT(b,c) = '0101';
 
 CREATE TABLE t2 (a int);
@@ -76,7 +76,7 @@ FROM t2 ORDER BY a;
 analyze table t1;
 analyze table t2;
 --replace_column 10 x
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT a, 
   (SELECT COUNT(*) FROM t1 
    WHERE b = t2.a AND CONCAT(b,c) = CONCAT('0',t2.a,'01')) x 

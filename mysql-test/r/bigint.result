@@ -420,28 +420,24 @@ INSERT INTO t1 (a) VALUES
 (CAST(0xFFFFFFFFFFFFFFFF AS UNSIGNED));
 UPDATE t1 SET b = a;
 # FFFFFFFFFFFFFFFF
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 18446744073709551615) and ('18446744073709551615' = `test`.`t1`.`b`))
 # 8000000000000000
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775808) and ('9223372036854775808' = `test`.`t1`.`b`))
 # 7FFFFFFFFFFFFFFF
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775807) and ('9223372036854775807' = `test`.`t1`.`b`))
 # 0
-EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
+EXPLAIN SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 0) and ('0' = `test`.`t1`.`b`))
 DROP TABLE t1;
 # End of 5.1 tests

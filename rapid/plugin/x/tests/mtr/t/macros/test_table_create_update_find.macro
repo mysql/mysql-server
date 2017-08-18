@@ -1,0 +1,95 @@
+#
+# Setup_Schema
+#
+-->macro Setup_Schema
+stmtsql DROP TABLE	IF EXISTS xtest.xdoc;
+recvresult;
+stmtsql CREATE TABLE	xtest.xdoc(doc JSON);
+recvresult;
+varlet %RESULT_PATCH_STRING% "bar";
+varlet %RESULT_PATCH_NULL% null;
+varlet %RESULT_PATCH_ARRAY% ["c"];
+varlet %RESULT_PATCH_ID% {"a": "foo", "_id": "foo"};
+varlet %OBJECT% Table1;
+varlet %OBJECT_COLUMN% name: "doc";
+-->endmacro
+
+
+#
+# Document_UpdatePatch_Find
+#
+-->macro Document_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+echo # Verification of JSON patch [%DOC% patch %PATCH% = %EXPECT%];
+quiet;
+noquery_result;
+callmacro Crud_insert	Table1	'xdoc'	Row_octet	'%DOC%';
+callmacro Crud_update	Table1	'xdoc'	Op_octets
+	name: "doc"	MERGE_PATCH	'%PATCH%';
+callmacro Crud_find	Table1	'xdoc';
+callmacro Crud_delete	Table1 'xdoc';
+recvresult;
+expecterror %ERROR%;
+recvresult;
+recvtovar %RESULT%;
+recvresult;
+noquiet;
+query_result;
+assert_eq %EXPECT%	%RESULT%;
+echo;
+-->endmacro
+
+
+#
+# Document_UpdatePatchObj_Find
+#
+-->macro Document_UpdatePatchObj_Find	%ERROR%	%DOC%	%OBJ%	%EXPECT%
+echo # Verification of JSON patch [%DOC% patch PROTOBUF_EXPR = %EXPECT%];
+quiet;
+noquery_result;
+callmacro Crud_insert	Table1	'xdoc'	Row_octet	'%DOC%';
+callmacro Crud_update	Table1	'xdoc'	Op_object
+	name: "doc"	MERGE_PATCH	%OBJ%;
+callmacro Crud_find	Table1	'xdoc';
+callmacro Crud_delete	Table1 'xdoc';
+recvresult;
+expecterror %ERROR%;
+recvresult;
+recvtovar %RESULT%;
+recvresult;
+noquiet;
+query_result;
+assert_eq %EXPECT%	%RESULT%;
+echo;
+-->endmacro
+
+
+#
+# Document_OnlyTable_UpdatePatch_Find
+#
+-->macro Document_OnlyTable_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+-->callmacro Document_UpdatePatch_Find	%ERROR%	%DOC%	%PATCH%	%EXPECT%
+-->endmacro
+
+
+#
+# DocumentProtobuf_OnlyTable_UpdatePatch_Find
+#
+-->macro DocumentNull_OnlyTable_UpdatePatch_Find	%ERROR%	%PATCH%	%EXPECT%
+echo # Verification of JSON patch [NULL patch %PATCH% = %EXPECT%];
+quiet;
+noquery_result;
+callmacro Crud_insert	Table1	'xdoc'	Row_null;
+callmacro Crud_update	Table1	'xdoc'	Op_octets
+	name: "doc"	MERGE_PATCH	'%PATCH%';
+callmacro Crud_find	Table1	'xdoc';
+callmacro Crud_delete	Table1 'xdoc';
+recvresult;
+expecterror %ERROR%;
+recvresult;
+recvtovar %RESULT%;
+recvresult;
+noquiet;
+query_result;
+assert_eq %EXPECT%	%RESULT%;
+echo;
+-->endmacro

@@ -36,7 +36,7 @@ INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
 Query
-UPDATE `xtest`.`test` SET doc=JSON_SET(doc,'$.key','val') WHERE (`_id` = 'one')
+UPDATE `xtest`.`test` SET doc=JSON_SET(JSON_SET(doc,'$.key','val'),'$._id',JSON_EXTRACT(`doc`,'$._id')) WHERE (`_id` = 'one')
 0 rows affected
 ######### Crud.CreateView #########
 Mysqlx.Ok {

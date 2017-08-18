@@ -173,21 +173,15 @@ static void init_udf_psi_keys(void)
 }
 #endif
 
-/*
-  Read all predeclared functions from mysql.func and accept all that
-  can be used.
+/**
+  Initialize the UDF global structures.
+  This is done as a separate step so that the UDF registration
+  service can work when initalizing plugins, which happens
+  before reading the UDF table.
 */
-
-void udf_init()
+void udf_init_globals()
 {
-  udf_func *tmp;
-  TABLE_LIST tables;
-  READ_RECORD read_record_info;
-  TABLE *table;
-  int error;
-  DBUG_ENTER("ufd_init");
-  char db[]= "mysql"; /* A subject to casednstr, can't be constant */
-
+  DBUG_ENTER("udf_init_globals");
   if (initialized)
     DBUG_VOID_RETURN;
 
@@ -198,17 +192,43 @@ void udf_init()
   mysql_rwlock_init(key_rwlock_THR_LOCK_udf, &THR_LOCK_udf);
   init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
 
+  udf_hash= new collation_unordered_map<std::string, udf_func *>(
+    system_charset_info, key_memory_udf_mem);
+  initialized= 1;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Read all predeclared functions from mysql.func and accept all that
+  can be used.
+  The global structures must be initialized first.
+*/
+void udf_read_functions_table()
+{
+  udf_func *tmp;
+  TABLE_LIST tables;
+  READ_RECORD read_record_info;
+  TABLE *table;
+  int error;
+  DBUG_ENTER("ufd_read_functions_table");
+  char db[]= "mysql"; /* A subject to casednstr, can't be constant */
+
+  if (!initialized)
+  {
+    DBUG_ASSERT("wrong init order: trying to read the UDFs without initializaton");
+    DBUG_VOID_RETURN;
+  }
+
   THD *new_thd = new(std::nothrow) THD;
   if (new_thd == nullptr)
   {
     LogErr(ERROR_LEVEL, ER_UDF_CANT_ALLOC_FOR_STRUCTURES);
-    free_root(&mem,MYF(0));
+    free_root(&mem, MYF(0));
     delete new_thd;
     DBUG_VOID_RETURN;
   }
-  udf_hash= new collation_unordered_map<std::string, udf_func*>(
-    system_charset_info, key_memory_udf_mem);
-  initialized = 1;
   new_thd->thread_stack= (char*) &new_thd;
   new_thd->store_globals();
   {
@@ -312,16 +332,11 @@ end:
 /**
    Deintialize the UDF subsystem.
 
-   This function does the following:
-   1. Closes the shared libaries.
-   2. Free the UDF hash.
-   3. Free the memroot allocated.
-   4. Destroy the RW mutex object.
+   This function closes the shared libaries.
 */
-void udf_deinit()
+void udf_unload_udfs()
 {
-  /* close all shared libraries */
-  DBUG_ENTER("udf_free");
+  DBUG_ENTER("udf_unload_udfs");
   if (udf_hash != nullptr)
   {
     for (auto it1= udf_hash->begin(); it1 != udf_hash->end(); ++it1)
@@ -339,6 +354,24 @@ void udf_deinit()
         dlclose(udf->dlhandle);
       }
     }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+   Deintialize the UDF subsystem.
+
+   This function does the following:
+   1. Free the UDF hash.
+   2. Free the memroot allocated.
+   3. Destroy the RW mutex object.
+*/
+void udf_deinit_globals()
+{
+  DBUG_ENTER("udf_deinit_globals");
+  if (udf_hash != nullptr)
+  {
     delete udf_hash;
     udf_hash= nullptr;
   }

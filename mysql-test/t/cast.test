@@ -11,7 +11,7 @@ select CAST('10 ' as unsigned integer);
 select cast(-5 as unsigned) | 1, cast(-5 as unsigned) & -1;
 select cast(-5 as unsigned) -1, cast(-5 as unsigned) + 1;
 select ~5, cast(~5 as signed);
-explain extended select ~5, cast(~5 as signed);
+explain select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
 select cast(NULL as signed), cast(1/0 as signed);
 #

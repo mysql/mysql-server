@@ -162,9 +162,6 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
 bool parse_date_time_format(timestamp_type format_type,
                             Date_time_format *date_time_format);
 
-extern Date_time_format global_date_format;
-extern Date_time_format global_datetime_format;
-extern Date_time_format global_time_format;
 extern Known_date_time_format known_date_time_formats[];
 extern LEX_STRING interval_type_to_name[];
 

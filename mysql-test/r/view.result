@@ -64,11 +64,10 @@ ERROR 42S22: Unknown column 'v1.b' in 'field list'
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-explain extended select c from v1;
+explain select c from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
 show create view v2;
@@ -81,12 +80,11 @@ c
 5
 6
 11
-explain extended select c from v2;
+explain select c from v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `test`.`v2`
 create view v3 (c) as select a+1 from v1;
 ERROR 42S22: Unknown column 'a' in 'field list'
@@ -100,11 +98,10 @@ c
 6
 7
 12
-explain extended select c from v3;
+explain select c from v3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v4 (c) as select c+1 from v2;
 select c from v4;
@@ -114,13 +111,12 @@ c
 6
 7
 12
-explain extended select c from v4;
+explain select c from v4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v4`.`c` AS `c` from `test`.`v4`
 create view v5 (c) as select c+1 from v2;
 select c from v5;
@@ -130,12 +126,11 @@ c
 6
 7
 12
-explain extended select c from v5;
+explain select c from v5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select (`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
 select c from v6;
@@ -145,12 +140,11 @@ c
 6
 7
 12
-explain extended select c from v6;
+explain select c from v6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
 Tables_in_test
@@ -416,11 +410,10 @@ select * from v1;
 c
 20
 30
-explain extended select * from v1;
+explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `c` from `test`.`t1` where (`test`.`t1`.`a` < 3)
 update v1 set c=c+1;
 select * from t1;
@@ -1517,13 +1510,12 @@ a	a	b
 1	1	1
 2	2	NULL
 4	NULL	NULL
-explain extended select * from t3 left join v3 on (t3.a = v3.a);
+explain select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
@@ -1533,13 +1525,12 @@ a	a	b
 1	1	1
 2	2	NULL
 4	NULL	NULL
-explain extended select * from t3 left join v4 on (t3.a = v4.a);
+explain select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`)))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
@@ -3332,11 +3323,10 @@ f1	f2
 2	2
 1	3
 2	3
-explain extended select * from v1;
+explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2`
 select * from v1 order by f1;
 f1	f2
@@ -3346,11 +3336,10 @@ f1	f2
 2	3
 2	1
 2	2
-explain extended select * from v1 order by f1;
+explain select * from v1 order by f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 Warnings:
-Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`
 drop view v1;
 drop table t1;

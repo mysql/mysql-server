@@ -62,7 +62,7 @@ TEST(xpl_expr_generator, literal_octets) {
 TEST(xpl_expr_generator, literal_string) {
   EXPECT_EQ(
       "'\\\"test1\\\" \t \\'test2\\''",
-      generate_expression(Scalar(new Scalar::String("\"test1\" \t 'test2'")),
+      generate_expression(Scalar(Scalar::String("\"test1\" \t 'test2'")),
                           EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -193,7 +193,7 @@ TEST(xpl_expr_generator, variable) {
 }
 
 TEST(xpl_expr_generator, column_identifier) {
-  Document_path::Path doc_path("docpath \"'");
+  Document_path doc_path{"docpath \"'"};
 
   EXPECT_EQ("`column ``\"'`",
             generate_expression(ColumnIdentifier("column `\"'"), EMPTY_SCHEMA,
@@ -205,25 +205,24 @@ TEST(xpl_expr_generator, column_identifier) {
             generate_expression(
                 ColumnIdentifier("column `\"'", "table `\"'", "schema `\"'"),
                 EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ(
-      "JSON_EXTRACT(doc,'$.\\\"docpath \\\\\\\"\\'\\\"')",
-      generate_expression(ColumnIdentifier(EMPTY, EMPTY, EMPTY, &doc_path),
-                          EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("JSON_EXTRACT(doc,'$.\\\"docpath \\\\\\\"\\'\\\"')",
+            generate_expression(ColumnIdentifier(doc_path, EMPTY, EMPTY, EMPTY),
+                                EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("JSON_EXTRACT(`\"'`` column`,'$.\\\"docpath \\\\\\\"\\'\\\"')",
             generate_expression(
-                ColumnIdentifier("\"'` column", EMPTY, EMPTY, &doc_path),
+                ColumnIdentifier(doc_path, "\"'` column", EMPTY, EMPTY),
                 EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
       "JSON_EXTRACT(`\"'`` table`.`\"'`` column`,'$.\\\"docpath "
       "\\\\\\\"\\'\\\"')",
       generate_expression(
-          ColumnIdentifier("\"'` column", "\"'` table", EMPTY, &doc_path),
+          ColumnIdentifier(doc_path, "\"'` column", "\"'` table", EMPTY),
           EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
       "JSON_EXTRACT(`\"'`` schema`.`\"'`` table`."
       "`\"'`` column`,'$.\\\"docpath \\\\\\\"\\'\\\"')",
-      generate_expression(ColumnIdentifier("\"'` column", "\"'` table",
-                                           "\"'` schema", &doc_path),
+      generate_expression(ColumnIdentifier(doc_path, "\"'` column",
+                                           "\"'` table", "\"'` schema"),
                           EMPTY_SCHEMA, DM_TABLE));
   EXPECT_THROW(generate_expression(ColumnIdentifier(EMPTY, "table"),
                                    EMPTY_SCHEMA, DM_TABLE),
@@ -234,8 +233,7 @@ TEST(xpl_expr_generator, column_identifier) {
 }
 
 TEST(xpl_expr_generator, column_identifier_doc_id) {
-  Document_path::Path path("_id");
-  ColumnIdentifier ident(path);
+  ColumnIdentifier ident(Document_path{"_id"});
   ASSERT_EQ("JSON_EXTRACT(doc,'$._id')",
             generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
   ASSERT_EQ("JSON_EXTRACT(doc,'$._id')",
@@ -243,8 +241,7 @@ TEST(xpl_expr_generator, column_identifier_doc_id) {
 }
 
 TEST(xpl_expr_generator, column_identifier_doc_id_names) {
-  Document_path::Path path("_id");
-  ColumnIdentifier ident(path, "field", "table", "schema");
+  ColumnIdentifier ident(Document_path{"_id"}, "field", "table", "schema");
   ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')",
             generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
   ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')",
@@ -259,8 +256,7 @@ TEST(xpl_expr_generator, column_identifier_no_column) {
   ASSERT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 
-  Document_path::Path path("member");
-  ColumnIdentifier ident2(path, EMPTY, "table", EMPTY);
+  ColumnIdentifier ident2(Document_path{"member"}, EMPTY, "table", EMPTY);
   ASSERT_EQ("JSON_EXTRACT(`table`.doc,'$.member')",
             generate_expression(ident2, EMPTY_SCHEMA, DM_DOCUMENT));
 }
@@ -431,75 +427,94 @@ TEST(xpl_expr_generator, complex_expressions) {
 }
 
 TEST(xpl_expr_generator, document_path_root) {
-  Document_path::Path path;
-  EXPECT_EQ("'$'",
-            generate_expression(Document_path(path.add_member(EMPTY)),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("'$'", generate_expression(Document_path(Document_path()),
+                                       EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, document_path_empty_member) {
-  Document_path::Path path;
-  EXPECT_THROW(generate_expression(
-                   Document_path(path.add_member(EMPTY).add_member("name")),
-                   EMPTY_SCHEMA, DM_TABLE),
-               xpl::Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(Document_path{EMPTY, "name"}, EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, document_path_empty_member_opposite) {
-  Document_path::Path path;
-  EXPECT_THROW(generate_expression(
-                   Document_path(path.add_member("name").add_member(EMPTY)),
-                   EMPTY_SCHEMA, DM_TABLE),
-               xpl::Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(Document_path{"name", EMPTY}, EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, document_path_array) {
-  Document_path::Path path;
-  EXPECT_EQ(
-      "'$.name[42]'",
-      generate_expression(Document_path(path.add_member("name").add_index(42)),
-                          EMPTY_SCHEMA, DM_TABLE));
+  Document_path path;
+  EXPECT_EQ("'$.name[42]'", generate_expression(Document_path{"name", 42},
+                                                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, document_path_root_array) {
-  Document_path::Path path;
-  EXPECT_EQ("'$[42]'", generate_expression(Document_path(path.add_index(42)),
-                                           EMPTY_SCHEMA, DM_TABLE));
+  Document_path path;
+  EXPECT_EQ("'$[42]'",
+            generate_expression(Document_path{42}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, document_path_member_asterisk) {
-  Document_path::Path path;
   EXPECT_EQ(
       "'$.name.*'",
-      generate_expression(Document_path(path.add_member("name").add_asterisk()),
-                          EMPTY_SCHEMA, DM_TABLE));
+      generate_expression(
+          Document_path{"name", Document_path_item::Base::MEMBER_ASTERISK},
+          EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, document_path_root_asterisk) {
-  Document_path::Path path;
-  EXPECT_EQ("'$.*'", generate_expression(Document_path(path.add_asterisk()),
-                                         EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("'$.*'",
+            generate_expression(
+                Document_path{Document_path_item::Base::MEMBER_ASTERISK},
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, document_path_double_asterisk) {
-  Document_path::Path path;
-  path.add_member("name").add_double_asterisk();
-  EXPECT_EQ("'$.name**'",
-            generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "'$.name**'",
+      generate_expression(
+          Document_path{"name", Document_path_item::Base::DOUBLE_ASTERISK},
+          EMPTY_SCHEMA, DM_TABLE));
+}
+
+TEST(xpl_expr_generator, document_path_array_index) {
+  EXPECT_EQ("'$.name[42]'", generate_expression(Document_path{"name", 42},
+                                                EMPTY_SCHEMA, DM_TABLE));
+}
+
+TEST(xpl_expr_generator, document_path_root_array_index) {
+  EXPECT_EQ("'$[42]'",
+            generate_expression(Document_path{42}, EMPTY_SCHEMA, DM_TABLE));
+}
+
+TEST(xpl_expr_generator, document_path_array_index_asterisk) {
+  EXPECT_STREQ(
+      "'$.name[*]'",
+      generate_expression(
+          Document_path{"name", Document_path_item::Base::ARRAY_INDEX_ASTERISK},
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+}
+
+TEST(xpl_expr_generator, document_path_root_array_index_asterisk) {
+  EXPECT_STREQ(
+      "'$[*]'",
+      generate_expression(
+          Document_path{Document_path_item::Base::ARRAY_INDEX_ASTERISK},
+          EMPTY_SCHEMA, DM_TABLE).c_str());
 }
 
 TEST(xpl_expr_generator, document_path_root_double_asterisk) {
-  Document_path::Path path;
-  path.add_double_asterisk();
-
   EXPECT_EQ("'$**'",
-            generate_expression(Document_path(path), EMPTY_SCHEMA, DM_TABLE));
+            generate_expression(
+                Document_path{Document_path_item::Base::DOUBLE_ASTERISK},
+                EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, placeholder_not_found) {
   EXPECT_THROW(generate_expression(Expr(Placeholder{10}), Expression_args(),
                                    EMPTY_SCHEMA, DM_TABLE),
-               xpl::Expression_generator::Error);
+               Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, placeholder_found) {
@@ -514,16 +529,16 @@ TEST(xpl_expr_generator, placeholder_opearator_one_arg) {
 }
 
 TEST(xpl_expr_generator, placeholder_opearator_two_args) {
-  EXPECT_EQ("(1 + 2)", generate_expression(
-                           Operator("+", Placeholder{1}, Placeholder{0}),
-                           Expression_args({2, 1}), EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ("(1 + 2)",
+            generate_expression(Operator("+", Placeholder{1}, Placeholder{0}),
+                                Expression_args{2, 1}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, placeholder_function) {
   EXPECT_EQ(
       "xschema.bar(42,'foo')",
       generate_expression(FunctionCall("bar", Placeholder{0}, Placeholder{1}),
-                          Expression_args({42, "foo"}), "xschema", true));
+                          Expression_args{42, "foo"}, "xschema", true));
 }
 
 TEST(xpl_expr_generator, placeholder_function_and_operator) {
@@ -532,7 +547,7 @@ TEST(xpl_expr_generator, placeholder_function_and_operator) {
       generate_expression(
           Operator(">", FunctionCall("bar", Placeholder{0}, Placeholder{1}),
                    Placeholder{0}),
-          Expression_args({42, "foo"}), "xschema", true));
+          Expression_args{42, "foo"}, "xschema", true));
 }
 
 TEST(xpl_expr_generator, placeholder_operator_null) {
@@ -544,7 +559,7 @@ TEST(xpl_expr_generator, placeholder_operator_null) {
 
 TEST(xpl_expr_generator, cast_missing_param) {
   EXPECT_THROW(
-      generate_expression(Operator("cast"), EMPTY_SCHEMA, DM_TABLE),
+      generate_expression(Operator("cast", 42), EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
 }
 
@@ -720,14 +735,15 @@ TEST(xpl_expr_generator, object_in_function) {
 }
 
 TEST(xpl_expr_generator, object_real_example) {
-  Document_path::Path path1("first_name"), path2("last_name");
   EXPECT_EQ(
       "JSON_OBJECT('name',concat("
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.first_name')),' ',"
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.last_name'))),'number',(1 + 1))",
       generate_expression(
-          Object{{"name", FunctionCall("concat", ColumnIdentifier(path1), " ",
-                                       ColumnIdentifier(path2))},
+          Object{{"name",
+                  FunctionCall(
+                      "concat", ColumnIdentifier(Document_path{"first_name"}),
+                      " ", ColumnIdentifier(Document_path{"last_name"}))},
                  {"number", Operator("+", 1, 1)}},
           EMPTY_SCHEMA, DM_TABLE));
 }
@@ -1020,5 +1036,48 @@ TEST(xpl_expr_generator, cont_in_expression_placeholders) {
                           EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
 }
+
+TEST(xpl_expr_generator, cont_in_expression_identifier) {
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST(42 AS JSON),"
+      "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'))",
+      generate_expression(
+          Operator("cont_in", ColumnIdentifier(Document_path{"member"}, "field",
+                                               "table", "schema"),
+                   42),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+
+  EXPECT_STREQ(
+      "JSON_CONTAINS(JSON_EXTRACT(`schema`.`table`.`field`,'$.member'),"
+      "CAST(42 AS JSON))",
+      generate_expression(
+          Operator("cont_in", 42, ColumnIdentifier(Document_path{"member"},
+                                                   "field", "table", "schema")),
+          EMPTY_SCHEMA, DM_TABLE).c_str());
+
+  EXPECT_THROW(
+      generate_expression(
+          Operator("cont_in", 42, ColumnIdentifier("field", "table", "schema")),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+}
+
+TEST(xpl_expr_generator, any_scalar) {
+  EXPECT_STREQ("42",
+               generate_expression(Any(42), EMPTY_SCHEMA, DM_TABLE).c_str());
+}
+
+TEST(xpl_expr_generator, any_object) {
+  EXPECT_THROW(generate_expression(Any(Any::Object{{"name", Any(42)}}),
+                                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
+}
+
+TEST(xpl_expr_generator, any_array) {
+  EXPECT_THROW(
+      generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+}
+
 }  // namespace test
 }  // namespace xpl

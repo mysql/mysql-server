@@ -468,50 +468,50 @@ drop table t7;
 
 select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2),substring_index("1abcd;2abcd;3abcd;4abcd", ';', -2);
 
-explain extended select md5('hello');
-explain extended select sha('abc');
-explain extended select sha1('abc');
-explain extended select soundex('');
-explain extended select 'mood' sounds like 'mud';
-explain extended select aes_decrypt(aes_encrypt('abc','1'),'1');
-explain extended select concat('*',space(5),'*');
-explain extended select reverse('abc');
-explain extended select rpad('a',4,'1');
-explain extended select lpad('a',4,'1');
-explain extended select concat_ws(',','',NULL,'a');
-explain extended select make_set(255,_latin2'a', _latin2'b', _latin2'c');
-explain extended select elt(2,1);
-explain extended select locate("a","b",2);
-explain extended select format(130,10);
-explain extended select char(0);
-explain extended select conv(130,16,10);
-explain extended select hex(130);
-explain extended select binary 'HE';
-explain extended select export_set(255,_latin2'y', _latin2'n', _latin2' ');
-explain extended select FIELD('b' COLLATE latin1_bin,'A','B');
-explain extended select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
-explain extended select collation(conv(130,16,10));
-explain extended select coercibility(conv(130,16,10));
-explain extended select length('\n\t\r\b\0\_\%\\');
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
-explain extended select bit_length('\n\t\r\b\0\_\%\\');
-explain extended select concat('monty',' was here ','again');
-explain extended select length('hello');
-explain extended select char(ascii('h'));
-explain extended select ord('h');
-explain extended select quote(1/0);
-explain extended select crc32("123");
-explain extended select replace('aaaa','a','b');
-explain extended select insert('txs',2,1,'hi');
-explain extended select left(_latin2'a',1);
-explain extended select right(_latin2'a',1);
-explain extended select lcase(_latin2'a');
-explain extended select ucase(_latin2'a');
-explain extended select SUBSTR('abcdefg',3,2);
-explain extended select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
-explain extended select trim(_latin2' a ');
-explain extended select ltrim(_latin2' a ');
-explain extended select rtrim(_latin2' a ');
+explain select md5('hello');
+explain select sha('abc');
+explain select sha1('abc');
+explain select soundex('');
+explain select 'mood' sounds like 'mud';
+explain select aes_decrypt(aes_encrypt('abc','1'),'1');
+explain select concat('*',space(5),'*');
+explain select reverse('abc');
+explain select rpad('a',4,'1');
+explain select lpad('a',4,'1');
+explain select concat_ws(',','',NULL,'a');
+explain select make_set(255,_latin2'a', _latin2'b', _latin2'c');
+explain select elt(2,1);
+explain select locate("a","b",2);
+explain select format(130,10);
+explain select char(0);
+explain select conv(130,16,10);
+explain select hex(130);
+explain select binary 'HE';
+explain select export_set(255,_latin2'y', _latin2'n', _latin2' ');
+explain select FIELD('b' COLLATE latin1_bin,'A','B');
+explain select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
+explain select collation(conv(130,16,10));
+explain select coercibility(conv(130,16,10));
+explain select length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
+explain select bit_length('\n\t\r\b\0\_\%\\');
+explain select concat('monty',' was here ','again');
+explain select length('hello');
+explain select char(ascii('h'));
+explain select ord('h');
+explain select quote(1/0);
+explain select crc32("123");
+explain select replace('aaaa','a','b');
+explain select insert('txs',2,1,'hi');
+explain select left(_latin2'a',1);
+explain select right(_latin2'a',1);
+explain select lcase(_latin2'a');
+explain select ucase(_latin2'a');
+explain select SUBSTR('abcdefg',3,2);
+explain select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
+explain select trim(_latin2' a ');
+explain select ltrim(_latin2' a ');
+explain select rtrim(_latin2' a ');
 
 #
 # lpad returns incorrect result (Bug #2182)
@@ -773,11 +773,11 @@ DROP TABLE t1;
 CREATE TABLE t1 (s varchar(10));
 INSERT INTO t1 VALUES ('yadda'), ('yaddy');
 
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
-EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
+EXPLAIN SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 
 DROP TABLE t1;
 
@@ -850,7 +850,7 @@ INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
 
 SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
   WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
-EXPLAIN EXTENDED 
+EXPLAIN 
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
   WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 

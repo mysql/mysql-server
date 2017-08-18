@@ -364,7 +364,6 @@ Mysqlx.Crud.Find {
 -->varlet %FUNCTION_JSON_VALID% %FUNC_CALL% {name{name: 'json_valid'} param{%LITERAL_OBJECT_SCALAR_BLUE%}}
 -->callmacro Cont_in	%FUNCTION_JSON_VALID%	%LITERAL_ARRAY_10_20_30%	ER_X_EXPR_BAD_VALUE
 
-`
 # parameters
 
 -->macro Cont_in_params  %PARAMS%  %ERROR%

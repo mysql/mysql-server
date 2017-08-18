@@ -61,7 +61,7 @@ select @test_int,@test_double,@test_string,@test_string2;
 set @test_int=null,@test_double=null,@test_string=null,@test_string2=null;
 select @test_int,@test_double,@test_string,@test_string2;
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
-explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
+explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 select @t5;
 
 #
@@ -125,9 +125,9 @@ select @@local.max_join_size, @@global.max_join_size;
 select @@identity,  length(@@version)>0;
 select @@VERSION=version();
 select last_insert_id(345);
-explain extended select last_insert_id(345);
+explain select last_insert_id(345);
 select @@IDENTITY,last_insert_id(), @@identity;
-explain extended select @@IDENTITY,last_insert_id(), @@identity;
+explain select @@IDENTITY,last_insert_id(), @@identity;
 
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";
 
@@ -364,7 +364,6 @@ set global max_delayed_threads=100;
 set max_heap_table_size=100;
 set max_join_size=100;
 set max_sort_length=100;
-set max_tmp_tables=100;
 set global max_user_connections=100;
 select @@max_user_connections;
 set global max_write_lock_count=100;

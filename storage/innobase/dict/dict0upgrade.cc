@@ -39,16 +39,14 @@ uint	dd_upgrade_indexes_num = 1;
 uint	dd_upgrade_tables_num = 1;
 
 /** Initialize an implicit tablespace name.
-@param[in,out]	dd_space	tablespace metadata
 @param[in]	space		internal space id */
-static void dd_upgrade_set_tablespace_name(dd::Tablespace* dd_space,
-                                           space_id_t space) {
+static std::string dd_upgrade_get_implicit(space_id_t space) {
   ut_ad(space != SPACE_UNKNOWN);
 
   std::ostringstream	tablespace_name;
   tablespace_name << dict_sys_t::s_file_per_table_name << "." << space;
 
-  dd_space->set_name(tablespace_name.str().c_str());
+  return(tablespace_name.str());
 }
 
 /** Fill foreign key information from InnoDB table to
@@ -277,17 +275,31 @@ static bool dd_upgrade_match_single_col(const Field* field,
   }
 
   ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
-  ulint prtype =
-      dtype_form_prtype(static_cast<ulint>(field->type()) | nulls_allowed
-			| unsigned_type | binary_type | long_true_varchar | is_virtual,
-                        charset_no);
 
-  DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->prtype == prtype););
+  ulint server_prtype =
+      (static_cast<ulint>(field->type()) | nulls_allowed | unsigned_type |
+       binary_type | long_true_varchar | is_virtual);
 
-  if (prtype != col->prtype) {
+  /* First two bytes store charset, last two bytes store precision
+  value. Get the last two bytes. i.e precision value */
+  ulint innodb_prtype= (col->prtype & 0x0000FFFF);
+
+  if (server_prtype != innodb_prtype) {
     ib::error() << "Column precision type mismatch(i.e NULLs, SIGNED/UNSIGNED "
                    "etc) for col: " << field->field_name;
     failure = true;
+  }
+
+  /* Numeric columns from 5.1 might have charset as my_charset_bin
+  while 5.5+ will have charset as my_charset_latin1. Compare charsets
+  only if field supports character set. */
+  if (field->has_charset()) {
+    ulint col_charset = col->prtype >> 16;
+    if (charset_no != col_charset) {
+      ib::error() << "Column character set mismatch for col: "
+                  << field->field_name;
+      failure = true;
+    }
   }
 
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->len == col_len););
@@ -962,6 +974,49 @@ bool dd_upgrade_table(THD* thd, const char* db_name, const char* table_name,
   return (failure);
 }
 
+/** Tablespace information required to create a
+dd::Tablespace object */
+typedef struct {
+  /** InnoDB space id */
+  space_id_t id;
+  /** Tablespace name */
+  const char* name;
+  /** Tablespace flags */
+  ulint flags;
+  /** Path of the tablespace file */
+  const char* path;
+} upgrade_space_t;
+
+/** Register InnoDB tablespace to mysql
+dictionary table mysql.tablespaces
+@param[in]	dd_client	dictionary client
+@param[in]	dd_space	server tablespace object
+@param[in]	upgrade_space	upgrade tablespace object
+@return 0 on success, non-zero on error */
+static uint32_t dd_upgrade_register_tablespace(
+    dd::cache::Dictionary_client* dd_client, dd::Tablespace* dd_space,
+    upgrade_space_t* upgrade_space) {
+  dd_space->set_engine(innobase_hton_name);
+  dd_space->set_name(upgrade_space->name);
+
+  dd::Properties& p = dd_space->se_private_data();
+  p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
+               static_cast<uint32>(upgrade_space->id));
+  p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+               static_cast<uint32>(upgrade_space->flags));
+  dd::Tablespace_file* dd_file = dd_space->add_file();
+
+  dd_file->set_filename(upgrade_space->path);
+
+  if (dd_client->store(dd_space)) {
+    /* It would be better to return thd->get_stmt_da()->mysql_errno(),
+    however, server doesn't fill in the errno during bootstrap. */
+    return (HA_ERR_GENERIC);
+  }
+
+  return (0);
+}
+
 /** Migrate tablespace entries from InnoDB SYS_TABLESPACES to new data
 dictionary. FTS Tablespaces are not registered as they are handled differently.
 FTS tablespaces have table_id in their name and we increment table_id of each
@@ -1005,22 +1060,20 @@ int dd_upgrade_tablespace(THD* thd) {
       std::unique_ptr<dd::Tablespace> dd_space(
           dd::create_object<dd::Tablespace>());
 
-      dd_space->set_engine(innobase_hton_name);
+      upgrade_space_t upgrade_space;
+      upgrade_space.id = space;
+      upgrade_space.flags = flags;
+
       bool is_file_per_table = !fsp_is_system_or_temp_tablespace(space) &&
                                !fsp_is_shared_tablespace(flags);
 
+      std::string file_per_name;
       if (is_file_per_table) {
-        dd_upgrade_set_tablespace_name(dd_space.get(), space);
+	file_per_name = dd_upgrade_get_implicit(space);
+        upgrade_space.name = file_per_name.c_str();
       } else {
-        dd_space->set_name(name);
+        upgrade_space.name = name;
       }
-
-      dd::Properties& p = dd_space->se_private_data();
-      p.set_uint32(dd_space_key_strings[DD_SPACE_ID],
-                   static_cast<uint32>(space));
-      p.set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-		   static_cast<uint32>(flags));
-      dd::Tablespace_file* dd_file = dd_space->add_file();
 
       mutex_enter(&dict_sys->mutex);
       char* filename = dict_get_first_path(space);
@@ -1038,11 +1091,11 @@ int dd_upgrade_tablespace(THD* thd) {
       }
 
       ut_ad(filename != NULL);
-      dd_file->set_filename(orig_name.c_str());
-      if (dd_client->store(dd_space.get())) {
+      upgrade_space.path = orig_name.c_str();
+
+      if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
+                                         &upgrade_space)) {
         mem_heap_free(heap);
-        /* It would be better to return thd->get_stmt_da()->mysql_errno(),
-        however, server doesn't fill in the errno during bootstrap. */
         DBUG_RETURN(HA_ERR_GENERIC);
       }
 
@@ -1062,6 +1115,44 @@ int dd_upgrade_tablespace(THD* thd) {
 
   mtr_commit(&mtr);
   mutex_exit(&dict_sys->mutex);
+
+  /* These are file_per_table tablespaces(created using 5.5 or
+  earlier). These are not found in SYS_TABLESPACES but discovered
+  from SYS_TABLES */
+  for (auto space : missing_spaces) {
+
+    std::string tablespace_name(space->name);
+    /* FTS tablespaces will be registered later */
+    if (tablespace_name.find("FTS") != std::string::npos) {
+      continue;
+    }
+
+    std::unique_ptr<dd::Tablespace> dd_space(
+        dd::create_object<dd::Tablespace>());
+
+    upgrade_space_t upgrade_space;
+    upgrade_space.id = space->id;
+    upgrade_space.flags = space->flags;
+    dd_space->set_engine(innobase_hton_name);
+
+    std::string name;
+    name = dd_upgrade_get_implicit(space->id);
+    upgrade_space.name = name.c_str();
+
+    Datafile df;
+
+    df.init(space->name, space->flags);
+    df.make_filepath(nullptr, space->name, IBD);
+
+    upgrade_space.path = df.filepath();
+
+    if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
+                                       &upgrade_space)) {
+      mem_heap_free(heap);
+      DBUG_RETURN(HA_ERR_GENERIC);
+    }
+  }
+
   mem_heap_free(heap);
 
   DBUG_RETURN(0);

@@ -9032,6 +9032,118 @@ fil_tablespace_redo_delete(
 	return(ptr);
 }
 
+/** Parse and process an encryption redo record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	space_id	the tablespace ID
+@return log record end, nullptr if not a complete record */
+byte*
+fil_tablespace_redo_encryption(
+	byte*		ptr,
+	const byte*	end,
+	space_id_t	space_id)
+{
+	byte*		iv = nullptr;
+	byte*		key = nullptr;
+	bool		is_new = false;
+
+	fil_space_t*	space = fil_space_get(space_id);
+
+	if (space == nullptr) {
+
+		if (recv_sys->keys == nullptr) {
+
+			recv_sys->keys = UT_NEW_NOKEY(
+				recv_sys_t::Encryption_Keys());
+		}
+
+		for (auto& recv_key : *recv_sys->keys) {
+
+			if (recv_key.space_id == space_id) {
+				iv = recv_key.iv;
+				key = recv_key.ptr;
+			}
+		}
+
+		if (key == nullptr) {
+
+			key = static_cast<byte*>(
+				ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+
+			iv = static_cast<byte*>(
+				ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+
+			is_new = true;
+		}
+
+	} else {
+		iv = space->encryption_iv;
+		key = space->encryption_key;
+	}
+
+	ulint	offset;
+
+	offset = mach_read_from_2(ptr);
+	ptr += 2;
+
+	ulint	len;
+
+	len = mach_read_from_2(ptr);
+	ptr += 2;
+
+	if (end < ptr + len) {
+		return(nullptr);
+	}
+
+	if (offset >= UNIV_PAGE_SIZE
+	    || len + offset > UNIV_PAGE_SIZE
+	    || (len != ENCRYPTION_INFO_SIZE_V1
+		&& len != ENCRYPTION_INFO_SIZE_V2)) {
+
+		recv_sys->found_corrupt_log = true;
+		return(nullptr);
+	}
+
+	if (!Encryption::decode_encryption_info(key, iv, ptr)) {
+
+		recv_sys->found_corrupt_log = true;
+
+		ib::warn()
+			<< "Encryption information"
+			<< " in the redo log of space "
+			<< space_id << " is invalid";
+
+		return(nullptr);
+	}
+
+	ut_ad(len == ENCRYPTION_INFO_SIZE_V1
+	      || len == ENCRYPTION_INFO_SIZE_V2);
+
+	ptr += len;
+
+	if (space == nullptr) {
+
+		if (is_new) {
+
+			recv_sys_t::Encryption_Key	new_key;
+
+			new_key.iv = iv;
+			new_key.ptr = key;
+			new_key.space_id = space_id;
+
+			recv_sys->keys->push_back(new_key);
+		}
+
+	} else {
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		space->encryption_type = Encryption::AES;
+		space->encryption_klen = ENCRYPTION_KEY_LEN;
+	}
+
+	return(ptr);
+}
+
 /** Tokenize a path specification. Convert relative paths to absolute paths.
 Check if the paths are valid and filter out invalid or unreadable directories.
 Sort and filter out duplicates from dirs.

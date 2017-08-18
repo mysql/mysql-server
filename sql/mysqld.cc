@@ -1046,10 +1046,7 @@ uint reg_ext_length;
 char logname_path[FN_REFLEN];
 char slow_logname_path[FN_REFLEN];
 char secure_file_real_path[FN_REFLEN];
-
-Date_time_format global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
-
 char *mysql_data_home= const_cast<char*>(".");
 const char *mysql_real_data_home_ptr= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
@@ -1471,6 +1468,7 @@ static void server_component_init()
   mysql_string_services_init();
   mysql_comp_status_var_services_init();
   mysql_comp_sys_var_services_init();
+  mysql_comp_system_variable_source_init();
 }
 
 /**
@@ -1712,6 +1710,10 @@ static void close_connections(void)
     set_kill_conn.set_dump_thread_flag();
     thd_manager->do_for_all_thd(&set_kill_conn);
   }
+
+  // Disable the event scheduler
+  Events::stop();
+
   if (thd_manager->get_thd_count() > 0)
     sleep(2);         // Give threads time to die
 
@@ -1969,7 +1971,7 @@ static void clean_up(bool print_message)
   lex_free();       /* Free some memory */
   item_create_cleanup();
   if (!opt_noacl)
-    udf_deinit();
+    udf_unload_udfs();
   table_def_start_shutdown();
   plugin_shutdown();
   gtid_server_cleanup(); // after plugin_shutdown
@@ -2061,6 +2063,7 @@ static void clean_up(bool print_message)
 
   persisted_variables_cache.cleanup();
 
+  udf_deinit_globals();
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -2977,23 +2980,6 @@ static int check_enough_stack_size(int recurse_level)
     1 error
 */
 
-static bool init_global_datetime_format(timestamp_type format_type,
-                                        Date_time_format *format)
-{
-  /*
-    Get command line option
-    format->format.str is already set by my_getopt
-  */
-  format->format.length= strlen(format->format.str);
-
-  if (parse_date_time_format(format_type, format))
-  {
-    LogErr(ERROR_LEVEL, ER_WRONG_DATETIME_SPEC, format->format.str);
-    return true;
-  }
-  return false;
-}
-
 SHOW_VAR com_status_vars[]= {
   {"admin_commands",       (char*) offsetof(System_status_var, com_other),                                          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"assign_to_keycache",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ASSIGN_TO_KEYCACHE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3557,8 +3543,8 @@ int init_common_variables()
     host_cache_size= 2000;
 
   /* Fix back_log */
-  if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
-    back_log= 900;
+  if (back_log == 0 && (back_log= max_connections) > 65535)
+    back_log= 65535;
 
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
@@ -4582,6 +4568,13 @@ static int init_server_components()
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  /*
+    We need to initialize the UDF globals early before reading the proc table
+    and before the server component initialization to allow other components
+    to register their UDFs at init time and de-register them at deinit time.
+  */
+  udf_init_globals();
 
   /*
     Set tc_log to point to TC_LOG_DUMMY early in order to allow plugin_init()
@@ -5792,7 +5785,7 @@ int mysqld_main(int argc, char **argv)
 
   if (!opt_noacl)
   {
-    udf_init();
+    udf_read_functions_table();
   }
 
   init_status_vars();
@@ -8797,14 +8790,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
-
-  if (init_global_datetime_format(MYSQL_TIMESTAMP_DATE,
-                                  &global_date_format) ||
-      init_global_datetime_format(MYSQL_TIMESTAMP_TIME,
-                                  &global_time_format) ||
-      init_global_datetime_format(MYSQL_TIMESTAMP_DATETIME,
-                                  &global_datetime_format))
-    return 1;
 
   if (Connection_handler_manager::init())
   {

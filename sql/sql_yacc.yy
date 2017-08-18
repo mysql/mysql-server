@@ -1590,7 +1590,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <join_type> outer_join_type natural_join_type inner_join_type
 
-%type <user_list> user_list role_list opt_except_role_list
+%type <user_list> user_list role_list default_role_clause opt_except_role_list
 
 %type <alter_instance_action> alter_instance_action
 
@@ -2553,11 +2553,13 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER opt_if_not_exists grant_list require_clause
-                      connect_options opt_account_lock_password_expire_options
+        | CREATE USER opt_if_not_exists grant_list default_role_clause
+                      require_clause connect_options
+                      opt_account_lock_password_expire_options
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_CREATE_USER;
+            lex->default_roles= $5;
             Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
             if (Lex->create_info == NULL)
               MYSQL_YYABORT; // OOM
@@ -2589,6 +2591,18 @@ create:
             Lex->server_options.set_scheme($7);
             Lex->m_sql_cmd=
               NEW_PTN Sql_cmd_create_server(&Lex->server_options);
+          }
+        ;
+
+default_role_clause:
+          /* empty */
+          {
+            $$= 0;
+          }
+        |
+          DEFAULT_SYM ROLE_SYM role_list
+          {
+            $$= $3;
           }
         ;
 
@@ -12241,18 +12255,6 @@ opt_extended_describe:
           {
             if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
               MYSQL_YYABORT;
-          }
-        | EXTENDED_SYM
-          {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
-            push_deprecated_warn_no_replacement(YYTHD, "EXTENDED");
-          }
-        | PARTITIONS_SYM
-          {
-            if ((Lex->explain_format= new (*THR_MALLOC) Explain_format_traditional) == NULL)
-              MYSQL_YYABORT;
-            push_deprecated_warn_no_replacement(YYTHD, "PARTITIONS");
           }
         | FORMAT_SYM EQ ident_or_text
           {

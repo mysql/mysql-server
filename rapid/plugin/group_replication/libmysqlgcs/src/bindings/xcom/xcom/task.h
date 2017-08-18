@@ -40,7 +40,7 @@ extern "C" {
         Nonblocking IO and event handling need to be rewritten for each new OS.
 */
 
-#define USE_SELECT
+/* #define USE_SELECT */
 #ifdef TASK_EVENT_TRACE
 void add_base_event(double when, char const *file, int state);
 #define ADD_BASE_EVENT                             \
@@ -262,8 +262,6 @@ struct task_queue {
 };
 typedef struct task_queue task_queue;
 
-#define MAXFILES MAXTASKS
-
 #define _ep ((struct env *)(stack->sp->ptr))
 
 #define TASK_ALLOC(pool, type) (task_allocate(pool, (unsigned int)sizeof(type)))
@@ -272,7 +270,7 @@ typedef struct task_queue task_queue;
 #define TASK_DEBUG(x)                                     \
   if (stack->debug) {                                     \
     DBGOUT(FN; STRLIT(x " task "); PTREXP((void *)stack); \
-           STRLIT(stack->name));                          \
+           STRLIT(stack->name); NDBG(stack->sp->state,d));\
   }
 #else
 #define TASK_DEBUG(x)

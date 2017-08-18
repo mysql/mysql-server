@@ -148,12 +148,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "univ.i"
 #include "ut0mem.h"
+#include "mysql/components/services/system_variable_source.h"
 
 #include <vector>
 #include <mutex>
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
+
 /** Stop printing warnings, if the count exceeds this threshold. */
 static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
+
+SERVICE_TYPE(registry)*	reg_svc = nullptr;
+my_h_service h_ret_sysvar_source_svc = nullptr;
+SERVICE_TYPE(system_variable_source)*	sysvar_source_svc = nullptr;
+
+/* -------------------- SYSTEM MEMORY ----------------------------- */
+static const uint64_t	KB = 1024;
+static const uint64_t	MB = KB * 1024;
+static const uint64_t	GB = MB * 1024;
 
 /** fil_space_t::flags for hard-coded tablespaces */
 ulint		predefined_flags;
@@ -230,6 +244,75 @@ enum default_row_format_enum {
 	DEFAULT_ROW_FORMAT_COMPACT = 1,
 	DEFAULT_ROW_FORMAT_DYNAMIC = 2,
 };
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <Windows.h>
+static
+double
+get_mem_GlobalMemoryStatus()
+{
+	MEMORYSTATUSEX ms;
+	ms.dwLength = sizeof(ms);
+	GlobalMemoryStatusEx(&ms);
+	return(((double) ms.ullTotalPhys)/GB);
+}
+#undef get_sys_mem
+#define get_sys_mem get_mem_GlobalMemoryStatus
+#else
+static
+double
+get_mem_sysconf()
+{
+	return(((double)sysconf(_SC_PHYS_PAGES)) *
+		((double)sysconf(_SC_PAGESIZE)/GB));
+}
+#undef get_sys_mem
+#define get_sys_mem get_mem_sysconf
+#endif /* defined(_WIN32) || defined(_WIN64) */
+
+static
+void
+release_sysvar_source_service()
+{
+	if (reg_svc != nullptr) {
+		if (h_ret_sysvar_source_svc != nullptr) {
+			/* Release system_variable_source services */
+			reg_svc->release(h_ret_sysvar_source_svc);
+			h_ret_sysvar_source_svc = nullptr;
+			sysvar_source_svc = nullptr;
+		}
+		/* Release registry service */
+		mysql_plugin_registry_release(reg_svc);
+		reg_svc = nullptr;
+	}
+}
+
+static
+void
+acquire_sysvar_source_service()
+{
+	/* Acquire mysql_server's registry service */
+
+	reg_svc = mysql_plugin_registry_acquire();
+
+	/* Acquire system_variable_source service */
+
+	if (!reg_svc
+	    || reg_svc->acquire(
+		    "system_variable_source", &h_ret_sysvar_source_svc)) {
+
+		release_sysvar_source_service();
+
+	}  else {
+
+		/* Type cast this handler to proper service handle */
+
+		sysvar_source_svc =
+			reinterpret_cast<SERVICE_TYPE(
+				system_variable_source)*>(
+					h_ret_sysvar_source_svc);
+	}
+}
 
 /** Return the InnoDB ROW_FORMAT enum value
 @param[in]	row_format	row_format from "innodb_default_row_format"
@@ -4171,6 +4254,44 @@ innodb_buffer_pool_size_init()
 	ulong	srv_buf_pool_instances_org = srv_buf_pool_instances;
 #endif /* UNIV_DEBUG */
 
+	acquire_sysvar_source_service();
+	/* If innodb_dedicated_server == ON */
+	if (srv_dedicated_server && sysvar_source_svc != nullptr) {
+		static const char* variable_name = "innodb_buffer_pool_size";
+		enum enum_variable_source source;
+		if (!sysvar_source_svc->get(
+			variable_name, strlen(variable_name), &source))
+		{
+
+			/* If innodb_buffer_pool_size is not specified explicitly,
+			then set it according to server memory as follow:
+			1) server_memory < 1 GB then
+				innodb_buffer_pool_size = default.
+			2) server_memory <= 4 GB then
+				innodb_buffer_pool_size = 50% of server memory.
+			2) server_memory > 4 GB then
+				 innodb_buffer_pool_size = 75% of server memory.*/
+			if (source == COMPILED) {
+				double server_mem = get_sys_mem();
+				if (server_mem < 1.0) {
+					/* Do nothing. Current default is considered. */
+				} else if (server_mem <= 4.0) {
+					srv_buf_pool_size =
+						static_cast<ulint>(server_mem * 0.5 * GB);
+				} else
+					srv_buf_pool_size =
+						static_cast<ulint>(server_mem * 0.75 * GB);
+			} else {
+				ib::warn() << "Option innodb_dedicated_server"
+					" is ignored for innodb_buffer_pool_size because"
+					" innodb_buffer_pool_size="
+					<< srv_buf_pool_curr_size
+				        <<" is specified explicitly.";
+			}
+		}
+	}
+	release_sysvar_source_service();
+
 	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 
 		if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
@@ -4312,6 +4433,45 @@ innodb_init_params()
 				srv_page_size);
 		DBUG_RETURN(HA_ERR_INITIALIZATION);
 	}
+
+	acquire_sysvar_source_service();
+	/* If innodb_dedicated_server == ON */
+	if (srv_dedicated_server && sysvar_source_svc != nullptr) {
+		static const char* variable_name = "innodb_log_file_size";
+		enum enum_variable_source source;
+		if (!sysvar_source_svc->get(
+			variable_name, strlen(variable_name), &source))
+		{
+			/* If innodb_log_file_size is not specified explicitly,
+			then set it according to server memory as follow:
+			1) server_memory <   1 GB then innodb_log_file_size = default.
+			2) server_memory <=  4 GB then innodb_log_file_size =  128 MB.
+			3) server_memory <=  8 GB then innodb_log_file_size =  512 MB.
+			4) server_memory <= 16 GB then innodb_log_file_size = 1024 MB.
+			5) server_memory >  16 GB then innodb_log_file_size = 2048 MB.*/
+			if (source == COMPILED) {
+				double server_mem = get_sys_mem();
+				if (server_mem < 1.0) {
+					/* Do nothing. Current default is considered. */
+				} else if (server_mem <= 4.0) {
+					innodb_log_file_size = 128ULL * MB;
+				} else if (server_mem <= 8.0) {
+					innodb_log_file_size = 512ULL * MB;
+				} else if (server_mem <= 16.0) {
+					innodb_log_file_size = 1024ULL * MB;
+				} else {
+					innodb_log_file_size = 2048ULL * MB;
+				}
+			} else {
+				ib::warn() << "Option innodb_dedicated_server"
+					" is ignored for innodb_log_file_size because"
+					" innodb_log_file_size="
+					<< innodb_log_file_size
+				        <<" is specified explicitly.";
+			}
+		}
+	}
+	release_sysvar_source_service();
 
 	srv_log_file_size = innodb_log_file_size;
 
@@ -4490,6 +4650,31 @@ innodb_init_params()
 #endif
 
 #ifndef _WIN32
+	acquire_sysvar_source_service();
+	/* Check if innodb_dedicated_server == ON and O_DIRECT is supported */
+	if (srv_dedicated_server &&
+		sysvar_source_svc != nullptr &&
+		 os_is_o_direct_supported()) {
+		static const char* variable_name = "innodb_flush_method";
+		enum enum_variable_source source;
+		if (!sysvar_source_svc->get(
+			variable_name, strlen(variable_name), &source))
+		{
+			/* If innodb_flush_method is not specified explicitly */
+			if (source == COMPILED) {
+				innodb_flush_method = static_cast<ulong>(
+					SRV_UNIX_O_DIRECT_NO_FSYNC);
+			} else {
+				ib::warn() << "Option innodb_dedicated_server"
+					" is ignored for innodb_flush_method because"
+					" innodb_flush_method="
+					<< innodb_flush_method_names[innodb_flush_method]
+				        <<" is specified explicitly.";
+			}
+		}
+	}
+	release_sysvar_source_service();
+
 	srv_unix_file_flush_method = static_cast<srv_unix_flush_t>(
 		innodb_flush_method);
 	ut_ad(innodb_flush_method <= SRV_UNIX_O_DIRECT_NO_FSYNC);
@@ -21232,6 +21417,13 @@ innodb_buffer_pool_size_validate(
 	void*				save,
 	struct st_mysql_value*		value);
 
+static MYSQL_SYSVAR_BOOL(dedicated_server, srv_dedicated_server,
+  PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_NOPERSIST|PLUGIN_VAR_READONLY,
+  "Automatically scale innodb_buffer_pool_size and innodb_log_file_size "
+  "based on system memory. Also set innodb_flush_method=O_DIRECT_NO_FSYNC, "
+  "if supported",
+  NULL, NULL, TRUE);
+
 /* If the default value of innodb_buffer_pool_size is increased to be more than
 BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
 can be removed and 8 used instead. The problem with the current setup is that
@@ -21836,6 +22028,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
+  MYSQL_SYSVAR(dedicated_server),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_chunk_size),
   MYSQL_SYSVAR(buffer_pool_instances),

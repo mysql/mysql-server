@@ -15,7 +15,7 @@ select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
 select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
 select CASE when 1=0 then "true" else "false" END;
 select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
-explain extended select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
+explain select CASE 1 when 1 then "one" WHEN 2 then "two" ELSE "more" END;
 select CASE 2.0 when 1 then "one" WHEN 2.0 then "two" ELSE "more" END;
 select (CASE "two" when "one" then "1" WHEN "two" then "2" END) | 0;
 select (CASE "two" when "one" then 1.00 WHEN "two" then 2.00 END) +0.0;
@@ -33,7 +33,7 @@ create table t1 (a int);
 insert into t1 values(1),(2),(3),(4);
 select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 analyze table t1;
-explain extended select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+explain select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 drop table t1;
 
@@ -106,7 +106,7 @@ CREATE TABLE t1 SELECT
  COALESCE(1), COALESCE(1.0),COALESCE('a'),
  COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
  COALESCE('a' COLLATE latin1_bin,'b');
-explain extended SELECT 
+explain SELECT 
  COALESCE(1), COALESCE(1.0),COALESCE('a'),
  COALESCE(1,1.0), COALESCE(1,'1'),COALESCE(1.1,'1'),
  COALESCE('a' COLLATE latin1_bin,'b');

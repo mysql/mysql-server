@@ -73,6 +73,38 @@ collation_unordered_map<string, sys_var *> *get_system_variable_hash(void)
   return system_variable_hash;
 }
 
+/**
+  Get source of a given system variable given its name and name length.
+*/
+bool
+get_sysvar_source(const char *name, uint length,
+                  enum enum_variable_source* source)
+{
+  DBUG_ENTER("get_sysvar_source");
+
+  bool ret = false;
+  sys_var *sysvar= nullptr;
+
+  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+
+  /* system_variable_hash should have been initialized. */
+  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  std::string str(name, length);
+  sysvar= find_or_nullptr(*get_system_variable_hash(), str);
+
+  if(sysvar == nullptr)
+  {
+    ret = true;
+  }
+  else
+  {
+    *source = sysvar->get_source();
+  }
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  DBUG_RETURN(ret);
+}
+
 sys_var_chain all_sys_vars = { NULL, NULL };
 
 int sys_var_init()

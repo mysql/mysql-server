@@ -47,7 +47,7 @@ GROUP BY product, country_id, year;
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 ANALYZE TABLE t1;
-EXPLAIN EXTENDED SELECT product, country_id , year, SUM(profit)
+EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product desc, country_id WITH ROLLUP;

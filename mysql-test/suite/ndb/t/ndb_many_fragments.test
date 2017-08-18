@@ -66,7 +66,7 @@ select partition_name,table_rows from information_schema.PARTITIONS where  table
 
 ## Partition ID for row 1 = 52 (big-endian) or 19 (little-endian)
 --replace_regex /p52/pX/ /p19/pX/
-explain partitions select * from partitioned where server_id=1;
+explain select * from partitioned where server_id=1;
 
 insert into partitioned values (2,0,0,NULL);
 
@@ -76,6 +76,6 @@ select partition_name,table_rows from information_schema.PARTITIONS where  table
 
 ## Partition ID for row 2 = 30 (big-endian) or 1 (little-endian)
 --replace_regex /p30/pY/ /p1/pY/
-explain partitions select * from partitioned where server_id=2;
+explain select * from partitioned where server_id=2;
 
 drop table partitioned;

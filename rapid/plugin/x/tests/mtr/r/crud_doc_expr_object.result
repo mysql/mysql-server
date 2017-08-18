@@ -7,9 +7,8 @@ RUN DROP SCHEMA IF EXISTS xtest
 RUN CREATE SCHEMA xtest
 
 1 rows affected
-RUN CREATE TABLE xtest.xcoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY)
 
-0 rows affected
+command ok
 Inserting object into collection
 send Mysqlx.Crud.Insert {
   collection {

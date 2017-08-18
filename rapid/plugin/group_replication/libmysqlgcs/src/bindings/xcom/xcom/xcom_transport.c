@@ -822,14 +822,17 @@ int tcp_server(task_arg arg) {
     if (xcom_socket_accept_callback && !xcom_socket_accept_callback(ep->cfd)) {
       shut_close_socket(&ep->cfd);
       ep->cfd = -1;
-      ep->refused = 1;
-      TASK_YIELD;
-      continue;
     }
-    ep->refused = 0;
-    DBGOUT(FN; NDBG(ep->cfd, d););
-    task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
-             XCOM_THREAD_DEBUG);
+    if(ep->cfd == -1){
+      G_MESSAGE("accept failed");
+      ep->refused = 1;
+      TASK_DELAY(0.1);
+    } else {
+      ep->refused = 0;
+      DBGOUT(FN; NDBG(ep->cfd, d););
+      task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
+               XCOM_THREAD_DEBUG);
+    }
   } while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
   FINALLY
   assert(ep->fd >= 0);

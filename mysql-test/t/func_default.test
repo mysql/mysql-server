@@ -8,7 +8,7 @@ create table t1(str varchar(10) default 'def',strnull varchar(10),intg int defau
 insert into t1 values ('','',0,0.0);
 analyze table t1;
 select default(str), default(strnull), default(intg), default(rel) from t1;
-explain extended select default(str), default(strnull), default(intg), default(rel) from t1;
+explain select default(str), default(strnull), default(intg), default(rel) from t1;
 select * from t1 where str <> default(str);
 explain select * from t1 where str <> default(str);
 

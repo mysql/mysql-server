@@ -2169,6 +2169,13 @@ os_file_decompress_page(
 	ulint		dst_len)
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Determine if O_DIRECT is supported.
+@retval	true	if O_DIRECT is supported.
+@retval	false	if O_DIRECT is not supported. */
+bool
+os_is_o_direct_supported()
+	MY_ATTRIBUTE((warn_unused_result));
+
 /** Class to scan the directory heirarch using a depth first scan. */
 class Dir_Walker {
 public:

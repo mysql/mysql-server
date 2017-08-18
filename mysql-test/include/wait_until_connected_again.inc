@@ -7,6 +7,9 @@ let $counter= 1000;
 if ($VALGRIND_TEST) {
   let $counter= 3000;
 }
+if ($explicit_time_out_counter) {
+ let $counter=$explicit_time_out_counter;
+}
 let $mysql_errno= 9999;
 while ($mysql_errno)
 {

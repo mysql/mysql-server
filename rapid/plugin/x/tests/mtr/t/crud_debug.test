@@ -22,14 +22,14 @@
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 -->sql
--- "Creating database for testcase"
+#-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
 CREATE DATABASE xplugintest;
 USE xplugintest;
 CREATE TABLE table1 ( _id INT PRIMARY KEY, doc JSON ) ;
 -->endsql
 
--- "Create table table2 in xplugintest "
+#-- "Create table table2 in xplugintest "
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
@@ -55,14 +55,14 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 
--- "Set debyg sync point in server code to crash before committing record"
+#-- "Set debyg sync point in server code to crash before committing record"
 Mysqlx.Sql.StmtExecute {
    stmt : "SET DEBUG='+d,crash_commit_before'";
 }
 -->recvresult
 
--- "Insert will cause commit point to hit and server crashes"
--- "Records not saved as DEBUG='+d,crash_commit_before'"
+#-- "Insert will cause commit point to hit and server crashes"
+#-- "Records not saved as DEBUG='+d,crash_commit_before'"
 -->echo Insert multiple rows into a Document column
 Mysqlx.Crud.Insert {
   collection {
@@ -113,7 +113,7 @@ EOF
 SELECT * FROM xplugintest.table2;
 
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
--- "Index with  unique(true), index column NOT NULL (true)"
+#-- "Index with  unique(true), index column NOT NULL (true)"
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -213,13 +213,13 @@ Mysqlx.Crud.Insert {
 SHOW CREATE TABLE xplugintest.table2;
 SELECT * FROM xplugintest.table2;
 -->endsql
--- "Set crash point after commit. Update will hit this point"
+#-- "Set crash point after commit. Update will hit this point"
 Mysqlx.Sql.StmtExecute {
    stmt : "SET DEBUG='+d,crash_commit_after'";
 }
 -->recvresult
--- "Update will cause commit point to hit and server crashes"
--- "Records not saved as DEBUG='+d,crash_commit_before'"
+#-- "Update will cause commit point to hit and server crashes"
+#-- "Records not saved as DEBUG='+d,crash_commit_before'"
 -->echo Update decimal value with a corner value plus 1
 Mysqlx.Crud.Update {
   collection {

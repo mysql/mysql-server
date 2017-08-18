@@ -14,7 +14,7 @@ insert into t1 values (null);
 select count(a) as b from t1 where a=0 having b > 0;
 select count(a) as b from t1 where a=0 having b >=0;
 analyze table t1;
-explain extended select count(a) as b from t1 where a=0 having b >=0;
+explain select count(a) as b from t1 where a=0 having b >=0;
 drop table t1; 
 
 #
@@ -487,7 +487,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
@@ -495,7 +495,7 @@ WHERE table2.f1 = 2
 GROUP BY table1.f1, table2.f2
 HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 
-EXPLAIN EXTENDED
+EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
 JOIN t1 AS table2 ON table1.f3 = table2.f3
