@@ -105,7 +105,7 @@ public:
 
     @param thd                     - Current thread.
     @param tablespace_name_ptr     - Tablespace name of which we need stats.
-    @param file_name               - File name.
+    @param file_name_ptr           - File name.
     @param ts_se_private_data      - Tablespace se private data.
 
     @return true if statistics were not fetched from SE, otherwise false.

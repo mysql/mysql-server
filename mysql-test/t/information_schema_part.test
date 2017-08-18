@@ -82,7 +82,10 @@ subpartition by hash (a+b)
    subpartition x12 tablespace tbsp2 nodegroup 1),
   partition x2 values less than (5)
 ( subpartition x21 tablespace tbsp1 nodegroup 0,
-  subpartition x22 tablespace tbsp2 nodegroup 1)
+  subpartition x22 tablespace tbsp2 nodegroup 1),
+  partition x3 values less than (10)
+( subpartition x31 tablespace tbsp1 max_rows=50,
+  subpartition x32 tablespace tbsp2 nodegroup 1)
 );
    
 --replace_column 16 # 19 # 20 #

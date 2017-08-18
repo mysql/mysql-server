@@ -1268,6 +1268,7 @@ innobase_get_index_column_cardinality(
   Retrieve ha_tablespace_statistics for the tablespace.
 
   @param tablespace_name          Tablespace_name
+  @param file_name                Data file name.
   @param ts_se_private_data       Tablespace SE private data.
   @param[out] stats               Contains tablespace
                                   statistics read from SE.
@@ -16244,14 +16245,14 @@ innobase_get_tablespace_statistics(const char *tablespace_name,
 			const char *file_name_ptr2= tmp_file_name;
 			if (*file_name_ptr1 == '.') {
 				file_name_ptr1++;
-				while (*file_name_ptr1 == '/' ||
-				       *file_name_ptr1 == '\\')
+				while (*file_name_ptr1 == OS_PATH_SEPARATOR ||
+				       *file_name_ptr1 == OS_PATH_SEPARATOR_ALT)
 				     file_name_ptr1++;
 			}
 			if (*file_name_ptr2 == '.') {
 				file_name_ptr2++;
-				while (*file_name_ptr2 == '/' ||
-				       *file_name_ptr2 == '\\')
+				while (*file_name_ptr2 == OS_PATH_SEPARATOR ||
+				       *file_name_ptr2 == OS_PATH_SEPARATOR_ALT)
 				     file_name_ptr2++;
 			}
 
