@@ -3201,17 +3201,8 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
     while ((role= roles_it++) && !errors)
     {
       ACL_USER *acl_role;
-      if (role->user.length == 0 || role->user.str == '\0')
-      {
-        /* Anonymous roles aren't allowed */
-        errors= true;
-        std::string user_str= create_authid_str_from(acl_user);
-        std::string role_str= create_authid_str_from(role);
-        my_error(ER_FAILED_ROLE_GRANT, MYF(0), role_str.c_str(),
-                 user_str.c_str());
-        break;
-      } else if ((acl_role= find_acl_user(role->host.str,
-                                          role->user.str, true)) == NULL)
+      if ((acl_role= find_acl_user(role->host.str,
+                                   role->user.str, true)) == NULL)
       {
         my_error(ER_UNKNOWN_AUTHID, MYF(0),
                  const_cast<char *>(role->user.str),
@@ -7349,20 +7340,6 @@ bool assert_valid_privilege_id(const List<st_lex_user>* priv_list)
   return true;
 }
 
-bool check_authorization_id_string(const char *buffer, size_t length)
-{
-  bool error= false;
-  std::string authid_str(buffer, length);
-  iterate_comma_separated_quoated_string(authid_str,
-            [&error](const std::string item){
-              auto el= get_authid_from_quoted_string(item);
-              if (el.second != "" && el.first == "")
-                error= true;
-              return error;
-    });
-  return error;
-}
-
 void get_mandatory_roles(std::vector< Role_id > *mandatory_roles)
 {
   mysql_mutex_lock(&LOCK_mandatory_roles);
@@ -7388,16 +7365,8 @@ void get_mandatory_roles(std::vector< Role_id > *mandatory_roles)
             if (el.second == "")
               el.second= "%";
             Role_id role_id(el.first, el.second);
-            if (role_id.user() == "")
-            {
-              sql_print_warning("Can't set mandatory_role %s@%s: Anonymous "
-                                "authorization IDs are not allowed as roles.",
-                                role_id.user().c_str(),
-                                role_id.host().c_str());
-            }
-            else if (find_acl_user(role_id.host().c_str(),
-                                   role_id.user().c_str(),
-                                   true) != NULL)
+            if (find_acl_user(role_id.host().c_str(), role_id.user().c_str(),
+                              true) != NULL)
             {
               if (std::find(g_mandatory_roles->begin(),
                             g_mandatory_roles->end(),

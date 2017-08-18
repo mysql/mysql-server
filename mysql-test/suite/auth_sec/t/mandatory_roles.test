@@ -150,24 +150,3 @@ connection default;
 SET GLOBAL mandatory_roles="PUBLIC";
 DROP USER u1@localhost, r1, r2, r3;
 
---echo
---echo # Anonymous roles aren't allowed
-SET GLOBAL mandatory_roles='';
-CREATE USER ''@'localhost';
-GRANT ALL ON sys.* TO ''@'localhost';
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL mandatory_roles='``@`localhost`';
-SHOW GRANTS;
-CREATE USER u1@localhost identified by 'foo';
-GRANT SELECT ON *.* To u1@localhost;
-connect(con2,localhost,u1,foo,test,,,);
-SELECT CURRENT_USER();
---echo # Should not show any anonymous mandatory role
-SHOW GRANTS;
-connection default;
---error ER_FAILED_ROLE_GRANT
-GRANT ''@'localhost' TO u1@localhost;
-SET GLOBAL mandatory_roles='';
-DROP USER u1@localhost, ''@'localhost';
-SET GLOBAL mandatory_roles="PUBLIC";
-
