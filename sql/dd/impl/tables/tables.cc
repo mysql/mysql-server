@@ -104,6 +104,9 @@ Tables::Tables()
   m_target_def.add_field(FIELD_PARTITION_EXPRESSION,
                          "FIELD_PARTITION_EXPRESSION",
                          "partition_expression VARCHAR(2048)");
+  m_target_def.add_field(FIELD_PARTITION_EXPRESSION_UTF8,
+                         "FIELD_PARTITION_EXPRESSION_UTF8",
+                         "partition_expression_utf8 VARCHAR(2048)");
   m_target_def.add_field(FIELD_DEFAULT_PARTITIONING,
                          "FIELD_DEFAULT_PARTITIONING",
                          "default_partitioning ENUM('NO', 'YES', 'NUMBER')");
@@ -118,6 +121,9 @@ Tables::Tables()
   m_target_def.add_field(FIELD_SUBPARTITION_EXPRESSION,
                          "FIELD_SUBPARTITION_EXPRESSION",
                          "subpartition_expression VARCHAR(2048)");
+  m_target_def.add_field(FIELD_SUBPARTITION_EXPRESSION_UTF8,
+                         "FIELD_SUBPARTITION_EXPRESSION_UTF8",
+                         "subpartition_expression_utf8 VARCHAR(2048)");
   m_target_def.add_field(FIELD_DEFAULT_SUBPARTITIONING,
                          "FIELD_DEFAULT_SUBPARTITIONING",
                          "default_subpartitioning ENUM('NO', 'YES', "

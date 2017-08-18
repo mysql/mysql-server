@@ -28,6 +28,7 @@
 #include "dd/impl/system_views/innodb_tablespaces_brief.h"   // Innodb_tablespace_brief
 #include "dd/impl/system_views/key_column_usage.h"   // key_column_usage
 #include "dd/impl/system_views/parameters.h"         // Parameters
+#include "dd/impl/system_views/partitions.h"         // Partitions
 #include "dd/impl/system_views/routines.h"           // Routines
 #include "dd/impl/system_views/schemata.h"           // Schemata
 #include "dd/impl/system_views/st_geometry_columns.h"// st_geometry_columns
@@ -189,6 +190,7 @@ void System_views::init()
   register_view<dd::system_views::Tables_dynamic>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::Views>(is);
+  register_view<dd::system_views::Partitions>(is);
 }
 
 } // namespace dd

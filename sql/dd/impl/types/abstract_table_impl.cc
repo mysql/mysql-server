@@ -203,7 +203,7 @@ bool Abstract_table::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Tables::FIELD_VIEW_DEFINITION == 22,
+static_assert(Tables::FIELD_VIEW_DEFINITION == 24,
               "Tables definition has changed, review (de)ser member function"
               "s (also in derived classes");
 

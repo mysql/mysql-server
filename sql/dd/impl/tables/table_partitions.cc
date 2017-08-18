@@ -62,6 +62,9 @@ Table_partitions::Table_partitions()
   m_target_def.add_field(FIELD_ENGINE,
                          "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
+  m_target_def.add_field(FIELD_DESCRIPTION_UTF8,
+                         "FIELD_DESCRIPTION_UTF8",
+                         "description_utf8 TEXT");
   m_target_def.add_field(FIELD_COMMENT,
                          "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");

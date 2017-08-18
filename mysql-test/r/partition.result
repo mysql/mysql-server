@@ -1379,7 +1379,7 @@ insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x1	0	1
 x2	10	1
 x3	MAXVALUE	1
@@ -1428,7 +1428,7 @@ insert into t1 values (11,1,6);
 insert into t1 values (NULL,1,1);
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
-partition_name	partition_description	table_rows
+PARTITION_NAME	PARTITION_DESCRIPTION	TABLE_ROWS
 x123	11,12	1
 x234	NULL,1	1
 drop table t1;
@@ -2809,7 +2809,7 @@ SUBPARTITION BY HASH (to_days("col2"))
   SUBPARTITION s3 TABLESPACE = "ts1" ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)
@@ -2832,7 +2832,7 @@ SUBPARTITION BY HASH (to_days(`col2`))
   SUBPARTITION s3 TABLESPACE = `ts1` ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)
@@ -2854,7 +2854,7 @@ SUBPARTITION BY HASH (to_days(col2))
   SUBPARTITION s3 TABLESPACE = ts1 ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
-partition_expression
+PARTITION_EXPRESSION
 year(`col2`)
 year(`col2`)
 year(`col2`)

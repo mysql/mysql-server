@@ -786,7 +786,6 @@ FILES	LAST_ACCESS_TIME	datetime
 FILES	LAST_UPDATE_TIME	datetime
 FILES	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
-PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
@@ -1726,11 +1725,6 @@ unlock tables;
 # Switching to connection 'con3726_2'
 # Switching to connection 'default'
 drop tables t1, t3;
-EXPLAIN SELECT * FROM information_schema.PARTITIONS WHERE TABLE_NAME='t1';
-id	select_type	table	PARTITIONS	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	PARTITIONS	NULL	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
-Warnings:
-Note	1003	/* select#1 */ select `information_schema`.`PARTITIONS`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`information_schema`.`PARTITIONS`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`information_schema`.`PARTITIONS`.`TABLE_NAME` AS `TABLE_NAME`,`information_schema`.`PARTITIONS`.`PARTITION_NAME` AS `PARTITION_NAME`,`information_schema`.`PARTITIONS`.`SUBPARTITION_NAME` AS `SUBPARTITION_NAME`,`information_schema`.`PARTITIONS`.`PARTITION_ORDINAL_POSITION` AS `PARTITION_ORDINAL_POSITION`,`information_schema`.`PARTITIONS`.`SUBPARTITION_ORDINAL_POSITION` AS `SUBPARTITION_ORDINAL_POSITION`,`information_schema`.`PARTITIONS`.`PARTITION_METHOD` AS `PARTITION_METHOD`,`information_schema`.`PARTITIONS`.`SUBPARTITION_METHOD` AS `SUBPARTITION_METHOD`,`information_schema`.`PARTITIONS`.`PARTITION_EXPRESSION` AS `PARTITION_EXPRESSION`,`information_schema`.`PARTITIONS`.`SUBPARTITION_EXPRESSION` AS `SUBPARTITION_EXPRESSION`,`information_schema`.`PARTITIONS`.`PARTITION_DESCRIPTION` AS `PARTITION_DESCRIPTION`,`information_schema`.`PARTITIONS`.`TABLE_ROWS` AS `TABLE_ROWS`,`information_schema`.`PARTITIONS`.`AVG_ROW_LENGTH` AS `AVG_ROW_LENGTH`,`information_schema`.`PARTITIONS`.`DATA_LENGTH` AS `DATA_LENGTH`,`information_schema`.`PARTITIONS`.`MAX_DATA_LENGTH` AS `MAX_DATA_LENGTH`,`information_schema`.`PARTITIONS`.`INDEX_LENGTH` AS `INDEX_LENGTH`,`information_schema`.`PARTITIONS`.`DATA_FREE` AS `DATA_FREE`,`information_schema`.`PARTITIONS`.`CREATE_TIME` AS `CREATE_TIME`,`information_schema`.`PARTITIONS`.`UPDATE_TIME` AS `UPDATE_TIME`,`information_schema`.`PARTITIONS`.`CHECK_TIME` AS `CHECK_TIME`,`information_schema`.`PARTITIONS`.`CHECKSUM` AS `CHECKSUM`,`information_schema`.`PARTITIONS`.`PARTITION_COMMENT` AS `PARTITION_COMMENT`,`information_schema`.`PARTITIONS`.`NODEGROUP` AS `NODEGROUP`,`information_schema`.`PARTITIONS`.`TABLESPACE_NAME` AS `TABLESPACE_NAME` from `information_schema`.`PARTITIONS` where (`information_schema`.`PARTITIONS`.`TABLE_NAME` = 't1')
 EXPLAIN SELECT * FROM information_schema.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA='test';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

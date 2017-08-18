@@ -4918,6 +4918,50 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str)
   DBUG_RETURN(str);
 }
 
+
+/*
+  The function return 'default' in case the dd::Properties string passed as
+  the argument 'str' does not contain 'nodegroup_id' key stored OR even
+  when the option string is empty.
+*/
+String *Item_func_get_partition_nodegroup::val_str(String *str)
+{
+  DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
+  null_value= FALSE;
+
+  String options;
+  String *options_ptr= args[0]->val_str(&options);
+  std::ostringstream oss("");
+
+  // If we have a option string.
+  if (options_ptr != nullptr)
+  {
+    // Prepare dd::Properties
+    std::unique_ptr<dd::Properties>
+      view_options(dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Do we have nodegroup id ?
+    if (view_options->exists("nodegroup_id"))
+    {
+      uint32 value;
+
+      // Fetch nodegroup id.
+      view_options->get_uint32("nodegroup_id", &value);
+      oss << value;
+    }
+    else
+      oss << "default";
+  }
+  else
+    oss << "default";
+
+  // Copy the value to output string.
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+
 /**
   @brief
     This function prepares string representing se_private_data for tablespace.

@@ -42,6 +42,8 @@
 #include "sql/histograms/value_map.h"
 #include "sql/key.h"
 #include "sql/mdl.h"
+#include "sql/partition_info.h"               // partition_info
+#include "sql/partitioning/partition_handler.h" // Partition_handler
 #include "sql/sql_base.h"                     // open_tables_for_query
 #include "sql/sql_class.h"                    // THD
 #include "sql/sql_const.h"
@@ -270,7 +272,7 @@ ulonglong Statistics_cache::get_stat(ha_statistics &stat,
     return(stat.auto_increment_value);
 
   case enum_statistics_type::CHECKSUM:
-    return(m_checksum);
+    return(get_checksum());
 
   case enum_statistics_type::TABLE_UPDATE_TIME:
     return(stat.update_time);
@@ -293,6 +295,7 @@ ulonglong Statistics_cache::read_stat(
             const String &schema_name_ptr,
             const String &table_name_ptr,
             const String &index_name_ptr,
+            const char* partition_name,
             uint index_ordinal_position,
             uint column_ordinal_position,
             const String &engine_name_ptr,
@@ -342,6 +345,7 @@ ulonglong Statistics_cache::read_stat(
                                     schema_name_ptr,
                                     table_name_ptr,
                                     index_name_ptr,
+                                    partition_name,
                                     column_ordinal_position,
                                     stype);
 
@@ -587,13 +591,16 @@ ulonglong Statistics_cache::read_stat_by_open_table(
             const String &schema_name_ptr,
             const String &table_name_ptr,
             const String &index_name_ptr,
+            const char* partition_name,
             uint column_ordinal_position,
             enum_statistics_type stype)
 {
   DBUG_ENTER("Statistics_cache::read_stat_by_open_table");
   ulonglong return_value= 0;
-  uint error= 0;
+  ulonglong error= 0;
   ha_statistics ha_stat;
+
+  DEBUG_SYNC(thd, "before_open_in_IS_query");
 
   //
   // Get statistics from cache, if available
@@ -603,7 +610,7 @@ ulonglong Statistics_cache::read_stat_by_open_table(
     DBUG_RETURN(0);
 
   if (stype != enum_statistics_type::INDEX_COLUMN_CARDINALITY &&
-      is_stat_cached(schema_name_ptr, table_name_ptr))
+      is_stat_cached(schema_name_ptr, table_name_ptr, partition_name))
     DBUG_RETURN(get_stat(stype));
 
 
@@ -714,7 +721,10 @@ ulonglong Statistics_cache::read_stat_by_open_table(
 
          2. You will not see junk values for statistics in results.
       */
-      cache_stats(schema_name_ptr, table_name_ptr, ha_stat);
+      cache_stats(schema_name_ptr,
+                  table_name_ptr,
+                  partition_name,
+                  ha_stat);
 
       m_error= thd->get_stmt_da()->message_text();
       thd->clear_error();
@@ -734,10 +744,40 @@ ulonglong Statistics_cache::read_stat_by_open_table(
   }
   else if (!table_list->is_view() && !table_list->schema_table)
   {
-    if (table_list->table->file->info(HA_STATUS_VARIABLE |
-                                      HA_STATUS_TIME |
-                                      HA_STATUS_VARIABLE_EXTRA |
-                                      HA_STATUS_AUTO) != 0)
+    ha_checksum check_sum= 0;
+    bool have_partition_checksum= false;
+
+    // Get statistics for just single partition.
+    Partition_handler *part_handler=
+      table_list->table->file->get_partition_handler();
+    if (partition_name && part_handler)
+    {
+      partition_info *part_info= table_list->table->part_info;
+      DBUG_ASSERT(part_info);
+
+      uint part_id;
+      if(part_info->get_part_elem(partition_name, nullptr, &part_id))
+      {
+        part_handler->get_dynamic_partition_info(&ha_stat, &check_sum, part_id);
+        table_list->table->file->stats= ha_stat;
+        have_partition_checksum= true;
+      }
+      else
+      {
+        my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name,
+                 table_list->table->alias);
+        error= -1;
+      }
+    }
+    else if (table_list->table->file->info(HA_STATUS_VARIABLE |
+                                           HA_STATUS_TIME |
+                                           HA_STATUS_VARIABLE_EXTRA |
+                                           HA_STATUS_AUTO) != 0)
+    {
+      error= -1;
+    }
+
+    if (error)
     {
       if (thd->is_error())
       {
@@ -746,12 +786,12 @@ ulonglong Statistics_cache::read_stat_by_open_table(
                      thd->get_stmt_da()->message_text());
 
         /* Cache empty statistics when we see a error.
-           This will make sure,
+          This will make sure,
 
-           1. You will not invoke open_tables_for_query() gain.
+          1. You will not invoke open_tables_for_query() gain.
 
-           2. You will not see junk values for statistics in results.
-        */
+          2. You will not see junk values for statistics in results.
+         */
         cache_stats(schema_name_ptr, table_name_ptr, ha_stat);
 
         m_error= thd->get_stmt_da()->message_text();
@@ -798,7 +838,14 @@ ulonglong Statistics_cache::read_stat_by_open_table(
     }
     else // Get all statistics and cache them.
     {
-      cache_stats(schema_name_ptr, table_name_ptr, table_list->table->file);
+      cache_stats(schema_name_ptr,
+                  table_name_ptr,
+                  partition_name,
+                  table_list->table->file);
+
+      if (have_partition_checksum)
+        set_checksum(static_cast<ulonglong>(check_sum));
+
       return_value= get_stat(stype);
     }
   }

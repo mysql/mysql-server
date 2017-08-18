@@ -42,7 +42,7 @@ partition by range (TO_SECONDS(a))
 partition p1 VALUES LESS THAN (TO_SECONDS('2007-04-01 00:00:00')));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
-partition_method	partition_expression	partition_description
+PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
 RANGE	to_seconds(`a`)	63340531200
 RANGE	to_seconds(`a`)	63342604800
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');

@@ -106,6 +106,7 @@ SET(DD_SOURCES
   dd/impl/system_views/innodb_tablespaces_brief.cc
   dd/impl/system_views/key_column_usage.cc
   dd/impl/system_views/parameters.cc
+  dd/impl/system_views/partitions.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/statistics.cc

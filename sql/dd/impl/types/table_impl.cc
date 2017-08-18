@@ -342,8 +342,14 @@ bool Table_impl::restore_attributes(const Raw_record &r)
 
   m_engine= r.read_str(Tables::FIELD_ENGINE);
 
-  m_partition_expression= r.read_str(Tables::FIELD_PARTITION_EXPRESSION, "");
-  m_subpartition_expression= r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION, "");
+  m_partition_expression=
+    r.read_str(Tables::FIELD_PARTITION_EXPRESSION, "");
+  m_partition_expression_utf8=
+    r.read_str(Tables::FIELD_PARTITION_EXPRESSION_UTF8, "");
+  m_subpartition_expression=
+    r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION, "");
+  m_subpartition_expression_utf8=
+    r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION_UTF8, "");
 
   return false;
 }
@@ -390,6 +396,9 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_PARTITION_EXPRESSION,
              m_partition_expression,
              m_partition_expression.empty()) ||
+    r->store(Tables::FIELD_PARTITION_EXPRESSION_UTF8,
+             m_partition_expression_utf8,
+             m_partition_expression_utf8.empty()) ||
     r->store(Tables::FIELD_DEFAULT_PARTITIONING,
              m_default_partitioning,
              m_default_partitioning == DP_NONE) ||
@@ -399,6 +408,9 @@ bool Table_impl::store_attributes(Raw_record *r)
     r->store(Tables::FIELD_SUBPARTITION_EXPRESSION,
              m_subpartition_expression,
              m_subpartition_expression.empty()) ||
+    r->store(Tables::FIELD_SUBPARTITION_EXPRESSION_UTF8,
+             m_subpartition_expression_utf8,
+             m_subpartition_expression_utf8.empty()) ||
     r->store(Tables::FIELD_DEFAULT_SUBPARTITIONING,
              m_default_subpartitioning,
              m_default_subpartitioning == DP_NONE);
@@ -418,10 +430,18 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write_enum(w, m_row_format, STRING_WITH_LEN("row_format"));
   write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
   write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
-  write_enum(w, m_default_partitioning, STRING_WITH_LEN("default_partitioning"));
-  write_enum(w, m_subpartition_type, STRING_WITH_LEN("subpartition_type"));
-  write(w, m_subpartition_expression, STRING_WITH_LEN("subpartition_expression"));
-  write_enum(w, m_default_subpartitioning, STRING_WITH_LEN("default_subpartitioning"));
+  write(w, m_partition_expression_utf8,
+        STRING_WITH_LEN("partition_expression_utf8"));
+  write_enum(w, m_default_partitioning,
+             STRING_WITH_LEN("default_partitioning"));
+  write_enum(w, m_subpartition_type,
+             STRING_WITH_LEN("subpartition_type"));
+  write(w, m_subpartition_expression,
+        STRING_WITH_LEN("subpartition_expression"));
+  write(w, m_subpartition_expression_utf8,
+        STRING_WITH_LEN("subpartition_expression_utf8"));
+  write_enum(w, m_default_subpartitioning,
+             STRING_WITH_LEN("default_subpartitioning"));
   serialize_each(wctx, w, m_indexes, STRING_WITH_LEN("indexes"));
   serialize_each(wctx, w, m_foreign_keys, STRING_WITH_LEN("foreign_keys"));
   serialize_each(wctx, w, m_partitions, STRING_WITH_LEN("partitions"));
@@ -444,9 +464,11 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read_enum(&m_row_format, val, "row_format");
   read_enum(&m_partition_type, val, "partition_type");
   read(&m_partition_expression, val, "partition_expression");
+  read(&m_partition_expression_utf8, val, "partition_expression_utf8");
   read_enum(&m_default_partitioning, val, "default_partitioning");
   read_enum(&m_subpartition_type, val, "subpartition_type");
   read(&m_subpartition_expression, val, "subpartition_expression");
+  read(&m_subpartition_expression_utf8, val, "subpartition_expression_utf8");
   read_enum(&m_default_subpartitioning, val, "default_subpartitioning");
 
   // Note! Deserialization of ordinal position cross-referenced
@@ -492,9 +514,11 @@ void Table_impl::debug_print(String_type &outb) const
     << "m_partition_type " << m_partition_type << "; "
     << "m_default_partitioning " << m_default_partitioning << "; "
     << "m_partition_expression " << m_partition_expression << "; "
+    << "m_partition_expression_utf8 " << m_partition_expression_utf8 << "; "
     << "m_subpartition_type " << m_subpartition_type << "; "
     << "m_default_subpartitioning " << m_default_subpartitioning << "; "
     << "m_subpartition_expression " << m_subpartition_expression << "; "
+    << "m_subpartition_expression_utf8 " << m_subpartition_expression_utf8 << "; "
     << "m_partitions: " << m_partitions.size() << " [ ";
 
   {
@@ -872,9 +896,11 @@ Table_impl::Table_impl(const Table_impl &src)
     m_row_format(src.m_row_format),
     m_partition_type(src.m_partition_type),
     m_partition_expression(src.m_partition_expression),
+    m_partition_expression_utf8(src.m_partition_expression_utf8),
     m_default_partitioning(src.m_default_partitioning),
     m_subpartition_type(src.m_subpartition_type),
     m_subpartition_expression(src.m_subpartition_expression),
+    m_subpartition_expression_utf8(src.m_subpartition_expression_utf8),
     m_default_subpartitioning(src.m_default_subpartitioning),
     m_indexes(),
     m_foreign_keys(),

@@ -116,58 +116,77 @@ public:
   {}
 
   /**
-    @brief
     Check if the stats are cached for given db.table_name.
 
     @param db_name          - Schema name.
     @param table_name       - Table name.
+    @param partition_name   - Partition name.
 
     @return true if stats are cached, else false.
   */
+  bool is_stat_cached(const String &db_name,
+                      const String &table_name,
+                      const char *partition_name)
+  {
+    return (m_key == form_key(db_name, table_name, partition_name));
+  }
+
   bool is_stat_cached(const String &db_name, const String &table_name)
-  { return (m_key == form_key(db_name, table_name)); }
+  { return is_stat_cached(db_name, table_name, nullptr); }
 
 
   /**
-    @brief
     Store the statistics form the given handler
 
     @param db_name          - Schema name.
     @param table_name       - Table name.
+    @param partition_name   - Partition name.
     @param file             - Handler object for the table.
 
     @return void
   */
   void cache_stats(const String &db_name,
                    const String &table_name,
+                   const char *partition_name,
                    handler *file)
   {
     m_stats= file->stats;
     m_checksum= file->checksum();
     m_error.clear();
-    set_stat_cached(db_name, table_name);
+    set_stat_cached(db_name, table_name, partition_name);
   }
+
+  void cache_stats(const String &db_name,
+                   const String &table_name,
+                   handler *file)
+  { cache_stats(db_name, table_name, nullptr, file); }
 
 
   /**
-    @brief
     Store the statistics
 
     @param db_name          - Schema name.
     @param table_name       - Table name.
+    @param partition_name   - Partition name.
     @param stats            - ha_statistics of the table.
 
     @return void
   */
   void cache_stats(const String &db_name,
                    const String &table_name,
+                   const char *partition_name,
                    ha_statistics &stats)
   {
     m_stats= stats;
     m_checksum= 0;
     m_error.clear();
-    set_stat_cached(db_name, table_name);
+    set_stat_cached(db_name, table_name, partition_name);
   }
+
+  void cache_stats(const String &db_name,
+                   const String &table_name,
+                   ha_statistics &stats)
+  { cache_stats(db_name, table_name, nullptr, stats); }
 
 
   /**
@@ -185,6 +204,7 @@ public:
     @param se_private_id           - se_private_id of the table.
     @param ts_se_private_data      - Tablespace SE private data.
     @param tbl_se_private_data     - Table SE private data.
+    @param partition_name          - Partition name.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
 
@@ -194,6 +214,7 @@ public:
                       const String &schema_name_ptr,
                       const String &table_name_ptr,
                       const String &index_name_ptr,
+                      const char* partition_name,
                       uint index_ordinal_position,
                       uint column_ordinal_position,
                       const String &engine_name_ptr,
@@ -208,6 +229,7 @@ public:
                       const String &schema_name_ptr,
                       const String &table_name_ptr,
                       const String &engine_name_ptr,
+                      const char* partition_name,
                       dd::Object_id se_private_id,
                       const char* ts_se_private_data,
                       const char* tbl_se_private_data,
@@ -217,7 +239,9 @@ public:
     return read_stat(thd,
                      schema_name_ptr,
                      table_name_ptr,
-                     tmp, 0, 0,
+                     tmp,
+                     partition_name,
+                     0, 0,
                      engine_name_ptr,
                      se_private_id,
                      ts_se_private_data,
@@ -280,6 +304,7 @@ private:
     @param table_name_ptr          - Table name of which we need stats.
     @param index_name_ptr          - Index name of which we need stats.
     @param column_ordinal_position - Ordinal position of column in table.
+    @param partition_name          - Partition name.
     @param stype                   - Enum specifying the stat we are
                                      interested to read.
 
@@ -289,6 +314,7 @@ private:
                                     const String &schema_name_ptr,
                                     const String &table_name_ptr,
                                     const String &index_name_ptr,
+                                    const char* partition_name,
                                     uint column_ordinal_position,
                                     enum_statistics_type stype);
 
@@ -297,28 +323,37 @@ private:
     Mark the cache as valid for a given table. This creates a key for the
     cache element. We store just a single table statistics in this cache.
 
-    @param db_name     Database name.
-    @param table_name  Table name.
+    @param db_name             - Database name.
+    @param table_name          - Table name.
+    @param partition_name      - Partition name.
 
     @returns void.
   */
+  void set_stat_cached(const String &db_name,
+                       const String &table_name,
+                       const char *partition_name)
+  { m_key= form_key(db_name, table_name, partition_name); }
+
   void set_stat_cached(const String &db_name, const String &table_name)
-  { m_key= form_key(db_name, table_name); }
+  { set_stat_cached(db_name, table_name, nullptr); }
 
 
   /**
-    Build a key representating the table for which stats are cached.
+    Build a key representing the table for which stats are cached.
 
-    @param db_name     Database name.
-    @param table_name  Table name.
+    @param db_name             - Database name.
+    @param table_name          - Table name.
+    @param partition_name      - Partition name.
 
     @returns String_type representing the key.
   */
   String_type form_key(const String &db_name,
-                       const String &table_name)
+                       const String &table_name,
+                       const char *partition_name)
   {
     return String_type(db_name.ptr()) + "." +
-           String_type(table_name.ptr());
+           String_type(table_name.ptr()) +
+           (partition_name ? ("."+String_type(partition_name)) : "");
   }
 
 
@@ -353,6 +388,13 @@ private:
     return false;
   }
 
+  /// Set checksum
+  void set_checksum(ulonglong &&checksum)
+  { m_checksum= checksum; }
+
+  /// Get checksum
+  ulonglong get_checksum() const
+  { return m_checksum; }
 
 private:
 
@@ -362,14 +404,13 @@ private:
   // Error found when reading statistics.
   String_type m_error;
 
+  // Table checksum value retrieved from SE.
+  ulonglong m_checksum;
 
 public:
 
   // Cached statistics.
   ha_statistics m_stats;
-
-  // Table checksum value retrieved from SE.
-  ulonglong m_checksum;
 };
 
 

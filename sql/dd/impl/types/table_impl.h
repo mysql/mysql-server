@@ -213,6 +213,17 @@ public:
   { m_partition_expression= partition_expression; }
 
   /////////////////////////////////////////////////////////////////////////
+  // partition_expression_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &partition_expression_utf8() const
+  { return m_partition_expression_utf8; }
+
+  virtual void set_partition_expression_utf8(
+    const String_type &partition_expression_utf8)
+  { m_partition_expression_utf8= partition_expression_utf8; }
+
+  /////////////////////////////////////////////////////////////////////////
   // subpartition_type
   /////////////////////////////////////////////////////////////////////////
 
@@ -244,6 +255,17 @@ public:
   virtual void set_subpartition_expression(
     const String_type &subpartition_expression)
   { m_subpartition_expression= subpartition_expression; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // subpartition_expression_utf8
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &subpartition_expression_utf8() const
+  { return m_subpartition_expression_utf8; }
+
+  virtual void set_subpartition_expression_utf8(
+    const String_type &subpartition_expression_utf8)
+  { m_subpartition_expression_utf8= subpartition_expression_utf8; }
 
   /////////////////////////////////////////////////////////////////////////
   // Index collection.
@@ -418,10 +440,12 @@ private:
 
   enum_partition_type           m_partition_type;
   String_type                   m_partition_expression;
+  String_type                   m_partition_expression_utf8;
   enum_default_partitioning     m_default_partitioning;
 
   enum_subpartition_type        m_subpartition_type;
   String_type                   m_subpartition_expression;
+  String_type                   m_subpartition_expression_utf8;
   enum_default_partitioning     m_default_subpartitioning;
 
   // References to tightly-coupled objects.

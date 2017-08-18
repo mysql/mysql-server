@@ -4220,7 +4220,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	ulint*	offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
 					  ULINT_UNDEFINED, &heap);
 
-	field = rec_get_nth_field(rec, offsets, 7, &len);
+	field = rec_get_nth_field(rec, offsets, 8, &len);
 
 	/* If "engine" field is not "innodb", return. */
 	if (strncmp((const char*)field, "InnoDB", 6) != 0) {
@@ -4230,7 +4230,7 @@ dd_process_dd_partitions_rec_and_mtr_commit(
 	}
 
 	/* Get the se_private_id field. */
-	field = (const byte*)rec_get_nth_field(rec, offsets, 11, &len);
+	field = (const byte*)rec_get_nth_field(rec, offsets, 12, &len);
 	/* When table is partitioned table, the se_private_id is null. */
 	if (len != 8) {
 		*table = NULL;

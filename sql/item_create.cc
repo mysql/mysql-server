@@ -1427,6 +1427,16 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 #define SQL_FN_LIST_INTERNAL(F, N) \
   &Internal_function_factory<List_instantiator<F, N>>::s_singleton
 
+/**
+  Like SQL_FN_LIST, but enforces a check that the argument count
+  is within the range specified.
+
+  @param F The Item_func that the factory should make.
+  @param MIN Number of arguments that the function accepts.
+  @param MAX Number of arguments that the function accepts.
+*/
+#define SQL_FN_LIST_INTERNAL_V(F, MIN, MAX) \
+  &Internal_function_factory<List_instantiator<F, MIN, MAX>>::s_singleton
 
 /**
   MySQL native functions.
@@ -1726,20 +1736,21 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_ROUTINE", SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
   { "IS_VISIBLE_DD_OBJECT", SQL_FN_INTERNAL_V(Item_func_is_visible_dd_object, 1, 2) },
-  { "INTERNAL_TABLE_ROWS", SQL_FN_LIST_INTERNAL(Item_func_internal_table_rows, 6) },
-  { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_internal_avg_row_length, 6) },
-  { "INTERNAL_DATA_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_internal_data_length, 6) },
-  { "INTERNAL_MAX_DATA_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_internal_max_data_length, 6) },
-  { "INTERNAL_INDEX_LENGTH", SQL_FN_LIST_INTERNAL(Item_func_internal_index_length, 6) },
-  { "INTERNAL_DATA_FREE", SQL_FN_LIST_INTERNAL(Item_func_internal_data_free, 6) },
-  { "INTERNAL_AUTO_INCREMENT", SQL_FN_LIST_INTERNAL(Item_func_internal_auto_increment, 7) },
-  { "INTERNAL_CHECKSUM", SQL_FN_LIST_INTERNAL(Item_func_internal_checksum, 6) },
-  { "INTERNAL_UPDATE_TIME", SQL_FN_LIST_INTERNAL(Item_func_internal_update_time, 6) },
-  { "INTERNAL_CHECK_TIME", SQL_FN_LIST_INTERNAL(Item_func_internal_check_time, 6) },
+  { "INTERNAL_TABLE_ROWS", SQL_FN_LIST_INTERNAL_V(Item_func_internal_table_rows, 6, 7) },
+  { "INTERNAL_AVG_ROW_LENGTH", SQL_FN_LIST_INTERNAL_V(Item_func_internal_avg_row_length, 6, 7) },
+  { "INTERNAL_DATA_LENGTH", SQL_FN_LIST_INTERNAL_V(Item_func_internal_data_length, 6, 7) },
+  { "INTERNAL_MAX_DATA_LENGTH", SQL_FN_LIST_INTERNAL_V(Item_func_internal_max_data_length, 6, 7) },
+  { "INTERNAL_INDEX_LENGTH", SQL_FN_LIST_INTERNAL_V(Item_func_internal_index_length, 6, 7) },
+  { "INTERNAL_DATA_FREE", SQL_FN_LIST_INTERNAL_V(Item_func_internal_data_free, 6, 7) },
+  { "INTERNAL_AUTO_INCREMENT", SQL_FN_LIST_INTERNAL_V(Item_func_internal_auto_increment, 7, 8) },
+  { "INTERNAL_CHECKSUM", SQL_FN_LIST_INTERNAL_V(Item_func_internal_checksum, 6, 7) },
+  { "INTERNAL_UPDATE_TIME", SQL_FN_LIST_INTERNAL_V(Item_func_internal_update_time, 6, 7) },
+  { "INTERNAL_CHECK_TIME", SQL_FN_LIST_INTERNAL_V(Item_func_internal_check_time, 6, 7) },
   { "INTERNAL_KEYS_DISABLED", SQL_FN_INTERNAL(Item_func_internal_keys_disabled, 1) },
   { "INTERNAL_INDEX_COLUMN_CARDINALITY", SQL_FN_LIST_INTERNAL(Item_func_internal_index_column_cardinality, 8) },
   { "INTERNAL_GET_COMMENT_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_comment_or_error, 5) },
-  { "INTERNAL_GET_VIEW_WARNING_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) }
+  { "INTERNAL_GET_VIEW_WARNING_OR_ERROR", SQL_FN_LIST_INTERNAL(Item_func_internal_get_view_warning_or_error, 4) },
+  { "INTERNAL_GET_PARTITION_NODEGROUP", SQL_FN_INTERNAL(Item_func_get_partition_nodegroup, 1) }
 };
 
 using Native_functions_hash= std::unordered_map<std::string, Create_func*>;

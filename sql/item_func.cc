@@ -9551,6 +9551,7 @@ longlong Item_func_is_visible_dd_object::val_int()
                          - Hidden_table
                          - Tablespace_se_private_data
                          - Table_se_private_data (Used if stype is AUTO_INC)
+                         - Partition name (optional argument).
 
   @param      stype      Type of statistics that is requested
 
@@ -9561,6 +9562,7 @@ longlong Item_func_is_visible_dd_object::val_int()
 
 static ulonglong get_statistics_from_cache(
                    Item** args,
+                   uint arg_count,
                    dd::info_schema::enum_statistics_type stype,
                    bool *null_value)
 {
@@ -9573,14 +9575,29 @@ static ulonglong get_statistics_from_cache(
   String engine_name;
   String ts_se_private_data;
   String tbl_se_private_data;
+  String partition_name;
+  String *partition_name_ptr= nullptr;
   String *schema_name_ptr=args[0]->val_str(&schema_name);
   String *table_name_ptr=args[1]->val_str(&table_name);
   String *engine_name_ptr=args[2]->val_str(&engine_name);
   bool skip_hidden_table= args[4]->val_int();
   String *ts_se_private_data_ptr= args[5]->val_str(&ts_se_private_data);
   String *tbl_se_private_data_ptr= nullptr;
+
+  /*
+    The same native function used by I_S.TABLES is used by I_S.PARTITIONS.
+    We invoke native function with partition name only with I_S.PARTITIONS
+    as a last argument. So, we check for argument count below, before
+    reading partition name.
+  */
   if (stype == dd::info_schema::enum_statistics_type::AUTO_INCREMENT)
+  {
     tbl_se_private_data_ptr= args[6]->val_str(&tbl_se_private_data);
+    if (arg_count == 8)
+      partition_name_ptr= args[7]->val_str(&partition_name);
+  }
+  else if (arg_count == 7)
+    partition_name_ptr= args[6]->val_str(&partition_name);
 
   if (schema_name_ptr == nullptr || table_name_ptr == nullptr ||
       engine_name_ptr == nullptr || skip_hidden_table)
@@ -9606,6 +9623,8 @@ static ulonglong get_statistics_from_cache(
                 *schema_name_ptr,
                 *table_name_ptr,
                 *engine_name_ptr,
+                (partition_name_ptr ?
+                 partition_name_ptr->c_ptr_safe() : nullptr),
                 se_private_id,
                 (ts_se_private_data_ptr ?
                  ts_se_private_data_ptr->c_ptr_safe() : nullptr),
@@ -9622,6 +9641,7 @@ longlong Item_func_internal_table_rows::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::TABLE_ROWS,
                       &null_value);
 
@@ -9638,6 +9658,7 @@ longlong Item_func_internal_avg_row_length::val_int()
   ulonglong result=
     get_statistics_from_cache(
       args,
+      arg_count,
       dd::info_schema::enum_statistics_type::TABLE_AVG_ROW_LENGTH,
       &null_value);
   DBUG_RETURN(result);
@@ -9649,6 +9670,7 @@ longlong Item_func_internal_data_length::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
@@ -9660,6 +9682,7 @@ longlong Item_func_internal_max_data_length::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::MAX_DATA_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
@@ -9671,6 +9694,7 @@ longlong Item_func_internal_index_length::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::INDEX_LENGTH,
                       &null_value);
   DBUG_RETURN(result);
@@ -9682,6 +9706,7 @@ longlong Item_func_internal_data_free::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::DATA_FREE,
                       &null_value);
 
@@ -9697,6 +9722,7 @@ longlong Item_func_internal_auto_increment::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::AUTO_INCREMENT,
                       &null_value);
 
@@ -9712,6 +9738,7 @@ longlong Item_func_internal_checksum::val_int()
 
   ulonglong result= get_statistics_from_cache(
                       args,
+                      arg_count,
                       dd::info_schema::enum_statistics_type::CHECKSUM,
                       &null_value);
 
@@ -9815,6 +9842,7 @@ longlong Item_func_internal_index_column_cardinality::val_int()
             *schema_name_ptr,
             *table_name_ptr,
             *index_name_ptr,
+            nullptr,
             index_ordinal_position - 1,
             column_ordinal_position - 1,
             *engine_name_ptr,

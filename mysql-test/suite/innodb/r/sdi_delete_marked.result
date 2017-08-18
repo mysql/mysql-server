@@ -324,9 +324,11 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
+        "partition_expression_utf8": "",
         "default_partitioning": 0,
         "subpartition_type": 0,
         "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
         "default_subpartitioning": 0,
         "indexes": [
             {
